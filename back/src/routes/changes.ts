@@ -1,6 +1,14 @@
 import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, changeRequests, changeHistory, users, cities } from "../db/schema";
+import {
+  projects,
+  overlays,
+  changeRequests,
+  changeHistory,
+  type EntityType,
+  users,
+  cities,
+} from "../db/schema";
 import { eq, and, inArray, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
@@ -21,7 +29,7 @@ const rejectChangeRequestSchema = z.object({
 });
 
 // AI : Helper to check if entity type is supported
-function isSupportedEntityType(type: string): type is "project" | "overlay" {
+function isSupportedEntityType(type: string): type is EntityType {
   return type === "project" || type === "overlay";
 }
 
@@ -87,7 +95,7 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
 // AI : Helper to get country code for an entity (project or overlay)
 async function getEntityCountryCode(
-  entityType: "project" | "overlay",
+  entityType: EntityType,
   entityId: string,
 ): Promise<string | undefined> {
   // AI : Build query based on entity type - projects join city directly, overlays via projects
@@ -360,10 +368,7 @@ export const changesRouter = router({
         const changeRequestCountries = await Promise.all(
           pendingChanges.map(async (change) => {
             try {
-              const countryCode = await getEntityCountryCode(
-                change.entityType as "project" | "overlay",
-                change.entityId,
-              );
+              const countryCode = await getEntityCountryCode(change.entityType, change.entityId);
               return { changeId: change.id, countryCode };
             } catch {
               return { changeId: change.id, countryCode: undefined };

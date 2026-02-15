@@ -793,3 +793,19 @@ This document outlines the granular functional test scenarios required to ensure
   6.  **Check**: Filters remain applied consistently.
   7.  Reset filters (check all statuses).
   8.  **Check**: All overlays/markers become visible again.
+
+## 29. Google Auth Error Handling (Recent Fix - Feb 14)
+
+### 29.1. Email Conflict Handling
+
+- **Scenario**: Google OAuth fails gracefully when the new email address is already taken by another user.
+- **Prerequisite**:
+  1. User A exists with `email="existing@example.com"`.
+  2. User B exists with `googleId="123"` and `email="old@example.com"`.
+  3. Google returns `googleId="123"` but `email="existing@example.com"` (User B changed email to one that conflicts with User A).
+- **Steps**:
+  1. Trigger Google Login flow for User B with the conflicting email.
+  2. **Check**: Backend returns 409 Conflict (or appropriate error code).
+  3. **Check**: Error message code is `auth.error.emailTaken` (or `account_conflict`).
+  4. **Check**: Response **DOES NOT** contain raw SQL error text (e.g., `duplicate key value violates unique constraint`).
+  5. **Check**: User is shown a clear error message in the UI.

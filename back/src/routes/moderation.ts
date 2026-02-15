@@ -7,6 +7,7 @@ import {
   cities,
   users,
   userReports,
+  type EntityType,
 } from "../db/schema";
 import { and, eq, or, sql, inArray, ne, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
@@ -1468,7 +1469,7 @@ async function enrichWithReportCounts(
   filteredOverlays: Awaited<ReturnType<ReturnType<typeof buildOverlayModerationQuery>["execute"]>>,
   filteredChangeRequests: {
     id: string;
-    entityType: string;
+    entityType: EntityType;
     entityId: string;
     fieldName: string;
     oldValue: unknown;

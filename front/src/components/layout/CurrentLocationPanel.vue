@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, ref, onActivated, onDeactivated, nextTick } from "vue";
+import { computed, ref, onActivated, onDeactivated, nextTick } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -107,7 +107,6 @@ import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHan
 import { isValidCountryCode } from "@/services/map/countryData";
 import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { map } from "@/services/core/map";
-import { expandAccordionForOverlay } from "@/services/layout/accordionState";
 import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
@@ -323,35 +322,6 @@ const projectsWithOverlays = computed(() => {
   // AI : Convert to array and sort by name
   return [...projectsMap.values()].toSorted((a, b) => a.name.localeCompare(b.name));
 });
-
-// AI : When component mounts, check if an overlay is already selected
-// AI : This handles the case where the tab switches to currentCity after overlay is selected
-onMounted(async () => {
-  const selectedOverlayId = overlayStore.idSelectedOverlay;
-  const projects = projectsWithOverlays.value;
-  if (selectedOverlayId && projects.length > 0) {
-    expandAccordionForOverlay(selectedOverlayId, projects);
-  }
-});
-
-// AI : Watch for overlay selection to manually trigger accordion expansion
-// AI : This ensures the accordion expands even if the default watcher in ProjectAccordionPanel
-// AI : fires before the projects are fully populated
-// AI : We track projects by length rather than deep watching to avoid fragile reactive dependencies
-watch(
-  () => ({
-    overlayId: overlayStore.idSelectedOverlay,
-    projectCount: projectsWithOverlays.value.length,
-    // AI : Include project IDs to detect when projects actually change (not just re-render)
-    projectIds: projectsWithOverlays.value.map((p) => p.id).join(","),
-  }),
-  async ({ overlayId, projectCount }) => {
-    if (overlayId && projectCount > 0) {
-      // AI : Wait for DOM updates before expanding accordion
-      expandAccordionForOverlay(overlayId, projectsWithOverlays.value);
-    }
-  },
-);
 
 // AI : Save scroll position when deactivating (tab switch)
 onDeactivated(() => {

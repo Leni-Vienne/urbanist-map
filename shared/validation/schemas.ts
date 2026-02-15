@@ -1,6 +1,7 @@
 // AI : Shared Zod validation schemas for frontend and backend
 import * as z from "zod";
 import { validateOverlaySize } from "../overlayValidation";
+import { type EntityType } from "../../back/src/db/schema";
 
 // AI : Project validation schema
 export const projectSchema = z
@@ -121,7 +122,7 @@ export const registerSchema = z.object({
 });
 
 export const resetPasswordRequestSchema = z.object({
-  email: z.string().email("validation.invalidEmail"),
+  email: z.email("validation.invalidEmail"),
 });
 
 export const resetPasswordSchema = z.object({
@@ -131,7 +132,8 @@ export const resetPasswordSchema = z.object({
 
 // AI : Change request validation schema
 export const submitChangeRequestSchema = z.object({
-  entityType: z.enum(["project", "overlay"]),
+  //entityType: z.enum(["project", "overlay"]),
+  entityType: z.custom<EntityType>(),
   entityId: z.uuid(),
   changes: z
     .array(
