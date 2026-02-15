@@ -206,12 +206,14 @@ export async function navigateToOverlayWithCity(
     // AI : CRITICAL FIX: Use loadAndRenderCityData to properly load city data
     // AI : This must happen BEFORE the flight animation to ensure the data is loaded
     // AI : even if the user interrupts the animation
-    const overlaysData = await loadAndRenderCityData(cityId, true);
+    const result = await loadAndRenderCityData(cityId, true);
 
-    if (!overlaysData) {
+    if (!result || !result.overlays) {
       // AI : No overlays to navigate to in this city
       // AI : Still fly to the coordinates though since project marker might exist
     }
+
+    const overlaysData = result?.overlays;
 
     // AI : Find the overlay in the fetched data
     let matchingOverlay: OverlayData | undefined = undefined;

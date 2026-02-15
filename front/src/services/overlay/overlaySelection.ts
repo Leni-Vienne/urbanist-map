@@ -13,6 +13,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { OVERLAY_OUTLINE_COLOR } from "@/services/map/markers";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
+import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
 
 // AI : Guard to prevent recursive selectOverlay calls when library fires select event
@@ -175,6 +176,9 @@ export function selectOverlay(overlayId: string | null): void {
     }
 
     setupNewSelection(newlySelected, overlayId);
+
+    // AI : Request scroll to overlay in accordion panel when selecting from map
+    requestScrollTo("overlay", overlayId);
   } finally {
     isSelectingOverlay = false;
   }

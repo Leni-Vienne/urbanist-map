@@ -37,6 +37,8 @@ export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[nu
 export const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
 export type DatePrecision = (typeof DATE_PRECISION_VALUES)[number];
 
+export type EntityType = "project" | "overlay";
+
 // AI : Users table for custom authentication
 export const users = pgTable(
   "users",
@@ -269,7 +271,7 @@ export const changeRequests = pgTable(
   "change_requests",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    entityType: text("entity_type").notNull(),
+    entityType: text("entity_type").$type<EntityType>().notNull(),
     entityId: uuid("entity_id").notNull(),
     fieldName: text("field_name").notNull(),
     oldValue: jsonb("old_value"),
@@ -302,7 +304,7 @@ export const changeHistory = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }),
-    entityType: text("entity_type").notNull(),
+    entityType: text("entity_type").$type<EntityType>().notNull(),
     entityId: uuid("entity_id").notNull(),
     fieldName: text("field_name").notNull(),
     oldValue: jsonb("old_value"),

@@ -10,12 +10,10 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from "vue";
 import { map } from "@/services/core/map";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useI18n } from "vue-i18n";
-import { citiesWithProjects } from "@/services/map/cityMarkers";
-
+import { citiesWithProjects, activateCity } from "@/services/map/cityMarkers";
 const { t } = useI18n();
 const visible = ref(false);
 const mapStore = useMapStore();
@@ -70,7 +68,7 @@ watch(
   { immediate: true },
 );
 
-// AI : Handle button click - find nearest city marker and fly to it
+// AI : Handle button click - find nearest city marker and activates it
 function handleClick() {
   if (!map.value) return;
 
@@ -96,30 +94,8 @@ function handleClick() {
   }
 
   if (nearestCity) {
-    // AI : Store reference to avoid closure issues
-    const targetCity = nearestCity;
-
-    mobileAwareFlyTo([targetCity.lat, targetCity.lng], 14, {
-      duration: 1.5,
-    });
-
-    // AI : Try to find the DOM element just for the click interaction simulation
-    // AI : We do this lazily only on click, not constantly
-    setTimeout(() => {
-      const markerSelector = `[data-city-id="${targetCity.id}"]`;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      const markerElement = document.querySelector(markerSelector) as HTMLElement;
-
-      if (markerElement) {
-        markerElement.click();
-      } else {
-        // AI : Fallback if marker not found in DOM (should ideally not happen if synced)
-        // AI : We can try to simulate what the click does directly if needed,
-        // AI : but for now let's hope the marker is rendered.
-        console.warn("Marker element not found for click simulation");
-      }
-      visible.value = false;
-    }, 1600);
+    activateCity(nearestCity);
+    visible.value = false;
   }
 }
 
