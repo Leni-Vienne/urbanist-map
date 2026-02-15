@@ -137,7 +137,7 @@ let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
 /**
  * AI : Switch to a different tile layer (for custom layer control)
  */
-export function switchTileLayer(layerType: TileLayerType) {
+export async function switchTileLayer(layerType: TileLayerType) {
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }
@@ -180,7 +180,7 @@ export function switchTileLayer(layerType: TileLayerType) {
 
     // AI : Check max zoom immediately if switching to Esri
     if (layerType === "esri") {
-      checkEsriMaxZoom();
+      await checkEsriMaxZoom();
     }
   } catch (error) {
     console.error("Failed to switch tile layer:", error);
@@ -229,7 +229,7 @@ export function isTileLayerType(value: string): value is TileLayerType {
  * AI : Check if satellite layer needs to be switched based on new context (country)
  * AI : If in satellite mode, ensures we use the best layer for the country (or fallback to Esri)
  */
-export function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
+export async function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
   // AI : Do nothing if in Plan mode (OSM)
   if (currentTileLayer.value === "osm") return;
 
@@ -243,7 +243,7 @@ export function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
 
   // AI : Switch if needed
   if (currentTileLayer.value !== targetLayer) {
-    switchTileLayer(targetLayer);
+    await switchTileLayer(targetLayer);
   }
 }
 
@@ -377,4 +377,9 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
 function initEsriMetadataListener() {
   if (!map.value) return;
   map.value.on("moveend", checkEsriMaxZoom);
+}
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }

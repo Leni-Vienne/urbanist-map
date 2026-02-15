@@ -49,7 +49,7 @@ export function formatProjectDateRange(
     const proposalDateStr = formatFlexibleDate(
       dbToFlexibleDate(proposalDate, proposalDatePrecision),
     );
-    return `${t("project.proposed")} ${proposalDateStr}`;
+    return `${t("project.proposedOn")} ${proposalDateStr}`;
   }
 
   const start = startDate

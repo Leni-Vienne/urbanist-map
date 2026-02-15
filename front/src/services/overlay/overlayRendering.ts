@@ -198,7 +198,7 @@ function processInitQueue() {
 
     // AI : Remove from queue
     initQueue.delete(id);
-    processedCount++;
+    processedCount += 1;
   }
 
   // AI : Continue in next frame
@@ -413,14 +413,8 @@ function setupOverlayMovementTracking(
     let updateFrame: number | null = null;
     let hasActuallyMoved = false;
 
-    // AI : Refs for cleanup
-    let onMouseUp: (e: MouseEvent) => void;
-    let onMouseMove: (e: MouseEvent) => void;
-    let onTouchEnd: (e: TouchEvent) => void;
-    let onTouchMove: (e: TouchEvent) => void;
-
     // AI : Stop tracking handler - behaves like 'mouseup'/'touchend'
-    const stopTracking = () => {
+    function stopTracking() {
       const overlayStore = useOverlayStore();
 
       if (!isManipulating) return;
@@ -446,35 +440,40 @@ function setupOverlayMovementTracking(
           overlayObject.id,
         );
       }
-    };
+    }
 
     // AI : Update loop for smooth animation
-    const performUpdate = () => {
+    function performUpdate() {
       if (isManipulating) {
         updateMarkerPosition(overlayObject);
         hasActuallyMoved = true;
         updateFrame = requestAnimationFrame(performUpdate);
       }
-    };
+    }
 
-    // AI : Define handlers that reference each other (hoisted-like behavior via let)
-    onMouseUp = stopTracking;
-    onTouchEnd = stopTracking;
+    // AI : Event handlers using hoisted functions for proper scoping
+    function onMouseUp() {
+      stopTracking();
+    }
 
-    onMouseMove = () => {
+    function onMouseMove() {
       if (isManipulating && !hasActuallyMoved) {
         performUpdate();
       }
-    };
+    }
 
-    onTouchMove = () => {
+    function onTouchEnd() {
+      stopTracking();
+    }
+
+    function onTouchMove() {
       if (isManipulating && !hasActuallyMoved) {
         performUpdate();
       }
-    };
+    }
 
     // AI : Start tracking handler - behaves like 'mousedown'/'touchstart'
-    const startTracking = () => {
+    function startTracking() {
       if (isManipulating) return;
       isManipulating = true;
       hasActuallyMoved = false;
@@ -487,7 +486,7 @@ function setupOverlayMovementTracking(
 
       // AI : We don't start the loop here immediately; we wait for the first move event
       // AI : This avoids running the loop just for a click
-    };
+    }
 
     // AI : Track mouse and touch events on the element itself to start the process
     element.addEventListener("mousedown", startTracking);
@@ -507,7 +506,7 @@ export function renderViewModeOverlays(
 
   if (!map.value) return;
 
-  let overlaysToRender: OverlayData[];
+  let overlaysToRender: OverlayData[] = [];
 
   if (forceRerender) {
     // AI : Force re-render all overlays (for city switching)
@@ -571,7 +570,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 
   // AI : CRITICAL FIX: Use callback to add to store ONLY after overlay is added to map
   // AI : This prevents ghost overlays when clearAllOverlays() is called during async zoom animations
-  const onAddedToMap = () => {
+  function onAddedToMap() {
     overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
 
     // AI : Store overlay with proper reactivity - but ONLY after it's on the map
@@ -594,7 +593,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     if (cdnOverlay.projectId) {
       removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
     }
-  };
+  }
 
   const newOverlay = createLeafletOverlay(
     overlayObjectWithMethods.imageUrl,
@@ -613,4 +612,9 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
 
   // AI : Marker tooltip already updated in createSingleMarker - no need to duplicate
+}
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }

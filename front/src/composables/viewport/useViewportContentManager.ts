@@ -442,7 +442,8 @@ export function useViewportContentManager() {
     // AI : Remove low-zoom markers
     removeOverlayMarkers();
 
-    // AI : Update store
+    // AI : Store UNFILTERED data - filtering happens in pruneOverlays at render time
+    // AI : This ensures overlays can be recreated when filters are toggled back on
     overlayStore.setViewModeOverlays(overlaysData);
 
     // AI : CRITICAL: Update mapStore for panels
@@ -490,7 +491,7 @@ export function useViewportContentManager() {
     clearAllOverlays(isEditMode);
 
     // AI : Collect all overlays to render as markers
-    let allOverlaysForMarkers = [...overlaysData];
+    const allOverlaysForMarkers = [...overlaysData];
 
     // AI : In edit mode, also include preserved overlays from the store that aren't in overlaysData
     // AI : This includes local-only overlays AND backend overlays from other cities that were preserved
@@ -667,6 +668,7 @@ export function useViewportContentManager() {
 
   return {
     refreshViewport,
+    reRenderLoadedCities,
     setupEventListeners,
     cleanupEventListeners,
     setupModeWatcher,
@@ -675,3 +677,8 @@ export function useViewportContentManager() {
 }
 
 // AI : Navigation loading functions moved to useCityDataLoader.ts to break circular dependency
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

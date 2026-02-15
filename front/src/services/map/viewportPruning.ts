@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
 import { renderViewModeOverlays, createLeafletOverlay } from "@/services/overlay/overlayRendering";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
+import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
 
@@ -72,7 +73,7 @@ function processDestructionQueue() {
     }
 
     destructionQueue.delete(id);
-    processedCount++;
+    processedCount += 1;
     result = iterator.next();
   }
 
@@ -98,8 +99,14 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 
   const processedIds = new Set<string>();
 
+  // AI : Filter overlays by completion status (for FilterControl to work)
+  const filteredOverlays = filterByCompletionStatus(
+    overlayStore.viewModeOverlays,
+    overlayStore.mode,
+  );
+
   // 1. Process potential overlays from viewMode (Backend Data)
-  for (const data of overlayStore.viewModeOverlays) {
+  for (const data of filteredOverlays) {
     processedIds.add(data.id);
 
     if (!data.corners || data.corners.length !== 4) continue;
@@ -203,9 +210,14 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
     const authStore = useAuthStore();
     const isAllowedByMode = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
 
-    // AI : Only show if allowed by mode AND within bounds
+    // AI : CRITICAL: Also check completion filter
+    const passesCompletionFilter =
+      filterByCompletionStatus([overlay], overlayStore.mode).length > 0;
+
+    // AI : Only show if allowed by mode AND within bounds AND passes completion filter
     const isVisible =
       isAllowedByMode &&
+      passesCompletionFilter &&
       minLat < boundsNorth &&
       maxLat > boundsSouth &&
       minLng < boundsEast &&
@@ -270,4 +282,9 @@ function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: num
       marker.remove();
     }
   }
+}
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }

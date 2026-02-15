@@ -102,19 +102,19 @@ const items = computed(() => {
     label: opt.label,
     value: opt.value,
     flag: opt.flagUrl,
-    command: () => {
-      switchTileLayer(opt.value);
+    command: async () => {
+      await switchTileLayer(opt.value);
       isMenuOpen.value = false;
     },
   }));
 });
 
-function toggleLayer() {
+async function toggleLayer() {
   // AI : Smart toggle: If satellite, go to plan. If plan, go to last used satellite.
   if (isSatellite.value) {
-    switchTileLayer("osm");
+    await switchTileLayer("osm");
   } else {
-    switchTileLayer(lastSatelliteLayer.value);
+    await switchTileLayer(lastSatelliteLayer.value);
   }
 }
 

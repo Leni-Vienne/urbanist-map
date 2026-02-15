@@ -15,7 +15,7 @@ import {
 } from "./locales";
 
 // AI : Custom PrimeVue preset for Urbanist Map
-const UrbanistMapPreset = definePreset(Aura, {
+const UrbanistmapPreset = definePreset(Aura, {
   semantic: {
     primary: {
       50: "{indigo.50}",
@@ -76,7 +76,7 @@ app.use(PrimeVue, {
   ripple: true,
   inputVariant: "filled",
   theme: {
-    preset: UrbanistMapPreset,
+    preset: UrbanistmapPreset,
     options: {
       prefix: "p",
       darkModeSelector: "light",

@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject } from "@/types/index";
 import type { PanelTab } from "@/types";
@@ -274,3 +274,8 @@ export const useUiStore = defineStore("ui", () => {
     closeAllDialogs,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useUiStore, import.meta.hot));
+}

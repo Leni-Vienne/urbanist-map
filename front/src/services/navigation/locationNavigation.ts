@@ -49,7 +49,7 @@ export async function loadCityProjects(
     });
 
     // AI : Ensure we're using the correct satellite layer for this country
-    checkAndSwitchSatelliteLayer(cityCountryCode);
+    await checkAndSwitchSatelliteLayer(cityCountryCode);
 
     // AI : Only clear state when actually switching cities, not when refreshing
     if (isSwitchingCity) {
@@ -95,8 +95,8 @@ export async function navigateToCity(
     }
   }
 
-  // AI : Clear map and load cities for the country
-  clearAllMapContent();
+  // AI : Clear city-specific content but preserve city markers for efficient navigation
+  clearAllMapContent(true);
   const mapStore = useMapStore();
   mapStore.selectedCountryCode = countryCode;
   await loadCitiesForCountry(countryCode);

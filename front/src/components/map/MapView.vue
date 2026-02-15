@@ -80,10 +80,10 @@ const isLoading = ref(true);
 // AI : NEW: Viewport manager - single rendering path
 const viewportManager = useViewportContentManager();
 
-// AI : Filter overlays - now integrated with viewport manager
+// AI : Filter overlays - trigger re-render of loaded cities with new filter state
 async function filterOverlaysByCompletionStatus() {
-  // AI : Just trigger viewport refresh which handles filtering
-  await viewportManager.refreshViewport();
+  // AI : Force re-render of all loaded cities which will apply the new filter state
+  await viewportManager.reRenderLoadedCities();
 }
 
 // AI : Mode changes now handled by viewport manager watch
