@@ -266,8 +266,9 @@ async function checkEsriMaxZoom() {
 
   // AI : Round coordinates to cache key (approx 100m precision)
   const cacheKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
-  if (maxZoomCache.has(cacheKey)) {
-    applyEsriMaxZoom(maxZoomCache.get(cacheKey)!);
+  const cachedMaxZoom = maxZoomCache.get(cacheKey);
+  if (cachedMaxZoom !== undefined) {
+    applyEsriMaxZoom(cachedMaxZoom);
     return;
   }
 
