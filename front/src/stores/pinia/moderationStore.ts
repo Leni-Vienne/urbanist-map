@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { ProjectForModeration, PendingChangeRequest } from "@/types/index";
 import type { RouterOutput } from "@/client";
@@ -103,3 +103,8 @@ export const useModerationStore = defineStore("moderation", () => {
     clearAllState,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useModerationStore, import.meta.hot));
+}

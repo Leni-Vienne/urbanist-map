@@ -1,6 +1,5 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "ignorePatterns": ["useOverlay.ts", "**/*tests*/**"],
+  "ignorePatterns": ["**/*tests*/**"],
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
@@ -39,6 +38,7 @@
     "no-console": "off",
     "no-bitwise": "off",
     "number-literal-case": "off",
+    "no-inferrable-types": "off",
     "no-explicit-any": "off", // temp maybe
     "max-statements": "off", // temp maybe
     "no-undefined": "off", // temp maybe

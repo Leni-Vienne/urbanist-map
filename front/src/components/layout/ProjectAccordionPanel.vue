@@ -503,10 +503,12 @@ const projectChangesMap = computed(() => {
   const map = new Map<string, PendingChangeRequest[]>();
   for (const req of props.changeRequests) {
     if (req.entityType === "project") {
-      if (!map.has(req.entityId)) {
-        map.set(req.entityId, []);
+      let list = map.get(req.entityId);
+      if (!list) {
+        list = [];
+        map.set(req.entityId, list);
       }
-      map.get(req.entityId)!.push(req);
+      list.push(req);
     }
   }
   return map;
@@ -517,10 +519,12 @@ const overlayChangesMap = computed(() => {
   const map = new Map<string, PendingChangeRequest[]>();
   for (const req of props.changeRequests) {
     if (req.entityType === "overlay") {
-      if (!map.has(req.entityId)) {
-        map.set(req.entityId, []);
+      let list = map.get(req.entityId);
+      if (!list) {
+        list = [];
+        map.set(req.entityId, list);
       }
-      map.get(req.entityId)!.push(req);
+      list.push(req);
     }
   }
   return map;

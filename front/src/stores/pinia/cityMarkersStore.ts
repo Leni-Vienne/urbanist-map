@@ -5,7 +5,7 @@
 // AI : state persists correctly during HMR (Hot Module Replacement) in development.
 // AI : ============================================================================
 
-import { defineStore } from "pinia";
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, shallowRef } from "vue";
 import type * as L from "leaflet";
 
@@ -147,3 +147,8 @@ export const useCityMarkersStore = defineStore("cityMarkers", () => {
     clearAllState,
   };
 });
+
+// AI : Enable HMR for this store
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useCityMarkersStore, import.meta.hot));
+}

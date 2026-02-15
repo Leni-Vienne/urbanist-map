@@ -20,6 +20,11 @@ const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });
 
+// AI : Helper to check if entity type is supported
+function isSupportedEntityType(type: string): type is "project" | "overlay" {
+  return type === "project" || type === "overlay";
+}
+
 // AI : Helper function to convert corners JSON array to PostGIS polygon geometry
 function convertCornersToGeometry(cornersValue: unknown) {
   const cornersArray = cornersValue as { lat: number; lng: number }[];
@@ -131,7 +136,15 @@ async function checkModeratorChangeRequestPermission(
   const { entityType, entityId } = changeRequest[0];
 
   // AI : Get country code for the entity
-  const countryCode = await getEntityCountryCode(entityType as "project" | "overlay", entityId);
+  if (!isSupportedEntityType(entityType)) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: `Invalid entity type: ${entityType}`,
+    });
+  }
+
+  // AI : Get country code for the entity
+  const countryCode = await getEntityCountryCode(entityType, entityId);
 
   if (!countryCode) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Entity not found" });
@@ -547,7 +560,7 @@ export const changesRouter = router({
       try {
         const baseQuery = db.select().from(changeHistory);
 
-        let whereConditions = [];
+        const whereConditions = [];
         if (input.entityType) {
           whereConditions.push(eq(changeHistory.entityType, input.entityType));
         }

@@ -65,6 +65,16 @@ This document outlines the granular functional test scenarios required to ensure
   2.  Test "Distort", "Move", "Rotate" toggles.
   3.  **Suggested Position**: Make a change -> Click "View Suggested Position". Verify a "Ghost Overlay" or preview visual appears at the new coordinates.
 
+### 2.4. Popup Persistence During State Updates
+
+- **Scenario**: Info popup remains accessible/open when overlay state updates.
+- **Steps**:
+  1. Select an overlay in Edit mode.
+  2. Open the info popup (click ellipsis/info button).
+  3. Trigger a state update (e.g., switch to View mode and back, or modify overlay).
+  4. **Check**: Info popup reopens or button is still clickable.
+  5. **Regression**: Verify no "Element not found" errors in console (related to `querySelector` fix).
+
 ## 3. Moderation & Admin Workflows
 
 ### 3.1. Contextual Filtering
@@ -392,3 +402,394 @@ This document outlines the granular functional test scenarios required to ensure
   2.  Immediately zoom out or switch mode before images finish loading.
   3.  **Check**: No crashes or console errors.
   4.  **Check**: Image load events are properly cleaned up.
+
+## 18. Email Verification Auto-Login (Recent Feature - Feb 11)
+
+### 18.1. Successful Verification Auto-Login
+
+- **Scenario**: User clicks verification link and is automatically logged in.
+- **Steps**:
+  1.  Register a new account (get verification link from console in dev mode).
+  2.  Open verification link in new incognito window (no existing session).
+  3.  **Check**: "Email Verified!" success message appears.
+  4.  **Check**: "Signing you in..." message appears with spinner.
+  5.  **Check**: Automatically redirected to home page after ~1.5 seconds.
+  6.  **Check**: User menu/avatar shows user is logged in.
+  7.  **Check**: Can access authenticated features (e.g., add project, view contributions).
+
+### 18.2. Session Creation on Verification
+
+- **Scenario**: Backend creates session cookie during email verification.
+- **Steps**:
+  1.  Complete steps from 18.1.
+  2.  Check browser DevTools Application → Cookies.
+  3.  **Check**: Session cookie is present after verification.
+  4.  Refresh the page.
+  5.  **Check**: User remains logged in (session persists).
+  6.  **Check**: Session has 30-day expiration.
+
+### 18.3. Already-Used Verification Token
+
+- **Scenario**: Verification token can only be used once.
+- **Steps**:
+  1.  Use a verification link to verify email and auto-login.
+  2.  Log out.
+  3.  Try to use the same verification link again.
+  4.  **Check**: "Invalid verification token" error appears.
+  5.  **Check**: User is NOT logged in.
+  6.  **Check**: "Back to App" button appears (not auto-redirect).
+
+### 18.4. Registration Modal Flow
+
+- **Scenario**: Modal stays open after registration with verification reminder.
+- **Steps**:
+  1.  Open auth modal and register new account.
+  2.  **Check**: Modal remains open (doesn't close).
+  3.  **Check**: Blue info box appears with "Verify Your Email" title.
+  4.  **Check**: Message includes reminder to check spam folder.
+  5.  **Check**: Toast notification also appears with success message.
+  6.  Close modal manually.
+  7.  **Regression**: Switch to login mode and verify form is reset correctly.
+
+## 19. Date Precision Change Detection (Recent Fix - Jan 19)
+
+### 19.1. Date Precision Changes Trigger Save State
+
+- **Scenario**: Changing date precision fields marks project as modified.
+- **Steps**:
+  1.  Enter **Edit Mode**.
+  2.  Select a project with dates (proposal/start/end).
+  3.  Change **Proposal Date Precision** (e.g., from "Full" to "Year Only").
+  4.  **Check**: "Save" button becomes enabled.
+  5.  **Check**: Project is marked as having unsaved changes.
+  6.  Open submission dialog.
+  7.  **Check**: Precision change appears in summary (e.g., "Proposal Date Precision: Full → Year Only").
+  8.  Submit changes.
+  9.  **Check**: Backend receives and persists the new precision value.
+
+### 19.2. All Date Precision Fields Detected
+
+- **Scenario**: All three date precision fields are tracked for changes.
+- **Steps**:
+  1.  Enter **Edit Mode** and select a project.
+  2.  Change **Start Date Precision** only.
+  3.  **Check**: Change is detected and save button enabled.
+  4.  Revert and change **End Date Precision** only.
+  5.  **Check**: Change is detected and save button enabled.
+  6.  Revert and change **Proposal Date Precision** only.
+  7.  **Check**: Change is detected and save button enabled.
+
+## 20. Overlay Visibility Race Conditions (Recent Fix - Jan 18)
+
+### 20.1. Ghost Overlays During Rapid Mode Switch
+
+- **Scenario**: Pending overlays don't appear when switching modes during zoom animation.
+- **Steps**:
+  1.  Enter **Edit Mode** at a city with your pending overlays.
+  2.  Ensure overlays are visible.
+  3.  Click city marker or zoom to trigger map animation.
+  4.  **Immediately** switch to **View Mode** while map is still animating.
+  5.  **Check**: NO pending overlay images appear on map after animation.
+  6.  **Check**: NO pending overlay markers appear on map.
+  7.  **Regression**: Switch back to Edit Mode.
+  8.  **Check**: Pending overlays now correctly appear.
+
+### 20.2. Marker Visibility Consistency with Images
+
+- **Scenario**: Overlay markers follow same visibility rules as overlay images.
+- **Steps**:
+  1.  Load a city with pending overlays in **Moderation Mode**.
+  2.  Verify both markers and images are visible.
+  3.  Switch to **View Mode**.
+  4.  **Check**: Pending markers are removed (not just images).
+  5.  Zoom in and out.
+  6.  **Check**: Pending markers remain hidden.
+  7.  Switch to **Edit Mode**.
+  8.  **Check**: Your pending markers reappear along with images.
+
+## 21. Tile Layer Auto-Switch Prevention (Recent Fix - Jan 18)
+
+### 21.1. Country-Specific Layer Persistence on Project Submit
+
+- **Scenario**: Submitting project doesn't change tile layer if already on correct country layer.
+- **Steps**:
+  1.  Navigate to France.
+  2.  Switch to **"France"** satellite layer via layer selector.
+  3.  Create and submit a new project in France.
+  4.  **Check**: Tile layer remains **"France"** (does NOT switch to generic "Satellite").
+  5.  **Regression**: Navigate to another location in France.
+  6.  **Check**: Layer is still "France".
+
+### 21.2. Auto-Switch to Generic Satellite Layer
+
+- **Scenario**: Layer correctly switches to generic satellite for countries without specific layers.
+- **Steps**:
+  1.  Set tile layer to **"OSM"** (plan view).
+  2.  Navigate to a country without specific satellite layer (e.g., USA).
+  3.  Create and submit a project.
+  4.  **Check**: Layer automatically switches to **"Satellite"** (generic Esri layer).
+  5.  Navigate to France while still in Edit mode.
+  6.  Submit another project.
+  7.  **Check**: Layer switches from "Satellite" to **"France"** layer.
+
+## 22. Esri Max Zoom Handling (Recent Fix - Jan 17)
+
+### 22.1. Low MaxNativeZoom Regions
+
+- **Scenario**: Map correctly handles regions where Esri maxNativeZoom < 18.
+- **Steps**:
+  1.  Navigate to **Sucre, Bolivia** (metadata maxNativeZoom = 17).
+  2.  Switch to **Satellite** tile layer.
+  3.  Zoom to level 17.
+  4.  **Check**: Satellite tiles load correctly.
+  5.  Zoom to level 18+.
+  6.  **Check**: Level 17 tiles are scaled up (NO gray tiles).
+  7.  **Regression**: Check browser console for tile 404 errors.
+  8.  **Check**: No 404 errors for zoom level 18 tiles.
+
+### 22.2. Dynamic MaxNativeZoom Updates
+
+- **Scenario**: Map redraw is triggered when moving to region with lower maxNativeZoom.
+- **Steps**:
+  1.  Start at a region with maxNativeZoom = 18 at zoom level 18.
+  2.  Navigate to **Dakar, Senegal** (metadata maxNativeZoom = 17).
+  3.  **Check**: Map automatically redraws tiles.
+  4.  **Check**: Tiles use zoom level 17 data scaled up.
+  5.  **Check**: No gray/missing tiles appear.
+  6.  Pan around the area.
+  7.  **Check**: All tiles continue to load correctly at scaled resolution.
+
+### 22.3. Forcing Leaflet Internal Recalculation
+
+- **Scenario**: Leaflet's internal tile zoom calculation updates when maxNativeZoom changes.
+- **Steps**:
+  1.  Navigate between regions with different maxNativeZoom values (18 → 17 → 18).
+  2.  Stay at high zoom level (18+) during navigation.
+  3.  **Check**: Tiles load correctly in each region.
+  4.  **Check**: No stale tile zoom calculations cause gray tiles.
+  5.  **Regression**: Verify map interactions (pan, zoom) remain smooth.
+  6.  **Check**: No performance degradation from forced recalculations.
+
+## 23. Satellite Preview Component (Recent Feature - Jan 16-17)
+
+### 23.1. Smart Toggle Between Plan and Satellite
+
+- **Scenario**: Single-click toggle switches between Plan (OSM) and appropriate satellite layer.
+- **Steps**:
+  1.  Start with map on **Plan (OSM)** layer.
+  2.  Click **Satellite Preview** button in bottom-left.
+  3.  **Check**: Map switches to **Satellite** layer (Esri or country-specific).
+  4.  **Check**: Preview button now shows "Plan" preview image.
+  5.  Click the preview button again.
+  6.  **Check**: Map switches back to **Plan (OSM)**.
+  7.  **Check**: Preview button shows "Satellite" preview image again.
+
+### 23.2. Context-Aware Layer Selection
+
+- **Scenario**: Preview button switches to country-specific satellite layer when available.
+- **Steps**:
+  1.  Start on **Plan** layer.
+  2.  Navigate to **France**.
+  3.  Click **Satellite Preview** button.
+  4.  **Check**: Map switches to **"France"** layer (not generic Satellite).
+  5.  Navigate to **USA** (no country-specific layer).
+  6.  **Check**: Map switches to generic **"Satellite"** layer.
+  7.  Navigate back to **France**.
+  8.  **Check**: Map switches back to **"France"** layer.
+
+### 23.3. Mobile Drawer Integration
+
+- **Scenario**: Satellite preview button follows mobile drawer state.
+- **Steps**:
+  1.  Open app on mobile viewport or resize to mobile width.
+  2.  **Check**: Satellite Preview button is visible above map.
+  3.  Open mobile drawer (swipe up or click).
+  4.  **Check**: Satellite Preview button moves up with drawer.
+  5.  **Check**: NO duplicate buttons appear.
+  6.  Drag drawer to different positions.
+  7.  **Check**: Button position updates to stay above drawer.
+
+### 23.4. Hover Menu for Layer Selection
+
+- **Scenario**: Desktop users can access full layer menu via hover.
+- **Steps**:
+  1.  On desktop, hover over **Satellite Preview** button.
+  2.  **Check**: Layer selection menu appears with all available layers.
+  3.  Click a different satellite layer from menu.
+  4.  **Check**: Map switches to selected layer.
+  5.  **Check**: Preview button does NOT scale/grow during hover.
+  6.  Move mouse away.
+  7.  **Check**: Menu disappears.
+
+## 24. Cross-City Navigation Camera Flight (Recent Fix - Jan 17)
+
+### 24.1. Camera Flies to Different City
+
+- **Scenario**: Clicking contribution in different city triggers camera flight.
+- **Steps**:
+  1.  Navigate to **Paris** and zoom in to street level (zoom 18+).
+  2.  Open **"Latest Contributions"** panel.
+  3.  Click contribution from **Lyon** (different city).
+  4.  **Check**: Camera flies to Lyon (map animates/moves).
+  5.  **Check**: Target overlay is selected and visible.
+  6.  **Check**: Map is zoomed to appropriate level for overlay.
+
+### 24.2. Same-City Navigation Preserves Zoom
+
+- **Scenario**: Navigating within same city respects current zoom level.
+- **Steps**:
+  1.  Load a city and zoom to street level.
+  2.  Click another overlay in the **same city** via panel.
+  3.  **Check**: Camera pans to overlay without forcing zoom change.
+  4.  **Check**: Current zoom level is preserved if already at appropriate level.
+  5.  **Regression**: Click multiple overlays in same city.
+  6.  **Check**: Navigation remains smooth without unnecessary zoom resets.
+
+### 24.3. Cross-Country Navigation
+
+- **Scenario**: Navigate between countries via side menu.
+- **Steps**:
+  1.  View project in **France** at high zoom.
+  2.  Open side menu and navigate to contribution in **USA**.
+  3.  **Check**: Camera flies across countries to USA.
+  4.  **Check**: No freezing or stuttering during flight.
+  5.  **Check**: Correct overlay is selected upon arrival.
+  6.  **Regression**: Try navigating via city markers.
+  7.  **Check**: City marker navigation also works correctly cross-country.
+
+## 25. Progressive Overlay Queuing (Recent Optimization - Jan 18)
+
+### 25.1. Smooth Overlay Loading Without Frame Drops
+
+- **Scenario**: Overlays load progressively when entering viewport without freezing.
+- **Steps**:
+  1.  Zoom out to view level (low zoom).
+  2.  Zoom in rapidly to a dense area (e.g., city center with 50+ overlays).
+  3.  **Check**: Overlays "pop in" sequentially, not all at once.
+  4.  **Check**: Map remains responsive during loading (can pan/zoom).
+  5.  **Check**: No browser freezing or stuttering.
+  6.  **Regression**: Monitor browser DevTools Performance panel.
+  7.  **Check**: No major frame drops during overlay creation.
+
+### 25.2. Mode Switch Performance at Scale
+
+- **Scenario**: Switching modes remains fast regardless of overlay count.
+- **Steps**:
+  1.  Navigate to city with **50+ overlays** at high zoom.
+  2.  Switch from **View Mode** to **Moderation Mode**.
+  3.  **Check**: Mode switch completes in under 200ms.
+  4.  Switch back to **View Mode**.
+  5.  **Check**: Switch remains fast (no degradation).
+  6.  Repeat mode switch 5-10 times rapidly.
+  7.  **Check**: Performance remains consistent (no 15% slowdown regression).
+
+### 25.3. Viewport Pruning During Pan
+
+- **Scenario**: Off-screen overlays are progressively removed during panning.
+- **Steps**:
+  1.  Load multiple cities with overlays at high zoom.
+  2.  Pan significantly to move some overlays off-screen.
+  3.  **Check**: Off-screen overlay images are removed from DOM.
+  4.  **Check**: Markers for off-screen overlays are removed.
+  5.  Open browser DevTools Elements panel and inspect `.leaflet-overlay-pane`.
+  6.  **Check**: Element count decreases as overlays leave viewport.
+  7.  **Regression**: Pan back to original location.
+  8.  **Check**: Overlays re-render correctly when returning to viewport.
+
+## 26. Standalone Project Marker Stability (Recent Fix - Jan 13)
+
+### 26.1. New Marker Survives Zoom Operations
+
+- **Scenario**: Newly created standalone project marker doesn't crash on zoom.
+- **Steps**:
+  1.  Enter **Edit Mode**.
+  2.  Create a new standalone project (no overlays).
+  3.  Submit the project form (marker appears on map).
+  4.  Immediately zoom in using scroll wheel.
+  5.  **Check**: No browser crash or console errors.
+  6.  **Check**: Marker remains visible and animates smoothly.
+  7.  Zoom out.
+  8.  **Check**: No crash occurs during zoom out.
+
+### 26.2. Marker Persistence at Low Zoom in Edit Mode
+
+- **Scenario**: Local markers persist when zooming below viewport threshold in edit mode.
+- **Steps**:
+  1.  Enter **Edit Mode**.
+  2.  Create or view standalone project markers.
+  3.  Zoom out to zoom level **12 or lower** (below VIEWPORT_LOAD_THRESHOLD).
+  4.  **Check**: Markers remain visible (not cleared).
+  5.  Pan around at low zoom.
+  6.  **Check**: Markers stay on map.
+  7.  Switch to **View Mode**.
+  8.  **Check**: Only approved markers remain visible (pending ones hidden).
+
+## 27. Event-Driven Accordion Scrolling (Recent Fix - Jan)
+
+### 27.1. Marker Click Triggers Panel Scroll
+
+- **Scenario**: Clicking markers triggers appropriate panel scrolling.
+- **Steps**:
+  1.  Click a **city marker** on map.
+  2.  **Check**: Side panel scrolls to show city accordion.
+  3.  **Check**: City accordion expands.
+  4.  Click a **standalone project marker**.
+  5.  **Check**: Panel scrolls to project within city.
+  6.  **Check**: Project accordion expands.
+
+### 27.2. Overlay Click Expands and Scrolls
+
+- **Scenario**: Clicking overlay on map navigates panel to overlay details.
+- **Steps**:
+  1.  Click an **overlay** on the map.
+  2.  **Check**: Panel finds containing city and expands it.
+  3.  **Check**: Panel finds containing project and expands it.
+  4.  **Check**: Panel scrolls to show overlay details.
+  5.  **Regression**: Click different overlay in different city.
+  6.  **Check**: Panel navigates to new city/project/overlay correctly.
+
+### 27.3. Approval Stability (No Bouncy Scrolling)
+
+- **Scenario**: Approving items doesn't cause unwanted panel scrolling.
+- **Steps**:
+  1.  Enter **Moderation Mode**.
+  2.  Open a city with pending items.
+  3.  Scroll panel to middle of list.
+  4.  Approve an overlay or project.
+  5.  **Check**: Panel does **NOT** jump back to city header.
+  6.  **Check**: Panel remains at approximately same scroll position.
+  7.  **Check**: Only the approved item UI updates (removed from pending list).
+  8.  **Regression**: Approve multiple items in sequence.
+  9.  **Check**: No scrolling occurs between approvals.
+
+## 28. Completion Status Filtering (Recent Fix - Feb 11)
+
+### 28.1. FilterControl Works at All Zoom Levels
+
+- **Scenario**: Completion status filters apply to both markers (low zoom) and full overlay images (high zoom).
+- **Steps**:
+  1.  Navigate to a city with multiple overlays in **View Mode**.
+  2.  Ensure map shows a mix of proposed, planned, in-progress, and completed overlays.
+  3.  Zoom to **marker level** (zoom < MIN_ZOOM_FOR_OVERLAYS).
+  4.  Click **Filter button** (pi-filter icon).
+  5.  Uncheck **"Proposed"** (yellow) status.
+  6.  **Check**: Yellow markers disappear from map.
+  7.  **Check**: Other status markers remain visible.
+  8.  Zoom to **overlay level** (zoom >= MIN_ZOOM_FOR_OVERLAYS).
+  9.  **Check**: Full overlay images with "proposed" status are hidden.
+  10. **Check**: Only overlays matching checked statuses are visible.
+  11. **Regression**: Toggle filters on and off multiple times.
+  12. **Check**: Overlays correctly appear/disappear at both zoom levels.
+
+### 28.2. Filter State Persists Across Zoom
+
+- **Scenario**: Filter selections persist when zooming in and out.
+- **Steps**:
+  1.  Set filters to hide **"In Progress"** and **"Completed"** statuses.
+  2.  Verify filtered markers at low zoom.
+  3.  Zoom in to overlay level.
+  4.  **Check**: Filter state is preserved (same overlays hidden).
+  5.  Zoom out and back in.
+  6.  **Check**: Filters remain applied consistently.
+  7.  Reset filters (check all statuses).
+  8.  **Check**: All overlays/markers become visible again.

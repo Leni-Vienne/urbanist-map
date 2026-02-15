@@ -57,7 +57,7 @@ export function updateOverlayEditingState(): void {
   // AI : Save popup and selection state before toolbar rebuild
   const wasPopupOpen = overlayStore.showInfoPopup;
   const selectedOverlayId = overlayStore.idSelectedOverlay;
-  const wasSelected = !!selectedOverlayId;
+  const wasSelected = Boolean(selectedOverlayId);
 
   // AI : Close popup before toolbar rebuild to avoid orphaned teleport state
   if (wasPopupOpen) {
@@ -141,13 +141,15 @@ export function updateOverlayEditingState(): void {
       if (overlay?.overlay) {
         // AI : Find and click the info button to recreate teleport target and reopen popup
         const overlayElement = overlay.overlay.getElement();
-        let infoButton = overlayElement?.parentElement?.querySelector(
+        let infoButton = overlayElement?.parentElement?.querySelector<HTMLElement>(
           ".leaflet-toolbar-icon.pi-ellipsis-v",
-        ) as HTMLElement;
+        );
 
         if (!infoButton) {
-          const allInfoButtons = document.querySelectorAll(".leaflet-toolbar-icon.pi-ellipsis-v");
-          infoButton = allInfoButtons[0] as HTMLElement;
+          const allInfoButtons = document.querySelectorAll<HTMLElement>(
+            ".leaflet-toolbar-icon.pi-ellipsis-v",
+          );
+          infoButton = allInfoButtons[0];
         }
 
         if (infoButton) {
@@ -296,7 +298,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   }
 
   // AI : Function to create and setup the overlay (extracted to be called after zoom if needed)
-  const createAndSetupOverlay = () => {
+  function createAndSetupOverlay() {
     // Create the overlay
     const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
     if (!newOverlay) return;
@@ -342,10 +344,10 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
 
     // AI : Start waiting for element to be ready
     waitForElement();
-  };
+  }
 
   // AI : If zoom level is too low, zoom to project location first, then create overlay
-  if (needsZoom && project?.lat != null && project?.lng != null) {
+  if (needsZoom && project?.lat !== null && project?.lng !== null) {
     const targetZoom = 16; // AI : Zoom level high enough to show overlay clearly
 
     // AI : Show toast to inform user about auto-zoom
@@ -402,9 +404,13 @@ function applyHistoryAction(action: "undo" | "redo") {
   try {
     if (isUndo) {
       // AI : For undo: move current state to redo stack and apply previous state
-      const currentState = history.pop()!;
+      const currentState = history.pop();
+      if (!currentState) return;
+
       redoStack.push(currentState);
       const previousState = history[history.length - 1];
+      if (!previousState) return;
+
       overlay.setCorners(previousState);
 
       // AI : If we're back to the initial state (history.length === 1) and overlay is approved, mark as unmodified
@@ -413,7 +419,9 @@ function applyHistoryAction(action: "undo" | "redo") {
       }
     } else {
       // AI : For redo: move state from redo stack to history and apply it
-      const stateToRestore = redoStack.pop()!;
+      const stateToRestore = redoStack.pop();
+      if (!stateToRestore) return;
+
       history.push(stateToRestore);
       overlay.setCorners(stateToRestore);
 
@@ -440,3 +448,8 @@ registerToolbarCallbacks({
   undo,
   redo,
 });
+
+// AI : Accept HMR updates for this module
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

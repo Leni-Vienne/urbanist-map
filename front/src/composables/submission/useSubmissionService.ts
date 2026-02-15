@@ -7,7 +7,7 @@ import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
-import type { Project, OverlayObject, OverlayData } from "@/types/index";
+import type { Project, OverlayObject, OverlayData, RemovableChange } from "@/types/index";
 import {
   projectSchema,
   overlaySchema,
@@ -46,7 +46,7 @@ export type SubmissionContext =
     });
 
 export interface SubmissionChange {
-  field: string;
+  field: RemovableChange;
   oldValue: any;
   newValue: any;
   displayLabel: string;
@@ -202,8 +202,8 @@ export function useSubmissionService() {
 
       // AI : For change requests, preserve empty strings (database requires non-null new_value)
       // AI : Only normalize dates; for other fields, use empty string instead of null
-      let normalizedOld: any;
-      let normalizedNew: any;
+      let normalizedOld = null;
+      let normalizedNew = null;
 
       if (isDateField) {
         normalizedOld = normalizeDate(oldValue);
@@ -231,7 +231,7 @@ export function useSubmissionService() {
   function findOriginalOverlay(overlay: OverlayObject): OverlayData | undefined {
     // AI : Find original overlay data from backend cache (must use cache to get corners!)
     // AI : currentCityOverlays doesn't have corners, we need to fetch from the city cache
-    let originalOverlay: OverlayData | undefined;
+    let originalOverlay: OverlayData | undefined = undefined;
 
     // AI : Get cityId from the overlay's project
     const cityId = overlay.project?.cityId;
@@ -410,7 +410,7 @@ export function useSubmissionService() {
     }
 
     const formattedChanges: SubmissionChange[] = changes.map((change) => ({
-      field: change.fieldName,
+      field: change.fieldName as RemovableChange, // AI : Safe cast - we control field names in detectChanges
       oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
       newValue: formatValueForDisplay(change.newValue, change.fieldName),
       displayLabel: FIELD_DISPLAY_NAMES[change.fieldName] ?? change.fieldName,
