@@ -337,11 +337,15 @@ function shouldShowCityContent(cityKey: string): boolean {
 // AI : Handle scroll requests
 async function handleScrollRequest() {
   // AI : Only active panels should consume requests
-  if (!isPanelActive.value) return;
+  if (!isPanelActive.value) {
+    return;
+  }
 
   // AI : Peek at request without consuming it yet
   const request = pendingScrollRequest.value;
-  if (!request) return;
+  if (!request) {
+    return;
+  }
 
   // AI : Check if this panel can handle the request (contains the target)
   // AI : This prevents the panel from consuming requests for items it doesn't have
@@ -361,7 +365,9 @@ async function handleScrollRequest() {
     canHandle = props.projects.some((p) => p.cityId === cityId);
   }
 
-  if (!canHandle) return;
+  if (!canHandle) {
+    return;
+  }
 
   // AI : Now consume the request since we confirmed we can handle it
   consumeScrollRequest();
@@ -370,11 +376,10 @@ async function handleScrollRequest() {
 
   if (request.type === "overlay") {
     const overlayId = String(request.id);
-    const expanded = expandAccordionForOverlay(overlayId, props.projects);
-    if (expanded) {
-      await nextTick();
-      await waitForAccordionAnimation(overlayId);
-    }
+    const wasExpanded = expandAccordionForOverlay(overlayId, props.projects);
+    await nextTick();
+    // AI : Pass wasAlreadyExpanded: true if wasExpanded === false (it was already open)
+    await waitForAccordionAnimation(overlayId, !wasExpanded);
   } else if (request.type === "project") {
     const projectId = String(request.id);
     const expanded = expandAccordionForProject(projectId, props.projects);
@@ -423,29 +428,150 @@ watch(
   { immediate: true },
 );
 
-async function waitForAccordionAnimation(overlayId: string): Promise<void> {
+async function waitForAccordionAnimation(
+  overlayId: string,
+  wasAlreadyExpanded: boolean = false,
+): Promise<void> {
   const overlayElement = document.querySelector(`[data-overlay-id="${overlayId}"]`);
+
   if (!overlayElement) {
     for (let i = 0; i < 3; i += 1) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
       const element = document.querySelector(`[data-overlay-id="${overlayId}"]`);
       if (element) {
-        await scrollToOverlayWhenReady(element);
+        await scrollToOverlayWhenReady(element, wasAlreadyExpanded);
         return;
       }
     }
     return;
   }
-  await scrollToOverlayWhenReady(overlayElement);
+  await scrollToOverlayWhenReady(overlayElement, wasAlreadyExpanded);
 }
 
-async function scrollToOverlayWhenReady(element: Element): Promise<void> {
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  element.scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-    inline: "nearest",
+/**
+ * AI : Wait for accordion panel transition to complete before scrolling
+ * AI : Uses ResizeObserver to dynamically track accordion height changes and scroll in real-time
+ */
+async function scrollToOverlayWhenReady(
+  element: Element,
+  wasAlreadyExpanded: boolean = false,
+): Promise<void> {
+  // AI : Find the project accordion panel that wraps this element
+  const projectPanel = element.closest("[data-project-id]");
+
+  if (!projectPanel) {
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
+    return;
+  }
+
+  // AI : Store projectPanel in const to satisfy TypeScript null checking
+  const panel = projectPanel;
+
+  // AI : If accordion was already expanded, just use smooth scroll immediately
+  if (wasAlreadyExpanded) {
+    const viewportHeight = window.innerHeight;
+    const projectRect = panel.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const projectToElementDistance = elementRect.top - projectRect.top;
+
+    if (projectToElementDistance < viewportHeight * 0.7) {
+      panel.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    } else {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    }
+    return;
+  }
+
+  // AI : Accordion is expanding, use ResizeObserver to track animation
+  await new Promise<void>((resolve) => {
+    let lastHeight = panel.clientHeight;
+    let resizeCount = 0;
+    const maxResizes = 20; // AI : Safety limit to prevent infinite observation
+    let timeoutId: NodeJS.Timeout | undefined = undefined;
+
+    // AI : Function to perform the appropriate scroll based on context
+    function performScroll(isAnimating: boolean) {
+      const viewportHeight = window.innerHeight;
+      const projectRect = panel.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const projectToElementDistance = elementRect.top - projectRect.top;
+
+      // AI : Use smooth scroll when accordion is already open (not animating)
+      const scrollBehavior = isAnimating ? "auto" : "smooth";
+
+      if (projectToElementDistance < viewportHeight * 0.7) {
+        panel.scrollIntoView({
+          behavior: scrollBehavior,
+          block: "nearest",
+          inline: "nearest",
+        });
+      } else {
+        element.scrollIntoView({
+          behavior: scrollBehavior,
+          block: "center",
+          inline: "nearest",
+        });
+      }
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const newHeight = entry.contentRect.height;
+
+        // AI : Only scroll if height actually changed (accordion is expanding)
+        if (newHeight !== lastHeight) {
+          lastHeight = newHeight;
+          resizeCount += 1;
+
+          // AI : Perform instant scroll during animation
+          performScroll(true);
+
+          // AI : Reset timeout each time we detect a resize
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            observer.disconnect();
+            resolve();
+          }, 100);
+        }
+
+        // AI : Safety check: disconnect after many resizes to prevent infinite loop
+        if (resizeCount >= maxResizes) {
+          observer.disconnect();
+          resolve();
+        }
+      }
+    });
+
+    // AI : Start observing the accordion panel for size changes
+    observer.observe(panel);
+
+    // AI : Fallback timeout in case ResizeObserver doesn't fire
+    const fallbackTimeout = setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, 1000);
+
+    // AI : If no resizes detected in 50ms, use smooth scroll
+    timeoutId = setTimeout(() => {
+      if (resizeCount === 0) {
+        performScroll(false);
+      }
+      clearTimeout(fallbackTimeout);
+      observer.disconnect();
+      resolve();
+    }, 50);
   });
 }
 
