@@ -3,12 +3,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 
 /**
- * AI : Composable for handling map state during logout
- * AI : This avoids using watchers by directly calling state updates
- * AI : The mode change to 'view' will trigger existing reactive watchers
- * AI : to reload appropriate public content
- */
-/**
  * AI : Reset map state to view mode after logout
  * AI : This will trigger existing watchers/reactive logic to reload
  * AI : public content while hiding auth-only items

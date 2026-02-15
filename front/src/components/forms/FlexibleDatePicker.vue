@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, watch } from "vue";
 import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDate";
 import RadioButton from "primevue/radiobutton";
 import DatePicker from "primevue/datepicker";

@@ -1,6 +1,5 @@
 // AI : Country data loading composable (no marker rendering)
 // AI : Extracted from useCountryMarkers.ts to separate data loading from UI rendering
-import { ref } from "vue";
 import { removeCityMarkers } from "@/services/map/cityMarkers";
 import { removeOverlayMarkers } from "@/services/map/cityOverlays";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
@@ -36,9 +35,6 @@ export function getCountryName(
   return country?.name ?? null;
 }
 
-const isLoadingCountries = ref(false);
-const isLoadingCountryProjects = ref(false);
-
 /**
  * AI : Load countries with projects from backend
  * AI : This loads country data for breadcrumbs and navigation (no markers rendered)
@@ -57,37 +53,32 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
     }
   }
 
-  isLoadingCountries.value = true;
-  try {
-    // AI : For unauthenticated users, ensure we always use 'view' mode
-    const authStore = useAuthStore();
-    const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+  // AI : For unauthenticated users, ensure we always use 'view' mode
+  const authStore = useAuthStore();
+  const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
 
-    const countriesData = await withErrorHandling(
-      async () => trpc.country.getCountriesWithProjects.query({ mode: queryMode }),
-      { errorMessage: "Failed to load countries. Please refresh the page." },
+  const countriesData = await withErrorHandling(
+    async () => trpc.country.getCountriesWithProjects.query({ mode: queryMode }),
+    { errorMessage: "Failed to load countries. Please refresh the page." },
+  );
+
+  if (countriesData) {
+    const mappedCountries = countriesData.map(
+      (country): Country =>
+        Object.assign(country, {
+          lat: country.centerCoordinates.y,
+          lng: country.centerCoordinates.x,
+          projectCount: 0,
+          cities: [],
+          code2: country.code2 ?? "", // AI : Temporary default until GeoNames import populates alpha-2 codes
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
     );
 
-    if (countriesData) {
-      const mappedCountries = countriesData.map(
-        (country): Country =>
-          Object.assign(country, {
-            lat: country.centerCoordinates.y,
-            lng: country.centerCoordinates.x,
-            projectCount: 0,
-            cities: [],
-            code2: country.code2 ?? "", // AI : Temporary default until GeoNames import populates alpha-2 codes
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }),
-      );
-
-      // AI : Update both the active countries ref and cache
-      projectStore.countries = mappedCountries;
-      projectStore.setCachedCountries(overlayStore.mode, mappedCountries);
-    }
-  } finally {
-    isLoadingCountries.value = false;
+    // AI : Update both the active countries ref and cache
+    projectStore.countries = mappedCountries;
+    projectStore.setCachedCountries(overlayStore.mode, mappedCountries);
   }
 }
 
@@ -118,8 +109,8 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   const globalCities = await projectStore.fetchCitiesWithProjects(queryMode);
   if (globalCities && globalCities.length > 0) {
     const countryCities = globalCities
-      .filter((city: any) => city.countryCode === countryCode)
-      .map((city: any) => Object.assign({}, city, { distance: 0 }));
+      .filter((city) => city.countryCode === countryCode)
+      .map((city) => Object.assign({}, city, { distance: 0 }));
 
     if (countryCities.length > 0) {
       country.cities = countryCities;
@@ -131,23 +122,18 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
   // AI : Fallback: If no cities found in global cache, make country-specific API call
   // AI : This handles edge cases where global cache might be incomplete
-  isLoadingCountryProjects.value = true;
-  try {
-    const citiesData = await withErrorHandling(
-      async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: queryMode }),
-      { errorMessage: "Failed to load cities. Please try again." },
-    );
+  const citiesData = await withErrorHandling(
+    async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: queryMode }),
+    { errorMessage: "Failed to load cities. Please try again." },
+  );
 
-    if (citiesData) {
-      const cities = citiesData.map((city) => {
-        return Object.assign({}, city, { distance: 0 });
-      });
-      country.cities = cities;
-      // AI : Cache the cities for this country + mode
-      projectStore.setCachedCities(countryCode, queryMode, cities);
-    }
-  } finally {
-    isLoadingCountryProjects.value = false;
+  if (citiesData) {
+    const cities = citiesData.map((city) => {
+      return Object.assign({}, city, { distance: 0 });
+    });
+    country.cities = cities;
+    // AI : Cache the cities for this country + mode
+    projectStore.setCachedCities(countryCode, queryMode, cities);
   }
 }
 

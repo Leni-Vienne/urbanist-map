@@ -121,7 +121,7 @@ export const registerSchema = z.object({
 });
 
 export const resetPasswordRequestSchema = z.object({
-  email: z.string().email("validation.invalidEmail"),
+  email: z.email("validation.invalidEmail"),
 });
 
 export const resetPasswordSchema = z.object({

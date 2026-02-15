@@ -251,7 +251,7 @@ async function validateGoogleLoginRequest(body: unknown) {
   const validationResult = googleLoginSchema.safeParse(body);
   if (!validationResult.success) {
     const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
-    throw new Error(errorMessage);
+    throw Object.assign(new Error(errorMessage), { statusCode: 400 });
   }
 
   return validationResult.data;
@@ -264,24 +264,38 @@ async function updateExistingUserEmail(existingUser: any, newEmail: string) {
   const { eq } = await import("drizzle-orm");
 
   if (existingUser.email !== newEmail) {
-    await db
-      .update(users)
-      .set({
-        email: newEmail,
-        emailVerified: true,
-        emailVerificationToken: null,
-      })
-      .where(eq(users.id, existingUser.id));
+    try {
+      await db
+        .update(users)
+        .set({
+          email: newEmail,
+          emailVerified: true,
+          emailVerificationToken: null,
+        })
+        .where(eq(users.id, existingUser.id));
 
-    // AI : Refetch updated user
-    const [updatedUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, existingUser.id))
-      .limit(1);
-    return updatedUser;
+      // AI : Refetch updated user
+      const [updatedUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, existingUser.id))
+        .limit(1);
+      return updatedUser;
+    } catch (error: any) {
+      // AI : Check for unique constraint violation (email taken)
+      if (
+        error.code === "23505" ||
+        error.message?.includes("unique constraint") ||
+        error.message?.includes("duplicate key")
+      ) {
+        throw Object.assign(new Error("auth.error.emailTaken"), {
+          statusCode: 409, // Conflict
+          action: "account_conflict",
+        });
+      }
+      throw error;
+    }
   }
-
   return existingUser;
 }
 
@@ -457,22 +471,18 @@ app.post("/api/google-login", async (c) => {
   } catch (error: any) {
     console.error("Google login error:", error);
 
-    // AI : Handle account conflict error
-    if (error.statusCode === 409) {
+    // AI : Handle account conflict error or validation error with explicit status code
+    if (error.statusCode) {
       return c.json(
         {
           error: error.message,
           action: error.action,
         },
-        409,
+        error.statusCode, // 400 or 409
       );
     }
 
-    // AI : Handle validation errors
-    if (error.message && !error.statusCode) {
-      return c.json({ error: error.message }, 400);
-    }
-
+    // AI : Handle unexpected errors securely (don't leak raw error message)
     return c.json({ error: "auth.error.googleAuthFailed" }, 500);
   }
 });
