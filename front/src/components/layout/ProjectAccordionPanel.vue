@@ -500,6 +500,7 @@ async function scrollToOverlayWhenReady(
     let resizeCount = 0;
     const maxResizes = 20; // AI : Safety limit to prevent infinite observation
     let timeoutId: NodeJS.Timeout | undefined = undefined;
+    let fallbackTimeout: NodeJS.Timeout | undefined = undefined;
 
     // AI : Function to perform the appropriate scroll based on context
     function performScroll(isAnimating: boolean) {
@@ -541,6 +542,7 @@ async function scrollToOverlayWhenReady(
           // AI : Reset timeout each time we detect a resize
           clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
+            clearTimeout(fallbackTimeout);
             observer.disconnect();
             resolve();
           }, 100);
@@ -548,6 +550,8 @@ async function scrollToOverlayWhenReady(
 
         // AI : Safety check: disconnect after many resizes to prevent infinite loop
         if (resizeCount >= maxResizes) {
+          clearTimeout(timeoutId);
+          clearTimeout(fallbackTimeout);
           observer.disconnect();
           resolve();
         }
@@ -558,7 +562,8 @@ async function scrollToOverlayWhenReady(
     observer.observe(panel);
 
     // AI : Fallback timeout in case ResizeObserver doesn't fire
-    const fallbackTimeout = setTimeout(() => {
+    fallbackTimeout = setTimeout(() => {
+      clearTimeout(timeoutId);
       observer.disconnect();
       resolve();
     }, 1000);
