@@ -109,8 +109,8 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   const globalCities = await projectStore.fetchCitiesWithProjects(queryMode);
   if (globalCities && globalCities.length > 0) {
     const countryCities = globalCities
-      .filter((city: any) => city.countryCode === countryCode)
-      .map((city: any) => Object.assign({}, city, { distance: 0 }));
+      .filter((city) => city.countryCode === countryCode)
+      .map((city) => Object.assign({}, city, { distance: 0 }));
 
     if (countryCities.length > 0) {
       country.cities = countryCities;

@@ -192,9 +192,7 @@ function smartZoomToCity(
       for (const o of overlays) {
         if (Array.isArray(o.corners)) {
           locations.push(
-            ...o.corners.filter(
-              (c: any) => c && typeof c.lat === "number" && typeof c.lng === "number",
-            ),
+            ...o.corners.filter((c) => c && typeof c.lat === "number" && typeof c.lng === "number"),
           );
         }
       }

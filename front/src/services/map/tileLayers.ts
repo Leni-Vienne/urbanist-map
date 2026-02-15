@@ -295,7 +295,7 @@ function applyEsriMaxZoom(zoomLevel: number) {
     esriConfig.options.maxNativeZoom = zoomLevel;
 
     if (activeTileLayer && map.value) {
-      (activeTileLayer as any).options.maxNativeZoom = zoomLevel;
+      (activeTileLayer.options as any).maxNativeZoom = zoomLevel;
 
       // AI : Force a redraw of the layer to fetch potential high-res tiles?
       // Only if we are currently at a zoom > oldMaxNativeZoom
