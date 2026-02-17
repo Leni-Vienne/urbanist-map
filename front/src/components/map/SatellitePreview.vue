@@ -1,33 +1,10 @@
 <template>
   <div
-    ref="containerRef"
     class="satellite-preview"
     :class="{ 'in-drawer': inDrawer }"
     @click.stop="toggleLayer"
     @dblclick.stop
-    @mouseenter="if (authStore.isAuthenticated) isMenuOpen = true;"
-    @mouseleave="isMenuOpen = false"
-    @contextmenu.prevent="if (authStore.isAuthenticated) isMenuOpen = !isMenuOpen;"
   >
-    <!-- AI : PrimeVue Menu for Satellite Selection -->
-    <!-- AI : Wrapped in absolute div to prevent layout shift. @click.stop prevents bubbling to parent toggle. -->
-    <div v-if="isMenuOpen" class="satellite-menu-wrapper" @click.stop>
-      <Menu :model="items" class="w-auto border-none shadow-none">
-        <template #item="{ item, props }">
-          <a
-            class="flex items-center cursor-pointer px-3 py-2 gap-2 rounded-md transition-colors duration-150"
-            :class="{
-              'bg-surface-100 text-primary font-semibold': item.value === currentTileLayer,
-            }"
-            v-bind="props.action"
-          >
-            <img v-if="item.flag" :src="item.flag" class="w-4 h-2.5 object-cover" alt="" />
-            <span class="text-xs font-medium">{{ item.label }}</span>
-          </a>
-        </template>
-      </Menu>
-    </div>
-
     <div class="preview-container" :class="{ 'is-satellite': isSatellite }">
       <!-- AI : Using static images for preview to avoid loading actual tiles -->
       <!-- AI : Plan Preview (shown when in Satellite mode) -->
@@ -54,33 +31,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from "vue";
-import {
-  currentTileLayer,
-  switchTileLayer,
-  getTileLayerOptions,
-  type TileLayerType,
-} from "@/services/map/tileLayers";
+import { computed, ref, watch } from "vue";
+import { currentTileLayer, switchTileLayer, type TileLayerType } from "@/services/map/tileLayers";
 import { useI18n } from "vue-i18n";
-import Menu from "primevue/menu";
-import { useAuthStore } from "@/stores/authStore";
 
 const props = defineProps<{
   inDrawer?: boolean;
 }>();
 
-const emit = defineEmits<{
-  (e: "menuChange", isOpen: boolean): void;
-}>();
-
 const { t } = useI18n();
-const authStore = useAuthStore();
-const containerRef = ref<HTMLElement | null>(null);
-const isMenuOpen = ref(false);
-
-watch(isMenuOpen, (newValue) => {
-  emit("menuChange", newValue);
-});
 
 const lastSatelliteLayer = ref<TileLayerType>("esri");
 
@@ -96,19 +55,6 @@ const isSatellite = computed(() => {
   return currentTileLayer.value !== "osm";
 });
 
-// AI : Generate menu items from all available layers including OSM (Plan)
-const items = computed(() => {
-  return getTileLayerOptions().map((opt) => ({
-    label: opt.label,
-    value: opt.value,
-    flag: opt.flagUrl,
-    command: async () => {
-      await switchTileLayer(opt.value);
-      isMenuOpen.value = false;
-    },
-  }));
-});
-
 async function toggleLayer() {
   // AI : Smart toggle: If satellite, go to plan. If plan, go to last used satellite.
   if (isSatellite.value) {
@@ -117,25 +63,6 @@ async function toggleLayer() {
     await switchTileLayer(lastSatelliteLayer.value);
   }
 }
-
-// AI : Handle click outside to close menu (redundant if mouseleave handles it, but good for touch)
-function handleClickOutside(event: MouseEvent) {
-  if (
-    isMenuOpen.value &&
-    containerRef.value &&
-    !containerRef.value.contains(event.target as Node)
-  ) {
-    isMenuOpen.value = false;
-  }
-}
-
-onMounted(() => {
-  document.addEventListener("click", handleClickOutside);
-});
-
-onUnmounted(() => {
-  document.removeEventListener("click", handleClickOutside);
-});
 </script>
 
 <style scoped>
@@ -158,28 +85,6 @@ onUnmounted(() => {
 .satellite-preview:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-/* AI : Custom popup positioning wrapper */
-.satellite-menu-wrapper {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  z-index: 2000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--p-surface-200);
-  background: white;
-  border-radius: 6px;
-  overflow: hidden;
-  /* Round corners */
-}
-
-/* AI : Ensure inner menu component fits tightly */
-:deep(.p-menu) {
-  width: fit-content !important;
-  min-width: 0 !important;
-  border: none;
-  background: transparent;
 }
 
 .preview-container {

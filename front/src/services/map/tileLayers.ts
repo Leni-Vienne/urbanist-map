@@ -2,11 +2,13 @@ import L from "leaflet";
 import { ref } from "vue";
 import { map } from "@/services/core/map";
 import { useAuthStore } from "@/stores/authStore";
+import { detectCountryFromCoordinates } from "@/services/map/countryDetection";
+import { MAP_CONFIG } from "@/constants/mapConstants";
 
 // AI : Default max native zoom for Esri layer (safe baseline)
 const BASELINE_ESRI_MAX_ZOOM = 18;
 
-// AI : Available tile layer types
+// AI : Available tile layer types (FRA and CHE are used internally via auto-detection)
 export type TileLayerType = "FRA" | "esri" | "CHE" | "osm";
 
 // AI : Current active tile layer (OSM as default for built-in labels)
@@ -95,6 +97,7 @@ export function addTileLayer(): void {
   }
 
   initEsriMetadataListener(); // AI : Start listening for potential high-res availability
+  initAutoCountrySwitchListener(); // AI : Start listening for country-based satellite switching
 }
 
 /**
@@ -131,6 +134,9 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
 // AI : Timer for fallback removal of old layers
 let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
 
+// AI : Guard to prevent concurrent layer switches
+let isSwitchingLayer = false;
+
 /**
  * AI : Switch to a different tile layer (for custom layer control)
  */
@@ -138,6 +144,13 @@ export async function switchTileLayer(layerType: TileLayerType) {
   if (!map.value || currentTileLayer.value === layerType) {
     return;
   }
+
+  // AI : Prevent concurrent layer switches to avoid multiple layers loading simultaneously
+  if (isSwitchingLayer) {
+    return;
+  }
+
+  isSwitchingLayer = true;
 
   // AI : Clear any pending fallback removal from previous switches
   if (fallbackRemovalTimer) {
@@ -155,7 +168,7 @@ export async function switchTileLayer(layerType: TileLayerType) {
     activeTileLayer = newLayer;
 
     // AI : Smooth transition: wait for new layer to load before removing old one
-    const removeOldLayer = () => {
+    function removeOldLayer() {
       if (oldLayer && map.value?.hasLayer(oldLayer)) {
         map.value.removeLayer(oldLayer);
       }
@@ -164,7 +177,7 @@ export async function switchTileLayer(layerType: TileLayerType) {
         clearTimeout(fallbackRemovalTimer);
         fallbackRemovalTimer = null;
       }
-    };
+    }
 
     // AI : Remove on load or after timeout (fallback)
     newLayer.once("load", removeOldLayer);
@@ -174,6 +187,24 @@ export async function switchTileLayer(layerType: TileLayerType) {
 
     // AI : Update current layer reference
     currentTileLayer.value = layerType;
+
+    // AI : Wait for old layer to be removed before allowing next switch
+    await new Promise<void>((resolve) => {
+      // AI : Either wait for load event or timeout, whichever comes first
+      function cleanup() {
+        isSwitchingLayer = false;
+        resolve();
+      }
+
+      // AI : Set a maximum wait time
+      const maxWaitTimer = setTimeout(cleanup, 2500);
+
+      // AI : Clear on successful load
+      newLayer.once("load", () => {
+        clearTimeout(maxWaitTimer);
+        cleanup();
+      });
+    });
 
     // AI : Check max zoom immediately if switching to Esri
     if (layerType === "esri") {
@@ -194,22 +225,22 @@ export async function switchTileLayer(layerType: TileLayerType) {
         map.value.removeLayer(oldLayer);
       }
     }
+
+    // AI : Always release the lock, even on error
+    isSwitchingLayer = false;
   }
 }
 
 /**
  * AI : Get available tile layer options for UI
+ * AI : Only returns Plan (OSM) and Satellite (ESRI) - country layers are auto-selected
  */
 export function getTileLayerOptions(): { label: string; value: TileLayerType; flagUrl: string }[] {
-  const authStore = useAuthStore();
-  const isAuthenticated = authStore.isAuthenticated;
-
   return Object.entries(tileLayerConfigs)
     .filter(([value]) => {
-      // AI : Always allow OSM and Esri
-      if (value === "osm" || value === "esri") return true;
-      // AI : Only allow country specific layers if logged in
-      return isAuthenticated;
+      // AI : Only show OSM (Plan) and ESRI (Satellite) in UI
+      // AI : Country-specific layers (FRA, CHE) are automatically selected based on map location
+      return value === "osm" || value === "esri";
     })
     .map(([value, config]) => ({
       label: config.label,
@@ -220,28 +251,6 @@ export function getTileLayerOptions(): { label: string; value: TileLayerType; fl
 
 export function isTileLayerType(value: string): value is TileLayerType {
   return ["FRA", "esri", "CHE", "osm"].includes(value);
-}
-
-/**
- * AI : Check if satellite layer needs to be switched based on new context (country)
- * AI : If in satellite mode, ensures we use the best layer for the country (or fallback to Esri)
- */
-export async function checkAndSwitchSatelliteLayer(countryCode: string | undefined) {
-  // AI : Do nothing if in Plan mode (OSM)
-  if (currentTileLayer.value === "osm") return;
-
-  const authStore = useAuthStore();
-
-  // AI : Determine the target layer based on country support and auth
-  const targetLayer: TileLayerType =
-    countryCode && isTileLayerType(countryCode) && authStore.isAuthenticated
-      ? (countryCode as TileLayerType)
-      : "esri";
-
-  // AI : Switch if needed
-  if (currentTileLayer.value !== targetLayer) {
-    await switchTileLayer(targetLayer);
-  }
 }
 
 // AI : Debounce timer for metadata queries
@@ -375,6 +384,60 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
 function initEsriMetadataListener() {
   if (!map.value) return;
   map.value.on("moveend", checkEsriMaxZoom);
+}
+
+/**
+ * AI : Automatically switch satellite layer based on map view location and zoom
+ */
+function checkAndAutoSwitchSatelliteLayer() {
+  if (!map.value || currentTileLayer.value === "osm") {
+    // AI : Only auto-switch when in satellite mode
+    return;
+  }
+
+  const authStore = useAuthStore();
+
+  if (!authStore.isAuthenticated) {
+    // AI : Country-specific layers require authentication
+    // AI : Stay on ESRI if not authenticated
+    if (currentTileLayer.value !== "esri") {
+      switchTileLayer("esri");
+    }
+    return;
+  }
+
+  const currentZoom = map.value.getZoom();
+
+  // AI : At low zoom levels, always use ESRI (global perspective)
+  if (currentZoom <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
+    if (currentTileLayer.value !== "esri") {
+      switchTileLayer("esri");
+    }
+    return;
+  }
+
+  // AI : At higher zoom, detect country and use country-specific layer if available
+  const center = map.value.getCenter();
+  const detectedCountry = detectCountryFromCoordinates(center.lat, center.lng);
+
+  // AI : Determine target layer: use country-specific if available, otherwise ESRI
+  const targetLayer: TileLayerType =
+    detectedCountry && isTileLayerType(detectedCountry)
+      ? (detectedCountry as TileLayerType)
+      : "esri";
+
+  // AI : Switch if needed
+  if (currentTileLayer.value !== targetLayer) {
+    switchTileLayer(targetLayer);
+  }
+}
+
+/**
+ * AI : Initialize listener for automatic country-based satellite switching
+ */
+function initAutoCountrySwitchListener() {
+  if (!map.value) return;
+  map.value.on("moveend", checkAndAutoSwitchSatelliteLayer);
 }
 
 // AI : Accept HMR updates for this module

@@ -1,6 +1,5 @@
 // AI : Refactored to contain city navigation logic locally
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
-import { checkAndSwitchSatelliteLayer } from "@/services/map/tileLayers";
 import { getSelectedProjectId } from "@/services/project/projectSelection";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
@@ -38,9 +37,6 @@ export async function loadCityProjects(
       nameLocal,
       countryCode: cityCountryCode,
     });
-
-    // AI : Ensure we're using the correct satellite layer for this country
-    await checkAndSwitchSatelliteLayer(cityCountryCode);
 
     // AI : Only clear state when actually switching cities, not when refreshing
     if (isSwitchingCity) {

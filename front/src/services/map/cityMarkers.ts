@@ -17,7 +17,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createColorIcon } from "@/services/map/markers";
-import { checkAndSwitchSatelliteLayer } from "@/services/map/tileLayers";
 import { pruneMapEntities } from "@/services/map/viewportPruning";
 
 import { requestScrollTo } from "@/services/layout/accordionState";
@@ -254,9 +253,6 @@ export async function activateCity(city: CityWithProjects) {
     nameLocal: city.nameLocal,
     countryCode: city.countryCode,
   });
-
-  // AI : Ensure we're using the correct satellite layer for this country
-  await checkAndSwitchSatelliteLayer(city.countryCode);
 
   // AI : Request scroll to city in adjacent panels
   requestScrollTo("city", city.id);

@@ -840,3 +840,100 @@ This document outlines the granular functional test scenarios required to ensure
   9.  **Check**: Previous city marker returns to default opacity.
   10. **Regression**: Mix navigation methods (click marker, then use panel, then marker again).
   11. **Check**: Opacity updates consistently regardless of navigation method.
+
+## 31. Automatic Satellite Layer Switching (Recent Feature - Feb 17)
+
+### 31.1. Auto-Switch When Panning to France
+
+- **Scenario**: Map automatically switches to France satellite layer when panning into French territory.
+- **Steps**:
+  1. Start in **Satellite** mode (global ESRI layer).
+  2. Verify layer is set to "Satellite" in UI.
+  3. Pan the map to **Paris, France**.
+  4. Wait for `moveend` event to fire (stop panning).
+  5. **Check**: Tile layer automatically switches to **France** high-res layer.
+  6. **Check**: France layer tiles are loaded and visible.
+  7. **Check**: UI still shows "Satellite" (not "France" - country layers are hidden from UI).
+
+### 31.2. Auto-Switch When Panning to Switzerland
+
+- **Scenario**: Map automatically switches to Switzerland satellite layer when panning into Swiss territory.
+- **Steps**:
+  1. Start at **France** in Satellite mode.
+  2. Pan the map to **Zurich, Switzerland**.
+  3. Wait for `moveend` event to fire.
+  4. **Check**: Tile layer automatically switches to **Switzerland** layer.
+  5. **Check**: Swiss layer tiles are loaded and visible.
+  6. **Regression**: Zoom in and out.
+  7. **Check**: Layer remains Switzerland (doesn't switch back).
+
+### 31.3. Fallback to ESRI Outside Country Borders
+
+- **Scenario**: Map falls back to global ESRI when viewing areas without country-specific layers.
+- **Steps**:
+  1. Start in France in Satellite mode (France layer active).
+  2. Pan to **London, UK** (no UK-specific layer).
+  3. Wait for `moveend` event.
+  4. **Check**: Tile layer automatically switches back to **ESRI** (global).
+  5. **Check**: ESRI tiles load correctly.
+  6. Pan to **New York, USA**.
+  7. **Check**: Layer remains on ESRI.
+
+### 31.4. No Auto-Switch in Plan Mode
+
+- **Scenario**: Auto-switching only happens in Satellite mode, not Plan mode.
+- **Steps**:
+  1. Set map to **Plan (OSM)** mode.
+  2. Pan to France, Switzerland, and other countries.
+  3. **Check**: Layer remains on Plan (OSM) throughout.
+  4. **Check**: No automatic switching occurs.
+  5. Switch to Satellite mode.
+  6. **Check**: Auto-switching resumes based on current location.
+
+### 31.5. Simplified Layer Selection Menu
+
+- **Scenario**: UI only shows Plan and Satellite options (no manual country selection).
+- **Steps**:
+  1. Open satellite layer selection menu (hover or right-click preview button).
+  2. **Check**: Menu shows exactly **2 options**: "Plan" and "Satellite".
+  3. **Check**: NO France or Switzerland options in menu (authenticated users).
+  4. Click between Plan and Satellite.
+  5. **Check**: Toggle works correctly.
+
+### 31.6. Authentication Required for Country Layers
+
+- **Scenario**: Unauthenticated users stay on ESRI layer even when in France/Switzerland.
+- **Steps**:
+  1. Log out or open in incognito window (unauthenticated).
+  2. Switch to Satellite mode.
+  3. Pan to **Geneva, Switzerland**.
+  4. **Check**: Layer remains on global **ESRI** (doesn't switch to Switzerland).
+  5. Pan to **Nice, France**.
+  6. **Check**: Layer remains on global **ESRI**.
+  7. Log in with authenticated account.
+  8. **Check**: Layer automatically switches to **France**.
+
+### 31.7. Cross-Border Navigation
+
+- **Scenario**: Seamless switching when crossing borders between supported countries.
+- **Steps**:
+  1. Login and enable Satellite mode.
+  2. Navigate to **Strasbourg, France** (near German border).
+  3. **Check**: France layer is active.
+  4. Pan slightly east across border into **Germany**.
+  5. **Check**: Layer switches to **ESRI** (no Germany layer).
+  6. Pan back into France.
+  7. **Check**: Layer switches back to **France**.
+  8. Pan to **Geneva** (France/Switzerland border).
+  9. Pan across border into Switzerland.
+  10. **Check**: Layer switches to **Switzerland**.
+
+### 31.8. No Manual Country Switching on City Click
+
+- **Scenario**: Clicking city markers no longer triggers satellite layer changes.
+- **Steps**:
+  1. Set to Satellite mode with ESRI layer active.
+  2. Click a **city marker in France**.
+  3. **Check**: Map pans to city.
+  4. **Check**: Layer switches to France **only** when moveend event fires (based on location).
+  5. **Regression**: Verify layer didn't switch immediately on click (before map moved).
