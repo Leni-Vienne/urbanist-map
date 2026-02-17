@@ -96,9 +96,9 @@ export function getCityProjects() {
       list.push(project);
     }
 
-    return [...groups.entries()].map(([cityName, projects]) => ({
+    return [...groups.entries()].map(([cityName, projectList]) => ({
       label: cityName,
-      items: projects,
+      items: projectList,
     }));
   });
 

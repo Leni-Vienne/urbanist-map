@@ -141,8 +141,8 @@ const overlaySelectFields = {
  * AI : Build overlay query with full location joins (overlay -> project -> city -> country)
  * AI : Returns chainable query that can be extended with .where(), .orderBy(), .limit()
  */
-export function buildOverlayQuery(db: BunSQLDatabase<typeof schema>) {
-  return db
+export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
+  return database
     .select(overlaySelectFields)
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
@@ -154,8 +154,8 @@ export function buildOverlayQuery(db: BunSQLDatabase<typeof schema>) {
  * AI : Build project query with city and country location data
  * AI : Returns chainable query that can be extended with .where(), .orderBy(), .limit()
  */
-export function buildProjectWithLocationQuery(db: BunSQLDatabase<typeof schema>) {
-  return db
+export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof schema>) {
+  return database
     .select({
       id: projects.id,
       name: projects.name,
@@ -190,8 +190,8 @@ export function buildProjectWithLocationQuery(db: BunSQLDatabase<typeof schema>)
  * AI : Build overlay query with minimal fields for moderation lists
  * AI : Includes location data but not full geometry extraction
  */
-export function buildOverlayModerationQuery(db: BunSQLDatabase<typeof schema>) {
-  return db
+export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof schema>) {
+  return database
     .select({
       id: overlays.id,
       name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
@@ -221,8 +221,8 @@ export function buildOverlayModerationQuery(db: BunSQLDatabase<typeof schema>) {
 /**
  * AI : Build project query with minimal fields for moderation lists
  */
-export function buildProjectModerationQuery(db: BunSQLDatabase<typeof schema>) {
-  return db
+export function buildProjectModerationQuery(database: BunSQLDatabase<typeof schema>) {
+  return database
     .select({
       id: projects.id,
       name: projects.name,
@@ -437,10 +437,10 @@ export type UserContext =
 
 // AI : Fetch overlay IDs where user has pending change requests
 export async function getUserOverlayChangeRequestIds(
-  db: BunSQLDatabase<typeof schema>,
+  database: BunSQLDatabase<typeof schema>,
   userId: string,
 ): Promise<string[]> {
-  const changeRequestResults = await db
+  const changeRequestResults = await database
     .selectDistinct({ overlayId: changeRequests.entityId })
     .from(changeRequests)
     .where(and(eq(changeRequests.requestedBy, userId), eq(changeRequests.entityType, "overlay")));

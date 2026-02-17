@@ -47,7 +47,11 @@ const lastZoomLevel = ref<number | null>(null);
  * AI : Handles all overlay and project rendering based on viewport bounds
  */
 export function useViewportContentManager() {
+  // AI : Initialize all stores at root level for better performance and cleaner code
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+  const projectStore = useProjectStore();
+  const authStore = useAuthStore();
 
   /**
    * AI : Clear content for non-active cities while preserving active city markers
@@ -74,7 +78,6 @@ export function useViewportContentManager() {
     }
 
     // AI : Clear standalone markers for non-active cities
-    const projectStore = useProjectStore();
     const markerMap = getStandaloneProjectMarkerMap();
 
     for (const [projectId, marker] of markerMap.entries()) {
@@ -108,9 +111,6 @@ export function useViewportContentManager() {
    */
   async function reRenderLoadedCities() {
     if (loadedCityIds.value.size === 0) return;
-
-    const overlayStore = useOverlayStore();
-    const mapStore = useMapStore();
 
     // AI : Ensure all cities have data loaded
     for (const cityId of loadedCityIds.value) {
@@ -148,8 +148,6 @@ export function useViewportContentManager() {
     _countryCode: string,
     shouldRender = true,
   ) {
-    const overlayStore = useOverlayStore();
-    const mapStore = useMapStore();
     const mode = overlayStore.mode;
 
     try {
@@ -216,8 +214,6 @@ export function useViewportContentManager() {
    * AI : and render them together. This ensures multi-city view works correctly.
    */
   function renderAllLoadedOverlays(fullRender = true) {
-    const overlayStore = useOverlayStore();
-    const mapStore = useMapStore();
     const mode = overlayStore.mode;
 
     let allOverlays: OverlayData[] = [];
@@ -388,9 +384,7 @@ export function useViewportContentManager() {
       const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];
 
       // AI : In edit mode, include local pending projects from store
-      // AI : In edit mode, include local pending projects from store
       if (mode === "edit") {
-        const projectStore = useProjectStore();
         const localProjects = Object.values(projectStore.projects).filter(
           (p) => p.city?.id === cityId && (p.status === null || p.status === undefined),
         );
@@ -448,7 +442,6 @@ export function useViewportContentManager() {
 
     // AI : CRITICAL: Update mapStore for panels
     // AI : Panels (like Current Location) read from mapStore.currentCityOverlays
-    const mapStore = useMapStore();
     mapStore.currentCityOverlays = overlaysData;
 
     // AI : Update existing overlay objects with fresh backend data
@@ -590,7 +583,6 @@ export function useViewportContentManager() {
         if (hasLoadedOverlays) {
           const updates: Record<string, Partial<OverlayObject>> = {};
           const markersToRemove: string[] = [];
-          const authStore = useAuthStore();
           const currentUserId = authStore.user?.id;
 
           for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
@@ -640,9 +632,6 @@ export function useViewportContentManager() {
           // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // AI : This ensures markers appear immediately without requiring user to click city or zoom
           if (newMode === "edit") {
-            const projectStore = useProjectStore();
-            const authStore = useAuthStore();
-
             // AI : Include both local (unsaved) and user's pending projects
             const userProjects = Object.values(projectStore.projects).filter((p) => {
               if (!p.lat || !p.lng) return false;

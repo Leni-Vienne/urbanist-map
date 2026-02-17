@@ -1,4 +1,5 @@
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
+import nodemailer from "nodemailer";
 
 // AI : Email service configuration interface
 export interface EmailServiceConfig {
@@ -20,8 +21,6 @@ export class EmailService {
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
       // AI : Use nodemailer for SMTP connection
-      const nodemailer = await import("nodemailer");
-
       const transportConfig: SMTPTransport.Options = {
         host: this.config.host,
         port: this.config.port,

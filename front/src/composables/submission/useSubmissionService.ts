@@ -537,8 +537,7 @@ export function useSubmissionService() {
     }
 
     if (changeType === "create") {
-      // AI : Optimistically add project to contributions (status is already "pending" from line 453)
-      const updatedProject = projectStore.projects[project.id];
+      // AI : Optimistically add project to contributions (status is already "pending" from line 513)
       if (updatedProject) {
         projectStore.addProjectToUserContributions(updatedProject);
       }

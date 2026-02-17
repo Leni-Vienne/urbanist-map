@@ -404,8 +404,8 @@ const filteredProjects = computed(() => {
 // AI : Handle delete overlay click - uses shared deletion composable
 async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
   // AI : Find the project that contains this overlay
-  const project = displayedProjects.value.find((project: UserContribution) =>
-    project.overlays?.some(
+  const project = displayedProjects.value.find((displayedProject: UserContribution) =>
+    displayedProject.overlays?.some(
       (overlayElement: UserContributionOverlay) => overlayElement.id === overlay.id,
     ),
   );

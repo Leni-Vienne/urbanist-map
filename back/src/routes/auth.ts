@@ -14,6 +14,7 @@ import {
 } from "../../../shared/validation/schemas";
 import { getEmailService } from "../services/emailService";
 import { verifyTurnstileToken } from "../utils/captcha";
+import { renderEmailTemplate } from "../email/templateRenderer";
 
 // AI : Use shared validation schemas
 
@@ -32,7 +33,6 @@ async function sendVerificationEmail(
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
 
     // AI : Use template renderer with i18n support
-    const { renderEmailTemplate } = await import("../email/templateRenderer");
     const { subject, html } = await renderEmailTemplate(
       "verification",
       { verificationUrl },
@@ -63,7 +63,6 @@ async function sendPasswordResetEmail(
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
     // AI : Use template renderer with i18n support
-    const { renderEmailTemplate } = await import("../email/templateRenderer");
     const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl }, locale);
 
     await emailService.sendEmail(email, subject, html);

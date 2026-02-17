@@ -106,7 +106,6 @@ function zoomWithMobileOffset(zoomDelta: number) {
   if (!map.value) return;
 
   const isMobile = globalThis.innerWidth <= 768;
-  const uiStore = useUiStore();
   const shouldOffset = isMobile && uiStore.mobileDrawerVisible;
 
   if (!shouldOffset) {

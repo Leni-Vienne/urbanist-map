@@ -389,18 +389,18 @@ function resetTurnstile() {
 }
 
 // AI : Helper to translate error messages (handles both i18n keys and plain text)
-function translateError(errorMessage: string | null | undefined): string {
-  if (!errorMessage) return "";
+function translateError(errorKey: string | null | undefined): string {
+  if (!errorKey) return "";
 
   // AI : Check if it looks like an i18n key (contains dots and starts with 'auth.')
-  if (errorMessage.startsWith("auth.")) {
+  if (errorKey.startsWith("auth.")) {
     // AI : Try to translate, fallback to original if key doesn't exist
-    const translated = $t(errorMessage);
-    return translated !== errorMessage ? translated : errorMessage;
+    const translated = $t(errorKey);
+    return translated !== errorKey ? translated : errorKey;
   }
 
   // AI : Return as-is for non-i18n error messages
-  return errorMessage;
+  return errorKey;
 }
 
 function resetForm() {

@@ -44,7 +44,7 @@ const updateOverlaySchema = z.object({
 
 // AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
 async function findIntersectingOverlays(
-  db: BunSQLDatabase<typeof schema>,
+  database: BunSQLDatabase<typeof schema>,
   excludeId: string,
   targetOverlay: { corners: { lat: number; lng: number }[] },
 ) {
@@ -55,7 +55,7 @@ async function findIntersectingOverlays(
 
     // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
     // AI : Only return approved overlays
-    const intersectingOverlays = await buildOverlayQuery(db).where(sql`
+    const intersectingOverlays = await buildOverlayQuery(database).where(sql`
         ${overlays.id} != ${excludeId} AND
         ${overlays.status} = 'approved' AND
         ST_Intersects(

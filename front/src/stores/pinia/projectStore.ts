@@ -450,7 +450,7 @@ export const useProjectStore = defineStore("project", () => {
   // AI : Reset a specific project field to its original backend value
   // AI : Used when user removes a single change from the submission dialog
   function resetProjectField(projectId: string, fieldName: string): boolean {
-    let original = getOriginalProject(projectId);
+    const original = getOriginalProject(projectId);
 
     // AI : Fallback: if not in cache, check if project exists in userContributions
     if (!original) {

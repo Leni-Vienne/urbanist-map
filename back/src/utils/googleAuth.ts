@@ -1,3 +1,5 @@
+import { OAuth2Client } from "google-auth-library";
+
 // AI : Google OAuth utility functions
 export async function verifyGoogleToken(token: string): Promise<{
   googleId: string;
@@ -6,7 +8,6 @@ export async function verifyGoogleToken(token: string): Promise<{
   picture?: string;
 } | null> {
   try {
-    const { OAuth2Client } = await import("google-auth-library");
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
     const ticket = await client.verifyIdToken({

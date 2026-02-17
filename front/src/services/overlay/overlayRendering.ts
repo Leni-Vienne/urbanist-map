@@ -123,7 +123,6 @@ export function createLeafletOverlay(
         if (shouldShowImage) {
           // AI : CRITICAL FIX: Re-verify visibility before adding (async race condition protection)
           // AI : The mode might have changed while waiting for zoom animation (View -> Edit -> View)
-          const overlayStore = useOverlayStore();
           const authStore = useAuthStore();
           if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
             // AI : Abort adding if no longer visible
