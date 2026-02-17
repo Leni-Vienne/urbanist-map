@@ -809,3 +809,34 @@ This document outlines the granular functional test scenarios required to ensure
   3. **Check**: Error message code is `auth.error.emailTaken` (or `account_conflict`).
   4. **Check**: Response **DOES NOT** contain raw SQL error text (e.g., `duplicate key value violates unique constraint`).
   5. **Check**: User is shown a clear error message in the UI.
+
+## 30. City Marker Opacity State Management (Recent Fix - Feb 17)
+
+### 30.1. Marker Opacity Resets When Clicking Different City
+
+- **Scenario**: Previously selected city marker returns to default opacity when selecting a new city.
+- **Steps**:
+  1.  Navigate to a country with multiple cities.
+  2.  Click **City Marker A** (marker becomes opaque).
+  3.  **Check**: City Marker A is at max opacity (hover state).
+  4.  Click **City Marker B** (different city).
+  5.  **Check**: City Marker B is now at max opacity.
+  6.  **Check**: City Marker A returns to default (semi-transparent) opacity.
+  7.  **Regression**: Hover over City Marker A.
+  8.  **Check**: Opacity increases on hover, returns to default on mouseout (not stuck at max).
+
+### 30.2. Marker Opacity Updates via CurrentLocationPanel
+
+- **Scenario**: City marker opacity updates correctly when navigating via panel instead of map click.
+- **Steps**:
+  1.  Click a **City Marker** of country with multiple cities to open the CurrentLocationPanel.
+  2.  Click on the blue country name in the panel to show the list of cities in that country.
+  3.  Click on a city from the list of cities.
+  4.  **Check**: Corresponding city marker on map becomes opaque (max opacity).
+  5.  **Check**: Map flies to selected city.
+  6.  Click on the blue country name in the panel again to show the list of cities in that country.
+  7.  Click on another city in the city list.
+  8.  **Check**: New city marker becomes opaque.
+  9.  **Check**: Previous city marker returns to default opacity.
+  10. **Regression**: Mix navigation methods (click marker, then use panel, then marker again).
+  11. **Check**: Opacity updates consistently regardless of navigation method.
