@@ -72,7 +72,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
     return false;
   }
 
-  let project = projectStore.projects[currentOverlay.projectId];
+  const project = projectStore.projects[currentOverlay.projectId];
   let projectOverlayIds: string[];
 
   // AI : If project is not in memory, just find overlays with same projectId

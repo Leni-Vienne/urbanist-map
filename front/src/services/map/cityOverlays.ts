@@ -33,7 +33,7 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
     // AI : Skip replaced overlays - they would overlap with their replacement at the same location
     if (overlay.status === "replaced") continue;
     // AI : Use unified position resolver
-    const overlayStore = useOverlayStore();
+
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
 
     // AI : Check edit mode cache for modifications to determine correct marker color

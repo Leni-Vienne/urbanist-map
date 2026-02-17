@@ -74,6 +74,7 @@ export const users = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
+  // eslint-disable-next-line eslint/no-shadow
   (users) => [
     index("idx_users_email").on(users.email),
     index("idx_users_email_verification").on(users.emailVerificationToken),
@@ -100,6 +101,7 @@ export const sessions = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
+  // eslint-disable-next-line eslint/no-shadow
   (sessions) => [
     index("idx_sessions_expires_at").on(sessions.expiresAt), // AI : Index for cleanup queries
   ],
@@ -230,6 +232,7 @@ export const cities = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
+  // eslint-disable-next-line eslint/no-shadow
   (cities) => [
     index("idx_cities_country").on(cities.countryCode),
     index("idx_cities_name").on(cities.name), // AI : Index for fast ILIKE searches on English name
@@ -260,6 +263,7 @@ export const countries = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
+  // eslint-disable-next-line eslint/no-shadow
   (countries) => [
     index("idx_countries_code").on(countries.code),
     index("idx_countries_code2").on(countries.code2), // AI : Index for flag lookups
