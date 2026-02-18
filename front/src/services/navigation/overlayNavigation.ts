@@ -199,7 +199,7 @@ export async function navigateToOverlayWithCity(
     // AI : Different city - load everything with cross-country flight support
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    if (!map.value) {
+    if (map.value === null) {
       return false;
     }
 
@@ -277,7 +277,7 @@ export async function navigateToStandaloneProject(
     }
 
     // AI : Fly to marker project coordinates
-    if (!map.value) {
+    if (map.value === null) {
       throw new Error("Map is not initialized");
     }
 

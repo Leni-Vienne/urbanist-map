@@ -192,9 +192,7 @@ export function useSubmissionDialog() {
   // AI : Get all new/unpublished overlays for a project from the overlay store
   function getNewOverlaysForProject(projectId: string): OverlayObject[] {
     return Object.values(overlayStore.overlays).filter(
-      (overlay) =>
-        overlay.projectId === projectId &&
-        (overlay.status === null || overlay.status === undefined),
+      (overlay) => overlay.projectId === projectId && overlay.status === null,
     );
   }
 
@@ -445,7 +443,7 @@ export function useSubmissionDialog() {
         null,
         newOverlayIds,
       );
-      const projectIsNew = project.status === null || project.status === undefined;
+      const projectIsNew = project.status === null;
       const action = determineSubmissionAction(
         projectIsNew,
         requiresModeration,
@@ -506,7 +504,7 @@ export function useSubmissionDialog() {
     const currentOverlayMod = pendingModsStore.getPendingModifications(overlay.id);
 
     // AI : Check if overlay is new (status null, never submitted)
-    const overlayIsNew = overlay.status === null || overlay.status === undefined;
+    const overlayIsNew = overlay.status === null;
 
     const hasAnyOverlayMods =
       allProjectMods.length > 0 ||
@@ -661,7 +659,7 @@ export function useSubmissionDialog() {
     reason: string,
   ): Promise<void> {
     if (extCtx.entityType === "project" && extCtx.changeType === "create" && project) {
-      if (project.status === null || project.status === undefined) {
+      if (project.status === null) {
         await submissionService.submit(
           submissionService.createProjectContext(project, "create"),
           reason,

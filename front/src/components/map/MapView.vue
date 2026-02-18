@@ -145,7 +145,7 @@ async function initializeMapAndOverlays() {
 
     // AI : Ensure map dimensions are calculated before checking bounds
     await nextTick();
-    if (map.value) {
+    if (map.value !== null) {
       map.value.invalidateSize();
       // AI : Small delay to ensure Leaflet updates bounds after invalidateSize
       setTimeout(() => {

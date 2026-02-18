@@ -23,14 +23,14 @@ const currentCameraBounds = ref<CameraBounds | null>(null);
  * AI : Initialize camera bounds tracking
  */
 export function initializeCameraBounds() {
-  if (!map.value) {
+  if (map.value === null) {
     console.warn("Map not available for camera bounds tracking");
     return;
   }
 
   // AI : Update bounds when map moves or zooms
   function updateBounds() {
-    if (!map.value) {
+    if (map.value === null) {
       console.warn("Map not available in updateBounds");
       return;
     }

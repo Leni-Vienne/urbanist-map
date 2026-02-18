@@ -254,7 +254,7 @@ export function useOverlayPublisher() {
       // AI : Step 1 - Ensure project exists on server first (only for brand new projects)
       // AI : Skip if project is already published (pending/approved) to avoid duplicate publishProject calls
       let projectIdChanged = false;
-      if (project && (project.status === null || project.status === undefined)) {
+      if (project && project.status === null) {
         projectIdChanged = await ensureProjectOnServer(project);
         if (projectIdChanged) {
           overlay.projectId = project.id;

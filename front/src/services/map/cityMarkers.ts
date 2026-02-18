@@ -350,7 +350,7 @@ export async function addSingleCityMarker(
   },
   isUnsaved = false,
 ) {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map not initialized when trying to add city marker");
     return;
   }
@@ -395,7 +395,7 @@ export async function addSingleCityMarker(
  * AI : Fetches all cities with projects worldwide and displays them on the map
  */
 export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map not initialized when trying to load global city markers");
     return [];
   }
@@ -459,7 +459,7 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
  * AI : Add city markers for a specific country
  */
 export async function addCityMarkersForCountry(cities: CityWithProjects[], countryCode?: string) {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map not initialized when trying to add city markers for country");
     return;
   }
@@ -524,7 +524,7 @@ async function addCityMarkersToMapInternal(
   cityMarkersStore.setCityMarkersLayer(result.layer);
 
   // AI : Add the layer to the map
-  if (map.value) {
+  if (map.value !== null) {
     result.layer.addTo(map.value);
   }
 
