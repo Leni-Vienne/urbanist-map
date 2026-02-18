@@ -101,7 +101,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     // AI : Create new object with updates to trigger reactivity
     overlays.value = {
       ...overlays.value,
-      [overlayId]: { ...current, ...updates },
+      [overlayId]: { ...current, ...updates }, //  as OverlayObject
     };
   }
 
@@ -113,7 +113,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     for (const [id, update] of Object.entries(updates)) {
       const current = newOverlays[id];
       if (current) {
-        newOverlays[id] = { ...current, ...update };
+        newOverlays[id] = { ...current, ...update }; //  as OverlayObject
         hasChanges = true;
       }
     }

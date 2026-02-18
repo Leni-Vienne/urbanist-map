@@ -123,17 +123,17 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
     const boundsEast = bounds.getEast();
 
     // AI : Overlay BBox
-    let minLat = data.corners[0].lat;
-    let maxLat = data.corners[0].lat;
-    let minLng = data.corners[0].lng;
-    let maxLng = data.corners[0].lng;
+    let minLat = data.corners[0]!.lat;
+    let maxLat = data.corners[0]!.lat;
+    let minLng = data.corners[0]!.lng;
+    let maxLng = data.corners[0]!.lng;
 
     for (let i = 1; i < 4; i++) {
       const c = data.corners[i];
-      if (c.lat < minLat) minLat = c.lat;
-      if (c.lat > maxLat) maxLat = c.lat;
-      if (c.lng < minLng) minLng = c.lng;
-      if (c.lng > maxLng) maxLng = c.lng;
+      if (c!.lat < minLat) minLat = c!.lat;
+      if (c!.lat > maxLat) maxLat = c!.lat;
+      if (c!.lng < minLng) minLng = c!.lng;
+      if (c!.lng > maxLng) maxLng = c!.lng;
     }
 
     // AI : Intersection A and B: A.min < B.max && A.max > B.min
@@ -198,17 +198,17 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
     const boundsNorth = bounds.getNorth();
     const boundsEast = bounds.getEast();
 
-    let minLat = overlay.corners[0].lat;
-    let maxLat = overlay.corners[0].lat;
-    let minLng = overlay.corners[0].lng;
-    let maxLng = overlay.corners[0].lng;
+    let minLat = overlay.corners[0]!.lat;
+    let maxLat = overlay.corners[0]!.lat;
+    let minLng = overlay.corners[0]!.lng;
+    let maxLng = overlay.corners[0]!.lng;
 
     for (let i = 1; i < 4; i++) {
       const c = overlay.corners[i];
-      if (c.lat < minLat) minLat = c.lat;
-      if (c.lat > maxLat) maxLat = c.lat;
-      if (c.lng < minLng) minLng = c.lng;
-      if (c.lng > maxLng) maxLng = c.lng;
+      if (c!.lat < minLat) minLat = c!.lat;
+      if (c!.lat > maxLat) maxLat = c!.lat;
+      if (c!.lng < minLng) minLng = c!.lng;
+      if (c!.lng > maxLng) maxLng = c!.lng;
     }
 
     // AI : Filter using centralized visibility logic

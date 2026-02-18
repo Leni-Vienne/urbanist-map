@@ -69,7 +69,7 @@ export function updateOverlayEditingState(): void {
     if (!overlayObject.overlay) return;
 
     // AI : Ensure overlay is on the map before attempting to manipulate it
-    if (!map.value || !map.value.hasLayer(overlayObject.overlay)) return;
+    if (map.value === null || !map.value.hasLayer(overlayObject.overlay)) return;
 
     // AI : Update overlay options using the setOptions method
     const isEditMode = overlayStore.mode === "edit";
@@ -81,7 +81,7 @@ export function updateOverlayEditingState(): void {
     // AI : When entering edit mode, restore cached corner positions if they exist
     if (isEditMode) {
       const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
-      if (cachedModifications?.corners?.length === 4) {
+      if (cachedModifications?.corners.length === 4) {
         // AI : Restore cached corners to overlay
         const leafletCorners = cachedModifications.corners.map((corner) =>
           L.latLng(corner.lat, corner.lng),
@@ -263,7 +263,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     return;
   }
 
-  if (!map.value) return;
+  if (map.value === null) return;
   if (!projectId) {
     throw new Error("Project Required: A project must be selected to add an overlay");
   }
@@ -347,7 +347,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   }
 
   // AI : If zoom level is too low, zoom to project location first, then create overlay
-  if (needsZoom && project?.lat !== null && project?.lng !== null) {
+  if (needsZoom && project && project.lat && project.lng) {
     const targetZoom = 16; // AI : Zoom level high enough to show overlay clearly
 
     // AI : Show toast to inform user about auto-zoom
@@ -365,7 +365,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     });
 
     // AI : Wait for zoom to complete before creating overlay
-    if (map.value) {
+    if (map.value !== null) {
       map.value.once("zoomend", () => {
         createAndSetupOverlay();
       });

@@ -2,11 +2,14 @@
   "oxc.enable": true,
   "html.format.wrapAttributes": "force-expand-multiline",
   "terminal.integrated.suggest.enabled": true,
+  "oxc.fmt.configPath": ".oxfmtrc.json",
   "[typescript]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode" // "oxc.oxc-vscode" to enable, but messes with chatbots
+    "editor.defaultFormatter": "oxc.oxc-vscode", // "oxc.oxc-vscode" to enable, but messes with chatbots
+    "editor.formatOnSave": true
   },
   "[vue]": {
-    "editor.defaultFormatter": "Vue.volar" // Vue.volar
+    "editor.defaultFormatter": "Vue.volar", // Vue.volar
+    "editor.formatOnSave": true
   },
   // TypeScript behavior for better team feedback
   "typescript.validate.enable": true,

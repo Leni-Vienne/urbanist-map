@@ -8,7 +8,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
 import { LocalFileStorage, getThumbnailFilename, compressImage } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
-import { config } from "./config";
+import { config as appConfig } from "./config";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { generateMissingThumbnails } from "./lib/startup";
 import { DrizzleSessionStore } from "./lib/drizzleSessionStore";
@@ -17,6 +17,12 @@ import { errorAlerter } from "./services/errorAlerter";
 import { globalRateLimiter } from "./lib/rateLimit";
 import { getClientIp } from "./utils/ip";
 import { logger } from "./services/logger";
+import { db } from "./database";
+import { users, config, overlays, projects, cities } from "./db/schema";
+import { eq } from "drizzle-orm";
+import { verifyGoogleToken } from "./utils/googleAuth";
+import { startCleanupJob } from "./services/cleanupService";
+import { startR2MigrationService } from "./services/r2MigrationService";
 
 // AI : Session data type
 type SessionData = {
@@ -175,10 +181,6 @@ app.post("/api/login", async (c) => {
     const { email, password, rememberMe } = validationResult.data;
 
     // AI : Find user (same logic as tRPC route)
-    const { db } = await import("./database");
-    const { users } = await import("./db/schema");
-    const { eq } = await import("drizzle-orm");
-
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
     // AI : SECURITY: Mitigate timing attack
@@ -259,10 +261,6 @@ async function validateGoogleLoginRequest(body: unknown) {
 
 // AI : Helper function to update existing user's email if changed on Google's side
 async function updateExistingUserEmail(existingUser: any, newEmail: string) {
-  const { db } = await import("./database");
-  const { users } = await import("./db/schema");
-  const { eq } = await import("drizzle-orm");
-
   if (existingUser.email !== newEmail) {
     try {
       await db
@@ -301,10 +299,6 @@ async function updateExistingUserEmail(existingUser: any, newEmail: string) {
 
 // AI : Helper function to link Google account to existing password-based account
 async function linkGoogleToPasswordAccount(emailUser: any, googleId: string) {
-  const { db } = await import("./database");
-  const { users } = await import("./db/schema");
-  const { eq } = await import("drizzle-orm");
-
   await db
     .update(users)
     .set({
@@ -323,10 +317,6 @@ async function linkGoogleToPasswordAccount(emailUser: any, googleId: string) {
 
 // AI : Helper function to generate unique username
 async function generateUniqueUsername(baseUsername: string) {
-  const { db } = await import("./database");
-  const { users } = await import("./db/schema");
-  const { eq } = await import("drizzle-orm");
-
   let finalUsername = baseUsername;
   let counter = 1;
 
@@ -346,9 +336,6 @@ async function generateUniqueUsername(baseUsername: string) {
 
 // AI : Helper function to create new Google OAuth user
 async function createGoogleUser(googleUser: { email: string; name: string; googleId: string }) {
-  const { db } = await import("./database");
-  const { users } = await import("./db/schema");
-
   const finalUsername = await generateUniqueUsername(googleUser.name);
 
   const [newUser] = await db
@@ -371,10 +358,6 @@ async function findOrCreateGoogleUser(googleUser: {
   name: string;
   googleId: string;
 }) {
-  const { db } = await import("./database");
-  const { users } = await import("./db/schema");
-  const { eq } = await import("drizzle-orm");
-
   // AI : SECURE: First check by googleId (not email!)
   const [existingUser] = await db
     .select()
@@ -443,7 +426,6 @@ app.post("/api/google-login", async (c) => {
     const { token, rememberMe } = await validateGoogleLoginRequest(body);
 
     // AI : Verify Google token
-    const { verifyGoogleToken } = await import("./utils/googleAuth");
     const googleUser = await verifyGoogleToken(token);
 
     if (!googleUser) {
@@ -504,17 +486,13 @@ app.get("/api/check-session", async (c) => {
     const sessionUser = session.get("user");
 
     // AI : Fetch config for info message (if exists)
-    const { db } = await import("./database");
-    const { config } = await import("./db/schema");
-    const { eq } = await import("drizzle-orm");
-
-    const [appConfig] = await db.select().from(config).where(eq(config.id, 1)).limit(1);
+    const [dbConfig] = await db.select().from(config).where(eq(config.id, 1)).limit(1);
 
     return c.json({
       userId: sessionUser?.id,
       isAuthenticated: Boolean(sessionUser),
       user: sessionUser ?? null,
-      infoMessage: appConfig?.infoMessage ?? null,
+      infoMessage: dbConfig?.infoMessage ?? null,
     });
   } catch (error) {
     console.error("Error fetching session:", error);
@@ -660,10 +638,6 @@ app.get("/uploads/*", async (c) => {
       : validatedFilename;
 
     // AI : Query overlay info for authorization check
-    const { db } = await import("./database");
-    const { overlays, projects, cities } = await import("./db/schema");
-    const { eq } = await import("drizzle-orm");
-
     const overlayInfo = await db
       .select({
         authorId: overlays.authorId,
@@ -682,6 +656,10 @@ app.get("/uploads/*", async (c) => {
     }
 
     const overlay = overlayInfo[0];
+
+    if (!overlay) {
+      return c.json({ error: "File not found" }, 404);
+    }
 
     // AI : Authorization logic
     // AI : Approved images are public (legacy support)
@@ -784,9 +762,6 @@ generateMissingThumbnails().catch((error) => {
   console.error("Failed to generate missing thumbnails:", error);
 });
 
-import { startCleanupJob } from "./services/cleanupService";
-import { startR2MigrationService } from "./services/r2MigrationService";
-
 // AI : Start error alerting service
 errorAlerter.start();
 startCleanupJob();
@@ -795,7 +770,7 @@ startR2MigrationService();
 export type { AppRouter } from "./routes";
 
 export default {
-  port: config.PORT,
+  port: appConfig.PORT,
   // Hostname: '0.0.0.0', //useful for testing on another device in dev, but breaks healthcheck in prod
   fetch: app.fetch,
 };

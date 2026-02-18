@@ -1,34 +1,25 @@
 {
-    "compilerOptions": {
-        "target": "esnext", // useful for this stuff : "const lastCorners = overlayObject.history.at(-1);"
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "skipLibCheck": true,
-        "strict": true,
-        "strictNullChecks": true,
-        "allowSyntheticDefaultImports": true,
-        "useUnknownInCatchVariables": true,
-        "types": [
-            "@types/bun",
-            "@cloudflare/workers-types" // for R2Bucket type
-        ],
-        "paths": {
-            "@/*": [
-                "./front/src/*"
-            ],
-            "@tables": [
-                "./back/src/db/schema"
-            ],
-            "@shared/*": [
-                "./shared/*"
-            ],
-            "leaflet": [
-                "./node_modules/@types/leaflet"
-            ]
-        }
-    },
-    "exclude": [
-        "node_modules",
-        "dist"
-    ]
+  "compilerOptions": {
+    "target": "esnext", // useful for this stuff : "const lastCorners = overlayObject.history.at(-1);"
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
+    "useUnknownInCatchVariables": true,
+    "noUncheckedIndexedAccess": true, // seems insane not to have it when accessing a record, no ? why is the default false?
+    "types": [
+      "@types/bun",
+      "@cloudflare/workers-types" // for R2Bucket type
+    ],
+
+    "paths": {
+      "@/*": ["./front/src/*"],
+      "@tables": ["./back/src/db/schema"],
+      "@shared/*": ["./shared/*"],
+      "leaflet": ["./node_modules/@types/leaflet"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
 }

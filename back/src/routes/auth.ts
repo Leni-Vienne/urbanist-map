@@ -14,6 +14,7 @@ import {
 } from "../../../shared/validation/schemas";
 import { getEmailService } from "../services/emailService";
 import { verifyTurnstileToken } from "../utils/captcha";
+import { renderEmailTemplate } from "../email/templateRenderer";
 
 // AI : Use shared validation schemas
 
@@ -32,7 +33,6 @@ async function sendVerificationEmail(
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
 
     // AI : Use template renderer with i18n support
-    const { renderEmailTemplate } = await import("../email/templateRenderer");
     const { subject, html } = await renderEmailTemplate(
       "verification",
       { verificationUrl },
@@ -63,7 +63,6 @@ async function sendPasswordResetEmail(
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
     // AI : Use template renderer with i18n support
-    const { renderEmailTemplate } = await import("../email/templateRenderer");
     const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl }, locale);
 
     await emailService.sendEmail(email, subject, html);
@@ -108,15 +107,20 @@ export const authRouter = router({
       }
 
       // AI : Check if user already exists
-      const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (existingUser.length > 0) {
+      const existingUserResult = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      const existingUser = existingUserResult[0];
+      if (existingUser) {
         // AI : If user exists but email is not verified, allow re-registration (overwrite)
-        if (!existingUser[0].emailVerified) {
+        if (!existingUser.emailVerified) {
           // AI : Delete the unverified user
-          await db.delete(users).where(eq(users.id, existingUser[0].id));
+          await db.delete(users).where(eq(users.id, existingUser.id));
         } else {
           // AI : Check if this is an OAuth-only account
-          if (existingUser[0].googleId && !existingUser[0].passwordHash) {
+          if (existingUser.googleId && !existingUser.passwordHash) {
             throw new TRPCError({
               code: "CONFLICT",
               message: "auth.error.emailUsesGoogleSignIn",
@@ -163,6 +167,13 @@ export const authRouter = router({
           emailVerified: false,
         })
         .returning();
+
+      if (!newUser) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "auth.error.registrationFailed",
+        });
+      }
 
       // AI : Send verification email
       await sendVerificationEmail(email, plainVerificationToken);

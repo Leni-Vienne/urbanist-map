@@ -37,7 +37,7 @@ export interface SubmissionContextExtended {
   entityType: "project" | "overlay";
   entityId: string;
   changeType: "create" | "update_pending" | "update_approved";
-  entity: OverlayObject | Project;
+  entity: OverlayObject | Project | ProjectForModeration;
   projectId?: string;
   projectModified?: boolean;
   overlayModified?: boolean;
@@ -159,18 +159,20 @@ export function useSubmissionDialog() {
   ): SubmissionChange[] {
     const changes: SubmissionChange[] = [];
 
+    // AI : Helper to get image URL for new overlays
+    // AI : OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
+    function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
+      if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
+      if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
+      return undefined;
+    }
+
     for (const overlayId of newOverlayIds) {
       const overlay = overlays[overlayId];
       if (!overlay) continue;
 
       // AI : For new overlays, use imageUrl (data URL/blob) since they don't have thumbnails yet
-      // AI : OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
-      function getImageUrl(): string | undefined {
-        if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
-        if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
-        return undefined;
-      }
-      const imageUrl = getImageUrl();
+      const imageUrl = getImageUrl(overlay);
 
       // AI : Handle both OverlayObject (caption) and OverlayForModeration (name)
       const overlayName = "caption" in overlay ? overlay.caption : overlay.name;
@@ -190,9 +192,7 @@ export function useSubmissionDialog() {
   // AI : Get all new/unpublished overlays for a project from the overlay store
   function getNewOverlaysForProject(projectId: string): OverlayObject[] {
     return Object.values(overlayStore.overlays).filter(
-      (overlay) =>
-        overlay.projectId === projectId &&
-        (overlay.status === null || overlay.status === undefined),
+      (overlay) => overlay.projectId === projectId && overlay.status === null,
     );
   }
 
@@ -362,6 +362,11 @@ export function useSubmissionDialog() {
       const isApproved = mod.overlayStatus === "approved";
       const overlayObject = overlayStore.overlays[overlayId];
 
+      if (!overlayObject) {
+        console.error(`Overlay ${overlayId} not found`);
+        continue;
+      }
+
       if (!isApproved) {
         // AI : Pending overlay - can update directly or publish
         await submitPendingOverlayModification(overlayId, mod, overlayObject, project);
@@ -438,7 +443,7 @@ export function useSubmissionDialog() {
         null,
         newOverlayIds,
       );
-      const projectIsNew = project.status === null || project.status === undefined;
+      const projectIsNew = project.status === null;
       const action = determineSubmissionAction(
         projectIsNew,
         requiresModeration,
@@ -484,7 +489,7 @@ export function useSubmissionDialog() {
 
   // AI : Prepare overlay submission (for map popup publish button)
   // AI : This now delegates to prepareProjectWithOverlaysSubmission for UNIFIED behavior
-  function prepareOverlaySubmission(overlay: OverlayObject, project: Project | null): void {
+  function prepareOverlaySubmission(overlay: OverlayObject, project?: Project): void {
     // AI : If we have a project, use the unified function for consistent behavior
     // AI : This ensures InfoPopup and ContributePanel buttons behave identically
     if (project) {
@@ -499,7 +504,7 @@ export function useSubmissionDialog() {
     const currentOverlayMod = pendingModsStore.getPendingModifications(overlay.id);
 
     // AI : Check if overlay is new (status null, never submitted)
-    const overlayIsNew = overlay.status === null || overlay.status === undefined;
+    const overlayIsNew = overlay.status === null;
 
     const hasAnyOverlayMods =
       allProjectMods.length > 0 ||
@@ -583,10 +588,7 @@ export function useSubmissionDialog() {
       const overlayToPublish = applyModificationsToOverlay(overlayObj, mod);
       // AI : Try multiple store locations for project lookup - approved projects may be in allProjects
       const project = projectId
-        ? (projectStore.projects[projectId] ??
-          projectStore.allProjects[projectId] ??
-          projectStore.nearbyProjects.find((p) => p.id === projectId) ??
-          null)
+        ? (projectStore.projects[projectId] ?? projectStore.allProjects[projectId] ?? null)
         : null;
       await publishOverlay(overlayToPublish, project);
     } else {
@@ -657,7 +659,7 @@ export function useSubmissionDialog() {
     reason: string,
   ): Promise<void> {
     if (extCtx.entityType === "project" && extCtx.changeType === "create" && project) {
-      if (project.status === null || project.status === undefined) {
+      if (project.status === null) {
         await submissionService.submit(
           submissionService.createProjectContext(project, "create"),
           reason,
@@ -677,7 +679,6 @@ export function useSubmissionDialog() {
       project =
         projectStore.projects[extCtx.projectId] ??
         projectStore.allProjects[extCtx.projectId] ??
-        projectStore.nearbyProjects.find((p) => p.id === extCtx.projectId) ??
         null;
     }
 
@@ -689,7 +690,7 @@ export function useSubmissionDialog() {
 
     // AI : Submit project changes for EXISTING modified projects only (not new projects)
     // AI : New projects will be handled by ensureProjectOnServer or submitNewProjectIfApplicable
-    const isExistingProject = project && project.status !== null && project.status !== undefined;
+    const isExistingProject = project && project.status !== null;
 
     // AI : Only submit if project is actually modified AND has detectable changes
     // AI : This prevents "No changes detected" errors when only overlays changed
@@ -806,7 +807,7 @@ export function useSubmissionDialog() {
 
       // AI : Reset position to backend corners (use captured original if available)
       const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
-      if (overlayObject.overlay && cornersToUse?.length === 4) {
+      if (overlayObject.overlay && cornersToUse.length === 4) {
         const leafletCorners = cornersToUse.map((corner) => L.latLng(corner.lat, corner.lng));
         overlayObject.overlay.setCorners(leafletCorners);
       }
@@ -907,9 +908,10 @@ export function useSubmissionDialog() {
       overlayStore.updateOverlay(overlayId, { isModified: false });
       updateExtendedContextAfterOverlayRemoval(overlayId);
     }
-
+    const overlay = overlayStore.overlays[overlayId];
+    if (!overlay) return;
     // AI : Update marker tooltip
-    updateMarkerTooltip(overlayStore.overlays[overlayId]);
+    updateMarkerTooltip(overlay);
   }
 
   // AI : Helper function to handle removing an overlay change

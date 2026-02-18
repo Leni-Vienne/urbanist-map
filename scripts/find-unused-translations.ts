@@ -129,6 +129,10 @@ function removeKey(obj: Record<string, unknown>, keyPath: string): boolean {
 
   for (let i = 0; i < parts.length - 1; i += 1) {
     const part = parts[i];
+    if (!part) {
+      return false;
+    }
+
     if (typeof current[part] !== "object" || current[part] === null) {
       return false;
     }
@@ -136,6 +140,11 @@ function removeKey(obj: Record<string, unknown>, keyPath: string): boolean {
   }
 
   const lastPart = parts[parts.length - 1];
+
+  if (!lastPart) {
+    return false;
+  }
+
   if (lastPart in current) {
     delete current[lastPart];
     return true;
@@ -212,7 +221,7 @@ async function main() {
 
       for (const key of allKeys) {
         // AI: Check if key matches any ignored prefix
-        const isIgnored = Array.from(allIgnoredPrefixes).some((prefix) => key.startsWith(prefix));
+        const isIgnored = [...allIgnoredPrefixes].some((prefix) => key.startsWith(prefix));
 
         if (isIgnored) {
           ignoredCount += 1;

@@ -90,7 +90,7 @@ export function useEditableFormBase<TFormData extends Record<string, any>>(
           fieldName: String(fieldName),
           oldValue: serializeValue(originalData[fieldName]),
           newValue: serializeValue(formData[fieldName]),
-          changeReason: changeReason.value ?? undefined,
+          changeReason: changeReason.value,
         });
       }
     }

@@ -87,7 +87,7 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
 };
 
 // AI : Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
-function normalizeDate(val: any): string | null {
+function normalizeDate(val: any) {
   if (!val) return null;
   if (val instanceof Date) return val.toISOString().split("T")[0]; // AI : Get yyyy-MM-dd part
   if (typeof val === "string") return val.split("T")[0]; // AI : Handle ISO strings or yyyy-MM-dd
@@ -302,7 +302,7 @@ export function useSubmissionService() {
     // AI : 1. Edit mode cache (contains user's most recent position, even if zoomed out)
     // AI : 2. Leaflet overlay (if actively loaded in the map)
     // AI : 3. overlay.corners (fallback, but may be stale/original)
-    let currentCorners: { lat: number; lng: number }[];
+    let currentCorners: { lat: number; lng: number }[] = [];
 
     const editModeCache = getFromEditModeOverlayCache(overlay.id);
 
@@ -543,8 +543,7 @@ export function useSubmissionService() {
     }
 
     if (changeType === "create") {
-      // AI : Optimistically add project to contributions (status is already "pending" from line 453)
-      const updatedProject = projectStore.projects[project.id];
+      // AI : Optimistically add project to contributions (status is already "pending" from line 513)
       if (updatedProject) {
         projectStore.addProjectToUserContributions(updatedProject);
       }

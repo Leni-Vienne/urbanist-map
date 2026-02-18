@@ -57,7 +57,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
 
-  if (!map.value) {
+  if (map.value === null) {
     throw new Error("Map not available: Cannot navigate between overlays");
   }
 
@@ -72,7 +72,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
     return false;
   }
 
-  let project = projectStore.projects[currentOverlay.projectId];
+  const project = projectStore.projects[currentOverlay.projectId];
   let projectOverlayIds: string[];
 
   // AI : If project is not in memory, just find overlays with same projectId
@@ -96,6 +96,11 @@ function navigateOverlaySequence(direction: "next" | "previous") {
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   const newOverlayId = projectOverlayIds[newIndex];
 
+  if (!newOverlayId) {
+    console.error("Overlay not found for ID:", newOverlayId);
+    return false;
+  }
+
   return selectAndCenterOverlay(newOverlayId);
 }
 
@@ -108,10 +113,18 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
 
   for (const projectId of projectIds) {
     const project = projectStore.projects[projectId];
+    if (!project) {
+      console.error("Project not found for ID:", projectId);
+      continue;
+    }
     if (project.overlayIds.length > 0) {
       // Select first overlay for 'next', last overlay for 'previous'
       const index = direction === "next" ? 0 : project.overlayIds.length - 1;
       const overlayId = project.overlayIds[index];
+      if (!overlayId) {
+        console.error("Overlay not found for ID:", overlayId);
+        continue;
+      }
 
       if (selectAndCenterOverlay(overlayId)) {
         // AI : Selected first/last overlay in project
