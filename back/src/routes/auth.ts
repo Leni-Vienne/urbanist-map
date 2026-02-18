@@ -168,15 +168,15 @@ export const authRouter = router({
         })
         .returning();
 
-      // AI : Send verification email
-      await sendVerificationEmail(email, plainVerificationToken);
-
       if (!newUser) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "auth.error.registrationFailed",
         });
       }
+
+      // AI : Send verification email
+      await sendVerificationEmail(email, plainVerificationToken);
 
       return {
         success: true,
