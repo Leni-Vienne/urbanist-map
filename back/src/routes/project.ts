@@ -75,7 +75,7 @@ export const projectRouter = router({
 
         // AI : Use transaction to prevent race conditions between validation and update
         // AI : This ensures status/ownership checks remain valid when update executes
-        const result = await db.transaction(async (tx) => {
+        const publishTransaction = await db.transaction(async (tx) => {
           // AI : Check if project exists and validate permissions
           const existingProject = await tx
             .select()
@@ -83,11 +83,10 @@ export const projectRouter = router({
             .where(eq(projects.id, projectId))
             .limit(1);
 
-          if (existingProject.length === 0) {
+          const project = existingProject[0];
+          if (!project) {
             return null;
           }
-
-          const project = existingProject[0];
 
           // AI : Security check - only owner can modify their project
           if (project.ownerId !== ctx.user.id) {
@@ -133,10 +132,10 @@ export const projectRouter = router({
           return updateResult[0];
         });
 
-        if (result) {
+        if (publishTransaction) {
           return {
             success: true,
-            id: result.id,
+            id: publishTransaction.id,
             exists: true,
           };
         }
@@ -148,9 +147,17 @@ export const projectRouter = router({
         .values(input.id ? { ...data, id: input.id } : data)
         .returning();
 
+      const resultRow = result[0];
+
+      if (!resultRow) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to publish project",
+        });
+      }
       return {
         success: true,
-        id: result[0].id,
+        id: resultRow.id,
         exists: false,
       };
     } catch (error) {
@@ -163,7 +170,6 @@ export const projectRouter = router({
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to publish project",
-        cause: error,
       });
     }
   }),
@@ -189,12 +195,14 @@ export const projectRouter = router({
             .where(eq(projects.id, input.id))
             .limit(1);
 
-          if (project.length === 0) {
+          const projectRecord = project[0];
+
+          if (!projectRecord) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
           }
 
           // AI : Only owner can delete their own project
-          if (project[0].ownerId !== userId) {
+          if (projectRecord.ownerId !== userId) {
             throw new TRPCError({
               code: "FORBIDDEN",
               message: "Not authorized to delete this project",
@@ -202,7 +210,7 @@ export const projectRouter = router({
           }
 
           // AI : Only pending projects can be deleted
-          if (project[0].status !== "pending") {
+          if (projectRecord.status !== "pending") {
             throw new TRPCError({
               code: "BAD_REQUEST",
               message: "Can only delete pending projects",
@@ -324,7 +332,10 @@ export const projectRouter = router({
         return { projects: nearbyProjects };
       } catch (error) {
         console.error("Error fetching nearby projects:", error);
-        throw new Error("Failed to fetch nearby projects", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch nearby projects",
+        });
       }
     }),
 
@@ -341,7 +352,10 @@ export const projectRouter = router({
       try {
         // AI : SECURITY: Reject moderation mode for unauthenticated users
         if (input.mode === "moderation" && !ctx.user) {
-          throw new Error("Authentication required for moderation mode");
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required for moderation mode",
+          });
         }
 
         // AI : Build where conditions based on user authentication and mode
@@ -426,7 +440,10 @@ export const projectRouter = router({
         return projectsInCity;
       } catch (error) {
         console.error("Error fetching projects by city:", error);
-        throw new Error("Failed to fetch projects by city", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch projects by city",
+        });
       }
     }),
 

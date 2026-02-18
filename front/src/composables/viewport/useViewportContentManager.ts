@@ -255,7 +255,6 @@ export function useViewportContentManager() {
       // AI : CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
         const isEditMode = overlayStore.mode === "edit";
-        const mapStore = useMapStore();
         const activeCityId = mapStore.selectedCity?.id;
 
         // AI : Active city preservation: if a city is selected, keep its content loaded
@@ -334,8 +333,6 @@ export function useViewportContentManager() {
    * AI : Groups flat viewport data by city so panels can query by city ID
    */
   function updateMapStoreCaches(overlays: OverlayData[], standaloneProjects: any[], mode: AppMode) {
-    const mapStore = useMapStore();
-
     // AI : Group overlays by city
     const overlaysByCity = new Map<number, OverlayData[]>();
     for (const overlay of overlays) {
@@ -637,7 +634,7 @@ export function useViewportContentManager() {
               if (!p.lat || !p.lng) return false;
 
               // AI : Local projects (not yet submitted)
-              if (p.status === null || p.status === undefined) return true;
+              if (p.status === null) return true;
 
               // AI : User's own pending projects (submitted but not approved)
               if (p.status === "pending" && authStore.user && p.ownerId === authStore.user.id)

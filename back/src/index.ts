@@ -657,6 +657,10 @@ app.get("/uploads/*", async (c) => {
 
     const overlay = overlayInfo[0];
 
+    if (!overlay) {
+      return c.json({ error: "File not found" }, 404);
+    }
+
     // AI : Authorization logic
     // AI : Approved images are public (legacy support)
     if (overlay.status === "approved") {

@@ -51,7 +51,7 @@ async function findIntersectingOverlays(
   try {
     // AI : Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
     const [topLeft, topRight, bottomRight, bottomLeft] = targetOverlay.corners;
-    const targetPolygonWKT = `POLYGON((${topLeft.lng} ${topLeft.lat}, ${topRight.lng} ${topRight.lat}, ${bottomRight.lng} ${bottomRight.lat}, ${bottomLeft.lng} ${bottomLeft.lat}, ${topLeft.lng} ${topLeft.lat}))`;
+    const targetPolygonWKT = `POLYGON((${topLeft!.lng} ${topLeft!.lat}, ${topRight!.lng} ${topRight!.lat}, ${bottomRight!.lng} ${bottomRight!.lat}, ${bottomLeft!.lng} ${bottomLeft!.lat}, ${topLeft!.lng} ${topLeft!.lat}))`;
 
     // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
     // AI : Only return approved overlays
@@ -67,7 +67,10 @@ async function findIntersectingOverlays(
     return intersectingOverlays;
   } catch (error) {
     console.error("Error finding intersecting overlays:", error);
-    throw new Error("Failed to find intersecting overlays", { cause: error });
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to find intersecting overlays",
+    });
   }
 }
 
@@ -163,7 +166,10 @@ export const overlayRouter = router({
         return combined;
       } catch (error) {
         console.error("Error fetching latest contributions:", error);
-        throw new Error("Failed to fetch latest contributions", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch latest contributions",
+        });
       }
     }),
 
@@ -187,7 +193,7 @@ export const overlayRouter = router({
         .limit(1);
 
       if (!overlay.length) {
-        throw new Error("Overlay not found");
+        throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
       }
 
       let intersectingOverlays: Awaited<ReturnType<typeof findIntersectingOverlays>> = [];
@@ -195,6 +201,8 @@ export const overlayRouter = router({
       // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay
       if (input.includeIntersecting) {
         const queriedOverlay = overlay[0];
+        if (!queriedOverlay)
+          throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
       }
 
@@ -204,7 +212,10 @@ export const overlayRouter = router({
       };
     } catch (error) {
       console.error("Error fetching overlay:", error);
-      throw new Error("Failed to fetch overlay", { cause: error });
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch overlay",
+      });
     }
   }),
 
@@ -234,7 +245,7 @@ export const overlayRouter = router({
         .limit(1);
 
       // AI : Block any modification to approved overlays - must use change request system
-      if (existingOverlay.length > 0 && existingOverlay[0].status === "approved") {
+      if (existingOverlay[0]?.status === "approved") {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "APPROVED_OVERLAY_REQUIRES_CHANGE_REQUEST",
@@ -261,11 +272,11 @@ export const overlayRouter = router({
       // AI : ST_MakeLine creates a LineString from individual points
       const corners = sql`ST_MakePolygon(
         ST_MakeLine(ARRAY[
-          ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${topRight.lng}, ${topRight.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${bottomRight.lng}, ${bottomRight.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${bottomLeft.lng}, ${bottomLeft.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326)
+          ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${topRight!.lng}, ${topRight!.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${bottomRight!.lng}, ${bottomRight!.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${bottomLeft!.lng}, ${bottomLeft!.lat}), 4326),
+          ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326)
         ])
       )`;
 
@@ -282,7 +293,7 @@ export const overlayRouter = router({
       };
 
       // AI : Use upsert operation to avoid race conditions - atomic insert or update
-      const result = await db
+      const upsertedOverlayResult = await db
         .insert(overlays)
         .values(overlayData)
         .onConflictDoUpdate({
@@ -307,12 +318,17 @@ export const overlayRouter = router({
           updatedAt: overlays.updatedAt,
         });
 
+      const upsertedOverlay = upsertedOverlayResult[0];
+      if (!upsertedOverlay) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to upsert overlay" });
+      }
+
       return {
         success: true,
-        id: result[0].id,
-        status: result[0].status,
-        authorId: result[0].authorId,
-        exists: result[0].createdAt !== result[0].updatedAt, // AI : Determine if it was update or insert
+        id: upsertedOverlay.id,
+        status: upsertedOverlay.status,
+        authorId: upsertedOverlay.authorId,
+        exists: upsertedOverlay.createdAt !== upsertedOverlay.updatedAt, // AI : Determine if it was update or insert
       };
     } catch (error) {
       // AI : Re-throw TRPCErrors as-is to preserve error codes and messages
@@ -324,7 +340,6 @@ export const overlayRouter = router({
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to publish overlay",
-        cause: error,
       });
     }
   }), // AI : Update overlay fields directly (for pending overlays)
@@ -339,11 +354,13 @@ export const overlayRouter = router({
         .where(eq(overlays.id, input.id))
         .limit(1);
 
-      if (existingOverlay.length === 0) {
+      const overlayToUpdate = existingOverlay[0];
+
+      if (!overlayToUpdate) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
       }
 
-      if (existingOverlay[0].authorId !== userId) {
+      if (overlayToUpdate.authorId !== userId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Not authorized to update this overlay",
@@ -387,12 +404,14 @@ export const overlayRouter = router({
           .where(eq(overlays.id, input.id))
           .limit(1);
 
-        if (overlay.length === 0) {
+        const overlayToDelete = overlay[0];
+
+        if (!overlayToDelete) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         }
 
         // AI : Only owner can delete their own overlay
-        if (overlay[0].authorId !== userId) {
+        if (overlayToDelete.authorId !== userId) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Not authorized to delete this overlay",
@@ -400,7 +419,7 @@ export const overlayRouter = router({
         }
 
         // AI : Only pending overlays can be deleted
-        if (overlay[0].status !== "pending") {
+        if (overlayToDelete.status !== "pending") {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Can only delete pending overlays",
@@ -409,7 +428,7 @@ export const overlayRouter = router({
 
         // AI : Delete images first (safer - if DB delete fails, we just have orphaned files)
         try {
-          await deleteLocalImages(overlay[0].filename, "both");
+          await deleteLocalImages(overlayToDelete.filename, "both");
           console.log(`Deleted local images for overlay ${input.id}`);
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);

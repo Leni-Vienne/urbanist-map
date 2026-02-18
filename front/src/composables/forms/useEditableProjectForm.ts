@@ -184,8 +184,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         rejectionReason: null, // AI : Not available in local edit context (only for rejected items)
         overlayIds: userContributionProject.overlays?.map((o) => o.id) ?? [],
         isModified: true,
-        createdAt: userContributionProject.createdAt ?? new Date(),
-        updatedAt: userContributionProject.updatedAt ?? new Date(),
+        createdAt: userContributionProject.createdAt,
+        updatedAt: userContributionProject.updatedAt,
         ownerId: userContributionProject.ownerId ?? null,
         centerCoordinate: {
           x: userContributionProject.lng ?? 0,
@@ -248,6 +248,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     if (!result.success) {
       const errors = getValidationErrorsMap(result.error);
       const firstError = Object.values(errors)[0];
+      if (!firstError) return false;
       toast.add({
         severity: "error",
         summary: t("toast.validationError"),

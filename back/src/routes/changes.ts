@@ -48,11 +48,11 @@ function convertCornersToGeometry(cornersValue: unknown) {
   const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
   return sql`ST_MakePolygon(
     ST_MakeLine(ARRAY[
-      ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${topRight.lng}, ${topRight.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${bottomRight.lng}, ${bottomRight.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${bottomLeft.lng}, ${bottomLeft.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${topLeft.lng}, ${topLeft.lat}), 4326)
+      ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${topRight!.lng}, ${topRight!.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${bottomRight!.lng}, ${bottomRight!.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${bottomLeft!.lng}, ${bottomLeft!.lat}), 4326),
+      ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326)
     ])
   )`;
 }
@@ -137,11 +137,12 @@ async function checkModeratorChangeRequestPermission(
     .where(eq(changeRequests.id, changeRequestId))
     .limit(1);
 
-  if (changeRequest.length === 0) {
+  const request = changeRequest[0];
+  if (!request) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Change request not found" });
   }
 
-  const { entityType, entityId } = changeRequest[0];
+  const { entityType, entityId } = request;
 
   // AI : Get country code for the entity
   if (!isSupportedEntityType(entityType)) {
@@ -265,7 +266,7 @@ export const changesRouter = router({
         const userId = ctx.user.id;
 
         // AI : Get change request to check permissions and status
-        const changeRequest = await db
+        const changeRequestResult = await db
           .select({
             id: changeRequests.id,
             requestedBy: changeRequests.requestedBy,
@@ -275,12 +276,13 @@ export const changesRouter = router({
           .where(eq(changeRequests.id, input.id))
           .limit(1);
 
-        if (changeRequest.length === 0) {
+        const changeRequest = changeRequestResult[0];
+        if (!changeRequest) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Change request not found" });
         }
 
         // AI : Only the requester can delete their own change request
-        if (changeRequest[0].requestedBy !== userId) {
+        if (changeRequest.requestedBy !== userId) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Not authorized to delete this change request",
@@ -288,7 +290,7 @@ export const changesRouter = router({
         }
 
         // AI : Only pending and conflicted change requests can be deleted
-        if (changeRequest[0].status !== "pending" && changeRequest[0].status !== "conflicted") {
+        if (changeRequest.status !== "pending" && changeRequest.status !== "conflicted") {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Can only delete pending or conflicted change requests",

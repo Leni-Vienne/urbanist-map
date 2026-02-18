@@ -2,7 +2,7 @@ import L from "leaflet";
 import { ref } from "vue";
 import { map } from "@/services/core/map";
 import { useAuthStore } from "@/stores/authStore";
-import { detectCountryFromCoordinates } from "@/services/map/countryDetection";
+import { type CountryCode, detectCountryFromCoordinates } from "@/services/map/countryDetection";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 
 // AI : Default max native zoom for Esri layer (safe baseline)
@@ -361,8 +361,11 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   const response = await fetch(url.toString());
   const data = (await response.json()) as EsriIdentifyResponse;
 
-  if (data?.results && data.results.length > 0) {
-    const attributes = data.results[0].attributes;
+  if (data?.results) {
+    const firstEsriResult = data.results[0];
+    if (!firstEsriResult) return BASELINE_ESRI_MAX_ZOOM;
+
+    const attributes = firstEsriResult.attributes;
 
     // AI : Use explicit MaxMapLevel from metadata
     if (attributes.MaxMapLevel) {
@@ -418,13 +421,14 @@ function checkAndAutoSwitchSatelliteLayer() {
 
   // AI : At higher zoom, detect country and use country-specific layer if available
   const center = map.value.getCenter();
-  const detectedCountry = detectCountryFromCoordinates(center.lat, center.lng);
+  const detectedCountry: CountryCode | undefined = detectCountryFromCoordinates(
+    center.lat,
+    center.lng,
+  );
 
   // AI : Determine target layer: use country-specific if available, otherwise ESRI
   const targetLayer: TileLayerType =
-    detectedCountry && isTileLayerType(detectedCountry)
-      ? (detectedCountry as TileLayerType)
-      : "esri";
+    detectedCountry && isTileLayerType(detectedCountry) ? detectedCountry : "esri";
 
   // AI : Switch if needed
   if (currentTileLayer.value !== targetLayer) {

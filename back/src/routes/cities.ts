@@ -1,5 +1,5 @@
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { publicProcedure, router } from "../trpc";
+import { publicProcedure, router, TRPCError } from "../trpc";
 import { cities, projects, overlays, changeRequests } from "../db/schema";
 import { sql, eq, isNotNull, and } from "drizzle-orm";
 import { db } from "../database";
@@ -61,7 +61,10 @@ export const citiesRouter = router({
           .limit(limit);
       } catch (error) {
         console.error("Error fetching cities near location:", error);
-        throw new Error("Failed to fetch cities near location", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch cities near location",
+        });
       }
     }),
 
@@ -113,7 +116,10 @@ export const citiesRouter = router({
         return result;
       } catch (error) {
         console.error("Error searching cities near location:", error);
-        throw new Error("Failed to search cities near location", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to search cities near location",
+        });
       }
     }),
 
@@ -169,7 +175,10 @@ export const citiesRouter = router({
           .having(sql`COUNT(${projects.id}) > 0`);
       } catch (error) {
         console.error("Error fetching cities with projects:", error);
-        throw new Error("Failed to fetch cities with projects", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch cities with projects",
+        });
       }
     }),
   // AI : Get all approved projects and overlays for a specific city
@@ -356,7 +365,10 @@ export const citiesRouter = router({
         return result;
       } catch (error) {
         console.error("Error fetching city projects:", error);
-        throw new Error("Failed to fetch city projects", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch city projects",
+        });
       }
     }),
 
@@ -398,7 +410,10 @@ export const citiesRouter = router({
           .limit(limit);
       } catch (error) {
         console.error("Error searching cities:", error);
-        throw new Error("Failed to search cities", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to search cities",
+        });
       }
     }),
 });

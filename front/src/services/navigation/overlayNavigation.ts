@@ -208,11 +208,6 @@ export async function navigateToOverlayWithCity(
     // AI : even if the user interrupts the animation
     const result = await loadAndRenderCityData(cityId, true);
 
-    if (!result || !result.overlays) {
-      // AI : No overlays to navigate to in this city
-      // AI : Still fly to the coordinates though since project marker might exist
-    }
-
     const overlaysData = result?.overlays;
 
     // AI : Find the overlay in the fetched data
