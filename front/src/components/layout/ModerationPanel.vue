@@ -247,9 +247,12 @@ onMounted(async () => {
     const isAdmin = user?.role === "admin";
     // AI : Check if we DIDN'T restore a country already
     if (!selectedCountryCode.value && !isAdmin && availableCountries.value.length === 1) {
-      const singleCountryCode = availableCountries.value[0].code;
+      const country = availableCountries.value[0];
+      if (!country) {
+        throw new Error("No country found");
+      }
       // AI : Use shared loader
-      await loadCountryData(singleCountryCode);
+      await loadCountryData(country.code);
       // AI : Explicitly fetch pending submissions because useModeration hook ran already (saw null)
       await fetchPendingSubmissions();
     }

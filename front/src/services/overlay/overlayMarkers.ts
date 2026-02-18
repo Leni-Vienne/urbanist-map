@@ -41,8 +41,8 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   // AI : This ensures marker position doesn't jump when zooming in/out
   const corners = overlayObject.overlay.getCorners();
   if (corners?.length === 4) {
-    const centroidLat = (corners[0].lat + corners[1].lat + corners[2].lat + corners[3].lat) / 4;
-    const centroidLng = (corners[0].lng + corners[1].lng + corners[2].lng + corners[3].lng) / 4;
+    const centroidLat = (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4;
+    const centroidLng = (corners[0]!.lng + corners[1]!.lng + corners[2]!.lng + corners[3]!.lng) / 4;
     overlayObject.marker.setLatLng([centroidLat, centroidLng]);
   }
 }

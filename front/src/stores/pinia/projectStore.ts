@@ -201,6 +201,11 @@ export const useProjectStore = defineStore("project", () => {
       // AI : Project exists, add overlay to its overlays array
       const existingProject = userContributions.value[existingProjectIndex];
 
+      if (!existingProject) {
+        console.error("Existing project not found for ID:", project.id);
+        return;
+      }
+
       // AI : Check if overlay already exists in the project
       const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
 
@@ -316,13 +321,20 @@ export const useProjectStore = defineStore("project", () => {
 
     if (projectIndex !== -1) {
       const project = userContributions.value[projectIndex];
+      if (!project) {
+        console.error("Existing project not found for index:", projectIndex);
+        return;
+      }
       const overlayIndex = project.overlays.findIndex(
         (o: UserContributionOverlay) => o.id === overlayId,
       );
 
       if (overlayIndex !== -1) {
+        const overlay = project.overlays[overlayIndex];
+        if (!overlay) return;
+
         const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, {
-          ...project.overlays[overlayIndex],
+          ...overlay,
           ...updates,
         });
         const updatedProject = { ...project, overlays: updatedOverlays };
@@ -343,7 +355,10 @@ export const useProjectStore = defineStore("project", () => {
 
     const projectIndex = userContributions.value.findIndex((p) => p.id === projectId);
     if (projectIndex !== -1) {
-      const updatedProject = { ...userContributions.value[projectIndex], ...updates };
+      const project = userContributions.value[projectIndex];
+      if (!project) return;
+
+      const updatedProject = { ...project, ...updates };
       userContributions.value = replaceAtIndex(
         userContributions.value,
         projectIndex,
@@ -366,6 +381,10 @@ export const useProjectStore = defineStore("project", () => {
 
     if (projectIndex !== -1) {
       const project = userContributions.value[projectIndex];
+      if (!project) {
+        console.error("Existing project not found for index:", projectIndex);
+        return;
+      }
       const updatedOverlays = project.overlays.filter(
         (o: UserContributionOverlay) => o.id !== overlayId,
       );
@@ -478,13 +497,16 @@ export const useProjectStore = defineStore("project", () => {
     const contribIndex = userContributions.value.findIndex((p) => p.id === projectId);
     if (contribIndex !== -1 && originalValue !== undefined) {
       const contrib = userContributions.value[contribIndex];
-      const updatedContrib = { ...contrib, [fieldName]: originalValue };
-      userContributions.value = replaceAtIndex(
-        userContributions.value,
-        contribIndex,
-        updatedContrib,
-      );
-      didReset = true;
+
+      if (contrib) {
+        const updatedContrib = { ...contrib, [fieldName]: originalValue };
+        userContributions.value = replaceAtIndex(
+          userContributions.value,
+          contribIndex,
+          updatedContrib,
+        );
+        didReset = true;
+      }
     }
 
     return didReset;

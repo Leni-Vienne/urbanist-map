@@ -316,10 +316,10 @@ function calculateRatioFixParameters(
     };
 
   // AI : Convert corners to screen coordinates
-  const nw = map.value.latLngToContainerPoint(currentCorners[0]);
-  const ne = map.value.latLngToContainerPoint(currentCorners[1]);
-  const sw = map.value.latLngToContainerPoint(currentCorners[2]);
-  const se = map.value.latLngToContainerPoint(currentCorners[3]);
+  const nw = map.value.latLngToContainerPoint(currentCorners[0]!);
+  const ne = map.value.latLngToContainerPoint(currentCorners[1]!);
+  const sw = map.value.latLngToContainerPoint(currentCorners[2]!);
+  const se = map.value.latLngToContainerPoint(currentCorners[3]!);
 
   // AI : Calculate current dimensions by averaging opposite edges
   const topEdge = nw.distanceTo(ne);

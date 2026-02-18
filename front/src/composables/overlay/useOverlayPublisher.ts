@@ -142,7 +142,13 @@ export function useOverlayPublisher() {
     } else {
       // AI : Extract filename from existing server URL
       const urlParts = overlay.imageUrl.split("/");
-      return urlParts[urlParts.length - 1];
+      const filename = urlParts[urlParts.length - 1];
+
+      if (!filename) {
+        throw new Error("Could not extract filename from URL");
+      }
+
+      return filename;
     }
   }
 
@@ -171,15 +177,21 @@ export function useOverlayPublisher() {
 
     // AI : Update project's overlayIds array to use new ID
     if (project?.id) {
-      const updatedProjects = { ...projectStore.projects };
-      const projectToUpdate = { ...updatedProjects[project.id] };
-      const overlayIndex = projectToUpdate.overlayIds.indexOf(oldId);
+      const storedProject = projectStore.projects[project.id];
+      if (storedProject) {
+        const overlayIndex = storedProject.overlayIds.indexOf(oldId);
 
-      if (overlayIndex !== -1) {
-        projectToUpdate.overlayIds = [...projectToUpdate.overlayIds];
-        projectToUpdate.overlayIds[overlayIndex] = newId;
-        updatedProjects[project.id] = projectToUpdate;
-        projectStore.projects = updatedProjects;
+        if (overlayIndex !== -1) {
+          const updatedOverlayIds = [...storedProject.overlayIds];
+          updatedOverlayIds[overlayIndex] = newId;
+
+          const updatedProjects = { ...projectStore.projects };
+          updatedProjects[project.id] = {
+            ...storedProject,
+            overlayIds: updatedOverlayIds,
+          };
+          projectStore.projects = updatedProjects;
+        }
       }
     }
 

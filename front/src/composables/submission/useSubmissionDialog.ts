@@ -467,7 +467,7 @@ export function useSubmissionDialog() {
         entityType: projectHasChanges || projectIsNew ? "project" : "overlay",
         entityId: project.id,
         changeType,
-        entity: projectStore.projects[project.id] ?? project,
+        entity: (projectStore.projects[project.id] ?? project) as Project,
         projectId: project.id,
         projectModified: projectHasChanges,
         overlayModified: pendingMods.length > 0 || newOverlayIds.length > 0,
@@ -491,7 +491,7 @@ export function useSubmissionDialog() {
 
   // AI : Prepare overlay submission (for map popup publish button)
   // AI : This now delegates to prepareProjectWithOverlaysSubmission for UNIFIED behavior
-  function prepareOverlaySubmission(overlay: OverlayObject, project: Project | null): void {
+  function prepareOverlaySubmission(overlay: OverlayObject, project?: Project): void {
     // AI : If we have a project, use the unified function for consistent behavior
     // AI : This ensures InfoPopup and ContributePanel buttons behave identically
     if (project) {

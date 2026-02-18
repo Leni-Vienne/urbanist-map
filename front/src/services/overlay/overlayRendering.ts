@@ -564,7 +564,11 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : CRITICAL FIX: Use callback to add to store ONLY after overlay is added to map
   // AI : This prevents ghost overlays when clearAllOverlays() is called during async zoom animations
   function onAddedToMap() {
-    overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
+    const marker = overlayStore.allMarkers[cdnOverlay.id];
+    if (!marker) {
+      return;
+    }
+    overlayObjectWithMethods.marker = marker;
 
     // AI : Store overlay with proper reactivity - but ONLY after it's on the map
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);

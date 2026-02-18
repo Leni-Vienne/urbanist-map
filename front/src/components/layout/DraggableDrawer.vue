@@ -138,7 +138,7 @@ function handleTouchStart(e: TouchEvent) {
   }
 
   isDragging.value = true;
-  startY.value = e.touches[0].clientY;
+  startY.value = e.touches[0]!.clientY;
   startHeight.value = currentHeight.value;
   viewportHeight.value = globalThis.innerHeight;
 }
@@ -147,7 +147,7 @@ function handleTouchMove(e: TouchEvent) {
   if (!isDragging.value) return;
   e.preventDefault();
 
-  const deltaY = startY.value - e.touches[0].clientY;
+  const deltaY = startY.value - e.touches[0]!.clientY;
   const deltaPercent = (deltaY / viewportHeight.value) * 100;
 
   const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);

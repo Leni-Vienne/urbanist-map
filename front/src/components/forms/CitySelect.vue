@@ -107,6 +107,11 @@ function getReferenceLocation(): { lat: number; lng: number } | null {
   // AI : First priority: overlay center if one is selected
   if (idSelectedOverlay.value && overlays.value[idSelectedOverlay.value]) {
     const overlayObject = overlays.value[idSelectedOverlay.value];
+
+    if (!overlayObject) {
+      console.error("Overlay object not found for id", idSelectedOverlay.value);
+      return null;
+    }
     if (overlayObject.overlay) {
       try {
         const bounds = overlayObject.overlay.getBounds();

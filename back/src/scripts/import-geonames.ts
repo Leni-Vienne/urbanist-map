@@ -84,8 +84,8 @@ async function loadCountryCoordinates(): Promise<void> {
     if (fields.length >= 6) {
       const _alpha2 = fields[1]; // Alpha-2 code
       const alpha3 = fields[2]; // Alpha-3 code
-      const lat = Number.parseFloat(fields[4]);
-      const lng = Number.parseFloat(fields[5]);
+      const lat = Number.parseFloat(fields[4]!);
+      const lng = Number.parseFloat(fields[5]!);
 
       if (alpha3 && !Number.isNaN(lat) && !Number.isNaN(lng)) {
         countryCoordinates.set(alpha3, { lat, lng });
@@ -121,10 +121,10 @@ async function loadCountryLanguages(): Promise<void> {
 
     const fields = line.split("\t");
     if (fields.length > 15) {
-      const iso2 = fields[0].trim();
-      const iso3 = fields[1].trim();
+      const iso2 = fields[0]!.trim();
+      const iso3 = fields[1]!.trim();
       // AI : Languages field contains comma-separated codes, take the first one
-      const rawLang = fields[15].split(",")[0].split("-")[0].trim();
+      const rawLang = fields[15]!.split(",")[0]!.split("-")[0]!.trim();
 
       if (iso2 && iso3 && rawLang) {
         alpha2ToAlpha3Map.set(iso2, iso3);
@@ -285,6 +285,10 @@ async function importCities(): Promise<void> {
     // AI :   PPLC - capital city
     // AI :   PPLA, PPLA2, PPLA3, PPLA4 - administrative seats
     const allowedFeatureCodes = ["PPL", "PPLC", "PPLA", "PPLA2", "PPLA3", "PPLA4"];
+    if (!featureCode) {
+      skippedCount += 1;
+      continue;
+    }
     if (!allowedFeatureCodes.includes(featureCode)) {
       skippedCount += 1;
       continue;
@@ -377,9 +381,14 @@ async function updateCityLocalNames(): Promise<void> {
     const fields = line.split("\t");
     if (fields.length < 5) continue;
 
-    const geonameId = Number.parseInt(fields[1], 10);
+    const geonameId = Number.parseInt(fields[1]!, 10);
     const lang = fields[2]; // Language code
     const alternateName = fields[3];
+
+    if (!alternateName) {
+      continue;
+    }
+
     const _isPreferred = fields[4] === "1";
     const isShortName = fields[5] === "1"; // Column 5: short name flag
     const isColloquial = fields[6] === "1"; // Column 6: colloquial name flag
