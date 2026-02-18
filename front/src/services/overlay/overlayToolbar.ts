@@ -90,19 +90,19 @@ function getInfoTool() {
                 className: "more-info-popup",
               },
             },
-            initialize: function () {
+            initialize: function initialize() {
               // AI : Set tooltip dynamically after i18n is ready
               this.options.toolbarIcon.tooltip = t("toolbar.info");
-              L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+              L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
             },
           }),
         ],
       }),
     },
-    initialize: function () {
+    initialize: function initialize() {
       // AI : Set tooltip dynamically after i18n is ready
       this.options.toolbarIcon.tooltip = t("toolbar.info");
-      L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+      L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
     },
     // very fragile code but necessary to plug into the leaflet toolbar. If you have a better idea, please contribute!
     addHooks() {
@@ -204,12 +204,12 @@ const previousOverlayTool = L.Toolbar2.Action.extend({
       tooltip: "", // AI : Will be set in initialize
     },
   },
-  initialize: function () {
+  initialize: function initialize() {
     // AI : Set tooltip dynamically after i18n is ready
     this.options.toolbarIcon.tooltip = t("toolbar.previousOverlay");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
-  addHooks: function () {
+  addHooks: function addHooks() {
     toolbarCallbacks.focusCameraToOverlay?.("previous");
   },
 });
@@ -224,12 +224,12 @@ const nextOverlayTool = L.Toolbar2.Action.extend({
       tooltip: "", // AI : Will be set in initialize
     },
   },
-  initialize: function () {
+  initialize: function initialize() {
     // AI : Set tooltip dynamically after i18n is ready
     this.options.toolbarIcon.tooltip = t("toolbar.nextOverlay");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
-  addHooks: function () {
+  addHooks: function addHooks() {
     toolbarCallbacks.focusCameraToOverlay?.("next");
   },
 });
@@ -244,12 +244,12 @@ const undoTool = L.Toolbar2.Action.extend({
       tooltip: "", // AI : Will be set in initialize
     },
   },
-  initialize: function () {
+  initialize: function initialize() {
     // AI : Set tooltip dynamically after i18n is ready
     this.options.toolbarIcon.tooltip = t("toolbar.undo");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
-  addHooks: function () {
+  addHooks: function addHooks() {
     toolbarCallbacks.undo?.();
   },
 });
@@ -264,12 +264,12 @@ const redoTool = L.Toolbar2.Action.extend({
       tooltip: "", // AI : Will be set in initialize
     },
   },
-  initialize: function () {
+  initialize: function initialize() {
     // AI : Set tooltip dynamically after i18n is ready
     this.options.toolbarIcon.tooltip = t("toolbar.redo");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
-  addHooks: function () {
+  addHooks: function addHooks() {
     toolbarCallbacks.redo?.();
   },
 });
@@ -284,12 +284,12 @@ const resetRatioTool = L.Toolbar2.Action.extend({
       tooltip: "", // AI : Will be set in initialize
     },
   },
-  initialize: function () {
+  initialize: function initialize() {
     // AI : Set tooltip dynamically after i18n is ready
     this.options.toolbarIcon.tooltip = t("toolbar.resetRatio");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
-  addHooks: function () {
+  addHooks: function addHooks() {
     resetImageRatio();
   },
 });
@@ -449,12 +449,12 @@ const customDeleteTool = L.Toolbar2.Action.extend({
       tooltip: "", // AI : Will be set in initialize
     },
   },
-  initialize: function () {
+  initialize: function initialize() {
     // AI : Set tooltip dynamically after i18n is ready
     this.options.toolbarIcon.tooltip = t("toolbar.delete");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
-  addHooks: async function () {
+  addHooks: async function addHooks() {
     const overlayStore = useOverlayStore();
 
     if (!overlayStore.idSelectedOverlay) {
@@ -503,12 +503,12 @@ const replaceOverlayTool = L.Toolbar2.Action.extend({
       tooltip: "", // AI : Will be set in initialize
     },
   },
-  initialize: function () {
+  initialize: function initialize() {
     // AI : Set tooltip dynamically after i18n is ready
     this.options.toolbarIcon.tooltip = t("toolbar.replace");
-    L.Toolbar2.Action.prototype.initialize?.apply(this, Array.from(arguments));
+    L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
-  addHooks: function () {
+  addHooks: function addHooks() {
     const overlayStore = useOverlayStore();
     if (!overlayStore.idSelectedOverlay) {
       return;

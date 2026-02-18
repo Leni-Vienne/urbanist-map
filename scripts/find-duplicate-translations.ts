@@ -73,7 +73,7 @@ async function main() {
     }
 
     // 4. Filter and Report
-    const sortedGroups = Array.from(signatureToKeys.entries())
+    const sortedGroups = [...signatureToKeys.entries()]
       .filter(([_, keys]) => keys.length > 1)
       .toSorted((a, b) => b[1].length - a[1].length); // Sort by group size
 

@@ -221,7 +221,7 @@ async function main() {
 
       for (const key of allKeys) {
         // AI: Check if key matches any ignored prefix
-        const isIgnored = Array.from(allIgnoredPrefixes).some((prefix) => key.startsWith(prefix));
+        const isIgnored = [...allIgnoredPrefixes].some((prefix) => key.startsWith(prefix));
 
         if (isIgnored) {
           ignoredCount += 1;

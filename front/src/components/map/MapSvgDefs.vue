@@ -43,8 +43,8 @@ function lightenColor(color: string, amount: number): string {
   const hex = color.slice(1);
   const num = Number.parseInt(hex, 16);
   let r = (num >> 16) + amount;
-  let g = ((num >> 8) & 0x00ff) + amount;
-  let b = (num & 0x0000ff) + amount;
+  let g = ((num >> 8) & 0x00_ff) + amount;
+  let b = (num & 0x00_00_ff) + amount;
   r = Math.max(0, Math.min(255, r));
   g = Math.max(0, Math.min(255, g));
   b = Math.max(0, Math.min(255, b));
