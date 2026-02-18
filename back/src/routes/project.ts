@@ -577,7 +577,7 @@ export const projectRouter = router({
           ...contributedProjectIdsFromProjectChangeRequests.map((p) => p.projectId),
         ];
         const contributedProjectIds = [...new Set(allContributedProjectIds)].filter(
-          (id): id is string => id !== null,
+          (id) => id !== null,
         ); // AI : Filter out nulls and assert non-null type
 
         const contributedProjects =
@@ -618,7 +618,7 @@ export const projectRouter = router({
 
           const overlayIdsWithChanges = overlayIdsWithChangeRequests
             .map((overlay) => overlay.overlayId)
-            .filter((id): id is string => id !== null);
+            .filter((id) => id !== null);
 
           if (ownedProjectIds.length > 0 && contributedProjectIds.length > 0) {
             // AI : Both owned and contributed projects exist

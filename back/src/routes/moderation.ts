@@ -1382,11 +1382,11 @@ async function collectPendingProjectIds(): Promise<{
 
   const pendingOverlayProjectIds = projectsWithPendingOverlays
     .map((p) => p.projectId)
-    .filter((id): id is string => id !== null);
+    .filter((id) => id !== null);
 
   const pendingChangeProjectIds = projectsWithPendingChanges
     .map((p) => p.projectId)
-    .filter((id): id is string => id !== null);
+    .filter((id) => id !== null);
 
   return { pendingOverlayProjectIds, pendingChangeProjectIds };
 }

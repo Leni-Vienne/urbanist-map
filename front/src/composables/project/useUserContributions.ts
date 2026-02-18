@@ -96,8 +96,7 @@ export function useUserContributions() {
 
     // AI : Add local-only projects (without overlays or with only local overlays)
     const localProjects = Object.values(projectStore.projects).filter(
-      (project) =>
-        (project.status === null || project.status === undefined) && project.ownerId === user.id,
+      (project) => project.status === null && project.ownerId === user.id,
     );
 
     for (const localProject of localProjects) {

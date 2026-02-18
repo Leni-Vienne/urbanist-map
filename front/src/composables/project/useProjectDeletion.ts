@@ -33,7 +33,7 @@ export function useProjectDeletion() {
     if (!success) return false;
 
     // AI : If it was the last overlay, add a standalone project marker to show the project
-    if (isLastOverlay && project?.id && project?.lat && project?.lng) {
+    if (isLastOverlay && project?.id && project.lat && project.lng) {
       // AI : Get updated project from store, or use the passed project
       const updatedProject =
         projectStore.projects[project.id] ?? projectStore.allProjects[project.id] ?? project;

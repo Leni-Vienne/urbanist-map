@@ -37,7 +37,7 @@ export interface SubmissionContextExtended {
   entityType: "project" | "overlay";
   entityId: string;
   changeType: "create" | "update_pending" | "update_approved";
-  entity: OverlayObject | Project;
+  entity: OverlayObject | Project | ProjectForModeration;
   projectId?: string;
   projectModified?: boolean;
   overlayModified?: boolean;
@@ -467,7 +467,7 @@ export function useSubmissionDialog() {
         entityType: projectHasChanges || projectIsNew ? "project" : "overlay",
         entityId: project.id,
         changeType,
-        entity: (projectStore.projects[project.id] ?? project) as Project,
+        entity: projectStore.projects[project.id] ?? project,
         projectId: project.id,
         projectModified: projectHasChanges,
         overlayModified: pendingMods.length > 0 || newOverlayIds.length > 0,
@@ -590,10 +590,7 @@ export function useSubmissionDialog() {
       const overlayToPublish = applyModificationsToOverlay(overlayObj, mod);
       // AI : Try multiple store locations for project lookup - approved projects may be in allProjects
       const project = projectId
-        ? (projectStore.projects[projectId] ??
-          projectStore.allProjects[projectId] ??
-          projectStore.nearbyProjects.find((p) => p.id === projectId) ??
-          null)
+        ? (projectStore.projects[projectId] ?? projectStore.allProjects[projectId] ?? null)
         : null;
       await publishOverlay(overlayToPublish, project);
     } else {
@@ -684,7 +681,6 @@ export function useSubmissionDialog() {
       project =
         projectStore.projects[extCtx.projectId] ??
         projectStore.allProjects[extCtx.projectId] ??
-        projectStore.nearbyProjects.find((p) => p.id === extCtx.projectId) ??
         null;
     }
 
@@ -696,7 +692,7 @@ export function useSubmissionDialog() {
 
     // AI : Submit project changes for EXISTING modified projects only (not new projects)
     // AI : New projects will be handled by ensureProjectOnServer or submitNewProjectIfApplicable
-    const isExistingProject = project && project.status !== null && project.status !== undefined;
+    const isExistingProject = project && project.status !== null;
 
     // AI : Only submit if project is actually modified AND has detectable changes
     // AI : This prevents "No changes detected" errors when only overlays changed
