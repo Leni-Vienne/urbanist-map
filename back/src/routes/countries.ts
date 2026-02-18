@@ -1,4 +1,4 @@
-import { publicProcedure, router } from "../trpc";
+import { publicProcedure, router, TRPCError } from "../trpc";
 import { countries, cities, projects, type ApprovalStatus } from "../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../database";
@@ -22,7 +22,10 @@ export const countriesRouter = router({
         .orderBy(countries.name);
     } catch (error) {
       console.error("Error fetching all countries:", error);
-      throw new Error("Failed to fetch countries", { cause: error });
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch countries",
+      });
     }
   }),
 
@@ -41,7 +44,10 @@ export const countriesRouter = router({
 
         // AI : SECURITY: Reject moderation mode for unauthenticated users
         if (mode === "moderation" && !ctx.user) {
-          throw new Error("Authentication required for moderation mode");
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required for moderation mode",
+          });
         }
 
         const overlayChangeRequestIds =
@@ -86,7 +92,10 @@ export const countriesRouter = router({
           .orderBy(countries.code, countries.name);
       } catch (error) {
         console.error("Error fetching countries with projects:", error);
-        throw new Error("Failed to fetch countries with projects", { cause: error });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch countries with projects",
+        });
       }
     }),
 });

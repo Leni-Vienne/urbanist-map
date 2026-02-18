@@ -13,7 +13,7 @@ interface BoundingBox {
 }
 
 interface CountryBorder {
-  code: string;
+  code: CountryCode;
   geojson: FeatureCollection<Polygon | MultiPolygon>;
   bbox: BoundingBox;
 }
@@ -21,10 +21,10 @@ interface CountryBorder {
 // AI : Helper to convert bbox array to BoundingBox object
 function toBoundingBox(bbox: number[]): BoundingBox {
   return {
-    minLng: bbox[0],
-    minLat: bbox[1],
-    maxLng: bbox[2],
-    maxLat: bbox[3],
+    minLng: bbox[0]!,
+    minLat: bbox[1]!,
+    maxLng: bbox[2]!,
+    maxLat: bbox[3]!,
   };
 }
 
@@ -48,13 +48,15 @@ function isInBoundingBox(lat: number, lng: number, bbox: BoundingBox): boolean {
   return lat >= bbox.minLat && lat <= bbox.maxLat && lng >= bbox.minLng && lng <= bbox.maxLng;
 }
 
+export type CountryCode = "FRA" | "CHE";
+
 /**
  * AI : Detect which country contains the given coordinates
  * @param lat Latitude
  * @param lng Longitude
  * @returns Country code (FRA, CHE) or undefined if not in any known country
  */
-export function detectCountryFromCoordinates(lat: number, lng: number): string | undefined {
+export function detectCountryFromCoordinates(lat: number, lng: number): CountryCode | undefined {
   for (const country of countryBorders) {
     // AI : Fast bounding box pre-check (75x faster when outside)
     if (!isInBoundingBox(lat, lng, country.bbox)) {
@@ -62,6 +64,7 @@ export function detectCountryFromCoordinates(lat: number, lng: number): string |
     }
 
     if (isPointInCountry(lat, lng, country.geojson)) {
+      // AI: Type assertion is safe here because countryBorders only contains valid codes
       return country.code;
     }
   }
@@ -81,11 +84,12 @@ function isPointInCountry(
       for (const polygon of feature.geometry.coordinates) {
         // AI : Each polygon is an array of rings (first is outer, rest are holes)
         const outerRing = polygon[0];
-        if (isPointInPolygon(lat, lng, outerRing)) {
+        if (outerRing && isPointInPolygon(lat, lng, outerRing)) {
           // AI : Check if point is in any hole (if holes exist)
           let inHole = false;
           for (let i = 1; i < polygon.length; i += 1) {
-            if (isPointInPolygon(lat, lng, polygon[i])) {
+            const hole = polygon[i];
+            if (hole && isPointInPolygon(lat, lng, hole)) {
               inHole = true;
               break;
             }
@@ -95,14 +99,15 @@ function isPointInCountry(
           }
         }
       }
-    } else if (feature.geometry.type === "Polygon") {
+    } else {
       // AI : Polygon has a simpler structure - just an array of rings
       const outerRing = feature.geometry.coordinates[0];
-      if (isPointInPolygon(lat, lng, outerRing)) {
+      if (outerRing && isPointInPolygon(lat, lng, outerRing)) {
         // AI : Check if point is in any hole (if holes exist)
         let inHole = false;
         for (let i = 1; i < feature.geometry.coordinates.length; i += 1) {
-          if (isPointInPolygon(lat, lng, feature.geometry.coordinates[i])) {
+          const hole = feature.geometry.coordinates[i];
+          if (hole && isPointInPolygon(lat, lng, hole)) {
             inHole = true;
             break;
           }
@@ -128,15 +133,12 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
   const y = lat;
 
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const xi = ring[i][0];
-    const yi = ring[i][1];
-    const xj = ring[j][0];
-    const yj = ring[j][1];
+    const [xi, yi] = ring[i]!; // Assert the sub-array exists
+    const [xj, yj] = ring[j]!;
 
-    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-    if (intersect) {
-      inside = !inside;
-    }
+    // Now xi, yi, xj, yj are all plain numbers
+    const intersect = yi! > y !== yj! > y && x < ((xj! - xi!) * (y - yi!)) / (yj! - yi!) + xi!;
+    if (intersect) inside = !inside;
   }
 
   return inside;

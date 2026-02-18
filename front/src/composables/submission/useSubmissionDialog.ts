@@ -159,18 +159,20 @@ export function useSubmissionDialog() {
   ): SubmissionChange[] {
     const changes: SubmissionChange[] = [];
 
+    // AI : Helper to get image URL for new overlays
+    // AI : OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
+    function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
+      if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
+      if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
+      return undefined;
+    }
+
     for (const overlayId of newOverlayIds) {
       const overlay = overlays[overlayId];
       if (!overlay) continue;
 
       // AI : For new overlays, use imageUrl (data URL/blob) since they don't have thumbnails yet
-      // AI : OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
-      function getImageUrl(): string | undefined {
-        if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
-        if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
-        return undefined;
-      }
-      const imageUrl = getImageUrl();
+      const imageUrl = getImageUrl(overlay);
 
       // AI : Handle both OverlayObject (caption) and OverlayForModeration (name)
       const overlayName = "caption" in overlay ? overlay.caption : overlay.name;
@@ -361,6 +363,11 @@ export function useSubmissionDialog() {
 
       const isApproved = mod.overlayStatus === "approved";
       const overlayObject = overlayStore.overlays[overlayId];
+
+      if (!overlayObject) {
+        console.error(`Overlay ${overlayId} not found`);
+        continue;
+      }
 
       if (!isApproved) {
         // AI : Pending overlay - can update directly or publish
@@ -806,7 +813,7 @@ export function useSubmissionDialog() {
 
       // AI : Reset position to backend corners (use captured original if available)
       const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
-      if (overlayObject.overlay && cornersToUse?.length === 4) {
+      if (overlayObject.overlay && cornersToUse.length === 4) {
         const leafletCorners = cornersToUse.map((corner) => L.latLng(corner.lat, corner.lng));
         overlayObject.overlay.setCorners(leafletCorners);
       }
@@ -907,9 +914,10 @@ export function useSubmissionDialog() {
       overlayStore.updateOverlay(overlayId, { isModified: false });
       updateExtendedContextAfterOverlayRemoval(overlayId);
     }
-
+    const overlay = overlayStore.overlays[overlayId];
+    if (!overlay) return;
     // AI : Update marker tooltip
-    updateMarkerTooltip(overlayStore.overlays[overlayId]);
+    updateMarkerTooltip(overlay);
   }
 
   // AI : Helper function to handle removing an overlay change

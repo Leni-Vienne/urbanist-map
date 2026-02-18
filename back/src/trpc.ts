@@ -35,7 +35,7 @@ const t = initTRPC.context<Context>().create({
       ...shape,
       data: {
         ...shape.data,
-        stack: undefined, // AI : Never expose stack traces to clients
+        stack: undefined, // To never expose stack traces to clients. Is there a better way ?
       },
     };
   },

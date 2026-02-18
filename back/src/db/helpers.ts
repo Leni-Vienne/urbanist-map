@@ -65,8 +65,12 @@ export async function buildPaginationConditions(
       .where(eq(projects.id, filters.cursor))
       .limit(1);
 
-    if (cursorProject.length > 0) {
+    /*if (cursorProject.length > 0) {
       conditions.push(sql`${sortColumn} < ${cursorProject[0].sortValue}`);
+    }*/
+    const cursorValue = cursorProject[0];
+    if (cursorValue) {
+      conditions.push(sql`${sortColumn} < ${cursorValue.sortValue}`);
     }
   }
 
@@ -668,8 +672,8 @@ export async function isUserBlocked(userId: string): Promise<boolean> {
       .limit(1);
 
     // AI : If user not found or banned, block them
-    if (userResult.length === 0) return true;
-    if (userResult[0].banned) return true;
+    const user = userResult[0];
+    if (!user || user.banned) return true;
 
     // AI : Get report threshold from config (default to 2)
     const configResult = await db

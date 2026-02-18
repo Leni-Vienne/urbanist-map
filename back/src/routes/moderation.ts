@@ -96,11 +96,13 @@ async function checkModeratorCountryPermission(
     .where(eq(projects.id, projectId))
     .limit(1);
 
-  if (projectCountry.length === 0) {
+  const projectData = projectCountry[0];
+
+  if (!projectData) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
   }
 
-  const countryCode = projectCountry[0].countryCode;
+  const countryCode = projectData.countryCode;
 
   // AI : Check if moderator has permission for this country
   if (!user.moderatedCountries.includes(countryCode)) {
@@ -132,11 +134,13 @@ async function checkModeratorOverlayPermission(
     .where(eq(overlays.id, overlayId))
     .limit(1);
 
-  if (overlayCountry.length === 0) {
+  const overlayData = overlayCountry[0];
+
+  if (!overlayData) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
   }
 
-  const countryCode = overlayCountry[0].countryCode;
+  const countryCode = overlayData.countryCode;
 
   if (!user.moderatedCountries.includes(countryCode)) {
     throw new TRPCError({
@@ -178,11 +182,13 @@ export const moderationRouter = router({
           .where(eq(overlays.id, input.overlayId))
           .limit(1);
 
-        if (overlay.length === 0) {
+        const overlayRecord = overlay[0];
+
+        if (!overlayRecord) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         }
 
-        const replacesOverlayId = overlay[0].replacesOverlayId;
+        const replacesOverlayId = overlayRecord.replacesOverlayId;
 
         // AI : If not a replacement, no conflicts to check
         if (!replacesOverlayId) {
@@ -205,7 +211,8 @@ export const moderationRouter = router({
           .where(eq(overlays.id, replacesOverlayId))
           .limit(1);
 
-        if (originalOverlay.length === 0 || originalOverlay[0].status !== "approved") {
+        const originalRecord = originalOverlay[0];
+        if (!originalRecord || originalRecord.status !== "approved") {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Cannot replace overlay that is not approved",
@@ -252,10 +259,10 @@ export const moderationRouter = router({
 
         return {
           isReplacement: true,
-          originalOverlayCaption: originalOverlay[0].caption,
-          originalOverlayFilename: originalOverlay[0].filename,
-          newOverlayFilename: overlay[0].filename,
-          newOverlayCaption: overlay[0].caption,
+          originalOverlayCaption: originalRecord.caption,
+          originalOverlayFilename: originalRecord.filename,
+          newOverlayFilename: overlayRecord.filename,
+          newOverlayCaption: overlayRecord.caption,
           pendingChangeRequests: pendingChanges,
           competingReplacements: competingReplacements,
           hasConflicts: pendingChanges.length > 0 || competingReplacements.length > 0,
@@ -476,12 +483,14 @@ export const moderationRouter = router({
             .where(eq(projects.id, input.id))
             .limit(1);
 
-          if (currentProject.length === 0) {
+          const projectRecord = currentProject[0];
+
+          if (!projectRecord) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
           }
 
-          const previousStatus = currentProject[0].status;
-          const ownerId = currentProject[0].ownerId;
+          const previousStatus = projectRecord.status;
+          const ownerId = projectRecord.ownerId;
 
           // AI : Update project status
           await tx.update(projects).set({ status: input.status }).where(eq(projects.id, input.id));
@@ -523,12 +532,14 @@ export const moderationRouter = router({
             .where(eq(overlays.id, input.id))
             .limit(1);
 
-          if (currentOverlay.length === 0) {
+          const overlayRecord = currentOverlay[0];
+
+          if (!overlayRecord) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
           }
 
-          const previousStatus = currentOverlay[0].status;
-          const authorId = currentOverlay[0].authorId;
+          const previousStatus = overlayRecord.status;
+          const authorId = overlayRecord.authorId;
 
           // AI : Update overlay status
           await tx.update(overlays).set({ status: input.status }).where(eq(overlays.id, input.id));
@@ -591,7 +602,8 @@ export const moderationRouter = router({
               cityId: projects.cityId,
             });
 
-          if (updateResult.length === 0) {
+          const updatedProject = updateResult[0];
+          if (!updatedProject) {
             // AI : Either project doesn't exist, version mismatch, or status not allowed
             const currentProject = await tx
               .select({ version: projects.version, status: projects.status })
@@ -599,29 +611,31 @@ export const moderationRouter = router({
               .where(eq(projects.id, input.id))
               .limit(1);
 
-            if (currentProject.length === 0) {
+            const projectRecord = currentProject[0];
+
+            if (!projectRecord) {
               return { success: false, error: "Project not found" };
             } else if (
-              currentProject[0].status !== "pending" &&
-              !(input.status === "rejected" && currentProject[0].status === "approved")
+              projectRecord.status !== "pending" &&
+              !(input.status === "rejected" && projectRecord.status === "approved")
             ) {
               return {
                 success: false,
                 error: "Project already processed",
-                currentStatus: currentProject[0].status,
+                currentStatus: projectRecord.status,
               };
             } else {
               return {
                 success: false,
                 error: "Version mismatch",
                 expectedVersion: input.expectedVersion,
-                currentVersion: currentProject[0].version,
+                currentVersion: projectRecord.version,
               };
             }
           }
 
           // AI : Increment user's approval/rejection count
-          const ownerId = updateResult[0].ownerId;
+          const ownerId = updatedProject.ownerId;
           if (input.status === "approved") {
             await incrementApprovedCount(tx, ownerId);
           } else if (input.status === "rejected") {
@@ -657,12 +671,12 @@ export const moderationRouter = router({
 
             return {
               success: true as const,
-              cityId: updateResult[0].cityId,
+              cityId: updatedProject.cityId,
               rejectedOverlayFilenames,
             };
           }
 
-          return { success: true as const, cityId: updateResult[0].cityId };
+          return { success: true as const, cityId: updatedProject.cityId };
         });
 
         // AI : Update city project count after transaction succeeds
@@ -740,11 +754,11 @@ export const moderationRouter = router({
           .where(eq(overlays.id, input.id))
           .limit(1);
 
-        if (overlayData.length === 0) {
+        const overlay = overlayData[0];
+        if (!overlay) {
           return { success: false, error: "Overlay not found" };
         }
 
-        const overlay = overlayData[0];
         const overlayFilename = overlay.filename;
         const replacesOverlayId = overlay.replacesOverlayId;
         const authorId = overlay.authorId;
@@ -774,25 +788,27 @@ export const moderationRouter = router({
             .where(eq(overlays.id, input.id))
             .limit(1);
 
-          if (currentOverlay.length === 0) {
+          const overlayRecord = currentOverlay[0];
+
+          if (!overlayRecord) {
             return { success: false, error: "Overlay not found" };
           }
 
           // AI : Version and status checks
-          if (currentOverlay[0].version !== input.expectedVersion) {
+          if (overlayRecord.version !== input.expectedVersion) {
             return {
               success: false,
               error: "Version mismatch",
               expectedVersion: input.expectedVersion,
-              currentVersion: currentOverlay[0].version,
+              currentVersion: overlayRecord.version,
             };
           }
 
-          if (currentOverlay[0].status !== "pending") {
+          if (overlayRecord.status !== "pending") {
             return {
               success: false,
               error: "Overlay already processed",
-              currentStatus: currentOverlay[0].status,
+              currentStatus: overlayRecord.status,
             };
           }
 
@@ -1263,11 +1279,10 @@ export const moderationRouter = router({
           .where(eq(overlays.id, input.id))
           .limit(1);
 
-        if (overlayData.length === 0) {
+        const overlay = overlayData[0];
+        if (!overlay) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         }
-
-        const overlay = overlayData[0];
 
         // AI : Delete overlay from database
         await db.delete(overlays).where(eq(overlays.id, input.id));
@@ -1627,7 +1642,9 @@ async function handleReplacementConflicts(
       .where(eq(overlays.id, replacesOverlayId))
       .limit(1);
 
-    if (originalOverlay.length === 0 || originalOverlay[0].status !== "approved") {
+    const originalRecord = originalOverlay[0];
+
+    if (!originalRecord || originalRecord.status !== "approved") {
       return {
         success: false,
         error: "Original overlay not found or not approved",
@@ -1766,11 +1783,13 @@ async function cleanupReplacementImages(
       .where(eq(overlays.id, replacesOverlayId))
       .limit(1);
 
-    if (originalOverlayData.length > 0) {
-      await deleteImages(originalOverlayData[0].filename, "full");
+    const originalRecord = originalOverlayData[0];
+
+    if (originalRecord) {
+      await deleteImages(originalRecord.filename, "full");
       await scheduleImageCleanup(
         replacesOverlayId,
-        originalOverlayData[0].filename,
+        originalRecord.filename,
         daysFromNow(THUMBNAIL_RETENTION_DAYS),
         "thumbnail",
       );
