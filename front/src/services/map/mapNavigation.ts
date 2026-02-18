@@ -228,8 +228,8 @@ export function flyToCountry(
     // AI : bbox format is [minLng, minLat, maxLng, maxLat]
     mobileAwareFlyToBounds(
       [
-        [bbox[1], bbox[0]], // AI : southwest corner [lat, lng]
-        [bbox[3], bbox[2]], // AI : northeast corner [lat, lng]
+        [bbox[1]!, bbox[0]!], // AI : southwest corner [lat, lng]
+        [bbox[3]!, bbox[2]!], // AI : northeast corner [lat, lng]
       ],
       {
         duration,

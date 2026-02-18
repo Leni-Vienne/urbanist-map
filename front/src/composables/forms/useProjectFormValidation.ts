@@ -49,6 +49,9 @@ export function useProjectFormValidation() {
       // AI : Get first error and show it
       const errors = getValidationErrorsMap(result.error);
       const firstError = Object.values(errors)[0];
+      if (!firstError) {
+        throw new Error("No error found");
+      }
       showError(t(firstError.key, firstError.params ?? {}));
       return false;
     }

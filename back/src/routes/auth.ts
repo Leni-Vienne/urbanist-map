@@ -107,15 +107,20 @@ export const authRouter = router({
       }
 
       // AI : Check if user already exists
-      const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (existingUser.length > 0) {
+      const existingUserResult = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      const existingUser = existingUserResult[0];
+      if (existingUser) {
         // AI : If user exists but email is not verified, allow re-registration (overwrite)
-        if (!existingUser[0].emailVerified) {
+        if (!existingUser.emailVerified) {
           // AI : Delete the unverified user
-          await db.delete(users).where(eq(users.id, existingUser[0].id));
+          await db.delete(users).where(eq(users.id, existingUser.id));
         } else {
           // AI : Check if this is an OAuth-only account
-          if (existingUser[0].googleId && !existingUser[0].passwordHash) {
+          if (existingUser.googleId && !existingUser.passwordHash) {
             throw new TRPCError({
               code: "CONFLICT",
               message: "auth.error.emailUsesGoogleSignIn",
@@ -165,6 +170,13 @@ export const authRouter = router({
 
       // AI : Send verification email
       await sendVerificationEmail(email, plainVerificationToken);
+
+      if (!newUser) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "auth.error.registrationFailed",
+        });
+      }
 
       return {
         success: true,

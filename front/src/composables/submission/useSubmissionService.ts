@@ -84,7 +84,7 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
 };
 
 // AI : Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
-function normalizeDate(val: any): string | null {
+function normalizeDate(val: any) {
   if (!val) return null;
   if (val instanceof Date) return val.toISOString().split("T")[0]; // AI : Get yyyy-MM-dd part
   if (typeof val === "string") return val.split("T")[0]; // AI : Handle ISO strings or yyyy-MM-dd

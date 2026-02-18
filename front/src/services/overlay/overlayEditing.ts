@@ -347,7 +347,7 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
   }
 
   // AI : If zoom level is too low, zoom to project location first, then create overlay
-  if (needsZoom && project?.lat !== null && project?.lng !== null) {
+  if (needsZoom && project && project.lat && project.lng) {
     const targetZoom = 16; // AI : Zoom level high enough to show overlay clearly
 
     // AI : Show toast to inform user about auto-zoom

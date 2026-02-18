@@ -161,11 +161,10 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
     ? error.issues.filter((issue) => issue.path.join(".") === fieldPath)
     : error.issues;
 
-  if (issues.length === 0) {
+  const issue = issues[0];
+  if (!issue) {
     return { key: "validation.genericError" };
   }
-
-  const issue = issues[0];
   const key =
     issue.message && issue.message.startsWith("validation.")
       ? issue.message

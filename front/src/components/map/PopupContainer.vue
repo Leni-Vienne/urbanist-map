@@ -188,7 +188,7 @@ function convertAndCacheBackendProject(
 }
 
 // AI : Unified computed property for currently active project (from either overlay or project popup)
-const activeProject = computed((): Project | null => {
+const activeProject = computed(() => {
   // AI : Priority 1: Check if viewing an overlay popup - get project from overlay
   const overlay = overlayObject.value;
   if (overlay?.projectId) {
@@ -221,7 +221,7 @@ const activeProject = computed((): Project | null => {
     if (projectInfoPopup.value.project) return projectInfoPopup.value.project;
   }
 
-  return null;
+  return undefined;
 });
 
 // AI : Handle overlay publishing (overlay mode only) - uses shared composable

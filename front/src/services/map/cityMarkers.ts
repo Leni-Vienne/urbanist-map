@@ -476,7 +476,7 @@ async function addCityMarkersToMapInternal(
   const cityMarkersStore = useCityMarkersStore();
 
   // AI : Determine country code from explicit parameter or derive from cities
-  const countryCode = explicitCountryCode ?? (cities.length > 0 ? cities[0].countryCode : null);
+  const countryCode = explicitCountryCode ?? cities[0]?.countryCode;
 
   // AI : Merge backend cities with unsaved city markers for THIS country only
   const unsavedCityMarkersMap = cityMarkersStore.getAllUnsavedCityMarkers();
