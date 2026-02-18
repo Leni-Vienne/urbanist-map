@@ -104,7 +104,7 @@ export function getCityProjects() {
 
   // AI : Lazy load nearby projects
   async function loadNearbyProjects() {
-    if (!map.value) {
+    if (map.value === null) {
       console.warn("Map not available for loading nearby projects");
       return;
     }

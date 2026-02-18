@@ -296,7 +296,7 @@ export function useSubmissionService() {
     // AI : 1. Edit mode cache (contains user's most recent position, even if zoomed out)
     // AI : 2. Leaflet overlay (if actively loaded in the map)
     // AI : 3. overlay.corners (fallback, but may be stale/original)
-    let currentCorners: { lat: number; lng: number }[];
+    let currentCorners: { lat: number; lng: number }[] = [];
 
     const editModeCache = getFromEditModeOverlayCache(overlay.id);
 

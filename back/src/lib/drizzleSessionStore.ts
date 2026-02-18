@@ -13,7 +13,7 @@ export class DrizzleSessionStore {
     this.startCleanupInterval();
   }
 
-  async getSessionById(sessionId: string): Promise<any | null> {
+  async getSessionById(sessionId: string) {
     try {
       const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
 

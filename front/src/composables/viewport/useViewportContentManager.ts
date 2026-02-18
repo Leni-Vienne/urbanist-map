@@ -62,7 +62,7 @@ export function useViewportContentManager() {
     // AI : Clear overlay images for ALL, markers for non-active cities only
     for (const [overlayId, overlay] of Object.entries(overlayStore.overlays)) {
       const belongsToActiveCity = overlay.project?.cityId === activeCityId;
-      const isLocal = isEditMode && (overlay.status === null || overlay.status === undefined);
+      const isLocal = isEditMode && overlay.status === null;
 
       // AI : Always remove overlay images when zoomed out
       if (overlay.overlay) {
@@ -241,7 +241,7 @@ export function useViewportContentManager() {
       if (isLoading.value && !force) {
         return;
       }
-      if (!map.value) {
+      if (map.value === null) {
         return;
       }
 
@@ -383,7 +383,7 @@ export function useViewportContentManager() {
       // AI : In edit mode, include local pending projects from store
       if (mode === "edit") {
         const localProjects = Object.values(projectStore.projects).filter(
-          (p) => p.city?.id === cityId && (p.status === null || p.status === undefined),
+          (p) => p.city?.id === cityId && p.status === null,
         );
 
         for (const localP of localProjects) {

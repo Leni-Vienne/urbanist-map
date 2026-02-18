@@ -86,7 +86,7 @@ const tileLayerConfigs = {
  */
 
 export function addTileLayer(): void {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map not initialized when trying to add tile layers");
     return;
   }
@@ -104,7 +104,7 @@ export function addTileLayer(): void {
  * AI : Initialize all tile layers without layer control (using custom control instead)
  */
 function addTileLayersToMap(): void {
-  if (!map.value) {
+  if (map.value === null) {
     return;
   }
 

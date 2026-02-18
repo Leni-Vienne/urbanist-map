@@ -45,7 +45,7 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string):
 
   // AI : Create new references to ensure reactivity with shallowRef
   const updatedProjects = { ...projectStore.projects };
-  const project = { ...updatedProjects[projectId] };
+  const project = { ...updatedProjects[projectId] }; // as Project
 
   // AI : Ensure overlayIds array exists (defensive programming)
   project.overlayIds ??= [];

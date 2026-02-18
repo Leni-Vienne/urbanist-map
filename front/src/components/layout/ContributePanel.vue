@@ -360,8 +360,7 @@ const filteredProjects = computed(() => {
   // AI : Filter based on which checkbox(es) are selected
   return displayedProjects.value.filter((project) => {
     // AI : Treat unsaved/unsubmitted projects (status === null) as pending
-    const isPending =
-      project.status === "pending" || project.status === null || project.status === undefined;
+    const isPending = project.status === "pending" || project.status === null;
     const isApproved =
       project.status === "approved" ||
       project.status === "rejected" ||
@@ -371,7 +370,7 @@ const filteredProjects = computed(() => {
     const hasPendingOverlays =
       project.overlays?.some(
         (overlay: UserContributionOverlay) =>
-          overlay.status === "pending" || overlay.status === null || overlay.status === undefined,
+          overlay.status === "pending" || overlay.status === null,
       ) ?? false;
     const hasPendingChanges = pendingChangeRequests.value.some((change) => {
       if (change.entityType === "project" && change.entityId === project.id) {
@@ -487,8 +486,7 @@ function isProjectModified(projectId: string): boolean {
   // AI : Check for NEW overlays in overlayStore (status null, never submitted)
   // AI : This catches overlays that were just added but not yet moved
   const hasNewOverlays = Object.values(overlayStore.overlays).some(
-    (overlay) =>
-      overlay.projectId === projectId && (overlay.status === null || overlay.status === undefined),
+    (overlay) => overlay.projectId === projectId && overlay.status === null,
   );
   if (hasNewOverlays) return true;
 

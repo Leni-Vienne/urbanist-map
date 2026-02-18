@@ -20,8 +20,7 @@ export function useUnsavedChanges() {
     // AI : 2. Check for modified or new (unsubmitted) overlays in current session
     // AI : status undefined/null means never submitted (local only)
     const hasModifiedOverlays = Object.values(overlayStore.overlays).some(
-      (overlay) =>
-        overlay.isModified === true || overlay.status === undefined || overlay.status === null,
+      (overlay) => overlay.isModified === true || overlay.status === null,
     );
     if (hasModifiedOverlays) return true;
 

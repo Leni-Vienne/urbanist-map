@@ -57,7 +57,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
 
-  if (!map.value) {
+  if (map.value === null) {
     throw new Error("Map not available: Cannot navigate between overlays");
   }
 

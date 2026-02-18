@@ -723,7 +723,7 @@ export const useProjectStore = defineStore("project", () => {
     // AI : Include both local (unsaved) and user's pending projects
     const userProjectsToInclude = Object.values(projects.value).filter((p) => {
       // AI : Local projects (not yet submitted)
-      if (p.status === null || p.status === undefined) return true;
+      if (p.status === null) return true;
 
       // AI : User's own pending projects (submitted but not approved)
       if (p.status === "pending" && currentUserId && p.ownerId === currentUserId) return true;
