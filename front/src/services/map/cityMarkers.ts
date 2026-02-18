@@ -17,7 +17,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createColorIcon } from "@/services/map/markers";
-import { checkAndSwitchSatelliteLayer } from "@/services/map/tileLayers";
 import { pruneMapEntities } from "@/services/map/viewportPruning";
 
 import { requestScrollTo } from "@/services/layout/accordionState";
@@ -73,10 +72,7 @@ function initializeModeWatcher() {
 
           // AI : In edit mode, also include cities from locally created projects
           if (newMode === "edit") {
-            // AI : In edit mode, also include cities from locally created projects
-            if (newMode === "edit") {
-              mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
-            }
+            mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
           }
 
           citiesWithProjects.value = mergedCities;
@@ -121,7 +117,10 @@ function initializeCityMarkerWatcher() {
 function updateCityMarkerOpacities(selectedCityId: number | null): void {
   const cityMarkersStore = useCityMarkersStore();
   const cityMarkersLayer = cityMarkersStore.getCityMarkersLayer();
-  if (!cityMarkersLayer) return;
+
+  if (!cityMarkersLayer) {
+    return;
+  }
 
   cityMarkersLayer.eachLayer((layer) => {
     if (layer instanceof L.Marker) {
@@ -213,13 +212,11 @@ function smartZoomToCity(
       maxZoom: 15,
       padding: [50, 50],
     });
-  } else {
+  } else if (map.value.getZoom() < 14) {
     // AI : Fallback for empty cities: Default zoom to center
-    if (map.value.getZoom() < 14) {
-      mobileAwareFlyTo([city.lat, city.lng], 14, { duration: 1.5 });
-    } else {
-      mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), { duration: 0.5 });
-    }
+    mobileAwareFlyTo([city.lat, city.lng], 14, { duration: 1.5 });
+  } else {
+    mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), { duration: 0.5 });
   }
 }
 
@@ -256,9 +253,6 @@ export async function activateCity(city: CityWithProjects) {
     nameLocal: city.nameLocal,
     countryCode: city.countryCode,
   });
-
-  // AI : Ensure we're using the correct satellite layer for this country
-  await checkAndSwitchSatelliteLayer(city.countryCode);
 
   // AI : Request scroll to city in adjacent panels
   requestScrollTo("city", city.id);
@@ -316,11 +310,16 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
       marker.setOpacity(hoverOpacity);
     });
 
-    // AI : Mouse out event - reset opacity if not selected
+    // AI : Mouse out event - reset to default, let watcher handle selected state
     marker.on("mouseout", () => {
       const mapStore = useMapStore();
-      const isSelectedCity = mapStore.selectedCity?.id === city.id;
-      marker.setOpacity(isSelectedCity ? hoverOpacity : defaultOpacity);
+      const isSelected = mapStore.selectedCity?.id === city.id;
+
+      // AI : Only reset if this is NOT the currently selected city
+      // AI : The watcher will keep selected city at hover opacity
+      if (!isSelected) {
+        marker.setOpacity(defaultOpacity);
+      }
     });
 
     // AI : Click event - load city data
@@ -351,7 +350,7 @@ export async function addSingleCityMarker(
   },
   isUnsaved = false,
 ) {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map not initialized when trying to add city marker");
     return;
   }
@@ -396,7 +395,7 @@ export async function addSingleCityMarker(
  * AI : Fetches all cities with projects worldwide and displays them on the map
  */
 export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map not initialized when trying to load global city markers");
     return [];
   }
@@ -460,7 +459,7 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
  * AI : Add city markers for a specific country
  */
 export async function addCityMarkersForCountry(cities: CityWithProjects[], countryCode?: string) {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map not initialized when trying to add city markers for country");
     return;
   }
@@ -477,7 +476,7 @@ async function addCityMarkersToMapInternal(
   const cityMarkersStore = useCityMarkersStore();
 
   // AI : Determine country code from explicit parameter or derive from cities
-  const countryCode = explicitCountryCode ?? (cities.length > 0 ? cities[0].countryCode : null);
+  const countryCode = explicitCountryCode ?? cities[0]?.countryCode;
 
   // AI : Merge backend cities with unsaved city markers for THIS country only
   const unsavedCityMarkersMap = cityMarkersStore.getAllUnsavedCityMarkers();
@@ -507,19 +506,29 @@ async function addCityMarkersToMapInternal(
     citiesToRender = citiesToRender.filter((city) => moderatedCountries.includes(city.countryCode));
   }
 
-  // AI : Generate markers using existing logic (but not putting them in a group)
-  // AI : createCitiesMarkerLayer returns a LayerGroup we can discard, and a Map of markers we keep
+  // AI : Generate markers using existing logic
+  // AI : createCitiesMarkerLayer returns a LayerGroup and a Map of markers
   const result = await createCitiesMarkerLayer(citiesToRender);
+
   // AI : Clear store first to remove stale cities (that might have been deleted/filtered out)
-  // AI : CRITICAL: We need to remove them from the map if they were there!
-  const currentMarkers = cityMarkersStore.getAllCityMarkers();
-  for (const marker of currentMarkers.values()) {
-    if (map.value && map.value.hasLayer(marker)) {
-      marker.remove();
-    }
+  // AI : CRITICAL: We need to remove the old layer from the map if it exists!
+  const oldLayer = cityMarkersStore.getCityMarkersLayer();
+  if (oldLayer && map.value && map.value.hasLayer(oldLayer)) {
+    oldLayer.remove();
   }
+
+  // AI : Clear the marker map
   cityMarkersStore.clearCityMarkerMap();
 
+  // AI : Store the new layer in the store (CRITICAL - this was missing!)
+  cityMarkersStore.setCityMarkersLayer(result.layer);
+
+  // AI : Add the layer to the map
+  if (map.value !== null) {
+    result.layer.addTo(map.value);
+  }
+
+  // AI : Store individual marker references for easy access
   for (const [cityId, marker] of result.markers) {
     cityMarkersStore.setCityMarker(cityId, marker);
   }

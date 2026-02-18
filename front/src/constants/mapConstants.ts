@@ -6,16 +6,9 @@ export const MAP_CONFIG = {
   // AI : This is lower than MIN_ZOOM_FOR_OVERLAYS to show markers before full images
   VIEWPORT_LOAD_THRESHOLD: 13,
 
+  MIN_ZOOM_FOR_COUNTRY_LAYERS: 8,
+
   // AI : Minimum zoom level required to display actual overlay images (vs just markers)
   // AI : This is higher than VIEWPORT_LOAD_THRESHOLD for progressive loading
   MIN_ZOOM_FOR_OVERLAYS: 14,
-
-  // AI : Cache duration in milliseconds for various data types
-  CACHE_DURATION_MS: 5 * 60 * 1000, // 5 minutes
-
-  // AI : Threshold for determining if a location is "nearby" (in degrees, roughly ~11km at equator)
-  NEARBY_LOCATION_THRESHOLD: 0.1,
-
-  // AI : Minimum zoom level for showing country markers with animation
-  MIN_ZOOM_ANIMATION_LEVEL: 11,
 } as const;

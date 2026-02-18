@@ -81,7 +81,7 @@ export function initializeMap() {
 }
 
 export function disableLeafletKeyboardEvents() {
-  if (!map.value) {
+  if (map.value === null) {
     console.error("Map is not initialized yet!");
     return;
   }

@@ -35,7 +35,7 @@ const t = initTRPC.context<Context>().create({
       ...shape,
       data: {
         ...shape.data,
-        stack: undefined, // AI : Never expose stack traces to clients
+        stack: undefined, // To never expose stack traces to clients. Is there a better way ?
       },
     };
   },
@@ -48,7 +48,7 @@ const t = initTRPC.context<Context>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-const isAuthed = t.middleware(async ({ ctx, next }) => {
+const isAuthedMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
@@ -60,7 +60,7 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
 });
 
 // AI : Middleware to check if user has admin role
-export const isAdmin = t.middleware(async ({ ctx, next }) => {
+const isAdminMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
@@ -75,7 +75,7 @@ export const isAdmin = t.middleware(async ({ ctx, next }) => {
 });
 
 // AI : Middleware to check if user is admin or moderator (has moderatedCountries)
-const isModeratorOrAdmin = t.middleware(async ({ ctx, next }) => {
+const isModeratorOrAdminMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
@@ -96,6 +96,6 @@ const isModeratorOrAdmin = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-export const loggedInProcedure = t.procedure.use(isAuthed);
-export const adminProcedure = t.procedure.use(isAdmin);
-export const moderatorProcedure = t.procedure.use(isModeratorOrAdmin);
+export const loggedInProcedure = t.procedure.use(isAuthedMiddleware);
+export const adminProcedure = t.procedure.use(isAdminMiddleware);
+export const moderatorProcedure = t.procedure.use(isModeratorOrAdminMiddleware);

@@ -39,14 +39,14 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
   const [topLeft, topRight, bottomRight, bottomLeft] = corners;
 
   // AI : Calculate distances for all edges
-  const topEdge = calculateDistance(topLeft, topRight);
-  const bottomEdge = calculateDistance(bottomLeft, bottomRight);
-  const leftEdge = calculateDistance(topLeft, bottomLeft);
-  const rightEdge = calculateDistance(topRight, bottomRight);
+  const topEdge = calculateDistance(topLeft!, topRight!);
+  const bottomEdge = calculateDistance(bottomLeft!, bottomRight!);
+  const leftEdge = calculateDistance(topLeft!, bottomLeft!);
+  const rightEdge = calculateDistance(topRight!, bottomRight!);
 
   // AI : Calculate diagonals
-  const diagonalTLBR = calculateDistance(topLeft, bottomRight);
-  const diagonalTRBL = calculateDistance(topRight, bottomLeft);
+  const diagonalTLBR = calculateDistance(topLeft!, bottomRight!);
+  const diagonalTRBL = calculateDistance(topRight!, bottomLeft!);
 
   // AI : Check if any dimension exceeds limits
   const isValid =
@@ -75,7 +75,7 @@ export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
   }
 
   return {
-    lat: (corners[0].lat + corners[1].lat + corners[2].lat + corners[3].lat) / 4,
-    lng: (corners[0].lng + corners[1].lng + corners[2].lng + corners[3].lng) / 4,
+    lat: (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4,
+    lng: (corners[0]!.lng + corners[1]!.lng + corners[2]!.lng + corners[3]!.lng) / 4,
   };
 }

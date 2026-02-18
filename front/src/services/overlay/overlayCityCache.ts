@@ -21,7 +21,7 @@ export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: n
 
   // AI : Add new overlay to cache (avoid duplicates)
   const existingIndex = currentCache.findIndex((item) => item.id === overlayObject.id);
-  if (existingIndex >= 0) {
+  if (existingIndex !== -1) {
     // AI : Update existing entry
     currentCache[existingIndex] = overlayData;
   } else {

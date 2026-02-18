@@ -36,7 +36,7 @@ export function isOverlayVisible(
     }
 
     // AI : Show local (null/undefined status) - implies it's being created/edited by user
-    if (overlay.status === null || overlay.status === undefined) {
+    if (overlay.status === null) {
       return true;
     }
 

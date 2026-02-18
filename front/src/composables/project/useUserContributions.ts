@@ -45,7 +45,7 @@ export function useUserContributions() {
     // AI : Note: We don't filter by authorId here because overlays can be added to projects
     // AI : the user doesn't own. The project ownership filtering handles access control.
     const localOverlays = Object.values(overlayStore.overlays).filter(
-      (overlay) => overlay.status === null || overlay.status === undefined,
+      (overlay) => overlay.status === null,
     );
 
     for (const overlay of localOverlays) {
@@ -96,8 +96,7 @@ export function useUserContributions() {
 
     // AI : Add local-only projects (without overlays or with only local overlays)
     const localProjects = Object.values(projectStore.projects).filter(
-      (project) =>
-        (project.status === null || project.status === undefined) && project.ownerId === user.id,
+      (project) => project.status === null && project.ownerId === user.id,
     );
 
     for (const localProject of localProjects) {

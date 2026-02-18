@@ -70,7 +70,7 @@
             <div v-else-if="cityDetails[city.cityId]" class="city-details">
               <!-- AI : Projects with their overlays grouped together -->
               <div
-                v-for="project in cityDetails[city.cityId].projects"
+                v-for="project in cityDetails[city.cityId]?.projects"
                 :key="project.id"
                 class="project-section"
               >
@@ -128,7 +128,7 @@
                 </div>
               </div>
 
-              <div v-if="cityDetails[city.cityId].projects.length === 0" class="empty-city">
+              <div v-if="cityDetails[city.cityId]?.projects.length === 0" class="empty-city">
                 {{ t("admin.userContributions.messages.noContributions") }}
               </div>
             </div>

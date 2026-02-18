@@ -13,12 +13,6 @@
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="error" class="error-container">
-      <Message severity="error" :closable="false">
-        {{ t("admin.reports.messages.loadError") }}
-      </Message>
-    </div>
-
     <div v-else-if="!reportedUsers || reportedUsers.length === 0" class="empty-container">
       <Message severity="info" :closable="false">
         {{ t("admin.reports.messages.noReports") }}
@@ -204,7 +198,6 @@ const toast = useToast();
 // AI : State with proper tRPC types
 const reportedUsers = ref<ReportedUser[]>([]);
 const isLoading = ref(true);
-const error = ref(false);
 const showBanDialog = ref(false);
 const selectedUser = ref<ReportedUser | null>(null);
 const banReason = ref("");
@@ -215,7 +208,6 @@ const isBanning = ref(false);
 async function loadReportedUsers() {
   try {
     isLoading.value = true;
-    error.value = false;
     reportedUsers.value = await trpc.moderation.getReportedUsers.query();
   } catch (error) {
     console.error("Error loading reported users:", error);

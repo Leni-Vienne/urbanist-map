@@ -199,7 +199,7 @@ export async function navigateToOverlayWithCity(
     // AI : Different city - load everything with cross-country flight support
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    if (!map.value) {
+    if (map.value === null) {
       return false;
     }
 
@@ -207,11 +207,6 @@ export async function navigateToOverlayWithCity(
     // AI : This must happen BEFORE the flight animation to ensure the data is loaded
     // AI : even if the user interrupts the animation
     const result = await loadAndRenderCityData(cityId, true);
-
-    if (!result || !result.overlays) {
-      // AI : No overlays to navigate to in this city
-      // AI : Still fly to the coordinates though since project marker might exist
-    }
 
     const overlaysData = result?.overlays;
 
@@ -282,7 +277,7 @@ export async function navigateToStandaloneProject(
     }
 
     // AI : Fly to marker project coordinates
-    if (!map.value) {
+    if (map.value === null) {
       throw new Error("Map is not initialized");
     }
 

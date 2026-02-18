@@ -36,11 +36,11 @@ export const adminRouter = router({
           .where(eq(users.id, input.userId))
           .limit(1);
 
-        if (userInfo.length === 0) {
+        const user = userInfo[0];
+
+        if (!user) {
           throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
         }
-
-        const user = userInfo[0];
 
         // AI : Get cities with project/overlay counts for this user
         const citySummary = await db
@@ -148,11 +148,11 @@ export const adminRouter = router({
           .where(eq(projects.id, input.projectId))
           .limit(1);
 
-        if (projectData.length === 0) {
+        const project = projectData[0];
+
+        if (!project) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
         }
-
-        const project = projectData[0];
 
         // AI : Get all overlays for this project (for image cleanup)
         const projectOverlays = await db

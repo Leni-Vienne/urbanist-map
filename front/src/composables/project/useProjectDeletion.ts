@@ -1,4 +1,5 @@
 import { t } from "@/locales";
+import type { Project } from "@/types/index";
 import { useToast } from "@/composables/ui/useToast";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
@@ -33,13 +34,13 @@ export function useProjectDeletion() {
     if (!success) return false;
 
     // AI : If it was the last overlay, add a standalone project marker to show the project
-    if (isLastOverlay && project?.id && project?.lat && project?.lng) {
+    if (isLastOverlay && project?.id && project.lat && project.lng) {
       // AI : Get updated project from store, or use the passed project
       const updatedProject =
         projectStore.projects[project.id] ?? projectStore.allProjects[project.id] ?? project;
 
       await new Promise((resolve) => setTimeout(resolve, 150));
-      addStandaloneProjectMarkerForProject(updatedProject);
+      addStandaloneProjectMarkerForProject(updatedProject as unknown as Project);
       toast.add({
         severity: "info",
         summary: t("overlay.lastOverlayDeleted"),

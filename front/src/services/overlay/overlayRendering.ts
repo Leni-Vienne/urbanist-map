@@ -123,7 +123,6 @@ export function createLeafletOverlay(
         if (shouldShowImage) {
           // AI : CRITICAL FIX: Re-verify visibility before adding (async race condition protection)
           // AI : The mode might have changed while waiting for zoom animation (View -> Edit -> View)
-          const overlayStore = useOverlayStore();
           const authStore = useAuthStore();
           if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
             // AI : Abort adding if no longer visible
@@ -565,7 +564,11 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : CRITICAL FIX: Use callback to add to store ONLY after overlay is added to map
   // AI : This prevents ghost overlays when clearAllOverlays() is called during async zoom animations
   function onAddedToMap() {
-    overlayObjectWithMethods.marker = overlayStore.allMarkers[cdnOverlay.id];
+    const marker = overlayStore.allMarkers[cdnOverlay.id];
+    if (!marker) {
+      return;
+    }
+    overlayObjectWithMethods.marker = marker;
 
     // AI : Store overlay with proper reactivity - but ONLY after it's on the map
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);

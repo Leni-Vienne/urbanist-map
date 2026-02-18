@@ -9,7 +9,7 @@ export function getClientIp(c: Context): string {
   // AI : Standard forwarded header (can contain multiple IPs, first is client)
   const forwardedFor = c.req.header("x-forwarded-for");
   if (forwardedFor) {
-    return forwardedFor.split(",")[0].trim();
+    return forwardedFor.split(",")[0]!.trim();
   }
 
   // AI : Fallback to direct connection IP (for local dev)
