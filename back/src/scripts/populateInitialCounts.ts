@@ -48,9 +48,7 @@ async function populateInitialCounts() {
 
     // AI : Reset cities with no approved projects to 0
     // AI : Get all city IDs that have projects
-    const cityIdsWithProjects = citiesWithCounts
-      .map((c) => c.cityId)
-      .filter((id): id is number => id !== null);
+    const cityIdsWithProjects = citiesWithCounts.map((c) => c.cityId);
 
     // AI : Update all cities not in that list to have count 0
     if (cityIdsWithProjects.length > 0) {
