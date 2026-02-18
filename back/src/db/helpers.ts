@@ -65,9 +65,6 @@ export async function buildPaginationConditions(
       .where(eq(projects.id, filters.cursor))
       .limit(1);
 
-    /*if (cursorProject.length > 0) {
-      conditions.push(sql`${sortColumn} < ${cursorProject[0].sortValue}`);
-    }*/
     const cursorValue = cursorProject[0];
     if (cursorValue) {
       conditions.push(sql`${sortColumn} < ${cursorValue.sortValue}`);
