@@ -43,9 +43,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
+import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } from "vue";
 
 import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/core/map";
+import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
 import { undo, redo } from "@/services/overlay/overlayEditing";
@@ -79,6 +80,18 @@ const isLoading = ref(true);
 
 // AI : NEW: Viewport manager - single rendering path
 const viewportManager = useViewportContentManager();
+
+// AI : Reset map state on logout (mode, selection, standalone markers)
+watch(
+  () => authStore.user,
+  (newUser) => {
+    if (!newUser) {
+      clearAllStandaloneProjectMarkers();
+      overlayStore.setMode("view");
+      mapStore.clearSelectedCity();
+    }
+  },
+);
 
 // AI : Filter overlays - trigger re-render of loaded cities with new filter state
 async function filterOverlaysByCompletionStatus() {
