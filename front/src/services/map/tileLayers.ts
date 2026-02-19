@@ -1,7 +1,6 @@
 import L from "leaflet";
 import { ref } from "vue";
 import { map } from "@/services/core/map";
-import { useAuthStore } from "@/stores/authStore";
 import { type CountryCode, detectCountryFromCoordinates } from "@/services/map/countryDetection";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 
@@ -86,11 +85,6 @@ const tileLayerConfigs = {
  */
 
 export function addTileLayer(): void {
-  if (map.value === null) {
-    console.error("Map not initialized when trying to add tile layers");
-    return;
-  }
-
   // AI : Check if tile layers were lost during hot reload
   if (!activeTileLayer) {
     addTileLayersToMap();
@@ -104,10 +98,6 @@ export function addTileLayer(): void {
  * AI : Initialize all tile layers without layer control (using custom control instead)
  */
 function addTileLayersToMap(): void {
-  if (map.value === null) {
-    return;
-  }
-
   try {
     // AI : Create and add OSM layer as default (has built-in labels)
     activeTileLayer = createTileLayer("osm");
@@ -134,23 +124,26 @@ function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
 // AI : Timer for fallback removal of old layers
 let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
 
-// AI : Guard to prevent concurrent layer switches
-let isSwitchingLayer = false;
-
 /**
  * AI : Switch to a different tile layer (for custom layer control)
  */
 export async function switchTileLayer(layerType: TileLayerType) {
-  if (!map.value || currentTileLayer.value === layerType) {
-    return;
+  // AI : Optimization: If switching to satellite, check if we should directly go to a country layer
+  // AI : This prevents loading ESRI first then immediately switching (avoiding "flash" and wasted requests)
+  if (layerType === "esri") {
+    const currentZoom = map.value.getZoom();
+    if (currentZoom > MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
+      const center = map.value.getCenter();
+      const detectedCountry = detectCountryFromCoordinates(center.lat, center.lng);
+      if (detectedCountry && isTileLayerType(detectedCountry)) {
+        layerType = detectedCountry;
+      }
+    }
   }
 
-  // AI : Prevent concurrent layer switches to avoid multiple layers loading simultaneously
-  if (isSwitchingLayer) {
+  if (currentTileLayer.value === layerType) {
     return;
   }
-
-  isSwitchingLayer = true;
 
   // AI : Clear any pending fallback removal from previous switches
   if (fallbackRemovalTimer) {
@@ -158,20 +151,27 @@ export async function switchTileLayer(layerType: TileLayerType) {
     fallbackRemovalTimer = null;
   }
 
-  // AI : Keep reference to old layer to remove it AFTER new one loads
-  const oldLayer = activeTileLayer;
-
   try {
     // AI : Add new tile layer
     const newLayer = createTileLayer(layerType);
     newLayer.addTo(map.value);
-    activeTileLayer = newLayer;
 
-    // AI : Smooth transition: wait for new layer to load before removing old one
-    function removeOldLayer() {
-      if (oldLayer && map.value?.hasLayer(oldLayer)) {
-        map.value.removeLayer(oldLayer);
-      }
+    // AI : Update current layer reference immediately so we know what is the "intended" layer
+    activeTileLayer = newLayer;
+    currentTileLayer.value = layerType;
+
+    // AI : Robust Cleanup Strategy (Last Write Wins)
+    // AI : Iterate through all layers and remove any TileLayer that is NOT the active one.
+    // AI : This handles rapid switching correctly: A -> B -> C
+    // AI : When C loads, it will remove A and B if they are still present.
+    function cleanupLayers() {
+      map.value.eachLayer((layer) => {
+        // AI : Check if it is a TileLayer and NOT the active one
+        if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
+          map.value.removeLayer(layer);
+        }
+      });
+
       // AI : Clear timer if it exists (load event happened before timeout)
       if (fallbackRemovalTimer) {
         clearTimeout(fallbackRemovalTimer);
@@ -180,31 +180,10 @@ export async function switchTileLayer(layerType: TileLayerType) {
     }
 
     // AI : Remove on load or after timeout (fallback)
-    newLayer.once("load", removeOldLayer);
+    newLayer.once("load", cleanupLayers);
 
     // AI : Safety fallback in case load event doesn't fire (e.g. cached or fast network)
-    fallbackRemovalTimer = setTimeout(removeOldLayer, 2000);
-
-    // AI : Update current layer reference
-    currentTileLayer.value = layerType;
-
-    // AI : Wait for old layer to be removed before allowing next switch
-    await new Promise<void>((resolve) => {
-      // AI : Either wait for load event or timeout, whichever comes first
-      function cleanup() {
-        isSwitchingLayer = false;
-        resolve();
-      }
-
-      // AI : Set a maximum wait time
-      const maxWaitTimer = setTimeout(cleanup, 2500);
-
-      // AI : Clear on successful load
-      newLayer.once("load", () => {
-        clearTimeout(maxWaitTimer);
-        cleanup();
-      });
-    });
+    fallbackRemovalTimer = setTimeout(cleanupLayers, 2000);
 
     // AI : Check max zoom immediately if switching to Esri
     if (layerType === "esri") {
@@ -212,22 +191,6 @@ export async function switchTileLayer(layerType: TileLayerType) {
     }
   } catch (error) {
     console.error("Failed to switch tile layer:", error);
-    // AI : Fallback to OSM on error
-    if (layerType !== "osm") {
-      // AI : If failed, try to add OSM immediately
-      const fallbackLayer = createTileLayer("osm");
-      fallbackLayer.addTo(map.value);
-      activeTileLayer = fallbackLayer;
-      currentTileLayer.value = "osm";
-
-      // AI : Clean up old layer immediately in error case
-      if (oldLayer && map.value.hasLayer(oldLayer)) {
-        map.value.removeLayer(oldLayer);
-      }
-    }
-
-    // AI : Always release the lock, even on error
-    isSwitchingLayer = false;
   }
 }
 
@@ -265,7 +228,7 @@ const maxZoomCache = new Map<string, number>();
  * and dynamically adjust the maxNativeZoom.
  */
 async function checkEsriMaxZoom() {
-  if (currentTileLayer.value !== "esri" || !map.value) return;
+  if (currentTileLayer.value !== "esri") return;
 
   const center = map.value.getCenter();
   const zoom = map.value.getZoom();
@@ -329,8 +292,6 @@ interface EsriIdentifyResponse {
  * ESRI has diffent max native zoom depending on the location
  */
 async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null> {
-  if (!map.value) return null;
-
   // AI : Construct Identity Query
   const bounds = map.value.getBounds();
   const extent = {
@@ -385,7 +346,6 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
 
 // AI : Hook up the listener init
 function initEsriMetadataListener() {
-  if (!map.value) return;
   map.value.on("moveend", checkEsriMaxZoom);
 }
 
@@ -393,19 +353,8 @@ function initEsriMetadataListener() {
  * AI : Automatically switch satellite layer based on map view location and zoom
  */
 function checkAndAutoSwitchSatelliteLayer() {
-  if (!map.value || currentTileLayer.value === "osm") {
+  if (currentTileLayer.value === "osm") {
     // AI : Only auto-switch when in satellite mode
-    return;
-  }
-
-  const authStore = useAuthStore();
-
-  if (!authStore.isAuthenticated) {
-    // AI : Country-specific layers require authentication
-    // AI : Stay on ESRI if not authenticated
-    if (currentTileLayer.value !== "esri") {
-      switchTileLayer("esri");
-    }
     return;
   }
 
@@ -440,7 +389,6 @@ function checkAndAutoSwitchSatelliteLayer() {
  * AI : Initialize listener for automatic country-based satellite switching
  */
 function initAutoCountrySwitchListener() {
-  if (!map.value) return;
   map.value.on("moveend", checkAndAutoSwitchSatelliteLayer);
 }
 

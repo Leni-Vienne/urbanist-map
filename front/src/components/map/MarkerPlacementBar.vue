@@ -64,7 +64,7 @@ const cursorMarkerSvg = getMarkerSvg("orange");
 
 // AI : Track mouse position over map for cursor-following marker
 function onMouseMove(e: MouseEvent) {
-  if (!map.value || markerCoordinates.value) return;
+  if (markerCoordinates.value) return;
   const mapContainer = map.value.getContainer();
   const rect = mapContainer.getBoundingClientRect();
   cursorPosition.value = {

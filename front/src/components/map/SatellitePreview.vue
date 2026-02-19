@@ -55,8 +55,23 @@ const isSatellite = computed(() => {
   return currentTileLayer.value !== "osm";
 });
 
+// AI : Cooldown state to prevent spamming switches
+const isToggling = ref(false);
+
 async function toggleLayer() {
+  // AI : Prevent spamming: If already toggling (cooldown), ignore click
+  if (isToggling.value) return;
+
+  // AI : Apply cooldown lock immediately
+  isToggling.value = true;
+
+  // AI : Release cooldown after 500ms
+  setTimeout(() => {
+    isToggling.value = false;
+  }, 500);
+
   // AI : Smart toggle: If satellite, go to plan. If plan, go to last used satellite.
+  // AI : Switching immediately to provide instant feedback (no debounce)
   if (isSatellite.value) {
     await switchTileLayer("osm");
   } else {

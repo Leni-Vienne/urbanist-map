@@ -151,6 +151,8 @@ async function initializeMapAndOverlays() {
       setTimeout(() => {
         viewportManager.refreshViewport();
       }, 100);
+    } else {
+      console.error("Map not available for camera bounds tracking");
     }
 
     viewportManager.setupModeWatcher();

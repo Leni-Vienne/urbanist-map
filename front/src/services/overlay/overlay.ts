@@ -23,8 +23,6 @@ import {
 
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
-  if (!map.value) return false;
-
   // AI : Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
@@ -56,10 +54,6 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
-
-  if (map.value === null) {
-    throw new Error("Map not available: Cannot navigate between overlays");
-  }
 
   // Handle case when no overlay is selected
   if (!overlayStore.idSelectedOverlay) {

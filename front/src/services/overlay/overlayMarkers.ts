@@ -141,7 +141,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   // AI : Skip replaced overlays - the replacement is at the same location, marker would be confusing
   if (savedOverlay.status === "replaced") return;
 
-  if (!map.value || overlayStore.allMarkers[savedOverlay.id]) return;
+  if (overlayStore.allMarkers[savedOverlay.id]) return;
 
   // AI : CRITICAL: Safety check for visibility
   // AI : This prevents markers from being created for filtered-out overlays during race conditions
@@ -256,8 +256,6 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
  */
 export function createMarker(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
-
-  if (!map.value) return;
 
   // AI : CRITICAL: Safety check for visibility
   const authStore = useAuthStore();

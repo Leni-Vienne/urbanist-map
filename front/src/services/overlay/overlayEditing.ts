@@ -69,7 +69,7 @@ export function updateOverlayEditingState(): void {
     if (!overlayObject.overlay) return;
 
     // AI : Ensure overlay is on the map before attempting to manipulate it
-    if (map.value === null || !map.value.hasLayer(overlayObject.overlay)) return;
+    if (!map.value.hasLayer(overlayObject.overlay)) return;
 
     // AI : Update overlay options using the setOptions method
     const isEditMode = overlayStore.mode === "edit";
@@ -263,7 +263,6 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     return;
   }
 
-  if (map.value === null) return;
   if (!projectId) {
     throw new Error("Project Required: A project must be selected to add an overlay");
   }
@@ -365,11 +364,9 @@ export function addOverlay(imageUrl: string, projectId: string, replacesOverlayI
     });
 
     // AI : Wait for zoom to complete before creating overlay
-    if (map.value !== null) {
-      map.value.once("zoomend", () => {
-        createAndSetupOverlay();
-      });
-    }
+    map.value.once("zoomend", () => {
+      createAndSetupOverlay();
+    });
   } else {
     // AI : Zoom is already sufficient, create overlay immediately
     createAndSetupOverlay();

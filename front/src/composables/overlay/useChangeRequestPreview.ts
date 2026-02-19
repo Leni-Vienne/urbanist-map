@@ -101,7 +101,7 @@ export function useChangeRequestPreview() {
     }
 
     // AI : Need to load - validate we have required data
-    if (!overlayForModeration.cityId || !overlayForModeration.countryCode || !map.value) {
+    if (!overlayForModeration.cityId || !overlayForModeration.countryCode) {
       toast.add({
         severity: "error",
         summary: t("overlay.missingData"),
@@ -186,8 +186,6 @@ export function useChangeRequestPreview() {
     previousBounds: L.LatLngBounds | null,
     overlayId: string,
   ): void {
-    if (!map.value) return;
-
     const newBounds = L.latLngBounds(targetLatLngs);
 
     // AI : If we have previous bounds, create combined bounds to show both positions

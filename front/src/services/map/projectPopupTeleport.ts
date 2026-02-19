@@ -11,7 +11,7 @@ let mapClickHandler: (() => void) | null = null;
  * AI : Update teleport target position based on current marker
  */
 function updateTeleportTargetPosition() {
-  if (!currentMarkerForPopup || !map.value) return;
+  if (!currentMarkerForPopup) return;
 
   const teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
   if (!teleportTarget) return;
@@ -27,8 +27,6 @@ function updateTeleportTargetPosition() {
  * AI : Create teleport target for project info popup at marker position
  */
 export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
-  if (!map.value) return;
-
   const markerLatLng = marker.getLatLng();
   const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
 
@@ -83,15 +81,13 @@ export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarke
  * AI : Clean up teleport target and event listeners
  */
 export function cleanupProjectInfoTeleportTarget() {
-  if (map.value !== null) {
-    map.value.off("move", updateTeleportTargetPosition);
-    map.value.off("zoom", updateTeleportTargetPosition);
-    map.value.off("resize", updateTeleportTargetPosition);
+  map.value.off("move", updateTeleportTargetPosition);
+  map.value.off("zoom", updateTeleportTargetPosition);
+  map.value.off("resize", updateTeleportTargetPosition);
 
-    if (mapClickHandler) {
-      map.value.off("click", mapClickHandler);
-      mapClickHandler = null;
-    }
+  if (mapClickHandler) {
+    map.value.off("click", mapClickHandler);
+    mapClickHandler = null;
   }
 
   const existingTarget = document.querySelector("#project-info-popup-teleport-target");

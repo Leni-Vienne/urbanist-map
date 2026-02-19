@@ -937,3 +937,41 @@ This document outlines the granular functional test scenarios required to ensure
   3. **Check**: Map pans to city.
   4. **Check**: Layer switches to France **only** when moveend event fires (based on location).
   5. **Regression**: Verify layer didn't switch immediately on click (before map moved).
+
+### 31.9. Manual Satellite Preview Toggle (Recent Fix - Feb 18)
+
+- **Scenario**: Manually switching to Satellite mode immediately applies the correct country layer.
+- **Steps**:
+  1.  Start in **Plan** mode.
+  2.  Navigate to a location in **France** (e.g., Paris).
+  3.  Click the **Satellite Preview** button.
+  4.  **Check**: Map switches immediately to **France** satellite layer.
+  5.  **Check**: Map does NOT briefly show ESRI layer before switching.
+  6.  **Regression**: Navigate to a location without specific layer (e.g., Spain).
+  7.  Click Satellite Preview.
+  8.  **Check**: Map switches to **ESRI** layer.
+
+### 31.10. Cooldown Satellite Toggle (Leading Edge Debounce - Feb 18)
+
+- **Scenario**: Instant switch on first click, subsequent rapid clicks ignored.
+- **Steps**:
+  1.  Start in **Plan** mode.
+  2.  Click **Satellite Preview** button **ONCE**.
+  3.  **Check**: The button image/label toggles **INSTANTLY**.
+  4.  **Action**: Immediately click the button 5 more times (within 500ms).
+  5.  **Check**: The map retrieves the Satellite layer and **STAYS** there.
+  6.  **Check**: The 5 rapid clicks are ignored (no toggling back and forth).
+  7.  **Action**: Wait 1 second, then click again.
+  8.  **Check**: The map switches back to Plan immediately.
+
+## 32. Overlay Rendering Performance (Recent Optimization - Feb 18)
+
+### 32.1. Batched Overlay Rendering
+
+- **Scenario**: Overlays in view mode are rendered in batches, not individually.
+- **Steps**:
+  1.  Navigate to a city with **many overlays** (e.g., 20+) in **View Mode**.
+  2.  Zoom out until overlays are replaced by markers (or unloaded).
+  3.  Zoom back in to trigger overlay rendering.
+  4.  **Check**: Overlays appear smoothly without stalling the browser.
+  5.  **Regression**: Verify no "flickering" where overlays appear one by one slowly. They should appear in chunks or all at once.
