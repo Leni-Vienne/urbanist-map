@@ -199,8 +199,6 @@ function findProjectFromCityProjects(projectId: string): Project | null {
 
 // AI : Try to find project by fetching nearby projects
 async function findProjectFromNearbyProjects(projectId: string): Promise<Project | null> {
-  if (!map.value) return null;
-
   console.log("Fetching nearby projects to find project ID:", projectId);
   const center = map.value.getCenter();
   const nearbyProjects = await projectStore.fetchNearbyProjects(center.lat, center.lng);
@@ -322,8 +320,6 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
 
 // AI : Handle marker mode enabled - setup map click listener
 function onMarkerModeEnabled() {
-  if (!map.value) return;
-
   // AI : Add temporary click listener for marker placement
   function handleMapClick(e: L.LeafletMouseEvent) {
     const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
@@ -368,7 +364,7 @@ function onDialogVisibilityChange(visible: boolean) {
     }
 
     // AI : Remove click listener
-    if (map.value && (map.value as any)._tempMarkerClickHandler) {
+    if ((map.value as any)._tempMarkerClickHandler) {
       map.value.off("click", (map.value as any)._tempMarkerClickHandler);
       (map.value as any)._tempMarkerClickHandler = null;
     }

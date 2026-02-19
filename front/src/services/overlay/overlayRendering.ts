@@ -77,7 +77,7 @@ export function createLeafletOverlay(
 ) {
   const overlayStore = useOverlayStore();
 
-  if (!map.value || !overlayObject) return null;
+  if (!overlayObject) return null;
 
   overlayObject.imageUrl ??= imageUrl;
 
@@ -115,7 +115,7 @@ export function createLeafletOverlay(
     // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
     // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
-      if (map.value && newOverlay) {
+      if (newOverlay) {
         const currentZoom = map.value.getZoom();
         const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
 
@@ -146,7 +146,7 @@ export function createLeafletOverlay(
     };
 
     // Check if map is currently zooming, _animatingZoom isn't documented for some reason
-    if (map.value !== null && map.value?._animatingZoom) {
+    if (map.value._animatingZoom) {
       // AI : Wait for zoom animation to complete
       map.value.once("zoomend", addOverlayWhenReady);
     } else {
@@ -241,7 +241,7 @@ function setupOverlayLoadHandler(
     if (isInitialized) return;
 
     // AI : Guard: Only proceed if overlay is still on map (prevents errors during rapid viewport changes)
-    if (!map.value || !map.value.hasLayer(overlay)) {
+    if (!map.value.hasLayer(overlay)) {
       return;
     }
 
@@ -256,7 +256,7 @@ function setupOverlayLoadHandler(
       // AI : This fixes the "lag spike" when multiple cached images load simultaneously
       scheduleInitialization(overlayObject.id, () => {
         // AI : Re-check existence before running (user might have panned away)
-        if (map.value && map.value.hasLayer(overlay)) {
+        if (map.value.hasLayer(overlay)) {
           onOverlayLoaded(overlayObject, onReady);
         }
       });
@@ -497,8 +497,6 @@ export function renderViewModeOverlays(
 ) {
   const overlayStore = useOverlayStore();
 
-  if (!map.value) return;
-
   let overlaysToRender: OverlayData[] = [];
 
   if (forceRerender) {
@@ -538,7 +536,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : This prevents duplicates when renderFullOverlays is called multiple times rapidly
   const isBeingCreated = overlaysBeingCreated.has(cdnOverlay.id);
 
-  if (!map.value || hasValidLayer || isBeingCreated) {
+  if (hasValidLayer || isBeingCreated) {
     if (isBeingCreated) {
       return;
     }

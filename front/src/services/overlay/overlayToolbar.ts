@@ -308,13 +308,6 @@ function calculateRatioFixParameters(
   originalRatio: number,
   currentCorners: { lat: number; lng: number }[],
 ) {
-  if (!map.value)
-    return {
-      originalRatio,
-      newDimensions: { width: 0, height: 0 },
-      cornersInfo: { centerPoint: L.point(0, 0), angleRad: 0 },
-    };
-
   // AI : Convert corners to screen coordinates
   const nw = map.value.latLngToContainerPoint(currentCorners[0]!);
   const ne = map.value.latLngToContainerPoint(currentCorners[1]!);
@@ -361,7 +354,7 @@ function applyImageRatioFix(
   cornersInfo: CornersInfo,
   dimensions: Dimensions,
 ) {
-  if (!map.value || !overlayObject.overlay) return;
+  if (!overlayObject.overlay) return;
 
   const { centerPoint, angleRad } = cornersInfo;
   const { width, height } = dimensions;
@@ -407,7 +400,7 @@ function resetImageRatio() {
 
   // AI : Use existing image element instead of creating a new one to avoid CDN fetch
   const processRatio = () => {
-    if (!overlayObject.overlay || !map.value) return;
+    if (!overlayObject.overlay) return;
 
     const currentCorners = overlayObject.overlay.getCorners();
     if (!currentCorners?.length || currentCorners.length !== 4) return;

@@ -77,7 +77,7 @@ function zoomToOverlayAndSelect(
   corners: { lat: number; lng: number }[],
   autoSelect = true,
 ): boolean {
-  if (!map.value || corners.length !== 4) return false;
+  if (corners.length !== 4) return false;
 
   const bounds = L.latLngBounds(corners.map((c) => L.latLng(c.lat, c.lng)));
   mobileAwareFlyToBounds(bounds, {
@@ -97,7 +97,7 @@ function zoomToOverlayAndSelect(
       // AI : Overlay object exists but Leaflet overlay not created - this shouldn't happen
       // AI : but if it does, we need to trigger a re-render
       console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
-    } else if (overlayObj?.overlay && map.value && !map.value.hasLayer(overlayObj.overlay)) {
+    } else if (overlayObj?.overlay && !map.value.hasLayer(overlayObj.overlay)) {
       //  AI : Overlay exists but not on map - add it now that zoom is correct
       const currentZoom = map.value.getZoom();
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
@@ -199,10 +199,6 @@ export async function navigateToOverlayWithCity(
     // AI : Different city - load everything with cross-country flight support
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    if (map.value === null) {
-      return false;
-    }
-
     // AI : CRITICAL FIX: Use loadAndRenderCityData to properly load city data
     // AI : This must happen BEFORE the flight animation to ensure the data is loaded
     // AI : even if the user interrupts the animation
@@ -277,10 +273,6 @@ export async function navigateToStandaloneProject(
     }
 
     // AI : Fly to marker project coordinates
-    if (map.value === null) {
-      throw new Error("Map is not initialized");
-    }
-
     mobileAwareFlyTo([lat, lng], 18, {
       duration: 1.5,
       easeLinearity: 0.25,

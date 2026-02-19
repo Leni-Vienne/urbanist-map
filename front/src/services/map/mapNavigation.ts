@@ -23,18 +23,8 @@ const currentCameraBounds = ref<CameraBounds | null>(null);
  * AI : Initialize camera bounds tracking
  */
 export function initializeCameraBounds() {
-  if (map.value === null) {
-    console.warn("Map not available for camera bounds tracking");
-    return;
-  }
-
   // AI : Update bounds when map moves or zooms
   function updateBounds() {
-    if (map.value === null) {
-      console.warn("Map not available in updateBounds");
-      return;
-    }
-
     try {
       const bounds = map.value.getBounds();
       if (!bounds) {
@@ -106,8 +96,6 @@ export function mobileAwareFlyTo(
   zoom?: number,
   options: ZoomPanOptions = { duration: 1.5 },
 ): void {
-  if (!map.value) return;
-
   const latLng = L.latLng(latlng);
   const currentCenter = map.value.getCenter();
   const currentZoom = map.value.getZoom();
@@ -154,8 +142,6 @@ export function mobileAwareFlyToBounds(
   bounds: L.LatLngBoundsExpression,
   options?: FitBoundsOptions,
 ): void {
-  if (!map.value) return;
-
   const targetBounds = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds);
   const currentZoom = map.value.getZoom();
 
@@ -220,8 +206,6 @@ export function flyToCountry(
   fallbackZoom = 6,
   duration = 1.5,
 ) {
-  if (!map.value) return;
-
   const bbox = countryBboxes[countryCode];
 
   if (bbox) {

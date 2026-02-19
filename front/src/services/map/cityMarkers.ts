@@ -147,7 +147,7 @@ export function removeCityMarkers(): void {
   // AI : Explicitly remove all markers from map
   const allMarkers = cityMarkersStore.getAllCityMarkers();
   for (const marker of allMarkers.values()) {
-    if (map.value && map.value.hasLayer(marker)) {
+    if (map.value.hasLayer(marker)) {
       marker.remove();
     }
   }
@@ -164,8 +164,6 @@ function smartZoomToCity(
   city: { lat: number; lng: number },
   data: Awaited<ReturnType<typeof loadAndRenderCityData>>,
 ) {
-  if (!map.value) return;
-
   const locations: { lat: number; lng: number }[] = [];
 
   // AI : Always include city center
@@ -350,11 +348,6 @@ export async function addSingleCityMarker(
   },
   isUnsaved = false,
 ) {
-  if (map.value === null) {
-    console.error("Map not initialized when trying to add city marker");
-    return;
-  }
-
   const cityMarkersStore = useCityMarkersStore();
 
   // AI : Don't add if marker already exists
@@ -395,11 +388,6 @@ export async function addSingleCityMarker(
  * AI : Fetches all cities with projects worldwide and displays them on the map
  */
 export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> {
-  if (map.value === null) {
-    console.error("Map not initialized when trying to load global city markers");
-    return [];
-  }
-
   try {
     const overlayStore = useOverlayStore();
     const authStore = useAuthStore();
@@ -459,10 +447,6 @@ export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> 
  * AI : Add city markers for a specific country
  */
 export async function addCityMarkersForCountry(cities: CityWithProjects[], countryCode?: string) {
-  if (map.value === null) {
-    console.error("Map not initialized when trying to add city markers for country");
-    return;
-  }
   await addCityMarkersToMapInternal(cities, countryCode);
 }
 
@@ -524,9 +508,7 @@ async function addCityMarkersToMapInternal(
   cityMarkersStore.setCityMarkersLayer(result.layer);
 
   // AI : Add the layer to the map
-  if (map.value !== null) {
-    result.layer.addTo(map.value);
-  }
+  result.layer.addTo(map.value);
 
   // AI : Store individual marker references for easy access
   for (const [cityId, marker] of result.markers) {

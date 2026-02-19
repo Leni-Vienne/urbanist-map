@@ -70,8 +70,6 @@ watch(
 
 // AI : Handle button click - find nearest city marker and activates it
 function handleClick() {
-  if (!map.value) return;
-
   // AI : Use reactive data instead of scanning DOM
   const availableCities = citiesWithProjects.value;
 

@@ -79,17 +79,15 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
   }
 
   // AI : Add overlay markers to map
-  if (map.value !== null) {
-    overlayMarkersLayer.addTo(map.value);
-  }
+  overlayMarkersLayer.addTo(map.value);
 }
 
 /**
  * AI : Remove overlay markers from the map
  */
 export function removeOverlayMarkers(): void {
-  if (map.value && overlayMarkersLayer) {
-    map.value.removeLayer(overlayMarkersLayer);
+  if (overlayMarkersLayer) {
+    map.value?.removeLayer(overlayMarkersLayer);
     overlayMarkersLayer = null;
   }
 }
@@ -98,8 +96,6 @@ export function removeOverlayMarkers(): void {
  * AI : Fly to overlay marker position and open toolbar
  */
 function flyToOverlayMarker(overlayData: OverlayData) {
-  if (!map.value) return;
-
   const overlayStore = useOverlayStore();
   const resolved = resolveOverlayPosition(overlayData.id, overlayData, overlayStore.mode);
 

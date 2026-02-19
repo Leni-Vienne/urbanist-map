@@ -369,8 +369,6 @@ export function setupProjectHoverEvents(
  * AI : Setup map click handler to deselect overlays when clicking the map background
  */
 export function setupMapClickToDeselect(): void {
-  if (!map.value) return;
-
   map.value.on("click", () => {
     const overlayStore = useOverlayStore();
     // AI : Deselect if currently selected - overlay click handlers will re-select if clicked

@@ -14,8 +14,6 @@ import { MAP_CONFIG } from "@/constants/mapConstants";
  * AI : Iterates through stores and adds/removes layers from map directly
  */
 export function pruneMapEntities() {
-  if (!map.value) return;
-
   const mapInstance = map.value;
   const bounds = mapInstance.getBounds();
   const zoom = mapInstance.getZoom();
@@ -107,6 +105,8 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
     overlayStore.mode,
   );
 
+  const overlaysToRender: typeof filteredOverlays = [];
+
   // 1. Process potential overlays from viewMode (Backend Data)
   for (const data of filteredOverlays) {
     processedIds.add(data.id);
@@ -137,26 +137,26 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
     }
 
     // AI : Intersection A and B: A.min < B.max && A.max > B.min
-    const isVisible =
+    const isInViewport =
       minLat < boundsNorth && maxLat > boundsSouth && minLng < boundsEast && maxLng > boundsWest;
 
-    if (isVisible) {
+    if (isInViewport) {
       if (destructionQueue.has(data.id)) {
         // AI : If timed for destruction but now visible, SAVE IT
         destructionQueue.delete(data.id);
       }
 
       if (!existingInstance) {
-        // AI : Visible but not instantiated -> Create it
-        renderViewModeOverlays([data], true, false);
+        // AI : Visible but not instantiated -> Queue for creation
+        overlaysToRender.push(data);
       } else {
         // AI : Exists -> Ensure it's on map (and restored if null)
         const hasLayer = existingInstance.overlay !== null;
         const isOnMap = hasLayer && mapInstance.hasLayer(existingInstance.overlay!);
 
         if (!hasLayer) {
-          // AI : Instance exists but Leaflet layer was destroyed -> Recreate
-          renderViewModeOverlays([data], true, false);
+          // AI : Instance exists but Leaflet layer was destroyed -> Queue for recreation
+          overlaysToRender.push(data);
         } else if (showImages && !isOnMap) {
           // AI : Only add image if zoom is sufficient
           existingInstance.overlay!.addTo(mapInstance);
@@ -179,6 +179,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         }
       }
     }
+  }
+
+  // AI : Verify if we have overlays to render
+  if (overlaysToRender.length > 0) {
+    renderViewModeOverlays(overlaysToRender, true, false);
   }
 
   // 2. Process remaining overlays in store (e.g. newly created ones in Edit Mode)

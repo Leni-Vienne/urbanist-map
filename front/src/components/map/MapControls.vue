@@ -103,8 +103,6 @@ function handleFilterOverlays(status: viewModeMarkerColor) {
 
 // AI : Helper to zoom with mobile offset - keeps focus on upper visible area
 function zoomWithMobileOffset(zoomDelta: number) {
-  if (!map.value) return;
-
   const isMobile = globalThis.innerWidth <= 768;
   const shouldOffset = isMobile && uiStore.mobileDrawerVisible;
 

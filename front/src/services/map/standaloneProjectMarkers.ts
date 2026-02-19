@@ -253,7 +253,7 @@ export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker 
  * This is called when the last overlay is deleted from a project
  */
 export function addStandaloneProjectMarkerForProject(project: Project): void {
-  if (!map.value || !project.lat || !project.lng) return;
+  if (!project.lat || !project.lng) return;
 
   // AI : Don't add if marker already exists
   if (standaloneProjectMarkerMap.has(project.id)) return;

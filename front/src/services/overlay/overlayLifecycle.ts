@@ -12,8 +12,6 @@ import { clearOverlaysBeingCreated } from "@/services/overlay/overlayRendering";
 export function clearAllOverlays(preserveStoreData = false): void {
   const overlayStore = useOverlayStore();
 
-  if (!map.value) return;
-
   // AI : CRITICAL FIX: Remove ALL DistortableImageOverlay instances from map
   // AI : This catches duplicates created when renderSingleOverlay is called multiple times
   // AI : before onAddedToMap callback completes (two separate Leaflet objects for same overlay ID)

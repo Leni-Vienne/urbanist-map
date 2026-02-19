@@ -100,8 +100,6 @@ export function useViewportContentManager() {
    * AI : Get visible cities in current viewport
    */
   function getVisibleCitiesInViewport(): typeof citiesWithProjects.value {
-    if (!map.value) return [];
-
     const bounds = map.value.getBounds();
     return citiesWithProjects.value.filter((city) => bounds.contains([city.lat, city.lng]));
   }
@@ -239,9 +237,6 @@ export function useViewportContentManager() {
   async function refreshViewport(force = false) {
     try {
       if (isLoading.value && !force) {
-        return;
-      }
-      if (map.value === null) {
         return;
       }
 
@@ -522,8 +517,6 @@ export function useViewportContentManager() {
   const debouncedRefreshViewport = debounce(refreshViewport, 100);
 
   function setupEventListeners() {
-    if (!map.value) return;
-
     // AI : Use debounced handler for BOTH moveend and zoomend
     // AI : This prevents duplicate calls when flyTo triggers both events
     // AI : Wrap in arrow function to satisfy TypeScript event handler typing
@@ -535,8 +528,6 @@ export function useViewportContentManager() {
    * AI : Cleanup event listeners
    */
   function cleanupEventListeners() {
-    if (!map.value) return;
-
     // AI : Remove all moveend and zoomend listeners
     map.value.off("moveend");
     map.value.off("zoomend");
