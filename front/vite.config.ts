@@ -6,10 +6,11 @@ import tailwindcss from "@tailwindcss/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
 import path from "node:path";
 import { visualizer } from "rollup-plugin-visualizer";
+import Sonda from "sonda/rolldown";
 import { qrcode } from "vite-plugin-qrcode";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   envDir: "../", // Only way that .env can be imported, '../.env' don't work for some reason
   plugins: [
     //fontDisplaySwapPlugin(),
@@ -18,10 +19,12 @@ export default defineConfig({
     visualizer({
       filename: "stats.html",
       open: false,
-      template: "treemap", // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
+      gzipSize: true,
+      template: "list", // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
+      exclude: [{ bundle: "**/vendor*" }, { file: "**/node_modules/**" }],
     }),
     tailwindcss(),
-    vueDevTools(),
+    mode === "development" && vueDevTools(),
     // eslint-disable-next-line new-cap
     Components({
       resolvers: [
@@ -90,28 +93,32 @@ export default defineConfig({
   // AI : External leaflet to prevent bundling
   build: {
     sourcemap: true,
+    license: true,
     cssCodeSplit: true, // AI : Extract CSS per chunk for parallel loading
-    rollupOptions: {
+    rolldownOptions: {
       external: (id) => {
         // AI : Mark CDN URLs as external so they don't get bundled
         return id.includes("unpkg.com/leaflet");
       },
       output: {
-        manualChunks: (id) => {
-          // AI : Keep vendor libraries separate for better caching
-          if (id.includes("node_modules")) {
-            // AI : Order matters - check most specific paths first
-            if (
-              id.includes("pinia") ||
-              id.includes("vue-router") ||
-              id.includes("pinia") ||
-              id.includes("vue-i18n")
-            )
-              return "@vue";
-            //if (id.includes("@primevue") || id.includes("@primeuix")) return "primevue";
-          }
-
-          if (id.includes("locales")) return "locales";
+        codeSplitting: {
+          groups: [
+            // AI : Split Vue ecosystem for stable long-term caching
+            {
+              test: (id) => /node_modules\/(vue|@vue|pinia|vue-router|vue-i18n)/.test(id),
+              name: "vue-core",
+            },
+            // AI : Split PrimeVue UI library (largest vendor dependency)
+            {
+              test: (id) => /node_modules\/(primevue|@primevue|@primeuix)/.test(id),
+              name: "primevue",
+            },
+            // AI : Remaining vendor deps (zod, superjson, uuid, leaflet-distortableimage, etc.)
+            {
+              test: (id) => id.includes("node_modules"),
+              name: "vendor",
+            },
+          ],
         },
       },
     },
@@ -119,9 +126,10 @@ export default defineConfig({
   define: {
     //__VUE_OPTIONS_API__: false, -> crashes the app
     "process.env.NODE_ENV": JSON.stringify("production"),
+    __VUE_PROD_DEVTOOLS__: false, // doesn't seem to change anything
     // AI : vue-i18n optimizations - tree-shake unused features
     __INTLIFY_PROD_DEVTOOLS__: false,
     __VUE_I18N_FULL_INSTALL__: true, // We use globalInjection
     __VUE_I18N_LEGACY_API__: false, // We use composition API (legacy: false)
   },
-});
+}));

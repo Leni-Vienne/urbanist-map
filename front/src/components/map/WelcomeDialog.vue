@@ -16,35 +16,20 @@
         <div class="help-section">
           <h4 class="help-section-title">{{ $t("help.buttons.title") }}</h4>
           <div class="help-item">
-            <div class="help-icon">
-              <Button
-                icon="pi pi-question-circle"
-                size="small"
-                severity="help"
-                disabled
-              />
+            <div class="help-icon" aria-hidden="true">
+              <Button icon="pi pi-question-circle" size="small" severity="help" disabled />
             </div>
             <div class="help-text">{{ $t("help.buttons.help") }}</div>
           </div>
           <div class="help-item">
-            <div class="help-icon">
-              <Button
-                icon="pi pi-map"
-                size="small"
-                severity="secondary"
-                disabled
-              />
+            <div class="help-icon" aria-hidden="true">
+              <Button icon="pi pi-map" size="small" severity="secondary" disabled />
             </div>
             <div class="help-text">{{ $t("help.buttons.layers") }}</div>
           </div>
           <div class="help-item">
-            <div class="help-icon">
-              <Button
-                icon="pi pi-filter"
-                size="small"
-                severity="secondary"
-                disabled
-              />
+            <div class="help-icon" aria-hidden="true">
+              <Button icon="pi pi-filter" size="small" severity="secondary" disabled />
             </div>
             <div class="help-text">{{ $t("help.buttons.filters") }}</div>
           </div>
@@ -63,15 +48,8 @@
       </div>
 
       <div class="help-footer">
-        <Checkbox
-          v-model="dontShowAgain"
-          inputId="dontShowAgain"
-          :binary="true"
-        />
-        <label
-          for="dontShowAgain"
-          class="help-checkbox-label"
-        >
+        <Checkbox v-model="dontShowAgain" inputId="dontShowAgain" :binary="true" />
+        <label for="dontShowAgain" class="help-checkbox-label">
           &nbsp;{{ $t("help.dontShowAgain") }}
         </label>
       </div>

@@ -38,6 +38,7 @@ coverage
 *.puml
 .secrets
 stats.html
+.sonda
 .dev.vars
 .wrangler
 codebase_combined.txt

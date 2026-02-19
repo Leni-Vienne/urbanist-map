@@ -34,20 +34,20 @@
       <!-- AI : Popup container handles both overlay and project popups, AND the shared overlay edit dialog -->
       <PopupContainer
         v-if="
-                overlayStore.showInfoPopup ||
-                uiStore.projectInfoPopup.visible ||
-                uiStore.overlayEditDialog.visible
-            "
+          overlayStore.showInfoPopup ||
+          uiStore.projectInfoPopup.visible ||
+          uiStore.overlayEditDialog.visible
+        "
       />
     </div>
 
     <!-- AI : Project Management Dialogs -->
     <ProjectManager
       v-if="
-            uiStore.projectDialog.visible ||
-            uiStore.markerPlacementBarVisible ||
-            uiStore.projectEditForm.visible
-        "
+        uiStore.projectDialog.visible ||
+        uiStore.markerPlacementBarVisible ||
+        uiStore.projectEditForm.visible
+      "
     />
 
     <!-- AI : Moderated Contributions Dialog -->
@@ -63,14 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-    onMounted,
-    ref,
-    onUnmounted,
-    computed,
-    defineAsyncComponent,
-    watch,
-} from "vue";
+import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -81,24 +74,21 @@ import { useRoute } from "vue-router";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 import { useI18n } from "vue-i18n";
 
-
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
 
 // AI : Split PopupContainer into separate chunk - loads when first popup is shown
-const PopupContainer = defineAsyncComponent(
-    () => import("@/components/map/PopupContainer.vue"),
-);
+const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));
 const ProjectManager = defineAsyncComponent(
-    () => import("@/components/project/ProjectManager.vue"),
+  () => import("@/components/project/ProjectManager.vue"),
 );
 // AI : Async import for non-critical dialog - only loaded when needed
 const ModeratedContributionsDialog = defineAsyncComponent(
-    () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
+  () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
 );
 const ImageUploadDialog = defineAsyncComponent(
-    () => import("@/components/common/ImageUploadDialog.vue"),
+  () => import("@/components/common/ImageUploadDialog.vue"),
 );
 
 // AI : Create refs to track app state
@@ -109,158 +99,163 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const route = useRoute();
-const { fetchModeratedContributions, hasUnacknowledgedItems, reset: resetModeratedContributions } = useModeratedContributions();
+const {
+  fetchModeratedContributions,
+  hasUnacknowledgedItems,
+  reset: resetModeratedContributions,
+} = useModeratedContributions();
 const { t } = useI18n();
 
 // AI : Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
-    get: () => uiStore.mobileDrawerVisible,
-    set: (value) => {
-        uiStore.mobileDrawerVisible = value;
-    },
+  get: () => uiStore.mobileDrawerVisible,
+  set: (value) => {
+    uiStore.mobileDrawerVisible = value;
+  },
 });
 
 // AI : Mobile detection for responsive drawer behavior
-const windowWidth = ref(
-    typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024,
-);
+const windowWidth = ref(typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024);
 const isMobile = computed(() => windowWidth.value <= 768);
 
 // AI : Update window width on resize
 function updateWindowWidth() {
-    windowWidth.value = globalThis.innerWidth;
+  windowWidth.value = globalThis.innerWidth;
 
-    // AI : Update mobile overflow constraints when window size changes
-    if (isMobile.value) {
-        document.documentElement.style.overflow = "hidden";
-        document.body.style.overflow = "hidden";
-        document.body.style.height = "100vh";
-        document.body.style.height = "100dvh";
-    } else {
-        document.documentElement.style.overflow = "";
-        document.body.style.overflow = "";
-        document.body.style.height = "";
-    }
+  // AI : Update mobile overflow constraints when window size changes
+  if (isMobile.value) {
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.height = "100vh";
+    document.body.style.height = "100dvh";
+  } else {
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    document.body.style.height = "";
+  }
 }
 
 // AI : Initialize beforeunload handler for modified overlays
 useBeforeUnload();
 
 onMounted(async () => {
-    // AI : Add window resize listener for mobile detection
-    globalThis.addEventListener("resize", updateWindowWidth);
+  // AI : Add window resize listener for mobile detection
+  globalThis.addEventListener("resize", updateWindowWidth);
 
-    // Preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
-    import("@/components/map/PopupContainer.vue");
+  // Preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
+  //import("@/components/map/PopupContainer.vue");
 
-    // AI : Prevent page scrolling on mobile to avoid viewport issues
-    if (isMobile.value) {
-        document.documentElement.style.overflow = "hidden";
-        document.body.style.overflow = "hidden";
-        document.body.style.height = "100vh";
-        document.body.style.height = "100dvh"; // Use dynamic viewport where supported
+  // AI : Prevent page scrolling on mobile to avoid viewport issues
+  if (isMobile.value) {
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.height = "100vh";
+    document.body.style.height = "100dvh"; // Use dynamic viewport where supported
+  }
+
+  // AI : Update overlayStore to use the new UI store for dialog control
+  overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
+
+  try {
+    await authStore.initialize();
+
+    // AI : Check for moderated contributions if user is logged in
+    if (authStore.isAuthenticated) {
+      await fetchModeratedContributions();
+
+      // AI : Show dialog if there are unacknowledged items
+      if (hasUnacknowledgedItems.value) {
+        uiStore.openModeratedContributionsDialog();
+      }
     }
 
-    // AI : Update overlayStore to use the new UI store for dialog control
-    overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
-
-    try {
-        await authStore.initialize();
-
-        // AI : Check for moderated contributions if user is logged in
-        if (authStore.isAuthenticated) {
-            await fetchModeratedContributions();
-
-            // AI : Show dialog if there are unacknowledged items
-            if (hasUnacknowledgedItems.value) {
-                uiStore.openModeratedContributionsDialog();
-            }
-        }
-
-        // AI : Handle auth query parameters from URL
-        if (route.query.auth === "success") {
-            toast.add({
-                severity: "success",
-                summary: t('common.success'),
-                detail: t('pages.home.signInSuccess'),
-                life: 3000,
-            });
-        } else if (route.query.error) {
-            const errorMessage = getErrorMessage(route.query.error as string);
-            toast.add({
-                severity: "error",
-                summary: t('pages.home.authenticationError'),
-                detail: errorMessage,
-                life: 5000,
-            });
-        }
-    } catch (error) {
-        console.error("Error during application initialization:", error);
+    // AI : Handle auth query parameters from URL
+    if (route.query.auth === "success") {
+      toast.add({
+        severity: "success",
+        summary: t("common.success"),
+        detail: t("pages.home.signInSuccess"),
+        life: 3000,
+      });
+    } else if (route.query.error) {
+      const errorMessage = getErrorMessage(route.query.error as string);
+      toast.add({
+        severity: "error",
+        summary: t("pages.home.authenticationError"),
+        detail: errorMessage,
+        life: 5000,
+      });
     }
+  } catch (error) {
+    console.error("Error during application initialization:", error);
+  }
 });
 
 // AI : Watch for authentication changes to fetch moderated contributions when user logs in
-watch(() => authStore.isAuthenticated, async (isAuthenticated, wasAuthenticated) => {
+watch(
+  () => authStore.isAuthenticated,
+  async (isAuthenticated, wasAuthenticated) => {
     if (isAuthenticated && !wasAuthenticated) {
-        // AI : User just logged in - fetch moderated contributions
-        await fetchModeratedContributions();
+      // AI : User just logged in - fetch moderated contributions
+      await fetchModeratedContributions();
 
-        // AI : Show dialog if there are unacknowledged items
-        if (hasUnacknowledgedItems.value) {
-            uiStore.openModeratedContributionsDialog();
-        }
+      // AI : Show dialog if there are unacknowledged items
+      if (hasUnacknowledgedItems.value) {
+        uiStore.openModeratedContributionsDialog();
+      }
     } else if (!isAuthenticated && wasAuthenticated) {
-        // AI : User just logged out - clear cached contributions
-        resetModeratedContributions();
+      // AI : User just logged out - clear cached contributions
+      resetModeratedContributions();
     }
-});
+  },
+);
 
 // AI : Get user-friendly error messages
 function getErrorMessage(error: string): string {
-    switch (error) {
-        case "auth_failed":
-            return t('pages.home.errors.authenticationFailed');
-        case "no_session":
-            return t('pages.home.errors.signInCancelled');
-        case "unexpected":
-            return t('pages.home.errors.unexpectedError');
-        default:
-            return t('pages.home.errors.authenticationError');
-    }
+  switch (error) {
+    case "auth_failed":
+      return t("pages.home.errors.authenticationFailed");
+    case "no_session":
+      return t("pages.home.errors.signInCancelled");
+    case "unexpected":
+      return t("pages.home.errors.unexpectedError");
+    default:
+      return t("pages.home.errors.authenticationError");
+  }
 }
 
 onUnmounted(() => {
-    globalThis.removeEventListener("resize", updateWindowWidth);
+  globalThis.removeEventListener("resize", updateWindowWidth);
 
-    // AI : Restore normal overflow behavior when component unmounts
-    document.documentElement.style.overflow = "";
-    document.body.style.overflow = "";
-    document.body.style.height = "";
+  // AI : Restore normal overflow behavior when component unmounts
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
+  document.body.style.height = "";
 });
 </script>
 
 <style scoped>
 .home-container {
-    display: flex;
-    height: 100vh;
+  display: flex;
+  height: 100vh;
 }
 
 .main-content {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    position: relative;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .info-message-banner {
-    flex-shrink: 0;
-    margin: 0;
-    border-radius: 0;
+  flex-shrink: 0;
+  margin: 0;
+  border-radius: 0;
 }
 
 .map-container {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
 }
 </style>
