@@ -225,7 +225,7 @@ export function useSubmissionDialog() {
       const storeOverlay = overlayStore.overlays[mod.overlayId];
       if (storeOverlay) {
         overlayInfoMap[mod.overlayId] = storeOverlay;
-      } else if ("overlays" in project && project.overlays) {
+      } else if ("overlays" in project) {
         // AI : Fall back to project.overlays array (only available on ProjectForModeration)
         const projOverlay = project.overlays.find((o) => o.id === mod.overlayId);
         if (projOverlay) {
@@ -299,7 +299,7 @@ export function useSubmissionDialog() {
     overlayObject: OverlayObject,
     project?: Project | null,
   ): Promise<void> {
-    if (mod.corners && overlayObject) {
+    if (mod.corners) {
       // AI : For pending overlays with position changes, use publishOverlay
       const overlayToPublish = applyModificationsToOverlay(overlayObject, mod);
       await publishOverlay(overlayToPublish, project ?? null);

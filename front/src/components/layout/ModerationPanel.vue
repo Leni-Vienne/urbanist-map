@@ -316,7 +316,7 @@ async function loadCountryData(countryCode: string | null, shouldFly = true) {
       // AI : Fly to the country center if available AND requested
       if (shouldFly) {
         const country = projectStore.countries.find((c) => c.code === countryCode);
-        if (country && map.value) {
+        if (country) {
           // AI : PostGIS geometry uses x for longitude and y for latitude
           mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, {
             duration: 1.5,

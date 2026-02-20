@@ -102,7 +102,7 @@ export async function navigateToCity(
   }
 
   // AI : Fly to city coordinates if we have them
-  if (lat !== undefined && lng !== undefined && map.value) {
+  if (lat !== undefined && lng !== undefined) {
     mobileAwareFlyTo([lat, lng], 14, {
       duration: 1.5,
     });

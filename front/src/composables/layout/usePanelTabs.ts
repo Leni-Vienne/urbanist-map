@@ -20,6 +20,10 @@ function tabToMode(tab: PanelTab): AppMode {
       return "edit";
     case "moderation":
       return "moderation";
+    default:
+      // AI : Exhaustiveness check — all PanelTab values must be handled above
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      throw new Error(`Unhandled tab: ${tab}`);
   }
 }
 

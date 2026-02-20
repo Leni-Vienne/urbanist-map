@@ -49,7 +49,7 @@ export function useModeration() {
       moderationStore.setModerationData({
         overlays: response.overlays,
         projects: response.projects,
-        changeRequests: response.changeRequests ?? [],
+        changeRequests: response.changeRequests,
       });
     } catch (error) {
       // AI : If error is because no country is selected, don't show error toast (UI will prompt user to select)
@@ -74,11 +74,11 @@ export function useModeration() {
   }
 
   // AI : Generic approval handler for any moderation item type
-  async function setApprovalStatus<T extends { id: string; name?: string; version: number }>(
+  async function setApprovalStatus(
     id: string,
     status: "approved" | "rejected",
     itemType: "overlay" | "project",
-    items: T[],
+    items: { id: string; name?: string; version: number }[],
     apiCall: (params: {
       id: string;
       expectedVersion: number;

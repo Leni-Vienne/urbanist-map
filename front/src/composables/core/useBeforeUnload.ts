@@ -15,9 +15,6 @@ export function useBeforeUnload() {
     if (checkForModifiedOverlays()) {
       // AI : Prevent default to trigger browser confirmation dialog
       event.preventDefault();
-
-      // AI : Modern browsers ignore custom messages and show their own dialog
-      return "";
     }
   }
 

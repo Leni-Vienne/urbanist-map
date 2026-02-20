@@ -123,12 +123,7 @@ export function useSubmissionService() {
 
     // AI : Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.allProjects)) {
-      if (
-        project.city &&
-        project.cityId &&
-        project.city.id === project.cityId &&
-        !cache[project.cityId]
-      ) {
+      if (project.city.id === project.cityId && !cache[project.cityId]) {
         cache[project.cityId] = project.city.name;
       }
     }
@@ -252,9 +247,9 @@ export function useSubmissionService() {
     if (!originalOverlay) {
       // AI : For pending overlays or if not found in cache, check user contributions
       const contribution = projectStore.userContributions.find((c) =>
-        c.overlays?.some((o) => o.id === overlay.id),
+        c.overlays.some((o) => o.id === overlay.id),
       );
-      const overlayFromContributions = contribution?.overlays?.find((o) => o.id === overlay.id);
+      const overlayFromContributions = contribution?.overlays.find((o) => o.id === overlay.id);
 
       if (overlayFromContributions) {
         // AI : Convert to the format we need for comparison
@@ -306,7 +301,7 @@ export function useSubmissionService() {
 
     const editModeCache = getFromEditModeOverlayCache(overlay.id);
 
-    if (editModeCache?.corners?.length === 4) {
+    if (editModeCache?.corners.length === 4) {
       // AI : Use cached corners (user's most recent position in edit mode)
       // AI : No need to check isModified - the comparison will determine if changed
       currentCorners = editModeCache.corners;
@@ -320,13 +315,11 @@ export function useSubmissionService() {
 
     const normalizedCurrentCorners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
 
-    // AI : Get original corners - for approved overlays use backend data, for pending use stored corners
-    const normalizedOriginalCorners = originalOverlay.corners
-      ? originalOverlay.corners.map((c: { lat: number; lng: number }) => ({
-          lat: c.lat,
-          lng: c.lng,
-        }))
-      : overlay.corners.map((c) => ({ lat: c.lat, lng: c.lng })); // AI : Fallback for pending overlays
+    // AI : Get original corners from backend data
+    const normalizedOriginalCorners = originalOverlay.corners.map((c) => ({
+      lat: c.lat,
+      lng: c.lng,
+    }));
 
     if (JSON.stringify(normalizedCurrentCorners) !== JSON.stringify(normalizedOriginalCorners)) {
       changes.push({

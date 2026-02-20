@@ -408,7 +408,7 @@ async function displayProjectMarkerAndPopup(
 
     // AI : Zoom to the marker position to show the newly created project
     const project = projectStore.projects[projectId];
-    if (project?.lat && project?.lng && map.value) {
+    if (project?.lat && project?.lng) {
       const currentZoom = map.value.getZoom();
       // AI : Zoom to 16 if current zoom is less, otherwise keep current zoom
       const targetZoom = Math.max(currentZoom, 16);

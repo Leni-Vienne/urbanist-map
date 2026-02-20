@@ -77,7 +77,7 @@ async function verifyEmail() {
       signingIn.value = true;
 
       // AI : Wait a moment so user can see the success message
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise<void>((resolve) => void setTimeout(() => resolve(), 1500));
 
       // AI : Set user directly on auth store (session is already created by backend via cookies)
       authStore.user = result.user;

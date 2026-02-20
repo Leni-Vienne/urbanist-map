@@ -262,7 +262,7 @@ function applyEsriMaxZoom(zoomLevel: number) {
   if (esriConfig.options.maxNativeZoom !== zoomLevel) {
     esriConfig.options.maxNativeZoom = zoomLevel;
 
-    if (activeTileLayer && map.value) {
+    if (activeTileLayer) {
       (activeTileLayer.options as any).maxNativeZoom = zoomLevel;
 
       // AI : Force a redraw of the layer to fetch potential high-res tiles?
@@ -316,7 +316,7 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   url.searchParams.append("returnGeometry", "false");
 
   const response = await fetch(url.toString());
-  const data = (await response.json()) as EsriIdentifyResponse;
+  const data = (await response.json()) as EsriIdentifyResponse | null;
 
   if (data?.results) {
     const firstEsriResult = data.results[0];

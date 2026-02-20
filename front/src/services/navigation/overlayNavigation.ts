@@ -17,7 +17,6 @@ import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTele
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { resolveOverlayCorners } from "@/services/overlay/overlayPositionResolver";
 import { requestScrollTo } from "@/services/layout/accordionState";
-import type { OverlayData } from "@/types/index";
 
 /**
  * AI : Shared logic for navigating to a location by simulating country → city marker clicks
@@ -202,13 +201,8 @@ export async function navigateToOverlayWithCity(
     // AI : even if the user interrupts the animation
     const result = await loadAndRenderCityData(cityId, true);
 
-    const overlaysData = result.overlays;
-
     // AI : Find the overlay in the fetched data
-    let matchingOverlay: OverlayData | undefined = undefined;
-    if (overlaysData) {
-      matchingOverlay = overlaysData.find((o: OverlayData) => o.id === overlayId);
-    }
+    const matchingOverlay = result.overlays.find((o) => o.id === overlayId);
 
     // AI : Check if the overlay exists and belongs to the correct city
     if (!matchingOverlay || matchingOverlay.project?.cityId !== cityId) {
@@ -262,7 +256,7 @@ export async function navigateToStandaloneProject(
     await loadAndRenderCityData(cityId, true);
 
     // AI : Wait a bit for markers to be added to the map
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise<void>((resolve) => void setTimeout(() => resolve(), 200));
 
     // AI : Request scroll to project in adjacent panels IMMEDIATELY after data is loaded
     // AI : This ensures the accordion opens while the flight is happening, providing instant feedback

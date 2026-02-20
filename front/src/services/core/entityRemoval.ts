@@ -32,13 +32,13 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   if (!overlayObject) return;
 
   // AI : Remove visual elements
-  if (overlayObject.overlay && map.value) {
+  if (overlayObject.overlay) {
     if (map.value.hasLayer(overlayObject.overlay)) {
       map.value.removeLayer(overlayObject.overlay);
     }
   }
 
-  if (overlayObject.marker && map.value) {
+  if (overlayObject.marker) {
     if (map.value.hasLayer(overlayObject.marker)) {
       map.value.removeLayer(overlayObject.marker);
     }
@@ -63,10 +63,8 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
  */
 function removeProjectMarkerFromMap(projectId: string) {
   const marker = getStandaloneProjectMarkerByProjectId(projectId);
-  if (marker && map.value) {
-    if (map.value.hasLayer(marker)) {
-      map.value.removeLayer(marker);
-    }
+  if (marker && map.value.hasLayer(marker)) {
+    map.value.removeLayer(marker);
   }
 }
 
