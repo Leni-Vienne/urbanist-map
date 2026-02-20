@@ -46,6 +46,22 @@ This document outlines the granular functional test scenarios required to ensure
   6.  **Exit**: Refresh page or "Cancel Editing". Re-enter Edit Mode.
   7.  **Check**: Overlay A should be at the database position (Cache cleared).
 
+### 2.1b. Marker Position After Zoom Out/In Across Mode Switches
+
+- **Scenario**: Marker position desyncs from overlay after zooming out below threshold and back.
+- **Steps**:
+  1.  Enter **Edit Mode** at high zoom. Move Overlay A significantly.
+  2.  Switch to **View Mode**.
+  3.  Zoom out to a **low zoom level** (below city marker threshold).
+  4.  Switch back to **Edit Mode** (still at low zoom).
+  5.  Zoom back in to high zoom (street level).
+- **Checks**:
+  1.  Overlay A should be at the **modified/cached position** from step 1.
+  2.  Overlay A's **marker** should also be at the modified position (same centroid as the overlay corners).
+  3.  Marker and overlay must not be at different positions (marker at backend, overlay at cache).
+  4.  There should only be ONE marker for the overlay, not two.
+- **Regression Focus**: Destruction queue race condition — stale async destructions from a previous frame must not destroy freshly re-created markers. Also, `pruneOverlays` must not create high-zoom markers when `showImages` is false.
+
 ### 2.2. Marker Coloring & Status
 
 - **Scenario**: Identify overlay status via visual cues.

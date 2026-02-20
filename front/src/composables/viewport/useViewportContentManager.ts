@@ -554,7 +554,7 @@ export function useViewportContentManager() {
         // AI : If we are leaving edit mode, we must save the current state to cache
         // AI : This prevents data loss for user's pending overlays that disappear in View mode
         if (oldMode === "edit") {
-          saveAllOverlaysToCache();
+          saveAllOverlaysToCache("edit");
         }
 
         // AI : CRITICAL: Different modes return different data from backend
