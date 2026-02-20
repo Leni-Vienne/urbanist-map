@@ -243,7 +243,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: number) {
   const cityMarkersStore = useCityMarkersStore();
-  const allMarkers = cityMarkersStore.getAllCityMarkers();
+  const allMarkers = cityMarkersStore.cityMarkerMap;
 
   for (const [_cityId, marker] of allMarkers) {
     const latLng = marker.getLatLng();

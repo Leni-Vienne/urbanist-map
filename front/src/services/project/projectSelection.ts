@@ -7,7 +7,6 @@
 import { computed } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { map } from "@/services/core/map";
 import type { Project } from "@/types/index";
 import { createProjectObject, createProjectObjectFromAPI } from "@/utils/typeFactories";
 
@@ -102,18 +101,11 @@ export function getCityProjects() {
     }));
   });
 
-  // AI : Lazy load nearby projects
-  async function loadNearbyProjects() {
-    const center = map.value.getCenter();
-    await projectStore.fetchNearbyProjects(center.lat, center.lng);
-  }
-
   return {
     projects,
     projectsWithCounts,
     projectsByCity,
     getOverlayCountForProject,
-    loadNearbyProjects,
   };
 }
 

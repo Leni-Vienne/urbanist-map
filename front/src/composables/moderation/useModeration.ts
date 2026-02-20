@@ -39,7 +39,6 @@ export function useModeration() {
       return;
     }
 
-    moderationStore.setModerationLoading(true);
     try {
       // AI : Pass selected country code for country-scoped moderation
       const response = await trpc.moderation.getPendingSubmissions.query({
@@ -64,8 +63,6 @@ export function useModeration() {
           life: 5000,
         });
       }
-    } finally {
-      moderationStore.setModerationLoading(false);
     }
   }
 

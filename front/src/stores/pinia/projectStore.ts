@@ -142,14 +142,6 @@ export const useProjectStore = defineStore("project", () => {
     return combined;
   });
 
-  // AI : Writable computed for selected project ID
-  const selectedProjectIdRef = computed({
-    get: () => selectedProjectId.value,
-    set: (value: string | null) => {
-      selectedProjectId.value = value;
-    },
-  });
-
   // AI : User contributions actions
   function setUserContributions(contributions: UserContribution[], cacheKey: string) {
     userContributions.value = contributions;
@@ -551,10 +543,6 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  function setNearbyProjects(projectsData: NearbyProject[]) {
-    nearbyProjects.value = projectsData;
-  }
-
   function clearNearbyProjects(): void {
     nearbyProjects.value = [];
     nearbyProjectsLastFetch.value = null;
@@ -671,11 +659,6 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // AI : Clear global cities cache (call when city data changes, e.g., new project approved)
-  function clearGlobalCitiesCache() {
-    globalCitiesCache.value.clear();
-  }
-
   // AI : Helper to merge backend cities with cities from local/pending projects
   // AI : extracted from cityMarkers.ts to centralize data logic
   function getMergedCities(
@@ -743,12 +726,10 @@ export const useProjectStore = defineStore("project", () => {
     userContributions,
     userContributionsLoading,
     userContributionsCache,
-    originalProjects,
     cityNamesCache,
 
     // Computed properties
     allProjects,
-    selectedProjectIdRef,
 
     // Local project actions
     addOverlayToProjectWithId,
@@ -771,24 +752,19 @@ export const useProjectStore = defineStore("project", () => {
 
     // Nearby projects actions
     fetchNearbyProjects,
-    setNearbyProjects,
-    clearNearbyProjects,
 
     // Cities cache actions
     getCachedCities,
     setCachedCities,
     hasCachedCities,
-    clearCitiesCache,
 
     // Countries cache actions
     getCachedCountries,
     setCachedCountries,
     hasCachedCountries,
-    clearCountriesCache,
 
     // New Data Fetching Actions
     fetchCitiesWithProjects,
-    clearGlobalCitiesCache,
     getMergedCities,
 
     // Comprehensive cleanup
@@ -797,6 +773,7 @@ export const useProjectStore = defineStore("project", () => {
 });
 
 // AI : Enable HMR for this store
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useProjectStore, import.meta.hot));
 }

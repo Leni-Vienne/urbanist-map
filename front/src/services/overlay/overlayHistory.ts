@@ -89,20 +89,6 @@ export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
 }
 
 /**
- * AI : Validate corners data
- */
-export function isValidCorners(corners: { lat: number; lng: number }[]): boolean {
-  return corners.every(
-    (corner) =>
-      corner &&
-      typeof corner.lat === "number" &&
-      typeof corner.lng === "number" &&
-      !Number.isNaN(corner.lat) &&
-      !Number.isNaN(corner.lng),
-  );
-}
-
-/**
  * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
  * AI : Also saves to pendingModificationsStore for unified modification tracking
  */
@@ -115,7 +101,6 @@ export function saveOverlayModificationsToCache(
 
   if ((overlayStore.mode !== "edit" && forceMode !== "edit") || !overlayObject.overlay) return;
   const corners = overlayObject.overlay.getCorners();
-  if (!corners?.length) return;
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
 

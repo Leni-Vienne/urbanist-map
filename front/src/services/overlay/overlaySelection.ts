@@ -27,7 +27,7 @@ function cleanupPreviousSelection(
   previouslySelectedId: string,
   newOverlayId: string | null,
 ): void {
-  if (!previouslySelected || previouslySelectedId === newOverlayId) return;
+  if (previouslySelectedId === newOverlayId) return;
 
   removeOverlayOutline(previouslySelected);
 
@@ -58,7 +58,7 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   }
 
   // AI : Sync preview state for reactive button highlighting in change request UI
-  syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition ?? true);
+  syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
 
   // AI : Call overlay.select() to show toolbar and handles (single source of truth)
   if (newlySelected.overlay) {

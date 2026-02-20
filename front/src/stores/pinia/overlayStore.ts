@@ -243,6 +243,7 @@ export const useOverlayStore = defineStore("overlay", () => {
 });
 
 // AI : Enable HMR for this store
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useOverlayStore, import.meta.hot));
 }

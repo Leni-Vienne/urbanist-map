@@ -47,21 +47,11 @@ export const useMapStore = defineStore("map", () => {
     selectedCity.value = null;
   }
 
-  // AI : Check if a city is currently selected
-  function hasSelectedCity() {
-    return selectedCity.value !== null;
-  }
-
   // AI : City cache management - mode-aware
   function getCityOverlaysAndProjectsCache(cityId: number, mode: AppMode): OverlayData[] | null {
     const cityCache = cityProjectsCache.value.get(cityId);
     if (!cityCache) return null;
     return cityCache.get(mode) ?? null;
-  }
-
-  function hasCityProjectsCache(cityId: number, mode: AppMode): boolean {
-    const cityCache = cityProjectsCache.value.get(cityId);
-    return cityCache?.has(mode) ?? false;
   }
 
   function setCityProjectsCache(cityId: number, mode: AppMode, data: OverlayData[]) {
@@ -97,11 +87,6 @@ export const useMapStore = defineStore("map", () => {
     const cityCache = cityStandaloneProjectsCache.value.get(cityId);
     if (!cityCache) return null;
     return cityCache.get(mode) ?? null;
-  }
-
-  function hasCityStandaloneProjectsCache(cityId: number, mode: AppMode): boolean {
-    const cityCache = cityStandaloneProjectsCache.value.get(cityId);
-    return cityCache?.has(mode) ?? false;
   }
 
   function setCityStandaloneProjectsCache(
@@ -145,13 +130,10 @@ export const useMapStore = defineStore("map", () => {
     // Actions
     setSelectedCity,
     clearSelectedCity,
-    hasSelectedCity,
     getCityOverlaysAndProjectsCache,
-    hasCityProjectsCache,
     setCityProjectsCache,
     clearCityProjectsCache,
     getCityStandaloneProjectsCache,
-    hasCityStandaloneProjectsCache,
     setCityStandaloneProjectsCache,
     clearCityStandaloneProjectsCache,
   };

@@ -19,7 +19,6 @@ import { selectOverlay, setupProjectHoverEvents } from "@/services/overlay/overl
 import {
   initializeOverlayHistory,
   getCornersForOverlayWithCache,
-  isValidCorners,
   saveToHistory,
 } from "@/services/overlay/overlayHistory";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
@@ -85,10 +84,9 @@ export function createLeafletOverlay(
     const corners = getCornersForOverlayWithCache(overlayObject);
 
     // AI : Convert corners to Leaflet LatLng objects if available
-    const leafletCorners =
-      corners && isValidCorners(corners)
-        ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
-        : undefined;
+    const leafletCorners = corners
+      ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
+      : undefined;
     const isEditMode = overlayStore.mode === "edit";
 
     const newOverlay = L.distortableImageOverlay(imageUrl, {
@@ -114,33 +112,31 @@ export function createLeafletOverlay(
     // AI : Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
     // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
-      if (newOverlay) {
-        const currentZoom = map.value.getZoom();
-        const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+      const currentZoom = map.value.getZoom();
+      const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
 
-        // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
-        if (shouldShowImage) {
-          // AI : CRITICAL FIX: Re-verify visibility before adding (async race condition protection)
-          // AI : The mode might have changed while waiting for zoom animation (View -> Edit -> View)
-          const authStore = useAuthStore();
-          if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
-            // AI : Abort adding if no longer visible
-            overlaysBeingCreated.delete(overlayObject.id);
-            return;
-          }
-
-          // AI : CRITICAL: Check if already on map to prevent duplicates
-          // AI : This can happen when renderFullOverlays is called multiple times before onAddedToMap callback completes
-          if (map.value.hasLayer(newOverlay)) {
-            return;
-          }
-
-          newOverlay.addTo(map.value);
-        } else {
-          // AI : Zoom is too low - overlay won't be added to map
-          // AI : Remove from in-progress tracking since onAddedToMap will never fire
+      // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
+      if (shouldShowImage) {
+        // AI : CRITICAL FIX: Re-verify visibility before adding (async race condition protection)
+        // AI : The mode might have changed while waiting for zoom animation (View -> Edit -> View)
+        const authStore = useAuthStore();
+        if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
+          // AI : Abort adding if no longer visible
           overlaysBeingCreated.delete(overlayObject.id);
+          return;
         }
+
+        // AI : CRITICAL: Check if already on map to prevent duplicates
+        // AI : This can happen when renderFullOverlays is called multiple times before onAddedToMap callback completes
+        if (map.value.hasLayer(newOverlay)) {
+          return;
+        }
+
+        newOverlay.addTo(map.value);
+      } else {
+        // AI : Zoom is too low - overlay won't be added to map
+        // AI : Remove from in-progress tracking since onAddedToMap will never fire
+        overlaysBeingCreated.delete(overlayObject.id);
       }
     };
 

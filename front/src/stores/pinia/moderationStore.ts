@@ -11,7 +11,6 @@ export const useModerationStore = defineStore("moderation", () => {
   const changeRequests = ref<PendingChangeRequest[]>([]);
 
   const moderationLoaded = ref(false);
-  const moderationLoading = ref(false);
 
   // AI : Country-scoped moderation - selected country code (null = not selected yet)
   const selectedCountryCode = ref<string | null>(null);
@@ -34,10 +33,6 @@ export const useModerationStore = defineStore("moderation", () => {
     projects.value = data.projects;
     changeRequests.value = data.changeRequests;
     moderationLoaded.value = true;
-  }
-
-  function setModerationLoading(loading: boolean) {
-    moderationLoading.value = loading;
   }
 
   function resetModerationLoaded() {
@@ -73,7 +68,6 @@ export const useModerationStore = defineStore("moderation", () => {
     projects.value = [];
     changeRequests.value = [];
     moderationLoaded.value = false;
-    moderationLoading.value = false;
     selectedCountryCode.value = null;
     allCountries.value = [];
     countriesLoaded.value = false;
@@ -86,14 +80,12 @@ export const useModerationStore = defineStore("moderation", () => {
     projects,
     changeRequests,
     moderationLoaded,
-    moderationLoading,
     selectedCountryCode,
     allCountries,
     countriesLoaded,
     pendingCountsByCountry,
     pendingCountsLoaded,
     setModerationData,
-    setModerationLoading,
     resetModerationLoaded,
     removeChangeRequests,
     setSelectedCountryCode,
@@ -105,6 +97,7 @@ export const useModerationStore = defineStore("moderation", () => {
 });
 
 // AI : Enable HMR for this store
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useModerationStore, import.meta.hot));
 }

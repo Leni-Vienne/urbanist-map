@@ -14,6 +14,17 @@ interface EditFormState {
   data?: Project | OverlayObject;
 }
 
+interface ProjectInfoPopupState {
+  visible: boolean;
+  projectId: string | null;
+  project: Project | null;
+}
+
+interface ImageUploadDialogState {
+  visible: boolean;
+  projectId: string | null;
+}
+
 export const useUiStore = defineStore("ui", () => {
   // AI : Dialog visibility states
   const authModalVisible = ref(false);
@@ -47,38 +58,20 @@ export const useUiStore = defineStore("ui", () => {
   const mobileDrawerHeightPercent = ref(40); // AI : Drawer height as percentage of viewport (10-90%)
 
   // AI : Project info popup state (for standalone projects)
-  const projectInfoPopup = ref({
+  const projectInfoPopup = ref<ProjectInfoPopupState>({
     visible: false,
-    projectId: null as string | null,
-    project: null as Project | null,
+    projectId: null,
+    project: null,
   });
 
   // AI : Image upload dialog state
-  const imageUploadDialog = ref({
+  const imageUploadDialog = ref<ImageUploadDialogState>({
     visible: false,
-    projectId: null as string | null,
+    projectId: null,
   });
 
   // AI : Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
-
-  // AI : Auth modal actions
-  function openAuthModal() {
-    authModalVisible.value = true;
-  }
-
-  function closeAuthModal() {
-    authModalVisible.value = false;
-  }
-
-  // AI : Marker placement bar actions
-  function openMarkerPlacementBar() {
-    markerPlacementBarVisible.value = true;
-  }
-
-  function closeMarkerPlacementBar() {
-    markerPlacementBarVisible.value = false;
-  }
 
   // AI : Project dialog actions
   function openProjectDialog(project?: Partial<Project>) {
@@ -131,15 +124,6 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Unified tab navigation actions (works for both desktop and mobile)
-  function setActiveTab(tab: PanelTab) {
-    activeTab.value = tab;
-  }
-
-  function setMobileDrawerHeight(heightPercent: number) {
-    mobileDrawerHeightPercent.value = Math.min(90, heightPercent);
-  }
-
   // AI : Project info popup actions
   function openProjectInfoPopup(projectId: string, project?: Project) {
     projectInfoPopup.value = {
@@ -155,24 +139,6 @@ export const useUiStore = defineStore("ui", () => {
       projectId: null,
       project: null,
     };
-  }
-
-  // AI : Moderated contributions dialog actions
-  function openModeratedContributionsDialog() {
-    moderatedContributionsDialogVisible.value = true;
-  }
-
-  function closeModeratedContributionsDialog() {
-    moderatedContributionsDialogVisible.value = false;
-  }
-
-  // AI : Welcome dialog actions
-  function openWelcomeDialog() {
-    welcomeDialogVisible.value = true;
-  }
-
-  function closeWelcomeDialog() {
-    welcomeDialogVisible.value = false;
   }
 
   // AI : Image upload dialog actions
@@ -232,24 +198,14 @@ export const useUiStore = defineStore("ui", () => {
     postLoginCallback,
 
     // AI : Actions
-    openAuthModal,
-    closeAuthModal,
-    openMarkerPlacementBar,
-    closeMarkerPlacementBar,
     openProjectDialog,
     closeProjectDialog,
     openProjectEditForm,
     closeProjectEditForm,
     openOverlayEditDialog,
     closeOverlayEditDialog,
-    setActiveTab,
-    setMobileDrawerHeight,
     openProjectInfoPopup,
     closeProjectInfoPopup,
-    openModeratedContributionsDialog,
-    closeModeratedContributionsDialog,
-    openWelcomeDialog,
-    closeWelcomeDialog,
     openImageUploadDialog,
     closeImageUploadDialog,
     setPostLoginCallback,

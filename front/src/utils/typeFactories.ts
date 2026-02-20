@@ -113,7 +113,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
 export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Project {
   return createProjectObject({
     id: nearbyProject.id,
-    version: nearbyProject.version ?? 1,
+    version: nearbyProject.version,
     name: nearbyProject.name,
     description: nearbyProject.description,
     sourceUrl: nearbyProject.sourceUrl ?? null,
@@ -125,7 +125,7 @@ export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Projec
     updatedAt: nearbyProject.updatedAt,
     ownerId: nearbyProject.ownerId,
     cityId: nearbyProject.cityId,
-    status: nearbyProject.status ?? "approved",
+    status: nearbyProject.status,
     city: nearbyProject.city,
     overlayIds: [],
   });
@@ -183,7 +183,7 @@ export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
     ...overlayData,
     imageUrl,
     createdAt: new Date(overlayData.createdAt),
-    updatedAt: new Date(overlayData.updatedAt ?? overlayData.createdAt),
+    updatedAt: new Date(overlayData.updatedAt),
   });
 }
 
@@ -208,7 +208,7 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     replacedByOverlayId: overlayObject.replacedByOverlayId,
     project: null,
     centroid,
-    corners: overlayObject.corners ?? [],
+    corners: overlayObject.corners,
     suggestedCorners: overlayObject.suggestedCorners, // AI : Pending position if change requests exist
     distance: 0,
     createdAt: overlayObject.createdAt,

@@ -82,8 +82,7 @@ const isModeratorOrAdminMiddleware = t.middleware(async ({ ctx, next }) => {
 
   // AI : Allow access if user is admin OR has moderatedCountries (is a moderator)
   const isAdmin = ctx.user.role === "admin";
-  const isModerator =
-    ctx.user.moderatedCountries !== null && ctx.user.moderatedCountries !== undefined;
+  const isModerator = ctx.user.moderatedCountries !== null;
 
   if (!isAdmin && !isModerator) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Moderator or admin access required" });
