@@ -54,8 +54,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import { updateOverlayInfo } from "@/services/overlay/overlay";
 import { useUiStore } from "@/stores/uiStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import type { OverlayObject } from "@/types/index";
 
 // AI : Define document.body as a variable to avoid TypeScript errors
@@ -72,8 +70,6 @@ const emit = defineEmits<(e: "update", overlayId: string, caption?: string) => v
 const toast = useToast();
 const { t } = useI18n();
 const uiStore = useUiStore();
-const overlayStore = useOverlayStore();
-const pendingModsStore = usePendingModificationsStore();
 
 // AI : Local dialog state for direct openDialog() usage
 const localDialogVisible = ref(false);
@@ -150,9 +146,6 @@ function onDialogHide() {
   localDialogVisible.value = false;
 }
 
-// AI : Check if opened via store (side panel) or via prop/expose (map popup)
-const isStoreModeActive = computed(() => Boolean(uiStore.overlayEditDialog.overlay));
-
 // AI : Check if there are actual changes to save
 const hasChanges = computed(() => {
   const overlay = currentOverlay.value;
@@ -182,17 +175,7 @@ function saveChanges() {
   }
 
   try {
-    // AI : Save to unified pendingModificationsStore - works for BOTH popup and side panel
-    const overlayStatus = (overlay.status ?? "pending") as "pending" | "approved" | "rejected";
-    pendingModsStore.saveCaptionChange(
-      overlay.id,
-      overlay.projectId ?? null,
-      editingInfo.value.caption,
-      overlay.caption ?? null,
-      overlayStatus,
-    );
-
-    // AI : Also update the in-memory overlay object for immediate UI feedback
+    // AI : updateOverlayInfo handles both the in-memory update and pendingModsStore sync
     updateOverlayInfo(overlay.id, {
       caption: editingInfo.value.caption ?? undefined,
     });

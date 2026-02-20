@@ -315,9 +315,7 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
     }
   }
 
-  // AI : CRITICAL: Invoke onAddedToMap callback AFTER all initialization is complete
-  // AI : This ensures overlay is fully loaded before being added to store
-  // AI : CRITICAL: Invoke explicit callback AFTER all initialization is complete
+  // AI : Invoke the caller's callback now that the overlay is fully initialized
   if (onReady) {
     onReady();
   }
@@ -550,41 +548,14 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 
   const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
 
-  // AI : CRITICAL FIX: Use callback to add to store ONLY after overlay is added to map
-  // AI : This prevents ghost overlays when clearAllOverlays() is called during async zoom animations
-  function onAddedToMap() {
-    const marker = overlayStore.allMarkers[cdnOverlay.id];
-    if (!marker) {
-      return;
-    }
-    overlayObjectWithMethods.marker = marker;
-
-    // AI : Store overlay with proper reactivity - but ONLY after it's on the map
-    overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
-
-    // AI : CRITICAL FIX: Re-evaluate marker color now that the overlay is fully loaded and managed
-    // AI : The mode might have changed during the async loading process (e.g. View -> Edit switch during navigation)
-    // AI : or the initial render might have used stale mode data.
-    // AI : We explicitly update the marker icon to match the CURRENT store mode.
-    if (overlayObjectWithMethods.marker) {
-      updateMarkerTooltip(overlayObjectWithMethods);
-    }
-
-    // AI : Remove from in-progress tracking now that it's in the store
-    overlaysBeingCreated.delete(cdnOverlay.id);
-
-    // AI : Remove standalone project marker for this project since we now have an overlay visible
-    // AI : This handles the case where a project had only pending overlays (shown as a standalone project marker in view mode)
-    // AI : and the user switched to edit mode (pending overlays now visible, so standalone project marker should be removed)
-    if (cdnOverlay.projectId) {
-      removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
-    }
-  }
-
+  // AI : onOverlayFullyLoaded is passed as a callback but only fires asynchronously — after
+  // AI : the image has loaded and Leaflet has completed its setup. It is intentionally defined
+  // AI : after createLeafletOverlay() to keep the reading order logical (caller before callback);
+  // AI : hoisting makes it available to pass as an argument above its definition.
   const newOverlay = createLeafletOverlay(
     overlayObjectWithMethods.imageUrl,
     overlayObjectWithMethods,
-    onAddedToMap,
+    onOverlayFullyLoaded,
   );
 
   if (!newOverlay) {
@@ -593,11 +564,33 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     return;
   }
 
-  overlayObjectWithMethods.overlay = newOverlay;
+  // AI : Register the overlay in the store ONLY after the image has loaded and Leaflet is done.
+  // AI : Registering earlier would create ghost overlays if clearAllOverlays() is called
+  // AI : during a concurrent zoom animation.
+  // AI : By the time this fires:
+  // AI :   - overlayObjectWithMethods.overlay is set (by createLeafletOverlay above)
+  // AI :   - the marker exists in overlayStore.allMarkers (created by createSingleMarker above)
+  function onOverlayFullyLoaded() {
+    const marker = overlayStore.allMarkers[cdnOverlay.id];
+    // AI : Marker may be gone if the user panned away before the image finished loading
+    if (!marker) return;
 
-  // AI : Hover events are now set up in onOverlayLoaded() after element is guaranteed to exist
+    overlayObjectWithMethods.marker = marker;
 
-  // AI : Marker tooltip already updated in createSingleMarker - no need to duplicate
+    overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
+
+    // AI : Update the tooltip here rather than in createSingleMarker, because the mode may have
+    // AI : changed during the async image load (e.g. a View -> Edit switch mid-navigation).
+    updateMarkerTooltip(overlayObjectWithMethods);
+
+    overlaysBeingCreated.delete(cdnOverlay.id);
+
+    // AI : A standalone project marker may have been shown for this project while its overlays
+    // AI : were pending/invisible. Remove it now that a real overlay is on the map.
+    if (cdnOverlay.projectId) {
+      removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
+    }
+  }
 }
 
 // AI : Accept HMR updates for this module

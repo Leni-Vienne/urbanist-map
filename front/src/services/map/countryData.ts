@@ -70,7 +70,7 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
           lng: country.centerCoordinates.x,
           projectCount: 0,
           cities: [],
-          code2: country.code2 ?? "", // AI : Temporary default until GeoNames import populates alpha-2 codes
+          code2: country.code2, // AI : Temporary default until GeoNames import populates alpha-2 codes
           createdAt: new Date(),
           updatedAt: new Date(),
         }),
@@ -107,7 +107,7 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
   // AI : OPTIMIZATION: Check global cities cache before making API call
   // AI : This prevents duplicate getCitiesWithProjects calls when global cities are already loaded
   const globalCities = await projectStore.fetchCitiesWithProjects(queryMode);
-  if (globalCities && globalCities.length > 0) {
+  if (globalCities.length > 0) {
     const countryCities = globalCities
       .filter((city) => city.countryCode === countryCode)
       .map((city) => Object.assign({}, city, { distance: 0 }));

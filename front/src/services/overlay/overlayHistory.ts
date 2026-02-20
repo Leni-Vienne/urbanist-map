@@ -143,7 +143,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
 
   const currentState = overlayObject.overlay.getCorners();
-  if (!currentState?.length) return;
 
   // AI : Check if current state is different from last saved state
   if (overlayObject.history.length > 0) {

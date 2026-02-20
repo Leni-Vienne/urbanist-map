@@ -11,7 +11,7 @@ export type CornersChange = {
 };
 
 export type CaptionChange = {
-  current: string;
+  current: string | null;
   original: string | null;
 };
 
@@ -34,7 +34,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     currentCorners: { lat: number; lng: number }[],
     originalCorners: { lat: number; lng: number }[],
     overlayStatus: ApprovalStatus,
-  ): void {
+  ) {
     const existing = modifications.value.get(overlayId);
 
     if (existing) {
@@ -55,7 +55,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
   function saveCaptionChange(
     overlayId: string,
     projectId: string | null,
-    currentCaption: string,
+    currentCaption: string | null,
     originalCaption: string | null,
     overlayStatus: ApprovalStatus,
   ): void {

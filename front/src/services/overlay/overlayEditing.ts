@@ -17,6 +17,7 @@ import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayVal
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { saveOverlayModificationsToCache } from "@/services/overlay/overlayHistory";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import {
   updateMarkerPosition,
   updateMarkerTooltip,
@@ -432,6 +433,13 @@ function applyHistoryAction(action: "undo" | "redo") {
   // AI : Update cache (undo/redo only available in edit mode)
   // AI : No need to call updateOverlayMarkersColors - updateMarkerTooltip already updates icon
   saveOverlayModificationsToCache(overlayObject);
+
+  // AI : After full undo back to original, remove corners from pendingModsStore to stay in sync with isModified=false
+  // AI : Only clear corners (not caption), in case the user also has a pending caption change
+  if (isUndo && history.length === 1 && overlayObject.status === "approved") {
+    const pendingModsStore = usePendingModificationsStore();
+    pendingModsStore.clearFieldModification(overlayObject.id, "corners");
+  }
 }
 
 // AI : Register toolbar callbacks to avoid circular dependencies
