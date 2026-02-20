@@ -18,6 +18,7 @@ export default L;
 // AI : Accept HMR updates to prevent full page reload
 // AI : This is crucial because this shim is imported by many files
 // AI : Without this, any change to files importing Leaflet triggers a full reload
+// eslint-disable-next-line no-unecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();
 }

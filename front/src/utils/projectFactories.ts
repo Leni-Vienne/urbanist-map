@@ -55,7 +55,7 @@ export function createProjectFromOverlayData(
       projectInfo?.city.countryCode ?? selectedCity.countryCode,
       countries,
     ),
-    cityName: projectInfo?.city?.name ?? selectedCity.name,
+    cityName: projectInfo?.city.name ?? selectedCity.name,
     overlays: [],
   };
 }
@@ -82,7 +82,7 @@ export function createOverlayForModeration(
     authorUsername: undefined,
     authorReportCount: undefined,
     cityId: overlayData.project?.cityId ?? selectedCity.id,
-    cityName: overlayData.project?.city?.name ?? selectedCity.name,
+    cityName: overlayData.project?.city.name ?? selectedCity.name,
     countryCode: overlayData.project?.city.countryCode ?? selectedCity.countryCode ?? null,
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,

@@ -62,12 +62,8 @@ export function useOverlayPublisher() {
       // AI : Use shared helper to build consistent payload
       const projectResult = await trpc.project.publishProject.mutate(buildProjectPayload(project));
 
-      if (!projectResult.success) {
-        throw new Error("Failed to publish project to server");
-      }
-
       // AI : Handle project ID update and IndexedDB cleanup if this is a new project
-      if (projectResult.success && projectResult.id) {
+      if (projectResult.id) {
         const oldProjectId = project.id;
 
         // AI : If this is a new project (not existing), update the project ID
@@ -282,7 +278,7 @@ export function useOverlayPublisher() {
       const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
 
       // AI : Step 4 - Handle successful publish result
-      if (publishResult.success && publishResult.id) {
+      if (publishResult.id) {
         const oldId = overlay.id;
         const newId = publishResult.id;
 

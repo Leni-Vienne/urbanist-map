@@ -164,56 +164,34 @@ function smartZoomToCity(
   city: { lat: number; lng: number },
   data: Awaited<ReturnType<typeof loadAndRenderCityData>>,
 ) {
-  const locations: { lat: number; lng: number }[] = [];
+  const { overlays, projects } = data;
 
-  // AI : Always include city center
-  locations.push({ lat: city.lat, lng: city.lng });
+  // AI : Collect all content locations for bounds calculation
+  // AI : Projects have nullable lat/lng (standalone projects may lack coordinates)
+  const locations: { lat: number; lng: number }[] = [
+    { lat: city.lat, lng: city.lng },
+    ...projects
+      .filter((p): p is typeof p & { lat: number; lng: number } => p.lat !== null && p.lng !== null)
+      .map((p) => ({ lat: p.lat, lng: p.lng })),
+    ...overlays.flatMap((o) => (Array.isArray(o.corners) ? o.corners : [])),
+  ];
 
-  if (data) {
-    const { overlays, projects } = data;
+  const hasContent = projects.length > 0 || overlays.length > 0;
 
-    // AI : Add standalone projects
-    if (projects) {
-      locations.push(
-        ...projects
-          .filter(
-            (p): p is typeof p & { lat: number; lng: number } =>
-              typeof p.lat === "number" && typeof p.lng === "number",
-          )
-          .map((p) => ({ lat: p.lat, lng: p.lng })),
-      );
-    }
-
-    // AI : Add overlay corners
-    if (overlays) {
-      for (const o of overlays) {
-        if (Array.isArray(o.corners)) {
-          locations.push(
-            ...o.corners.filter((c) => c && typeof c.lat === "number" && typeof c.lng === "number"),
-          );
-        }
-      }
-    }
-  }
-
-  const bounds = calculateBoundsFromLocations(locations);
-
-  // AI : Identify if we have significant content spread
-  const hasContent = (data?.projects?.length ?? 0) > 0 || (data?.overlays?.length ?? 0) > 0;
-
-  // AI : Check if we have valid bounds (location count > 1 or spread)
-  // AI : calculateBoundsFromLocations returns null if 0 locations
-  if (bounds && hasContent) {
-    mobileAwareFlyToBounds(bounds, {
+  if (hasContent) {
+    // AI : Fit to bounds of all content
+    const bounds = calculateBoundsFromLocations(locations);
+    mobileAwareFlyToBounds(bounds!, {
       animate: true,
       duration: 1.5,
       maxZoom: 15,
       padding: [50, 50],
     });
   } else if (map.value.getZoom() < 14) {
-    // AI : Fallback for empty cities: Default zoom to center
+    // AI : Empty city below threshold: zoom in to a readable level
     mobileAwareFlyTo([city.lat, city.lng], 14, { duration: 1.5 });
   } else {
+    // AI : Empty city already zoomed in: pan only
     mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), { duration: 0.5 });
   }
 }

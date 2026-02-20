@@ -315,41 +315,38 @@ async function linkGoogleToPasswordAccount(emailUser: any, googleId: string) {
   };
 }
 
-// AI : Helper function to generate unique username
-async function generateUniqueUsername(baseUsername: string) {
-  let finalUsername = baseUsername;
+// AI : Helper function to create new Google OAuth user.
+// AI : Uses insert-and-retry on username unique constraint violation to avoid
+// AI : the TOCTOU race condition of the previous check-then-insert approach.
+async function createGoogleUser(googleUser: { email: string; name: string; googleId: string }) {
+  const baseUsername = googleUser.name;
+  let username = baseUsername;
   let counter = 1;
 
+  // eslint-disable-next-line no-unnecessary-condition
   while (true) {
-    const existingUsername = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, finalUsername))
-      .limit(1);
-    if (existingUsername.length === 0) break;
-    finalUsername = `${baseUsername}${counter}`;
-    counter += 1;
+    try {
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          email: googleUser.email,
+          username,
+          emailVerified: true,
+          passwordHash: null,
+          googleId: googleUser.googleId,
+        })
+        .returning();
+      return newUser;
+    } catch (error: any) {
+      // AI : Retry only on username uniqueness conflict (constraint name from Drizzle: users_username_unique)
+      if (error.code === "23505" && error.constraint === "users_username_unique") {
+        username = `${baseUsername}${counter}`;
+        counter += 1;
+      } else {
+        throw error;
+      }
+    }
   }
-
-  return finalUsername;
-}
-
-// AI : Helper function to create new Google OAuth user
-async function createGoogleUser(googleUser: { email: string; name: string; googleId: string }) {
-  const finalUsername = await generateUniqueUsername(googleUser.name);
-
-  const [newUser] = await db
-    .insert(users)
-    .values({
-      email: googleUser.email,
-      username: finalUsername,
-      emailVerified: true,
-      passwordHash: null,
-      googleId: googleUser.googleId,
-    })
-    .returning();
-
-  return newUser;
 }
 
 // AI : Helper function to find or create user from Google authentication

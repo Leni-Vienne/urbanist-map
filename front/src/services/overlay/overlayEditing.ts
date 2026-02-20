@@ -256,12 +256,16 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
  * @param replacesOverlayId
  * @returns the ID of the newly created overlay
  */
-export function addOverlay(imageUrl: string, projectId: string, replacesOverlayId?: string) {
+export function addOverlay(
+  imageUrl: string,
+  projectId: string,
+  replacesOverlayId?: string,
+): string | undefined {
   const overlayStore = useOverlayStore();
 
   // AI : Only allow adding overlays in edit mode
   if (overlayStore.mode !== "edit") {
-    return;
+    return undefined;
   }
 
   if (!projectId) {
