@@ -151,46 +151,42 @@ export async function switchTileLayer(layerType: TileLayerType) {
     fallbackRemovalTimer = null;
   }
 
-  try {
-    // AI : Add new tile layer
-    const newLayer = createTileLayer(layerType);
-    newLayer.addTo(map.value);
+  // AI : Add new tile layer
+  const newLayer = createTileLayer(layerType);
+  newLayer.addTo(map.value);
 
-    // AI : Update current layer reference immediately so we know what is the "intended" layer
-    activeTileLayer = newLayer;
-    currentTileLayer.value = layerType;
+  // AI : Update current layer reference immediately so we know what is the "intended" layer
+  activeTileLayer = newLayer;
+  currentTileLayer.value = layerType;
 
-    // AI : Robust Cleanup Strategy (Last Write Wins)
-    // AI : Iterate through all layers and remove any TileLayer that is NOT the active one.
-    // AI : This handles rapid switching correctly: A -> B -> C
-    // AI : When C loads, it will remove A and B if they are still present.
-    function cleanupLayers() {
-      map.value.eachLayer((layer) => {
-        // AI : Check if it is a TileLayer and NOT the active one
-        if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
-          map.value.removeLayer(layer);
-        }
-      });
-
-      // AI : Clear timer if it exists (load event happened before timeout)
-      if (fallbackRemovalTimer) {
-        clearTimeout(fallbackRemovalTimer);
-        fallbackRemovalTimer = null;
+  // AI : Robust Cleanup Strategy (Last Write Wins)
+  // AI : Iterate through all layers and remove any TileLayer that is NOT the active one.
+  // AI : This handles rapid switching correctly: A -> B -> C
+  // AI : When C loads, it will remove A and B if they are still present.
+  function cleanupLayers() {
+    map.value.eachLayer((layer) => {
+      // AI : Check if it is a TileLayer and NOT the active one
+      if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
+        map.value.removeLayer(layer);
       }
+    });
+
+    // AI : Clear timer if it exists (load event happened before timeout)
+    if (fallbackRemovalTimer) {
+      clearTimeout(fallbackRemovalTimer);
+      fallbackRemovalTimer = null;
     }
+  }
 
-    // AI : Remove on load or after timeout (fallback)
-    newLayer.once("load", cleanupLayers);
+  // AI : Remove on load or after timeout (fallback)
+  newLayer.once("load", cleanupLayers);
 
-    // AI : Safety fallback in case load event doesn't fire (e.g. cached or fast network)
-    fallbackRemovalTimer = setTimeout(cleanupLayers, 2000);
+  // AI : Safety fallback in case load event doesn't fire (e.g. cached or fast network)
+  fallbackRemovalTimer = setTimeout(cleanupLayers, 2000);
 
-    // AI : Check max zoom immediately if switching to Esri
-    if (layerType === "esri") {
-      await checkEsriMaxZoom();
-    }
-  } catch (error) {
-    console.error("Failed to switch tile layer:", error);
+  // AI : Check max zoom immediately if switching to Esri
+  if (layerType === "esri") {
+    await checkEsriMaxZoom();
   }
 }
 
@@ -393,6 +389,7 @@ function initAutoCountrySwitchListener() {
 }
 
 // AI : Accept HMR updates for this module
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();
 }

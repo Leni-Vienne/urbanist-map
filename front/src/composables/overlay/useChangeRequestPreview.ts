@@ -132,12 +132,11 @@ export function useChangeRequestPreview() {
       easeLinearity: 0.25,
     });
 
-    // AI : Step 5: Load city projects (this renders overlays)
-    await loadCityProjects(
+    // AI : Step 5: Set selected city state
+    loadCityProjects(
       overlayForModeration.cityId,
       overlayForModeration.cityName ?? "City",
-      null, // AI : nameLocal
-      true, // AI : Force full load regardless of zoom
+      null,
       overlayForModeration.countryCode,
     );
 

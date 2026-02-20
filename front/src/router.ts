@@ -40,6 +40,8 @@ const routes = [
     component: async () => import("@/pages/AdminUserContributionsPage.vue"), // Lazy load
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  // AI : Catch-all route — redirect unknown paths to home
+  { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
 export const router = createRouter({
@@ -48,7 +50,7 @@ export const router = createRouter({
 });
 
 // AI : Router guard to check authentication and admin status
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
   // AI : Wait for auth to initialize if it hasn't yet
@@ -56,27 +58,12 @@ router.beforeEach(async (to, from, next) => {
     await authStore.initialize();
   }
 
-  // AI : Check if route requires authentication
-  if (to.meta.requiresAuth) {
-    if (!authStore.isAuthenticated) {
-      // AI : User not authenticated, redirect to home
-      console.warn("Access denied: Authentication required");
-      next({ name: "Home" });
-      return;
-    }
-
-    // AI : Check if route requires admin access
-    if (to.meta.requiresAdmin) {
-      const isAdmin = authStore.user?.role === "admin";
-      if (!isAdmin) {
-        // AI : User is authenticated but not admin
-        console.warn("Access denied: Admin access required");
-        next({ name: "Home" });
-        return;
-      }
-    }
+  // AI : Redirects to home if auth/admin requirements are not met
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return { name: "Home" };
   }
 
-  // AI : Allow navigation
-  next();
+  if (to.meta.requiresAdmin && authStore.user?.role !== "admin") {
+    return { name: "Home" };
+  }
 });

@@ -69,22 +69,17 @@ export async function fetchCityStandaloneProjectsOrCache(
 export async function loadCityData(
   cityId: number,
   mode?: AppMode,
-): Promise<{ overlays: OverlayData[] | null; projects: CityProject[] | null } | null> {
+): Promise<{ overlays: OverlayData[] | null; projects: CityProject[] | null }> {
   const overlayStore = useOverlayStore();
   const actualMode = mode ?? overlayStore.mode;
 
-  try {
-    const [overlays, projects] = await Promise.all([
-      fetchCityOverlaysOrCache(cityId, actualMode),
-      fetchCityStandaloneProjectsOrCache(cityId, actualMode),
-    ]);
+  const [overlays, projects] = await Promise.all([
+    fetchCityOverlaysOrCache(cityId, actualMode),
+    fetchCityStandaloneProjectsOrCache(cityId, actualMode),
+  ]);
 
-    // AI : Mark city as loaded
-    loadedCityIds.value.add(cityId);
+  // AI : Mark city as loaded
+  loadedCityIds.value.add(cityId);
 
-    return { overlays, projects };
-  } catch (error) {
-    console.error(`Error loading city ${cityId}:`, error);
-    return null;
-  }
+  return { overlays, projects };
 }

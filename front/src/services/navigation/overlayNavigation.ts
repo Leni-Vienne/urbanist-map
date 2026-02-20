@@ -62,10 +62,8 @@ async function prepareNavigationToCity(
     }
   }
 
-  // AI : Step 3: Simulate city marker click (this loads and renders all markers and overlays for the city)
-  // AI : Use forceFullLoad=true to ensure overlays render even if current zoom is low
-  // AI : This is necessary because we're about to fly to an overlay which requires the full overlay to exist
-  await loadCityProjects(cityId, cityName, null, true, countryCode);
+  // AI : Step 3: Set selected city state (overlays are rendered separately via loadAndRenderCityData)
+  loadCityProjects(cityId, cityName, null, countryCode);
 }
 
 /**
@@ -204,7 +202,7 @@ export async function navigateToOverlayWithCity(
     // AI : even if the user interrupts the animation
     const result = await loadAndRenderCityData(cityId, true);
 
-    const overlaysData = result?.overlays;
+    const overlaysData = result.overlays;
 
     // AI : Find the overlay in the fetched data
     let matchingOverlay: OverlayData | undefined = undefined;
@@ -312,6 +310,7 @@ export async function navigateToStandaloneProject(
 }
 
 // AI : Accept HMR updates for this module
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();
 }

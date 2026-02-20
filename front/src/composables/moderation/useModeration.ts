@@ -1,6 +1,7 @@
 import { computed, onMounted, toRef } from "vue";
 import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
+import { useToast } from "@/composables/ui/useToast";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -27,6 +28,7 @@ type ApprovalResult = {
 
 export function useModeration() {
   const moderationStore = useModerationStore();
+  const toast = useToast();
 
   const overlays = computed(() => moderationStore.overlays);
   const projects = computed(() => moderationStore.projects);
@@ -40,27 +42,27 @@ export function useModeration() {
     moderationStore.setModerationLoading(true);
     try {
       // AI : Pass selected country code for country-scoped moderation
-      const response = await withErrorHandling(
-        async () =>
-          trpc.moderation.getPendingSubmissions.query({
-            countryCode: moderationStore.selectedCountryCode ?? undefined,
-          }),
-        { errorMessage: "Failed to load pending submissions. Please refresh the page." },
-      );
+      const response = await trpc.moderation.getPendingSubmissions.query({
+        countryCode: moderationStore.selectedCountryCode ?? undefined,
+      });
 
-      if (response) {
-        moderationStore.setModerationData({
-          overlays: response.overlays,
-          projects: response.projects,
-          changeRequests: response.changeRequests ?? [],
-        });
-      }
+      moderationStore.setModerationData({
+        overlays: response.overlays,
+        projects: response.projects,
+        changeRequests: response.changeRequests ?? [],
+      });
     } catch (error) {
       // AI : If error is because no country is selected, don't show error toast (UI will prompt user to select)
       if (error instanceof Error && error.message.includes("must select a country")) {
         console.log("Waiting for country selection before loading moderation data");
       } else {
-        throw error; // Re-throw other errors to be handled by withErrorHandling
+        console.error("Failed to load pending submissions:", error);
+        toast.add({
+          severity: "error",
+          summary: "Error",
+          detail: "Failed to load pending submissions. Please refresh the page.",
+          life: 5000,
+        });
       }
     } finally {
       moderationStore.setModerationLoading(false);

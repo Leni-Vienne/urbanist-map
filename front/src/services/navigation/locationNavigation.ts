@@ -13,42 +13,37 @@ import { t } from "@/locales";
  * AI : Load projects for a specific city and display overlays on map
  * AI : Moved here from cityMarkers.ts to separate navigation from marker rendering
  */
-export async function loadCityProjects(
+export function loadCityProjects(
   cityId: number | null,
   cityName: string,
   nameLocal: string | null,
-  forceFullLoad = false,
   cityCountryCode?: string,
-): Promise<void> {
-  try {
-    // AI : Update selected city in store (only if cityId is not null)
-    if (!cityId) return;
+): void {
+  // AI : Update selected city in store (only if cityId is not null)
+  if (!cityId) return;
 
-    const mapStore = useMapStore();
-    const uiStore = useUiStore();
+  const mapStore = useMapStore();
+  const uiStore = useUiStore();
 
-    // AI : Check if we're switching to a different city
-    const previousCityId = mapStore.selectedCity?.id;
-    const isSwitchingCity = previousCityId !== cityId;
+  // AI : Check if we're switching to a different city
+  const previousCityId = mapStore.selectedCity?.id;
+  const isSwitchingCity = previousCityId !== cityId;
 
-    mapStore.setSelectedCity({
-      id: cityId,
-      name: cityName,
-      nameLocal,
-      countryCode: cityCountryCode,
-    });
+  mapStore.setSelectedCity({
+    id: cityId,
+    name: cityName,
+    nameLocal,
+    countryCode: cityCountryCode,
+  });
 
-    // AI : Only clear state when actually switching cities, not when refreshing
-    if (isSwitchingCity) {
-      // AI : Clear selected project when switching cities
-      const selectedProjectId = getSelectedProjectId();
-      selectedProjectId.value = null;
+  // AI : Only clear state when actually switching cities, not when refreshing
+  if (isSwitchingCity) {
+    // AI : Clear selected project when switching cities
+    const selectedProjectId = getSelectedProjectId();
+    selectedProjectId.value = null;
 
-      // AI : Close project info popup when switching cities
-      uiStore.closeProjectInfoPopup();
-    }
-  } catch (error) {
-    console.error("Error loading city projects:", error);
+    // AI : Close project info popup when switching cities
+    uiStore.closeProjectInfoPopup();
   }
 }
 
@@ -119,5 +114,5 @@ export async function navigateToCity(
   }
 
   // AI : Load city projects (like clicking on city marker)
-  await loadCityProjects(cityId, cityName, null, false, countryCode);
+  loadCityProjects(cityId, cityName, null, countryCode);
 }

@@ -11,7 +11,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
-import { withErrorHandling } from "@/services/core/errorHandling";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { createOverlayFromCDN } from "@/utils/typeFactories";
@@ -156,13 +155,7 @@ export function createLeafletOverlay(
 
     return newOverlay;
   } catch (error) {
-    // AI : Use error handling utility with toast notification
-    withErrorHandling(
-      () => {
-        throw error;
-      },
-      { errorMessage: "Failed to create overlay", logError: true },
-    );
+    console.error("Failed to create overlay:", error);
     return null;
   }
 }
@@ -608,6 +601,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 }
 
 // AI : Accept HMR updates for this module
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();
 }

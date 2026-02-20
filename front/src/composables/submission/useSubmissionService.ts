@@ -531,15 +531,14 @@ export function useSubmissionService() {
     }
 
     if (mapStore.selectedCity) {
-      await loadCityProjects(
+      loadCityProjects(
         mapStore.selectedCity.id,
         mapStore.selectedCity.name,
         mapStore.selectedCity.nameLocal,
-        true,
         mapStore.selectedCity.countryCode,
       );
     } else {
-      await loadCityProjects(null, "", null, true);
+      loadCityProjects(null, "", null);
     }
 
     if (changeType === "create") {

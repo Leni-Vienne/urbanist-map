@@ -193,7 +193,7 @@ const citiesInCountry = computed(() => {
 });
 
 // AI : Handle city selection from list
-async function handleCityClick(city: {
+function handleCityClick(city: {
   id: number;
   name: string;
   nameLocal: string | null;
@@ -216,8 +216,8 @@ async function handleCityClick(city: {
     });
   }
 
-  // AI : Load city projects and navigate to city
-  await loadCityProjects(city.id, city.name, city.nameLocal, true, city.countryCode);
+  // AI : Set selected city state and navigate to city
+  loadCityProjects(city.id, city.name, city.nameLocal, city.countryCode);
 }
 
 // AI : Handle country click - zoom to country view AND clear selected city to show city list

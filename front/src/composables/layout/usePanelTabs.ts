@@ -37,6 +37,7 @@ function modeToDefaultTab(mode: AppMode): PanelTab {
       return "moderation";
     default:
       // AI : Exhaustiveness check — all AppMode values must be handled above
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unhandled mode: ${mode}`);
   }
 }
