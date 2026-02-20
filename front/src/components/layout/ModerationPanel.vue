@@ -730,7 +730,7 @@ async function executeRejectOverlay(id: string, rejectionReason?: string) {
 async function handleApproveChange(changeId: string) {
   const result = await approveChangeRequests([changeId]);
 
-  if (result?.success) {
+  if (result) {
     refetchPendingCounts();
     toast.add({
       severity: "success",
@@ -817,7 +817,7 @@ function handleRejectChange(changeId: string, userId: string | null) {
 async function executeRejectChange(changeId: string) {
   const result = await rejectChangeRequests([changeId]);
 
-  if (result?.success) {
+  if (result) {
     refetchPendingCounts();
     toast.add({
       severity: "info",

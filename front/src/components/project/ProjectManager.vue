@@ -426,7 +426,6 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
     ...project,
     isModified: true,
   });
-  uiStore.setLastCreatedProject(projectId);
 
   // AI : CRITICAL FIX: Add city to citiesWithProjects so viewport manager knows to load it
   // AI : This ensures standalone markers reappear after zoom out/in cycle
@@ -491,8 +490,6 @@ function handleProjectUpdate(project: Partial<Project>): string {
       life: 3000,
     });
   }
-
-  uiStore.setLastCreatedProject(projectId);
   return projectId;
 }
 

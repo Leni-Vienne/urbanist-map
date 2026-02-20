@@ -170,18 +170,6 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsLoading.value = loading;
   }
 
-  // AI : Reset user contributions cache to force refresh on next load
-  function resetUserContributions(options?: { cityId?: number; includeCityProjects?: boolean }) {
-    if (options) {
-      // AI : Clear specific cache entry
-      const cacheKey = getUserContributionsCacheKey(options);
-      userContributionsCache.value.delete(cacheKey);
-    } else {
-      // AI : Clear all cached contributions
-      userContributionsCache.value.clear();
-    }
-  }
-
   // AI : Optimistically add new overlay to user contributions without backend fetch
   function addOverlayToUserContributions(
     overlay: OverlayObject,
@@ -661,32 +649,6 @@ export const useProjectStore = defineStore("project", () => {
     clearCountriesCache();
   }
 
-  // AI : Fetch standalone projects for a city (migrated from useCityMarkers)
-  async function fetchCityStandaloneProjects(
-    cityId: number | null,
-    mode: AppMode,
-  ): Promise<RouterOutput["project"]["getCityProjects"]> {
-    try {
-      // AI : Note: We don't access mapStore here to avoid circular dependencies if possible.
-      // AI : Ideally caching should be handled here or passed in.
-      // AI : For now, we return the raw data and let the caller handle map-specific caching.
-
-      if (cityId === null) {
-        return [];
-      }
-
-      const response = await trpc.project.getCityProjects.query({
-        cityId,
-        mode,
-      });
-
-      return response;
-    } catch (error) {
-      console.error("Error fetching city standalone projects:", error);
-      throw error;
-    }
-  }
-
   // AI : Fetch global cities with projects (migrated from useCityMarkers)
   // AI : Uses cache to avoid redundant API calls on mode switches
   async function fetchCitiesWithProjects(
@@ -799,7 +761,6 @@ export const useProjectStore = defineStore("project", () => {
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,
-    resetUserContributions,
     getUserContributionsCacheKey,
     addOverlayToUserContributions,
     addProjectToUserContributions,
@@ -826,7 +787,6 @@ export const useProjectStore = defineStore("project", () => {
     clearCountriesCache,
 
     // New Data Fetching Actions
-    fetchCityStandaloneProjects,
     fetchCitiesWithProjects,
     clearGlobalCitiesCache,
     getMergedCities,

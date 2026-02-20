@@ -1,5 +1,4 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": ["front/src/main.{ts,js}", "front/src/index.html"],
   "project": ["front/src/**/*.{ts,js,vue}"],
   "ignore": ["**/*.d.ts", "public/**/*"],

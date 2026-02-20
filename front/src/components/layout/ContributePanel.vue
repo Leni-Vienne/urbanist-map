@@ -423,7 +423,7 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   if (!confirmed) return;
 
   const result = await deleteChangeRequest(change.id);
-  if (result?.success) {
+  if (result) {
     toast.add({
       severity: "success",
       summary: t("contribute.changeRequestDeleted"),

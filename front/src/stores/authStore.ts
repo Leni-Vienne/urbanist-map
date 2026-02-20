@@ -40,11 +40,6 @@ async function loadGoogleIdentityScript() {
   });
 }
 
-// AI : Get authorization header for API calls (cookies are handled automatically)
-function getAuthHeader() {
-  return null; // AI : No need for auth headers with cookie-based auth
-}
-
 // AI : Get last login method for a given email (for UX hint)
 function getLastLoginMethod(email: string): "email" | "google" | null {
   try {
@@ -418,7 +413,6 @@ export const useAuthStore = defineStore("auth", () => {
     verifyEmail,
     requestPasswordReset,
     resetPassword,
-    getAuthHeader,
     getLastLoginMethod,
   };
 });

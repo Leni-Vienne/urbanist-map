@@ -190,24 +190,6 @@ export async function switchTileLayer(layerType: TileLayerType) {
   }
 }
 
-/**
- * AI : Get available tile layer options for UI
- * AI : Only returns Plan (OSM) and Satellite (ESRI) - country layers are auto-selected
- */
-export function getTileLayerOptions(): { label: string; value: TileLayerType; flagUrl: string }[] {
-  return Object.entries(tileLayerConfigs)
-    .filter(([value]) => {
-      // AI : Only show OSM (Plan) and ESRI (Satellite) in UI
-      // AI : Country-specific layers (FRA, CHE) are automatically selected based on map location
-      return value === "osm" || value === "esri";
-    })
-    .map(([value, config]) => ({
-      label: config.label,
-      value: value as TileLayerType,
-      flagUrl: config.flagUrl,
-    }));
-}
-
 export function isTileLayerType(value: string): value is TileLayerType {
   return ["FRA", "esri", "CHE", "osm"].includes(value);
 }

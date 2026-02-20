@@ -20,7 +20,7 @@ const expandedCities = ref<Set<string>>(new Set());
 // AI : SCROLL REQUESTS
 // AI : ============================================================================
 
-export type ScrollRequestType = "city" | "project" | "overlay";
+type ScrollRequestType = "city" | "project" | "overlay";
 
 interface ScrollRequest {
   type: ScrollRequestType;

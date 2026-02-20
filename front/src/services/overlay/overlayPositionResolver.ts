@@ -21,13 +21,9 @@ export function resolveOverlayCorners(overlayId: string): { lat: number; lng: nu
   // AI : Priority 1: Live Leaflet instance (most accurate, reflects current map state)
   const overlayObject = overlayStore.overlays[overlayId];
   if (overlayObject?.overlay) {
-    try {
-      const corners = overlayObject.overlay.getCorners();
-      if (corners && corners.length === 4) {
-        return corners;
-      }
-    } catch (error) {
-      console.warn(`Failed to get corners from Leaflet overlay ${overlayId}:`, error);
+    const corners = overlayObject.overlay.getCorners();
+    if (corners.length === 4) {
+      return corners;
     }
   }
 

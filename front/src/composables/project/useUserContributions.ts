@@ -225,7 +225,7 @@ export function useUserContributions() {
         { errorMessage: t("contribute.deleteProjectError") },
       );
 
-      if (result?.success) {
+      if (result) {
         // AI : Use new unified removal service
         removeProject(projectId, { updateUserContributions: true });
 

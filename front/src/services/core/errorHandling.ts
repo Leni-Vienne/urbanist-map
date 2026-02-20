@@ -1,7 +1,7 @@
 // AI : Unified error handling utilities to eliminate repetitive try-catch-toast patterns
 import { useToast } from "@/composables/ui/useToast";
 
-export interface ErrorHandlingOptions {
+interface ErrorHandlingOptions {
   /** Toast message to show on error */
   errorMessage?: string;
   /** Toast message to show on success */

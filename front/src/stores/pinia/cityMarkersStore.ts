@@ -54,10 +54,6 @@ export const useCityMarkersStore = defineStore("cityMarkers", () => {
     return cityMarkerMap.value.get(cityId);
   }
 
-  function deleteCityMarker(cityId: string) {
-    cityMarkerMap.value.delete(cityId);
-  }
-
   function clearCityMarkerMap() {
     cityMarkerMap.value.clear();
   }
@@ -127,7 +123,6 @@ export const useCityMarkersStore = defineStore("cityMarkers", () => {
     // AI : City marker map actions
     setCityMarker,
     getCityMarker,
-    deleteCityMarker,
     clearCityMarkerMap,
     getAllCityMarkers,
 

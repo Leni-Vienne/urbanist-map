@@ -45,7 +45,7 @@ export function useChangeRequests() {
         { errorMessage: "Failed to submit change request" },
       );
 
-      if (result?.success != undefined) {
+      if (result) {
         // AI : Reset loaded flag to allow refresh, then fetch updated pending changes
         resetChangeRequestsLoaded();
         await refreshPendingChangeRequests();
@@ -98,7 +98,7 @@ export function useChangeRequests() {
         { errorMessage: "Failed to approve change requests" },
       );
 
-      if (result?.success != undefined) {
+      if (result) {
         // AI : Reset and refetch all moderation data (same pattern as overlay/project approval)
         // AI : This ensures competing change requests marked as 'conflicted' by backend are removed from UI
         // AI : Backend marks ALL competing changes for the same field as 'conflicted' when one is approved
@@ -123,7 +123,7 @@ export function useChangeRequests() {
         { errorMessage: "Failed to reject change requests" },
       );
 
-      if (result?.success != undefined) {
+      if (result) {
         // AI : Remove rejected change requests from local state instead of refetching
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
           (cr) => !changeRequestIds.includes(cr.id),
@@ -217,7 +217,7 @@ export function useChangeRequests() {
         { errorMessage: "Failed to delete change request" },
       );
 
-      if (result?.success != undefined && changeRequest) {
+      if (result && changeRequest) {
         // AI : Remove deleted change request from local state
         removeChangeRequestFromLocalState(changeRequestId);
 

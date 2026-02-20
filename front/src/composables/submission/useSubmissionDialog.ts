@@ -33,7 +33,7 @@ import type {
 
 // AI : Extended context type for combined overlay+project submissions
 // AI : Separate interface to avoid discriminated union issues
-export interface SubmissionContextExtended {
+interface SubmissionContextExtended {
   entityType: "project" | "overlay";
   entityId: string;
   changeType: "create" | "update_pending" | "update_approved";

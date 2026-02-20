@@ -51,7 +51,7 @@ export function useModeratedContributions() {
       { errorMessage: "Failed to acknowledge contributions" },
     );
 
-    if (result?.success) {
+    if (result) {
       // AI : Remove acknowledged items from local cache
       moderatedContributions.value = moderatedContributions.value.filter(
         (item) => !contributionIds.includes(item.id),
