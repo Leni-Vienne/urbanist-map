@@ -28,6 +28,38 @@ export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][n
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
 
 /**
+ * AI : Build the list of cities to display for the current mode
+ * AI : View mode is always the base (approved content); edit/moderation modes add their own cities on top
+ */
+async function buildCitiesForCurrentMode(): Promise<CityWithProjects[]> {
+  const overlayStore = useOverlayStore();
+  const authStore = useAuthStore();
+  const projectStore = useProjectStore();
+
+  // AI : View cities are always fetched first — they are the base set (approved content, visible to everyone)
+  const viewCities = await projectStore.fetchCitiesWithProjects("view");
+  // AI : Unauthenticated users always see view mode regardless of store state
+  const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+
+  if (currentMode === "view") {
+    return viewCities;
+  }
+
+  // AI : Edit/moderation modes are additive: start from approved cities, then union in mode-specific ones
+  const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
+  const viewCityIds = new Set(viewCities.map((c) => c.id));
+  const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
+  let mergedCities = [...viewCities, ...additionalCities];
+
+  // AI : In edit mode, also surface cities from locally created projects not yet submitted to the backend
+  if (currentMode === "edit") {
+    mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
+  }
+
+  return mergedCities;
+}
+
+/**
  * AI : Initialize mode change watcher (called lazily on first use)
  * This handles both switchMode() and direct setMode() calls (like from side menu)
  */
@@ -36,53 +68,18 @@ function initializeModeWatcher() {
   if (cityMarkersStore.modeWatcherInitialized) return;
 
   const overlayStore = useOverlayStore();
-  const authStore = useAuthStore();
 
   watch(
     () => overlayStore.mode,
     async (newMode, oldMode) => {
-      // AI : Guard: only reload if mode actually changed
-      if (newMode === oldMode) {
-        return;
-      }
-
-      // AI : City marker visibility rules:
-      // AI : - View mode: cities with approved content
-      // AI : - Edit mode: view + cities with user's pending contributions
-      // AI : - Moderation mode: view + cities with anyone's pending contributions
-      // AI : Each mode is ADDITIVE - we need to merge view mode (base) with mode-specific cities
-
-      const projectStore = useProjectStore();
+      // AI : Defensive guard — Vue shouldn't fire with equal values but the watcher is async
+      if (newMode === oldMode) return;
 
       try {
-        // AI : Always start with view mode cities as the base (approved content)
-        const viewCities = await projectStore.fetchCitiesWithProjects("view");
-
-        if (newMode === "view" || !authStore.isAuthenticated) {
-          // AI : View mode: just use view cities
-          citiesWithProjects.value = viewCities;
-        } else {
-          // AI : Edit or Moderation mode: merge view cities with mode-specific cities
-          const modeCities = await projectStore.fetchCitiesWithProjects(newMode);
-
-          // AI : Merge: start with view cities, add any mode-specific cities not already included
-          const viewCityIds = new Set(viewCities.map((c) => c.id));
-          const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-          let mergedCities = [...viewCities, ...additionalCities];
-
-          // AI : In edit mode, also include cities from locally created projects
-          if (newMode === "edit") {
-            mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
-          }
-
-          citiesWithProjects.value = mergedCities;
-        }
-
-        // AI : Re-render all city markers with merged data
-        // AI : CRITICAL FIX: Mode watcher should ALWAYS render all cities, not filter by selectedCountryCode
-        // AI : Country filtering should only happen when explicitly navigating to a country (via addCityMarkersForCountry)
-        // AI : The mode watcher's job is to refresh city data for the new mode, not to apply country filters
-        await addCityMarkersToMapInternal(citiesWithProjects.value);
+        const cities = await buildCitiesForCurrentMode();
+        citiesWithProjects.value = cities;
+        // AI : Always render all cities on mode change, never filter by country here
+        await addCityMarkersToMapInternal(cities);
       } catch (error) {
         console.error("Error reloading city markers on mode change:", error);
       }
@@ -363,58 +360,18 @@ export async function addSingleCityMarker(
 }
 
 /**
- * AI : Load and display all city markers globally (for viewport-based loading)
- * AI : Fetches all cities with projects worldwide and displays them on the map
+ * AI : Entry point for the city marker system: fetches cities for the current mode,
+ * AI : renders them on the map, and arms the mode watcher for subsequent mode changes.
  */
 export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> {
-  const overlayStore = useOverlayStore();
-  const authStore = useAuthStore();
-  const projectStore = useProjectStore();
+  const citiesData = await buildCitiesForCurrentMode();
 
-  // AI : City marker visibility rules:
-  // AI : - View mode: cities with approved content
-  // AI : - Edit mode: view + cities with user's pending contributions
-  // AI : - Moderation mode: view + cities with anyone's pending contributions
-  // AI : Each mode is ADDITIVE - we need to merge view mode (base) with mode-specific cities
+  citiesWithProjects.value = citiesData;
+  await addCityMarkersToMapInternal(citiesData);
+  // AI : Initialize mode watcher after initial load so cities re-fetch when mode changes
+  initializeModeWatcher();
 
-  // AI : Always start with view mode cities as the base (approved content)
-  const viewCities = await projectStore.fetchCitiesWithProjects("view");
-
-  const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
-  let citiesData = viewCities;
-
-  if (currentMode !== "view" && authStore.isAuthenticated) {
-    // AI : Edit or Moderation mode: merge view cities with mode-specific cities
-    const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
-
-    // AI : Merge: start with view cities, add any mode-specific cities not already included
-    const viewCityIds = new Set(viewCities.map((c) => c.id));
-    const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-    let mergedCities = [...viewCities, ...additionalCities];
-
-    // AI : In edit mode, also include cities from locally created projects
-    if (currentMode === "edit") {
-      mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
-    }
-
-    citiesData = mergedCities;
-  }
-
-  if (citiesData && citiesData.length > 0) {
-    // AI : Store in global ref for viewport detection
-    citiesWithProjects.value = citiesData;
-
-    // AI : Add all city markers to map (without country filter)
-    await addCityMarkersToMapInternal(citiesData);
-
-    // AI : CRITICAL: Initialize mode watcher so cities re-fetch when mode changes
-    // AI : This must be called AFTER initial load to ensure cities with only pending content appear in edit mode
-    initializeModeWatcher();
-
-    return citiesData;
-  }
-
-  return [];
+  return citiesData;
 }
 
 /**

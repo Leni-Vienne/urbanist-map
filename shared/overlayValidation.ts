@@ -70,7 +70,7 @@ export function leafletCornersToCorners(leafletCorners: { lat: number; lng: numb
  * AI : Used for consistent centroid calculation across frontend and backend
  */
 export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
-  if (!corners || corners.length !== 4) {
+  if (corners.length !== 4) {
     return null;
   }
 

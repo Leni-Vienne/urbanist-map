@@ -26,8 +26,11 @@
         "case": "camelCase"
       }
     ],*/ // vue files are in pascal case, composables in camel case.....
-    "prefer-optional-chain": "off", // makes oxlint crash
     "prefer-object-spread": "off", // conflicts with oxc "no spread in map"
+    "unicorn/prefer-reflect-apply": "off", // issues with leaflet-distortableimage tools
+    "eslint/prefer-rest-params": "off", // issues with leaflet-distortableimage tools
+    "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
+    "no-continue": "off", // warns about early continues which is odd
     "unicorn/filename-case": "off",
     "eslint/sort-keys": "off",
     "eslint/sort-imports": "off",
@@ -50,8 +53,6 @@
     "capitalized-comments": "off", // temp
     "max-params": "off", // temp
     "no-rest-spread-properties": "off", // for older browsers
-    "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
-    "no-continue": "off", // warns about early continues which is odd
     "typescript/consistent-type-definitions": "off", //temporary
     "eslint/prefer-destructuring": "off", //temporary
     "eslint/no-magic-numbers": "off", // temporary

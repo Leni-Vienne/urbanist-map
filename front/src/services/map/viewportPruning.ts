@@ -145,7 +145,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   for (const data of filteredOverlays) {
     processedIds.add(data.id);
 
-    if (!data.corners || data.corners.length !== 4) continue;
+    if (data.corners.length !== 4) continue;
 
     const existingInstance = overlayStore.overlays[data.id];
     const isInViewport = intersectsViewport(computeCornersBBox(data.corners), bounds);

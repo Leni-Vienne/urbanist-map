@@ -446,7 +446,7 @@ export async function getUserOverlayChangeRequestIds(
     .from(changeRequests)
     .where(and(eq(changeRequests.requestedBy, userId), eq(changeRequests.entityType, "overlay")));
 
-  return changeRequestResults.map((r) => r.overlayId).filter((id) => id !== null);
+  return changeRequestResults.map((r) => r.overlayId);
 }
 
 // AI : Build WHERE condition for project visibility based on user context and map mode

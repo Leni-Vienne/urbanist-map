@@ -110,7 +110,7 @@ const allSourceFiles = getFilesRecursively(SEARCH_DIR);
 console.log(`Loading ${allSourceFiles.length} source files into memory...`);
 const fileContents = new Map<string, string>();
 for (const f of allSourceFiles) {
-  fileContents.set(f, readFileSync(f, "utf-8"));
+  fileContents.set(f, readFileSync(f, "utf8"));
 }
 
 console.log(`\nAnalyzing ${storeFiles.length} store files...\n`);
@@ -120,14 +120,14 @@ let totalUnused = 0;
 let totalLowConfidence = 0;
 
 for (const storeFile of storeFiles) {
-  const content = readFileSync(storeFile, "utf-8");
+  const content = readFileSync(storeFile, "utf8");
   const members = extractReturnKeys(content);
   if (members.length === 0) continue;
 
   const useFnMatch = content.match(/export const (use\w+)/);
   const storeFnName = useFnMatch?.[1] ?? relative(STORE_DIR, storeFile);
 
-  const unused: Array<{ key: string; lowConfidence: boolean }> = [];
+  const unused: { key: string; lowConfidence: boolean }[] = [];
 
   for (const key of members) {
     const { count } = countUsages(key, fileContents, storeFile);

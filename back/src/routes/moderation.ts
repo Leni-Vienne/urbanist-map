@@ -212,7 +212,7 @@ export const moderationRouter = router({
           .limit(1);
 
         const originalRecord = originalOverlay[0];
-        if (!originalRecord || originalRecord.status !== "approved") {
+        if (originalRecord?.status !== "approved") {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Cannot replace overlay that is not approved",
@@ -1384,9 +1384,7 @@ async function collectPendingProjectIds(): Promise<{
     .map((p) => p.projectId)
     .filter((id) => id !== null);
 
-  const pendingChangeProjectIds = projectsWithPendingChanges
-    .map((p) => p.projectId)
-    .filter((id) => id !== null);
+  const pendingChangeProjectIds = projectsWithPendingChanges.map((p) => p.projectId);
 
   return { pendingOverlayProjectIds, pendingChangeProjectIds };
 }

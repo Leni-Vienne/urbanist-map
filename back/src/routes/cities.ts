@@ -309,7 +309,7 @@ export const citiesRouter = router({
         }
 
         const result: OverlayData[] = overlaysData.map((row) => {
-          const approvedCorners = row.corners ?? [];
+          const approvedCorners = row.corners;
           const centroid = { lat: row.centroidLat, lng: row.centroidLng };
 
           // AI : Get change requests for this overlay

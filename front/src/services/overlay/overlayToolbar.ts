@@ -403,7 +403,7 @@ function resetImageRatio() {
     if (!overlayObject.overlay) return;
 
     const currentCorners = overlayObject.overlay.getCorners();
-    if (!currentCorners?.length || currentCorners.length !== 4) return;
+    if (currentCorners.length !== 4) return;
 
     // AI : Convert corners to Leaflet LatLng objects for type compatibility
     const leafletCorners = currentCorners.map((corner) => L.latLng(corner.lat, corner.lng));
@@ -413,8 +413,6 @@ function resetImageRatio() {
       newDimensions,
       cornersInfo,
     } = calculateRatioFixParameters(element.naturalWidth / element.naturalHeight, leafletCorners);
-
-    if (!cornersInfo) return;
 
     applyImageRatioFix(overlayObject, cornersInfo, newDimensions);
 

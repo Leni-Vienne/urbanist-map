@@ -326,7 +326,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       const uiStore = useUiStore();
 
       // AI : In moderation mode, clicking a contribution should load the city context
-      if (overlayStore.mode === "moderation" && project.city) {
+      if (overlayStore.mode === "moderation") {
         const mapStore = useMapStore();
         if (mapStore.selectedCity?.id !== project.city.id) {
           mapStore.setSelectedCity({
@@ -348,34 +348,33 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       // AI : Open or update project info popup first to ensure state is set (prevents race conditions with SideMenu watcher)
       uiStore.openProjectInfoPopup(project.id, project);
       // AI : Ensure city context and data are loaded for the panel
-      if (project.city) {
-        const mapStore = useMapStore();
-        const mode = overlayStore.mode;
 
-        // AI : Set city if not already selected (required for currentLocation panel to show data)
-        if (mapStore.selectedCity?.id !== project.city.id) {
-          mapStore.setSelectedCity({
-            id: project.city.id,
-            name: project.city.name,
-            nameLocal: project.city.nameLocal,
-            countryCode: project.city.countryCode,
-          });
-        }
+      const mapStore = useMapStore();
+      const mode = overlayStore.mode;
 
-        // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
-        await Promise.all([
-          fetchCityOverlaysOrCache(project.city.id, mode),
-          fetchCityStandaloneProjectsOrCache(project.city.id, mode),
-        ]).catch(console.error);
-
-        // AI : Force switch to Current Location tab if user is exploring Latest tab
-        if (uiStore.activeTab === "latest") {
-          uiStore.activeTab = "currentLocation";
-        }
-
-        // AI : Request scroll to project after data is loaded and tab is switched
-        requestScrollTo("project", project.id);
+      // AI : Set city if not already selected (required for currentLocation panel to show data)
+      if (mapStore.selectedCity?.id !== project.city.id) {
+        mapStore.setSelectedCity({
+          id: project.city.id,
+          name: project.city.name,
+          nameLocal: project.city.nameLocal,
+          countryCode: project.city.countryCode,
+        });
       }
+
+      // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
+      await Promise.all([
+        fetchCityOverlaysOrCache(project.city.id, mode),
+        fetchCityStandaloneProjectsOrCache(project.city.id, mode),
+      ]).catch(console.error);
+
+      // AI : Force switch to Current Location tab if user is exploring Latest tab
+      if (uiStore.activeTab === "latest") {
+        uiStore.activeTab = "currentLocation";
+      }
+
+      // AI : Request scroll to project after data is loaded and tab is switched
+      requestScrollTo("project", project.id);
 
       // AI : Close overlay popup if it's open (only one popup at a time)
       if (overlayStore.showInfoPopup) {

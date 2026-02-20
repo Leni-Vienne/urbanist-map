@@ -83,9 +83,7 @@ export function getCityProjects() {
     const groups = new Map<string, Project[]>();
 
     for (const project of projects.value) {
-      const cityKey = project.city
-        ? `${project.city.name}, ${project.city.countryCode}`
-        : "Unknown Location";
+      const cityKey = `${project.city.name}, ${project.city.countryCode}`;
 
       let list = groups.get(cityKey);
       if (!list) {

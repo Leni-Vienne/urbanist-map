@@ -279,7 +279,6 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
       } else {
         // AI : Regular overlay addition
         addOverlay(reader.result as string, projectId);
-        // AI : Don't show toast here - addOverlayToProjectWithId will show a more specific toast
       }
 
       // AI : Ensure city markers exist for this overlay's city
