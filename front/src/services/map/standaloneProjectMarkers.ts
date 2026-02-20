@@ -6,7 +6,6 @@ import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { visibleCompletionStates } from "@/services/overlay/completionFilters";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { trpc } from "@/client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
@@ -17,7 +16,10 @@ import {
 } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
-import { fetchCityStandaloneProjectsOrCache } from "@/services/navigation/cityDataLoader";
+import {
+  fetchCityStandaloneProjectsOrCache,
+  fetchCityOverlaysOrCache,
+} from "@/services/navigation/cityDataLoader";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
@@ -362,29 +364,10 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       }
 
       // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
-      const promises = [];
-
-      if (!mapStore.hasCityProjectsCache(project.city.id, mode)) {
-        promises.push(
-          trpc.cities.getCityOverlaysAndProjects
-            .query({
-              cityId: project.city.id,
-              mode,
-            })
-            .then((data) => {
-              if (data) mapStore.setCityProjectsCache(project.city.id, mode, data);
-            }),
-        );
-      }
-
-      if (!mapStore.hasCityStandaloneProjectsCache(project.city.id, mode)) {
-        promises.push(
-          fetchCityStandaloneProjectsOrCache(project.city.id, mode).catch(console.error),
-        );
-      }
-
-      // AI : Wait for data to be ready
-      await Promise.all(promises).catch(console.error);
+      await Promise.all([
+        fetchCityOverlaysOrCache(project.city.id, mode),
+        fetchCityStandaloneProjectsOrCache(project.city.id, mode),
+      ]).catch(console.error);
 
       // AI : Force switch to Current Location tab if user is exploring Latest tab
       if (uiStore.activeTab === "latest") {

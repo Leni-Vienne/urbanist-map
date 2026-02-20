@@ -26,7 +26,7 @@ export const currentZoomLevel = ref<number>(13);
 // AI : Create a debounced version of invalidateSize to handle window resizing
 const debouncedInvalidateSize = debounce(() => {
   // AI : Trigger a resize event on the map to ensure all components adjust
-  map.value?.invalidateSize();
+  map.value.invalidateSize();
 }, 250);
 
 // AI : Calculate minimum zoom based on viewport to avoid black borders

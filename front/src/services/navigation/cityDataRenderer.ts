@@ -59,7 +59,7 @@ function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullO
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
-  const zoom = map.value?.getZoom() ?? 0;
+  const zoom = map.value.getZoom();
   const shouldRenderFullOverlays = forceFullOverlays || zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
 
   removeOverlayMarkers();

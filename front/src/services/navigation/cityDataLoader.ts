@@ -18,7 +18,7 @@ export const loadedCityIds = ref<Set<number>>(new Set());
 /**
  * AI : Helper to fetch city overlays from cache or backend
  */
-async function fetchCityOverlaysOrCache(
+export async function fetchCityOverlaysOrCache(
   cityId: number,
   mode: AppMode,
 ): Promise<OverlayData[] | null> {

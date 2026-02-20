@@ -87,7 +87,7 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
  */
 export function removeOverlayMarkers(): void {
   if (overlayMarkersLayer) {
-    map.value?.removeLayer(overlayMarkersLayer);
+    map.value.removeLayer(overlayMarkersLayer);
     overlayMarkersLayer = null;
   }
 }

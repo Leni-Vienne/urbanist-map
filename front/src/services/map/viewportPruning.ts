@@ -9,6 +9,45 @@ import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
 
+// AI : Sync a Leaflet layer's presence on the map to match the desired state
+function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstance: L.Map) {
+  if (!layer) return;
+  const isOnMap = mapInstance.hasLayer(layer);
+  if (shouldBeOnMap && !isOnMap) layer.addTo(mapInstance);
+  else if (!shouldBeOnMap && isOnMap) layer.remove();
+}
+
+// AI : Compute bounding box from 4 overlay corners (raw math to avoid Leaflet object allocation / GC pressure)
+function computeCornersBBox(corners: { lat: number; lng: number }[]) {
+  let minLat = corners[0]!.lat;
+  let maxLat = corners[0]!.lat;
+  let minLng = corners[0]!.lng;
+  let maxLng = corners[0]!.lng;
+
+  for (let i = 1; i < 4; i++) {
+    const c = corners[i]!;
+    if (c.lat < minLat) minLat = c.lat;
+    if (c.lat > maxLat) maxLat = c.lat;
+    if (c.lng < minLng) minLng = c.lng;
+    if (c.lng > maxLng) maxLng = c.lng;
+  }
+
+  return { minLat, maxLat, minLng, maxLng };
+}
+
+// AI : Check if a bounding box intersects with viewport bounds
+function intersectsViewport(
+  bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
+  bounds: L.LatLngBounds,
+) {
+  return (
+    bbox.minLat < bounds.getNorth() &&
+    bbox.maxLat > bounds.getSouth() &&
+    bbox.minLng < bounds.getEast() &&
+    bbox.maxLng > bounds.getWest()
+  );
+}
+
 /**
  * AI : Main pruning function - determines what should be on the map based on bounds
  * AI : Iterates through stores and adds/removes layers from map directly
@@ -57,17 +96,12 @@ function processDestructionQueue() {
     const id = result.value;
     const overlay = overlayStore.overlays[id];
 
-    if (overlay) {
-      // AI : Check if overlay is still hidden before removing (user might have switched back)
-      // AI : We don't have visibility logic here, but pruneOverlays manages the queue membership.
-      // AI : If it's in the queue, it means it SHOULD be removed.
-      if (overlay.overlay) {
-        overlay.overlay.remove();
-        overlay.overlay = null; // AI : Destroy to force fresh reload
-      }
-      if (overlay.marker) {
-        overlay.marker.remove();
-      }
+    if (overlay?.overlay) {
+      overlay.overlay.remove();
+      overlay.overlay = null; // AI : Destroy to force fresh reload
+    }
+    if (overlay?.marker) {
+      overlay.marker.remove();
     }
 
     destructionQueue.delete(id);
@@ -114,31 +148,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
     if (!data.corners || data.corners.length !== 4) continue;
 
     const existingInstance = overlayStore.overlays[data.id];
-
-    // AI : OPTIMIZATION: Raw math intersection check to avoid Leaflet object allocation (GC pressure)
-    // AI : Bounds: [south, west, north, east]
-    const boundsSouth = bounds.getSouth();
-    const boundsWest = bounds.getWest();
-    const boundsNorth = bounds.getNorth();
-    const boundsEast = bounds.getEast();
-
-    // AI : Overlay BBox
-    let minLat = data.corners[0]!.lat;
-    let maxLat = data.corners[0]!.lat;
-    let minLng = data.corners[0]!.lng;
-    let maxLng = data.corners[0]!.lng;
-
-    for (let i = 1; i < 4; i++) {
-      const c = data.corners[i];
-      if (c!.lat < minLat) minLat = c!.lat;
-      if (c!.lat > maxLat) maxLat = c!.lat;
-      if (c!.lng < minLng) minLng = c!.lng;
-      if (c!.lng > maxLng) maxLng = c!.lng;
-    }
-
-    // AI : Intersection A and B: A.min < B.max && A.max > B.min
-    const isInViewport =
-      minLat < boundsNorth && maxLat > boundsSouth && minLng < boundsEast && maxLng > boundsWest;
+    const isInViewport = intersectsViewport(computeCornersBBox(data.corners), bounds);
 
     if (isInViewport) {
       if (destructionQueue.has(data.id)) {
@@ -146,37 +156,19 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         destructionQueue.delete(data.id);
       }
 
-      if (!existingInstance) {
+      if (!existingInstance && showImages) {
         // AI : Visible but not instantiated -> Queue for creation
-        if (showImages) {
-          overlaysToRender.push(data);
-        }
-      } else {
+        overlaysToRender.push(data);
+      } else if (existingInstance) {
         // AI : Exists -> Ensure it's on map (and restored if null)
-        const hasLayer = existingInstance.overlay !== null;
-        const isOnMap = hasLayer && mapInstance.hasLayer(existingInstance.overlay!);
-
-        if (!hasLayer) {
+        if (existingInstance.overlay === null && showImages) {
           // AI : Instance exists but Leaflet layer was destroyed -> Queue for recreation
-          if (showImages) {
-            overlaysToRender.push(data);
-          }
-        } else if (showImages && !isOnMap) {
-          // AI : Only add image if zoom is sufficient
-          existingInstance.overlay!.addTo(mapInstance);
-        } else if (!showImages && isOnMap) {
-          // AI : Remove image if zoom is insufficient but it's currently on map
-          existingInstance.overlay!.remove();
+          overlaysToRender.push(data);
+        } else {
+          syncLayerToMap(existingInstance.overlay, showImages, mapInstance);
         }
 
-        // AI : Ensure marker is always added if visible (zoom check passed at top)
-        if (showImages) {
-          if (existingInstance.marker && !mapInstance.hasLayer(existingInstance.marker)) {
-            existingInstance.marker.addTo(mapInstance);
-          }
-        } else if (existingInstance.marker && mapInstance.hasLayer(existingInstance.marker)) {
-          existingInstance.marker.remove();
-        }
+        syncLayerToMap(existingInstance.marker, showImages, mapInstance);
       }
     } else if (existingInstance) {
       // AI : Not visible -> Queue for Cleanup
@@ -199,87 +191,42 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   // AI : These should ONLY be visible in 'edit' mode.
   // AI : In 'view' and 'moderation' modes, viewModeOverlays is the exhaustive source of truth.
 
+  const authStore = useAuthStore();
+
   for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
     if (processedIds.has(id)) continue;
 
-    // AI : Same logic for these
     if (!overlay.corners || overlay.corners.length !== 4) continue;
 
-    // AI : OPTIMIZATION: Raw math intersection
-    const boundsSouth = bounds.getSouth();
-    const boundsWest = bounds.getWest();
-    const boundsNorth = bounds.getNorth();
-    const boundsEast = bounds.getEast();
-
-    let minLat = overlay.corners[0]!.lat;
-    let maxLat = overlay.corners[0]!.lat;
-    let minLng = overlay.corners[0]!.lng;
-    let maxLng = overlay.corners[0]!.lng;
-
-    for (let i = 1; i < 4; i++) {
-      const c = overlay.corners[i];
-      if (c!.lat < minLat) minLat = c!.lat;
-      if (c!.lat > maxLat) maxLat = c!.lat;
-      if (c!.lng < minLng) minLng = c!.lng;
-      if (c!.lng > maxLng) maxLng = c!.lng;
-    }
-
     // AI : Filter using centralized visibility logic
-    // AI : This handles permissions for view/edit/moderation modes
-    const authStore = useAuthStore();
     const isAllowedByMode = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
-
-    // AI : CRITICAL: Also check completion filter
     const passesCompletionFilter =
       filterByCompletionStatus([overlay], overlayStore.mode).length > 0;
 
-    // AI : Only show if allowed by mode AND within bounds AND passes completion filter
-    const isVisible =
+    const shouldDisplay =
       isAllowedByMode &&
       passesCompletionFilter &&
-      minLat < boundsNorth &&
-      maxLat > boundsSouth &&
-      minLng < boundsEast &&
-      maxLng > boundsWest;
+      intersectsViewport(computeCornersBBox(overlay.corners), bounds);
 
-    const hasLayer = overlay.overlay !== null;
-    const isOnMap = hasLayer && mapInstance.hasLayer(overlay.overlay!);
-
-    if (isVisible) {
+    if (shouldDisplay) {
       if (destructionQueue.has(id)) {
-        // AI : If timed for destruction but now visible, SAVE IT
         destructionQueue.delete(id);
       }
 
-      if (!hasLayer) {
+      if (overlay.overlay === null && showImages) {
         // AI : Recreate overlay if it was destroyed (e.g. valid local/pending overlay coming back into view)
-        // AI : This handles the case where we switched modes (hiding pending) and switched back (needing restoration)
-        if (showImages) {
-          const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
-          if (newOverlay) {
-            overlay.overlay = newOverlay;
-            // AI : Ensure corners are set correctly
-            if (overlay.corners && overlay.corners.length === 4) {
-              const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
-              newOverlay.setCorners(leafletCorners);
-            }
-            newOverlay.addTo(mapInstance);
-          }
+        const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
+        if (newOverlay) {
+          overlay.overlay = newOverlay;
+          const leafletCorners = overlay.corners!.map((c) => L.latLng(c.lat, c.lng));
+          newOverlay.setCorners(leafletCorners);
+          newOverlay.addTo(mapInstance);
         }
-      } else if (showImages && !isOnMap) {
-        overlay.overlay!.addTo(mapInstance);
-      } else if (!showImages && isOnMap) {
-        overlay.overlay!.remove();
+      } else {
+        syncLayerToMap(overlay.overlay, showImages, mapInstance);
       }
 
-      // AI : Ensure marker
-      if (showImages) {
-        if (overlay.marker && !mapInstance.hasLayer(overlay.marker)) {
-          overlay.marker.addTo(mapInstance);
-        }
-      } else if (overlay.marker && mapInstance.hasLayer(overlay.marker)) {
-        overlay.marker.remove();
-      }
+      syncLayerToMap(overlay.marker, showImages, mapInstance);
     } else if (overlay.overlay || overlay.marker) {
       // AI : Not visible or not allowed -> Queue for Cleanup
       destructionQueue.add(id);
@@ -300,12 +247,12 @@ function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: num
 
   for (const [_cityId, marker] of allMarkers) {
     const latLng = marker.getLatLng();
-    const isVisible = bounds.contains(latLng);
+    const isInBounds = bounds.contains(latLng);
     const isOnMap = mapInstance.hasLayer(marker);
 
-    if (isVisible && !isOnMap) {
+    if (isInBounds && !isOnMap) {
       marker.addTo(mapInstance);
-    } else if (!isVisible && isOnMap) {
+    } else if (!isInBounds && isOnMap) {
       marker.remove();
     }
   }
