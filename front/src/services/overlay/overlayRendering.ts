@@ -4,7 +4,6 @@
 
 import L from "leaflet";
 import "leaflet-distortableimage";
-import { toRef } from "vue";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -410,11 +409,7 @@ function setupOverlayMovementTracking(
 
       if (hasActuallyMoved) {
         updateMarkerPosition(overlayObject);
-        updateOverlayMarkersColors(
-          toRef(overlayStore, "overlays"),
-          overlayStore.mode,
-          overlayObject.id,
-        );
+        updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode, overlayObject.id);
       }
     }
 

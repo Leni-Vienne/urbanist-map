@@ -42,7 +42,7 @@ function calculatePositionFromCorners(
   corners: { lat: number; lng: number }[],
   source: PositionSource,
 ): ResolvedPosition | null {
-  if (!corners || corners.length !== 4) {
+  if (corners.length !== 4) {
     return null;
   }
 
@@ -88,7 +88,7 @@ function resolveEditModePosition(overlayId: string, overlayData: OverlayData): R
     // AI : CRITICAL: Use actual Leaflet overlay corners, not overlayObject.corners
     // AI : overlayObject.corners contains original backend data, not moved positions
     const actualCorners = overlayObject.overlay.getCorners();
-    if (actualCorners?.length === 4) {
+    if (actualCorners.length === 4) {
       const corners = actualCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
       const result = calculatePositionFromCorners(corners, "runtime-overlay");
       if (result) return result;
@@ -97,13 +97,13 @@ function resolveEditModePosition(overlayId: string, overlayData: OverlayData): R
 
   // AI : Priority 2: Edit mode cache (persisted modifications from previous session)
   const cachedModifications = getFromEditModeOverlayCache(overlayId);
-  if (cachedModifications?.corners?.length === 4) {
+  if (cachedModifications?.corners.length === 4) {
     const result = calculatePositionFromCorners(cachedModifications.corners, "edit-mode-cache");
     if (result) return result;
   }
 
   // AI : Priority 3: Backend corners (calculate from database data)
-  if (overlayData?.corners?.length === 4) {
+  if (overlayData.corners.length === 4) {
     const result = calculatePositionFromCorners(overlayData.corners, "backend-corners");
     if (result) return result;
   }
@@ -213,7 +213,7 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   // AI : Priority 1: Check edit mode cache if in edit mode for the most current position
   if (overlayStore.mode === "edit") {
     const cachedModifications = getFromEditModeOverlayCache(overlay.id);
-    if (cachedModifications?.corners?.length === 4) {
+    if (cachedModifications?.corners.length === 4) {
       const corners = cachedModifications.corners.map((corner) => L.latLng(corner.lat, corner.lng));
       return L.latLngBounds(corners);
     }
@@ -221,7 +221,7 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
 
   // AI : Priority 2: Use overlay corners from overlayData
   // AI : (OverlayData always has corners, typically approved position)
-  if (overlay.corners?.length === 4) {
+  if (overlay.corners.length === 4) {
     const corners = overlay.corners.map((corner) => L.latLng(corner.lat, corner.lng));
     return L.latLngBounds(corners);
   }

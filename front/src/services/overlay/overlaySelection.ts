@@ -403,8 +403,6 @@ export function setupMapClickToDeselect(): void {
  * This ensures consistent visual outline regardless of overlay shape & resolution
  */
 function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
-  if (!overlayElement) return baseSize;
-
   try {
     // AI : Get the actual image element
     const imgElement =

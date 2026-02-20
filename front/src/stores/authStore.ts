@@ -418,7 +418,7 @@ export const useAuthStore = defineStore("auth", () => {
 });
 
 // AI : Enable HMR for this store
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));
 }

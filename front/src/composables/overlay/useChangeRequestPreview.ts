@@ -207,7 +207,7 @@ export function useChangeRequestPreview() {
   function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): L.LatLng[] | null {
     if (type === "new") {
       // AI : Show suggested position
-      if (!overlayObject.suggestedCorners || overlayObject.suggestedCorners.length !== 4) {
+      if (overlayObject.suggestedCorners?.length !== 4) {
         console.warn("No suggested corners available for overlay", overlayObject.id);
         return null;
       }

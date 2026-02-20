@@ -191,7 +191,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
           x: userContributionProject.lng ?? 0,
           y: userContributionProject.lat ?? 0,
         },
-        version: userContributionProject.version ?? 1,
+        version: userContributionProject.version,
       };
 
       // AI : Add to projects store (updateProject handles creating new entries)

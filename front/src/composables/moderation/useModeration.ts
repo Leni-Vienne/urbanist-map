@@ -1,4 +1,4 @@
-import { computed, onMounted, toRef } from "vue";
+import { computed, onMounted } from "vue";
 import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
@@ -184,7 +184,7 @@ export function useModeration() {
         updateMarkerTooltip(overlayObject);
 
         // AI : Update all marker colors to reflect status changes
-        updateOverlayMarkersColors(toRef(overlayStore, "overlays"), overlayStore.mode);
+        updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
       }
 
       // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
