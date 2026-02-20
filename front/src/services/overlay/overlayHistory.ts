@@ -106,11 +106,14 @@ export function isValidCorners(corners: { lat: number; lng: number }[]): boolean
  * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
  * AI : Also saves to pendingModificationsStore for unified modification tracking
  */
-export function saveOverlayModificationsToCache(overlayObject: OverlayObject): void {
+export function saveOverlayModificationsToCache(
+  overlayObject: OverlayObject,
+  forceMode?: "edit",
+): void {
   const overlayStore = useOverlayStore();
   const pendingModsStore = usePendingModificationsStore();
 
-  if (overlayStore.mode !== "edit" || !overlayObject.overlay) return;
+  if ((overlayStore.mode !== "edit" && forceMode !== "edit") || !overlayObject.overlay) return;
   const corners = overlayObject.overlay.getCorners();
   if (!corners?.length) return;
 

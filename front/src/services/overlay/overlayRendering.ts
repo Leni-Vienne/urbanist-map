@@ -537,9 +537,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const isBeingCreated = overlaysBeingCreated.has(cdnOverlay.id);
 
   if (hasValidLayer || isBeingCreated) {
-    if (isBeingCreated) {
-      return;
-    }
+    return;
   }
 
   // AI : Mark this overlay as being created

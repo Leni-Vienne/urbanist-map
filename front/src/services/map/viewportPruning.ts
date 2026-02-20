@@ -148,7 +148,9 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 
       if (!existingInstance) {
         // AI : Visible but not instantiated -> Queue for creation
-        overlaysToRender.push(data);
+        if (showImages) {
+          overlaysToRender.push(data);
+        }
       } else {
         // AI : Exists -> Ensure it's on map (and restored if null)
         const hasLayer = existingInstance.overlay !== null;
@@ -156,7 +158,9 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 
         if (!hasLayer) {
           // AI : Instance exists but Leaflet layer was destroyed -> Queue for recreation
-          overlaysToRender.push(data);
+          if (showImages) {
+            overlaysToRender.push(data);
+          }
         } else if (showImages && !isOnMap) {
           // AI : Only add image if zoom is sufficient
           existingInstance.overlay!.addTo(mapInstance);
@@ -166,8 +170,12 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         }
 
         // AI : Ensure marker is always added if visible (zoom check passed at top)
-        if (existingInstance.marker && !mapInstance.hasLayer(existingInstance.marker)) {
-          existingInstance.marker.addTo(mapInstance);
+        if (showImages) {
+          if (existingInstance.marker && !mapInstance.hasLayer(existingInstance.marker)) {
+            existingInstance.marker.addTo(mapInstance);
+          }
+        } else if (existingInstance.marker && mapInstance.hasLayer(existingInstance.marker)) {
+          existingInstance.marker.remove();
         }
       }
     } else if (existingInstance) {
@@ -246,15 +254,15 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
       if (!hasLayer) {
         // AI : Recreate overlay if it was destroyed (e.g. valid local/pending overlay coming back into view)
         // AI : This handles the case where we switched modes (hiding pending) and switched back (needing restoration)
-        const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
-        if (newOverlay) {
-          overlay.overlay = newOverlay;
-          // AI : Ensure corners are set correctly
-          if (overlay.corners && overlay.corners.length === 4) {
-            const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
-            newOverlay.setCorners(leafletCorners);
-          }
-          if (showImages) {
+        if (showImages) {
+          const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
+          if (newOverlay) {
+            overlay.overlay = newOverlay;
+            // AI : Ensure corners are set correctly
+            if (overlay.corners && overlay.corners.length === 4) {
+              const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
+              newOverlay.setCorners(leafletCorners);
+            }
             newOverlay.addTo(mapInstance);
           }
         }
@@ -265,8 +273,12 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
       }
 
       // AI : Ensure marker
-      if (overlay.marker && !mapInstance.hasLayer(overlay.marker)) {
-        overlay.marker.addTo(mapInstance);
+      if (showImages) {
+        if (overlay.marker && !mapInstance.hasLayer(overlay.marker)) {
+          overlay.marker.addTo(mapInstance);
+        }
+      } else if (overlay.marker && mapInstance.hasLayer(overlay.marker)) {
+        overlay.marker.remove();
       }
     } else if (overlay.overlay || overlay.marker) {
       // AI : Not visible or not allowed -> Queue for Cleanup
