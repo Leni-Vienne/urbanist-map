@@ -196,7 +196,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
     if (processedIds.has(id)) continue;
 
-    if (!overlay.corners || overlay.corners.length !== 4) continue;
+    if (overlay.corners.length !== 4) continue;
 
     // AI : Filter using centralized visibility logic
     const isAllowedByMode = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
@@ -218,7 +218,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
         if (newOverlay) {
           overlay.overlay = newOverlay;
-          const leafletCorners = overlay.corners!.map((c) => L.latLng(c.lat, c.lng));
+          const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
           newOverlay.setCorners(leafletCorners);
           newOverlay.addTo(mapInstance);
         }

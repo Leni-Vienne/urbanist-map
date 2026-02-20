@@ -307,7 +307,7 @@ export function useSubmissionDialog() {
       // AI : Caption-only change for pending overlay
       await trpc.overlay.updateOverlay.mutate({
         id: overlayId,
-        caption: mod.caption.current,
+        caption: mod.caption.current ?? undefined,
       });
     }
   }
@@ -501,14 +501,12 @@ export function useSubmissionDialog() {
     // AI : Fallback for overlays without a project (should be rare)
     const projectId = overlay.projectId;
     const allProjectMods = projectId ? pendingModsStore.getModificationsForProject(projectId) : [];
-    const currentOverlayMod = pendingModsStore.getPendingModifications(overlay.id);
-
     // AI : Check if overlay is new (status null, never submitted)
     const overlayIsNew = overlay.status === null;
 
     const hasAnyOverlayMods =
       allProjectMods.length > 0 ||
-      currentOverlayMod !== null ||
+      pendingModsStore.hasPendingModifications(overlay.id) ||
       (overlay.isModified ?? false) ||
       overlayIsNew;
 

@@ -1,10 +1,10 @@
 import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { t } from "@/locales";
-import { map } from "@/services/core/map";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
@@ -217,6 +217,7 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
 
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {
   const overlayStore = useOverlayStore();
+  const pendingModsStore = usePendingModificationsStore();
 
   const overlayObject = overlayStore.overlays[id];
   if (!overlayObject) return;
@@ -228,9 +229,16 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 
   overlayObject.caption = newCaption;
 
-  // AI : Mark as modified if caption changed, so save button enables
+  // AI : Mark as modified and sync pendingModsStore so submission payload is accurate
   if (captionChanged) {
     overlayObject.isModified = true;
+    pendingModsStore.saveCaptionChange(
+      id,
+      overlayObject.projectId ?? null,
+      newCaption,
+      oldCaption,
+      overlayObject.status ?? "pending",
+    );
   }
 
   // AI : Save only the specific overlay being updated, not all overlays

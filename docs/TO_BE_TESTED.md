@@ -991,3 +991,16 @@ This document outlines the granular functional test scenarios required to ensure
   3.  Zoom back in to trigger overlay rendering.
   4.  **Check**: Overlays appear smoothly without stalling the browser.
   5.  **Regression**: Verify no "flickering" where overlays appear one by one slowly. They should appear in chunks or all at once.
+
+## 33. isModified / pendingModsStore Sync (Fix - Feb 20)
+
+### 33.1. Caption Change Submits Correctly
+
+- **Scenario**: Changing only the caption of an approved overlay opens a valid submission dialog with the caption diff.
+- **Steps**:
+  1.  Enter **Edit Mode** at high zoom. Select an **approved** overlay that has no existing unsaved changes.
+  2.  Open the overlay info / edit popup.
+  3.  Change the **caption** field and blur the input.
+  4.  **Check**: Overlay marker turns **orange** (isModified = true).
+  5.  Open the overlay info / edit popup again.
+  6.  **Check**: The input field contains the new caption.

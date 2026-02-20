@@ -451,18 +451,21 @@ function isOverlayModified(overlayId: string): boolean {
 // AI : Handle edit overlay click - opens the shared OverlayEditor dialog via store
 // AI : This uses the SAME dialog component that PopupContainer uses
 function handleEditOverlayClick(overlay: OverlayForModeration) {
-  // AI : Convert OverlayForModeration to OverlayObject for the editor
-  // AI : The editor only needs id and caption for editing
+  // AI : Prefer the live store object so in-memory caption changes are not lost on reopen
+  const liveOverlay = overlayStore.overlays[overlay.id];
+  if (liveOverlay) {
+    uiStore.openOverlayEditDialog(liveOverlay);
+    return;
+  }
+
+  // AI : Fallback: overlay not yet loaded in store (e.g. not on map), build a minimal object
   const overlayForEditor = createOverlayObject({
     id: overlay.id,
     caption: overlay.name ?? "",
     filename: overlay.filename ?? "",
     projectId: overlay.projectId ?? null,
     status: overlay.status,
-    // AI : Factory handles defaults for other fields (corners, history, etc.)
   });
-
-  // AI : Open the shared overlay edit dialog
   uiStore.openOverlayEditDialog(overlayForEditor);
 }
 

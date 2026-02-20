@@ -75,7 +75,7 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
       }
     });
 
-    overlayMarkersLayer?.addLayer(marker);
+    overlayMarkersLayer.addLayer(marker);
   }
 
   // AI : Add overlay markers to map

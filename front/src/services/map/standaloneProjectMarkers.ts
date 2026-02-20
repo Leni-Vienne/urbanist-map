@@ -102,13 +102,11 @@ export function removeStandaloneProjectMarkerForProject(projectId: string): void
 export function clearAllStandaloneProjectMarkers(): void {
   // AI : Properly remove all markers and their event listeners
   for (const marker of standaloneProjectMarkerMap.values()) {
-    if (marker) {
-      // AI : Remove all event listeners before removing from map
-      marker.off();
-      // AI : Remove from layer if it exists
-      if (standaloneProjectsLayer?.hasLayer(marker)) {
-        standaloneProjectsLayer.removeLayer(marker);
-      }
+    // AI : Remove all event listeners before removing from map
+    marker.off();
+    // AI : Remove from layer if it exists
+    if (standaloneProjectsLayer?.hasLayer(marker)) {
+      standaloneProjectsLayer.removeLayer(marker);
     }
   }
 
@@ -322,77 +320,79 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // AI : Add tooltip to show project status in edit/moderation modes
   updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
 
-  marker.on("click", async (e) => {
-    L.DomEvent.stopPropagation(e);
-    const uiStore = useUiStore();
+  marker.on("click", (e) => {
+    void (async () => {
+      L.DomEvent.stopPropagation(e);
+      const uiStore = useUiStore();
 
-    // AI : In moderation mode, clicking a contribution should load the city context
-    if (overlayStore.mode === "moderation" && project.city) {
-      const mapStore = useMapStore();
-      if (mapStore.selectedCity?.id !== project.city.id) {
-        mapStore.setSelectedCity({
-          id: project.city.id,
-          name: project.city.name,
-          nameLocal: project.city.nameLocal,
-          countryCode: project.city.countryCode,
-        });
-      }
-    }
-
-    // AI : Check if popup is already open for this project - toggle behavior
-    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-      uiStore.closeProjectInfoPopup();
-      updateStandaloneProjectMarkerOpacities(null);
-      return;
-    }
-
-    // AI : Open or update project info popup first to ensure state is set (prevents race conditions with SideMenu watcher)
-    uiStore.openProjectInfoPopup(project.id, project);
-    // AI : Ensure city context and data are loaded for the panel
-    if (project.city) {
-      const mapStore = useMapStore();
-      const mode = overlayStore.mode;
-
-      // AI : Set city if not already selected (required for currentLocation panel to show data)
-      if (mapStore.selectedCity?.id !== project.city.id) {
-        mapStore.setSelectedCity({
-          id: project.city.id,
-          name: project.city.name,
-          nameLocal: project.city.nameLocal,
-          countryCode: project.city.countryCode,
-        });
+      // AI : In moderation mode, clicking a contribution should load the city context
+      if (overlayStore.mode === "moderation" && project.city) {
+        const mapStore = useMapStore();
+        if (mapStore.selectedCity?.id !== project.city.id) {
+          mapStore.setSelectedCity({
+            id: project.city.id,
+            name: project.city.name,
+            nameLocal: project.city.nameLocal,
+            countryCode: project.city.countryCode,
+          });
+        }
       }
 
-      // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
-      await Promise.all([
-        fetchCityOverlaysOrCache(project.city.id, mode),
-        fetchCityStandaloneProjectsOrCache(project.city.id, mode),
-      ]).catch(console.error);
-
-      // AI : Force switch to Current Location tab if user is exploring Latest tab
-      if (uiStore.activeTab === "latest") {
-        uiStore.setActiveTab("currentLocation");
+      // AI : Check if popup is already open for this project - toggle behavior
+      if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
+        uiStore.closeProjectInfoPopup();
+        updateStandaloneProjectMarkerOpacities(null);
+        return;
       }
 
-      // AI : Request scroll to project after data is loaded and tab is switched
-      requestScrollTo("project", project.id);
-    }
+      // AI : Open or update project info popup first to ensure state is set (prevents race conditions with SideMenu watcher)
+      uiStore.openProjectInfoPopup(project.id, project);
+      // AI : Ensure city context and data are loaded for the panel
+      if (project.city) {
+        const mapStore = useMapStore();
+        const mode = overlayStore.mode;
 
-    // AI : Close overlay popup if it's open (only one popup at a time)
-    if (overlayStore.showInfoPopup) {
-      overlayStore.hideInfoPopup();
-    }
+        // AI : Set city if not already selected (required for currentLocation panel to show data)
+        if (mapStore.selectedCity?.id !== project.city.id) {
+          mapStore.setSelectedCity({
+            id: project.city.id,
+            name: project.city.name,
+            nameLocal: project.city.nameLocal,
+            countryCode: project.city.countryCode,
+          });
+        }
 
-    // AI : Deselect any selected overlay (mutual exclusivity between overlay and standalone project selection)
-    if (overlayStore.idSelectedOverlay) {
-      selectOverlay(null);
-    }
+        // AI : Ensure data is loaded for the panel to work (overlays AND standalone projects)
+        await Promise.all([
+          fetchCityOverlaysOrCache(project.city.id, mode),
+          fetchCityStandaloneProjectsOrCache(project.city.id, mode),
+        ]).catch(console.error);
 
-    // AI : Create/update teleport target at marker position
-    createProjectInfoTeleportTarget(marker);
+        // AI : Force switch to Current Location tab if user is exploring Latest tab
+        if (uiStore.activeTab === "latest") {
+          uiStore.setActiveTab("currentLocation");
+        }
 
-    // AI : Update marker opacities (make this one fully opaque)
-    updateStandaloneProjectMarkerOpacities(marker);
+        // AI : Request scroll to project after data is loaded and tab is switched
+        requestScrollTo("project", project.id);
+      }
+
+      // AI : Close overlay popup if it's open (only one popup at a time)
+      if (overlayStore.showInfoPopup) {
+        overlayStore.hideInfoPopup();
+      }
+
+      // AI : Deselect any selected overlay (mutual exclusivity between overlay and standalone project selection)
+      if (overlayStore.idSelectedOverlay) {
+        selectOverlay(null);
+      }
+
+      // AI : Create/update teleport target at marker position
+      createProjectInfoTeleportTarget(marker);
+
+      // AI : Update marker opacities (make this one fully opaque)
+      updateStandaloneProjectMarkerOpacities(marker);
+    })();
   });
 
   // AI : Store marker in map for easy lookup

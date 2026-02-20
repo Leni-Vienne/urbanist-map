@@ -26,7 +26,7 @@ function processStandaloneMarkers(
   standaloneProjects: StandaloneProject[],
   overlaysData: OverlayData[] | null,
 ) {
-  if (!standaloneProjects || standaloneProjects.length === 0) return;
+  if (standaloneProjects.length === 0) return;
 
   const projectIdsWithOverlays = new Set<string>();
   if (overlaysData) {

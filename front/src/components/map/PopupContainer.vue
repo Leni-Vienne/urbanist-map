@@ -69,8 +69,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
 
-import { navigateToOverlay } from "@/services/overlay/overlay";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlay";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
@@ -255,21 +254,10 @@ function handleEditOverlay(overlay: OverlayObject) {
 
 // AI : Handle overlay update (overlay mode only)
 function handleOverlayUpdate(overlayId: string, caption?: string) {
-  const overlay = overlays.value[overlayId];
-  if (!overlay || caption === undefined) return;
+  if (caption === undefined) return;
 
-  // AI : Use store action for consistent state management (instead of direct mutation)
-  overlayStore.updateOverlay(overlayId, {
-    caption,
-    isModified: true,
-  });
-
-  // AI : Update marker tooltip to reflect the new caption
-  // AI : Get the updated overlay from store after the update
-  const updatedOverlay = overlays.value[overlayId];
-  if (updatedOverlay) {
-    updateMarkerTooltip(updatedOverlay);
-  }
+  // AI : Route through updateOverlayInfo so pendingModsStore is kept in sync with isModified
+  updateOverlayInfo(overlayId, { caption });
 }
 
 // AI : Close project info popup (project mode only)

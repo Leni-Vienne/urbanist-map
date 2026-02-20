@@ -372,7 +372,7 @@ export async function addSingleCityMarker(
 
   // AI : Add marker to existing layer
   for (const [cityId, marker] of result.markers) {
-    cityMarkersLayer?.addLayer(marker);
+    cityMarkersLayer.addLayer(marker);
     cityMarkersStore.setCityMarker(cityId, marker);
   }
 
