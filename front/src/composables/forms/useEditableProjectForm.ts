@@ -11,7 +11,7 @@ import type { Project, ProjectFormData } from "@/types/index";
 import type { DBCity } from "../../../../back/src/db/schema";
 import type { ApprovalStatus } from "@shared/types";
 
-export interface EditableProjectFormOptions {
+interface EditableProjectFormOptions {
   entityId: string;
   initialData: ProjectFormData; // AI : Original backend values for "modified from X" comparison
   currentData?: ProjectFormData; // AI : Current values to display in form (if different from initialData after local saves)

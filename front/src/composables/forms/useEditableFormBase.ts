@@ -7,7 +7,7 @@ import type { FieldChange } from "@shared/validation/schemas";
 import type { ApprovalStatus } from "@shared/types";
 
 // AI : Generic base options interface for editable forms
-export interface EditableFormBaseOptions<TFormData> {
+interface EditableFormBaseOptions<TFormData> {
   entityId: string;
   entityType: "project" | "overlay";
   initialData: TFormData; // AI : Original backend values for "modified from X" comparison
@@ -18,7 +18,7 @@ export interface EditableFormBaseOptions<TFormData> {
 }
 
 // AI : Custom comparator function type for field comparison
-export type FieldComparator<TFormData> = (
+type FieldComparator<TFormData> = (
   fieldName: keyof TFormData,
   original: any,
   current: any,

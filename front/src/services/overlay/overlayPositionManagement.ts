@@ -29,7 +29,7 @@ type PositionSource =
 /**
  * AI : Result of position resolution with debugging info
  */
-export interface ResolvedPosition {
+interface ResolvedPosition {
   position: { lat: number; lng: number };
   source: PositionSource;
   corners?: { lat: number; lng: number }[];

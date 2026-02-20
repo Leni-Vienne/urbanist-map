@@ -10,11 +10,11 @@
   >
     <div class="report-content">
       <p class="report-description">
-        {{ $t('moderation.reportUser.reportDescription') }}
+        {{ $t("moderation.reportUser.reportDescription") }}
       </p>
 
       <div class="form-field">
-        <label for="report-reason">{{ $t('moderation.reportUser.reason') }}</label>
+        <label for="report-reason">{{ $t("moderation.reportUser.reason") }}</label>
         <Textarea
           id="report-reason"
           v-model="reason"
@@ -44,73 +44,71 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useToast } from '@/composables/ui/useToast'
-import { trpc } from '@/client'
+import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/ui/useToast";
+import { trpc } from "@/client";
 
 // AI : Props for the dialog
 const props = defineProps<{
-  visible: boolean
-  userId: string | null
-}>()
+  visible: boolean;
+  userId: string | null;
+}>();
 
 const emit = defineEmits<{
-  'update:visible': [value: boolean]
-  'reported': []
-}>()
+  "update:visible": [value: boolean];
+  reported: [];
+}>();
 
-const { t } = useI18n()
-const toast = useToast()
+const { t } = useI18n();
+const toast = useToast();
 
 // AI : Dialog visibility computed property for v-model
 const dialogVisible = computed({
   get: () => props.visible,
-  set: (value) => emit('update:visible', value)
-})
+  set: (value) => emit("update:visible", value),
+});
 
 // AI : Form state
-const reason = ref('')
-const isLoading = ref(false)
+const reason = ref("");
+const isLoading = ref(false);
 
 // AI : Handle report submission
 async function handleReport() {
-  if (!props.userId) return
+  if (!props.userId) return;
 
-  isLoading.value = true
+  isLoading.value = true;
   try {
-    const result = await trpc.moderation.reportUser.mutate({
+    await trpc.moderation.reportUser.mutate({
       userId: props.userId,
-      reason: reason.value || undefined
-    })
+      reason: reason.value || undefined,
+    });
 
-    if (result.success) {
-      toast.add({
-        severity: 'success',
-        summary: t('moderation.reportUser.reportSuccess'),
-        detail: t('moderation.reportUser.reportSuccessDetail'),
-        life: 3000
-      })
-      emit('reported')
-      handleCancel()
-    }
-  } catch (error) {
-    console.error('Failed to report user:', error)
     toast.add({
-      severity: 'error',
-      summary: t('common.error'),
-      detail: t('moderation.reportUser.reportFailed'),
-      life: 3000
-    })
+      severity: "success",
+      summary: t("moderation.reportUser.reportSuccess"),
+      detail: t("moderation.reportUser.reportSuccessDetail"),
+      life: 3000,
+    });
+    emit("reported");
+    handleCancel();
+  } catch (error) {
+    console.error("Failed to report user:", error);
+    toast.add({
+      severity: "error",
+      summary: t("common.error"),
+      detail: t("moderation.reportUser.reportFailed"),
+      life: 3000,
+    });
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
 }
 
 // AI : Handle cancel/close
 function handleCancel() {
-  reason.value = ''
-  dialogVisible.value = false
+  reason.value = "";
+  dialogVisible.value = false;
 }
 </script>
 

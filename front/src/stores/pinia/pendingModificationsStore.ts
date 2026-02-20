@@ -135,16 +135,12 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
   // AI : Check if there are any pending modifications at all
   const hasAnyModifications = computed(() => modifications.value.size > 0);
 
-  // AI : Get total count of modified overlays
-  const modifiedOverlayCount = computed(() => modifications.value.size);
-
   return {
     // State
     modifications,
 
     // Getters
     hasAnyModifications,
-    modifiedOverlayCount,
 
     // Actions
     saveCornersChange,

@@ -104,12 +104,12 @@ export function updateOverlayEditingState(): void {
       // AI : CRITICAL: Save current position to cache BEFORE resetting to backend
       // AI : This fixes the bug where edit→moderation→edit loses the modified position
       // AI : Logic extracted to saveAllOverlaysToCache for usage in mode watcher
-      if (overlayObject.overlay && (overlayObject.isModified || overlayObject.history.length > 1)) {
+      if (overlayObject.isModified || overlayObject.history.length > 1) {
         saveOverlayModificationsToCache(overlayObject);
       }
 
       // AI : Now reset to backend positions for display
-      if (overlayObject.corners && overlayObject.corners.length === 4) {
+      if (overlayObject.corners.length === 4) {
         const leafletCorners = overlayObject.corners.map((corner) =>
           L.latLng(corner.lat, corner.lng),
         );
@@ -184,7 +184,7 @@ export function checkOverlaySizeAndWarn(
   const corners = overlay.getCorners();
 
   // AI : Guard clause - corners can be undefined for newly created overlays
-  if (!corners || corners.length !== 4) {
+  if (corners.length !== 4) {
     return;
   }
 
@@ -319,7 +319,7 @@ export function addOverlay(
       L.DomEvent.on(element, "load", () => {
         if (element.complete && element.naturalWidth > 0) {
           overlayObject.overlay = newOverlay;
-          overlayObject.corners = newOverlay.getCorners() ?? [];
+          overlayObject.corners = newOverlay.getCorners();
 
           // AI : Store reference and initialize with proper reactivity
           overlayStore.addOverlay(id, overlayObject);

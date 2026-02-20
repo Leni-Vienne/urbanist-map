@@ -59,10 +59,6 @@ export const useUiStore = defineStore("ui", () => {
     projectId: null as string | null,
   });
 
-  // AI : Project creation flow state (moved from useProjectState)
-  const lastCreatedProjectId = ref<string | null>(null);
-  const inFileUploadFlow = ref<boolean>(false);
-
   // AI : Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
 
@@ -194,15 +190,6 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Project creation flow actions (moved from useProjectState)
-  function setLastCreatedProject(projectId: string | null) {
-    lastCreatedProjectId.value = projectId;
-  }
-
-  function setFileUploadFlow(active: boolean) {
-    inFileUploadFlow.value = active;
-  }
-
   // AI : Post-login callback actions
   function setPostLoginCallback(callback: (() => void) | null) {
     postLoginCallback.value = callback;
@@ -242,8 +229,6 @@ export const useUiStore = defineStore("ui", () => {
     mobileDrawerHeightPercent,
     projectInfoPopup,
     imageUploadDialog,
-    lastCreatedProjectId,
-    inFileUploadFlow,
     postLoginCallback,
 
     // AI : Actions
@@ -267,8 +252,6 @@ export const useUiStore = defineStore("ui", () => {
     closeWelcomeDialog,
     openImageUploadDialog,
     closeImageUploadDialog,
-    setLastCreatedProject,
-    setFileUploadFlow,
     setPostLoginCallback,
     executePostLoginCallback,
     closeAllDialogs,

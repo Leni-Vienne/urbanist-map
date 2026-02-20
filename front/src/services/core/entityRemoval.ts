@@ -11,13 +11,12 @@ import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
 } from "@/services/map/standaloneProjectMarkers";
-import { withErrorHandling } from "@/services/core/errorHandling";
 import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 
 // AI : Options for deleteOverlayDirect, allowing callers to customize behavior
-export interface DeleteOverlayOptions {
+interface DeleteOverlayOptions {
   showToast?: boolean;
   updateUserContributions?: boolean;
   clearCityCaches?: boolean;
@@ -187,42 +186,21 @@ export async function deleteOverlayDirect(
 
     if (existsInBackend) {
       // AI : Overlay exists in backend, call API to delete it
-      const result = await withErrorHandling(
-        async () => trpc.overlay.deleteOverlay.mutate({ id: overlayId }),
-        { errorMessage: undefined },
-      );
-
-      const shouldCleanup = result?.success ?? !result;
-
-      if (shouldCleanup) {
-        removeOverlay(overlayId, { updateUserContributions, clearCityCaches });
-
-        if (showToast) {
-          const toast = useToast();
-          toast.add({
-            severity: "success",
-            summary: t("contribute.overlayDeleted"),
-            life: 3000,
-          });
-        }
-        return true;
-      }
-
-      return false;
-    } else {
-      // AI : Brand new overlay, only exists locally - just clean up local state
-      removeOverlay(overlayId, { updateUserContributions, clearCityCaches });
-
-      if (showToast) {
-        const toast = useToast();
-        toast.add({
-          severity: "success",
-          summary: t("contribute.overlayDeleted"),
-          life: 3000,
-        });
-      }
-      return true;
+      // AI : If it throws, the outer catch handles it and returns false
+      await trpc.overlay.deleteOverlay.mutate({ id: overlayId });
     }
+
+    removeOverlay(overlayId, { updateUserContributions, clearCityCaches });
+
+    if (showToast) {
+      const toast = useToast();
+      toast.add({
+        severity: "success",
+        summary: t("contribute.overlayDeleted"),
+        life: 3000,
+      });
+    }
+    return true;
   } catch (error) {
     console.error("Failed to delete overlay:", error);
     return false;
