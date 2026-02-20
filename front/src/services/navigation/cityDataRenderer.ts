@@ -111,30 +111,24 @@ function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullO
 export async function loadAndRenderCityData(
   cityId: number,
   forceFullOverlays = false,
-): Promise<{ overlays: OverlayData[]; projects: StandaloneProject[] } | null> {
-  try {
-    const result = await loadCityData(cityId);
-    if (!result) return null;
+): Promise<{ overlays: OverlayData[]; projects: StandaloneProject[] }> {
+  const result = await loadCityData(cityId);
 
-    const { overlays, projects } = result;
+  const { overlays, projects } = result;
 
-    // AI : Process standalone markers
-    if (projects) {
-      processStandaloneMarkers(projects, overlays);
-    }
-
-    // AI : Render overlays if any exist
-    if (overlays && overlays.length > 0) {
-      renderCityOverlaysForNavigation(overlays, forceFullOverlays);
-    }
-
-    // AI : Return both overlays and projects for bounds calculation
-    return {
-      overlays: overlays ?? [],
-      projects: projects ?? [],
-    };
-  } catch (error) {
-    console.error(`Error loading and rendering city ${cityId}:`, error);
-    return null;
+  // AI : Process standalone markers
+  if (projects) {
+    processStandaloneMarkers(projects, overlays);
   }
+
+  // AI : Render overlays if any exist
+  if (overlays && overlays.length > 0) {
+    renderCityOverlaysForNavigation(overlays, forceFullOverlays);
+  }
+
+  // AI : Return both overlays and projects for bounds calculation
+  return {
+    overlays: overlays ?? [],
+    projects: projects ?? [],
+  };
 }

@@ -398,44 +398,40 @@ function applyHistoryAction(action: "undo" | "redo") {
     return;
   }
 
-  try {
-    if (isUndo) {
-      // AI : For undo: move current state to redo stack and apply previous state
-      const currentState = history.pop();
-      if (!currentState) return;
+  if (isUndo) {
+    // AI : For undo: move current state to redo stack and apply previous state
+    const currentState = history.pop();
+    if (!currentState) return;
 
-      redoStack.push(currentState);
-      const previousState = history[history.length - 1];
-      if (!previousState) return;
+    redoStack.push(currentState);
+    const previousState = history[history.length - 1];
+    if (!previousState) return;
 
-      overlay.setCorners(previousState);
+    overlay.setCorners(previousState);
 
-      // AI : If we're back to the initial state (history.length === 1) and overlay is approved, mark as unmodified
-      if (history.length === 1 && overlayObject.status === "approved") {
-        overlayObject.isModified = false;
-      }
-    } else {
-      // AI : For redo: move state from redo stack to history and apply it
-      const stateToRestore = redoStack.pop();
-      if (!stateToRestore) return;
-
-      history.push(stateToRestore);
-      overlay.setCorners(stateToRestore);
-
-      // AI : Redoing any change means the overlay is modified again
-      overlayObject.isModified = true;
+    // AI : If we're back to the initial state (history.length === 1) and overlay is approved, mark as unmodified
+    if (history.length === 1 && overlayObject.status === "approved") {
+      overlayObject.isModified = false;
     }
+  } else {
+    // AI : For redo: move state from redo stack to history and apply it
+    const stateToRestore = redoStack.pop();
+    if (!stateToRestore) return;
 
-    // AI : Update marker position and color after undo/redo
-    updateMarkerPosition(overlayObject);
-    updateMarkerTooltip(overlayObject);
+    history.push(stateToRestore);
+    overlay.setCorners(stateToRestore);
 
-    // AI : Update cache (undo/redo only available in edit mode)
-    // AI : No need to call updateOverlayMarkersColors - updateMarkerTooltip already updates icon
-    saveOverlayModificationsToCache(overlayObject);
-  } catch (error) {
-    console.error(error);
+    // AI : Redoing any change means the overlay is modified again
+    overlayObject.isModified = true;
   }
+
+  // AI : Update marker position and color after undo/redo
+  updateMarkerPosition(overlayObject);
+  updateMarkerTooltip(overlayObject);
+
+  // AI : Update cache (undo/redo only available in edit mode)
+  // AI : No need to call updateOverlayMarkersColors - updateMarkerTooltip already updates icon
+  saveOverlayModificationsToCache(overlayObject);
 }
 
 // AI : Register toolbar callbacks to avoid circular dependencies
@@ -447,6 +443,7 @@ registerToolbarCallbacks({
 });
 
 // AI : Accept HMR updates for this module
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();
 }

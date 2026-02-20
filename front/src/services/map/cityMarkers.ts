@@ -256,10 +256,15 @@ export async function activateCity(city: CityWithProjects) {
   requestScrollTo("city", city.id);
 
   // AI : Load city data before flight animation
-  const result = await loadAndRenderCityData(city.id, true);
-
-  // AI : Smart zoom logic
-  smartZoomToCity(city, result);
+  // AI : Leaflet event handlers have no composable layer above them, so errors must be caught here
+  try {
+    const result = await loadAndRenderCityData(city.id, true);
+    smartZoomToCity(city, result);
+  } catch (error) {
+    console.error(`Failed to load data for city ${city.id}:`, error);
+    // AI : Still zoom to city center so the map stays usable even if data loading failed
+    smartZoomToCity(city, { overlays: [], projects: [] });
+  }
 }
 
 /**
@@ -388,59 +393,54 @@ export async function addSingleCityMarker(
  * AI : Fetches all cities with projects worldwide and displays them on the map
  */
 export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> {
-  try {
-    const overlayStore = useOverlayStore();
-    const authStore = useAuthStore();
-    const projectStore = useProjectStore();
+  const overlayStore = useOverlayStore();
+  const authStore = useAuthStore();
+  const projectStore = useProjectStore();
 
-    // AI : City marker visibility rules:
-    // AI : - View mode: cities with approved content
-    // AI : - Edit mode: view + cities with user's pending contributions
-    // AI : - Moderation mode: view + cities with anyone's pending contributions
-    // AI : Each mode is ADDITIVE - we need to merge view mode (base) with mode-specific cities
+  // AI : City marker visibility rules:
+  // AI : - View mode: cities with approved content
+  // AI : - Edit mode: view + cities with user's pending contributions
+  // AI : - Moderation mode: view + cities with anyone's pending contributions
+  // AI : Each mode is ADDITIVE - we need to merge view mode (base) with mode-specific cities
 
-    // AI : Always start with view mode cities as the base (approved content)
-    const viewCities = await projectStore.fetchCitiesWithProjects("view");
+  // AI : Always start with view mode cities as the base (approved content)
+  const viewCities = await projectStore.fetchCitiesWithProjects("view");
 
-    const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
-    let citiesData = viewCities;
+  const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+  let citiesData = viewCities;
 
-    if (currentMode !== "view" && authStore.isAuthenticated) {
-      // AI : Edit or Moderation mode: merge view cities with mode-specific cities
-      const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
+  if (currentMode !== "view" && authStore.isAuthenticated) {
+    // AI : Edit or Moderation mode: merge view cities with mode-specific cities
+    const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
 
-      // AI : Merge: start with view cities, add any mode-specific cities not already included
-      const viewCityIds = new Set(viewCities.map((c) => c.id));
-      const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-      let mergedCities = [...viewCities, ...additionalCities];
+    // AI : Merge: start with view cities, add any mode-specific cities not already included
+    const viewCityIds = new Set(viewCities.map((c) => c.id));
+    const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
+    let mergedCities = [...viewCities, ...additionalCities];
 
-      // AI : In edit mode, also include cities from locally created projects
-      if (currentMode === "edit") {
-        mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
-      }
-
-      citiesData = mergedCities;
+    // AI : In edit mode, also include cities from locally created projects
+    if (currentMode === "edit") {
+      mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
     }
 
-    if (citiesData && citiesData.length > 0) {
-      // AI : Store in global ref for viewport detection
-      citiesWithProjects.value = citiesData;
-
-      // AI : Add all city markers to map (without country filter)
-      await addCityMarkersToMapInternal(citiesData);
-
-      // AI : CRITICAL: Initialize mode watcher so cities re-fetch when mode changes
-      // AI : This must be called AFTER initial load to ensure cities with only pending content appear in edit mode
-      initializeModeWatcher();
-
-      return citiesData;
-    }
-
-    return [];
-  } catch (error) {
-    console.error("Error loading global city markers:", error);
-    return [];
+    citiesData = mergedCities;
   }
+
+  if (citiesData && citiesData.length > 0) {
+    // AI : Store in global ref for viewport detection
+    citiesWithProjects.value = citiesData;
+
+    // AI : Add all city markers to map (without country filter)
+    await addCityMarkersToMapInternal(citiesData);
+
+    // AI : CRITICAL: Initialize mode watcher so cities re-fetch when mode changes
+    // AI : This must be called AFTER initial load to ensure cities with only pending content appear in edit mode
+    initializeModeWatcher();
+
+    return citiesData;
+  }
+
+  return [];
 }
 
 /**
@@ -528,6 +528,7 @@ async function addCityMarkersToMapInternal(
 }
 
 // AI : Accept HMR updates for this module
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();
 }
