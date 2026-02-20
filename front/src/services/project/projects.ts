@@ -1,5 +1,4 @@
 import type { Project } from "@/types/index";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -25,46 +24,24 @@ export function createProject(projectData: Partial<Omit<Project, "id" | "overlay
 
 export function addOverlayToProjectWithId(projectId: string, overlayId: string): boolean {
   const projectStore = useProjectStore();
-  const overlayStore = useOverlayStore();
 
-  // AI : If project is not in memory store (e.g., came from backend user contributions),
-  // AI : just update the overlay's projectId and skip the in-memory project update
-  if (projectStore.projects[projectId] === null || projectStore.projects[projectId] === undefined) {
-    // AI : Still update the overlay's projectId reference
-    const overlayObject = overlayStore.overlays[overlayId];
-    if (overlayObject) {
-      overlayObject.projectId = projectId;
-    }
-    return false; // AI : Return false - we can't determine if it was first overlay
-  }
-
-  if (overlayStore.overlays[overlayId] === null || overlayStore.overlays[overlayId] === undefined) {
-    console.error("Overlay not found in memory store:", overlayId);
-    throw new Error("Overlay not found");
-  }
-
-  // AI : Create new references to ensure reactivity with shallowRef
   const existingProject = projectStore.projects[projectId];
-  if (!existingProject) throw new Error("Project not found");
-  const updatedProjects = { ...projectStore.projects };
-  const project = { ...existingProject };
 
-  // AI : Check if this is the first overlay being added to this project
-  const isFirstOverlay = project.overlayIds.length === 0;
-
-  // Update project with new overlay ID
-  if (!project.overlayIds.includes(overlayId)) {
-    project.overlayIds = [...project.overlayIds, overlayId];
+  // AI : Project not in local store (e.g., came from backend contributions) - cannot update overlayIds
+  if (!existingProject) {
+    return false;
   }
 
-  // Update projects collection with the modified project
-  updatedProjects[projectId] = project;
-  projectStore.projects = updatedProjects;
+  // AI : Capture before mutation to detect whether this is the first overlay
+  const isFirstOverlay = existingProject.overlayIds.length === 0;
 
-  // Update overlay with project reference
-  const overlayObject = overlayStore.overlays[overlayId];
-  overlayObject.projectId = projectId;
+  if (!existingProject.overlayIds.includes(overlayId)) {
+    const updatedProject = {
+      ...existingProject,
+      overlayIds: [...existingProject.overlayIds, overlayId],
+    };
+    projectStore.projects = { ...projectStore.projects, [projectId]: updatedProject };
+  }
 
-  // AI : Return whether this was the first overlay (caller can handle marker removal)
   return isFirstOverlay;
 }

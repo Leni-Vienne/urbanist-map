@@ -7,7 +7,6 @@ import "leaflet-distortableimage";
 import { toRef } from "vue";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
@@ -15,7 +14,11 @@ import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { createOverlayFromCDN } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import { selectOverlay, setupProjectHoverEvents } from "@/services/overlay/overlaySelection";
+import {
+  selectOverlay,
+  setupProjectHoverEvents,
+  syncModerationCityFromOverlay,
+} from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
   getCornersForOverlayWithCache,
@@ -77,7 +80,7 @@ export function createLeafletOverlay(
 
   if (!overlayObject) return null;
 
-  overlayObject.imageUrl ??= imageUrl;
+  overlayObject.imageUrl = imageUrl;
 
   try {
     // AI : Get corners with edit mode cache awareness for position persistence
@@ -329,20 +332,7 @@ function setupOverlayEventHandlers(
   overlay.on("select", () => {
     // AI : In moderation mode, clicking a contribution should load the city context
     // AI : This ensures clicking the image itself (not just the marker) loads the city
-    if (overlayStore.mode === "moderation" && overlayObject.project?.city) {
-      const mapStore = useMapStore();
-      const city = overlayObject.project.city;
-
-      // AI : Only update if we're not already on this city to avoid unnecessary updates
-      if (mapStore.selectedCity?.id !== city.id) {
-        mapStore.setSelectedCity({
-          id: city.id,
-          name: city.name,
-          nameLocal: city.nameLocal,
-          countryCode: city.countryCode,
-        });
-      }
-    }
+    syncModerationCityFromOverlay(overlayObject);
 
     // AI : Use centralized selection function for consistent behavior
     selectOverlay(overlayObject.id);

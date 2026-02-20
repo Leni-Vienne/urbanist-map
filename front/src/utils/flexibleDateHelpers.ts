@@ -46,7 +46,7 @@ export function formatFlexibleDate(
   if (!input) return "";
 
   const { year, month, day, precision } = input;
-  const userLocale = locale ?? navigator.language ?? "en-US";
+  const userLocale = locale ?? navigator.language;
 
   // AI : Create a date object for formatting
   // AI : Use noon to avoid timezone rollover issues with basic dates

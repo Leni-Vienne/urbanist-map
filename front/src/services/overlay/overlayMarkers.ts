@@ -11,13 +11,13 @@ import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, MarkerColor } from "@/types/index";
 import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
   removeProjectOutlines,
+  syncModerationCityFromOverlay,
 } from "@/services/overlay/overlaySelection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
@@ -209,20 +209,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 
     // AI : In moderation mode, clicking a contribution should load the city context (like clicking a city marker)
     // AI : Check for overlayObject.project which should now be populated by enrichOverlayWithProject
-    if (overlayStore.mode === "moderation" && overlayObject.project?.city) {
-      const mapStore = useMapStore();
-      const city = overlayObject.project.city;
-
-      // AI : Only update if we're not already on this city to avoid unnecessary updates
-      if (mapStore.selectedCity?.id !== city.id) {
-        mapStore.setSelectedCity({
-          id: city.id,
-          name: city.name,
-          nameLocal: city.nameLocal,
-          countryCode: city.countryCode,
-        });
-      }
-    }
+    syncModerationCityFromOverlay(overlayObject);
 
     // AI : Toggle selection - selectOverlay handles overlay.select() internally
     if (overlayStore.idSelectedOverlay === savedOverlay.id) {

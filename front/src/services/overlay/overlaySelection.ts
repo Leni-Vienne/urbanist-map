@@ -366,6 +366,26 @@ export function setupProjectHoverEvents(
 }
 
 /**
+ * AI : In moderation mode, sync the selected city from the overlay's project context.
+ * Called when clicking an overlay marker or image so the side panel shows the right city.
+ */
+export function syncModerationCityFromOverlay(overlayObject: OverlayObject): void {
+  const overlayStore = useOverlayStore();
+  if (overlayStore.mode !== "moderation" || !overlayObject.project?.city) return;
+
+  const mapStore = useMapStore();
+  const city = overlayObject.project.city;
+  if (mapStore.selectedCity?.id !== city.id) {
+    mapStore.setSelectedCity({
+      id: city.id,
+      name: city.name,
+      nameLocal: city.nameLocal,
+      countryCode: city.countryCode,
+    });
+  }
+}
+
+/**
  * AI : Setup map click handler to deselect overlays when clicking the map background
  */
 export function setupMapClickToDeselect(): void {

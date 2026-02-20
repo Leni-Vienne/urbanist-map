@@ -285,6 +285,22 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
+  // AI : Find the project containing an overlay by ID, returns index + project or null
+  function findProjectContainingOverlay(
+    overlayId: string,
+  ): { index: number; project: UserContribution } | null {
+    const index = userContributions.value.findIndex((p) =>
+      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId),
+    );
+    if (index === -1) return null;
+    const project = userContributions.value[index];
+    if (!project) {
+      console.error("Existing project not found for index:", index);
+      return null;
+    }
+    return { index, project };
+  }
+
   // AI : Update pending overlay in user contributions (for caption/field updates)
   function updateOverlayInUserContributions(
     overlayId: string,
@@ -294,36 +310,28 @@ export const useProjectStore = defineStore("project", () => {
       return;
     }
 
-    // AI : Find project containing this overlay
-    const projectIndex = userContributions.value.findIndex((p) =>
-      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId),
+    const found = findProjectContainingOverlay(overlayId);
+    if (!found) return;
+
+    const { index: projectIndex, project } = found;
+    const overlayIndex = project.overlays.findIndex(
+      (o: UserContributionOverlay) => o.id === overlayId,
     );
 
-    if (projectIndex !== -1) {
-      const project = userContributions.value[projectIndex];
-      if (!project) {
-        console.error("Existing project not found for index:", projectIndex);
-        return;
-      }
-      const overlayIndex = project.overlays.findIndex(
-        (o: UserContributionOverlay) => o.id === overlayId,
+    if (overlayIndex !== -1) {
+      const overlay = project.overlays[overlayIndex];
+      if (!overlay) return;
+
+      const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, {
+        ...overlay,
+        ...updates,
+      });
+      const updatedProject = { ...project, overlays: updatedOverlays };
+      userContributions.value = replaceAtIndex(
+        userContributions.value,
+        projectIndex,
+        updatedProject,
       );
-
-      if (overlayIndex !== -1) {
-        const overlay = project.overlays[overlayIndex];
-        if (!overlay) return;
-
-        const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, {
-          ...overlay,
-          ...updates,
-        });
-        const updatedProject = { ...project, overlays: updatedOverlays };
-        userContributions.value = replaceAtIndex(
-          userContributions.value,
-          projectIndex,
-          updatedProject,
-        );
-      }
     }
   }
 
@@ -354,37 +362,29 @@ export const useProjectStore = defineStore("project", () => {
       return;
     }
 
-    // AI : Find project containing this overlay
-    const projectIndex = userContributions.value.findIndex((p) =>
-      p.overlays.some((o: UserContributionOverlay) => o.id === overlayId),
+    const found = findProjectContainingOverlay(overlayId);
+    if (!found) return;
+
+    const { index: projectIndex, project } = found;
+    const updatedOverlays = project.overlays.filter(
+      (o: UserContributionOverlay) => o.id !== overlayId,
     );
 
-    if (projectIndex !== -1) {
-      const project = userContributions.value[projectIndex];
-      if (!project) {
-        console.error("Existing project not found for index:", projectIndex);
-        return;
-      }
-      const updatedOverlays = project.overlays.filter(
-        (o: UserContributionOverlay) => o.id !== overlayId,
+    // AI : If no overlays left and user doesn't own project, remove entire project
+    if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
+      userContributions.value = removeAtIndex(userContributions.value, projectIndex);
+    } else {
+      // AI : Update project with remaining overlays
+      const updatedProject = {
+        ...project,
+        overlays: updatedOverlays,
+        overlayCount: updatedOverlays.length,
+      };
+      userContributions.value = replaceAtIndex(
+        userContributions.value,
+        projectIndex,
+        updatedProject,
       );
-
-      // AI : If no overlays left and user doesn't own project, remove entire project
-      if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
-        userContributions.value = removeAtIndex(userContributions.value, projectIndex);
-      } else {
-        // AI : Update project with remaining overlays
-        const updatedProject = {
-          ...project,
-          overlays: updatedOverlays,
-          overlayCount: updatedOverlays.length,
-        };
-        userContributions.value = replaceAtIndex(
-          userContributions.value,
-          projectIndex,
-          updatedProject,
-        );
-      }
     }
   }
 
@@ -546,21 +546,6 @@ export const useProjectStore = defineStore("project", () => {
   function clearNearbyProjects(): void {
     nearbyProjects.value = [];
     nearbyProjectsLastFetch.value = null;
-  }
-
-  /**
-   * AI : Add an overlay to a project by ID
-   * @param projectId - The ID of the project
-   * @param overlayId - The ID of the overlay to add
-   */
-  function addOverlayToProjectWithId(projectId: string, overlayId: string) {
-    const project = projects.value[projectId];
-    if (project) {
-      if (!project.overlayIds.includes(overlayId)) {
-        project.overlayIds.push(overlayId);
-        // AI : Local storage removed - changes are now stored only in memory during edit mode
-      }
-    }
   }
 
   function getCachedCities(countryCode: string, mode: AppMode) {
@@ -732,7 +717,6 @@ export const useProjectStore = defineStore("project", () => {
     allProjects,
 
     // Local project actions
-    addOverlayToProjectWithId,
     updateProject,
     cacheProjectBackendState,
     resetProjectField,

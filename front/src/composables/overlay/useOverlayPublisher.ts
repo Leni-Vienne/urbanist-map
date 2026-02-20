@@ -34,7 +34,7 @@ export function useOverlayPublisher() {
     }
 
     const corners = getCornersFromOverlay(overlay);
-    if (!corners || corners.length !== 4 || corners.some((c) => !c.lat || !c.lng)) {
+    if (corners.length !== 4 || corners.some((c) => !c.lat || !c.lng)) {
       throw new Error("Cannot Publish: Overlay must have valid position (4 corners)");
     }
 
@@ -250,7 +250,7 @@ export function useOverlayPublisher() {
       // AI : Step 1 - Ensure project exists on server first (only for brand new projects)
       // AI : Skip if project is already published (pending/approved) to avoid duplicate publishProject calls
       let projectIdChanged = false;
-      if (project && project.status === null) {
+      if (project?.status === null) {
         projectIdChanged = await ensureProjectOnServer(project);
         if (projectIdChanged) {
           overlay.projectId = project.id;

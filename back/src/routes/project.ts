@@ -614,9 +614,9 @@ export const projectRouter = router({
                   )
               : [];
 
-          const overlayIdsWithChanges = overlayIdsWithChangeRequests
-            .map((overlay) => overlay.overlayId)
-            .filter((id) => id !== null);
+          const overlayIdsWithChanges = overlayIdsWithChangeRequests.map(
+            (overlay) => overlay.overlayId,
+          );
 
           if (ownedProjectIds.length > 0 && contributedProjectIds.length > 0) {
             // AI : Both owned and contributed projects exist

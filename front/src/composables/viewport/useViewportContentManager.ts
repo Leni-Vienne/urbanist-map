@@ -614,8 +614,7 @@ export function useViewportContentManager() {
               if (p.status === null) return true;
 
               // AI : User's own pending projects (submitted but not approved)
-              if (p.status === "pending" && authStore.user && p.ownerId === authStore.user.id)
-                return true;
+              if (p.status === "pending" && p.ownerId === authStore.user?.id) return true;
 
               return false;
             });

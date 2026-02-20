@@ -76,7 +76,7 @@ export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
   // AI : This ensures view mode always uses backend positions, not stale cached positions
   if (overlayStore.mode === "edit") {
     const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
-    if (cachedModifications?.corners?.length === 4) {
+    if (cachedModifications?.corners.length === 4) {
       // AI : Update object history with cached modifications
       overlayObject.history = [cachedModifications.corners];
       overlayObject.isModified = cachedModifications.isModified;
@@ -116,7 +116,7 @@ export function saveOverlayModificationsToCache(
     overlayObject.id,
     overlayObject.projectId ?? null,
     mappedCorners,
-    overlayObject.corners ?? [], // Original corners from database
+    overlayObject.corners, // Original corners from database
     overlayStatus,
   );
 }
