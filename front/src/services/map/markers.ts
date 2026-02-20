@@ -276,7 +276,7 @@ export function updateOverlayMarkersColors(
   // AI : If specific overlay ID provided, only update that one
   if (specificOverlayId) {
     const overlayObject = overlays.value[specificOverlayId];
-    if (overlayObject && overlayObject.marker) {
+    if (overlayObject !== undefined && overlayObject.marker) {
       const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
@@ -286,7 +286,7 @@ export function updateOverlayMarkersColors(
 
   // AI : Otherwise, iterate through all overlay objects that have markers
   for (const overlayObject of Object.values(overlays.value)) {
-    if (overlayObject && overlayObject.marker) {
+    if (overlayObject.marker) {
       // AI : Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);

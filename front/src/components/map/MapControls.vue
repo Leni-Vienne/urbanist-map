@@ -45,7 +45,7 @@
   <!-- AI : Welcome Dialog managed by UI Store -->
   <WelcomeDialog
     :modelValue="uiStore.welcomeDialogVisible"
-    @update:modelValue="(val) => (val ? uiStore.openWelcomeDialog() : uiStore.closeWelcomeDialog())"
+    @update:modelValue="(val) => (uiStore.welcomeDialogVisible = val)"
   />
 </template>
 
@@ -147,7 +147,7 @@ function handleZoomOut() {
 
 // AI : Show help modal
 function showHelpModal() {
-  uiStore.openWelcomeDialog();
+  uiStore.welcomeDialogVisible = true;
 }
 </script>
 

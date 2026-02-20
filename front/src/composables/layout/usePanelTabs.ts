@@ -63,7 +63,7 @@ export function usePanelTabs() {
    */
   function setActiveTab(newTab: PanelTab) {
     // 1. Update UI state immediately
-    uiStore.setActiveTab(newTab);
+    uiStore.activeTab = newTab;
 
     // 2. Determine target mode
     const targetMode = tabToMode(newTab);
@@ -101,7 +101,7 @@ export function usePanelTabs() {
 
     // 2. Update UI state if different
     if (uiStore.activeTab !== targetTab) {
-      uiStore.setActiveTab(targetTab);
+      uiStore.activeTab = targetTab;
     }
   }
 
@@ -156,7 +156,7 @@ export function usePanelTabs() {
         // AI : No need to call setActiveTab (which triggers switchMode) because we are already in view mode
         // AI : But for consistency we can use uiStore directly or our action
         if (uiStore.activeTab !== "currentLocation") {
-          uiStore.setActiveTab("currentLocation");
+          uiStore.activeTab = "currentLocation";
         }
       }
     },
@@ -178,7 +178,7 @@ export function usePanelTabs() {
         uiStore.activeTab === "latest" &&
         selectedCity.id !== previousCity?.id
       ) {
-        uiStore.setActiveTab("currentLocation");
+        uiStore.activeTab = "currentLocation";
       }
     },
   );

@@ -71,8 +71,11 @@ export function getCameraBounds() {
 // AI : MOBILE-AWARE NAVIGATION
 // AI : ============================================================================
 
-// AI : Minimum distance to prevent odd looking flyTo animations if user is already at target
-const distanceThreshold = 0.003;
+// AI : Minimum distance in meters to skip re-animation when the camera is already close enough.
+// AI : distanceTo() returns meters, so 10m ≈ a few map pixels at street-level zoom.
+// AI : For bounds comparison (mobileAwareFlyToBounds) the multiplied threshold is 100m,
+// AI : which is still well below the size of any overlay (max ~few hundred meters).
+const distanceThreshold = 10;
 
 /**
  * AI : Check if mobile drawer is covering the map
@@ -128,8 +131,8 @@ export function mobileAwareFlyTo(
   const fitOptions: FitBoundsOptions = {
     ...options,
     maxZoom: zoom ?? map.value.getZoom(),
-    paddingTopLeft: [50, 50] as [number, number],
-    paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number],
+    paddingTopLeft: [50, 50],
+    paddingBottomRight: [50, globalThis.innerHeight * 0.45],
   };
 
   map.value.flyToBounds(bounds, fitOptions);
@@ -184,7 +187,8 @@ export function mobileAwareFlyToBounds(
     return; // AI : Already viewing these bounds, skip animation
   }
 
-  map.value.flyToBounds(bounds, flyOptions);
+  // AI : Use the already-normalized targetBounds for consistency
+  map.value.flyToBounds(targetBounds, flyOptions);
 }
 
 // AI : ============================================================================
@@ -192,46 +196,24 @@ export function mobileAwareFlyToBounds(
 // AI : ============================================================================
 
 /**
- * AI : Fly to a country using its bounding box or fallback to coordinates with zoom
- * @param countryCode - ISO country code
- * @param fallbackLat - Fallback latitude if bbox not found
- * @param fallbackLng - Fallback longitude if bbox not found
- * @param fallbackZoom - Fallback zoom level (default: 6)
+ * AI : Fly to a country using its bounding box from the bundled JSON.
+ * @param countryCode - ISO country code (must be a key of country_bboxes.json)
  * @param duration - Animation duration in seconds (default: 1.5)
  */
-export function flyToCountry(
-  countryCode: keyof typeof countryBboxes,
-  fallbackLat?: number,
-  fallbackLng?: number,
-  fallbackZoom = 6,
-  duration = 1.5,
-) {
+export function flyToCountry(countryCode: keyof typeof countryBboxes, duration = 1.5) {
   const bbox = countryBboxes[countryCode];
 
-  if (bbox) {
-    // AI : bbox format is [minLng, minLat, maxLng, maxLat]
-    mobileAwareFlyToBounds(
-      [
-        [bbox[1]!, bbox[0]!], // AI : southwest corner [lat, lng]
-        [bbox[3]!, bbox[2]!], // AI : northeast corner [lat, lng]
-      ],
-      {
-        duration,
-        padding: [30, 30] as [number, number],
-      },
-    );
-  } else if (fallbackLat !== undefined && fallbackLng !== undefined) {
-    // AI : Fallback to flyTo if no bbox found
-    mobileAwareFlyTo([fallbackLat, fallbackLng], fallbackZoom, {
+  // AI : bbox format is [minLng, minLat, maxLng, maxLat]
+  mobileAwareFlyToBounds(
+    [
+      [bbox[1]!, bbox[0]!], // AI : southwest corner [lat, lng]
+      [bbox[3]!, bbox[2]!], // AI : northeast corner [lat, lng]
+    ],
+    {
       duration,
-    });
-  }
-}
-
-// AI : Accept HMR updates for this module
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
+      padding: [30, 30] as [number, number],
+    },
+  );
 }
 
 /**
@@ -251,4 +233,10 @@ export function calculateBoundsFromLocations(
     console.error("Error calculating bounds:", error);
     return null;
   }
+}
+
+// AI : Accept HMR updates for this module
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }

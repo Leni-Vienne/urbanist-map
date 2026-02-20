@@ -58,7 +58,7 @@ function handleUploadsTabClick() {
       emit("update:activeTab", "contribute");
     });
     // AI : Open auth dialog
-    uiStore.openAuthModal();
+    uiStore.authModalVisible = true;
   } else {
     emit("update:activeTab", "contribute");
   }

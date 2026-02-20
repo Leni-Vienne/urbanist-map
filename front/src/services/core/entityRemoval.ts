@@ -86,7 +86,7 @@ function removeOverlay(
   const allProjectsData = projectStore.allProjects;
   // AI : Find project by overlayIds array (most reliable source)
   const projectWithOverlay = Object.values(allProjectsData).find((p) =>
-    p.overlayIds?.includes(overlayId),
+    p.overlayIds.includes(overlayId),
   );
 
   if (projectWithOverlay) {

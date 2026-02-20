@@ -32,7 +32,7 @@ export interface OverlaySizeValidationResult {
 
 // AI : Validate overlay size constraints
 export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationResult {
-  if (!corners || corners.length !== 4) {
+  if (corners.length !== 4) {
     return { isValid: false };
   }
 

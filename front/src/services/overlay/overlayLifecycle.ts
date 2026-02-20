@@ -62,7 +62,7 @@ export function clearAllOverlays(preserveStoreData = false): void {
     // AI : might be created (and in allMarkers) but not yet linked to an overlayObject in the store
     // AI : (e.g. during the async loading phase)
     for (const marker of Object.values(overlayStore.allMarkers)) {
-      if (marker && map.value.hasLayer(marker)) {
+      if (map.value.hasLayer(marker)) {
         marker.remove();
       }
     }

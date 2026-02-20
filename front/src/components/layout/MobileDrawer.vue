@@ -86,11 +86,13 @@ function handleSatelliteMenuChange(isOpen: boolean) {
 // AI : Drawer height management
 const drawerHeight = computed({
   get: () => uiStore.mobileDrawerHeightPercent,
-  set: (value) => uiStore.setMobileDrawerHeight(value),
+  set: (value) => {
+    uiStore.mobileDrawerHeightPercent = Math.min(90, value);
+  },
 });
 
 function handleHeightChanged(height: number) {
-  uiStore.setMobileDrawerHeight(height);
+  uiStore.mobileDrawerHeightPercent = Math.min(90, height);
 }
 
 // AI : Use uiStore.activeTab as single source of truth (shared with SideMenu)

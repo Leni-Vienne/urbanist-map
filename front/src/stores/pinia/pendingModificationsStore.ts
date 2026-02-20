@@ -85,11 +85,6 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     return modifications.value.get(overlayId);
   }
 
-  // AI : Get all modified overlay IDs
-  function getModifiedOverlayIds(): string[] {
-    return [...modifications.value.keys()];
-  }
-
   // AI : Get all modifications for overlays belonging to a specific project
   function getModificationsForProject(projectId: string): PendingOverlayModification[] {
     return [...modifications.value.values()].filter((mod) => mod.projectId === projectId);
@@ -127,11 +122,6 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     modifications.value.delete(overlayId);
   }
 
-  // AI : Clear all pending modifications
-  function clearAllModifications(): void {
-    modifications.value.clear();
-  }
-
   // AI : Check if there are any pending modifications at all
   const hasAnyModifications = computed(() => modifications.value.size > 0);
 
@@ -147,16 +137,15 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     saveCaptionChange,
     hasPendingModifications,
     getPendingModifications,
-    getModifiedOverlayIds,
     getModificationsForProject,
     getModificationCountForProject,
     clearFieldModification,
     clearModification,
-    clearAllModifications,
   };
 });
 
 // AI : Enable HMR for this store
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(usePendingModificationsStore, import.meta.hot));
 }

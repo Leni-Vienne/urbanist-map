@@ -227,8 +227,7 @@ async function handleCountryClick() {
 
   if (!isValidCountryCode(header.countryCode)) return;
 
-  // AI : Fly to the country using its centroid
-  flyToCountry(header.countryCode, header.lat, header.lng);
+  flyToCountry(header.countryCode);
 
   // AI : Set the selected country code (for tile layer management)
   mapStore.selectedCountryCode = header.countryCode;

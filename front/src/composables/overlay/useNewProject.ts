@@ -13,7 +13,7 @@ export function useNewProject() {
 
   async function handleNewProjectClick() {
     if (!authStore.isAuthenticated) {
-      uiStore.openAuthModal();
+      uiStore.authModalVisible = true;
       return { success: false, reason: "not_authenticated" };
     }
 
@@ -25,7 +25,7 @@ export function useNewProject() {
     if (mode.value !== "edit") {
       try {
         switchMode("edit");
-        uiStore.openMarkerPlacementBar();
+        uiStore.markerPlacementBarVisible = true;
         return { success: true, action: "edit_mode_and_dialog_opened" };
       } catch (error) {
         console.error("Error switching to edit mode:", error);
@@ -33,7 +33,7 @@ export function useNewProject() {
       }
     } else {
       // AI : Already in edit mode - just open marker placement bar
-      uiStore.openMarkerPlacementBar();
+      uiStore.markerPlacementBarVisible = true;
       return { success: true, action: "dialog_opened" };
     }
   }

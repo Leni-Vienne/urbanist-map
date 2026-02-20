@@ -9,7 +9,7 @@
         raised
         data-testid="sign-in-button"
         @dblclick.stop
-        @click="uiStore.openAuthModal()"
+        @click="uiStore.authModalVisible = true"
       />
     </template>
 
@@ -68,12 +68,12 @@
     </Popover>
 
     <!-- AI : Auth Modal -->
-    <AuthModal v-model:visible="authModalVisible" />
+    <AuthModal v-model:visible="uiStore.authModalVisible" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useUnsavedChanges } from "@/composables/core/useUnsavedChanges";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -91,18 +91,6 @@ const { t } = useI18n();
 const isMenuOpen = ref(false);
 const userPopover = ref();
 const { hasUnacknowledgedItems } = useModeratedContributions();
-
-// AI : Use store state directly for auth modal
-const authModalVisible = computed({
-  get: () => uiStore.authModalVisible,
-  set: (value) => {
-    if (value) {
-      uiStore.openAuthModal();
-    } else {
-      uiStore.closeAuthModal();
-    }
-  },
-});
 
 // AI : Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
@@ -142,7 +130,7 @@ async function handleSignOut() {
 
 // AI : Handle opening moderation results (closes menu)
 function openModerationResults() {
-  uiStore.openModeratedContributionsDialog();
+  uiStore.moderatedContributionsDialogVisible = true;
   userPopover.value.hide();
   isMenuOpen.value = false;
 }

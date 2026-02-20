@@ -54,7 +54,6 @@
     <ModeratedContributionsDialog
       v-if="uiStore.moderatedContributionsDialogVisible"
       v-model:visible="uiStore.moderatedContributionsDialogVisible"
-      @close="uiStore.closeModeratedContributionsDialog"
     />
 
     <!-- AI : Image Upload Dialog - always rendered so it's available from any part of the app -->
@@ -165,7 +164,7 @@ onMounted(async () => {
 
       // AI : Show dialog if there are unacknowledged items
       if (hasUnacknowledgedItems.value) {
-        uiStore.openModeratedContributionsDialog();
+        uiStore.moderatedContributionsDialogVisible = true;
       }
     }
 
@@ -201,7 +200,7 @@ watch(
 
       // AI : Show dialog if there are unacknowledged items
       if (hasUnacknowledgedItems.value) {
-        uiStore.openModeratedContributionsDialog();
+        uiStore.moderatedContributionsDialogVisible = true;
       }
     } else if (!isAuthenticated && wasAuthenticated) {
       // AI : User just logged out - clear cached contributions

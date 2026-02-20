@@ -370,7 +370,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
         // AI : Force switch to Current Location tab if user is exploring Latest tab
         if (uiStore.activeTab === "latest") {
-          uiStore.setActiveTab("currentLocation");
+          uiStore.activeTab = "currentLocation";
         }
 
         // AI : Request scroll to project after data is loaded and tab is switched
