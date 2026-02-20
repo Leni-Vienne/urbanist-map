@@ -113,7 +113,7 @@ export function clearAllStandaloneProjectMarkers(): void {
   }
 
   // AI : Now remove the layer from map
-  if (standaloneProjectsLayer && map.value) {
+  if (standaloneProjectsLayer) {
     map.value.removeLayer(standaloneProjectsLayer);
     standaloneProjectsLayer = null;
   }

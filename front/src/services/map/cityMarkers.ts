@@ -497,7 +497,7 @@ async function addCityMarkersToMapInternal(
   // AI : Clear store first to remove stale cities (that might have been deleted/filtered out)
   // AI : CRITICAL: We need to remove the old layer from the map if it exists!
   const oldLayer = cityMarkersStore.getCityMarkersLayer();
-  if (oldLayer && map.value && map.value.hasLayer(oldLayer)) {
+  if (oldLayer && map.value.hasLayer(oldLayer)) {
     oldLayer.remove();
   }
 

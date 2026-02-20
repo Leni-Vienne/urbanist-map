@@ -211,7 +211,7 @@ export function useOverlayPublisher() {
     updateMarkerTooltip(overlay);
 
     // AI : Ensure the overlay stays visible on the map after ID change
-    if (overlay.overlay && map.value && !map.value.hasLayer(overlay.overlay)) {
+    if (overlay.overlay && !map.value.hasLayer(overlay.overlay)) {
       console.log(`AI: Re-adding overlay ${overlay.id} to map after publishing`);
       overlay.overlay.addTo(map.value);
     }

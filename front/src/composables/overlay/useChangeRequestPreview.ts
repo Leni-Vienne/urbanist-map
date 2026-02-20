@@ -115,7 +115,7 @@ export function useChangeRequestPreview() {
     const needsEditMode = overlayStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
       switchMode("edit");
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise<void>((resolve) => void setTimeout(() => resolve(), 100));
     }
 
     // AI : Step 3: Clear map and load cities for the country
@@ -141,7 +141,7 @@ export function useChangeRequestPreview() {
     );
 
     // AI : Wait for overlays to render
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise<void>((resolve) => void setTimeout(() => resolve(), 400));
 
     // AI : Check if overlay loaded successfully
     overlayObject = overlayStore.overlays[overlayForModeration.id];
@@ -161,7 +161,7 @@ export function useChangeRequestPreview() {
         (o) => o.id === overlayForModeration.id,
       );
       if (overlayInMapStore) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise<void>((resolve) => void setTimeout(() => resolve(), 500));
         overlayObject = overlayStore.overlays[overlayForModeration.id];
       }
     }

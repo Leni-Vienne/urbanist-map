@@ -57,13 +57,14 @@ function navigateOverlaySequence(direction: "next" | "previous") {
 
   // Handle case when no overlay is selected
   if (!overlayStore.idSelectedOverlay) {
-    return selectFirstOrLastOverlayInAnyProject(direction);
+    selectFirstOrLastOverlayInAnyProject(direction);
+    return;
   }
 
   const currentOverlay = overlayStore.overlays[overlayStore.idSelectedOverlay];
 
   if (!currentOverlay?.projectId) {
-    return false;
+    return;
   }
 
   const project = projectStore.projects[currentOverlay.projectId];
@@ -81,7 +82,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
   if (projectOverlayIds.length <= 1) {
     const toast = useToast();
     toast.add({ severity: "info", summary: t("overlay.onlyOneOverlayInProject"), life: 3000 });
-    return false;
+    return;
   }
 
   // Get the next/previous overlay (with wraparound)
@@ -92,10 +93,10 @@ function navigateOverlaySequence(direction: "next" | "previous") {
 
   if (!newOverlayId) {
     console.error("Overlay not found for ID:", newOverlayId);
-    return false;
+    return;
   }
 
-  return selectAndCenterOverlay(newOverlayId);
+  selectAndCenterOverlay(newOverlayId);
 }
 
 function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
@@ -121,13 +122,10 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
       }
 
       if (selectAndCenterOverlay(overlayId)) {
-        // AI : Selected first/last overlay in project
-        return true;
+        return;
       }
     }
   }
-
-  return false;
 }
 
 /**
