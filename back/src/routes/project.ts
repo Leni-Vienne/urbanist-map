@@ -134,7 +134,6 @@ export const projectRouter = router({
 
         if (publishTransaction) {
           return {
-            success: true,
             id: publishTransaction.id,
             exists: true,
           };
@@ -156,7 +155,6 @@ export const projectRouter = router({
         });
       }
       return {
-        success: true,
         id: resultRow.id,
         exists: false,
       };

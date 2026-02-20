@@ -75,7 +75,7 @@ const projectLocationDisplay = computed(() => {
 
   const project = props.project;
 
-  if (project.city?.name) {
+  if (project.city.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
 

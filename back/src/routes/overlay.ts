@@ -324,7 +324,6 @@ export const overlayRouter = router({
       }
 
       return {
-        success: true,
         id: upsertedOverlay.id,
         status: upsertedOverlay.status,
         authorId: upsertedOverlay.authorId,

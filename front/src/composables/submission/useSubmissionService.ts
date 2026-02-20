@@ -503,11 +503,7 @@ export function useSubmissionService() {
     project: Project,
     changeType: SubmissionChangeType,
   ): Promise<void> {
-    const publishResult = await trpc.project.publishProject.mutate(buildProjectPayload(project));
-
-    if (!publishResult.success) {
-      throw new Error("Backend publish failed");
-    }
+    await trpc.project.publishProject.mutate(buildProjectPayload(project));
 
     projectStore.updateProject(project.id, { isModified: false, status: "pending" });
 
