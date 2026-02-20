@@ -35,6 +35,9 @@ function modeToDefaultTab(mode: AppMode): PanelTab {
       return "contribute";
     case "moderation":
       return "moderation";
+    default:
+      // AI : Exhaustiveness check — all AppMode values must be handled above
+      throw new Error(`Unhandled mode: ${mode}`);
   }
 }
 

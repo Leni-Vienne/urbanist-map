@@ -114,7 +114,7 @@ export async function navigateToCity(
 
     // AI : Wait for the fly animation to complete before loading city data
     await new Promise<void>((resolve) => {
-      map.value?.once("moveend", () => resolve());
+      map.value.once("moveend", () => resolve());
     });
   }
 

@@ -6,7 +6,6 @@ import tailwindcss from "@tailwindcss/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
 import path from "node:path";
 import { visualizer } from "rollup-plugin-visualizer";
-import Sonda from "sonda/rolldown";
 import { qrcode } from "vite-plugin-qrcode";
 
 // https://vite.dev/config/

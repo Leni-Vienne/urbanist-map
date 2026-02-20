@@ -920,7 +920,7 @@ export function useSubmissionDialog() {
 
     // AI : Handle removing a NEW overlay completely
     if (field === "new_overlay") {
-      if (overlayObject && (overlayObject.status === null || overlayObject.status === undefined)) {
+      if (overlayObject && overlayObject.status === null) {
         removeNewOverlayCompletely(overlayId, overlayObject);
       }
       return;

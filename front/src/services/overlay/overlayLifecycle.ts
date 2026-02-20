@@ -36,7 +36,7 @@ export function clearAllOverlays(preserveStoreData = false): void {
   // AI : Clean up store-tracked overlays and their markers
   for (const overlayObject of Object.values(overlayStore.overlays)) {
     // AI : Markers are not DistortableImageOverlay, so remove them separately
-    if (overlayObject.marker && map.value?.hasLayer(overlayObject.marker)) {
+    if (overlayObject.marker && map.value.hasLayer(overlayObject.marker)) {
       map.value.removeLayer(overlayObject.marker);
     }
 
@@ -62,7 +62,7 @@ export function clearAllOverlays(preserveStoreData = false): void {
     // AI : might be created (and in allMarkers) but not yet linked to an overlayObject in the store
     // AI : (e.g. during the async loading phase)
     for (const marker of Object.values(overlayStore.allMarkers)) {
-      if (marker && map.value?.hasLayer(marker)) {
+      if (marker && map.value.hasLayer(marker)) {
         marker.remove();
       }
     }

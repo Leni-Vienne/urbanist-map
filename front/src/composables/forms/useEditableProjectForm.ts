@@ -172,7 +172,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         cityId: userContributionProject.cityId,
         city: {
           id: userContributionProject.cityId,
-          name: userContributionProject.cityName ?? "Unknown",
+          name: userContributionProject.cityName,
           nameLocal: userContributionProject.city.nameLocal ?? null,
           countryCode: userContributionProject.countryCode ?? "XX",
           coordinates: { x: userContributionProject.lng ?? 0, y: userContributionProject.lat ?? 0 },

@@ -84,7 +84,7 @@ async function onSearch(event: { query: string }) {
       isLoading.value = true;
 
       // AI : Get current map center for location-based ordering
-      const center = map.value?.getCenter();
+      const center = map.value.getCenter();
       if (!center) {
         console.warn("Map center not available for city search");
         suggestions.value = [];

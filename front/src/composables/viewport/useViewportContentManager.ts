@@ -6,7 +6,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useAuthStore } from "@/stores/authStore";
-import { trpc } from "@/client";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import {
@@ -26,6 +25,7 @@ import {
 import {
   loadedCityIds,
   fetchCityStandaloneProjectsOrCache,
+  fetchCityOverlaysOrCache,
 } from "@/services/navigation/cityDataLoader";
 import type { OverlayData, OverlayObject } from "@/types/index";
 import {
@@ -128,7 +128,7 @@ export function useViewportContentManager() {
     }
 
     // AI : RENDER all cities together based on zoom level
-    const zoom = map.value?.getZoom() ?? 0;
+    const zoom = map.value.getZoom();
     if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
       renderAllLoadedOverlays(true);
     } else {
@@ -149,21 +149,7 @@ export function useViewportContentManager() {
     const mode = overlayStore.mode;
 
     try {
-      // AI : OPTIMIZATION: Check MapStore cache first before querying backend
-      let overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
-
-      if (!overlaysData) {
-        // AI : No cache - fetch from backend
-        overlaysData = await trpc.cities.getCityOverlaysAndProjects.query({
-          cityId,
-          mode,
-        });
-
-        // AI : Cache the data for future use
-        if (overlaysData) {
-          mapStore.setCityProjectsCache(cityId, mode, overlaysData);
-        }
-      }
+      const overlaysData = await fetchCityOverlaysOrCache(cityId, mode);
 
       // AI : CRITICAL: Always mark city as loaded, even if empty!
       loadedCityIds.value.add(cityId);
@@ -183,7 +169,7 @@ export function useViewportContentManager() {
       }
 
       if (shouldRender) {
-        const zoom = map.value?.getZoom() ?? 0;
+        const zoom = map.value.getZoom();
 
         // AI : RENDER based on zoom level
         if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
@@ -378,7 +364,7 @@ export function useViewportContentManager() {
       // AI : In edit mode, include local pending projects from store
       if (mode === "edit") {
         const localProjects = Object.values(projectStore.projects).filter(
-          (p) => p.city?.id === cityId && p.status === null,
+          (p) => p.city.id === cityId && p.status === null,
         );
 
         for (const localP of localProjects) {

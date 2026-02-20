@@ -14,6 +14,7 @@
   "rules": {
     "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
     "eslint/no-await-in-loop": "off", // false positives in several places
+    "typescript/prefer-readonly-parameter-types": "off",
     "eslint/func-style": ["warn", "declaration"],
     "arrow-body-style": [
       "off", //temp
