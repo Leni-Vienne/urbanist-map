@@ -7,7 +7,6 @@
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
-import type { ShallowRef } from "vue";
 import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
 
 // AI : ============================================================================
@@ -267,16 +266,14 @@ export function getOverlayMarkerColor(
  * @param specificOverlayId - Optional overlay ID to update only one overlay (optimization)
  */
 export function updateOverlayMarkersColors(
-  overlays: ShallowRef<Record<string, OverlayObject>>,
+  overlays: Record<string, OverlayObject>,
   mode: AppMode,
   specificOverlayId?: string,
 ): void {
-  if (overlays?.value === null) return;
-
   // AI : If specific overlay ID provided, only update that one
   if (specificOverlayId) {
-    const overlayObject = overlays.value[specificOverlayId];
-    if (overlayObject !== undefined && overlayObject.marker) {
+    const overlayObject = overlays[specificOverlayId];
+    if (overlayObject?.marker) {
       const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
       overlayObject.marker.setIcon(colorIcon);
@@ -285,7 +282,7 @@ export function updateOverlayMarkersColors(
   }
 
   // AI : Otherwise, iterate through all overlay objects that have markers
-  for (const overlayObject of Object.values(overlays.value)) {
+  for (const overlayObject of Object.values(overlays)) {
     if (overlayObject.marker) {
       // AI : Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, mode);

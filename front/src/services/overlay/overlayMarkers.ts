@@ -40,7 +40,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   // AI : Calculate centroid from corners (average of all 4 corners) to match backend calculation
   // AI : This ensures marker position doesn't jump when zooming in/out
   const corners = overlayObject.overlay.getCorners();
-  if (corners?.length === 4) {
+  if (corners.length === 4) {
     const centroidLat = (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4;
     const centroidLng = (corners[0]!.lng + corners[1]!.lng + corners[2]!.lng + corners[3]!.lng) / 4;
     overlayObject.marker.setLatLng([centroidLat, centroidLng]);
@@ -155,12 +155,12 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   let corners = savedOverlay.corners;
   if (overlayStore.mode === "edit") {
     const cached = getFromEditModeOverlayCache(savedOverlay.id);
-    if (cached?.corners?.length === 4) {
+    if (cached?.corners.length === 4) {
       corners = cached.corners;
     }
   }
 
-  if (!corners || corners.length !== 4) return;
+  if (corners.length !== 4) return;
 
   const centroid = calculateCentroidFromCorners(corners);
   if (!centroid) return;

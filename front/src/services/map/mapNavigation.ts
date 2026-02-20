@@ -27,16 +27,7 @@ export function initializeCameraBounds() {
   function updateBounds() {
     try {
       const bounds = map.value.getBounds();
-      if (!bounds) {
-        console.warn("Map bounds not available");
-        return;
-      }
-
       const zoom = map.value.getZoom();
-      if (zoom === undefined || zoom === null) {
-        console.warn("Map zoom not available");
-        return;
-      }
 
       const newBounds: CameraBounds = {
         north: bounds.getNorth(),

@@ -1642,7 +1642,7 @@ async function handleReplacementConflicts(
 
     const originalRecord = originalOverlay[0];
 
-    if (!originalRecord || originalRecord.status !== "approved") {
+    if (originalRecord?.status !== "approved") {
       return {
         success: false,
         error: "Original overlay not found or not approved",

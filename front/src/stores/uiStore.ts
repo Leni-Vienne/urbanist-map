@@ -215,6 +215,7 @@ export const useUiStore = defineStore("ui", () => {
 });
 
 // AI : Enable HMR for this store
+// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useUiStore, import.meta.hot));
 }

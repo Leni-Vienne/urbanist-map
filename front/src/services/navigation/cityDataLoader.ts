@@ -30,9 +30,7 @@ export async function fetchCityOverlaysOrCache(
       cityId,
       mode,
     });
-    if (overlaysData) {
-      mapStore.setCityProjectsCache(cityId, mode, overlaysData);
-    }
+    mapStore.setCityProjectsCache(cityId, mode, overlaysData);
   }
   return overlaysData;
 }
@@ -54,9 +52,7 @@ export async function fetchCityStandaloneProjectsOrCache(
       mode,
       limit: 100,
     });
-    if (standaloneProjects) {
-      mapStore.setCityStandaloneProjectsCache(cityId, mode, standaloneProjects);
-    }
+    mapStore.setCityStandaloneProjectsCache(cityId, mode, standaloneProjects);
   }
   return standaloneProjects;
 }

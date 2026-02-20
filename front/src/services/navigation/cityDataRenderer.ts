@@ -2,7 +2,6 @@
 // AI : Separated from data loading to avoid circular dependencies
 
 import { map } from "@/services/core/map";
-import { ref } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
@@ -84,7 +83,7 @@ function renderCityOverlaysForNavigation(overlaysData: OverlayData[], forceFullO
   // AI : Explicitly update marker colors after data refresh to ensure they reflect new state
   // AI : (e.g. turning yellow if hasPendingChanges is now true)
   // AI : We do this BEFORE rendering new overlays to ensure consistent state
-  updateOverlayMarkersColors(ref(overlayStore.overlays), overlayStore.mode);
+  updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
 
   if (shouldRenderFullOverlays) {
     // AI : Do NOT render all overlays immediately (prevents GPU crash)

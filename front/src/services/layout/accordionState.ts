@@ -112,7 +112,7 @@ export function expandAccordionForOverlay(
 ): boolean {
   // AI : Find the project and overlay
   for (const project of projects) {
-    const overlay = project.overlays?.find((o) => o.id === overlayId);
+    const overlay = project.overlays.find((o) => o.id === overlayId);
     if (overlay) {
       let didExpand = false;
 

@@ -83,10 +83,6 @@ export function initializeMap() {
 
 export function disableLeafletKeyboardEvents() {
   const mapContainer = map.value.getContainer();
-  if (!mapContainer) {
-    console.error("Map container not found!");
-    return;
-  }
 
   // To prevent keystrokes from InfoPopup to be intercepted by Leaflet
   // Unfortunately, it prevnts the user of the arrow keys to move the map (but there is prob a way around it)

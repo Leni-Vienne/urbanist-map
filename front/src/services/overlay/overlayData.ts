@@ -42,7 +42,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   // AI : Use factory function but preserve existing data
   return createOverlayObject({
     ...savedOverlay,
-    project: project ? { ...project, city: project.city ?? null } : null,
+    project: project ? { ...project, city: project.city } : null,
     overlay: null,
     marker: null,
     corners: savedOverlay.corners,
