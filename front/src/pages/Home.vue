@@ -70,7 +70,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useBeforeUnload } from "@/composables/core/useBeforeUnload";
 import { useRoute } from "vue-router";
-import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 import { useI18n } from "vue-i18n";
 
 import MapView from "@/components/map/MapView.vue";
@@ -98,12 +97,32 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const route = useRoute();
-const {
-  fetchModeratedContributions,
-  hasUnacknowledgedItems,
-  reset: resetModeratedContributions,
-} = useModeratedContributions();
 const { t } = useI18n();
+
+// AI : Dynamically import moderation composable for chunk splitting — never loads for anonymous users
+watch(
+  () => authStore.isAuthenticated,
+  async (isAuth, wasAuth) => {
+    if (isAuth) {
+      const { useModeratedContributions } =
+        await import("@/composables/moderation/useModeratedContributions");
+      const { fetchModeratedContributions, hasUnacknowledgedItems } = useModeratedContributions();
+      await fetchModeratedContributions();
+      uiStore.hasUnacknowledgedModeratedContributions = hasUnacknowledgedItems.value;
+      if (hasUnacknowledgedItems.value) {
+        uiStore.moderatedContributionsDialogVisible = true;
+      }
+    } else if (wasAuth) {
+      // AI : wasAuth guard prevents loading the chunk on anonymous page load
+      const { useModeratedContributions } =
+        await import("@/composables/moderation/useModeratedContributions");
+      const { reset } = useModeratedContributions();
+      reset();
+      uiStore.hasUnacknowledgedModeratedContributions = false;
+    }
+  },
+  { immediate: true },
+);
 
 // AI : Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
@@ -158,16 +177,6 @@ onMounted(async () => {
   try {
     await authStore.initialize();
 
-    // AI : Check for moderated contributions if user is logged in
-    if (authStore.isAuthenticated) {
-      await fetchModeratedContributions();
-
-      // AI : Show dialog if there are unacknowledged items
-      if (hasUnacknowledgedItems.value) {
-        uiStore.moderatedContributionsDialogVisible = true;
-      }
-    }
-
     // AI : Handle auth query parameters from URL
     if (route.query.auth === "success") {
       toast.add({
@@ -189,25 +198,6 @@ onMounted(async () => {
     console.error("Error during application initialization:", error);
   }
 });
-
-// AI : Watch for authentication changes to fetch moderated contributions when user logs in
-watch(
-  () => authStore.isAuthenticated,
-  async (isAuthenticated, wasAuthenticated) => {
-    if (isAuthenticated && !wasAuthenticated) {
-      // AI : User just logged in - fetch moderated contributions
-      await fetchModeratedContributions();
-
-      // AI : Show dialog if there are unacknowledged items
-      if (hasUnacknowledgedItems.value) {
-        uiStore.moderatedContributionsDialogVisible = true;
-      }
-    } else if (!isAuthenticated && wasAuthenticated) {
-      // AI : User just logged out - clear cached contributions
-      resetModeratedContributions();
-    }
-  },
-);
 
 // AI : Get user-friendly error messages
 function getErrorMessage(error: string): string {

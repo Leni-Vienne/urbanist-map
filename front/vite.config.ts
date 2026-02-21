@@ -5,6 +5,7 @@ import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import tailwindcss from "@tailwindcss/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
 import path from "node:path";
+import fs from "fs";
 import { visualizer } from "rollup-plugin-visualizer";
 import { qrcode } from "vite-plugin-qrcode";
 
@@ -12,6 +13,34 @@ import { qrcode } from "vite-plugin-qrcode";
 export default defineConfig(({ mode }) => ({
   envDir: "../", // Only way that .env can be imported, '../.env' don't work for some reason
   plugins: [
+    {
+      name: "bundle-report-clean",
+      apply: "build",
+      generateBundle(_, bundle) {
+        const report: any = {};
+        const root = process.cwd(); // This is your project folder path
+
+        Object.entries(bundle).forEach(([fileName, chunk]) => {
+          if (chunk.type === "chunk") {
+            // We just "delete" the root path string from every file path
+            report[fileName] = Object.keys(chunk.modules)
+              .filter((m) => !m.endsWith(".css"))
+              .map((m) => {
+                // 1. Force both paths to use forward slashes /
+                const cleanRoot = root.replace(/\\/g, "/");
+                const cleanModule = m.replace(/\\/g, "/");
+
+                // 2. Now the replace will actually find the match
+                return cleanModule.replace(cleanRoot, "");
+              });
+          }
+        });
+
+        fs.mkdirSync("./junk", { recursive: true });
+        fs.writeFileSync("./junk/full-bundle-report.json", JSON.stringify(report, null, 2));
+        console.log("Done! Check ./junk/full-bundle-report.json");
+      },
+    },
     //fontDisplaySwapPlugin(),
     vue(),
     qrcode(),
@@ -101,7 +130,7 @@ export default defineConfig(({ mode }) => ({
       },
       output: {
         codeSplitting: {
-          groups: [
+          /*groups: [
             // AI : Split Vue ecosystem for stable long-term caching
             {
               test: (id) => /node_modules\/(vue|@vue|pinia|vue-router|vue-i18n)/.test(id),
@@ -117,7 +146,7 @@ export default defineConfig(({ mode }) => ({
               test: (id) => id.includes("node_modules"),
               name: "vendor",
             },
-          ],
+          ],*/
         },
       },
     },

@@ -26,7 +26,10 @@
       <span class="user-avatar relative">
         <i class="pi pi-user"></i>
         <!-- AI : Red dot on avatar if there are unread notifications -->
-        <span v-if="hasUnacknowledgedItems" class="notification-dot-avatar"></span>
+        <span
+          v-if="uiStore.hasUnacknowledgedModeratedContributions"
+          class="notification-dot-avatar"
+        ></span>
       </span>
       <span class="username">{{ authStore.user?.username }}</span>
       <i class="pi pi-chevron-down" :class="{ rotated: isMenuOpen }"></i>
@@ -50,7 +53,12 @@
             <i class="pi pi-bell"></i>
             <span>{{ $t("moderation.moderatedContributions.viewResults") }}</span>
           </div>
-          <Badge v-if="hasUnacknowledgedItems" severity="danger" class="ml-auto" value="!" />
+          <Badge
+            v-if="uiStore.hasUnacknowledgedModeratedContributions"
+            severity="danger"
+            class="ml-auto"
+            value="!"
+          />
         </button>
 
         <div class="separator my-1"></div>
@@ -79,8 +87,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
-
 import AuthModal from "./AuthModal.vue";
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 
@@ -90,7 +96,6 @@ const toast = useToast();
 const { t } = useI18n();
 const isMenuOpen = ref(false);
 const userPopover = ref();
-const { hasUnacknowledgedItems } = useModeratedContributions();
 
 // AI : Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
