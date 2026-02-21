@@ -13,31 +13,18 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import type { OverlayObject } from "@/types/index";
 import { map } from "@/services/core/map";
+
+// AI : leaflet-toolbar registers map._toolbars via L.Map.addInitHook, which only runs for maps
+// AI : created AFTER leaflet-toolbar is imported. Since this module loads lazily (after the map
+// AI : is already initialized), we must manually patch the existing map instance.
+// @ts-ignore - _toolbars is an internal leaflet-toolbar property
+if (map.value && !map.value._toolbars) {
+  // @ts-ignore
+  map.value._toolbars = {};
+}
 import { saveToHistory } from "@/services/overlay/overlayHistory";
 import { updateMarkerPosition } from "@/services/overlay/overlayMarkers";
-
-/**
- * AI : Callback registry for toolbar actions
- * AI : This avoids circular dependencies by allowing useOverlay.ts to register its functions
- * AI : after both modules are loaded
- */
-const toolbarCallbacks = {
-  focusCameraToOverlay: null as ((direction: "next" | "previous") => void) | null,
-  undo: null as (() => void) | null,
-  redo: null as (() => void) | null,
-};
-
-/**
- * AI : Register callbacks from useOverlay.ts
- * AI : Called by useOverlay.ts after it's loaded to provide the functions
- */
-export function registerToolbarCallbacks(callbacks: {
-  focusCameraToOverlay: (direction: "next" | "previous") => void;
-  undo: () => void;
-  redo: () => void;
-}) {
-  Object.assign(toolbarCallbacks, callbacks);
-}
+import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 
 /**
  * AI : Check if user can delete an overlay
@@ -210,7 +197,7 @@ const previousOverlayTool = L.Toolbar2.Action.extend({
     L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
   addHooks: function addHooks() {
-    toolbarCallbacks.focusCameraToOverlay?.("previous");
+    overlayCallbacks.focusCameraToOverlay?.("previous");
   },
 });
 
@@ -230,7 +217,7 @@ const nextOverlayTool = L.Toolbar2.Action.extend({
     L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
   addHooks: function addHooks() {
-    toolbarCallbacks.focusCameraToOverlay?.("next");
+    overlayCallbacks.focusCameraToOverlay?.("next");
   },
 });
 
@@ -250,7 +237,7 @@ const undoTool = L.Toolbar2.Action.extend({
     L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
   addHooks: function addHooks() {
-    toolbarCallbacks.undo?.();
+    overlayCallbacks.undo?.();
   },
 });
 
@@ -270,7 +257,7 @@ const redoTool = L.Toolbar2.Action.extend({
     L.Toolbar2.Action.prototype.initialize?.apply(this, [...arguments]);
   },
   addHooks: function addHooks() {
-    toolbarCallbacks.redo?.();
+    overlayCallbacks.redo?.();
   },
 });
 

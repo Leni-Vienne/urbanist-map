@@ -26,7 +26,7 @@ function calculateDistance(point1: Corner, point2: Corner): number {
   return R * c;
 }
 
-export interface OverlaySizeValidationResult {
+interface OverlaySizeValidationResult {
   isValid: boolean;
 }
 

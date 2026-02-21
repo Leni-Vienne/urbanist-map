@@ -1,7 +1,33 @@
 // AI : Overlay lifecycle management - extracted to break circular dependencies
+// AI : Also serves as the shared state hub for cross-chunk callback registration and creation tracking,
+// AI : keeping these tiny primitives out of the lazy chunks (overlayRendering, overlayToolbar).
+import L from "leaflet";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { clearOverlaysBeingCreated } from "@/services/overlay/overlayRendering";
+import type { OverlayObject } from "@/types/index";
+
+// AI : Tracks overlay IDs currently being created to prevent duplicates during async image loads.
+// AI : overlayRendering.ts uses .has()/.add()/.delete() directly; clearAllOverlays uses .clear().
+export const overlaysBeingCreated = new Set<string>();
+
+// AI : Cross-chunk callback registry. Modules in the initial bundle assign these at init time;
+// AI : lazy chunks (overlayRendering, overlayToolbar) read them at call time.
+// AI : Using a plain object so importers can mutate properties directly without ES module re-export restrictions.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const overlayCallbacks: {
+  // AI : Registered by overlay.ts (initial bundle); called from overlayRendering.ts (lazy chunk)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  checkOverlaySize: ((overlay: any, overlayObject: OverlayObject) => void) | null;
+  // AI : Registered by overlayEditing.ts (initial bundle); called from overlayToolbar.ts (lazy chunk)
+  focusCameraToOverlay: ((direction: "next" | "previous") => void) | null;
+  undo: (() => void) | null;
+  redo: (() => void) | null;
+} = {
+  checkOverlaySize: null,
+  focusCameraToOverlay: null,
+  undo: null,
+  redo: null,
+};
 
 /**
  * AI : Clear all overlays from the map and reset collections
@@ -17,8 +43,8 @@ export function clearAllOverlays(preserveStoreData = false): void {
   // AI : before onAddedToMap callback completes (two separate Leaflet objects for same overlay ID)
   const overlaysToRemove: L.Layer[] = [];
   map.value.eachLayer((layer) => {
-    // @ts-ignore - L.DistortableImageOverlay exists but isn't in types
-    if (layer instanceof L.DistortableImageOverlay) {
+    // @ts-ignore - L.DistortableImageOverlay may not be loaded yet (lazy chunk)
+    if (L.DistortableImageOverlay && layer instanceof L.DistortableImageOverlay) {
       overlaysToRemove.push(layer);
     }
   });
@@ -28,7 +54,7 @@ export function clearAllOverlays(preserveStoreData = false): void {
   }
 
   // AI : Clear in-progress tracking to prevent stale entries
-  clearOverlaysBeingCreated();
+  overlaysBeingCreated.clear();
 
   // AI : Collect IDs for markers that need to be cleared from allMarkers cache
   const markerIdsToClear: string[] = [];

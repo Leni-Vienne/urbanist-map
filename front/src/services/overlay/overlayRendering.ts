@@ -3,8 +3,21 @@
 // AI : Handles all Leaflet-specific overlay creation, loading, and event binding
 
 import L from "leaflet";
+// AI : leaflet-toolbar must be imported before leaflet-distortableimage because
+// AI : the distortableimage IIFE uses L.Toolbar2.Action at module evaluation time (t[280]).
+// AI : In ESM, imports are evaluated in declaration order, so this ordering is critical
+// AI : to ensure L.Toolbar2 exists before the distortableimage bundle's IIFE runs.
+import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { map } from "@/services/core/map";
+
+// AI : leaflet-distortableimage's addInitHook adds the 'ldi' class to the map container,
+// AI : which is required for the CSS rule that sets pointer-events: all on overlay images.
+// AI : Since this chunk loads lazily after map creation, the addInitHook never ran for the
+// AI : existing map — we must apply it manually here.
+if (map.value && !L.DomUtil.hasClass(map.value.getContainer(), "ldi")) {
+  L.DomUtil.addClass(map.value.getContainer(), "ldi");
+}
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
@@ -30,41 +43,8 @@ import {
   createSingleMarker,
 } from "@/services/overlay/overlayMarkers";
 import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
+import { overlaysBeingCreated, overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import type { OverlayObject, OverlayData } from "@/types/index";
-
-// AI : Callback type for checkOverlaySizeAndWarn - will be registered by useOverlay.ts
-type CheckOverlaySizeAndWarnFn = (
-  overlay: L.DistortableImageOverlay,
-  overlayObject: OverlayObject,
-) => void;
-
-// AI : Callback for checkOverlaySizeAndWarn - will be registered by useOverlay.ts
-let checkOverlaySizeAndWarn: CheckOverlaySizeAndWarnFn | null = null;
-
-/**
- * AI : Register callback for checkOverlaySizeAndWarn
- * AI : Called by useOverlay.ts to provide the function
- */
-export function registerRenderingCallbacks(callbacks: {
-  checkOverlaySizeAndWarn: CheckOverlaySizeAndWarnFn;
-}) {
-  checkOverlaySizeAndWarn = callbacks.checkOverlaySizeAndWarn;
-}
-
-/**
- * AI : Track overlays currently being created to prevent duplicates
- * AI : When renderSingleOverlay is called multiple times before onAddedToMap callback fires,
- * AI : this prevents creating multiple Leaflet objects for the same overlay ID
- */
-const overlaysBeingCreated = new Set<string>();
-
-/**
- * AI : Clear the in-progress tracking set
- * AI : Called by clearAllOverlays to prevent stale entries when overlays are removed from map
- */
-export function clearOverlaysBeingCreated(): void {
-  overlaysBeingCreated.clear();
-}
 
 /**
  * AI : Create a Leaflet overlay on the map
@@ -292,8 +272,8 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   updateMarkerTooltip(overlayObject);
 
   // AI : Check size validation for overlays in edit mode
-  if (overlayStore.mode === "edit" && checkOverlaySizeAndWarn) {
-    checkOverlaySizeAndWarn(overlayObject.overlay, overlayObject);
+  if (overlayStore.mode === "edit" && overlayCallbacks.checkOverlaySize) {
+    overlayCallbacks.checkOverlaySize(overlayObject.overlay, overlayObject);
   }
 
   // AI : Setup hover events for project highlighting after element is available
@@ -361,8 +341,8 @@ function setupOverlayEventHandlers(
     updateMarkerPosition(overlayObject);
 
     // AI : Validate overlay size in real-time
-    if (checkOverlaySizeAndWarn) {
-      checkOverlaySizeAndWarn(overlay, overlayObject);
+    if (overlayCallbacks.checkOverlaySize) {
+      overlayCallbacks.checkOverlaySize(overlay, overlayObject);
     }
 
     saveToHistory(overlayObject);
@@ -506,9 +486,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
 
   // AI : CRITICAL: Also check if this overlay is currently being created
   // AI : This prevents duplicates when renderFullOverlays is called multiple times rapidly
-  const isBeingCreated = overlaysBeingCreated.has(cdnOverlay.id);
-
-  if (hasValidLayer || isBeingCreated) {
+  if (hasValidLayer || overlaysBeingCreated.has(cdnOverlay.id)) {
     return;
   }
 

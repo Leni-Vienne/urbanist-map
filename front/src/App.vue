@@ -22,25 +22,18 @@ if (import.meta.env.VITE_DEBUG) {
         .filter((res) => res.initiatorType === "script" || res.name.endsWith(".js"));
 
       const cleanList = scripts
-        .map((res) => {
-          const name = res.name.split("/").pop();
-          const size = (res.transferSize / 1024).toFixed(2);
-          return `${name} | ${size} kB`;
-        })
+        .map((res) => ({
+          name: res.name.split("/").pop(),
+          size: res.transferSize,
+        }))
+        .sort((a, b) => b.size - a.size)
+        .map(({ name, size }) => `${name} | ${(size / 1024).toFixed(2)} kB`)
         .join("\n");
 
       const totalKB = (scripts.reduce((sum, res) => sum + res.transferSize, 0) / 1024).toFixed(2);
       const finalReport = `${cleanList}\n\nTotal Transfer: ${totalKB} kB`;
 
-      if (typeof copy === "function") {
-        copy(finalReport);
-        console.log(
-          "%c✅ Report copied to clipboard! Paste it into ./junk/pageLoad.txt",
-          "color: #4CAF50; font-weight: bold;",
-        );
-      } else {
-        console.log(finalReport);
-      }
+      console.log(finalReport);
     }, 1000);
   });
 }

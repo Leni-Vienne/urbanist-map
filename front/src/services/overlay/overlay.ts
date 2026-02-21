@@ -1,5 +1,3 @@
-import "leaflet-toolbar";
-import "leaflet-distortableimage";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -12,10 +10,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { getOverlayBounds } from "@/services/overlay/overlayPositionManagement";
-import {
-  renderViewModeOverlays,
-  registerRenderingCallbacks,
-} from "@/services/overlay/overlayRendering";
+import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import {
   checkOverlaySizeAndWarn,
   registerNavigationCallback,
@@ -159,6 +154,9 @@ async function loadOverlay(
         throw new Error("Overlay not found");
       }
 
+      // AI : Dynamic import - overlayRendering (leaflet-distortableimage) is only needed here
+      const { renderViewModeOverlays } = await import("@/services/overlay/overlayRendering");
+
       // AI : Render the main overlay
       renderViewModeOverlays([result.overlay], true, false);
 
@@ -254,7 +252,6 @@ queueMicrotask(() => {
   registerNavigationCallback(navigateOverlaySequence);
 });
 
-// AI : Register rendering callbacks to avoid circular dependencies
-registerRenderingCallbacks({
-  checkOverlaySizeAndWarn,
-});
+// AI : Register checkOverlaySizeAndWarn into the tiny registry module
+// AI : overlayRendering.ts reads from the registry, so this avoids a static import of the heavy rendering module
+overlayCallbacks.checkOverlaySize = checkOverlaySizeAndWarn;

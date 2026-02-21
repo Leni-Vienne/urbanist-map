@@ -1,6 +1,6 @@
 {
   "entry": ["front/src/main.{ts,js}", "front/src/index.html"],
-  "project": ["front/src/**/*.{ts,js,vue}"],
+  "project": ["front/src/**/*.{ts,js,vue}", "shared/**/*.{ts,js,vue}", "back/**/*.{ts,js}"],
   "ignore": ["**/*.d.ts", "public/**/*"],
   "ignoreDependencies": ["@vitejs/plugin-vue"],
   "vite": true,

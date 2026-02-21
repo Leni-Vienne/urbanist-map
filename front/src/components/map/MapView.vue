@@ -49,7 +49,6 @@ import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/cor
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
-import { undo, redo } from "@/services/overlay/overlayEditing";
 import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
@@ -114,10 +113,11 @@ onUnmounted(() => {
   viewportManager.cleanupEventListeners();
 });
 
-// AI : Keyboard shortcuts handler
-function handleKeyDown(event: KeyboardEvent) {
+// AI : Keyboard shortcuts handler - overlayEditing is lazy-loaded to keep it out of the initial bundle
+async function handleKeyDown(event: KeyboardEvent) {
   // AI : Undo: Ctrl+Z (works on all keyboard layouts)
   if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
+    const { undo } = await import("@/services/overlay/overlayEditing");
     undo();
   }
   // AI : Redo: Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
@@ -125,6 +125,7 @@ function handleKeyDown(event: KeyboardEvent) {
     event.ctrlKey &&
     (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
   ) {
+    const { redo } = await import("@/services/overlay/overlayEditing");
     redo();
   }
 }

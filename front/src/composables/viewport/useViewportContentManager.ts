@@ -8,10 +8,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import {
-  updateOverlayEditingState,
-  saveAllOverlaysToCache,
-} from "@/services/overlay/overlayEditing";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { pruneMapEntities } from "@/services/map/viewportPruning";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
@@ -540,6 +536,7 @@ export function useViewportContentManager() {
         // AI : If we are leaving edit mode, we must save the current state to cache
         // AI : This prevents data loss for user's pending overlays that disappear in View mode
         if (oldMode === "edit") {
+          const { saveAllOverlaysToCache } = await import("@/services/overlay/overlayEditing");
           saveAllOverlaysToCache("edit");
         }
 
@@ -601,7 +598,8 @@ export function useViewportContentManager() {
           // AI : Update existing overlays in-place with new toolbar actions and positions
           // AI : MOVED HERE (after reload) to ensure we operate on fresh data
           // AI : This preserves edit mode cache and updates marker colors after modifications
-          updateOverlayEditingState();
+          const { updateOverlayEditingState } = await import("@/services/overlay/overlayEditing");
+          await updateOverlayEditingState();
 
           // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // AI : This ensures markers appear immediately without requiring user to click city or zoom

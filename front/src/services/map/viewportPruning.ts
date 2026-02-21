@@ -3,8 +3,10 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
-import { renderViewModeOverlays, createLeafletOverlay } from "@/services/overlay/overlayRendering";
+// AI : Dynamic import for chunk splitting - overlayRendering pulls in leaflet-distortableimage
+// AI : which is only needed when the user zooms in far enough to see overlay images
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
+import type { OverlayObject } from "@/types/index";
 import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
@@ -183,7 +185,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 
   // AI : Verify if we have overlays to render
   if (overlaysToRender.length > 0) {
-    renderViewModeOverlays(overlaysToRender, true, false);
+    // AI : Dynamic import keeps leaflet-distortableimage out of the initial bundle
+    // AI : Module is cached after first load, so subsequent calls are essentially synchronous
+    void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
+      renderViewModeOverlays(overlaysToRender, true, false);
+    });
   }
 
   // 2. Process remaining overlays in store (e.g. newly created ones in Edit Mode)
@@ -192,6 +198,9 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   // AI : In 'view' and 'moderation' modes, viewModeOverlays is the exhaustive source of truth.
 
   const authStore = useAuthStore();
+
+  // AI : Collect edit-mode overlays needing Leaflet layer recreation to batch the dynamic import
+  const editOverlaysToRecreate: OverlayObject[] = [];
 
   for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
     if (processedIds.has(id)) continue;
@@ -215,13 +224,8 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 
       if (overlay.overlay === null && showImages) {
         // AI : Recreate overlay if it was destroyed (e.g. valid local/pending overlay coming back into view)
-        const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
-        if (newOverlay) {
-          overlay.overlay = newOverlay;
-          const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
-          newOverlay.setCorners(leafletCorners);
-          newOverlay.addTo(mapInstance);
-        }
+        // AI : Batched into editOverlaysToRecreate to use a single dynamic import call
+        editOverlaysToRecreate.push(overlay);
       } else {
         syncLayerToMap(overlay.overlay, showImages, mapInstance);
       }
@@ -234,6 +238,22 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         processDestructionQueue();
       }
     }
+  }
+
+  if (editOverlaysToRecreate.length > 0) {
+    // AI : Dynamic import keeps leaflet-distortableimage out of the initial bundle
+    // AI : Module is cached after first load, so subsequent calls are essentially synchronous
+    void import("@/services/overlay/overlayRendering").then(({ createLeafletOverlay }) => {
+      for (const overlay of editOverlaysToRecreate) {
+        const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
+        if (newOverlay) {
+          overlay.overlay = newOverlay;
+          const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
+          newOverlay.setCorners(leafletCorners);
+          newOverlay.addTo(mapInstance);
+        }
+      }
+    });
   }
 }
 

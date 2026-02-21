@@ -52,7 +52,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Project } from "@/types/index";
-import { formatDate, formatProjectDateRange } from "@/utils/dateFormat";
+import { formatDate } from "@/utils/dateFormat";
+import { formatProjectDateRange } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 
