@@ -53,17 +53,14 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
-  // AI : Wait for auth to initialize if it hasn't yet
-  if (authStore.loading) {
+  if (to.meta.requiresAuth) {
+    // AI : Block navigation for protected routes until auth is resolved
     await authStore.initialize();
-  }
 
-  // AI : Redirects to home if auth/admin requirements are not met
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return { name: "Home" };
-  }
-
-  if (to.meta.requiresAdmin && authStore.user?.role !== "admin") {
-    return { name: "Home" };
+    if (!authStore.isAuthenticated) return { name: "Home" };
+    if (to.meta.requiresAdmin && authStore.user?.role !== "admin") return { name: "Home" };
+  } else {
+    // AI : Fire auth check in background without blocking navigation for public routes
+    authStore.initialize();
   }
 });
