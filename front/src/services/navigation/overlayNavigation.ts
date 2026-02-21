@@ -19,8 +19,7 @@ import { resolveOverlayCorners } from "@/services/overlay/overlayPositionResolve
 import { requestScrollTo } from "@/services/layout/accordionState";
 
 /**
- * AI : Shared logic for navigating to a location by simulating country → city marker clicks
- * AI : This loads the country cities, adds city markers, and load city projects
+ * AI : Shared logic for navigating to a city, loading its cities and projects
  * @returns Callback to switch to country layer after flight, or null if not cross-country
  */
 async function prepareNavigationToCity(
@@ -150,7 +149,7 @@ function handleSameOverlayNavigation(overlayId: string, autoSelect: boolean): bo
 
 /**
  * AI : Navigates to an overlay by simulating the complete marker click flow
- * AI : This replicates exactly what happens when clicking country marker → city marker → overlay
+ * AI : This replicates what happens when clicking a city marker → overlay
  * @param overlayId - The ID of the overlay to navigate to
  * @param cityId - The city ID where the overlay is located
  * @param cityName - The name of the city
@@ -230,7 +229,7 @@ export async function navigateToOverlayWithCity(
 
 /**
  * AI : Navigates to a marker project by simulating the complete marker click flow
- * AI : This replicates exactly what happens when clicking country marker → city marker
+ * AI : This replicates what happens when clicking a city marker
  * @param lat - Latitude of the marker project
  * @param lng - Longitude of the marker project
  * @param cityId - The city ID where the marker project is located

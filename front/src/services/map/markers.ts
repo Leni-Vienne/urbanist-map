@@ -36,8 +36,8 @@ export const markerColors: Record<MarkerColor, string> = {
 // AI : We keep markerColors export for consistency/reuse.
 
 // AI : Simple marker creation - one base color, generate everything else
-// AI : Used for city markers, country markers (generic map markers)
-// AI : Simple marker creation - references global defs in MapSvgDefs.vue
+// AI : Used for city markers (generic map markers)
+// AI : References global defs in MapSvgDefs.vue
 function createMarkerSVG(color: MarkerColor): string {
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
@@ -122,7 +122,7 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : Create simple SVG icon for Leaflet (city, country markers)
+// AI : Create simple SVG icon for Leaflet (city markers)
 export function createColorIcon(color: MarkerColor): L.DivIcon {
   const svgString = createMarkerSVG(color);
 

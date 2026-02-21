@@ -7,6 +7,15 @@
         :value="reportedUsers.length"
         severity="warning"
       />
+      <Button
+        :label="t('admin.pruneImages.button')"
+        icon="pi pi-trash"
+        severity="secondary"
+        size="small"
+        :loading="isPruning"
+        class="ml-auto"
+        @click="handlePruneImages"
+      />
     </div>
 
     <div v-if="isLoading" class="loading-container">
@@ -186,7 +195,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@/composables/ui/useToast";
 import { trpc, type RouterOutput } from "@/client";
 
 // AI : Use tRPC types from RouterOutput
@@ -198,11 +207,39 @@ const toast = useToast();
 // AI : State with proper tRPC types
 const reportedUsers = ref<ReportedUser[]>([]);
 const isLoading = ref(true);
+const isPruning = ref(false);
 const showBanDialog = ref(false);
 const selectedUser = ref<ReportedUser | null>(null);
 const banReason = ref("");
 const deleteContent = ref(false);
 const isBanning = ref(false);
+
+// AI : Run scheduled image deletions on demand
+async function handlePruneImages() {
+  isPruning.value = true;
+  try {
+    const result = await trpc.admin.pruneScheduledDeletions.mutate();
+    toast.add({
+      severity: "success",
+      summary: t("admin.pruneImages.success"),
+      detail: t("admin.pruneImages.successDetail", {
+        deleted: result.deleted,
+        failed: result.failed,
+      }),
+      life: 4000,
+    });
+  } catch (error) {
+    console.error("Failed to prune scheduled deletions:", error);
+    toast.add({
+      severity: "error",
+      summary: t("admin.pruneImages.failed"),
+      detail: t("admin.pruneImages.failedDetail"),
+      life: 3000,
+    });
+  } finally {
+    isPruning.value = false;
+  }
+}
 
 // AI : Load reported users
 async function loadReportedUsers() {

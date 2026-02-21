@@ -1,6 +1,7 @@
 <template>
   <div class="app-container">
     <MapSvgDefs />
+    <Toast />
     <RouterView />
   </div>
 </template>

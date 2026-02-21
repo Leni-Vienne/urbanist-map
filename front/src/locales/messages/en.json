@@ -803,6 +803,13 @@
         "overlayDeleted": "Overlay deleted successfully",
         "deleteError": "Failed to delete"
       }
+    },
+    "pruneImages": {
+      "button": "Prune Images",
+      "success": "Images Pruned",
+      "successDetail": "{deleted} deleted, {failed} failed",
+      "failed": "Prune Failed",
+      "failedDetail": "Failed to run scheduled image deletions"
     }
   }
 }

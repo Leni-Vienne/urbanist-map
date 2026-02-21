@@ -103,6 +103,8 @@ export default defineConfig(({ mode }) => ({
       "primevue/select",
       "primevue/toast",
       //'primevue/virtualscroller',
+      "primevue/datatable",
+      "primevue/column",
       "primevue/focustrap",
       "primevue/ripple",
       "primevue/tooltip",

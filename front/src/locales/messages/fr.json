@@ -805,6 +805,13 @@
         "overlayDeleted": "Image supprimée avec succès",
         "deleteError": "Échec de la suppression"
       }
+    },
+    "pruneImages": {
+      "button": "Purger les images",
+      "success": "Images purgées",
+      "successDetail": "{deleted} supprimées, {failed} échouées",
+      "failed": "Échec de la purge",
+      "failedDetail": "Échec de l'exécution des suppressions d'images planifiées"
     }
   }
 }

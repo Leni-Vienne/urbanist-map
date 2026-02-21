@@ -992,6 +992,35 @@ This document outlines the granular functional test scenarios required to ensure
   4.  **Check**: Overlays appear smoothly without stalling the browser.
   5.  **Regression**: Verify no "flickering" where overlays appear one by one slowly. They should appear in chunks or all at once.
 
+## 34. Admin: Manual Image Pruning (Feature - Feb 21)
+
+- **Location**: `/admin/reports` page, top-right of the page header. The entire `/admin/*` route requires admin role (enforced by the router guard), so no additional visibility check is needed.
+
+### 34.1. Successful Prune
+
+- **Scenario**: Admin triggers a prune when scheduled deletions are due.
+- **Steps**:
+  1. Log in as admin. Navigate to `/admin/reports`.
+  2. Click **"Prune Images"**. **Check**: Button shows a loading spinner while the request is in flight.
+  3. **Check**: A success toast appears with the deleted and failed counts (e.g. `2 deleted, 0 failed`).
+  4. **Check**: Button returns to its normal (non-loading) state after completion.
+
+### 34.2. Prune with No Pending Deletions
+
+- **Scenario**: Admin triggers a prune when nothing is scheduled yet.
+- **Steps**:
+  1. Navigate to `/admin/reports` and click **"Prune Images"**.
+  2. **Check**: Success toast appears with `0 deleted, 0 failed`.
+
+### 34.3. Toast Availability on Admin Pages (Regression)
+
+- **Scenario**: Toasts must work on all pages, not just the map home page.
+- **Checks**:
+  1. Perform any action on `/admin/reports` that triggers a toast (e.g. clear reports, ban user, prune images).
+  2. **Check**: Toast notification appears correctly.
+  3. Navigate to `/admin/user/:userId` and perform a deletion.
+  4. **Check**: Toast notification appears correctly.
+
 ## 33. isModified / pendingModsStore Sync (Fix - Feb 20)
 
 ### 33.1. Caption Change Submits Correctly

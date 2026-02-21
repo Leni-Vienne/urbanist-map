@@ -14,12 +14,6 @@ export const MARKER_OPACITY = {
     hover: 1,
   },
 
-  // AI : Country marker opacity values
-  country: {
-    default: 0.6,
-    hover: 1,
-  },
-
   // AI : Overlay marker opacity values
   overlay: {
     default: 1,

@@ -1,5 +1,4 @@
-// AI : Country data loading composable (no marker rendering)
-// AI : Extracted from useCountryMarkers.ts to separate data loading from UI rendering
+// AI : Country data loading service (no marker rendering)
 import { removeCityMarkers } from "@/services/map/cityMarkers";
 import { removeOverlayMarkers } from "@/services/map/cityOverlays";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";

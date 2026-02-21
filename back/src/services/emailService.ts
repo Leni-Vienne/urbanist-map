@@ -2,7 +2,7 @@ import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import nodemailer from "nodemailer";
 
 // AI : Email service configuration interface
-export interface EmailServiceConfig {
+interface EmailServiceConfig {
   host: string;
   port: number;
   user: string;
@@ -11,7 +11,7 @@ export interface EmailServiceConfig {
 }
 
 // AI : Email service using Amazon SES or Mailpit for development
-export class EmailService {
+class EmailService {
   private config: EmailServiceConfig;
 
   constructor(config: EmailServiceConfig) {

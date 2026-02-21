@@ -2,7 +2,7 @@ import { adminProcedure, router } from "../trpc";
 import { projects, overlays, cities, users } from "../db/schema";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { db } from "../database";
-import { deleteImages } from "../lib/imageCleanup";
+import { deleteImages, executePendingDeletions } from "../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import { decrementCityProjectCount } from "../db/updateCityCounts";
 import * as z from "zod";
@@ -206,4 +206,19 @@ export const adminRouter = router({
         });
       }
     }),
+
+  // AI : Manually trigger execution of all due scheduled image deletions
+  // AI : Replaces the cron-based cleanup-images.ts script with an on-demand admin action
+  pruneScheduledDeletions: adminProcedure.mutation(async () => {
+    try {
+      const result = await executePendingDeletions();
+      return result;
+    } catch (error) {
+      console.error("Error running scheduled deletions:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to run scheduled deletions",
+      });
+    }
+  }),
 });
