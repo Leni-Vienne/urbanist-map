@@ -24,12 +24,7 @@ import {
   createMarker,
 } from "@/services/overlay/overlayMarkers";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import {
-  getEditToolsForOverlay,
-  getViewTools,
-  registerToolbarCallbacks,
-} from "@/services/overlay/overlayToolbar";
-import { createLeafletOverlay } from "@/services/overlay/overlayRendering";
+import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 
 // AI : Navigation function callback - will be registered by useOverlay.ts
@@ -52,8 +47,13 @@ function focusCameraToOverlay(direction: "next" | "previous") {
  * AI : This function updates existing overlays in-place with new toolbar actions
  * AI : and restores/resets positions based on whether we're entering or leaving edit mode
  */
-export function updateOverlayEditingState(): void {
+export async function updateOverlayEditingState(): Promise<void> {
   const overlayStore = useOverlayStore();
+
+  // AI : Dynamic import keeps leaflet-toolbar out of the initial bundle
+  // AI : Module is cached after first load (which happens when overlays first render)
+  const { getEditToolsForOverlay, getViewTools } =
+    await import("@/services/overlay/overlayToolbar");
 
   // AI : Save popup and selection state before toolbar rebuild
   const wasPopupOpen = overlayStore.showInfoPopup;
@@ -302,7 +302,9 @@ export function addOverlay(
   }
 
   // AI : Function to create and setup the overlay (extracted to be called after zoom if needed)
-  function createAndSetupOverlay() {
+  // AI : Async to allow dynamic import of overlayRendering (keeps leaflet-distortableimage out of initial bundle)
+  async function createAndSetupOverlay() {
+    const { createLeafletOverlay } = await import("@/services/overlay/overlayRendering");
     // Create the overlay
     const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
     if (!newOverlay) return;
@@ -446,13 +448,8 @@ function applyHistoryAction(action: "undo" | "redo") {
   }
 }
 
-// AI : Register toolbar callbacks to avoid circular dependencies
-// AI : This must be done here (not in useOverlay.ts) because these functions are defined in this file
-registerToolbarCallbacks({
-  focusCameraToOverlay,
-  undo,
-  redo,
-});
+// AI : Register toolbar callbacks - overlayToolbar.ts (lazy chunk) reads these at call time
+Object.assign(overlayCallbacks, { focusCameraToOverlay, undo, redo });
 
 // AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

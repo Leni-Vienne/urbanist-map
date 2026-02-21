@@ -29,7 +29,7 @@ import type { AppMode } from "@shared/types";
 /**
  * AI : Standard pagination input filters used across multiple endpoints
  */
-export interface PaginationFilters {
+interface PaginationFilters {
   cityId?: number;
   countryCode?: string;
   cursor?: string;
@@ -428,7 +428,7 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
 // AI : ============================================================================
 
 // AI : Type for user context from tRPC (can be undefined or null)
-export type UserContext =
+type UserContext =
   | {
       id: string;
       role?: string | null;

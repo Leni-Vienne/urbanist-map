@@ -75,20 +75,22 @@
       </div>
     </Popover>
 
-    <!-- AI : Auth Modal -->
-    <AuthModal v-model:visible="uiStore.authModalVisible" />
+    <!-- AI : Auth Modal — v-if prevents mounting (and async loading) until actually needed -->
+    <AuthModal v-if="uiStore.authModalVisible" v-model:visible="uiStore.authModalVisible" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from "vue";
+import { ref, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { useUnsavedChanges } from "@/composables/core/useUnsavedChanges";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-import AuthModal from "./AuthModal.vue";
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
+
+// AI : Lazy-load AuthModal for chunk splitting — avoids pulling primevue's password
+const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();

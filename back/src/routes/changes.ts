@@ -17,9 +17,6 @@ import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 
-// AI : Use shared change request schema for validation
-export type { SubmitChangeRequestInput, FieldChange } from "../lib/types";
-
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });

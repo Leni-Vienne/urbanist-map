@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onActivated, onDeactivated, nextTick } from "vue";
+import { computed, ref, onActivated, onDeactivated, nextTick, defineAsyncComponent } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -111,7 +111,8 @@ import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
-import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
+// AI : Lazy-loaded - only needed when a city is selected and projects are shown
+const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import type { ProjectForModeration, OverlayForModeration } from "@/types/index";
 

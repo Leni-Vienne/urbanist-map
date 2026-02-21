@@ -48,8 +48,8 @@ export default defineConfig(({ mode }) => ({
       filename: "stats.html",
       open: false,
       gzipSize: true,
-      template: "list", // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
-      exclude: [{ bundle: "**/vendor*" }, { file: "**/node_modules/**" }],
+      template: "treemap", // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
+      //exclude: [{ bundle: "**/vendor*" }, { file: "**/node_modules/**" }],
     }),
     tailwindcss(),
     mode === "development" && vueDevTools(),
@@ -130,23 +130,24 @@ export default defineConfig(({ mode }) => ({
       },
       output: {
         codeSplitting: {
-          /*groups: [
+          groups: [
+            /*{
+              test: (id) => /node_modules\/(primevue|@primevue|@primeuix)/.test(id),
+              name: "primevue",
+            }*/
             // AI : Split Vue ecosystem for stable long-term caching
-            {
+            /*{
               test: (id) => /node_modules\/(vue|@vue|pinia|vue-router|vue-i18n)/.test(id),
               name: "vue-core",
             },
             // AI : Split PrimeVue UI library (largest vendor dependency)
-            {
-              test: (id) => /node_modules\/(primevue|@primevue|@primeuix)/.test(id),
-              name: "primevue",
-            },
+            
             // AI : Remaining vendor deps (zod, superjson, uuid, leaflet-distortableimage, etc.)
             {
               test: (id) => id.includes("node_modules"),
               name: "vendor",
-            },
-          ],*/
+            },*/
+          ],
         },
       },
     },

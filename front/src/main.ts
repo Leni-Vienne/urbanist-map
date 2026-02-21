@@ -14,7 +14,7 @@ import {
   setI18nInstance,
 } from "./locales";
 
-// AI : Custom PrimeVue preset for Urbanist Map
+// importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement
 const UrbanistmapPreset = definePreset(Aura, {
   semantic: {
     primary: {

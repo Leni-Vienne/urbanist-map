@@ -1,5 +1,14 @@
 import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDate";
-import { dateToFlexibleInput } from "@shared/validation/flexibleDateSchema";
+
+/** AI : Convert a Date to a FlexibleDateInput at the given precision. */
+function dateToFlexibleInput(date: Date, precision: DatePrecision = "day"): FlexibleDateInput {
+  return {
+    year: date.getFullYear(),
+    month: precision !== "year" ? date.getMonth() + 1 : undefined,
+    day: precision === "day" ? date.getDate() : undefined,
+    precision,
+  };
+}
 
 /**
  * AI : Convert a standard Date object (from DB) to FlexibleDateInput (for form)
