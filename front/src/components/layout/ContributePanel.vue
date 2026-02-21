@@ -176,8 +176,6 @@ import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import { useToast } from "@/composables/ui/useToast";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-
-import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -185,7 +183,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
-import { useAuthStore } from "@/stores/authStore";
 import type { RouterOutput } from "@/client";
 import type {
   ProjectForModeration,
@@ -217,12 +214,10 @@ const {
   handleDeleteProject: deleteProjectWithConfirm,
 } = useProjectDeletion();
 
-const { moderatedContributions } = useModeratedContributions();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const mapStore = useMapStore();
-const authStore = useAuthStore();
 const pendingModsStore = usePendingModificationsStore();
 
 // AI : Use submission dialog composable for all submission-related state and handlers

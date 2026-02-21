@@ -32,6 +32,9 @@ export const useUiStore = defineStore("ui", () => {
   const moderatedContributionsDialogVisible = ref(false);
   const welcomeDialogVisible = ref(false);
 
+  // AI : Badge indicator — set by ModeratedContributionsWatcher so UserMenu never imports the composable
+  const hasUnacknowledgedModeratedContributions = ref(false);
+
   // AI : Project dialog state
   const projectDialog = ref<ProjectDialogState>({
     visible: false,
@@ -187,6 +190,7 @@ export const useUiStore = defineStore("ui", () => {
     markerPlacementBarVisible,
     moderatedContributionsDialogVisible,
     welcomeDialogVisible,
+    hasUnacknowledgedModeratedContributions,
     projectDialog,
     projectEditForm,
     overlayEditDialog,
