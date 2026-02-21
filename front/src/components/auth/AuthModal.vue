@@ -351,9 +351,38 @@ watch(isLoginMode, (isLogin) => {
   }
 });
 
+// AI : Lazily inject the Turnstile script the first time signup mode is shown
+function loadTurnstileScript(): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (globalThis.turnstile) {
+      resolve();
+      return;
+    }
+
+    const existing = document.querySelector(
+      'script[src^="https://challenges.cloudflare.com/turnstile"]',
+    );
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Failed to load Turnstile")));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", () => resolve());
+    script.addEventListener("error", () => reject(new Error("Failed to load Turnstile")));
+    document.head.appendChild(script);
+  });
+}
+
 // AI : Cloudflare Turnstile Integration
-function renderTurnstile() {
-  // AI : Check if globalThis.turnstile is available (loaded from index.html)
+async function renderTurnstile() {
+  await loadTurnstileScript();
+
+  // AI : Check if globalThis.turnstile is available and widget container exists
   if (globalThis.turnstile && document.getElementById("turnstile-widget")) {
     // AI : Reset if already rendered to avoid duplicates
     if (turnstileWidgetId.value) {

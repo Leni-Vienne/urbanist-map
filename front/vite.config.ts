@@ -131,22 +131,45 @@ export default defineConfig(({ mode }) => ({
       output: {
         codeSplitting: {
           groups: [
-            /*{
-              test: (id) => /node_modules\/(primevue|@primevue|@primeuix)/.test(id),
-              name: "primevue",
-            }*/
-            // AI : Split Vue ecosystem for stable long-term caching
-            /*{
-              test: (id) => /node_modules\/(vue|@vue|pinia|vue-router|vue-i18n)/.test(id),
-              name: "vue-core",
-            },
-            // AI : Split PrimeVue UI library (largest vendor dependency)
-            
-            // AI : Remaining vendor deps (zod, superjson, uuid, leaflet-distortableimage, etc.)
+            // AI : Consolidate the ~14 tiny PrimeVue micro-chunks that Rolldown extracts as
+            // shared deps of async components. All of these are already page-loaded, so merging
+            // reduces HTTP requests without changing load timing or pulling in lazy-only code.
+            // Deliberately excludes form-only components (radiobutton, textarea, floatlabel,
+            // password) which are lazy-only and should stay that way.
             {
-              test: (id) => id.includes("node_modules"),
-              name: "vendor",
-            },*/
+              name: "primevue-extras",
+              test: (id: string) =>
+                /node_modules\/primevue\/(virtualscroller|tooltip|checkbox|focustrap|inputtext|tag|progressspinner|overlayeventbus|dialog|utils|toasteventbus)\//.test(
+                  id,
+                ) ||
+                /node_modules\/@primeuix\/styles\/dist\/(virtualscroller|tooltip|checkbox|inputtext|tag|progressspinner|dialog|popover)\//.test(
+                  id,
+                ) ||
+                /node_modules\/primevue\/popover\//.test(id) ||
+                /node_modules\/@primevue\/icons\/(chevrondown|minus|windowmaximize|windowminimize)\//.test(
+                  id,
+                ) ||
+                /node_modules\/@primevue\/core\/(utils|baseinput|baseeditableholder)\//.test(id) ||
+                /node_modules\/@primeuix\/utils\/dist\/eventbus/.test(id),
+            },
+            // AI : Consolidate the ~12 tiny own-code chunks that Rolldown extracts because
+            // they are shared between multiple lazy-loaded components. All confirmed page-loaded.
+            // Grouping them into one chunk cuts ~12 HTTP requests from the initial load.
+            {
+              name: "app-utils",
+              test: (id: string) =>
+                /\/front\/src\/stores\/(authStore|uiStore|pinia\/pendingModificationsStore)/.test(
+                  id,
+                ) ||
+                /\/front\/src\/utils\/(imageUrl|imageErrorHandler)/.test(id) ||
+                /\/front\/src\/constants\/mapConstants/.test(id) ||
+                /\/front\/src\/composables\/(ui\/useToast|moderation\/useModeratedContributions)/.test(
+                  id,
+                ) ||
+                /\/front\/src\/services\/(core\/errorHandling|overlay\/(overlayLifecycle|completionFilters)|navigation\/locationNavigation|project\/projectSelection)/.test(
+                  id,
+                ),
+            },
           ],
         },
       },

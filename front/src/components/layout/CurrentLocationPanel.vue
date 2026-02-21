@@ -100,14 +100,15 @@
 
 <script setup lang="ts">
 import { computed, ref, onActivated, onDeactivated, nextTick, defineAsyncComponent } from "vue";
+import { useI18n } from "vue-i18n";
+import { useNewProject } from "@/composables/overlay/useNewProject";
+import { useToast } from "@/composables/ui/useToast";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { isValidCountryCode } from "@/services/map/countryData";
 import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { map } from "@/services/core/map";
-import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
@@ -121,8 +122,22 @@ const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 
-// AI : Use shared composable for add overlay button
-const { handleAddOverlayClick } = useAddOverlay();
+const { t } = useI18n();
+const toast = useToast();
+const { handleNewProjectClick } = useNewProject();
+
+// AI : Handle new project button click with error feedback
+async function handleAddOverlayClick() {
+  const result = await handleNewProjectClick();
+  if (!result.success && result.reason === "edit_mode_error") {
+    toast.add({
+      severity: "error",
+      summary: t("moderation.modeSwitchError"),
+      detail: t("moderation.modeSwitchErrorDetail"),
+      life: 3000,
+    });
+  }
+}
 
 // AI : Scroll state preservation
 const cityListRef = ref<HTMLElement | null>(null);
@@ -237,12 +252,10 @@ async function handleCountryClick() {
   mapStore.clearSelectedCity();
 }
 
-// AI : Custom overlay click handler that doesn't switch to edit mode (like Latest Contributions)
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
-
+// AI : Custom overlay click handler - lazily imported since it's only reachable after city selection
 async function handleOverlayClick(overlay: OverlayForModeration): Promise<void> {
-  // AI : Pass false for shouldToggleEditMode to prevent unwanted mode switching
-  // AI : This matches the behavior of Latest Contributions panel
+  const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
+  const { handleOverlayClickNavigation } = useOverlayClickHandler();
   await handleOverlayClickNavigation(overlay, false);
 }
 

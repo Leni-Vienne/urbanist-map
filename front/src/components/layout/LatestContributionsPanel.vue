@@ -78,9 +78,6 @@
 import { onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
-import { navigateToStandaloneProject } from "@/services/navigation/overlayNavigation";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
@@ -90,9 +87,6 @@ const { t } = useI18n();
 
 // AI : Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
-
-// AI : Use shared overlay click handler for overlay navigation
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // AI : Use shared image error handling
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
@@ -115,15 +109,17 @@ function getLocationDisplay(contribution: LatestContribution): string {
 }
 
 // AI : Handle contribution hover - highlight overlay on map if loaded
-function handleContributionHover(contribution: LatestContribution) {
+async function handleContributionHover(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
+    const { highlightOverlayById } = await import("@/services/overlay/overlaySelection");
     highlightOverlayById(contribution.id);
   }
 }
 
 // AI : Handle contribution leave - remove overlay highlight
-function handleContributionLeave(contribution: LatestContribution) {
+async function handleContributionLeave(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
+    const { removeOverlayHighlight } = await import("@/services/overlay/overlaySelection");
     removeOverlayHighlight(contribution.id);
   }
 }
@@ -131,11 +127,14 @@ function handleContributionLeave(contribution: LatestContribution) {
 // AI : Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
-    // AI : Use existing overlay navigation with auto-select so accordion expands
+    const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
+    const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(contribution, false, true);
   } else if (contribution.type === "standalone") {
     // AI : Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
+      const { navigateToStandaloneProject } =
+        await import("@/services/navigation/overlayNavigation");
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,

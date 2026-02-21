@@ -172,8 +172,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
-import { useAddOverlay } from "@/composables/overlay/useAddOverlay";
 import { useToast } from "@/composables/ui/useToast";
+import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { useUiStore } from "@/stores/uiStore";
@@ -193,7 +193,8 @@ import type {
 } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 
-import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
+// AI : Lazy-loaded - same chunk as CurrentLocationPanel's async import
+const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
 
 // AI : Async component import for submission dialog
 const SubmissionConfirmationDialog = defineAsyncComponent(
@@ -235,8 +236,20 @@ const {
 const showPending = ref(true);
 const showApproved = ref(true);
 
-// AI : Use shared composable for add overlay button
-const { handleAddOverlayClick } = useAddOverlay();
+const { handleNewProjectClick } = useNewProject();
+
+// AI : Handle new project button click with error feedback
+async function handleAddOverlayClick() {
+  const result = await handleNewProjectClick();
+  if (!result.success && result.reason === "edit_mode_error") {
+    toast.add({
+      severity: "error",
+      summary: t("moderation.modeSwitchError"),
+      detail: t("moderation.modeSwitchErrorDetail"),
+      life: 3000,
+    });
+  }
+}
 
 // AI : Toast for delete operations
 const toast = useToast();

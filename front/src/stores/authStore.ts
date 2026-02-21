@@ -114,7 +114,6 @@ function createGoogleCallbackHandler(
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
-  const loading = ref(true);
   const infoMessage = ref<string | null>(null);
 
   // AI : Computed properties
@@ -126,31 +125,36 @@ export const useAuthStore = defineStore("auth", () => {
       (user.value?.moderatedCountries !== null && user.value?.moderatedCountries !== undefined),
   );
 
-  // AI : Initialize auth state
-  async function initialize() {
-    try {
-      loading.value = true;
+  // AI : Cached promise so multiple callers share the same in-flight request
+  let initPromise: Promise<void> | null = null;
 
-      // AI : Try to get current user from server (will use session cookies)
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
-        credentials: "include",
-      });
+  // AI : Initialize auth state — idempotent, subsequent calls return the same promise
+  function initialize(): Promise<void> {
+    if (initPromise) return initPromise;
 
-      if (response.ok) {
-        const result: { user: User; infoMessage: string | null } = await response.json();
-        user.value = result.user;
-        infoMessage.value = result.infoMessage;
-      } else {
+    initPromise = (async () => {
+      try {
+        // AI : Try to get current user from server (will use session cookies)
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          const result: { user: User; infoMessage: string | null } = await response.json();
+          user.value = result.user;
+          infoMessage.value = result.infoMessage;
+        } else {
+          user.value = null;
+          infoMessage.value = null;
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
         user.value = null;
         infoMessage.value = null;
       }
-    } catch (error) {
-      console.error("Error initializing auth:", error);
-      user.value = null;
-      infoMessage.value = null;
-    } finally {
-      loading.value = false;
-    }
+    })();
+
+    return initPromise;
   }
 
   // AI : Sign up with email and password
@@ -401,7 +405,6 @@ export const useAuthStore = defineStore("auth", () => {
 
   return {
     user,
-    loading,
     infoMessage,
     isAuthenticated,
     isModerator,

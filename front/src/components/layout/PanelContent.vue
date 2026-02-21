@@ -43,9 +43,10 @@ import type { PanelTab } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 
 import LatestContributionsPanel from "./LatestContributionsPanel.vue";
-import CurrentLocationPanel from "./CurrentLocationPanel.vue";
 
-// AI : Lazy load panels to reduce initial bundle size
+// AI : Lazy load panels to reduce initial bundle size and allow Rolldown to deduplicate
+// AI : shared async imports (e.g. ProjectAccordionPanel) across a single async chunk scope
+const CurrentLocationPanel = defineAsyncComponent(() => import("./CurrentLocationPanel.vue"));
 const ModerationPanel = defineAsyncComponent(() => import("./ModerationPanel.vue"));
 const ContributePanel = defineAsyncComponent(() => import("./ContributePanel.vue"));
 
