@@ -9,7 +9,7 @@ test.describe("Comprehensive Map Testing", () => {
     mapHelpers = await setupMapTest(page);
   });
 
-  test("should demonstrate full map workflow: country → city → overlays → modes → filtering", async ({
+  test("should demonstrate full map workflow: city → overlays → modes → filtering", async ({
     page,
   }) => {
     // AI : 1. Verify initial state and reset to view mode if needed
@@ -20,12 +20,12 @@ test.describe("Comprehensive Map Testing", () => {
     }
     expect(await mapHelpers.isEditModeActive()).toBeFalsy();
 
-    const initialCountryMarkers = await mapHelpers.getCountryMarkerCount();
-    console.log(`Initial country markers: ${initialCountryMarkers}`);
-    expect(initialCountryMarkers).toBeGreaterThan(0);
+    const initialCityMarkers = await mapHelpers.getCityMarkerCount();
+    console.log(`Initial city markers: ${initialCityMarkers}`);
+    expect(initialCityMarkers).toBeGreaterThan(0);
 
-    // AI : 2. Navigate through markers: country → city → overlays
-    const navigationSuccess = await mapHelpers.navigateToOverlays(0, 0);
+    // AI : 2. Navigate through markers: city → overlays
+    const navigationSuccess = await mapHelpers.navigateToOverlays(0);
     expect(navigationSuccess).toBeTruthy();
 
     // AI : 3. Click on overlay markers to test interaction
@@ -47,7 +47,7 @@ test.describe("Comprehensive Map Testing", () => {
 
   test("should validate marker visibility and interaction", async () => {
     // AI : Navigate through marker hierarchy
-    const navigationSuccess = await mapHelpers.navigateToOverlays(0, 0);
+    const navigationSuccess = await mapHelpers.navigateToOverlays(0);
     if (!navigationSuccess) {
       console.log("No markers available for testing");
       return;
@@ -73,7 +73,7 @@ test.describe("Comprehensive Map Testing", () => {
 
   test("should handle edge cases and error states", async ({ page }) => {
     // AI : Test navigation workflow through markers
-    const navigationSuccess = await mapHelpers.navigateToOverlays(0, 0);
+    const navigationSuccess = await mapHelpers.navigateToOverlays(0);
 
     // AI : Check for any error messages during navigation
     const errorAlerts = page.locator('[role="alert"]');

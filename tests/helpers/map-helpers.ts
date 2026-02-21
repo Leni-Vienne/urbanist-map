@@ -15,23 +15,23 @@ export class MapTestHelpers {
     await this.page.waitForSelector(".leaflet-container");
     await this.page.waitForSelector(".map-buttons");
 
-    // AI : Wait specifically for country markers to load (they should be the initial markers)
-    console.log("Waiting for country markers to load...");
+    // AI : Wait for city markers to load (they are displayed globally from the start)
+    console.log("Waiting for city markers to load...");
     await this.page.waitForFunction(
       () => {
-        const countryMarkers = document.querySelectorAll('[data-testid^="country-marker-"]');
-        console.log(`Found ${countryMarkers.length} country markers during wait`);
-        return countryMarkers.length > 0;
+        const cityMarkers = document.querySelectorAll('[data-testid^="city-marker-"]');
+        console.log(`Found ${cityMarkers.length} city markers during wait`);
+        return cityMarkers.length > 0;
       },
       { timeout: 15000 },
     );
 
-    console.log("Country markers detected, waiting for stabilization...");
+    console.log("City markers detected, waiting for stabilization...");
     await this.page.waitForTimeout(1000); // Allow for stabilization
 
     // AI : Log final count for debugging
-    const finalCountryCount = await this.getCountryMarkerCount();
-    console.log(`Map ready with ${finalCountryCount} country markers`);
+    const finalCityCount = await this.getCityMarkerCount();
+    console.log(`Map ready with ${finalCityCount} city markers`);
   }
 
   /**
@@ -183,20 +183,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get number of visible markers by type
-   */
-  async getCountryMarkerCount(): Promise<number> {
-    try {
-      const markers = this.page.locator('[data-testid^="country-marker-"]');
-      return await markers.count();
-    } catch (error) {
-      console.error("Error getting country marker count:", error);
-      return 0;
-    }
-  }
-
-  /**
-   * AI : Get number of city markers (also blue)
+   * AI : Get number of city markers
    */
   async getCityMarkerCount(): Promise<number> {
     try {
@@ -265,83 +252,6 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Click on a country marker to zoom to country and load cities
-   */
-  async clickCountryMarker(index: number = 0) {
-    try {
-      console.log(`Attempting to click country marker ${index}`);
-
-      // AI : Wait for country markers to be visible first using data-testid
-      console.log("Waiting for country markers to appear...");
-      await this.page.waitForFunction(
-        () => {
-          const markers = document.querySelectorAll('[data-testid^="country-marker-"]');
-          console.log(`Found ${markers.length} country markers`);
-          return markers.length > 0;
-        },
-        { timeout: 15000 },
-      );
-
-      const markers = this.page.locator('[data-testid^="country-marker-"]');
-      const markerCount = await markers.count();
-      console.log(`Country markers found: ${markerCount}`);
-
-      if (markerCount <= index) {
-        console.log(`Country marker ${index} not found (only ${markerCount} markers)`);
-        return false;
-      }
-
-      const marker = markers.nth(index);
-
-      // AI : Wait for marker to be fully loaded with attributes
-      await this.page.waitForFunction(
-        (idx) => {
-          const markers = document.querySelectorAll('[data-testid^="country-marker-"]');
-          const marker = markers[idx];
-          if (!marker) return false;
-
-          const hasTestId = marker.hasAttribute("data-testid");
-          const hasCountryCode = marker.hasAttribute("data-country-code");
-          const hasCountryName = marker.hasAttribute("data-country-name");
-
-          return hasTestId && hasCountryCode && hasCountryName;
-        },
-        index,
-        { timeout: 10000 },
-      );
-
-      // AI : Log marker details for debugging
-      const testId = await marker.getAttribute("data-testid");
-      const countryCode = await marker.getAttribute("data-country-code");
-      const countryName = await marker.getAttribute("data-country-name");
-      console.log(`Clicking country marker: ${testId} (${countryName}, ${countryCode})`);
-
-      // AI : Get marker position
-      const markerBox = await marker.boundingBox();
-      if (!markerBox) {
-        console.log("Could not get country marker bounding box");
-        return false;
-      }
-
-      const centerX = markerBox.x + markerBox.width / 2;
-      const centerY = markerBox.y + markerBox.height / 2;
-
-      // AI : Click the marker (clicking a country marker zooms to country center and shows cities/projects)
-      console.log("Clicking country marker...");
-      await this.page.mouse.click(centerX, centerY);
-
-      // AI : Wait for flyTo animation to complete (1.5 seconds)
-      await this.page.waitForTimeout(1500);
-
-      console.log("Country marker click completed");
-      return true;
-    } catch (error) {
-      console.error("Error clicking country marker:", error);
-      return false;
-    }
-  }
-
-  /**
    * AI : Click on a city marker to reveal overlay markers
    */
   async clickCityMarker(index: number = 0) {
@@ -401,59 +311,33 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Navigate through map markers: country → city → overlays
+   * AI : Navigate through map markers: city → overlays
    */
-  async navigateToOverlays(countryIndex: number = 0, cityIndex: number = 0) {
+  async navigateToOverlays(cityIndex: number = 0) {
     try {
       console.log("Starting navigation to overlays...");
 
-      // AI : Check if we have initial country markers
-      const initialCountryMarkers = await this.getCountryMarkerCount();
-      console.log(`Initial country markers: ${initialCountryMarkers}`);
+      // AI : Check if we have city markers
+      const initialCityMarkers = await this.getCityMarkerCount();
+      console.log(`Initial city markers: ${initialCityMarkers}`);
 
-      if (initialCountryMarkers === 0) {
-        console.log("No country markers available for navigation");
+      if (initialCityMarkers === 0) {
+        console.log("No city markers available for navigation");
         return false;
       }
 
-      // AI : Step 1: Click country marker (will zoom to country and potentially show city markers)
-      console.log(`Attempting to click country marker ${countryIndex}`);
-      const countryClicked = await this.clickCountryMarker(countryIndex);
-      if (!countryClicked) {
-        console.log("Failed to click country marker");
+      // AI : Click city marker to reveal overlay markers
+      console.log(`Attempting to click city marker ${cityIndex}`);
+      const cityClicked = await this.clickCityMarker(cityIndex);
+      if (!cityClicked) {
+        console.log("Failed to click city marker");
         return false;
       }
 
-      // AI : Step 2: Check if city markers appeared, if so click one
-      const cityMarkersAfterCountry = await this.getCityMarkerCount();
-      console.log(`City markers after country click: ${cityMarkersAfterCountry}`);
-
-      if (cityMarkersAfterCountry > 0) {
-        // AI : City markers appeared, click one
-        console.log(`Attempting to click city marker ${cityIndex}`);
-        const cityClicked = await this.clickCityMarker(cityIndex);
-        if (!cityClicked) {
-          console.log("Failed to click city marker");
-          return false;
-        }
-
-        const overlayMarkers = await this.getOverlayMarkerCount();
-        console.log(`Overlay markers after city click: ${overlayMarkers}`);
-      } else {
-        console.log("No city markers appeared after country click - may have direct overlays");
-        // AI : Check if overlays appeared directly after country click
-        await this.page.waitForTimeout(1000);
-        const overlayMarkers = await this.getOverlayMarkerCount();
-        console.log(`Direct overlay markers after country click: ${overlayMarkers}`);
-      }
-
-      const finalCountryMarkers = await this.getCountryMarkerCount();
       const finalCityMarkers = await this.getCityMarkerCount();
       const finalOverlayMarkers = await this.getOverlayMarkerCount();
 
-      console.log(
-        `Final state - Country: ${finalCountryMarkers}, City: ${finalCityMarkers}, Overlay: ${finalOverlayMarkers}`,
-      );
+      console.log(`Final state - City: ${finalCityMarkers}, Overlay: ${finalOverlayMarkers}`);
 
       return true;
     } catch (error) {

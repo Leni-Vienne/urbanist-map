@@ -111,26 +111,16 @@ test.describe("Overlay Interactions", () => {
   });
 
   test("should handle marker clicks in proper hierarchy", async ({ page }) => {
-    // AI : Test country marker click
-    const countryMarkers = await mapHelpers.getCountryMarkerCount();
-    if (countryMarkers > 0) {
-      const countryClicked = await mapHelpers.clickCountryMarker(0);
-      expect(countryClicked).toBeTruthy();
+    // AI : Test city marker click (city markers are shown globally from the start)
+    const cityMarkers = await mapHelpers.getCityMarkerCount();
+    if (cityMarkers > 0) {
+      const cityClicked = await mapHelpers.clickCityMarker(0);
+      expect(cityClicked).toBeTruthy();
 
-      // AI : Should load city markers
+      // AI : Should load overlays
       await page.waitForTimeout(1000);
-      const cityMarkers = await mapHelpers.getCityMarkerCount();
-
-      if (cityMarkers > 0) {
-        // AI : Test city marker click
-        const cityClicked = await mapHelpers.clickCityMarker(0);
-        expect(cityClicked).toBeTruthy();
-
-        // AI : Should load overlays
-        await page.waitForTimeout(1000);
-        const overlayCount = await mapHelpers.getOverlayCount();
-        console.log(`Navigation flow result - Cities: ${cityMarkers}, Overlays: ${overlayCount}`);
-      }
+      const overlayCount = await mapHelpers.getOverlayCount();
+      console.log(`Navigation flow result - Cities: ${cityMarkers}, Overlays: ${overlayCount}`);
     }
   });
 

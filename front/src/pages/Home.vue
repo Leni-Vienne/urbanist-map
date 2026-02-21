@@ -12,8 +12,6 @@
     <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
 
     <div class="main-content">
-      <Toast />
-
       <!-- AI : Info message banner (displayed at top when config.infoMessage is set) -->
       <Message
         v-if="authStore.infoMessage && !infoBannerDismissed"

@@ -49,7 +49,6 @@ export function loadCityProjects(
 
 /**
  * AI : Navigate to a city on the map
- * AI : This simulates clicking on a country marker then a city marker
  * @param cityId - The city ID to navigate to
  * @param cityName - The city name (for display)
  * @param countryCode - The country code where the city is located

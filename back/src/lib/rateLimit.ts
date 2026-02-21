@@ -1,4 +1,4 @@
-export class RateLimiter {
+class RateLimiter {
   private readonly hits = new Map<string, number[]>();
   private readonly cleanupInterval: ReturnType<typeof setInterval>;
 

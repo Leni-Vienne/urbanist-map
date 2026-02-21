@@ -163,7 +163,6 @@ import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
 import { addCityMarkersForCountry } from "@/services/map/cityMarkers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { map } from "@/services/core/map";
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
   type ReplacementConflicts,
@@ -344,7 +343,7 @@ async function handleCountryChange() {
   await fetchPendingSubmissions();
 }
 
-// AI : Watch for external changes to moderationStore.selectedCountryCode (e.g., from country marker clicks)
+// AI : Watch for external changes to moderationStore.selectedCountryCode (e.g., from city marker clicks)
 // AI : This ensures the moderation panel loads data when country is selected from the map
 watch(
   () => moderationStore.selectedCountryCode,

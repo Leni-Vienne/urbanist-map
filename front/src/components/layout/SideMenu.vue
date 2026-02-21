@@ -95,7 +95,7 @@ watch(
       uiStore.activeTab = "currentLocation";
     }
 
-    // AI : Case 2: City was cleared (e.g., by clicking a country marker or breadcrumb)
+    // AI : Case 2: City was cleared (e.g., by clicking the breadcrumb)
     // AI : Only switch away from Current Location tab if BOTH city AND country are cleared
     // AI : If country is still selected, stay on Current Location to show city list
     if (!newCity && previousCityId && uiStore.activeTab === "currentLocation") {

@@ -140,7 +140,7 @@ async function initializeMapAndOverlays() {
     // AI : Load countries first (needed for breadcrumbs in Current Location panel)
     await loadCountriesWithProjects();
 
-    // AI : Load all city markers globally instead of country markers
+    // AI : Load all city markers globally
     const cities = await loadAllCityMarkersGlobally();
 
     // AI : Populate cities lookup map in mapStore for panel auto-switch
