@@ -4,25 +4,17 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 
 const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
 const isLoading = ref(false);
-const hasBeenFetched = ref(false);
 
 /**
- * AI : Composable for managing moderated contributions (rejected/replaced overlays)
- * AI : Shows users what happened to their submissions after moderation
- * AI : Allows users to acknowledge and clean up these items immediately
+ * AI : Composable for managing moderated contributions (rejected/replaced overlays).
+ * AI : Only used in ModeratedContributionsDialog. Opening/closing the dialog is controlled via uiStore.
+ * AI : authStore triggers the dialog on login by checking the count directly via trpc.
  */
 export function useModeratedContributions() {
   const hasUnacknowledgedItems = computed(() => moderatedContributions.value.length > 0);
 
-  /**
-   * AI : Fetch moderated contributions from backend
-   * AI : Caches results so we don't refetch unnecessarily
-   */
-  async function fetchModeratedContributions(force = false) {
-    if (hasBeenFetched.value && !force) {
-      return;
-    }
-
+  // AI : Always fetches fresh — no cache, avoids stale data if a different user logs in
+  async function fetchModeratedContributions() {
     isLoading.value = true;
     try {
       const result = await withErrorHandling(
@@ -32,7 +24,6 @@ export function useModeratedContributions() {
 
       if (result) {
         moderatedContributions.value = result;
-        hasBeenFetched.value = true;
       }
     } finally {
       isLoading.value = false;
@@ -69,22 +60,12 @@ export function useModeratedContributions() {
     return acknowledgeContributions(allIds);
   }
 
-  /**
-   * AI : Reset cache (useful when user logs out)
-   */
-  function reset() {
-    moderatedContributions.value = [];
-    hasBeenFetched.value = false;
-  }
-
   return {
     moderatedContributions,
     isLoading,
     hasUnacknowledgedItems,
-    hasBeenFetched,
     fetchModeratedContributions,
     acknowledgeContributions,
     acknowledgeAll,
-    reset,
   };
 }

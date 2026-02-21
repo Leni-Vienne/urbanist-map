@@ -48,19 +48,13 @@
       "
     />
 
-    <!-- AI : Moderated Contributions Dialog -->
-    <ModeratedContributionsDialog
-      v-if="uiStore.moderatedContributionsDialogVisible"
-      v-model:visible="uiStore.moderatedContributionsDialogVisible"
-    />
-
     <!-- AI : Image Upload Dialog - always rendered so it's available from any part of the app -->
     <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
+import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from "vue";
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -79,10 +73,6 @@ const PopupContainer = defineAsyncComponent(() => import("@/components/map/Popup
 const ProjectManager = defineAsyncComponent(
   () => import("@/components/project/ProjectManager.vue"),
 );
-// AI : Async import for non-critical dialog - only loaded when needed
-const ModeratedContributionsDialog = defineAsyncComponent(
-  () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
-);
 const ImageUploadDialog = defineAsyncComponent(
   () => import("@/components/common/ImageUploadDialog.vue"),
 );
@@ -96,31 +86,6 @@ const uiStore = useUiStore();
 const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
-
-// AI : Dynamically import moderation composable for chunk splitting — never loads for anonymous users
-watch(
-  () => authStore.isAuthenticated,
-  async (isAuth, wasAuth) => {
-    if (isAuth) {
-      const { useModeratedContributions } =
-        await import("@/composables/moderation/useModeratedContributions");
-      const { fetchModeratedContributions, hasUnacknowledgedItems } = useModeratedContributions();
-      await fetchModeratedContributions();
-      uiStore.hasUnacknowledgedModeratedContributions = hasUnacknowledgedItems.value;
-      if (hasUnacknowledgedItems.value) {
-        uiStore.moderatedContributionsDialogVisible = true;
-      }
-    } else if (wasAuth) {
-      // AI : wasAuth guard prevents loading the chunk on anonymous page load
-      const { useModeratedContributions } =
-        await import("@/composables/moderation/useModeratedContributions");
-      const { reset } = useModeratedContributions();
-      reset();
-      uiStore.hasUnacknowledgedModeratedContributions = false;
-    }
-  },
-  { immediate: true },
-);
 
 // AI : Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({

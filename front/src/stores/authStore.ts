@@ -5,6 +5,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useUiStore } from "@/stores/uiStore";
 
 // AI : User type for our custom authentication
 interface User {
@@ -143,6 +144,16 @@ export const useAuthStore = defineStore("auth", () => {
           const result: { user: User; infoMessage: string | null } = await response.json();
           user.value = result.user;
           infoMessage.value = result.infoMessage;
+          // AI : Check moderated contributions only for authenticated users
+          if (!result.user) return;
+          try {
+            const contributions = await trpc.overlay.getModeratedContributions.query();
+            const uiStore = useUiStore();
+            uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
+            if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
+          } catch (error) {
+            console.error("Failed to check moderated contributions:", error);
+          }
         } else {
           user.value = null;
           infoMessage.value = null;
@@ -202,6 +213,15 @@ export const useAuthStore = defineStore("auth", () => {
         // AI : Store last login method for UX hint
         if (result.user?.email) {
           localStorage.setItem(`lastLoginMethod:${result.user.email}`, "email");
+        }
+        // AI : Check moderated contributions after manual sign-in (same as initialize)
+        try {
+          const contributions = await trpc.overlay.getModeratedContributions.query();
+          const uiStore = useUiStore();
+          uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
+          if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
+        } catch (error) {
+          console.error("Failed to check moderated contributions:", error);
         }
         return {
           success: true,
@@ -317,6 +337,10 @@ export const useAuthStore = defineStore("auth", () => {
       user.value = null;
 
       // AI : Clear all state on logout to prevent data leakage between accounts
+      const uiStore = useUiStore();
+      uiStore.hasUnacknowledgedModeratedContributions = false;
+      uiStore.moderatedContributionsDialogVisible = false;
+
       const mapStore = useMapStore();
       const projectStore = useProjectStore();
       const overlayStore = useOverlayStore();

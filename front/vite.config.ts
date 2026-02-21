@@ -45,10 +45,11 @@ export default defineConfig(({ mode }) => ({
     vue(),
     qrcode(),
     visualizer({
-      filename: "stats.html",
+      filename: "stats.md",
       open: false,
       gzipSize: true,
-      template: "treemap", // 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
+      // @ts-ignore rollup-plugin-visualiser 7.0 added markdown support but types are not updated yet
+      template: "markdown", // 'markdown', 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'
       //exclude: [{ bundle: "**/vendor*" }, { file: "**/node_modules/**" }],
     }),
     tailwindcss(),
