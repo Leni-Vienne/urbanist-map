@@ -87,8 +87,10 @@ app.use(PrimeVue, {
 
 app.use(ToastService);
 
-// AI : Load initial locale messages synchronously before mounting the app
-// All locale messages are statically imported, so this is now fully synchronous
-const messages = loadLocaleMessages(currentLocale);
-i18n.global.setLocaleMessage(currentLocale, messages);
-app.mount("#app");
+// AI : Load only the active locale before mounting — the other locale chunk is
+// fetched on demand when the user switches language.
+(async function initApp() {
+  const messages = await loadLocaleMessages(currentLocale);
+  i18n.global.setLocaleMessage(currentLocale, messages);
+  app.mount("#app");
+})();

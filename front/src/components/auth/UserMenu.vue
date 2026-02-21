@@ -77,6 +77,12 @@
 
     <!-- AI : Auth Modal — v-if prevents mounting (and async loading) until actually needed -->
     <AuthModal v-if="uiStore.authModalVisible" v-model:visible="uiStore.authModalVisible" />
+
+    <!-- AI : Moderated Contributions Dialog — same pattern as AuthModal -->
+    <ModeratedContributionsDialog
+      v-if="uiStore.moderatedContributionsDialogVisible"
+      v-model:visible="uiStore.moderatedContributionsDialogVisible"
+    />
   </div>
 </template>
 
@@ -91,6 +97,9 @@ import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 
 // AI : Lazy-load AuthModal for chunk splitting — avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
+const ModeratedContributionsDialog = defineAsyncComponent(
+  () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
+);
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();

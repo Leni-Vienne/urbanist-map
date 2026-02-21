@@ -103,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 
 import ProgressSpinner from "primevue/progressspinner";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
@@ -133,7 +133,12 @@ const { moderatedContributions, isLoading, fetchModeratedContributions, acknowle
 const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);
 
-// AI : Sync visibility with prop
+// AI : Fetch on mount — dialog is always mounted with visible=true due to v-if in parent
+onMounted(() => {
+  fetchModeratedContributions();
+});
+
+// AI : Sync visibility with prop (re-fetch if dialog is shown again without unmounting)
 watch(
   () => props.visible,
   (newVal) => {
