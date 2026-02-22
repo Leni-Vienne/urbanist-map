@@ -147,11 +147,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, watch, onMounted, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
 import { useModeration } from "@/composables/moderation/useModeration";
 import { useChangeRequests } from "@/composables/changes/useChanges";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useToast } from "@/composables/ui/useToast";
 import { useAuthStore } from "@/stores/authStore";
@@ -163,7 +162,8 @@ import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
 import { addCityMarkersForCountry } from "@/services/map/cityMarkers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
+// AI : Lazy-loaded - only needed when a city is selected and projects are shown
+const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
 import ReplacementConflictsDialog, {
   type ReplacementConflicts,
 } from "@/components/moderation/ReplacementConflictsDialog.vue";
@@ -394,9 +394,6 @@ const { approveChangeRequests, rejectChangeRequests } = useChangeRequests();
 const isLoading = ref(false);
 const toast = useToast();
 
-// AI : Use overlay click handler composable for shared navigation logic
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
-
 // AI : Use change request preview composable to track when suggested positions are viewed
 const { previewState } = useChangeRequestPreview();
 
@@ -542,6 +539,8 @@ async function handleViewOverlayPosition(overlay: OverlayForModeration, shouldFi
   if (!viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
   }
+  const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
+  const { handleOverlayClickNavigation } = useOverlayClickHandler();
   await handleOverlayClickNavigation(overlay, shouldFitBounds);
 }
 

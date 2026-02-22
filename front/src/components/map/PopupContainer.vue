@@ -40,9 +40,9 @@
     />
   </Teleport>
 
-  <!-- AI : Overlay Editor Dialog - renders when local overlay exists OR store has overlay -->
+  <!-- AI : Overlay Editor Dialog - only in edit mode, renders when local overlay exists OR store has overlay -->
   <OverlayEditor
-    v-if="overlayObject || uiStore.overlayEditDialog.overlay"
+    v-if="mode === 'edit' && (overlayObject || uiStore.overlayEditDialog.overlay)"
     ref="overlayEditorRef"
     :overlayObject="overlayObject"
     @update="handleOverlayUpdate"

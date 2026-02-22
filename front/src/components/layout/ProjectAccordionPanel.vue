@@ -178,11 +178,9 @@ import {
   consumeScrollRequest,
   pendingScrollRequest,
 } from "@/services/layout/accordionState";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { navigateToStandaloneProject } from "@/services/navigation/overlayNavigation";
 
 // AI : Props interface
 interface Props {
@@ -242,8 +240,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
-
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // AI : Watch for new scroll requests (handled reactively)
 // AI : This ensures requests are handled even if projects data matches and doesn't trigger the above watcher
@@ -617,10 +613,12 @@ async function navigateToOverlayById(overlayId: string) {
     if (project.overlays) {
       const overlay = project.overlays.find((o) => o.id === overlayId);
       if (overlay) {
-        // Fallback or use handleOverlayClickNavigation
         if (props.onOverlayClick) {
           await props.onOverlayClick(overlay, true);
         } else {
+          const { useOverlayClickHandler } =
+            await import("@/composables/overlay/useOverlayClickHandler");
+          const { handleOverlayClickNavigation } = useOverlayClickHandler();
           await handleOverlayClickNavigation(overlay, true);
         }
         return;
@@ -686,6 +684,8 @@ async function handleOverlayCardClick(overlay: OverlayForModeration) {
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, true);
   } else {
+    const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
+    const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(overlay, true);
   }
 }
@@ -714,6 +714,7 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     if (!props.disableAutoModeSwitch && overlayStore.mode !== "edit") {
       overlayStore.setMode("edit");
     }
+    const { navigateToStandaloneProject } = await import("@/services/navigation/overlayNavigation");
     await navigateToStandaloneProject(
       project.lat,
       project.lng,

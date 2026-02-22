@@ -11,10 +11,8 @@ import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { getOverlayBounds } from "@/services/overlay/overlayPositionManagement";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
-import {
-  checkOverlaySizeAndWarn,
-  registerNavigationCallback,
-} from "@/services/overlay/overlayEditing";
+// AI : overlayEditing is a lazy chunk - dynamic import to avoid pulling it into this chunk's static graph
+// AI : Both callbacks are registered before they could ever be called (requires user interaction in edit mode)
 
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
@@ -247,11 +245,11 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 // AI : Import getEditToolsForOverlay and getViewTools from there
 
 // AI : Register toolbar callbacks to avoid circular dependencies
-// AI : Defer registration until after module initialization to avoid temporal dead zone
-queueMicrotask(() => {
+// AI : Dynamic import keeps overlayEditing out of this module's static chunk, eliminating the facade chunk
+queueMicrotask(async () => {
+  const { checkOverlaySizeAndWarn, registerNavigationCallback } =
+    await import("@/services/overlay/overlayEditing");
   registerNavigationCallback(navigateOverlaySequence);
+  // AI : overlayRendering.ts reads from the registry, so this avoids a static import of the heavy rendering module
+  overlayCallbacks.checkOverlaySize = checkOverlaySizeAndWarn;
 });
-
-// AI : Register checkOverlaySizeAndWarn into the tiny registry module
-// AI : overlayRendering.ts reads from the registry, so this avoids a static import of the heavy rendering module
-overlayCallbacks.checkOverlaySize = checkOverlaySizeAndWarn;

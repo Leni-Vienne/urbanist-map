@@ -232,7 +232,6 @@ import type {
   OverlayForModeration,
   PendingChangeRequest,
 } from "@/types/index";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
@@ -274,7 +273,6 @@ const emit = defineEmits<{
 }>();
 
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const shouldShowOverlays = computed(() => {
   return props.project.overlays && props.project.overlays.length > 0;
@@ -319,6 +317,8 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, shouldFitBounds);
   } else {
+    const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
+    const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(overlay, shouldFitBounds);
   }
 }

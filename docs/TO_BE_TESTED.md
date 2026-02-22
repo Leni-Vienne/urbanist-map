@@ -1021,6 +1021,23 @@ This document outlines the granular functional test scenarios required to ensure
   3. Navigate to `/admin/user/:userId` and perform a deletion.
   4. **Check**: Toast notification appears correctly.
 
+## 34. Undo/Redo Keyboard Shortcuts (Refactor - Feb 22)
+
+### 34.1. Undo/Redo Works on First Edit Mode Entry
+
+- **Scenario**: Keyboard shortcuts are registered via `overlayEditing.ts` (not `MapView.vue`), triggered on first mode switch.
+- **Steps**:
+  1.  Load the map without switching modes. Stay in **View Mode**.
+  2.  Switch to **Edit Mode** for the first time.
+  3.  Select an overlay and move a corner.
+  4.  Press **Ctrl+Z**.
+  5.  **Check**: The overlay corner returns to its previous position (undo worked).
+  6.  Press **Ctrl+Y** (or **Ctrl+Shift+Z**).
+  7.  **Check**: The corner moves back to the modified position (redo worked).
+  8.  Switch to **View Mode** and back to **Edit Mode**.
+  9.  Press **Ctrl+Z** again.
+  10. **Check**: Undo still works — no duplicate event listeners, no missed registration.
+
 ## 33. isModified / pendingModsStore Sync (Fix - Feb 20)
 
 ### 33.1. Caption Change Submits Correctly

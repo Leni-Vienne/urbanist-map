@@ -47,6 +47,7 @@ import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProje
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
 import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
+
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // AI : Load countries for breadcrumbs (no marker rendering)
@@ -101,28 +102,9 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  // AI : Clean up event listeners
-  globalThis.removeEventListener("keydown", handleKeyDown, true);
   // AI : Clean up viewport manager
   viewportManager.cleanupEventListeners();
 });
-
-// AI : Keyboard shortcuts handler - overlayEditing is lazy-loaded to keep it out of the initial bundle
-async function handleKeyDown(event: KeyboardEvent) {
-  // AI : Undo: Ctrl+Z (works on all keyboard layouts)
-  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
-    const { undo } = await import("@/services/overlay/overlayEditing");
-    undo();
-  }
-  // AI : Redo: Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
-  else if (
-    event.ctrlKey &&
-    (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
-  ) {
-    const { redo } = await import("@/services/overlay/overlayEditing");
-    redo();
-  }
-}
 
 // AI : Initialize map and overlays
 async function initializeMapAndOverlays() {
@@ -165,7 +147,6 @@ async function initializeMapAndOverlays() {
 
     viewportManager.setupModeWatcher();
     setupMapClickToDeselect(); // AI : Setup click handler to deselect overlays when clicking map background
-    globalThis.addEventListener("keydown", handleKeyDown, true);
     disableLeafletKeyboardEvents();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
