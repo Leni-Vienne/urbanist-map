@@ -595,6 +595,7 @@
     "moderatorReviewRequired": "Un modérateur doit examiner et approuver ces modifications",
     "reason": "Raison",
     "requested": "Demandé",
+    "fetchSubmissionsFailed": "Échec du chargement des contributions en attente. Veuillez actualiser la page.",
     "overlayNotFound": "Overlay introuvable",
     "projectNotFound": "Projet introuvable",
     "overlayVersionConflict": "Cet overlay a été modifié par un autre utilisateur. Veuillez examiner la version mise à jour avant d'approuver.",

@@ -58,8 +58,8 @@ export function useModeration() {
         console.error("Failed to load pending submissions:", error);
         toast.add({
           severity: "error",
-          summary: "Error",
-          detail: "Failed to load pending submissions. Please refresh the page.",
+          summary: t("common.error"),
+          detail: t("moderation.fetchSubmissionsFailed"),
           life: 5000,
         });
       }

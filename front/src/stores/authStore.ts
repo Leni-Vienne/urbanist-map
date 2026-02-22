@@ -335,6 +335,8 @@ export const useAuthStore = defineStore("auth", () => {
       });
 
       user.value = null;
+      // AI : Reset initPromise so initialize() re-runs after re-login in the same session
+      initPromise = null;
 
       // AI : Clear all state on logout to prevent data leakage between accounts
       const uiStore = useUiStore();
