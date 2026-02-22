@@ -35,7 +35,7 @@ export function isOverlayVisible(
       return true;
     }
 
-    // AI : Show local (null/undefined status) - implies it's being created/edited by user
+    // AI : Show local (null status) - implies it's being created/edited by user
     if (overlay.status === null) {
       return true;
     }

@@ -167,9 +167,49 @@ export default defineConfig(({ mode }) => ({
                 /\/front\/src\/utils\/(imageUrl|imageErrorHandler)/.test(id) ||
                 /\/front\/src\/constants\/mapConstants/.test(id) ||
                 /\/front\/src\/composables\/(ui\/useToast)/.test(id) ||
-                /\/front\/src\/services\/(core\/errorHandling|overlay\/(overlayLifecycle|completionFilters)|navigation\/locationNavigation|project\/projectSelection)/.test(
+                /\/front\/src\/services\/(core\/errorHandling|overlay\/(overlayLifecycle|completionFilters|modeSwitching)|navigation\/locationNavigation|project\/projectSelection)/.test(
                   id,
                 ),
+            },
+            // AI : Consolidate overlay service modules that are only loaded via panel clicks
+            // AI : (useOverlayClickHandler, overlayNavigation, etc.) into a single lazy chunk.
+            // AI : overlayMarkers/overlayHistory/entityRemoval are excluded because they load
+            // AI : during the zoom-into-city flow and must remain independently loadable.
+            // AI : overlayRendering/overlayToolbar are excluded because they carry
+            // AI : leaflet-distortableimage (heavy, edit-mode-only).
+            {
+              name: "overlay-services",
+              test: (id: string) =>
+                // AI : Do NOT include dynamic import() entry points here (overlayEditing,
+                // AI : overlayNavigation, useOverlayClickHandler) - they create stub+real code
+                // AI : duplication. Their deps (overlay.ts, overlayCityCache, etc.) are included
+                // AI : and those get pulled into overlay-services via static import chains.
+                // AI : The async entry files load overlay-services as a dep chunk automatically.
+                /\/front\/src\/services\/overlay\/(overlay|overlayCityCache|overlayPositionResolver)\.ts/.test(
+                  id,
+                ) || /\/front\/src\/services\/project\/projects\.ts/.test(id),
+            },
+            // AI : Consolidate the 9-chunk cascade triggered when CurrentLocationPanel first mounts
+            // AI : (applies to both zoom→click-on-overlay and LatestContributionsPanel click flows).
+            // AI : Only TS utility files here — NOT Vue component files. Adding .vue async entries
+            // AI : to the group drags their transitive deps (vue-i18n) out of the initial bundle
+            // AI : into this lazy chunk → Rolldown preloads it at startup again to satisfy the
+            // AI : conflict, defeating the purpose. Async components (CurrentLocationPanel,
+            // AI : ProjectAccordionPanel) load location-panel automatically as a dep chunk.
+            {
+              name: "location-panel",
+              test: (id: string) =>
+                /\/front\/src\/utils\/(projectDateFormat|urlFormat|flexibleDateHelpers|projectFactories)\.ts/.test(
+                  id,
+                ) ||
+                /\/front\/src\/composables\/overlay\/(useNewProject|useChangeRequestPreview)\.ts/.test(
+                  id,
+                ) ||
+                /\/front\/src\/utils\/statusHelpers\.ts/.test(id) ||
+                /node_modules\/primevue\/(accordion|accordioncontent|accordionheader|accordionpanel|card)\//.test(
+                  id,
+                ) ||
+                /node_modules\/@primeuix\/styles\/dist\/(accordion|card)\//.test(id),
             },
           ],
         },
