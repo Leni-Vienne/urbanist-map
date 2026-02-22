@@ -11,20 +11,21 @@ const loadedChunks = pageLoad
 const result = {};
 
 for (const chunk of loadedChunks) {
-  const prefix = chunk.split("-")[0].replace(".js", "");
+  // AI : Vite/Rolldown hashes are always exactly 8 chars ([a-zA-Z0-9_-]), strip only that suffix
+  const prefix = chunk.replace(/-[a-zA-Z0-9_-]{8}\.js$/, "");
 
   const key = Object.keys(bundleReport).find((k) => {
     const kName = k.split("/").pop();
-    const kPrefix = kName.split("-")[0].replace(".js", "");
+    const kPrefix = kName.replace(/-[a-zA-Z0-9_-]{8}\.js$/, "");
     return kPrefix.toLowerCase() === prefix.toLowerCase();
   });
 
   if (key) {
-    // Replace the hash in the key with "hash"
-    const newKey = chunk.replace(/-[a-zA-Z0-9_-]+\.js$/, "-hash.js");
+    // AI : Replace the hash in the key with "hash"
+    const newKey = chunk.replace(/-[a-zA-Z0-9_-]{8}\.js$/, "-hash.js");
     result[newKey] = bundleReport[key];
   } else {
-    const newKey = chunk.replace(/-[a-zA-Z0-9_-]+\.js$/, "-hash.js");
+    const newKey = chunk.replace(/-[a-zA-Z0-9_-]{8}\.js$/, "-hash.js");
     result[newKey] = ["NOT FOUND IN BUNDLE REPORT"];
   }
 }

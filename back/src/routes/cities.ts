@@ -3,7 +3,7 @@ import { publicProcedure, router, TRPCError } from "../trpc";
 import { cities, projects, overlays, changeRequests } from "../db/schema";
 import { sql, eq, isNotNull, and } from "drizzle-orm";
 import { db } from "../database";
-import type { OverlayData } from "../lib/types";
+import type { OverlayData } from "@shared/types";
 import {
   getUserOverlayChangeRequestIds,
   buildProjectVisibilityCondition,

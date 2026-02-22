@@ -28,9 +28,6 @@
       <!-- AI : Map Controls Component -->
       <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
 
-      <!-- AI : Help button to guide user to click markers -->
-      <MarkerHelpButton />
-
       <!-- AI : Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
       <div v-if="authStore.isAuthenticated" class="mode-controls-desktop">
         <ModeControls />
@@ -64,9 +61,6 @@ import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extr
 
 const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
 const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));
-const MarkerHelpButton = defineAsyncComponent(
-  () => import("@/components/map/MarkerHelpButton.vue"),
-);
 const CitySearch = defineAsyncComponent(() => import("@/components/map/CitySearch.vue"));
 
 // AI: Get stores
