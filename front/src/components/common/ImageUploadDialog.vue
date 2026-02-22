@@ -105,7 +105,6 @@ import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
-import { addOverlay } from "@/services/overlay/overlayEditing";
 
 const { t } = useI18n();
 const uiStore = useUiStore();
@@ -228,7 +227,7 @@ function processFile(file: File) {
 }
 
 // AI : Handle confirm - create overlay and close dialog
-function handleConfirm() {
+async function handleConfirm() {
   if (!selectedFile.value || !imageDataUrl.value) return;
 
   // AI : Get project ID from store
@@ -244,6 +243,7 @@ function handleConfirm() {
   }
 
   try {
+    const { addOverlay } = await import("@/services/overlay/overlayEditing");
     // AI : Check if this is a replacement overlay
     const replacementId = overlayStore.replacementOverlayId;
 

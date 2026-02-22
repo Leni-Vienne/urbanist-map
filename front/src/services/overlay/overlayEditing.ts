@@ -448,6 +448,34 @@ function applyHistoryAction(action: "undo" | "redo") {
   }
 }
 
+// AI : Module-level guard to prevent duplicate keyboard shortcut registration across calls
+let keyboardShortcutsRegistered = false;
+
+// AI : Handle keyboard shortcuts for undo/redo in edit mode
+function handleKeyDown(event: KeyboardEvent) {
+  // AI : Undo: Ctrl+Z (works on all keyboard layouts)
+  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
+    undo();
+  }
+  // AI : Redo: Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
+  else if (
+    event.ctrlKey &&
+    (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
+  ) {
+    redo();
+  }
+}
+
+/**
+ * AI : Register global keyboard shortcuts for undo/redo
+ * AI : Guard prevents duplicate registration if called multiple times (e.g. on mode switch)
+ */
+export function setupKeyboardShortcuts() {
+  if (keyboardShortcutsRegistered) return;
+  globalThis.addEventListener("keydown", handleKeyDown, true);
+  keyboardShortcutsRegistered = true;
+}
+
 // AI : Register toolbar callbacks - overlayToolbar.ts (lazy chunk) reads these at call time
 Object.assign(overlayCallbacks, { focusCameraToOverlay, undo, redo });
 

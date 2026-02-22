@@ -532,11 +532,15 @@ export function useViewportContentManager() {
         // AI : They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
         clearAllStandaloneProjectMarkers();
 
+        // AI : Single import for all overlayEditing symbols used in this watcher
+        // AI : Avoids two separate dynamic import() calls to the same module
+        const { saveAllOverlaysToCache, updateOverlayEditingState, setupKeyboardShortcuts } =
+          await import("@/services/overlay/overlayEditing");
+
         // AI : CRITICAL: Save any modified overlays before we potentially hide them
         // AI : If we are leaving edit mode, we must save the current state to cache
         // AI : This prevents data loss for user's pending overlays that disappear in View mode
         if (oldMode === "edit") {
-          const { saveAllOverlaysToCache } = await import("@/services/overlay/overlayEditing");
           saveAllOverlaysToCache("edit");
         }
 
@@ -598,8 +602,8 @@ export function useViewportContentManager() {
           // AI : Update existing overlays in-place with new toolbar actions and positions
           // AI : MOVED HERE (after reload) to ensure we operate on fresh data
           // AI : This preserves edit mode cache and updates marker colors after modifications
-          const { updateOverlayEditingState } = await import("@/services/overlay/overlayEditing");
           await updateOverlayEditingState();
+          setupKeyboardShortcuts();
 
           // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // AI : This ensures markers appear immediately without requiring user to click city or zoom

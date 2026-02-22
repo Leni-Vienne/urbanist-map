@@ -56,7 +56,6 @@ import {
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
-import { addOverlay } from "@/services/overlay/overlayEditing";
 import { createProject } from "@/services/project/projects";
 import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
@@ -260,6 +259,7 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
   const reader = new FileReader();
   reader.addEventListener("load", async () => {
     try {
+      const { addOverlay } = await import("@/services/overlay/overlayEditing");
       if (isReplacement && replacementOverlayId.value) {
         // AI : Create replacement overlay using the standard overlay creation process
         const overlayId = addOverlay(
