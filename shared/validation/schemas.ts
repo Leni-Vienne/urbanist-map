@@ -34,7 +34,6 @@ export const projectSchema = z
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
       .optional(),
-    latestUpdateOn: z.date({ message: "validation.invalidDate" }).nullable().optional(),
   })
   .superRefine((data, ctx) => {
     // AI : Validate proposal date is not in the future

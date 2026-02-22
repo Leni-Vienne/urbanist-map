@@ -156,7 +156,6 @@ export function createLocalProjectContribution(
     endDate: Date | null;
     endDatePrecision?: "year" | "month" | "day" | null;
     sourceUrl: string | null;
-    latestUpdateOn: Date | null;
   },
   overlay: {
     id: string;
@@ -213,7 +212,6 @@ export function createLocalProjectContribution(
     endDate: localProject.endDate,
     endDatePrecision: localProject.endDatePrecision ?? null,
     sourceUrl: localProject.sourceUrl ?? null,
-    latestUpdateOn: localProject.latestUpdateOn ?? null,
     createdAt: new Date(),
     updatedAt: new Date(),
     overlays: [overlayData],

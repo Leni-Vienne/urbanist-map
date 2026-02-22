@@ -128,7 +128,6 @@ export const projects = pgTable(
     startDatePrecision: text("start_date_precision").$type<DatePrecision | null>(),
     endDate: timestamp("end_date", { withTimezone: true }),
     endDatePrecision: text("end_date_precision").$type<DatePrecision | null>(),
-    latestUpdateOn: timestamp("latest_update_on", { withTimezone: true }),
     // AI : Center coordinate for all projects - used as marker position when no images exist
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),

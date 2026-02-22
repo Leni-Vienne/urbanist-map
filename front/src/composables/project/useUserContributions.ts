@@ -139,7 +139,6 @@ export function useUserContributions() {
         startDate: localProject.startDate,
         endDate: localProject.endDate,
         sourceUrl: localProject.sourceUrl ?? null,
-        latestUpdateOn: localProject.latestUpdateOn ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
         overlays: overlayData,

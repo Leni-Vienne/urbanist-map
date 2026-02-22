@@ -121,7 +121,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       endDate: base.formData.endDate ?? null,
       endDatePrecision: base.formData.endDatePrecision ?? null,
       sourceUrl: base.formData.sourceUrl ?? null,
-      latestUpdateOn: base.formData.latestUpdateOn ?? null,
     });
 
     // AI : Update or create project in projectStore.projects for infopopup sync
@@ -139,7 +138,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         endDate: base.formData.endDate,
         endDatePrecision: base.formData.endDatePrecision,
         sourceUrl: base.formData.sourceUrl,
-        latestUpdateOn: base.formData.latestUpdateOn,
         cityId: base.formData.cityId ?? undefined,
         city: cityObject,
         isModified: true,
@@ -166,7 +164,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         endDate: base.formData.endDate ?? null,
         endDatePrecision: base.formData.endDatePrecision ?? null,
         sourceUrl: base.formData.sourceUrl ?? null,
-        latestUpdateOn: base.formData.latestUpdateOn ?? null,
         lat: userContributionProject.lat,
         lng: userContributionProject.lng,
         cityId: userContributionProject.cityId,
@@ -219,7 +216,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       startDate: base.formData.startDate,
       endDate: base.formData.endDate,
       sourceUrl: base.formData.sourceUrl,
-      latestUpdateOn: base.formData.latestUpdateOn,
     };
 
     await trpc.project.publishProject.mutate(buildProjectPayload(projectData));

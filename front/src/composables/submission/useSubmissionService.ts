@@ -77,7 +77,6 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   proposalDate: "Proposal Date",
   startDate: "Start Date",
   endDate: "End Date",
-  latestUpdateOn: "Latest Update",
   caption: "Overlay Caption",
   corners: "Position",
   cityId: "City",
@@ -179,7 +178,6 @@ export function useSubmissionService() {
       "startDate",
       "endDate",
       "endDatePrecision",
-      "latestUpdateOn",
       "cityId",
       "proposalDatePrecision",
       "startDatePrecision",
@@ -191,9 +189,7 @@ export function useSubmissionService() {
       const newValue = project[field];
 
       // AI : Special handling for date fields
-      const isDateField = ["proposalDate", "startDate", "endDate", "latestUpdateOn"].includes(
-        String(field),
-      );
+      const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
 
       // AI : For change requests, preserve empty strings (database requires non-null new_value)
       // AI : Only normalize dates; for other fields, use empty string instead of null

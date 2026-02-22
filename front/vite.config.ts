@@ -149,7 +149,7 @@ export default defineConfig(({ mode }) => ({
                   id,
                 ) ||
                 /node_modules\/primevue\/popover\//.test(id) ||
-                /node_modules\/@primevue\/icons\/(chevrondown|minus|windowmaximize|windowminimize)\//.test(
+                /node_modules\/@primevue\/icons\/(chevrondown|chevronleft|chevronright|chevronup|minus|windowmaximize|windowminimize)\//.test(
                   id,
                 ) ||
                 /node_modules\/@primevue\/core\/(utils|baseinput|baseeditableholder)\//.test(id) ||

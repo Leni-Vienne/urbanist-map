@@ -64,7 +64,6 @@ export const projectRouter = router({
         endDate: input.endDate ?? null,
         endDatePrecision: input.endDatePrecision ?? null,
         sourceUrl: input.sourceUrl,
-        latestUpdateOn: input.latestUpdateOn ? new Date(input.latestUpdateOn) : null,
         // AI : Set center coordinate for all projects using PostGIS
         centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,
       };
@@ -122,7 +121,6 @@ export const projectRouter = router({
               endDate: data.endDate,
               endDatePrecision: data.endDatePrecision,
               sourceUrl: data.sourceUrl,
-              latestUpdateOn: data.latestUpdateOn,
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),
             })
@@ -283,7 +281,6 @@ export const projectRouter = router({
             startDate: projects.startDate,
             endDate: projects.endDate,
             sourceUrl: projects.sourceUrl,
-            latestUpdateOn: projects.latestUpdateOn,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
             overlayCount: sql<number>`COUNT(${overlays.id})::int`,
@@ -318,7 +315,6 @@ export const projectRouter = router({
             projects.startDate,
             projects.endDate,
             projects.sourceUrl,
-            projects.latestUpdateOn,
             projects.createdAt,
             projects.updatedAt,
             cities.id,
@@ -394,7 +390,6 @@ export const projectRouter = router({
             endDate: projects.endDate,
             endDatePrecision: projects.endDatePrecision,
             sourceUrl: projects.sourceUrl,
-            latestUpdateOn: projects.latestUpdateOn,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
             // AI : Count approved overlays OR user's own overlays (only in edit mode)
@@ -424,7 +419,6 @@ export const projectRouter = router({
             projects.endDate,
             projects.endDatePrecision,
             projects.sourceUrl,
-            projects.latestUpdateOn,
             projects.createdAt,
             projects.updatedAt,
             cities.id,
