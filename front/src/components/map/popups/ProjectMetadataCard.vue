@@ -41,10 +41,6 @@
           formatSourceUrl(project.sourceUrl)
         }}</a>
       </div>
-      <div v-if="project.latestUpdateOn" class="info-row">
-        <span class="info-label">{{ $t("project.latestUpdate") }}:</span>
-        <span class="info-value info-small">{{ formatDate(project.latestUpdateOn) || "—" }}</span>
-      </div>
     </div>
   </div>
 </template>
@@ -52,7 +48,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Project } from "@/types/index";
-import { formatDate } from "@/utils/dateFormat";
 import { formatProjectDateRange } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";

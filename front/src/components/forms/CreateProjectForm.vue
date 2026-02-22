@@ -38,7 +38,6 @@ const formData = reactive<ProjectFormData>({
   startDatePrecision: props.project.startDatePrecision ?? null,
   endDate: props.project.endDate ?? null,
   endDatePrecision: props.project.endDatePrecision ?? null,
-  latestUpdateOn: props.project.latestUpdateOn ?? null,
   cityId: props.project.cityId ?? null,
   sourceUrl: props.project.sourceUrl ?? null,
 });
@@ -62,7 +61,6 @@ watch(
     formData.proposalDate = p.proposalDate ?? null;
     formData.startDate = p.startDate ?? null;
     formData.endDate = p.endDate ?? null;
-    formData.latestUpdateOn = p.latestUpdateOn ?? null;
     formData.cityId = p.cityId ?? null;
     formData.sourceUrl = p.sourceUrl ?? null;
   },
@@ -88,7 +86,6 @@ function handleSubmit() {
     name: formData.name,
     description: formData.description,
     sourceUrl: formData.sourceUrl,
-    latestUpdateOn: formData.latestUpdateOn,
     cityId: formData.cityId === null ? undefined : formData.cityId,
     proposalDate: isProposed.value ? formData.proposalDate : null,
     proposalDatePrecision: isProposed.value ? formData.proposalDatePrecision : null,

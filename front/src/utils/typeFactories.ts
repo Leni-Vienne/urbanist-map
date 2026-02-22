@@ -35,7 +35,6 @@ export function toProjectPartial(project: StandaloneProject): Partial<Project> {
     proposalDate: project.proposalDate ?? null,
     startDate: project.startDate ?? null,
     endDate: project.endDate ?? null,
-    latestUpdateOn: project.latestUpdateOn ?? null,
   };
 
   // AI : Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
@@ -78,7 +77,6 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     startDatePrecision: data.startDatePrecision ?? null,
     endDate: data.endDate ?? null,
     endDatePrecision: data.endDatePrecision ?? null,
-    latestUpdateOn: data.latestUpdateOn ?? null,
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
@@ -120,7 +118,6 @@ export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Projec
     proposalDate: nearbyProject.proposalDate ?? null,
     startDate: nearbyProject.startDate ?? null,
     endDate: nearbyProject.endDate ?? null,
-    latestUpdateOn: nearbyProject.latestUpdateOn ?? null,
     createdAt: nearbyProject.createdAt,
     updatedAt: nearbyProject.updatedAt,
     ownerId: nearbyProject.ownerId,

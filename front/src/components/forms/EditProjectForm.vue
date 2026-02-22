@@ -96,7 +96,6 @@ const projectData = computed(() => ({
   startDatePrecision: originalProject.value.startDatePrecision ?? null,
   endDate: toDateObject(originalProject.value.endDate),
   endDatePrecision: originalProject.value.endDatePrecision ?? null,
-  latestUpdateOn: toDateObject(originalProject.value.latestUpdateOn),
   cityId: originalProject.value.cityId,
 }));
 
@@ -111,7 +110,6 @@ const currentProjectData = computed(() => ({
   startDatePrecision: props.project.startDatePrecision ?? null,
   endDate: toDateObject(props.project.endDate),
   endDatePrecision: props.project.endDatePrecision ?? null,
-  latestUpdateOn: toDateObject(props.project.latestUpdateOn),
   cityId: props.project.cityId,
 }));
 

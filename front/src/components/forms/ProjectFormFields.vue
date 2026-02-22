@@ -142,30 +142,6 @@
       </small>
     </div>
 
-    <!-- AI : Latest update date field (only shown in edit mode) -->
-    <div class="form-group" v-if="showLatestUpdateField">
-      <FloatLabel class="w-full" variant="in">
-        <DatePicker
-          id="latest-update-input"
-          v-model="localFormData.latestUpdateOn"
-          :class="[{ 'w-full': true }, fieldClasses?.('latestUpdateOn')]"
-          dateFormat="dd/mm/yy"
-          :updateModelType="'date'"
-          showIcon
-          :showClear="true"
-        />
-        <label for="latest-update-input" class="text-gray-600"
-          >{{ $t("project.latestUpdateOn") }} ({{ $t("project.optionalField") }})</label
-        >
-      </FloatLabel>
-      <small class="text-gray-500 block mt-1">{{ $t("project.latestUpdateOnHelp") }}</small>
-      <small v-if="showLatestUpdateChangeIndicator" class="change-indicator">
-        {{ $t("overlay.changedFrom") }}: "{{
-          formatDate(originalData?.latestUpdateOn) || $t("overlay.notSet")
-        }}"
-      </small>
-    </div>
-
     <!-- AI : Source URL field -->
     <div class="form-group">
       <FloatLabel class="w-full" variant="in">
@@ -446,10 +422,6 @@ const showEndDateChangeIndicator = computed(
 
 const showCityChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("cityId"),
-);
-
-const showLatestUpdateChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("latestUpdateOn"),
 );
 
 const showSourceUrlChangeIndicator = computed(

@@ -149,7 +149,6 @@ export interface ProjectFormData {
   startDatePrecision: "year" | "month" | "day" | null;
   endDate: Date | null;
   endDatePrecision: "year" | "month" | "day" | null;
-  latestUpdateOn?: Date | null;
   cityId: number | null;
   sourceUrl: string | null;
 }
