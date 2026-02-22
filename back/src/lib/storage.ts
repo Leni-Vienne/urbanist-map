@@ -43,7 +43,7 @@ export async function generateThumbnail(buffer: ArrayBuffer): Promise<ArrayBuffe
 }
 
 // AI : Smart image compression result type
-export interface CompressionResult {
+interface CompressionResult {
   buffer: ArrayBuffer;
   extension: string;
   wasCompressed: boolean;

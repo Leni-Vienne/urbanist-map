@@ -18,7 +18,3 @@ export interface FileUploadResult {
 export interface FileUploadError {
   error: string;
 }
-
-// AI : Re-export shared types for convenience
-export type { ApprovalStatus, OverlayData } from "@shared/types";
-export type { FieldChange, SubmitChangeRequestInput } from "@shared/validation/schemas";

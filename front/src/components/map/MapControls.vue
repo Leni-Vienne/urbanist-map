@@ -41,6 +41,9 @@
     </div>
   </div>
 
+  <!-- AI : Help button to guide user to click markers -->
+  <MarkerHelpButton />
+
   <!-- AI : Welcome Dialog -->
   <!-- AI : Welcome Dialog managed by UI Store -->
   <WelcomeDialog
@@ -58,6 +61,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 import FilterControl from "@/components/map/FilterControl.vue";
+import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
 
 const WelcomeDialog = defineAsyncComponent(() => import("@/components/map/WelcomeDialog.vue"));
 

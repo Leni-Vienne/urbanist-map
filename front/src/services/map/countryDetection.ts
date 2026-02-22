@@ -1,9 +1,8 @@
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 
-// AI : Import GeoJSON files for country borders
-import fraGeoJson from "@/assets/country-borders/FRA.json";
-import cheGeoJson from "@/assets/country-borders/CHE.json";
+// AI : country_bboxes is small (~500B) and used for fast pre-checks, keep it eager
 import countryBboxes from "@/assets/country_bboxes.json";
+// AI : FRA.json and CHE.json are large polygon files — loaded lazily on first satellite use
 
 interface BoundingBox {
   minLat: number;
@@ -28,18 +27,30 @@ function toBoundingBox(bbox: number[]): BoundingBox {
   };
 }
 
-const countryBorders: CountryBorder[] = [
-  {
-    code: "FRA",
-    geojson: fraGeoJson as FeatureCollection<Polygon | MultiPolygon>,
-    bbox: toBoundingBox(countryBboxes.FRA),
-  },
-  {
-    code: "CHE",
-    geojson: cheGeoJson as FeatureCollection<Polygon | MultiPolygon>,
-    bbox: toBoundingBox(countryBboxes.CHE),
-  },
-];
+// AI : Cached after first load — undefined until the user first uses satellite mode
+let countryBorders: CountryBorder[] | undefined;
+
+// AI : Dynamically imports all country borders as a single chunk — only loads on first satellite use
+async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
+  if (countryBorders) return countryBorders;
+
+  const { FRA: fraGeoJson, CHE: cheGeoJson } = await import("@/assets/country-borders");
+
+  countryBorders = [
+    {
+      code: "FRA",
+      geojson: fraGeoJson as FeatureCollection<Polygon | MultiPolygon>,
+      bbox: toBoundingBox(countryBboxes.FRA),
+    },
+    {
+      code: "CHE",
+      geojson: cheGeoJson as FeatureCollection<Polygon | MultiPolygon>,
+      bbox: toBoundingBox(countryBboxes.CHE),
+    },
+  ];
+
+  return countryBorders;
+}
 
 /**
  * AI : Fast check if point is within bounding box
@@ -51,13 +62,19 @@ function isInBoundingBox(lat: number, lng: number, bbox: BoundingBox): boolean {
 export type CountryCode = "FRA" | "CHE";
 
 /**
- * AI : Detect which country contains the given coordinates
+ * AI : Detect which country contains the given coordinates.
+ * Async because the GeoJSON border data is lazy-loaded on first call.
  * @param lat Latitude
  * @param lng Longitude
  * @returns Country code (FRA, CHE) or undefined if not in any known country
  */
-export function detectCountryFromCoordinates(lat: number, lng: number): CountryCode | undefined {
-  for (const country of countryBorders) {
+export async function detectCountryFromCoordinates(
+  lat: number,
+  lng: number,
+): Promise<CountryCode | undefined> {
+  const borders = await ensureCountryBordersLoaded();
+
+  for (const country of borders) {
     // AI : Fast bounding box pre-check (75x faster when outside)
     if (!isInBoundingBox(lat, lng, country.bbox)) {
       continue; // Skip expensive polygon check

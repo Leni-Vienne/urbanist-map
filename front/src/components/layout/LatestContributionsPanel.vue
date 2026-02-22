@@ -82,6 +82,7 @@ import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type { LatestContribution } from "@/types/index";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 
 const { t } = useI18n();
 
@@ -109,17 +110,15 @@ function getLocationDisplay(contribution: LatestContribution): string {
 }
 
 // AI : Handle contribution hover - highlight overlay on map if loaded
-async function handleContributionHover(contribution: LatestContribution) {
+function handleContributionHover(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
-    const { highlightOverlayById } = await import("@/services/overlay/overlaySelection");
     highlightOverlayById(contribution.id);
   }
 }
 
 // AI : Handle contribution leave - remove overlay highlight
-async function handleContributionLeave(contribution: LatestContribution) {
+function handleContributionLeave(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
-    const { removeOverlayHighlight } = await import("@/services/overlay/overlaySelection");
     removeOverlayHighlight(contribution.id);
   }
 }

@@ -166,9 +166,7 @@ export default defineConfig(({ mode }) => ({
                 ) ||
                 /\/front\/src\/utils\/(imageUrl|imageErrorHandler)/.test(id) ||
                 /\/front\/src\/constants\/mapConstants/.test(id) ||
-                /\/front\/src\/composables\/(ui\/useToast|moderation\/useModeratedContributions)/.test(
-                  id,
-                ) ||
+                /\/front\/src\/composables\/(ui\/useToast)/.test(id) ||
                 /\/front\/src\/services\/(core\/errorHandling|overlay\/(overlayLifecycle|completionFilters)|navigation\/locationNavigation|project\/projectSelection)/.test(
                   id,
                 ),

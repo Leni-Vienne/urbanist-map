@@ -134,7 +134,7 @@ export async function switchTileLayer(layerType: TileLayerType) {
     const currentZoom = map.value.getZoom();
     if (currentZoom > MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
       const center = map.value.getCenter();
-      const detectedCountry = detectCountryFromCoordinates(center.lat, center.lng);
+      const detectedCountry = await detectCountryFromCoordinates(center.lat, center.lng);
       if (detectedCountry && isTileLayerType(detectedCountry)) {
         layerType = detectedCountry;
       }
@@ -330,7 +330,7 @@ function initEsriMetadataListener() {
 /**
  * AI : Automatically switch satellite layer based on map view location and zoom
  */
-function checkAndAutoSwitchSatelliteLayer() {
+async function checkAndAutoSwitchSatelliteLayer() {
   if (currentTileLayer.value === "osm") {
     // AI : Only auto-switch when in satellite mode
     return;
@@ -348,7 +348,7 @@ function checkAndAutoSwitchSatelliteLayer() {
 
   // AI : At higher zoom, detect country and use country-specific layer if available
   const center = map.value.getCenter();
-  const detectedCountry: CountryCode | undefined = detectCountryFromCoordinates(
+  const detectedCountry: CountryCode | undefined = await detectCountryFromCoordinates(
     center.lat,
     center.lng,
   );
