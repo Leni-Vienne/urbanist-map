@@ -464,7 +464,6 @@ function handleEditOverlayClick(overlay: OverlayForModeration) {
     uiStore.openOverlayEditDialog(liveOverlay);
     return;
   }
-  console.log("fallback", overlay);
   // AI : Fallback: overlay not yet loaded in store (e.g. not on map)
   // AI : Only id + caption are needed — openOverlayEditDialog accepts OverlayEditTarget
   uiStore.openOverlayEditDialog({

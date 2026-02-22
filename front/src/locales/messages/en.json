@@ -593,6 +593,7 @@
     "moderatorReviewRequired": "A moderator needs to review and approve these changes",
     "reason": "Reason",
     "requested": "Requested",
+    "fetchSubmissionsFailed": "Failed to load pending submissions. Please refresh the page.",
     "overlayNotFound": "Overlay not found",
     "projectNotFound": "Project not found",
     "overlayVersionConflict": "This overlay was modified by another user. Please review the updated version before approving.",
