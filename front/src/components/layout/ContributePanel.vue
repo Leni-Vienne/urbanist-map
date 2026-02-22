@@ -191,7 +191,6 @@ import type {
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
-import { createOverlayObject } from "@/utils/typeFactories";
 
 // AI : Lazy-loaded - same chunk as CurrentLocationPanel's async import
 const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
@@ -465,16 +464,13 @@ function handleEditOverlayClick(overlay: OverlayForModeration) {
     uiStore.openOverlayEditDialog(liveOverlay);
     return;
   }
-
-  // AI : Fallback: overlay not yet loaded in store (e.g. not on map), build a minimal object
-  const overlayForEditor = createOverlayObject({
+  console.log("fallback", overlay);
+  // AI : Fallback: overlay not yet loaded in store (e.g. not on map)
+  // AI : Only id + caption are needed — openOverlayEditDialog accepts OverlayEditTarget
+  uiStore.openOverlayEditDialog({
     id: overlay.id,
-    caption: overlay.name ?? "",
-    filename: overlay.filename ?? "",
-    projectId: overlay.projectId ?? null,
-    status: overlay.status,
+    caption: overlay.name ?? null,
   });
-  uiStore.openOverlayEditDialog(overlayForEditor);
 }
 
 // AI : Handle add image to project - open dialog for image upload instructions

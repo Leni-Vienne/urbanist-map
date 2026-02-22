@@ -648,7 +648,6 @@
       "acknowledgeAll": "Clear All",
       "acknowledgeSuccess": "Acknowledged",
       "acknowledgeSuccessDetail": "Moderation results have been cleared",
-      "replacedInfo": "This was replaced by a newer version",
       "viewResults": "View Results"
     },
     "userStats": {

@@ -1,6 +1,9 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject } from "@/types/index";
+
+// AI : Minimal overlay data needed to open the edit dialog (caption editor only)
+export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
 import type { PanelTab } from "@/types";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 
@@ -46,9 +49,10 @@ export const useUiStore = defineStore("ui", () => {
   });
 
   // AI : Shared overlay edit dialog state - can be opened from anywhere
+  // AI : Uses OverlayEditTarget (not full OverlayObject) - dialog only needs id + caption
   const overlayEditDialog = ref<{
     visible: boolean;
-    overlay: OverlayObject | null;
+    overlay: OverlayEditTarget | null;
   }>({
     visible: false,
     overlay: null,
@@ -113,7 +117,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // AI : Shared overlay edit dialog actions - used by both sidemenu and info popup
-  function openOverlayEditDialog(overlay: OverlayObject) {
+  function openOverlayEditDialog(overlay: OverlayEditTarget) {
     overlayEditDialog.value = {
       visible: true,
       overlay,

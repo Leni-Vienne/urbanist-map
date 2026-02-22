@@ -67,11 +67,6 @@
             {{ item.cityName }}{{ item.countryCode ? `, ${item.countryCode}` : "" }}
           </p>
 
-          <p v-if="item.status === 'replaced' && item.replacedByOverlayId" class="item-info">
-            <i class="pi pi-info-circle"></i>
-            {{ $t("moderation.moderatedContributions.replacedInfo") }}
-          </p>
-
           <!-- AI : Display rejection reason if item was rejected -->
           <p
             v-if="item.status === 'rejected' && item.rejectionReason"

@@ -236,7 +236,10 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
   const authStore = useAuthStore();
 
   // AI : Use factory function for consistent object creation
-  // AI : status: null indicates overlay hasn't been submitted to backend yet
+  // AI : status: null indicates a local overlay not yet submitted to backend
+  // AI : IMPORTANT: Do NOT use undefined here — the factory promotes undefined to "pending",
+  // AI : which then requires authorId === currentUserId to pass visibility checks.
+  // AI : null takes the dedicated "local overlay" branch in isOverlayVisible and always returns true.
   return createOverlayObject({
     id,
     filename,
@@ -244,7 +247,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     authorId: authStore.user?.id ?? null, // AI : Set to current user's ID
     imageUrl,
     isModified: true, // AI : New overlays need to be uploaded
-    status: undefined, // AI : undefined = never submitted, "pending" = submitted awaiting review
+    status: null, // AI : null = local only, never submitted
   });
 }
 

@@ -1050,3 +1050,28 @@ This document outlines the granular functional test scenarios required to ensure
   4.  **Check**: Overlay marker turns **orange** (isModified = true).
   5.  Open the overlay info / edit popup again.
   6.  **Check**: The input field contains the new caption.
+
+## 34. Replacement Image Upload Appears on Map (Fix - Feb 22)
+
+### 34.1. Replacement Image Appears on Map After Upload
+
+- **Scenario**: Uploading a replacement image via the toolbar replace button correctly places the new overlay on the map.
+- **Steps**:
+  1.  Enter **Edit Mode** at high zoom. Select an **approved** overlay.
+  2.  Click the **Replace Image** toolbar button (image icon).
+  3.  In the **Image Upload Dialog**, select an image file and click **Confirm**.
+  4.  **Check**: A success toast appears.
+  5.  **Check**: A **new overlay image** appears on the map at the project's location.
+  6.  **Check**: The new overlay is automatically **selected** (toolbar visible).
+  7.  **Check**: The original overlay is still visible behind it.
+  8.  **Regression**: The new overlay's marker is visible at its center.
+
+### 34.2. Regular (Non-Replacement) New Overlay Also Appears
+
+- **Scenario**: Uploading the very first image on a standalone project correctly displays it.
+- **Steps**:
+  1.  Enter **Edit Mode**. Navigate to a **standalone project** (no overlays yet).
+  2.  Open the project popup and click **Add Image** (or equivalent).
+  3.  Select an image file and confirm.
+  4.  **Check**: The overlay image **appears on the map** immediately.
+  5.  **Check**: The standalone project marker is **removed** once the overlay appears.
