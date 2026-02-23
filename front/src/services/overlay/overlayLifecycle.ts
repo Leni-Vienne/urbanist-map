@@ -56,23 +56,19 @@ export function clearAllOverlays(preserveStoreData = false): void {
   // AI : Clear in-progress tracking to prevent stale entries
   overlaysBeingCreated.clear();
 
-  // AI : Collect IDs for markers that need to be cleared from allMarkers cache
-  const markerIdsToClear: string[] = [];
-
   // AI : Clean up store-tracked overlays and their markers
   for (const overlayObject of Object.values(overlayStore.overlays)) {
-    // AI : Markers are not DistortableImageOverlay, so remove them separately
-    if (overlayObject.marker && map.value.hasLayer(overlayObject.marker)) {
-      map.value.removeLayer(overlayObject.marker);
-    }
-
-    // AI : If preserving store data, null out the Leaflet layer references
-    // AI : This allows us to detect they need re-rendering when zooming back in
     if (preserveStoreData) {
+      // AI : Zoom threshold crossing — only null out the Leaflet image layer.
+      // AI : Keeping markers on the Leaflet map (and in allMarkers) means pruneOverlays
+      // AI : can keep them visible at zoom 13, and createSingleMarker's guard will
+      // AI : skip recreation when crossing back to zoom 14. Zero flicker.
       overlayObject.overlay = null;
-      overlayObject.marker = null;
-      // AI : Mark for removal from allMarkers so createSingleMarker can recreate on zoom-in
-      markerIdsToClear.push(overlayObject.id);
+    } else {
+      // AI : Full clear — remove markers from map too
+      if (overlayObject.marker && map.value.hasLayer(overlayObject.marker)) {
+        map.value.removeLayer(overlayObject.marker);
+      }
     }
   }
 
@@ -93,8 +89,8 @@ export function clearAllOverlays(preserveStoreData = false): void {
       }
     }
     overlayStore.allMarkers = {};
-  } else {
-    // AI : Clear markers from allMarkers cache so they can be recreated
-    overlayStore.clearMarkersFromCache(markerIdsToClear);
   }
+  // AI : When preserveStoreData=true, allMarkers and overlay.marker remain intact —
+  // AI : markers stay on the Leaflet map so they can be shown at zoom 13 without
+  // AI : being recreated when the user zooms back to 14.
 }

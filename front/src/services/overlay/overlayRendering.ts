@@ -534,6 +534,12 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     // AI : Marker may be gone if the user panned away before the image finished loading
     if (!marker) return;
 
+    // AI : Safety net: re-add the marker if it was removed from the map
+    // AI : during a zoom-out cleanup before the image finished loading.
+    if (!map.value.hasLayer(marker)) {
+      marker.addTo(map.value);
+    }
+
     overlayObjectWithMethods.marker = marker;
 
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);

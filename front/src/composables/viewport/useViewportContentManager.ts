@@ -56,6 +56,7 @@ export function useViewportContentManager() {
    */
   function clearContentExceptActiveCity(activeCityId: number, isEditMode: boolean) {
     // AI : Clear overlay images for ALL, markers for non-active cities only
+    const markersToRemoveFromCache: string[] = [];
     for (const [overlayId, overlay] of Object.entries(overlayStore.overlays)) {
       const belongsToActiveCity = overlay.project?.cityId === activeCityId;
       const isLocal = isEditMode && overlay.status === null;
@@ -70,7 +71,15 @@ export function useViewportContentManager() {
       if (!belongsToActiveCity && !isLocal && overlay.marker) {
         overlay.marker.remove();
         overlayStore.updateOverlay(overlayId, { marker: null });
+        // AI : Also clear from allMarkers so fresh markers can be created
+        // AI : when this city is re-loaded at zoom 13/14.
+        markersToRemoveFromCache.push(overlayId);
       }
+    }
+
+    // AI : Batch clear removed markers from allMarkers
+    if (markersToRemoveFromCache.length > 0) {
+      overlayStore.clearMarkersFromCache(markersToRemoveFromCache);
     }
 
     // AI : Clear standalone markers for non-active cities
@@ -223,11 +232,24 @@ export function useViewportContentManager() {
       }
 
       const zoom = map.value.getZoom();
+      const previousZoom = lastZoomLevel.value;
 
-      // AI : Always prune entities based on new viewport
-      // AI : This ensures city markers (which are visible at low zoom) are correctly added/removed
-      // AI : and that overlays re-appear when zooming out and back in
-      pruneMapEntities();
+      // AI : Detect low→high threshold crossing before pruning.
+      // AI : When crossing this boundary, renderFullOverlays() will call pruneMapEntities()
+      // AI : after removing the dot markers (overlayMarkersLayer). Calling it here first
+      // AI : queues async store-managed marker creation before dot markers are removed,
+      // AI : causing a visual glitch where markers appear to re-appear during zoom.
+      const crossedLowToHigh =
+        zoom >= MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD &&
+        previousZoom !== null &&
+        previousZoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS &&
+        zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+      // AI : Prune entities (city markers, overlay visibility).
+      // AI : Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
+      if (!crossedLowToHigh) {
+        pruneMapEntities();
+      }
 
       // AI : CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
@@ -251,7 +273,6 @@ export function useViewportContentManager() {
       }
 
       // AI : Check if we crossed the marker ↔ overlay threshold
-      const previousZoom = lastZoomLevel.value;
       const crossedThreshold =
         previousZoom !== null &&
         ((previousZoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS &&
@@ -382,10 +403,12 @@ export function useViewportContentManager() {
    * AI : Render overlay markers only (low zoom)
    */
   function renderMarkersOnly(overlaysData: OverlayData[]) {
-    // AI : In edit mode, preserve overlay store data so local overlays can be restored when zooming back in
-    // AI : In view mode, clear everything since local overlays shouldn't be visible anyway
+    // AI : Always preserve store data when crossing to marker-only zoom.
+    // AI : This keeps allMarkers intact and markers on the Leaflet map so that:
+    // AI :  - pruneOverlays can show them at zoom 13 via showMarkers=true
+    // AI :  - createSingleMarker's allMarkers guard fires on zoom-in, skipping recreation
     const isEditMode = overlayStore.mode === "edit";
-    clearAllOverlays(isEditMode);
+    clearAllOverlays(true);
 
     // AI : Collect all overlays to render as markers
     const allOverlaysForMarkers = [...overlaysData];

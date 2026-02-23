@@ -58,17 +58,18 @@ export function processStandaloneMarkers(
 
 /**
  * AI : Render full overlay images (high zoom path).
- * AI : Removes low-zoom dot markers, hydrates the store with fresh backend data,
- * AI : synchronizes overlay metadata via a batch update (O(1) reactivity trigger),
- * AI : updates marker colors, then delegates actual positioning to the pruning service.
- * AI : Standardizes on the batch-update approach from the viewport manager.
+ * AI : Hydrates the store with fresh backend data, synchronizes overlay metadata
+ * AI : via a batch update (O(1) reactivity trigger), updates marker colors, then
+ * AI : delegates actual positioning to the pruning service.
+ * AI : Dot markers (overlayMarkersLayer) are removed via requestAnimationFrame AFTER
+ * AI : pruneMapEntities fires its dynamic-import microtask, ensuring store-managed
+ * AI : markers are on the DOM before dot markers are removed (zero-gap transition).
  */
 export function renderFullOverlays(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
-  // AI : Switch from dot-marker display to full overlay image display
-  removeOverlayMarkers();
+  // AI : Set data before rendering
   overlayStore.setViewModeOverlays(overlaysData);
   mapStore.currentCityOverlays = overlaysData;
 
@@ -93,9 +94,18 @@ export function renderFullOverlays(overlaysData: OverlayData[]): void {
   // AI : (e.g. a marker turning yellow when hasPendingChanges becomes true)
   updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
 
-  // AI : Delegate to the pruning service so only in-viewport overlays are rendered,
-  // AI : preventing unnecessary network requests for off-screen images.
+  // AI : pruneMapEntities creates store-managed markers via a dynamic import (.then = microtask).
+  // AI : Removing dot markers synchronously before that microtask runs leaves a visible gap.
+  // AI : Deferring to requestAnimationFrame guarantees the microtask (and thus createSingleMarker)
+  // AI : has already executed before the dot markers are removed — zero-gap transition.
+  // AI : NOTE: This assumes the overlayRendering lazy chunk is already cached (import() resolves
+  // AI : as a microtask). On the very first load, the module fetch spans multiple frames, so
+  // AI : the rAF may fire before store-managed markers exist. In practice the first render
+  // AI : always goes through the viewport manager path which preloads the chunk.
+  // AI : promoteToStandalone=true re-adds dot markers as standalone layers on the map
+  // AI : after destroying the layer group, keeping them visible during async image loading.
   pruneMapEntities();
+  requestAnimationFrame(() => removeOverlayMarkers(true));
 }
 
 /**

@@ -17,7 +17,6 @@ function getCornersFromOverlay(overlay: OverlayObject) {
   if (overlay.overlay) {
     return overlay.overlay.getCorners();
   }
-  console.log("Corners undefined, using stored corners");
   return overlay.corners;
 }
 
@@ -155,8 +154,6 @@ export function useOverlayPublisher() {
     newId: string,
     project: Project | null,
   ): void {
-    console.log(`AI: Publishing changed overlay ID from ${oldId} to ${newId}`);
-
     // AI : Update overlays store with new key
     const updatedOverlays = { ...overlayStore.overlays };
     delete updatedOverlays[oldId];
@@ -168,7 +165,6 @@ export function useOverlayPublisher() {
       const marker = overlayStore.allMarkers[oldId];
       delete overlayStore.allMarkers[oldId];
       overlayStore.allMarkers[newId] = marker;
-      console.log(`AI: Updated marker ID from ${oldId} to ${newId}`);
     }
 
     // AI : Update project's overlayIds array to use new ID
@@ -208,7 +204,6 @@ export function useOverlayPublisher() {
 
     // AI : Ensure the overlay stays visible on the map after ID change
     if (overlay.overlay && !map.value.hasLayer(overlay.overlay)) {
-      console.log(`AI: Re-adding overlay ${overlay.id} to map after publishing`);
       overlay.overlay.addTo(map.value);
     }
 
@@ -256,7 +251,6 @@ export function useOverlayPublisher() {
           overlay.projectId = project.id;
         }
       }
-      console.trace("publishOverlay");
       // AI : Step 2 - Prepare and upload image if needed
       const filename = await prepareImageForServer(overlay);
 

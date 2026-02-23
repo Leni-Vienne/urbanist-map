@@ -127,6 +127,10 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) return;
 
   const showImages = zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+  // AI : Markers are shown whenever we're past the load threshold, regardless of whether
+  // AI : full overlay images are displayed. This prevents markers from being toggled off
+  // AI : at zoom 13 when they were preserved from a prior zoom-14 session.
+  const showMarkers = true; // AI : pruneOverlays already returns early below VIEWPORT_LOAD_THRESHOLD
   const overlayStore = useOverlayStore();
 
   // AI : Helper to check visibility and existence
@@ -170,7 +174,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
           syncLayerToMap(existingInstance.overlay, showImages, mapInstance);
         }
 
-        syncLayerToMap(existingInstance.marker, showImages, mapInstance);
+        syncLayerToMap(existingInstance.marker, showMarkers, mapInstance);
       }
     } else if (existingInstance) {
       // AI : Not visible -> Queue for Cleanup
@@ -230,7 +234,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         syncLayerToMap(overlay.overlay, showImages, mapInstance);
       }
 
-      syncLayerToMap(overlay.marker, showImages, mapInstance);
+      syncLayerToMap(overlay.marker, showMarkers, mapInstance);
     } else if (overlay.overlay || overlay.marker) {
       // AI : Not visible or not allowed -> Queue for Cleanup
       destructionQueue.add(id);
@@ -263,17 +267,17 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: number) {
   const cityMarkersStore = useCityMarkersStore();
-  const allMarkers = cityMarkersStore.cityMarkerMap;
+  const allCityMarkers = cityMarkersStore.cityMarkerMap;
 
-  for (const [_cityId, marker] of allMarkers) {
-    const latLng = marker.getLatLng();
+  for (const [_cityId, cityMarker] of allCityMarkers) {
+    const latLng = cityMarker.getLatLng();
     const isInBounds = bounds.contains(latLng);
-    const isOnMap = mapInstance.hasLayer(marker);
+    const isOnMap = mapInstance.hasLayer(cityMarker);
 
     if (isInBounds && !isOnMap) {
-      marker.addTo(mapInstance);
+      cityMarker.addTo(mapInstance);
     } else if (!isInBounds && isOnMap) {
-      marker.remove();
+      cityMarker.remove();
     }
   }
 }

@@ -12,6 +12,11 @@ import type { OverlayData } from "@/types/index";
 
 // AI : Layer group for overlay markers (markers without images)
 let overlayMarkersLayer: L.LayerGroup | null = null;
+// AI : Track IDs of dot-markers registered in allMarkers so removeOverlayMarkers can promote
+// AI : them to standalone Leaflet layers before destroying the group.
+// AI : Module-level state — only cleared inside removeOverlayMarkers. Stale IDs are harmless
+// AI : because the promotion loop guards on allMarkers[id] existence.
+const dotMarkerIds = new Set<string>();
 
 /**
  * AI : Common function to render overlay markers from overlay data
@@ -32,8 +37,10 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
   for (const overlay of visibleOverlays) {
     // AI : Skip replaced overlays - they would overlap with their replacement at the same location
     if (overlay.status === "replaced") continue;
+    // AI : Skip overlays that already have a store-managed marker (zoom 14→13 crossing).
+    // AI : Those markers are preserved on the Leaflet map; adding another here would create duplicates.
+    if (overlayStore.allMarkers[overlay.id]) continue;
     // AI : Use unified position resolver
-
     const resolved = resolveOverlayPosition(overlay.id, overlay, overlayStore.mode);
 
     // AI : Check edit mode cache for modifications to determine correct marker color
@@ -76,19 +83,55 @@ export function renderOverlayMarkersFromData(overlaysData: OverlayData[]): void 
     });
 
     overlayMarkersLayer.addLayer(marker);
+    // AI : Register in allMarkers so createSingleMarker's guard fires at zoom 14 instead of
+    // AI : creating a duplicate. onOverlayFullyLoaded will wire the final overlay object to
+    // AI : this same marker instance via allMarkers. Track the ID for promotion in removeOverlayMarkers.
+    overlayStore.allMarkers[overlay.id] = marker;
+    dotMarkerIds.add(overlay.id);
   }
-
   // AI : Add overlay markers to map
   overlayMarkersLayer.addTo(map.value);
 }
 
 /**
  * AI : Remove overlay markers from the map
+ * @param promoteToStandalone - If true, re-add dot-markers as standalone Leaflet layers
+ *   after the layer group is destroyed. Used during zoom 13→14 transition so that markers
+ *   stay visible while full overlay images load asynchronously.
+ *   When false (default), dot-marker entries are also removed from allMarkers so that
+ *   the next renderOverlayMarkersFromData call can create fresh dot markers.
  */
-export function removeOverlayMarkers(): void {
+export function removeOverlayMarkers(promoteToStandalone = false): void {
   if (overlayMarkersLayer) {
+    const overlayStore = useOverlayStore();
+
+    // AI : MUST remove the layer group first. Leaflet's LayerGroup.onRemove iterates
+    // AI : its children and calls map.removeLayer(child) for each, so all child markers
+    // AI : are removed from the map. Calling addTo(map) BEFORE this is a no-op because
+    // AI : the marker is already on the map (via the group).
     map.value.removeLayer(overlayMarkersLayer);
     overlayMarkersLayer = null;
+
+    if (promoteToStandalone) {
+      // AI : Re-add dot-markers that are still in allMarkers as standalone layers.
+      // AI : Now that the layer group is destroyed, addTo(map) actually registers them.
+      // AI : They remain visible while overlay images load; onOverlayFullyLoaded will
+      // AI : wire them as the overlay's .marker via allMarkers lookup.
+      for (const id of dotMarkerIds) {
+        const marker = overlayStore.allMarkers[id];
+        if (marker) {
+          marker.addTo(map.value);
+        }
+      }
+    } else {
+      // AI : Full cleanup: also remove dot-marker entries from allMarkers.
+      // AI : Without this, the allMarkers guard in renderOverlayMarkersFromData would
+      // AI : skip creating new dot markers for these overlays.
+      for (const id of dotMarkerIds) {
+        delete overlayStore.allMarkers[id];
+      }
+    }
+    dotMarkerIds.clear();
   }
 }
 
