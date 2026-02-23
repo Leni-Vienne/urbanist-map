@@ -8,6 +8,7 @@ import { map } from "@/services/core/map";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject } from "@/types/index";
 import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
+import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
 
@@ -174,7 +175,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
           syncLayerToMap(existingInstance.overlay, showImages, mapInstance);
         }
 
-        syncLayerToMap(existingInstance.marker, showMarkers, mapInstance);
+        if (existingInstance.marker === null && showMarkers) {
+          createSingleMarker(existingInstance);
+        } else {
+          syncLayerToMap(existingInstance.marker, showMarkers, mapInstance);
+        }
       }
     } else if (existingInstance) {
       // AI : Not visible -> Queue for Cleanup
@@ -234,7 +239,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         syncLayerToMap(overlay.overlay, showImages, mapInstance);
       }
 
-      syncLayerToMap(overlay.marker, showMarkers, mapInstance);
+      if (overlay.marker === null && showMarkers) {
+        createSingleMarker(overlay);
+      } else {
+        syncLayerToMap(overlay.marker, showMarkers, mapInstance);
+      }
     } else if (overlay.overlay || overlay.marker) {
       // AI : Not visible or not allowed -> Queue for Cleanup
       destructionQueue.add(id);

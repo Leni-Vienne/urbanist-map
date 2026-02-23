@@ -1136,16 +1136,27 @@ This document outlines the granular functional test scenarios required to ensure
   1.  Click **City A** marker → overlays load at zoom 14+.
   2.  Unzoom to zoom level 10 or below.
   3.  Zoom back into **City B** (nearby, without clicking its marker).
-  4.  At **zoom 13**: **Check** overlay dot markers appear for City B.
-  5.  At **zoom 14**: **Check** overlay images AND their markers are both visible.
+  4.  At **zoom 13**: **Check** interactive overlay markers appear for City B. (Hovering highlights them).
+  5.  At **zoom 14**: **Check** overlay images AND their interactive markers are both visible.
   6.  **Regression**: Unzoom to 12, zoom back to 14. Verify markers still appear.
 
 ### 36.3. Upfront Overlay Markers on City Navigation
 
-- **Scenario**: Overlay markers appear instantly when clicking a city marker, before images load.
+- **Scenario**: Overlay markers appear instantly and are fully interactive when clicking a city marker, before images load.
 - **Steps**:
   1.  Click a **City Marker** at zoom 14+.
-  2.  **Check**: Overlay dot markers appear **immediately** (alongside standalone project markers).
+  2.  **Check**: Interactive overlay markers appear **immediately** (alongside standalone project markers) and respond to hover.
   3.  **Check**: Overlay images load in the background and appear after a short delay.
-  4.  **Check**: Once images are loaded, markers remain visible (no flash/disappearance).
+  4.  **Check**: Once images are loaded, markers remain interactive and visible (no flash/disappearance).
   5.  **Regression**: Clear browser cache and repeat — verify markers appear before images on slow connection.
+
+### 36.4. Standalone Project Marker Cleanup on City Switch
+
+- **Scenario**: Old standalone project markers are removed instantly when navigating to a new city.
+- **Steps**:
+  1.  Click a **City Marker** for a city that has standalone projects (projects without overlays).
+  2.  Verify standalone project markers appear on the map.
+  3.  Click a **different City Marker**.
+  4.  **Check**: Old standalone project markers disappear **instantly** (no ~500ms delay).
+  5.  **Check**: New city's standalone project markers appear correctly.
+  6.  **Regression**: Switch to a city with **no** standalone projects — verify old markers are still removed instantly.

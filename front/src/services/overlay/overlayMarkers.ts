@@ -139,9 +139,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
   // AI : Skip replaced overlays - the replacement is at the same location, marker would be confusing
-  if (savedOverlay.status === "replaced") return;
+  if (savedOverlay.status === "replaced") {
+    return;
+  }
 
-  if (overlayStore.allMarkers[savedOverlay.id]) return;
+  if (overlayStore.allMarkers[savedOverlay.id]) {
+    return;
+  }
 
   // AI : CRITICAL: Safety check for visibility
   // AI : This prevents markers from being created for filtered-out overlays during race conditions
@@ -160,10 +164,14 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     }
   }
 
-  if (corners.length !== 4) return;
+  if (corners.length !== 4) {
+    return;
+  }
 
   const centroid = calculateCentroidFromCorners(corners);
-  if (!centroid) return;
+  if (!centroid) {
+    return;
+  }
   const center = L.latLng(centroid.lat, centroid.lng);
 
   // AI : Enrich overlay with project data for proper marker color calculation
@@ -233,6 +241,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   }
 
   overlayStore.allMarkers[savedOverlay.id] = marker;
+  savedOverlay.marker = marker;
   tempOverlayObject.marker = marker;
   // AI : Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
   updateMarkerTooltip(tempOverlayObject, markerColor);

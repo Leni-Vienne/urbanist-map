@@ -156,7 +156,7 @@
     "noProjectsMatchFilter": "No projects match the current filter.",
     "tryChangingFilters": "Try changing your filter settings.",
     "noProjectsFound": "No projects found.",
-    "createFirstProject": "Create your first construction project!",
+    "createFirstProject": "Add your first project!",
     "deleteOverlay": "Delete overlay",
     "deleteProject": "Delete project",
     "deleteChangeRequest": "Delete change request",
@@ -171,7 +171,7 @@
   },
   "contribution": {
     "noContributionsFound": "No contributions found.",
-    "beFirstToAdd": "Be the first to add a construction overlay or standalone project",
+    "beFirstToAdd": "Be the first to add a project",
     "loadingContributions": "Loading contributions..."
   },
   "currentLocation": {
@@ -687,7 +687,7 @@
       "incorrect_location": "Incorrect location",
       "duplicate": "Duplicate project",
       "insufficient_info": "Insufficient information",
-      "not_construction": "Not a construction project",
+      "not_construction": "Not a urban project",
       "spam": "Spam or inappropriate content"
     },
     "rejectAllOverlays": "Also reject all {count} pending overlay(s)"

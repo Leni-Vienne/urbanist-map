@@ -21,6 +21,11 @@ import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 export function initializeOverlayHistory(overlayObject: OverlayObject): void {
   if (!overlayObject.overlay) return;
 
+  // AI : Defensive guard: ensure history array exists (can be undefined if factory had a bug)
+  if (!overlayObject.history) {
+    overlayObject.history = [];
+  }
+
   // AI : Only initialize if history is completely empty
   if (overlayObject.history.length > 0) {
     return;

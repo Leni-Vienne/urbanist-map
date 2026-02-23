@@ -4,7 +4,7 @@ import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { setProjectPopupTarget } from "@/services/map/popupState";
 
-let currentMarkerForPopup: L.Marker | L.CircleMarker | null = null;
+let currentMarkerForPopup: L.Marker | null = null;
 let mapClickHandler: (() => void) | null = null;
 
 /**
@@ -26,7 +26,7 @@ function updateTeleportTargetPosition() {
 /**
  * AI : Create teleport target for project info popup at marker position
  */
-export function createProjectInfoTeleportTarget(marker: L.Marker | L.CircleMarker) {
+export function createProjectInfoTeleportTarget(marker: L.Marker) {
   const markerLatLng = marker.getLatLng();
   const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
 

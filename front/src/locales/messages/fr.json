@@ -156,7 +156,7 @@
     "noProjectsMatchFilter": "Aucun projet ne correspond au filtre actuel.",
     "tryChangingFilters": "Essayez de modifier vos paramètres de filtre.",
     "noProjectsFound": "Aucun projet trouvé.",
-    "createFirstProject": "Créez votre premier projet de construction !",
+    "createFirstProject": "Ajoutez votre premier projet !",
     "deleteOverlay": "Supprimer l'image",
     "deleteProject": "Supprimer le projet",
     "deleteChangeRequest": "Supprimer la suggestion",
@@ -171,7 +171,7 @@
   },
   "contribution": {
     "noContributionsFound": "Aucune contribution trouvée.",
-    "beFirstToAdd": "Soyez le premier à ajouter une image ou un projet de bâtiment",
+    "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
     "loadingContributions": "Chargement des contributions..."
   },
   "currentLocation": {
@@ -499,7 +499,7 @@
   "imageUpload": {
     "pdfExtractionDescription": "Si vos images proviennent d'un PDF, il est recommandé d'utiliser des outils comme {toolLink} pour les extraire dans la meilleure qualité possible.",
     "dialogTitle": "Ajouter une image au projet",
-    "uploadDescription": "Ajouter une image d'un plan de rue, d'un plan de construction ou d'une vue aérienne. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées. Jetez un œil aux dernières contributions pour voir comment elles devraient se présenter.",
+    "uploadDescription": "Ajouter une image vue de dessus d'un plan de rue. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées. Jetez un œil aux dernières contributions pour voir comment elles devraient se présenter.",
     "pdfExtraction": "Extraction depuis des PDFs",
     "tokenToolLink": "TokenTool",
     "dragDrop": "Glissez et déposez votre image ici",
@@ -689,7 +689,7 @@
       "incorrect_location": "Localisation incorrecte",
       "duplicate": "Projet en double",
       "insufficient_info": "Informations insuffisantes",
-      "not_construction": "Pas un projet de construction",
+      "not_construction": "Pas un projet urbain",
       "spam": "Spam ou contenu inapproprié"
     },
     "rejectAllOverlays": "Rejeter également {count} image(s) en attente"

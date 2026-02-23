@@ -11,7 +11,7 @@ import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { pruneMapEntities } from "@/services/map/viewportPruning";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
-import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
+import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
 import {
   addStandaloneProjectMarkerForProject,
@@ -28,7 +28,7 @@ import {
   renderFullOverlays,
 } from "@/services/navigation/cityRenderingCore";
 import type { OverlayData, OverlayObject } from "@/types/index";
-import { type StandaloneProject } from "@/utils/typeFactories";
+import { type StandaloneProject, createOverlayObject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
@@ -263,7 +263,6 @@ export function useViewportContentManager() {
         } else {
           // AI : No active city, clear everything as before
           clearAllOverlays(isEditMode);
-          removeOverlayMarkers();
           clearAllStandaloneProjectMarkers();
           loadedCityIds.value.clear();
         }
@@ -441,8 +440,32 @@ export function useViewportContentManager() {
       }
     }
 
-    // AI : Render markers
-    renderOverlayMarkersFromData(allOverlaysForMarkers);
+    // AI : Update the store with all required overlays for the markers
+    overlayStore.setViewModeOverlays(allOverlaysForMarkers);
+
+    // AI : Sync batch updates for any fresh data
+    const updates: Record<string, Partial<OverlayData>> = {};
+    for (const overlayData of allOverlaysForMarkers) {
+      if (overlayStore.overlays[overlayData.id]) {
+        updates[overlayData.id] = {
+          hasPendingChanges: overlayData.hasPendingChanges,
+          suggestedCorners: overlayData.suggestedCorners,
+          pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
+        };
+      } else {
+        // AI : Instantiate an OverlayObject so that markers and interactions have a reactive target
+        overlayStore.addOverlay(overlayData.id, createOverlayObject(overlayData));
+      }
+    }
+    if (Object.keys(updates).length > 0) {
+      overlayStore.batchUpdateOverlays(updates);
+    }
+
+    // AI : Render interactive markers for everything in the store
+    // AI : createSingleMarker safely ignores markers that already exist
+    for (const overlayObject of Object.values(overlayStore.overlays)) {
+      createSingleMarker(overlayObject);
+    }
   }
 
   /**

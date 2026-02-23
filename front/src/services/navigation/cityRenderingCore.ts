@@ -6,14 +6,15 @@
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { removeOverlayMarkers, renderOverlayMarkersFromData } from "@/services/map/cityOverlays";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { pruneMapEntities } from "@/services/map/viewportPruning";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
+import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
+  createOverlayObject,
   toProjectPartial,
   type StandaloneProject,
 } from "@/utils/typeFactories";
@@ -57,25 +58,16 @@ export function processStandaloneMarkers(
 }
 
 /**
- * AI : Render full overlay images (high zoom path).
- * AI : Hydrates the store with fresh backend data, synchronizes overlay metadata
- * AI : via a batch update (O(1) reactivity trigger), updates marker colors, then
- * AI : delegates actual positioning to the pruning service.
- * AI : Dot markers (overlayMarkersLayer) are removed via requestAnimationFrame AFTER
- * AI : pruneMapEntities fires its dynamic-import microtask, ensuring store-managed
- * AI : markers are on the DOM before dot markers are removed (zero-gap transition).
+ * AI : Shared utility to hydrate the Pinia store with fresh backend data.
+ * AI : Used by both full overlay rendering and marker-only rendering.
  */
-export function renderFullOverlays(overlaysData: OverlayData[]): void {
+function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
-  // AI : Set data before rendering
   overlayStore.setViewModeOverlays(overlaysData);
   mapStore.currentCityOverlays = overlaysData;
 
-  // AI : Batch update overlay metadata from fresh backend data.
-  // AI : Critical for mode switches (view → edit, view → moderation) where overlays
-  // AI : are already on the map but need updated hasPendingChanges / suggestedCorners.
   const updates: Record<string, Partial<OverlayData>> = {};
   for (const overlayData of overlaysData) {
     if (overlayStore.overlays[overlayData.id]) {
@@ -84,38 +76,48 @@ export function renderFullOverlays(overlaysData: OverlayData[]): void {
         suggestedCorners: overlayData.suggestedCorners,
         pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
       };
+    } else {
+      // AI : Instantiate an OverlayObject so that markers and interactions have a reactive target
+      overlayStore.addOverlay(overlayData.id, createOverlayObject(overlayData));
     }
   }
   if (Object.keys(updates).length > 0) {
     overlayStore.batchUpdateOverlays(updates);
   }
 
-  // AI : Refresh marker colors to reflect the newly loaded state
-  // AI : (e.g. a marker turning yellow when hasPendingChanges becomes true)
   updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
-
-  // AI : pruneMapEntities creates store-managed markers via a dynamic import (.then = microtask).
-  // AI : Removing dot markers synchronously before that microtask runs leaves a visible gap.
-  // AI : Deferring to requestAnimationFrame guarantees the microtask (and thus createSingleMarker)
-  // AI : has already executed before the dot markers are removed — zero-gap transition.
-  // AI : NOTE: This assumes the overlayRendering lazy chunk is already cached (import() resolves
-  // AI : as a microtask). On the very first load, the module fetch spans multiple frames, so
-  // AI : the rAF may fire before store-managed markers exist. In practice the first render
-  // AI : always goes through the viewport manager path which preloads the chunk.
-  // AI : promoteToStandalone=true re-adds dot markers as standalone layers on the map
-  // AI : after destroying the layer group, keeping them visible during async image loading.
-  pruneMapEntities();
-  requestAnimationFrame(() => removeOverlayMarkers(true));
 }
 
 /**
- * AI : Render overlay dot markers only (low zoom path).
- * AI : Clears overlay images and renders centroid markers.
- * AI : NOTE: This is the simple navigation-path version.
- * AI : The viewport manager keeps its own renderMarkersOnly that handles
- * AI : edit-mode overlay reconstruction from the store.
+ * AI : Render full overlay images (high zoom path).
+ * AI : Hydrates the store with fresh backend data, updates marker colors, then
+ * AI : delegates actual positioning to the pruning service.
+ */
+export function renderFullOverlays(overlaysData: OverlayData[]): void {
+  hydrateStoreWithOverlays(overlaysData);
+
+  const overlayStore = useOverlayStore();
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
+    createSingleMarker(overlayObject);
+  }
+
+  pruneMapEntities();
+}
+
+/**
+ * AI : Render overlay markers only (low zoom path).
+ * AI : Clears overlays to ensure a clean state, hydrates the store, and
+ * AI : creates interactive markers for each overlay.
  */
 export function renderMarkersOnly(overlaysData: OverlayData[]): void {
-  clearAllOverlays();
-  renderOverlayMarkersFromData(overlaysData);
+  // AI : CRITICAL: Must preserve store data! We only want to remove the image layers from map,
+  // AI : not destroy the reactive objects or delete the markers from allMarkers cache
+  clearAllOverlays(true);
+
+  hydrateStoreWithOverlays(overlaysData);
+
+  const overlayStore = useOverlayStore();
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
+    createSingleMarker(overlayObject);
+  }
 }
