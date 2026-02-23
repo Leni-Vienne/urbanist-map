@@ -26,9 +26,10 @@ import {
 import {
   processStandaloneMarkers,
   renderFullOverlays,
+  hydrateOverlayStoreObjects,
 } from "@/services/navigation/cityRenderingCore";
 import type { OverlayData, OverlayObject } from "@/types/index";
-import { type StandaloneProject, createOverlayObject } from "@/utils/typeFactories";
+import { type StandaloneProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
@@ -444,22 +445,7 @@ export function useViewportContentManager() {
     overlayStore.setViewModeOverlays(allOverlaysForMarkers);
 
     // AI : Sync batch updates for any fresh data
-    const updates: Record<string, Partial<OverlayData>> = {};
-    for (const overlayData of allOverlaysForMarkers) {
-      if (overlayStore.overlays[overlayData.id]) {
-        updates[overlayData.id] = {
-          hasPendingChanges: overlayData.hasPendingChanges,
-          suggestedCorners: overlayData.suggestedCorners,
-          pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
-        };
-      } else {
-        // AI : Instantiate an OverlayObject so that markers and interactions have a reactive target
-        overlayStore.addOverlay(overlayData.id, createOverlayObject(overlayData));
-      }
-    }
-    if (Object.keys(updates).length > 0) {
-      overlayStore.batchUpdateOverlays(updates);
-    }
+    hydrateOverlayStoreObjects(allOverlaysForMarkers);
 
     // AI : Render interactive markers for everything in the store
     // AI : createSingleMarker safely ignores markers that already exist

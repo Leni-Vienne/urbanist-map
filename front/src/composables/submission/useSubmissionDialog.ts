@@ -291,6 +291,26 @@ export function useSubmissionDialog() {
     return t("submission.updateOverlays");
   }
 
+  // AI : Helper to build changed fields for a modification
+  function buildChangedFields(mod: PendingOverlayModification) {
+    const changedFields = [];
+    if (mod.caption) {
+      changedFields.push({
+        fieldName: "caption",
+        oldValue: mod.caption.original,
+        newValue: mod.caption.current,
+      });
+    }
+    if (mod.corners) {
+      changedFields.push({
+        fieldName: "corners",
+        oldValue: mod.corners.original,
+        newValue: mod.corners.current,
+      });
+    }
+    return changedFields;
+  }
+
   // AI : Submit pending overlay modifications using the unified submission service
   async function submitOverlayModifications(
     overlayIds: string[],
@@ -307,21 +327,7 @@ export function useSubmissionDialog() {
       }
 
       const overlayWithChanges = applyModificationsToOverlay(overlayObject, mod);
-      const changedFields = [];
-      if (mod.caption) {
-        changedFields.push({
-          fieldName: "caption",
-          oldValue: mod.caption.original,
-          newValue: mod.caption.current,
-        });
-      }
-      if (mod.corners) {
-        changedFields.push({
-          fieldName: "corners",
-          oldValue: mod.corners.original,
-          newValue: mod.corners.current,
-        });
-      }
+      const changedFields = buildChangedFields(mod);
 
       const overlayContext = submissionService.createOverlayContext(overlayWithChanges);
       overlayContext.changedFields = changedFields;
@@ -533,21 +539,7 @@ export function useSubmissionDialog() {
     }
 
     const overlayWithChanges = applyModificationsToOverlay(overlayObj, mod);
-    const changedFields = [];
-    if (mod.caption) {
-      changedFields.push({
-        fieldName: "caption",
-        oldValue: mod.caption.original,
-        newValue: mod.caption.current,
-      });
-    }
-    if (mod.corners) {
-      changedFields.push({
-        fieldName: "corners",
-        oldValue: mod.corners.original,
-        newValue: mod.corners.current,
-      });
-    }
+    const changedFields = buildChangedFields(mod);
 
     const overlayContext = submissionService.createOverlayContext(overlayWithChanges);
     overlayContext.changedFields = changedFields;

@@ -58,16 +58,10 @@ export function processStandaloneMarkers(
 }
 
 /**
- * AI : Shared utility to hydrate the Pinia store with fresh backend data.
- * AI : Used by both full overlay rendering and marker-only rendering.
+ * AI : Helper to hydrate the store with a list of overlays and update their reactive properties
  */
-function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
+export function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  overlayStore.setViewModeOverlays(overlaysData);
-  mapStore.currentCityOverlays = overlaysData;
-
   const updates: Record<string, Partial<OverlayData>> = {};
   for (const overlayData of overlaysData) {
     if (overlayStore.overlays[overlayData.id]) {
@@ -84,6 +78,20 @@ function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
   if (Object.keys(updates).length > 0) {
     overlayStore.batchUpdateOverlays(updates);
   }
+}
+
+/**
+ * AI : Shared utility to hydrate the Pinia store with fresh backend data.
+ * AI : Used by both full overlay rendering and marker-only rendering.
+ */
+function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+
+  overlayStore.setViewModeOverlays(overlaysData);
+  mapStore.currentCityOverlays = overlaysData;
+
+  hydrateOverlayStoreObjects(overlaysData);
 
   updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
 }
