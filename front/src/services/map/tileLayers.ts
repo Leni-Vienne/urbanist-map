@@ -1,8 +1,163 @@
 import L from "leaflet";
 import { ref } from "vue";
+import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { map } from "@/services/core/map";
-import { type CountryCode, detectCountryFromCoordinates } from "@/services/map/countryDetection";
 import { MAP_CONFIG } from "@/constants/mapConstants";
+
+// AI : country_bboxes is small (~500B) and used for fast pre-checks, keep it eager
+import countryBboxes from "@/assets/country_bboxes.json";
+// AI : FRA.json and CHE.json are large polygon files — loaded lazily on first satellite use
+
+interface BoundingBox {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+}
+
+interface CountryBorder {
+  code: CountryCode;
+  geojson: FeatureCollection<Polygon | MultiPolygon>;
+  bbox: BoundingBox;
+}
+
+type CountryCode = "FRA" | "CHE";
+
+// AI : Helper to convert bbox array to BoundingBox object
+function toBoundingBox(bbox: number[]): BoundingBox {
+  return {
+    minLng: bbox[0]!,
+    minLat: bbox[1]!,
+    maxLng: bbox[2]!,
+    maxLat: bbox[3]!,
+  };
+}
+
+// AI : Cached after first load — undefined until the user first uses satellite mode
+let countryBorders: CountryBorder[] | undefined;
+
+// AI : Dynamically imports all country borders as a single chunk — only loads on first satellite use
+async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
+  if (countryBorders) return countryBorders;
+
+  const { FRA: fraGeoJson, CHE: cheGeoJson } = await import("@/assets/country-borders");
+
+  countryBorders = [
+    {
+      code: "FRA",
+      geojson: fraGeoJson as FeatureCollection<Polygon | MultiPolygon>,
+      bbox: toBoundingBox(countryBboxes.FRA),
+    },
+    {
+      code: "CHE",
+      geojson: cheGeoJson as FeatureCollection<Polygon | MultiPolygon>,
+      bbox: toBoundingBox(countryBboxes.CHE),
+    },
+  ];
+
+  return countryBorders;
+}
+
+/**
+ * AI : Fast check if point is within bounding box
+ */
+function isInBoundingBox(lat: number, lng: number, bbox: BoundingBox): boolean {
+  return lat >= bbox.minLat && lat <= bbox.maxLat && lng >= bbox.minLng && lng <= bbox.maxLng;
+}
+
+/**
+ * AI : Ray casting algorithm for point-in-polygon detection
+ * @param lat Point latitude
+ * @param lng Point longitude
+ * @param ring Polygon ring as array of [lng, lat] coordinates
+ */
+function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
+  let inside = false;
+  const x = lng;
+  const y = lat;
+
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+
+    const intersect = yi! > y !== yj! > y && x < ((xj! - xi!) * (y - yi!)) / (yj! - yi!) + xi!;
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
+}
+
+/**
+ * AI : Check if a point is inside any of the country's polygons
+ */
+function isPointInCountry(
+  lat: number,
+  lng: number,
+  geojson: FeatureCollection<Polygon | MultiPolygon>,
+): boolean {
+  for (const feature of geojson.features) {
+    if (feature.geometry.type === "MultiPolygon") {
+      for (const polygon of feature.geometry.coordinates) {
+        const outerRing = polygon[0];
+        if (outerRing && isPointInPolygon(lat, lng, outerRing)) {
+          let inHole = false;
+          for (let i = 1; i < polygon.length; i += 1) {
+            const hole = polygon[i];
+            if (hole && isPointInPolygon(lat, lng, hole)) {
+              inHole = true;
+              break;
+            }
+          }
+          if (!inHole) {
+            return true;
+          }
+        }
+      }
+    } else {
+      const outerRing = feature.geometry.coordinates[0];
+      if (outerRing && isPointInPolygon(lat, lng, outerRing)) {
+        let inHole = false;
+        for (let i = 1; i < feature.geometry.coordinates.length; i += 1) {
+          const hole = feature.geometry.coordinates[i];
+          if (hole && isPointInPolygon(lat, lng, hole)) {
+            inHole = true;
+            break;
+          }
+        }
+        if (!inHole) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * AI : Detect which country contains the given coordinates.
+ * Async because the GeoJSON border data is lazy-loaded on first call.
+ * @param lat Latitude
+ * @param lng Longitude
+ * @returns Country code (FRA, CHE) or undefined if not in any known country
+ */
+async function detectCountryFromCoordinates(
+  lat: number,
+  lng: number,
+): Promise<CountryCode | undefined> {
+  const borders = await ensureCountryBordersLoaded();
+
+  for (const country of borders) {
+    // AI : Fast bounding box pre-check (75x faster when outside)
+    if (!isInBoundingBox(lat, lng, country.bbox)) {
+      continue;
+    }
+
+    if (isPointInCountry(lat, lng, country.geojson)) {
+      return country.code;
+    }
+  }
+  return undefined;
+}
 
 // AI : Default max native zoom for Esri layer (safe baseline)
 const BASELINE_ESRI_MAX_ZOOM = 18;
@@ -104,7 +259,6 @@ function addTileLayersToMap(): void {
     activeTileLayer.addTo(map.value);
   } catch (error) {
     console.error("Failed to initialize tile layers:", error);
-    // AI : Fallback to OSM layer on error
     const fallbackLayer = createTileLayer("osm");
     activeTileLayer = fallbackLayer;
     activeTileLayer.addTo(map.value);
@@ -116,8 +270,6 @@ function addTileLayersToMap(): void {
  */
 function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
   const config = tileLayerConfigs[layerType];
-
-  // AI : Create standard tile layer
   return L.tileLayer(config.url, config.options);
 }
 
@@ -145,46 +297,35 @@ export async function switchTileLayer(layerType: TileLayerType) {
     return;
   }
 
-  // AI : Clear any pending fallback removal from previous switches
   if (fallbackRemovalTimer) {
     clearTimeout(fallbackRemovalTimer);
     fallbackRemovalTimer = null;
   }
 
-  // AI : Add new tile layer
   const newLayer = createTileLayer(layerType);
   newLayer.addTo(map.value);
 
-  // AI : Update current layer reference immediately so we know what is the "intended" layer
   activeTileLayer = newLayer;
   currentTileLayer.value = layerType;
 
   // AI : Robust Cleanup Strategy (Last Write Wins)
   // AI : Iterate through all layers and remove any TileLayer that is NOT the active one.
-  // AI : This handles rapid switching correctly: A -> B -> C
-  // AI : When C loads, it will remove A and B if they are still present.
   function cleanupLayers() {
     map.value.eachLayer((layer) => {
-      // AI : Check if it is a TileLayer and NOT the active one
       if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
         map.value.removeLayer(layer);
       }
     });
 
-    // AI : Clear timer if it exists (load event happened before timeout)
     if (fallbackRemovalTimer) {
       clearTimeout(fallbackRemovalTimer);
       fallbackRemovalTimer = null;
     }
   }
 
-  // AI : Remove on load or after timeout (fallback)
   newLayer.once("load", cleanupLayers);
-
-  // AI : Safety fallback in case load event doesn't fire (e.g. cached or fast network)
   fallbackRemovalTimer = setTimeout(cleanupLayers, 2000);
 
-  // AI : Check max zoom immediately if switching to Esri
   if (layerType === "esri") {
     await checkEsriMaxZoom();
   }
@@ -211,10 +352,8 @@ async function checkEsriMaxZoom() {
   const center = map.value.getCenter();
   const zoom = map.value.getZoom();
 
-  // AI : Only check if we are already quite zoomed in (optimization)
   if (zoom < 16) return;
 
-  // AI : Round coordinates to cache key (approx 100m precision)
   const cacheKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
   const cachedMaxZoom = maxZoomCache.get(cacheKey);
   if (cachedMaxZoom !== undefined) {
@@ -222,7 +361,6 @@ async function checkEsriMaxZoom() {
     return;
   }
 
-  // AI : Debounce the API call
   if (debounceTimer) clearTimeout(debounceTimer);
 
   debounceTimer = setTimeout(async () => {
@@ -247,8 +385,6 @@ function applyEsriMaxZoom(zoomLevel: number) {
     if (activeTileLayer) {
       (activeTileLayer.options as any).maxNativeZoom = zoomLevel;
 
-      // AI : Force a redraw of the layer to fetch potential high-res tiles?
-      // Only if we are currently at a zoom > oldMaxNativeZoom
       if (map.value.getZoom() > BASELINE_ESRI_MAX_ZOOM) {
         activeTileLayer.redraw();
       }
@@ -270,7 +406,6 @@ interface EsriIdentifyResponse {
  * ESRI has diffent max native zoom depending on the location
  */
 async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null> {
-  // AI : Construct Identity Query
   const bounds = map.value.getBounds();
   const extent = {
     xmin: bounds.getWest(),
@@ -280,7 +415,6 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
     spatialReference: { wkid: 4326 },
   };
 
-  // AI : Esri World Imagery MapServer Identify Endpoint
   const url = new URL(
     "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/identify",
   );
@@ -288,7 +422,7 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   url.searchParams.append("geometry", `${lng},${lat}`);
   url.searchParams.append("geometryType", "esriGeometryPoint");
   url.searchParams.append("sr", "4326");
-  url.searchParams.append("layers", "top"); // Query visible layers
+  url.searchParams.append("layers", "top");
   url.searchParams.append("tolerance", "2");
   url.searchParams.append(
     "mapExtent",
@@ -306,19 +440,14 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
 
     const attributes = firstEsriResult.attributes;
 
-    // AI : Use explicit MaxMapLevel from metadata
     if (attributes.MaxMapLevel) {
       const maxLevel = Number.parseInt(attributes.MaxMapLevel, 10);
       if (!Number.isNaN(maxLevel)) {
-        // AI : Respect explicit max level from metadata, even if lower than baseline
-        // This fixes issues where metadata says 17 but we forced 18, leading to gray tiles
-        // Cap at 22.
         return Math.min(maxLevel, 22);
       }
     }
   }
 
-  // AI : Fallback if metadata missing or invalid
   return BASELINE_ESRI_MAX_ZOOM;
 }
 
@@ -332,13 +461,11 @@ function initEsriMetadataListener() {
  */
 async function checkAndAutoSwitchSatelliteLayer() {
   if (currentTileLayer.value === "osm") {
-    // AI : Only auto-switch when in satellite mode
     return;
   }
 
   const currentZoom = map.value.getZoom();
 
-  // AI : At low zoom levels, always use ESRI (global perspective)
   if (currentZoom <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
     if (currentTileLayer.value !== "esri") {
       switchTileLayer("esri");
@@ -346,18 +473,15 @@ async function checkAndAutoSwitchSatelliteLayer() {
     return;
   }
 
-  // AI : At higher zoom, detect country and use country-specific layer if available
   const center = map.value.getCenter();
   const detectedCountry: CountryCode | undefined = await detectCountryFromCoordinates(
     center.lat,
     center.lng,
   );
 
-  // AI : Determine target layer: use country-specific if available, otherwise ESRI
   const targetLayer: TileLayerType =
     detectedCountry && isTileLayerType(detectedCountry) ? detectedCountry : "esri";
 
-  // AI : Switch if needed
   if (currentTileLayer.value !== targetLayer) {
     switchTileLayer(targetLayer);
   }

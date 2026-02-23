@@ -256,7 +256,7 @@ export function useOverlayPublisher() {
           overlay.projectId = project.id;
         }
       }
-
+      console.trace("publishOverlay");
       // AI : Step 2 - Prepare and upload image if needed
       const filename = await prepareImageForServer(overlay);
 

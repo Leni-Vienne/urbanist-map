@@ -22,6 +22,7 @@ import {
   prepareProjectValidationData,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
+import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
@@ -311,13 +312,18 @@ export function useSubmissionService() {
 
     const normalizedCurrentCorners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
 
-    // AI : Get original corners from backend data
-    const normalizedOriginalCorners = originalOverlay.corners.map((c) => ({
-      lat: c.lat,
-      lng: c.lng,
-    }));
+    // AI : Get original corners from backend data (might be undefined for user contributions)
+    const normalizedOriginalCorners =
+      originalOverlay.corners?.map((c: any) => ({
+        lat: c.lat,
+        lng: c.lng,
+      })) || [];
 
-    if (JSON.stringify(normalizedCurrentCorners) !== JSON.stringify(normalizedOriginalCorners)) {
+    // AI : Only detect corner changes if we actually have original corners to compare against
+    if (
+      normalizedOriginalCorners.length > 0 &&
+      JSON.stringify(normalizedCurrentCorners) !== JSON.stringify(normalizedOriginalCorners)
+    ) {
       changes.push({
         fieldName: "corners",
         oldValue: normalizedOriginalCorners,
@@ -605,28 +611,39 @@ export function useSubmissionService() {
       await refreshPendingChangeRequests(true); // ForceUserOnly = true for My Contributions
     } else if (context.changeType === "update_pending") {
       // AI : Direct update for pending overlays
-      const overlayData: { id: string; caption?: string } = { id: context.entity.id };
+      const hasCornersChange = changes.some((c) => c.fieldName === "corners");
 
-      for (const change of changes) {
-        if (change.fieldName === "caption") {
-          overlayData.caption = String(change.newValue ?? "");
+      if (hasCornersChange) {
+        // AI : Corner changes require full republishing
+        const { publishOverlay } = useOverlayPublisher();
+        const project = context.entity.projectId
+          ? projectStore.projects[context.entity.projectId] || null
+          : null;
+        await publishOverlay(context.entity, project);
+      } else {
+        const overlayData: { id: string; caption?: string } = { id: context.entity.id };
+
+        for (const change of changes) {
+          if (change.fieldName === "caption") {
+            overlayData.caption = String(change.newValue ?? "");
+          }
         }
-      }
 
-      await trpc.overlay.updateOverlay.mutate(overlayData);
+        await trpc.overlay.updateOverlay.mutate(overlayData);
 
-      // AI : Invalidate all mode caches for this city (update affects all modes)
-      const cityId = context.entity.project?.cityId;
-      if (cityId) {
-        mapStore.clearCityProjectsCache(cityId);
-        mapStore.clearCityStandaloneProjectsCache(cityId);
-      }
+        // AI : Invalidate all mode caches for this city (update affects all modes)
+        const cityId = context.entity.project?.cityId;
+        if (cityId) {
+          mapStore.clearCityProjectsCache(cityId);
+          mapStore.clearCityStandaloneProjectsCache(cityId);
+        }
 
-      // AI : Optimistically update pending overlay in user contributions
-      if (overlayData.caption !== undefined) {
-        projectStore.updateOverlayInUserContributions(context.entity.id, {
-          name: overlayData.caption || "Unnamed",
-        });
+        // AI : Optimistically update pending overlay in user contributions
+        if (overlayData.caption !== undefined) {
+          projectStore.updateOverlayInUserContributions(context.entity.id, {
+            name: overlayData.caption || "Unnamed",
+          });
+        }
       }
     } else {
       // AI : Create new overlay - this is handled by useOverlayPublisher

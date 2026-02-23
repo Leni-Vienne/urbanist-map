@@ -1,33 +1,46 @@
+import { ref, computed, reactive } from "vue";
 import { buildProjectPayload } from "@/services/project/projectMutations";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
+import { useChangeRequests } from "@/composables/changes/useChanges";
 import { trpc } from "@/client";
-import { useEditableFormBase } from "./useEditableFormBase";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
+import { formatDate } from "@/utils/dateFormat";
+import {
+  projectSchema,
+  getValidationErrorsMap,
+  type FieldChange,
+} from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
 import type { DBCity } from "../../../../back/src/db/schema";
 import type { ApprovalStatus } from "@shared/types";
 
-interface EditableProjectFormOptions {
-  entityId: string;
-  initialData: ProjectFormData; // AI : Original backend values for "modified from X" comparison
-  currentData?: ProjectFormData; // AI : Current values to display in form (if different from initialData after local saves)
-  entityStatus: ApprovalStatus | null;
-  localOnly?: boolean; // AI : If true, only update local store, don't submit to backend
-  getAvailableCities?: () => {
-    id: number;
-    name: string;
-    nameLocal: string | null;
-    countryCode: string;
-    lat: number;
-    lng: number;
-    distance?: number;
-  }[]; // AI : Function to get current cities dynamically
-  onSubmitted?: () => void;
-  onClose?: () => void;
+// AI : Helper to serialize values for JSONB storage
+// AI : Dates must be converted to ISO strings to prevent double-serialization
+function serializeValue(value: any): any {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return value;
+}
+
+// AI : Format value for display in change indicators
+function formatValue(value: any): string {
+  if (value === null || value === undefined || value === "") {
+    return "Not set";
+  }
+  if (value instanceof Date) {
+    return formatDate(value);
+  }
+  if (typeof value === "number") {
+    return value.toFixed(6);
+  }
+  return String(value);
 }
 
 // AI : Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
@@ -49,35 +62,113 @@ function projectComparator(
   return original !== current;
 }
 
+interface EditableProjectFormOptions {
+  entityId: string;
+  initialData: ProjectFormData; // AI : Original backend values for "modified from X" comparison
+  currentData?: ProjectFormData; // AI : Current values to display in form (if different from initialData after local saves)
+  entityStatus: ApprovalStatus | null;
+  localOnly?: boolean; // AI : If true, only update local store, don't submit to backend
+  getAvailableCities?: () => {
+    id: number;
+    name: string;
+    nameLocal: string | null;
+    countryCode: string;
+    lat: number;
+    lng: number;
+    distance?: number;
+  }[]; // AI : Function to get current cities dynamically
+  onSubmitted?: () => void;
+  onClose?: () => void;
+}
+
 export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const projectStore = useProjectStore();
+  const { submitMultipleFieldChanges } = useChangeRequests();
   const toast = useToast();
 
-  // AI : Use base composable for common form logic with custom Date comparator
-  const base = useEditableFormBase<ProjectFormData>(
-    {
-      entityId: options.entityId,
-      entityType: "project",
-      initialData: options.initialData, // AI : Original backend values for comparison
-      currentData: options.currentData, // AI : Current values to display in form
-      entityStatus: options.entityStatus,
-      onSubmitted: options.onSubmitted,
-      onClose: options.onClose,
-    },
-    projectComparator,
-  );
+  const isSubmitting = ref(false);
+  const changeReason = ref("");
+
+  // AI : Create reactive objects for original (comparison baseline) and current (displayed) data
+  // AI : originalData is for comparison ("modified from X"), formData is for editing
+  const originalData = reactive({ ...options.initialData }) as ProjectFormData;
+  const formData = reactive({ ...(options.currentData ?? options.initialData) }) as ProjectFormData;
+
+  // AI : Check if a specific field has changed
+  function hasChanged(fieldName: keyof ProjectFormData): boolean {
+    return projectComparator(fieldName, originalData[fieldName], formData[fieldName]);
+  }
+
+  // AI : Check if any field has changed
+  const hasChanges = computed(() => {
+    return Object.keys(formData).some((key) => hasChanged(key as keyof ProjectFormData));
+  });
+
+  // AI : Reset all changes
+  function resetChanges() {
+    Object.assign(formData, originalData);
+    changeReason.value = "";
+  }
+
+  // AI : Get array of changes to submit
+  function getChangesToSubmit(): FieldChange[] {
+    const changes: FieldChange[] = [];
+
+    for (const key of Object.keys(formData)) {
+      const fieldName = key as keyof ProjectFormData;
+      if (hasChanged(fieldName)) {
+        changes.push({
+          fieldName: String(fieldName),
+          oldValue: serializeValue(originalData[fieldName]),
+          newValue: serializeValue(formData[fieldName]),
+          changeReason: changeReason.value,
+        });
+      }
+    }
+
+    return changes;
+  }
+
+  // AI : Get CSS classes for a field based on change status
+  function getFieldClasses(fieldName: keyof ProjectFormData) {
+    return {
+      "field-changed": hasChanged(fieldName),
+    };
+  }
+
+  // AI : Handle approved entity updates (via change requests)
+  async function handleApprovedEntityUpdate(changes: FieldChange[]) {
+    await submitMultipleFieldChanges("project", options.entityId, changes);
+
+    toast.add({
+      severity: "success",
+      summary: t("submission.changeRequestSubmitted"),
+      detail: t("submission.changeRequestSubmitted"),
+      life: 3000,
+    });
+  }
+
+  // AI : Show error toast
+  function showErrorToast() {
+    toast.add({
+      severity: "error",
+      summary: t("toast.submissionFailed"),
+      detail: t("moderation.rejectionFailedDetail"),
+      life: 3000,
+    });
+  }
 
   // AI : Update city object when cityId changes
   function getCityObjectForUpdate(currentProject: Project): DBCity {
     let cityObject: DBCity = currentProject.city;
 
     if (
-      base.formData.cityId &&
-      base.formData.cityId !== currentProject.cityId &&
+      formData.cityId &&
+      formData.cityId !== currentProject.cityId &&
       options.getAvailableCities
     ) {
       const citiesArray = options.getAvailableCities();
-      const newCity = citiesArray.find((c) => c.id === base.formData.cityId);
+      const newCity = citiesArray.find((c) => c.id === formData.cityId);
       if (newCity) {
         cityObject = {
           id: newCity.id,
@@ -112,15 +203,15 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
     // AI : Update userContributions so ContributePanel shows updated data
     projectStore.updateProjectInUserContributions(options.entityId, {
-      name: base.formData.name,
-      description: base.formData.description ?? null,
-      proposalDate: base.formData.proposalDate ?? null,
-      proposalDatePrecision: base.formData.proposalDatePrecision ?? null,
-      startDate: base.formData.startDate ?? null,
-      startDatePrecision: base.formData.startDatePrecision ?? null,
-      endDate: base.formData.endDate ?? null,
-      endDatePrecision: base.formData.endDatePrecision ?? null,
-      sourceUrl: base.formData.sourceUrl ?? null,
+      name: formData.name,
+      description: formData.description ?? null,
+      proposalDate: formData.proposalDate ?? null,
+      proposalDatePrecision: formData.proposalDatePrecision ?? null,
+      startDate: formData.startDate ?? null,
+      startDatePrecision: formData.startDatePrecision ?? null,
+      endDate: formData.endDate ?? null,
+      endDatePrecision: formData.endDatePrecision ?? null,
+      sourceUrl: formData.sourceUrl ?? null,
     });
 
     // AI : Update or create project in projectStore.projects for infopopup sync
@@ -129,16 +220,16 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       const cityObject = getCityObjectForUpdate(currentProject);
       const updatedData: Partial<Project> = {
         ...currentProject,
-        name: base.formData.name,
-        description: base.formData.description,
-        proposalDate: base.formData.proposalDate,
-        proposalDatePrecision: base.formData.proposalDatePrecision,
-        startDate: base.formData.startDate,
-        startDatePrecision: base.formData.startDatePrecision,
-        endDate: base.formData.endDate,
-        endDatePrecision: base.formData.endDatePrecision,
-        sourceUrl: base.formData.sourceUrl,
-        cityId: base.formData.cityId ?? undefined,
+        name: formData.name,
+        description: formData.description,
+        proposalDate: formData.proposalDate,
+        proposalDatePrecision: formData.proposalDatePrecision,
+        startDate: formData.startDate,
+        startDatePrecision: formData.startDatePrecision,
+        endDate: formData.endDate,
+        endDatePrecision: formData.endDatePrecision,
+        sourceUrl: formData.sourceUrl,
+        cityId: formData.cityId ?? undefined,
         city: cityObject,
         isModified: true,
       };
@@ -153,17 +244,18 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     } else if (userContributionProject) {
       // AI : Project only exists in userContributions - add to projects store so infopopup finds it
       // AI : Convert UserContribution to Project type inline
+      // error because we removed latestUpdateOn but still have to keep it in DB schema for migration reasons
       const projectFromContribution: Project = {
         id: userContributionProject.id,
-        name: base.formData.name,
-        description: base.formData.description ?? null,
-        proposalDate: base.formData.proposalDate ?? null,
-        proposalDatePrecision: base.formData.proposalDatePrecision ?? null,
-        startDate: base.formData.startDate ?? null,
-        startDatePrecision: base.formData.startDatePrecision ?? null,
-        endDate: base.formData.endDate ?? null,
-        endDatePrecision: base.formData.endDatePrecision ?? null,
-        sourceUrl: base.formData.sourceUrl ?? null,
+        name: formData.name,
+        description: formData.description ?? null,
+        proposalDate: formData.proposalDate ?? null,
+        proposalDatePrecision: formData.proposalDatePrecision ?? null,
+        startDate: formData.startDate ?? null,
+        startDatePrecision: formData.startDatePrecision ?? null,
+        endDate: formData.endDate ?? null,
+        endDatePrecision: formData.endDatePrecision ?? null,
+        sourceUrl: formData.sourceUrl ?? null,
         lat: userContributionProject.lat,
         lng: userContributionProject.lng,
         cityId: userContributionProject.cityId,
@@ -207,15 +299,15 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
     const projectData = {
       id: options.entityId,
-      name: base.formData.name,
-      description: base.formData.description,
+      name: formData.name,
+      description: formData.description,
       cityId: project.cityId,
       lat: project.lat,
       lng: project.lng,
-      proposalDate: base.formData.proposalDate,
-      startDate: base.formData.startDate,
-      endDate: base.formData.endDate,
-      sourceUrl: base.formData.sourceUrl,
+      proposalDate: formData.proposalDate,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      sourceUrl: formData.sourceUrl,
     };
 
     await trpc.project.publishProject.mutate(buildProjectPayload(projectData));
@@ -234,7 +326,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     const currentProject =
       projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
 
-    const validationData = prepareProjectValidationData(base.formData, {
+    const validationData = prepareProjectValidationData(formData, {
       lat: currentProject?.lat,
       lng: currentProject?.lng,
     });
@@ -259,22 +351,22 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
   // AI : Submit changes with local-only handling and validation
   async function submitChanges() {
-    if (!base.hasChanges.value) return;
+    if (!hasChanges.value) return;
 
     try {
-      base.isSubmitting.value = true;
+      isSubmitting.value = true;
 
       if (!validateFormData()) return;
 
       if (options.localOnly) {
         handleLocalOnlyUpdate();
       } else {
-        const changes = base.getChangesToSubmit();
+        const changes = getChangesToSubmit();
 
         if (options.entityStatus === "pending") {
           await handlePendingProjectUpdate();
         } else {
-          await base.handleApprovedEntityUpdate(changes);
+          await handleApprovedEntityUpdate(changes);
         }
       }
 
@@ -282,14 +374,30 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       options.onClose?.();
     } catch (error) {
       console.error("Failed to submit changes:", error);
-      base.showErrorToast();
+      showErrorToast();
     } finally {
-      base.isSubmitting.value = false;
+      isSubmitting.value = false;
     }
   }
 
   return {
-    ...base,
+    // State
+    formData,
+    originalData,
+    changeReason,
+    isSubmitting,
+
+    // Computed
+    hasChanges,
+
+    // Methods
+    hasChanged,
+    resetChanges,
+    getChangesToSubmit,
+    formatValue,
+    getFieldClasses,
+    handleApprovedEntityUpdate,
+    showErrorToast,
     submitChanges,
   };
 }

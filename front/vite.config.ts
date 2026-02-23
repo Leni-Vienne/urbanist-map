@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
           if (chunk.type === "chunk") {
             // We just "delete" the root path string from every file path
             report[fileName] = Object.keys(chunk.modules)
-              .filter((m) => !m.endsWith(".css"))
+              //.filter((m) => !m.endsWith(".css"))
               .map((m) => {
                 // 1. Force both paths to use forward slashes /
                 const cleanRoot = root.replace(/\\/g, "/");

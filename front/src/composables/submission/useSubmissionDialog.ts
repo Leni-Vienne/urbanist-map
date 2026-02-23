@@ -21,7 +21,6 @@ import {
 import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
 import { updateMarkerTooltip, updateMarkerPosition } from "@/services/overlay/overlayMarkers";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
-import { trpc } from "@/client";
 import type {
   OverlayObject,
   Project,
@@ -292,88 +291,41 @@ export function useSubmissionDialog() {
     return t("submission.updateOverlays");
   }
 
-  // AI : Helper function to submit pending overlay modification (can update directly)
-  async function submitPendingOverlayModification(
-    overlayId: string,
-    mod: PendingOverlayModification,
-    overlayObject: OverlayObject,
-    project?: Project | null,
-  ): Promise<void> {
-    if (mod.corners) {
-      // AI : For pending overlays with position changes, use publishOverlay
-      const overlayToPublish = applyModificationsToOverlay(overlayObject, mod);
-      await publishOverlay(overlayToPublish, project ?? null);
-    } else if (mod.caption) {
-      // AI : Caption-only change for pending overlay
-      await trpc.overlay.updateOverlay.mutate({
-        id: overlayId,
-        caption: mod.caption.current ?? undefined,
-      });
-    }
-  }
-
-  // AI : Helper function to submit approved overlay change request
-  async function submitApprovedOverlayChangeRequest(
-    overlayId: string,
-    mod: PendingOverlayModification,
-  ): Promise<void> {
-    const changes: {
-      fieldName: string;
-      oldValue: any;
-      newValue: any;
-      changeReason?: string;
-    }[] = [];
-
-    if (mod.caption) {
-      changes.push({
-        fieldName: "caption",
-        oldValue: mod.caption.original,
-        newValue: mod.caption.current,
-        changeReason: undefined,
-      });
-    }
-    if (mod.corners) {
-      changes.push({
-        fieldName: "corners",
-        oldValue: mod.corners.original,
-        newValue: mod.corners.current,
-        changeReason: undefined,
-      });
-    }
-
-    if (changes.length > 0) {
-      await trpc.changes.submitChangeRequest.mutate({
-        entityType: "overlay",
-        entityId: overlayId,
-        changes,
-      });
-    }
-  }
-
-  // AI : Submit pending overlay modifications (caption and position changes)
+  // AI : Submit pending overlay modifications using the unified submission service
   async function submitOverlayModifications(
     overlayIds: string[],
-    project?: Project | null,
+    reason: string = "",
   ): Promise<void> {
     for (const overlayId of overlayIds) {
       const mod = pendingModsStore.getPendingModifications(overlayId);
       if (!mod) continue;
 
-      const isApproved = mod.overlayStatus === "approved";
       const overlayObject = overlayStore.overlays[overlayId];
-
       if (!overlayObject) {
         console.error(`Overlay ${overlayId} not found`);
         continue;
       }
 
-      if (!isApproved) {
-        // AI : Pending overlay - can update directly or publish
-        await submitPendingOverlayModification(overlayId, mod, overlayObject, project);
-      } else {
-        // AI : Approved overlay - submit change request
-        await submitApprovedOverlayChangeRequest(overlayId, mod);
+      const overlayWithChanges = applyModificationsToOverlay(overlayObject, mod);
+      const changedFields = [];
+      if (mod.caption) {
+        changedFields.push({
+          fieldName: "caption",
+          oldValue: mod.caption.original,
+          newValue: mod.caption.current,
+        });
       }
+      if (mod.corners) {
+        changedFields.push({
+          fieldName: "corners",
+          oldValue: mod.corners.original,
+          newValue: mod.corners.current,
+        });
+      }
+
+      const overlayContext = submissionService.createOverlayContext(overlayWithChanges);
+      overlayContext.changedFields = changedFields;
+      await submissionService.submit(overlayContext, reason);
 
       // AI : Clear the pending changes after successful submission
       pendingModsStore.clearModification(overlayId);
@@ -571,7 +523,6 @@ export function useSubmissionDialog() {
   // AI : Helper function to submit a single overlay modification from allProjectModifications
   async function submitSingleOverlayModification(
     mod: PendingOverlayModification,
-    projectId: string | undefined,
     reason: string,
   ): Promise<void> {
     const overlayObj = overlayStore.overlays[mod.overlayId];
@@ -581,23 +532,26 @@ export function useSubmissionDialog() {
       return;
     }
 
-    if (overlayObj.status !== "approved") {
-      // AI : Pending overlay - publish directly
-      const overlayToPublish = applyModificationsToOverlay(overlayObj, mod);
-      // AI : Try multiple store locations for project lookup - approved projects may be in allProjects
-      const project = projectId
-        ? (projectStore.projects[projectId] ?? projectStore.allProjects[projectId] ?? null)
-        : null;
-      await publishOverlay(overlayToPublish, project);
-    } else {
-      // AI : Approved overlay - submit change request
-      const overlayWithChanges = applyModificationsToOverlay(overlayObj, mod);
-      const overlayContext = submissionService.createOverlayContext(
-        overlayWithChanges,
-        "update_approved",
-      );
-      await submissionService.submit(overlayContext, reason);
+    const overlayWithChanges = applyModificationsToOverlay(overlayObj, mod);
+    const changedFields = [];
+    if (mod.caption) {
+      changedFields.push({
+        fieldName: "caption",
+        oldValue: mod.caption.original,
+        newValue: mod.caption.current,
+      });
     }
+    if (mod.corners) {
+      changedFields.push({
+        fieldName: "corners",
+        oldValue: mod.corners.original,
+        newValue: mod.corners.current,
+      });
+    }
+
+    const overlayContext = submissionService.createOverlayContext(overlayWithChanges);
+    overlayContext.changedFields = changedFields;
+    await submissionService.submit(overlayContext, reason);
 
     pendingModsStore.clearModification(mod.overlayId);
   }
@@ -615,7 +569,6 @@ export function useSubmissionDialog() {
   // AI : Submit all overlay modifications from extended context
   async function submitAllOverlayModifications(
     extCtx: SubmissionContextExtended,
-    project: Project | null,
     reason: string,
   ): Promise<void> {
     if (extCtx.allProjectModifications && extCtx.allProjectModifications.length > 0) {
@@ -625,13 +578,13 @@ export function useSubmissionDialog() {
       );
 
       for (const mod of modificationsForExistingOverlays) {
-        await submitSingleOverlayModification(mod, extCtx.projectId, reason);
+        await submitSingleOverlayModification(mod, reason);
       }
     } else if (
       extCtx.pendingOverlayModifications &&
       extCtx.pendingOverlayModifications.length > 0
     ) {
-      await submitOverlayModifications(extCtx.pendingOverlayModifications, project);
+      await submitOverlayModifications(extCtx.pendingOverlayModifications, reason);
     }
   }
 
@@ -681,7 +634,7 @@ export function useSubmissionDialog() {
     }
 
     // AI : Submit all overlay modifications (position/caption changes)
-    await submitAllOverlayModifications(extCtx, project, reason);
+    await submitAllOverlayModifications(extCtx, reason);
 
     // AI : Submit all new overlays
     await submitAllNewOverlays(extCtx, project);
