@@ -23,12 +23,12 @@ import {
   fetchCityStandaloneProjectsOrCache,
   fetchCityOverlaysOrCache,
 } from "@/services/navigation/cityDataLoader";
-import type { OverlayData, OverlayObject } from "@/types/index";
 import {
-  createProjectObject,
-  toProjectPartial,
-  type StandaloneProject,
-} from "@/utils/typeFactories";
+  processStandaloneMarkers,
+  renderFullOverlays,
+} from "@/services/navigation/cityRenderingCore";
+import type { OverlayData, OverlayObject } from "@/types/index";
+import { type StandaloneProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
@@ -196,12 +196,12 @@ export function useViewportContentManager() {
   function renderAllLoadedOverlays(fullRender = true) {
     const mode = overlayStore.mode;
 
-    let allOverlays: OverlayData[] = [];
+    const allOverlays: OverlayData[] = [];
 
     for (const cityId of loadedCityIds.value) {
       const cityData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
       if (cityData) {
-        allOverlays = allOverlays.concat(cityData);
+        allOverlays.push(...cityData);
       }
     }
 
@@ -350,103 +350,33 @@ export function useViewportContentManager() {
     mode: AppMode,
   ) {
     try {
-      // AI : OPTIMIZATION: Check cache first before querying backend
-      // AI : Use shared function to avoid code duplication
+      // AI : Check cache first before querying backend
       const allProjects = await fetchCityStandaloneProjectsOrCache(cityId, mode);
 
       // AI : Create a working copy to avoid mutating cache
       const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];
 
-      // AI : In edit mode, include local pending projects from store
+      // AI : In edit mode, also include local (unsaved) pending projects from the store
       if (mode === "edit") {
         const localProjects = Object.values(projectStore.projects).filter(
           (p) => p.city.id === cityId && p.status === null,
         );
 
         for (const localP of localProjects) {
-          // AI : Check if project is already explicitly in the list
           if (!projectsToRender.find((p) => p.id === localP.id)) {
-            // AI : Type-safe push thanks to StandaloneProject union type
             projectsToRender.push(localP);
           }
         }
       }
 
-      if (projectsToRender.length === 0) return;
-
-      // AI : Get project IDs that have overlays
-      const projectIdsWithOverlays = new Set<string>();
-      for (const overlay of overlaysData) {
-        if (overlay.projectId) {
-          projectIdsWithOverlays.add(overlay.projectId);
-        }
-      }
-
-      // AI : Create standalone markers for projects without any visible overlays
-      for (const project of projectsToRender) {
-        // AI : Type narrowing for different overlay count properties
-        let overlayCount = 0;
-        if ("overlayCount" in project) {
-          overlayCount = project.overlayCount;
-        } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
-          overlayCount = project.overlayIds.length;
-        } else if ("overlays" in project && Array.isArray(project.overlays)) {
-          overlayCount = project.overlays.length;
-        }
-
-        if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-          addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
-        }
-      }
+      // AI : Delegate marker creation to the shared rendering core
+      processStandaloneMarkers(projectsToRender, overlaysData);
     } catch (error) {
       console.error(`Error adding standalone markers for city ${cityId}:`, error);
     }
   }
 
-  /**
-   * AI : Render full overlay images (high zoom)
-   */
-  function renderFullOverlays(overlaysData: OverlayData[]) {
-    // AI : Remove low-zoom markers
-    removeOverlayMarkers();
-
-    // AI : Store UNFILTERED data - filtering happens in pruneOverlays at render time
-    // AI : This ensures overlays can be recreated when filters are toggled back on
-    overlayStore.setViewModeOverlays(overlaysData);
-
-    // AI : CRITICAL: Update mapStore for panels
-    // AI : Panels (like Current Location) read from mapStore.currentCityOverlays
-    mapStore.currentCityOverlays = overlaysData;
-
-    // AI : Update existing overlay objects with fresh backend data
-    // AI : This is critical for mode switches (e.g., view → moderation) where overlays
-    // AI : are already loaded but need updated data like suggestedCorners for change requests
-    // AI : OPTIMIZATION: Use batch update to prevent O(N^2) state spreading
-    const updates: Record<string, Partial<OverlayData>> = {};
-
-    for (const overlayData of overlaysData) {
-      if (overlayStore.overlays[overlayData.id]) {
-        updates[overlayData.id] = {
-          hasPendingChanges: overlayData.hasPendingChanges,
-          suggestedCorners: overlayData.suggestedCorners,
-          pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
-          // AI : Don't update corners/centroid as those are the approved positions
-          // AI : and shouldn't change when switching modes
-        };
-      }
-    }
-
-    if (Object.keys(updates).length > 0) {
-      overlayStore.batchUpdateOverlays(updates);
-    }
-
-    // AI : Render overlays
-    // AI : DELEGATE TO PRUNING SERVICE
-    // AI : Instead of rendering loop here (which renders everything),
-    // AI : defer to pruneMapEntities which checks visibility bounds first.
-    // AI : This prevents network requests for off-screen images.
-    pruneMapEntities();
-  }
+  // AI : renderFullOverlays is imported from cityRenderingCore and called directly
 
   /**
    * AI : Render overlay markers only (low zoom)
