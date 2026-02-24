@@ -6,6 +6,8 @@ import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/overlay";
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
@@ -13,6 +15,36 @@ import { requestScrollTo } from "@/services/layout/accordionState";
 
 // AI : Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
+
+/**
+ * AI : Check if current user can moderate a given country
+ * AI : Admins can moderate all countries, moderators only their assigned ones
+ */
+export function canModerateCountry(countryCode: string): boolean {
+  const authStore = useAuthStore();
+  const user = authStore.user;
+  if (!user) return false;
+  // AI : Admins (role=admin or moderatedCountries=null) can moderate everything
+  if (
+    user.role === "admin" ||
+    user.moderatedCountries === null ||
+    user.moderatedCountries === undefined
+  ) {
+    return true;
+  }
+  return user.moderatedCountries.includes(countryCode);
+}
+
+/**
+ * AI : Auto-select a country in the moderation store (if not already selected)
+ * AI : Called when clicking a contribution in moderation mode
+ */
+export function syncModerationCountry(countryCode: string): void {
+  const moderationStore = useModerationStore();
+  if (moderationStore.selectedCountryCode !== countryCode) {
+    moderationStore.setSelectedCountryCode(countryCode);
+  }
+}
 
 /**
  * AI : Shared composable for handling overlay clicks from moderation/contribution panels
@@ -42,6 +74,22 @@ export function useOverlayClickHandler() {
       if (overlay.status === "rejected" || overlay.status === "replaced") {
         await navigateToReplacedOrRejectedOverlay(overlay, overlayStore);
         return;
+      }
+
+      // AI : In moderation mode, auto-select the contribution's country for the moderation panel
+      // AI : If moderator doesn't have access to this country, block navigation with a toast
+      if (overlayStore.mode === "moderation" && overlay.countryCode) {
+        if (!canModerateCountry(overlay.countryCode)) {
+          toast.add({
+            severity: "warn",
+            summary: "Moderation",
+            detail: "You do not have permission to moderate this country.",
+            life: 4000,
+          });
+          return;
+        }
+        // AI : Auto-select the country so ModerationPanel loads its pending submissions
+        syncModerationCountry(overlay.countryCode);
       }
 
       // AI : Only switch to edit mode if currently in view mode
