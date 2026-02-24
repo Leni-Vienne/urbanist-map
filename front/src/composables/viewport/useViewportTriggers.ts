@@ -9,7 +9,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import { pruneMapEntities } from "@/services/map/viewportPruning";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
@@ -43,7 +43,7 @@ const lastZoomLevel = ref<number | null>(null);
  * AI : Main viewport content manager
  * AI : Handles all overlay and project rendering based on viewport bounds
  */
-export function useViewportContentManager() {
+export function useViewportTriggers() {
   // AI : Initialize all stores at root level for better performance and cleaner code
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -236,7 +236,7 @@ export function useViewportContentManager() {
       const previousZoom = lastZoomLevel.value;
 
       // AI : Detect low→high threshold crossing before pruning.
-      // AI : When crossing this boundary, renderFullOverlays() will call pruneMapEntities()
+      // AI : When crossing this boundary, renderFullOverlays() will call runViewportRenderLoop()
       // AI : after removing the dot markers (overlayMarkersLayer). Calling it here first
       // AI : queues async store-managed marker creation before dot markers are removed,
       // AI : causing a visual glitch where markers appear to re-appear during zoom.
@@ -249,7 +249,7 @@ export function useViewportContentManager() {
       // AI : Prune entities (city markers, overlay visibility).
       // AI : Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
       if (!crossedLowToHigh) {
-        pruneMapEntities();
+        runViewportRenderLoop();
       }
 
       // AI : CRITICAL: Don't load data until zoomed in past threshold

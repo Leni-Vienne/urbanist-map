@@ -2,7 +2,7 @@ import L from "leaflet";
 import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
+import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";

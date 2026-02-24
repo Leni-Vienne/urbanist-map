@@ -7,7 +7,7 @@ import {
   mobileAwareFlyToBounds,
   calculateBoundsFromLocations,
 } from "@/services/map/mapNavigation";
-import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
+import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -17,7 +17,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createColorIcon } from "@/services/map/markers";
-import { pruneMapEntities } from "@/services/map/viewportPruning";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 import { requestScrollTo } from "@/services/layout/accordionState";
 
@@ -447,7 +447,7 @@ async function addCityMarkersToMapInternal(
   // AI : Initialize watcher
   initializeCityMarkerWatcher();
 
-  pruneMapEntities();
+  runViewportRenderLoop();
 
   // AI : Update opacities for selected city
   const mapStore = useMapStore();

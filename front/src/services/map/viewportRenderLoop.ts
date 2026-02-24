@@ -55,7 +55,7 @@ function intersectsViewport(
  * AI : Main pruning function - determines what should be on the map based on bounds
  * AI : Iterates through stores and adds/removes layers from map directly
  */
-export function pruneMapEntities() {
+export function runViewportRenderLoop() {
   const mapInstance = map.value;
   const bounds = mapInstance.getBounds();
   const zoom = mapInstance.getZoom();

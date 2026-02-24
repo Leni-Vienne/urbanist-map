@@ -8,7 +8,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import { pruneMapEntities } from "@/services/map/viewportPruning";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import type { OverlayData } from "@/types/index";
@@ -109,7 +109,7 @@ export function renderFullOverlays(overlaysData: OverlayData[]): void {
     createSingleMarker(overlayObject);
   }
 
-  pruneMapEntities();
+  runViewportRenderLoop();
 }
 
 /**
