@@ -617,11 +617,18 @@ export function useSubmissionDialog() {
     reason: string,
   ): Promise<void> {
     // AI : Try multiple store locations for project lookup - approved projects may be in allProjects
+    // AI : 1. projects: Active map cache (projects currently visible on the screen)
+    // AI : 2. allProjects: Includes nearby projects not necessarily loaded in the main city cache
+    // AI : 3. userContributions: Projects that are pending/saved but the user interacted with them
+    // AI :    from the sidebar without clicking the city on the map to load the cache.
     let project: Project | null = null;
     if (extCtx.projectId) {
       project =
         projectStore.projects[extCtx.projectId] ??
         projectStore.allProjects[extCtx.projectId] ??
+        (projectStore.userContributions.find(
+          (p) => p.id === extCtx.projectId,
+        ) as unknown as Project) ??
         null;
     }
 

@@ -6,8 +6,7 @@ import { buildProjectPayload } from "@/services/project/projectMutations";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
-import type { Project, OverlayObject, OverlayData, RemovableChange } from "@/types/index";
+import type { Project, OverlayObject, RemovableChange } from "@/types/index";
 import {
   projectSchema,
   overlaySchema,
@@ -219,122 +218,6 @@ export function useSubmissionService() {
     return changes;
   }
 
-  // AI : Detect all changes for an overlay entity
-  function findOriginalOverlay(overlay: OverlayObject): OverlayData | undefined {
-    // AI : Find original overlay data from backend cache (must use cache to get corners!)
-    // AI : currentCityOverlays doesn't have corners, we need to fetch from the city cache
-    let originalOverlay: OverlayData | undefined = undefined;
-
-    // AI : Get cityId from the overlay's project
-    const cityId = overlay.project?.cityId;
-
-    if (cityId) {
-      // AI : Try view mode cache first (contains original backend data)
-      let cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "view");
-
-      // AI : If view cache is empty, try edit mode cache (also contains backend data)
-      // AI : This handles the case where user clicked city marker directly instead of zooming
-      if (!cachedOverlays || cachedOverlays.length === 0) {
-        cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "edit");
-      }
-
-      originalOverlay = cachedOverlays?.find((o) => o.id === overlay.id);
-    }
-
-    if (!originalOverlay) {
-      // AI : For pending overlays or if not found in cache, check user contributions
-      const contribution = projectStore.userContributions.find((c) =>
-        c.overlays.some((o) => o.id === overlay.id),
-      );
-      const overlayFromContributions = contribution?.overlays.find((o) => o.id === overlay.id);
-
-      if (overlayFromContributions) {
-        // AI : Convert to the format we need for comparison
-        // AI : Don't set corners - will use fallback in comparison logic below
-        // AI : IMPORTANT: overlayFromContributions.name may be "Unnamed" if caption was null
-        // AI : which is just a display value, not an actual caption
-        const captionFromContributions = overlayFromContributions.name;
-        originalOverlay = {
-          id: overlayFromContributions.id,
-          // AI : Treat "Unnamed" as empty caption since it's a display placeholder
-          caption: captionFromContributions === "Unnamed" ? null : captionFromContributions,
-        } as any; // AI : Minimal overlay type for comparison
-      }
-    }
-
-    return originalOverlay;
-  }
-
-  function detectOverlayChanges(overlay: OverlayObject, customReason?: string): FieldChange[] {
-    const changes: FieldChange[] = [];
-
-    const originalOverlay = findOriginalOverlay(overlay);
-
-    if (!originalOverlay) {
-      // AI : If no original found, this is a new overlay or we can't detect changes
-      return changes;
-    }
-
-    // AI : Check caption change (don't normalize to null - database requires non-null new_value)
-    // AI : Normalize: treat null, undefined, empty string, and "Unnamed" display value as equivalent
-    const oldCaption = originalOverlay.caption ?? "";
-    const newCaption = overlay.caption ?? "";
-
-    if (oldCaption !== newCaption) {
-      changes.push({
-        fieldName: "caption",
-        oldValue: oldCaption,
-        newValue: newCaption,
-        changeReason: customReason ?? undefined,
-      });
-    }
-
-    // AI : Check corner positions - CRITICAL: Prioritize edit mode cache for current corners
-    // AI : Priority order for current corners:
-    // AI : 1. Edit mode cache (contains user's most recent position, even if zoomed out)
-    // AI : 2. Leaflet overlay (if actively loaded in the map)
-    // AI : 3. overlay.corners (fallback, but may be stale/original)
-    let currentCorners: { lat: number; lng: number }[] = [];
-
-    const editModeCache = getFromEditModeOverlayCache(overlay.id);
-
-    if (editModeCache?.corners.length === 4) {
-      // AI : Use cached corners (user's most recent position in edit mode)
-      // AI : No need to check isModified - the comparison will determine if changed
-      currentCorners = editModeCache.corners;
-    } else if (overlay.overlay) {
-      // AI : Use Leaflet overlay corners if currently loaded
-      currentCorners = overlay.overlay.getCorners().map((c) => ({ lat: c.lat, lng: c.lng }));
-    } else {
-      // AI : Fallback to stored corners
-      currentCorners = overlay.corners;
-    }
-
-    const normalizedCurrentCorners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
-
-    // AI : Get original corners from backend data (might be undefined for user contributions)
-    const normalizedOriginalCorners =
-      originalOverlay.corners?.map((c: any) => ({
-        lat: c.lat,
-        lng: c.lng,
-      })) || [];
-
-    // AI : Only detect corner changes if we actually have original corners to compare against
-    if (
-      normalizedOriginalCorners.length > 0 &&
-      JSON.stringify(normalizedCurrentCorners) !== JSON.stringify(normalizedOriginalCorners)
-    ) {
-      changes.push({
-        fieldName: "corners",
-        oldValue: normalizedOriginalCorners,
-        newValue: normalizedCurrentCorners,
-        changeReason: customReason ?? undefined,
-      });
-    }
-
-    return changes;
-  }
-
   // AI : Unified change detection for any entity
   function detectChanges(context: SubmissionContext, customReason?: string): FieldChange[] {
     if (context.changedFields) {
@@ -344,7 +227,7 @@ export function useSubmissionService() {
     if (context.entityType === "project") {
       return detectProjectChanges(context.entity, customReason);
     } else {
-      return detectOverlayChanges(context.entity, customReason);
+      throw new Error("Overlay changes must be provided via changedFields by the dialog store.");
     }
   }
 
@@ -616,9 +499,20 @@ export function useSubmissionService() {
       if (hasCornersChange) {
         // AI : Corner changes require full republishing
         const { publishOverlay } = useOverlayPublisher();
-        const project = context.entity.projectId
-          ? projectStore.projects[context.entity.projectId] || null
-          : null;
+        // AI : Try multiple store locations for project lookup
+        // AI : 1. projects: Active map cache (visible on screen)
+        // AI : 2. allProjects: Includes nearby projects not in main city cache
+        // AI : 3. userContributions: Projects pending/saved but interacted with via sidebar
+        let project = null;
+        if (context.entity.projectId) {
+          project =
+            projectStore.projects[context.entity.projectId] ??
+            projectStore.allProjects[context.entity.projectId] ??
+            (projectStore.userContributions.find(
+              (p) => p.id === context.entity.projectId,
+            ) as unknown as Project) ??
+            null;
+        }
         await publishOverlay(context.entity, project);
       } else {
         const overlayData: { id: string; caption?: string } = { id: context.entity.id };
