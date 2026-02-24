@@ -317,6 +317,19 @@ onDeactivated(() => {
   isPanelActive.value = false;
 });
 
+// AI : Watch for panel becoming active while a scroll request is pending
+// AI : This handles the race condition where requestScrollTo fires before the panel is active
+// AI : (e.g., tab switch from Latest to CurrentLocation via KeepAlive or async component mount)
+watch(
+  () => isPanelActive.value,
+  async (active) => {
+    if (active && pendingScrollRequest.value && props.projects.length > 0) {
+      await nextTick();
+      await handleScrollRequest();
+    }
+  },
+);
+
 function handleToggleCountryExpanded(countryCode: string) {
   const country = groupedByCountry.value.find((c) => c.countryCode === countryCode);
   toggleCountryExpanded(countryCode, country);
