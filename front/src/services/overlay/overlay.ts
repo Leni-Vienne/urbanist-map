@@ -36,8 +36,6 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   return false;
 }
 
-// AI : addOverlay moved to useOverlayEditing.ts
-
 /**
  * AI : Navigates between overlays in the current project based on direction
  * @param direction - Either 'next' or 'previous' to determine navigation direction
@@ -240,9 +238,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   // AI : Save only the specific overlay being updated, not all overlays
   updateMarkerTooltip(overlayObject);
 }
-
-// AI : All toolbar definitions moved to useOverlayToolbar.ts
-// AI : Import getEditToolsForOverlay and getViewTools from there
 
 // AI : Register toolbar callbacks to avoid circular dependencies
 // AI : Dynamic import keeps overlayEditing out of this module's static chunk, eliminating the facade chunk

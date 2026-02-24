@@ -1,10 +1,5 @@
-// AI : ============================================================================
-// AI : OVERLAY POSITION MANAGEMENT - Unified position resolution, caching, and application
-// AI : ============================================================================
 // AI : Combines position resolution logic, edit mode caching, and bounds calculation
 // AI : Single source of truth for all position-related operations
-// AI : ============================================================================
-
 import L from "leaflet";
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";

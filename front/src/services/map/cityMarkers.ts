@@ -1,6 +1,5 @@
 import L from "leaflet";
 import { ref, watch } from "vue";
-import { t } from "@/locales";
 import { map } from "@/services/core/map";
 import {
   mobileAwareFlyTo,
@@ -197,23 +196,6 @@ function smartZoomToCity(
  */
 export async function activateCity(city: CityWithProjects) {
   const mapStore = useMapStore();
-  const overlayStore = useOverlayStore();
-
-  // AI : Check for unsaved overlays before loading city
-  const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
-    (overlay) => overlay.isModified === true,
-  );
-
-  if (hasUnsavedOverlays) {
-    const isSwitchingCity = mapStore.selectedCity?.id !== city.id;
-    const message = isSwitchingCity
-      ? t("navigation.unsavedOverlaysSwitchCity")
-      : t("navigation.unsavedOverlaysReloadCity");
-
-    // eslint-disable-next-line no-alert
-    const confirmed = confirm(message);
-    if (!confirmed) return;
-  }
 
   // AI : Update selected city in store
   // AI : Note: We can't easily reset opacities here without access to the private layer

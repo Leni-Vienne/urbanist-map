@@ -1,5 +1,4 @@
 // AI : Shared composable for submission dialog state and handlers
-// AI : Eliminates duplication between ContributePanel and PopupContainer
 import { ref } from "vue";
 import L from "leaflet";
 import { useI18n } from "vue-i18n";

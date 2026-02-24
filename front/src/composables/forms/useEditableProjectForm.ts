@@ -43,7 +43,7 @@ function formatValue(value: any): string {
   return String(value);
 }
 
-// AI : Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
+// Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
 function projectComparator(
   _fieldName: keyof ProjectFormData,
   original: ProjectFormData[keyof ProjectFormData],

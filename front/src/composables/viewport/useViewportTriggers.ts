@@ -35,7 +35,6 @@ import type { AppMode } from "@shared/types";
 const isLoading = ref(false);
 
 // AI : Module-level state shared across composable instances and standalone functions
-// AI : loadedCityIds is now imported from useCityDataLoader to be shared with navigation
 // AI : Track last zoom level to detect marker ↔ overlay transitions
 const lastZoomLevel = ref<number | null>(null);
 
@@ -601,8 +600,6 @@ export function useViewportTriggers() {
     isLoading,
   };
 }
-
-// AI : Navigation loading functions moved to useCityDataLoader.ts to break circular dependency
 
 // AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

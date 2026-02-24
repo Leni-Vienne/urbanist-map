@@ -1,9 +1,6 @@
 // AI : ============================================================================
 // AI : MAP NAVIGATION - Camera bounds, mobile-aware fly, and country navigation
 // AI : ============================================================================
-// AI : Unified map camera control combining bounds tracking, mobile offset handling,
-// AI : and country-specific navigation with bounding boxes
-// AI : ============================================================================
 
 import { ref } from "vue";
 import L, { type FitBoundsOptions, type ZoomPanOptions } from "leaflet";

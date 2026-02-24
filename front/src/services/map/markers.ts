@@ -1,6 +1,4 @@
 // AI : ============================================================================
-// AI : MARKER UTILITIES - Icons, colors, and marker updates
-// AI : ============================================================================
 // AI : Unified marker management combining icon creation, color logic, and marker updates
 // AI : ============================================================================
 

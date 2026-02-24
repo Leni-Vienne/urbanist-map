@@ -128,10 +128,6 @@ export function updateMarkerTooltip(
   }
 }
 
-// AI : getOverlayBounds moved to overlayPositionManagement.ts
-
-// AI : enrichOverlayWithProject moved to services/overlay/overlayData.ts
-
 /**
  * AI : Create a single marker for an overlay (for view mode overlays)
  */
