@@ -9,10 +9,6 @@
 import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import {
-  getFromEditModeOverlayCache,
-  saveToEditModeOverlayCache,
-} from "@/services/overlay/overlayPositionManagement";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 
 /**
@@ -79,7 +75,7 @@ export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
   // AI : Check edit mode cache only if in edit mode
   // AI : This ensures view mode always uses backend positions, not stale cached positions
   if (overlayStore.mode === "edit") {
-    const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
+    const cachedModifications = overlayStore.getFromEditModeCache(overlayObject.id);
     if (cachedModifications?.corners.length === 4) {
       // AI : Update object history with cached modifications
       overlayObject.history = [cachedModifications.corners];
@@ -109,7 +105,7 @@ export function saveOverlayModificationsToCache(
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
 
   // AI : Save to old cache for backwards compatibility during migration
-  saveToEditModeOverlayCache(overlayObject.id, {
+  overlayStore.saveToEditModeCache(overlayObject.id, {
     corners: mappedCorners,
     isModified: overlayObject.isModified ?? false,
   });

@@ -88,7 +88,7 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
 }
 
 /**
- * AI : Check if a point is inside any of the country's polygons
+ * AI : Check if a point is inside any of the country's polygons (ray-casting algorithm with hole support)
  */
 function isPointInCountry(
   lat: number,

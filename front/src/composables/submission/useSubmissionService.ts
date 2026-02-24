@@ -566,6 +566,42 @@ export function useSubmissionService() {
     }
   }
 
+  // AI : Helper to submit a single overlay modification (shared by both allProjectModifications and pendingOverlayModifications paths)
+  async function submitOverlayModification(
+    overlayId: string,
+    mod: Pick<PendingOverlayModification, "caption" | "corners">,
+    reason: string,
+  ): Promise<void> {
+    const overlayObj = overlayStore.overlays[overlayId];
+    if (!overlayObj) return;
+
+    const overlayWithChanges = {
+      ...overlayObj,
+      caption: mod.caption?.current ?? overlayObj.caption,
+      corners: mod.corners?.current ?? overlayObj.corners,
+    };
+
+    const changedFields: FieldChange[] = [];
+    if (mod.caption)
+      changedFields.push({
+        fieldName: "caption",
+        oldValue: mod.caption.original,
+        newValue: mod.caption.current,
+      });
+    if (mod.corners)
+      changedFields.push({
+        fieldName: "corners",
+        oldValue: mod.corners.original,
+        newValue: mod.corners.current,
+      });
+
+    const overlayContext = createOverlayContext(overlayWithChanges);
+    overlayContext.changedFields = changedFields;
+    await submitEntity(overlayContext, reason);
+
+    pendingModsStore.clearModification(overlayId);
+  }
+
   async function submitExtendedContext(
     extCtx: SubmissionContextExtended,
     reason: string,
@@ -590,34 +626,7 @@ export function useSubmissionService() {
       );
 
       for (const mod of existMods) {
-        const overlayObj = overlayStore.overlays[mod.overlayId];
-        if (!overlayObj) continue;
-
-        const overlayWithChanges = {
-          ...overlayObj,
-          caption: mod.caption?.current ?? overlayObj.caption,
-          corners: mod.corners?.current ?? overlayObj.corners,
-        };
-
-        const changedFields = [];
-        if (mod.caption)
-          changedFields.push({
-            fieldName: "caption",
-            oldValue: mod.caption.original,
-            newValue: mod.caption.current,
-          });
-        if (mod.corners)
-          changedFields.push({
-            fieldName: "corners",
-            oldValue: mod.corners.original,
-            newValue: mod.corners.current,
-          });
-
-        const overlayContext = createOverlayContext(overlayWithChanges);
-        overlayContext.changedFields = changedFields;
-        await submitEntity(overlayContext, reason);
-
-        pendingModsStore.clearModification(mod.overlayId);
+        await submitOverlayModification(mod.overlayId, mod, reason);
       }
     } else if (
       extCtx.pendingOverlayModifications &&
@@ -626,35 +635,7 @@ export function useSubmissionService() {
       for (const overlayId of extCtx.pendingOverlayModifications) {
         const mod = pendingModsStore.getPendingModifications(overlayId);
         if (!mod) continue;
-
-        const overlayObj = overlayStore.overlays[overlayId];
-        if (!overlayObj) continue;
-
-        const overlayWithChanges = {
-          ...overlayObj,
-          caption: mod.caption?.current ?? overlayObj.caption,
-          corners: mod.corners?.current ?? overlayObj.corners,
-        };
-
-        const changedFields = [];
-        if (mod.caption)
-          changedFields.push({
-            fieldName: "caption",
-            oldValue: mod.caption.original,
-            newValue: mod.caption.current,
-          });
-        if (mod.corners)
-          changedFields.push({
-            fieldName: "corners",
-            oldValue: mod.corners.original,
-            newValue: mod.corners.current,
-          });
-
-        const overlayContext = createOverlayContext(overlayWithChanges);
-        overlayContext.changedFields = changedFields;
-        await submitEntity(overlayContext, reason);
-
-        pendingModsStore.clearModification(overlayId);
+        await submitOverlayModification(overlayId, mod, reason);
       }
     }
 

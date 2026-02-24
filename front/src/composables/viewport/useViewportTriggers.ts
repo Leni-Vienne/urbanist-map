@@ -106,7 +106,31 @@ export function useViewportTriggers() {
    */
   function getVisibleCitiesInViewport(): typeof citiesWithProjects.value {
     const bounds = map.value.getBounds();
-    return citiesWithProjects.value.filter((city) => bounds.contains([city.lat, city.lng]));
+    const visible = citiesWithProjects.value.filter((city) =>
+      bounds.contains([city.lat, city.lng]),
+    );
+
+    // AI : Fallback: when zoomed in far enough that no city marker is in the viewport
+    // AI : (e.g. viewing a contribution far from the city center, or loading a shared URL),
+    // AI : find the nearest city so its data still gets loaded.
+    if (visible.length === 0 && citiesWithProjects.value.length > 0) {
+      console.log("No cities in viewport, using fallback nearest city logic");
+      const center = map.value.getCenter();
+      let nearest = citiesWithProjects.value[0]!;
+      let minDist = Infinity;
+      for (const city of citiesWithProjects.value) {
+        const dLat = city.lat - center.lat;
+        const dLng = city.lng - center.lng;
+        const dist = dLat * dLat + dLng * dLng;
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = city;
+        }
+      }
+      return [nearest];
+    }
+
+    return visible;
   }
 
   /**

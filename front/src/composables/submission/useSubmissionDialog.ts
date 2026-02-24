@@ -22,6 +22,7 @@ import L from "leaflet";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { updateMarkerTooltip, updateMarkerPosition } from "@/services/overlay/overlayMarkers";
+import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import type {
   OverlayObject,
   Project,
@@ -579,7 +580,6 @@ export function useSubmissionDialog() {
     // AI : Handle removing a NEW overlay completely
     if (field === "new_overlay") {
       if (overlayObject?.status === null) {
-        const { deleteOverlayDirect } = await import("@/services/core/entityRemoval");
         await deleteOverlayDirect(overlayId);
 
         // AI : Update the extended context to remove from newOverlayIds

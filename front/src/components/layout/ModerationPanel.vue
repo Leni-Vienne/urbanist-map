@@ -162,8 +162,8 @@ import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
 import { addCityMarkersForCountry } from "@/services/map/cityMarkers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-// AI : Lazy-loaded - only needed when a city is selected and projects are shown
-const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
+
+import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
   type ReplacementConflicts,
 } from "@/components/moderation/ReplacementConflictsDialog.vue";

@@ -2,6 +2,29 @@ import L from "leaflet";
 import { debounce } from "@/utils/debounce";
 import { ref, customRef } from "vue";
 
+// Parse #map=zoom/lat/lng from the URL hash
+function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
+  const hash = globalThis.location?.hash;
+  if (!hash) return null;
+  const match = hash.match(/^#map=([0-9.]+)\/([-0-9.]+)\/([-0-9.]+)$/);
+  if (!match) return null;
+  const zoom = Number(match[1]);
+  const lat = Number(match[2]);
+  const lng = Number(match[3]);
+  if (Number.isNaN(zoom) || Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  if (lat < -85 || lat > 85 || lng < -180 || lng > 180) return null;
+  return { lat, lng, zoom };
+}
+
+// Update the URL hash with current map view
+function updateHash() {
+  if (!_map) return;
+  const center = _map.getCenter();
+  const zoom = _map.getZoom();
+  const hash = `#map=${zoom.toFixed(0)}/${center.lat.toFixed(4)}/${center.lng.toFixed(4)}`;
+  history.replaceState(null, "", hash);
+}
+
 let _map: L.Map | null = null;
 export const map = customRef<L.Map>((track, trigger) => ({
   get() {
@@ -50,10 +73,12 @@ function calculateMinZoom(): number {
 }
 
 export function initializeMap() {
+  const hashCoords = parseHashCoords();
+  const minZoom = calculateMinZoom();
   map.value = L.map("mapDiv", {
-    center: [22, 10], // Initializing with center and zoom to avoid setView call
-    zoom: calculateMinZoom(),
-    minZoom: calculateMinZoom(),
+    center: hashCoords ? [hashCoords.lat, hashCoords.lng] : [22, 10],
+    zoom: hashCoords ? Math.max(hashCoords.zoom, minZoom) : minZoom,
+    minZoom,
     maxZoom: 22,
     zoomControl: false, // Because we have our own zoom control
     maxBounds: L.latLngBounds([-85, -180], [85, 180]),
@@ -72,6 +97,10 @@ export function initializeMap() {
   map.value.on("zoomend", () => {
     currentZoomLevel.value = map.value.getZoom();
   });
+
+  // AI : Sync map view coordinates to URL hash for easy sharing
+  map.value.on("moveend", updateHash);
+  updateHash(); // Set initial hash
 
   // AI : Save map dimensions
 
