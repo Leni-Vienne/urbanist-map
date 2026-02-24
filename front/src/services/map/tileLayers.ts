@@ -453,7 +453,9 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
 
 // AI : Hook up the listener init
 function initEsriMetadataListener() {
-  map.value.on("moveend", checkEsriMaxZoom);
+  map.value.on("moveend", () => {
+    void checkEsriMaxZoom();
+  });
 }
 
 /**
@@ -491,7 +493,9 @@ async function checkAndAutoSwitchSatelliteLayer() {
  * AI : Initialize listener for automatic country-based satellite switching
  */
 function initAutoCountrySwitchListener() {
-  map.value.on("moveend", checkAndAutoSwitchSatelliteLayer);
+  map.value.on("moveend", () => {
+    void checkAndAutoSwitchSatelliteLayer();
+  });
 }
 
 // AI : Accept HMR updates for this module
