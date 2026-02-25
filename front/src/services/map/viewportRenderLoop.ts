@@ -1,4 +1,4 @@
-import L from "leaflet";
+import type * as L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -8,8 +8,10 @@ import { map } from "@/services/core/map";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject } from "@/types/index";
 import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
+import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
+import { overlaysBeingCreated } from "@/services/overlay/overlayLifecycle";
 
 // AI : Sync a Leaflet layer's presence on the map to match the desired state
 function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstance: L.Map) {
@@ -54,7 +56,7 @@ function intersectsViewport(
  * AI : Main pruning function - determines what should be on the map based on bounds
  * AI : Iterates through stores and adds/removes layers from map directly
  */
-export function pruneMapEntities() {
+export function runViewportRenderLoop() {
   const mapInstance = map.value;
   const bounds = mapInstance.getBounds();
   const zoom = mapInstance.getZoom();
@@ -127,6 +129,10 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) return;
 
   const showImages = zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+  // AI : Markers are shown whenever we're past the load threshold, regardless of whether
+  // AI : full overlay images are displayed. This prevents markers from being toggled off
+  // AI : at zoom 13 when they were preserved from a prior zoom-14 session.
+  const showMarkers = true; // AI : pruneOverlays already returns early below VIEWPORT_LOAD_THRESHOLD
   const overlayStore = useOverlayStore();
 
   // AI : Helper to check visibility and existence
@@ -170,7 +176,11 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
           syncLayerToMap(existingInstance.overlay, showImages, mapInstance);
         }
 
-        syncLayerToMap(existingInstance.marker, showImages, mapInstance);
+        if (existingInstance.marker === null && showMarkers) {
+          createSingleMarker(existingInstance);
+        } else {
+          syncLayerToMap(existingInstance.marker, showMarkers, mapInstance);
+        }
       }
     } else if (existingInstance) {
       // AI : Not visible -> Queue for Cleanup
@@ -223,14 +233,24 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
       }
 
       if (overlay.overlay === null && showImages) {
-        // AI : Recreate overlay if it was destroyed (e.g. valid local/pending overlay coming back into view)
-        // AI : Batched into editOverlaysToRecreate to use a single dynamic import call
-        editOverlaysToRecreate.push(overlay);
+        // AI : CRITICAL: Only recreate overlays that are truly local/unsaved (status === null).
+        // AI : Backend overlays (pending/approved) are managed via viewModeOverlays and will be
+        // AI : handled by the first loop above once loadCityData updates viewModeOverlays.
+        // AI : Pushing backend overlays here during the async race window causes the
+        // AI : editOverlaysToRecreate and renderSingleOverlay paths to fight, producing
+        // AI : duplicate Leaflet layers.
+        if (overlay.status === null) {
+          editOverlaysToRecreate.push(overlay);
+        }
       } else {
         syncLayerToMap(overlay.overlay, showImages, mapInstance);
       }
 
-      syncLayerToMap(overlay.marker, showImages, mapInstance);
+      if (overlay.marker === null && showMarkers) {
+        createSingleMarker(overlay);
+      } else {
+        syncLayerToMap(overlay.marker, showMarkers, mapInstance);
+      }
     } else if (overlay.overlay || overlay.marker) {
       // AI : Not visible or not allowed -> Queue for Cleanup
       destructionQueue.add(id);
@@ -243,15 +263,48 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   if (editOverlaysToRecreate.length > 0) {
     // AI : Dynamic import keeps leaflet-distortableimage out of the initial bundle
     // AI : Module is cached after first load, so subsequent calls are essentially synchronous
+    // AI : Capture mode at queue time so we can detect mode switches in the async callback
+    const queuedMode = overlayStore.mode;
     void import("@/services/overlay/overlayRendering").then(({ createLeafletOverlay }) => {
       for (const overlay of editOverlaysToRecreate) {
+        // AI : CRITICAL: Re-check visibility before adding to map.
+        // AI : The mode may have changed between when the overlay was queued (sync loop)
+        // AI : and when this async callback fires, which would leave an orphaned layer.
+        if (overlayStore.mode !== queuedMode) {
+          const currentlyVisible = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
+          if (!currentlyVisible) continue;
+        }
+
+        // AI : CRITICAL: Use overlaysBeingCreated as a mutex to prevent duplicate layers.
+        // AI : renderSingleOverlay (triggered concurrently via renderViewModeOverlays) may already
+        // AI : be creating a tracked layer for this overlay. If so, skip it here to avoid creating
+        // AI : an untracked duplicate that cleanup can never find.
+        if (overlaysBeingCreated.has(overlay.id)) continue;
+        overlaysBeingCreated.add(overlay.id);
+
+        // AI : CRITICAL: Re-check that the overlay was not already created by a concurrent callback.
+        // AI : pruneOverlays may be called twice before any async callback fires (once from a map
+        // AI : event, once from renderFullOverlays). Both capture the same OverlayObject reference
+        // AI : with overlay.overlay === null. When cb1 fires it creates LAYER_C and sets
+        // AI : overlay.overlay = LAYER_C. When cb2 fires, without this guard, it creates LAYER_D,
+        // AI : sets overlay.overlay = LAYER_D, and LAYER_C becomes permanently orphaned on the map.
+        if (overlay.overlay !== null) {
+          overlaysBeingCreated.delete(overlay.id);
+          continue;
+        }
+
         const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
         if (newOverlay) {
           overlay.overlay = newOverlay;
-          const leafletCorners = overlay.corners.map((c) => L.latLng(c.lat, c.lng));
-          newOverlay.setCorners(leafletCorners);
-          newOverlay.addTo(mapInstance);
+          // AI : CRITICAL: Use updateOverlay (merge into current store entry) rather than addOverlay
+          // AI : (which replaces the entry with the old reference). After batchUpdateOverlays runs,
+          // AI : overlays.value[id] may be a new object; addOverlay would revert it to OBJ_A,
+          // AI : losing hydration metadata applied by hydrateOverlayStoreObjects.
+          overlayStore.updateOverlay(overlay.id, { overlay: newOverlay });
         }
+
+        // AI : Always release the mutex — whether creation succeeded or failed.
+        overlaysBeingCreated.delete(overlay.id);
       }
     });
   }
@@ -263,17 +316,17 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: number) {
   const cityMarkersStore = useCityMarkersStore();
-  const allMarkers = cityMarkersStore.cityMarkerMap;
+  const allCityMarkers = cityMarkersStore.cityMarkerMap;
 
-  for (const [_cityId, marker] of allMarkers) {
-    const latLng = marker.getLatLng();
+  for (const [_cityId, cityMarker] of allCityMarkers) {
+    const latLng = cityMarker.getLatLng();
     const isInBounds = bounds.contains(latLng);
-    const isOnMap = mapInstance.hasLayer(marker);
+    const isOnMap = mapInstance.hasLayer(cityMarker);
 
     if (isInBounds && !isOnMap) {
-      marker.addTo(mapInstance);
+      cityMarker.addTo(mapInstance);
     } else if (!isInBounds && isOnMap) {
-      marker.remove();
+      cityMarker.remove();
     }
   }
 }

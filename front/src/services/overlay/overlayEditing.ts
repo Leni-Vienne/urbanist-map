@@ -12,7 +12,6 @@ import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projects";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
@@ -81,7 +80,7 @@ export async function updateOverlayEditingState(): Promise<void> {
 
     // AI : When entering edit mode, restore cached corner positions if they exist
     if (isEditMode) {
-      const cachedModifications = getFromEditModeOverlayCache(overlayObject.id);
+      const cachedModifications = overlayStore.getFromEditModeCache(overlayObject.id);
       if (cachedModifications?.corners.length === 4) {
         // AI : Restore cached corners to overlay
         const leafletCorners = cachedModifications.corners.map((corner) =>
@@ -385,11 +384,11 @@ export function addOverlay(
   return id;
 }
 
-export function undo() {
+function undo() {
   applyHistoryAction("undo");
 }
 
-export function redo() {
+function redo() {
   applyHistoryAction("redo");
 }
 

@@ -1,9 +1,6 @@
 // AI : ============================================================================
-// AI : CHANGE REQUEST MANAGEMENT - Unified change requests and field changes
-// AI : ============================================================================
 // AI : Combines change request handling and field-specific change utilities
 // AI : ============================================================================
-
 import { ref, computed } from "vue";
 import { trpc, type RouterOutput, type RouterInput } from "@/client";
 import type { FieldChange } from "@shared/validation/schemas";

@@ -162,8 +162,9 @@ import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
 import { addCityMarkersForCountry } from "@/services/map/cityMarkers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-// AI : Lazy-loaded - only needed when a city is selected and projects are shown
-const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
+import { canModerateCountry } from "@/composables/overlay/useOverlayClickHandler";
+
+import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
   type ReplacementConflicts,
 } from "@/components/moderation/ReplacementConflictsDialog.vue";
@@ -517,6 +518,8 @@ watch(
     if (city && city.countryCode) {
       // AI : Only switch if different (avoids reload loop)
       if (selectedCountryCode.value !== city.countryCode) {
+        // AI : Skip country switch if moderator doesn't have access to this country
+        if (!canModerateCountry(city.countryCode)) return;
         selectedCountryCode.value = city.countryCode;
         // AI : Handle the country change logic (fetch data)
         // AI : Suppress fly because we are already centered on the city (or flying to it)

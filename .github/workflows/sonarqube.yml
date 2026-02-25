@@ -2,9 +2,10 @@ name: Sonarqube
 
 on:
   push:
-    branches: [main, preview]
+    # all branches but production
+    branches: ["*", "!production"]
   pull_request:
-    branches: [main]
+    branches: ["*", "!production"]
 
 concurrency:
   group: ci-${{ github.ref }}

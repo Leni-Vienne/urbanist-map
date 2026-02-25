@@ -5,8 +5,11 @@ import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { getOverlayBounds } from "@/services/overlay/overlayPositionManagement";
+import {
+  updateMarkerPosition,
+  updateMarkerTooltip,
+  getOverlayBounds,
+} from "@/services/overlay/overlayMarkers";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";

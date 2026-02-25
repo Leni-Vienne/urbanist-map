@@ -182,6 +182,9 @@ jobs:
             sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Caddyfile.host "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           fi
 
+          # AI : Compute Dockerfile hash on runner (before SSH) so it can be injected as a literal into the heredoc
+          DOCKERFILE_HASH=$(md5sum ./Dockerfile.bun-sharp | cut -d' ' -f1)
+
           # AI : Deploy with docker compose on remote server
           sshpass -p "$REMOTE_PASSWORD" ssh -p "$REMOTE_PORT" "${REMOTE_USER}@${REMOTE_HOST}" <<EOF
             # AI : Conditionally install and configure Caddy if reverse proxy is enabled
@@ -216,13 +219,17 @@ jobs:
             sudo rm -rf ./back/src/email
             sudo cp -r /tmp/email ./back/src/
             
-            # AI : Build custom bun-sharp image if it doesn't exist
-            # AI : To force rebuild after Dockerfile changes: sudo docker rmi bun-sharp:1.3-alpine
-            if ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
-              echo "Building custom bun-sharp image with libvips..."
+            # AI : Build custom bun-sharp image only if Dockerfile has changed (hash-based detection)
+            # AI : Hash computed on runner and injected as literal - /opt/bun-sharp.hash stores last built hash on server
+            # AI : To force rebuild: sudo rm /opt/bun-sharp.hash
+            STORED_HASH=\$(cat /opt/bun-sharp.hash 2>/dev/null || echo "")
+            if [ "${DOCKERFILE_HASH}" != "\$STORED_HASH" ] || ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
+              echo "Dockerfile changed or image missing, rebuilding bun-sharp image... (hash: ${DOCKERFILE_HASH})"
               sudo docker build -f Dockerfile.bun-sharp -t bun-sharp:1.3-alpine .
+              echo "${DOCKERFILE_HASH}" | sudo tee /opt/bun-sharp.hash > /dev/null
+              echo "Image rebuilt and hash updated"
             else
-              echo "Custom bun-sharp image already exists, skipping build"
+              echo "Dockerfile unchanged (hash: ${DOCKERFILE_HASH}), skipping bun-sharp image rebuild"
             fi
             
             # AI : Create .env file from GitHub secrets/vars with environment-specific values

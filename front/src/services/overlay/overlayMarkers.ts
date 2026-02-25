@@ -12,7 +12,7 @@ import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import type { OverlayObject, MarkerColor } from "@/types/index";
+import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
 import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
@@ -21,10 +21,6 @@ import {
 } from "@/services/overlay/overlaySelection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import {
-  getFromEditModeOverlayCache,
-  getOverlayBounds,
-} from "@/services/overlay/overlayPositionManagement";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
@@ -128,10 +124,6 @@ export function updateMarkerTooltip(
   }
 }
 
-// AI : getOverlayBounds moved to overlayPositionManagement.ts
-
-// AI : enrichOverlayWithProject moved to services/overlay/overlayData.ts
-
 /**
  * AI : Create a single marker for an overlay (for view mode overlays)
  */
@@ -139,9 +131,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
   // AI : Skip replaced overlays - the replacement is at the same location, marker would be confusing
-  if (savedOverlay.status === "replaced") return;
+  if (savedOverlay.status === "replaced") {
+    return;
+  }
 
-  if (overlayStore.allMarkers[savedOverlay.id]) return;
+  if (overlayStore.allMarkers[savedOverlay.id]) {
+    return;
+  }
 
   // AI : CRITICAL: Safety check for visibility
   // AI : This prevents markers from being created for filtered-out overlays during race conditions
@@ -154,16 +150,20 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   // AI : Check edit cache first to prevent flicker when zooming back in on modified overlays
   let corners = savedOverlay.corners;
   if (overlayStore.mode === "edit") {
-    const cached = getFromEditModeOverlayCache(savedOverlay.id);
+    const cached = overlayStore.getFromEditModeCache(savedOverlay.id);
     if (cached?.corners.length === 4) {
       corners = cached.corners;
     }
   }
 
-  if (corners.length !== 4) return;
+  if (corners.length !== 4) {
+    return;
+  }
 
   const centroid = calculateCentroidFromCorners(corners);
-  if (!centroid) return;
+  if (!centroid) {
+    return;
+  }
   const center = L.latLng(centroid.lat, centroid.lng);
 
   // AI : Enrich overlay with project data for proper marker color calculation
@@ -233,6 +233,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   }
 
   overlayStore.allMarkers[savedOverlay.id] = marker;
+  savedOverlay.marker = marker;
   tempOverlayObject.marker = marker;
   // AI : Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
   updateMarkerTooltip(tempOverlayObject, markerColor);
@@ -284,6 +285,38 @@ export function createMarker(overlayObject: OverlayObject): void {
 
   // AI : Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);
+}
+
+/**
+ * Get bounds for an overlay (for camera navigation)
+ */
+export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
+  const overlayStore = useOverlayStore();
+
+  // Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
+  if ("overlay" in overlay && overlay.overlay) {
+    const actualCorners = (overlay.overlay as any).getCorners();
+    if (actualCorners?.length === 4) {
+      return L.latLngBounds(actualCorners);
+    }
+  }
+
+  // Priority 1: Check edit mode cache if in edit mode for the most current position
+  if (overlayStore.mode === "edit") {
+    const cachedModifications = overlayStore.getFromEditModeCache(overlay.id);
+    if (cachedModifications?.corners.length === 4) {
+      const corners = cachedModifications.corners.map((corner) => L.latLng(corner.lat, corner.lng));
+      return L.latLngBounds(corners);
+    }
+  }
+
+  // Priority 2: Use overlay corners from overlayData
+  if (overlay.corners.length === 4) {
+    const corners = overlay.corners.map((corner) => L.latLng(corner.lat, corner.lng));
+    return L.latLngBounds(corners);
+  }
+
+  return null;
 }
 
 // AI : Accept HMR updates for this module

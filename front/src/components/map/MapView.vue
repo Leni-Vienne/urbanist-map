@@ -53,7 +53,7 @@ import { useI18n } from "vue-i18n";
 // AI : Load countries for breadcrumbs (no marker rendering)
 import { loadCountriesWithProjects } from "@/services/map/countryData";
 import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
-import { useViewportContentManager } from "@/composables/viewport/useViewportContentManager";
+import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -73,7 +73,7 @@ const { t } = useI18n();
 const isLoading = ref(true);
 
 // AI : NEW: Viewport manager - single rendering path
-const viewportManager = useViewportContentManager();
+const viewportManager = useViewportTriggers();
 
 // AI : Reset map state on logout (mode, selection, standalone markers)
 watch(

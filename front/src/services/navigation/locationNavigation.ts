@@ -1,14 +1,10 @@
-// AI : Refactored to contain city navigation logic locally
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { getSelectedProjectId } from "@/services/project/projectSelection";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { t } from "@/locales";
-
 /**
  * AI : Load projects for a specific city and display overlays on map
  * AI : Moved here from cityMarkers.ts to separate navigation from marker rendering
@@ -61,20 +57,7 @@ export async function navigateToCity(
   countryCode: string,
   cityCoords?: { lat: number; lng: number },
 ): Promise<void> {
-  const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
-
-  // AI : Check for unsaved overlays before navigating
-  const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
-    (overlay) => overlay.isModified === true,
-  );
-
-  if (hasUnsavedOverlays) {
-    const confirmed = confirm(t("navigation.unsavedOverlaysWarning"));
-    if (!confirmed) {
-      return;
-    }
-  }
 
   // AI : Clear city-specific content but preserve city markers for efficient navigation
   clearAllMapContent(true);

@@ -1,13 +1,12 @@
 import L from "leaflet";
 import { ref, watch } from "vue";
-import { t } from "@/locales";
 import { map } from "@/services/core/map";
 import {
   mobileAwareFlyTo,
   mobileAwareFlyToBounds,
   calculateBoundsFromLocations,
 } from "@/services/map/mapNavigation";
-import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
+import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -17,7 +16,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import { createColorIcon } from "@/services/map/markers";
-import { pruneMapEntities } from "@/services/map/viewportPruning";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 import { requestScrollTo } from "@/services/layout/accordionState";
 
@@ -197,23 +196,6 @@ function smartZoomToCity(
  */
 export async function activateCity(city: CityWithProjects) {
   const mapStore = useMapStore();
-  const overlayStore = useOverlayStore();
-
-  // AI : Check for unsaved overlays before loading city
-  const hasUnsavedOverlays = Object.values(overlayStore.overlays).some(
-    (overlay) => overlay.isModified === true,
-  );
-
-  if (hasUnsavedOverlays) {
-    const isSwitchingCity = mapStore.selectedCity?.id !== city.id;
-    const message = isSwitchingCity
-      ? t("navigation.unsavedOverlaysSwitchCity")
-      : t("navigation.unsavedOverlaysReloadCity");
-
-    // eslint-disable-next-line no-alert
-    const confirmed = confirm(message);
-    if (!confirmed) return;
-  }
 
   // AI : Update selected city in store
   // AI : Note: We can't easily reset opacities here without access to the private layer
@@ -447,7 +429,7 @@ async function addCityMarkersToMapInternal(
   // AI : Initialize watcher
   initializeCityMarkerWatcher();
 
-  pruneMapEntities();
+  runViewportRenderLoop();
 
   // AI : Update opacities for selected city
   const mapStore = useMapStore();

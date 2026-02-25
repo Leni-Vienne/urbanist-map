@@ -199,8 +199,6 @@ interface Props {
   originalData?: ProjectFormData;
   // AI : Show change indicators for modified fields
   showChangeIndicators?: boolean;
-  // AI : Show the latest update date field (typically only in edit mode)
-  showLatestUpdateField?: boolean;
   // AI : Unique prefix for input IDs to avoid conflicts
   idPrefix?: string;
   // AI : Initial isProposed state
@@ -223,7 +221,6 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   showChangeIndicators: false,
-  showLatestUpdateField: false,
   idPrefix: "project",
   isProposed: false,
   prefilledCity: undefined,

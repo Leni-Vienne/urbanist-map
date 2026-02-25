@@ -8,8 +8,7 @@ import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { getOverlayBounds } from "@/services/overlay/overlayPositionManagement";
+import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 // AI : overlayEditing is a lazy chunk - dynamic import to avoid pulling it into this chunk's static graph
 // AI : Both callbacks are registered before they could ever be called (requires user interaction in edit mode)
@@ -35,8 +34,6 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 
   return false;
 }
-
-// AI : addOverlay moved to useOverlayEditing.ts
 
 /**
  * AI : Navigates between overlays in the current project based on direction
@@ -240,9 +237,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   // AI : Save only the specific overlay being updated, not all overlays
   updateMarkerTooltip(overlayObject);
 }
-
-// AI : All toolbar definitions moved to useOverlayToolbar.ts
-// AI : Import getEditToolsForOverlay and getViewTools from there
 
 // AI : Register toolbar callbacks to avoid circular dependencies
 // AI : Dynamic import keeps overlayEditing out of this module's static chunk, eliminating the facade chunk

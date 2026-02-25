@@ -137,21 +137,15 @@
       </Accordion>
     </template>
 
-    <!-- AI : Delete Project Confirmation Dialog -->
+    <!-- AI : Unified Delete Confirmation Dialog -->
     <Dialog
-      v-model:visible="showDeleteProjectDialog"
-      :header="t('admin.userContributions.deleteProjectDialog.title')"
+      v-model:visible="showDeleteDialog"
+      :header="deleteDialogHeader"
       :modal="true"
       :style="{ width: '450px' }"
     >
       <div class="delete-dialog-content">
-        <p>
-          {{
-            t("admin.userContributions.deleteProjectDialog.message", {
-              name: projectToDelete?.name,
-            })
-          }}
-        </p>
+        <p>{{ deleteDialogMessage }}</p>
         <div class="field">
           <label for="deleteReason">{{ t("admin.userContributions.deleteDialog.reason") }}</label>
           <Textarea
@@ -168,51 +162,14 @@
         <Button
           :label="t('common.cancel')"
           severity="secondary"
-          @click="showDeleteProjectDialog = false"
+          @click="showDeleteDialog = false"
         />
         <Button
           :label="t('admin.userContributions.deleteDialog.confirm')"
           severity="danger"
           icon="pi pi-trash"
           :loading="isDeleting"
-          @click="adminDeleteProject"
-        />
-      </template>
-    </Dialog>
-
-    <!-- AI : Delete Overlay Confirmation Dialog -->
-    <Dialog
-      v-model:visible="showDeleteOverlayDialog"
-      :header="t('admin.userContributions.deleteOverlayDialog.title')"
-      :modal="true"
-      :style="{ width: '450px' }"
-    >
-      <div class="delete-dialog-content">
-        <p>{{ t("admin.userContributions.deleteOverlayDialog.message") }}</p>
-        <div class="field">
-          <label for="deleteReason2">{{ t("admin.userContributions.deleteDialog.reason") }}</label>
-          <Textarea
-            id="deleteReason2"
-            v-model="deleteReason"
-            :placeholder="t('admin.userContributions.deleteDialog.reasonPlaceholder')"
-            :autoResize="true"
-            rows="2"
-            class="w-full"
-          />
-        </div>
-      </div>
-      <template #footer>
-        <Button
-          :label="t('common.cancel')"
-          severity="secondary"
-          @click="showDeleteOverlayDialog = false"
-        />
-        <Button
-          :label="t('admin.userContributions.deleteDialog.confirm')"
-          severity="danger"
-          icon="pi pi-trash"
-          :loading="isDeleting"
-          @click="adminDeleteOverlay"
+          @click="executeDelete"
         />
       </template>
     </Dialog>
@@ -220,7 +177,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from "vue";
+import { ref, onMounted, reactive, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useToast } from "primevue/usetoast";
@@ -247,12 +204,26 @@ const cityDetails = reactive<Record<number, { projects: ProjectType[]; overlays:
   {},
 );
 
-const showDeleteProjectDialog = ref(false);
-const showDeleteOverlayDialog = ref(false);
+const showDeleteDialog = ref(false);
+const deleteTargetType = ref<"project" | "overlay" | null>(null);
 const projectToDelete = ref<ProjectType | null>(null);
 const overlayToDelete = ref<OverlayType | null>(null);
 const deleteReason = ref("");
 const isDeleting = ref(false);
+
+const deleteDialogHeader = computed(() => {
+  return deleteTargetType.value === "project"
+    ? t("admin.userContributions.deleteProjectDialog.title")
+    : t("admin.userContributions.deleteOverlayDialog.title");
+});
+
+const deleteDialogMessage = computed(() => {
+  return deleteTargetType.value === "project"
+    ? t("admin.userContributions.deleteProjectDialog.message", {
+        name: projectToDelete.value?.name,
+      })
+    : t("admin.userContributions.deleteOverlayDialog.message");
+});
 
 // AI : Load initial user data with city summary
 async function loadUserContributions() {
@@ -307,15 +278,26 @@ function getThumbnailUrl(filename: string): string {
 // AI : Delete project confirmation
 function confirmDeleteProject(project: ProjectType) {
   projectToDelete.value = project;
+  deleteTargetType.value = "project";
   deleteReason.value = "";
-  showDeleteProjectDialog.value = true;
+  showDeleteDialog.value = true;
 }
 
 // AI : Delete overlay confirmation
 function confirmDeleteOverlay(overlay: OverlayType) {
   overlayToDelete.value = overlay;
+  deleteTargetType.value = "overlay";
   deleteReason.value = "";
-  showDeleteOverlayDialog.value = true;
+  showDeleteDialog.value = true;
+}
+
+// AI : Unified delete execution
+async function executeDelete() {
+  if (deleteTargetType.value === "project") {
+    await adminDeleteProject();
+  } else {
+    await adminDeleteOverlay();
+  }
 }
 
 // AI : Execute project deletion and remove from UI (admin-specific)
@@ -356,7 +338,7 @@ async function adminDeleteProject() {
       life: 5000,
     });
 
-    showDeleteProjectDialog.value = false;
+    showDeleteDialog.value = false;
   } catch (error) {
     console.error("Error deleting project:", error);
     toast.add({
@@ -405,7 +387,7 @@ async function adminDeleteOverlay() {
       life: 5000,
     });
 
-    showDeleteOverlayDialog.value = false;
+    showDeleteDialog.value = false;
   } catch (error) {
     console.error("Error deleting overlay:", error);
     toast.add({

@@ -6,8 +6,7 @@ import { buildProjectPayload } from "@/services/project/projectMutations";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { getFromEditModeOverlayCache } from "@/services/overlay/overlayPositionManagement";
-import type { Project, OverlayObject, OverlayData, RemovableChange } from "@/types/index";
+import type { Project, OverlayObject, RemovableChange, ProjectForModeration } from "@/types/index";
 import {
   projectSchema,
   overlaySchema,
@@ -22,28 +21,55 @@ import {
   prepareProjectValidationData,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
+import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
+import {
+  usePendingModificationsStore,
+  type PendingOverlayModification,
+} from "@/stores/pinia/pendingModificationsStore";
 
 // AI : Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
 export type SubmissionEntityType = "project" | "overlay";
 
-// AI : Base submission context interface
-interface BaseSubmissionContext {
+// AI : Submission context interface
+export type SubmissionContext =
+  | {
+      entityType: "project";
+      entityId: string;
+      changeType: SubmissionChangeType;
+      entity: Project;
+      changedFields?: FieldChange[];
+    }
+  | {
+      entityType: "overlay";
+      entityId: string;
+      changeType: SubmissionChangeType;
+      entity: OverlayObject;
+      changedFields?: FieldChange[];
+    };
+
+export interface SubmissionContextExtended {
+  entityType: "project" | "overlay";
   entityId: string;
   changeType: SubmissionChangeType;
-  changedFields?: FieldChange[];
+  entity: OverlayObject | Project | ProjectForModeration;
+  projectId?: string;
+  projectModified?: boolean;
+  overlayModified?: boolean;
+  allProjectModifications?: PendingOverlayModification[];
+  pendingOverlayModifications?: string[];
+  newOverlayIds?: string[];
 }
 
-// AI : Discriminated union for type-safe entity handling
-export type SubmissionContext =
-  | (BaseSubmissionContext & {
-      entityType: "project";
-      entity: Project;
-    })
-  | (BaseSubmissionContext & {
-      entityType: "overlay";
-      entity: OverlayObject;
-    });
+export function isSubmissionContextExtended(ctx: unknown): ctx is SubmissionContextExtended {
+  return (
+    ctx !== null &&
+    typeof ctx === "object" &&
+    ("overlayModified" in ctx ||
+      "pendingOverlayModifications" in ctx ||
+      "allProjectModifications" in ctx)
+  );
+}
 
 export interface SubmissionChange {
   field: RemovableChange;
@@ -114,6 +140,8 @@ export function useSubmissionService() {
   const projectStore = useProjectStore();
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
+  const pendingModsStore = usePendingModificationsStore();
+  const { publishOverlay } = useOverlayPublisher();
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
 
   // AI : Build a combined city name cache from store cache + projects we've seen
@@ -134,41 +162,35 @@ export function useSubmissionService() {
   function createProjectContext(
     project: Project,
     changeType?: SubmissionChangeType,
-  ): SubmissionContext {
-    const ctx: BaseSubmissionContext & { entityType: "project"; entity: Project } = {
+  ): Extract<SubmissionContext, { entityType: "project" }> {
+    return {
       entityType: "project",
       entityId: project.id,
       entity: project,
       changeType: changeType ?? getChangeType(project),
     };
-    return ctx;
   }
 
   // AI : Helper to create properly typed overlay submission context
   function createOverlayContext(
     overlay: OverlayObject,
     changeType?: SubmissionChangeType,
-  ): SubmissionContext {
-    const ctx: BaseSubmissionContext & { entityType: "overlay"; entity: OverlayObject } = {
+  ): Extract<SubmissionContext, { entityType: "overlay" }> {
+    return {
       entityType: "overlay",
       entityId: overlay.id,
       entity: overlay,
       changeType: changeType ?? getChangeType(overlay),
     };
-    return ctx;
   }
 
-  // AI : Detect all changes for a project entity by fetching original from backend cache
+  // AI : Calculate field differences between original and modified project
   function detectProjectChanges(project: Project, customReason?: string): FieldChange[] {
     const changes: FieldChange[] = [];
-
-    // AI : Use centralized helper to find original project from either cache
     const originalProject = projectStore.getOriginalProject(project.id);
 
-    if (!originalProject) {
-      // AI : No original version found in cache - might be a new/pending project
-      return changes;
-    }
+    // AI : No original version found in cache - might be a new/pending project
+    if (!originalProject) return changes;
 
     const fieldsToCheck: (keyof Project)[] = [
       "name",
@@ -192,18 +214,9 @@ export function useSubmissionService() {
       const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
 
       // AI : For change requests, preserve empty strings (database requires non-null new_value)
-      // AI : Only normalize dates; for other fields, use empty string instead of null
-      let normalizedOld = null;
-      let normalizedNew = null;
-
-      if (isDateField) {
-        normalizedOld = normalizeDate(oldValue);
-        normalizedNew = normalizeDate(newValue);
-      } else {
-        // AI : Convert null/undefined to empty string, preserve actual values
-        normalizedOld = oldValue ?? "";
-        normalizedNew = newValue ?? "";
-      }
+      // AI : Only normalize dates; for other fields, convert null/undefined to empty string to preserve actual values
+      const normalizedOld = isDateField ? normalizeDate(oldValue) : (oldValue ?? "");
+      const normalizedNew = isDateField ? normalizeDate(newValue) : (newValue ?? "");
 
       if (normalizedOld !== normalizedNew) {
         changes.push({
@@ -216,130 +229,6 @@ export function useSubmissionService() {
     }
 
     return changes;
-  }
-
-  // AI : Detect all changes for an overlay entity
-  function findOriginalOverlay(overlay: OverlayObject): OverlayData | undefined {
-    // AI : Find original overlay data from backend cache (must use cache to get corners!)
-    // AI : currentCityOverlays doesn't have corners, we need to fetch from the city cache
-    let originalOverlay: OverlayData | undefined = undefined;
-
-    // AI : Get cityId from the overlay's project
-    const cityId = overlay.project?.cityId;
-
-    if (cityId) {
-      // AI : Try view mode cache first (contains original backend data)
-      let cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "view");
-
-      // AI : If view cache is empty, try edit mode cache (also contains backend data)
-      // AI : This handles the case where user clicked city marker directly instead of zooming
-      if (!cachedOverlays || cachedOverlays.length === 0) {
-        cachedOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, "edit");
-      }
-
-      originalOverlay = cachedOverlays?.find((o) => o.id === overlay.id);
-    }
-
-    if (!originalOverlay) {
-      // AI : For pending overlays or if not found in cache, check user contributions
-      const contribution = projectStore.userContributions.find((c) =>
-        c.overlays.some((o) => o.id === overlay.id),
-      );
-      const overlayFromContributions = contribution?.overlays.find((o) => o.id === overlay.id);
-
-      if (overlayFromContributions) {
-        // AI : Convert to the format we need for comparison
-        // AI : Don't set corners - will use fallback in comparison logic below
-        // AI : IMPORTANT: overlayFromContributions.name may be "Unnamed" if caption was null
-        // AI : which is just a display value, not an actual caption
-        const captionFromContributions = overlayFromContributions.name;
-        originalOverlay = {
-          id: overlayFromContributions.id,
-          // AI : Treat "Unnamed" as empty caption since it's a display placeholder
-          caption: captionFromContributions === "Unnamed" ? null : captionFromContributions,
-        } as any; // AI : Minimal overlay type for comparison
-      }
-    }
-
-    return originalOverlay;
-  }
-
-  function detectOverlayChanges(overlay: OverlayObject, customReason?: string): FieldChange[] {
-    const changes: FieldChange[] = [];
-
-    const originalOverlay = findOriginalOverlay(overlay);
-
-    if (!originalOverlay) {
-      // AI : If no original found, this is a new overlay or we can't detect changes
-      return changes;
-    }
-
-    // AI : Check caption change (don't normalize to null - database requires non-null new_value)
-    // AI : Normalize: treat null, undefined, empty string, and "Unnamed" display value as equivalent
-    const oldCaption = originalOverlay.caption ?? "";
-    const newCaption = overlay.caption ?? "";
-
-    if (oldCaption !== newCaption) {
-      changes.push({
-        fieldName: "caption",
-        oldValue: oldCaption,
-        newValue: newCaption,
-        changeReason: customReason ?? undefined,
-      });
-    }
-
-    // AI : Check corner positions - CRITICAL: Prioritize edit mode cache for current corners
-    // AI : Priority order for current corners:
-    // AI : 1. Edit mode cache (contains user's most recent position, even if zoomed out)
-    // AI : 2. Leaflet overlay (if actively loaded in the map)
-    // AI : 3. overlay.corners (fallback, but may be stale/original)
-    let currentCorners: { lat: number; lng: number }[] = [];
-
-    const editModeCache = getFromEditModeOverlayCache(overlay.id);
-
-    if (editModeCache?.corners.length === 4) {
-      // AI : Use cached corners (user's most recent position in edit mode)
-      // AI : No need to check isModified - the comparison will determine if changed
-      currentCorners = editModeCache.corners;
-    } else if (overlay.overlay) {
-      // AI : Use Leaflet overlay corners if currently loaded
-      currentCorners = overlay.overlay.getCorners().map((c) => ({ lat: c.lat, lng: c.lng }));
-    } else {
-      // AI : Fallback to stored corners
-      currentCorners = overlay.corners;
-    }
-
-    const normalizedCurrentCorners = currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
-
-    // AI : Get original corners from backend data
-    const normalizedOriginalCorners = originalOverlay.corners.map((c) => ({
-      lat: c.lat,
-      lng: c.lng,
-    }));
-
-    if (JSON.stringify(normalizedCurrentCorners) !== JSON.stringify(normalizedOriginalCorners)) {
-      changes.push({
-        fieldName: "corners",
-        oldValue: normalizedOriginalCorners,
-        newValue: normalizedCurrentCorners,
-        changeReason: customReason ?? undefined,
-      });
-    }
-
-    return changes;
-  }
-
-  // AI : Unified change detection for any entity
-  function detectChanges(context: SubmissionContext, customReason?: string): FieldChange[] {
-    if (context.changedFields) {
-      return context.changedFields;
-    }
-
-    if (context.entityType === "project") {
-      return detectProjectChanges(context.entity, customReason);
-    } else {
-      return detectOverlayChanges(context.entity, customReason);
-    }
   }
 
   // AI : Format value for human-readable display
@@ -375,7 +264,10 @@ export function useSubmissionService() {
 
   // AI : Build human-readable summary for confirmation dialog
   function buildSummary(context: SubmissionContext): SubmissionSummary {
-    const changes = detectChanges(context);
+    const changes =
+      context.entityType === "project"
+        ? detectProjectChanges(context.entity)
+        : (context.changedFields ?? []);
     const entityName =
       context.entityType === "project"
         ? context.entity.name
@@ -460,7 +352,10 @@ export function useSubmissionService() {
 
     // AI : Check if there are any changes to submit (for updates)
     if (context.changeType !== "create") {
-      const changes = detectChanges(context);
+      const changes =
+        context.entityType === "project"
+          ? detectProjectChanges(context.entity)
+          : (context.changedFields ?? []);
       if (changes.length === 0) {
         errors.push("No changes detected to submit");
       }
@@ -532,6 +427,7 @@ export function useSubmissionService() {
         projectStore.addProjectToUserContributions(updatedProject);
       }
     } else if (changeType === "update_pending") {
+      // AI : Optimistically update pending project in user contributions cache
       projectStore.updateProjectInUserContributions(project.id, {
         name: project.name,
         description: project.description,
@@ -558,12 +454,14 @@ export function useSubmissionService() {
     context: Extract<SubmissionContext, { entityType: "overlay" }>,
     changes: FieldChange[],
   ): Promise<void> {
-    if (context.changeType === "update_approved") {
-      // AI : Submit change requests for approved overlays
-      if (changes.length === 0) {
-        throw new Error("No changes detected for approved overlay");
-      }
+    if (context.changeType === "create") {
+      // AI : Create new overlay requires full image upload handling
+      throw new Error("New overlay creation should use publishOverlay directly");
+    }
 
+    if (context.changeType === "update_approved") {
+      if (changes.length === 0) throw new Error("No changes detected for approved overlay");
+      // AI : Submit change requests for approved overlays
       await trpc.changes.submitChangeRequest.mutate({
         entityType: "overlay",
         entityId: context.entity.id,
@@ -592,64 +490,193 @@ export function useSubmissionService() {
       }
 
       updateMarkerTooltip(context.entity);
-
-      // AI : Invalidate all mode caches for this city (change affects all modes)
-      const cityId = context.entity.project?.cityId;
-      if (cityId) {
-        mapStore.clearCityProjectsCache(cityId);
-        mapStore.clearCityStandaloneProjectsCache(cityId);
-      }
-
-      // AI : Refresh pending change requests to show in side menu (user's own only)
       resetChangeRequestsLoaded();
-      await refreshPendingChangeRequests(true); // ForceUserOnly = true for My Contributions
-    } else if (context.changeType === "update_pending") {
-      // AI : Direct update for pending overlays
-      const overlayData: { id: string; caption?: string } = { id: context.entity.id };
+      await refreshPendingChangeRequests(true);
+    }
 
-      for (const change of changes) {
-        if (change.fieldName === "caption") {
-          overlayData.caption = String(change.newValue ?? "");
+    if (context.changeType === "update_pending") {
+      // AI : Direct update for pending overlays
+      const hasCornersChange = changes.some((c) => c.fieldName === "corners");
+
+      if (hasCornersChange) {
+        // AI : Corner changes require full republishing through the useOverlayPublisher
+        const { publishOverlay } = useOverlayPublisher();
+
+        // AI : Try multiple store locations for project lookup
+        // AI : 1. projects: Active map cache (visible on screen)
+        // AI : 2. allProjects: Includes nearby projects not in main city cache
+        // AI : 3. userContributions: Projects pending/saved but interacted with via sidebar
+        let project = null;
+        if (context.entity.projectId) {
+          project =
+            projectStore.projects[context.entity.projectId] ??
+            projectStore.allProjects[context.entity.projectId] ??
+            (projectStore.userContributions.find(
+              (p) => p.id === context.entity.projectId,
+            ) as unknown as Project) ??
+            null;
+        }
+        await publishOverlay(context.entity, project);
+      } else {
+        const overlayData: { id: string; caption?: string } = { id: context.entity.id };
+        const captionChange = changes.find((c) => c.fieldName === "caption");
+        if (captionChange) {
+          overlayData.caption = String(captionChange.newValue ?? "");
+        }
+
+        await trpc.overlay.updateOverlay.mutate(overlayData);
+
+        // AI : Optimistically update pending overlay in user contributions
+        if (overlayData.caption !== undefined) {
+          projectStore.updateOverlayInUserContributions(context.entity.id, {
+            name: overlayData.caption || "Unnamed",
+          });
         }
       }
+    }
 
-      await trpc.overlay.updateOverlay.mutate(overlayData);
-
-      // AI : Invalidate all mode caches for this city (update affects all modes)
-      const cityId = context.entity.project?.cityId;
-      if (cityId) {
-        mapStore.clearCityProjectsCache(cityId);
-        mapStore.clearCityStandaloneProjectsCache(cityId);
-      }
-
-      // AI : Optimistically update pending overlay in user contributions
-      if (overlayData.caption !== undefined) {
-        projectStore.updateOverlayInUserContributions(context.entity.id, {
-          name: overlayData.caption || "Unnamed",
-        });
-      }
-    } else {
-      // AI : Create new overlay - this is handled by useOverlayPublisher
-      throw new Error("New overlay creation should use useOverlayPublisher directly");
+    // AI : Invalidate city caches uniformly for both paths
+    const cityId = context.entity.project?.cityId;
+    if (cityId) {
+      mapStore.clearCityProjectsCache(cityId);
+      mapStore.clearCityStandaloneProjectsCache(cityId);
     }
   }
 
-  // AI : Unified submission handler - routes to correct backend API
-  async function submit(context: SubmissionContext, customReason?: string): Promise<void> {
-    // AI : Validate first
-    const validation: ValidationResult = validate(context);
-    if (!validation.isValid) {
-      throw new Error(validation.errors.join(", "));
+  // AI : Unified submission handler - internal routing based on validated context
+  async function submitEntity(context: SubmissionContext, customReason?: string): Promise<void> {
+    const validation = validate(context);
+    if (!validation.isValid) throw new Error(validation.errors.join(", "));
+
+    const changes =
+      context.entityType === "project"
+        ? detectProjectChanges(context.entity as Project, customReason)
+        : (context.changedFields ?? []);
+
+    if (context.entityType === "project") {
+      await submitProject(
+        context as Extract<SubmissionContext, { entityType: "project" }>,
+        changes,
+      );
+    } else {
+      await submitOverlay(
+        context as Extract<SubmissionContext, { entityType: "overlay" }>,
+        changes,
+      );
+    }
+  }
+
+  // AI : Helper to submit a single overlay modification (shared by both allProjectModifications and pendingOverlayModifications paths)
+  async function submitOverlayModification(
+    overlayId: string,
+    mod: Pick<PendingOverlayModification, "caption" | "corners">,
+    reason: string,
+  ): Promise<void> {
+    const overlayObj = overlayStore.overlays[overlayId];
+    if (!overlayObj) return;
+
+    const overlayWithChanges = {
+      ...overlayObj,
+      caption: mod.caption?.current ?? overlayObj.caption,
+      corners: mod.corners?.current ?? overlayObj.corners,
+    };
+
+    const changedFields: FieldChange[] = [];
+    if (mod.caption)
+      changedFields.push({
+        fieldName: "caption",
+        oldValue: mod.caption.original,
+        newValue: mod.caption.current,
+      });
+    if (mod.corners)
+      changedFields.push({
+        fieldName: "corners",
+        oldValue: mod.corners.original,
+        newValue: mod.corners.current,
+      });
+
+    const overlayContext = createOverlayContext(overlayWithChanges);
+    overlayContext.changedFields = changedFields;
+    await submitEntity(overlayContext, reason);
+
+    pendingModsStore.clearModification(overlayId);
+  }
+
+  async function submitExtendedContext(
+    extCtx: SubmissionContextExtended,
+    reason: string,
+  ): Promise<void> {
+    // AI : Find the associated project to ensure we can publish overlays and use it for references
+    let project: Project | null = null;
+    if (extCtx.projectId) {
+      project =
+        projectStore.projects[extCtx.projectId] ??
+        projectStore.allProjects[extCtx.projectId] ??
+        (projectStore.userContributions.find(
+          (p) => p.id === extCtx.projectId,
+        ) as unknown as Project) ??
+        null;
     }
 
-    // AI : Detect changes with explicit type, passing custom reason if provided
-    const changes: FieldChange[] = detectChanges(context, customReason ?? undefined);
+    // AI : 1. Submit existing overlay modifications first
+    if (extCtx.allProjectModifications && extCtx.allProjectModifications.length > 0) {
+      // AI : Get mods only for *existing* overlays
+      const existMods = extCtx.allProjectModifications.filter(
+        (mod) => !extCtx.newOverlayIds?.includes(mod.overlayId),
+      );
 
-    // AI : Route to appropriate submission handler
+      for (const mod of existMods) {
+        await submitOverlayModification(mod.overlayId, mod, reason);
+      }
+    } else if (
+      extCtx.pendingOverlayModifications &&
+      extCtx.pendingOverlayModifications.length > 0
+    ) {
+      for (const overlayId of extCtx.pendingOverlayModifications) {
+        const mod = pendingModsStore.getPendingModifications(overlayId);
+        if (!mod) continue;
+        await submitOverlayModification(overlayId, mod, reason);
+      }
+    }
+
+    // AI : 2. Publish new overlays
+    if (extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0) {
+      for (const overlayId of extCtx.newOverlayIds) {
+        const overlayObj = overlayStore.overlays[overlayId];
+        if (overlayObj) {
+          await publishOverlay(overlayObj, project);
+        }
+      }
+    }
+
+    // AI : 3. Submit project metadata changes for existing projects
+    const isExistingProject = project && project.status !== null;
+    if (extCtx.projectModified && extCtx.projectId && isExistingProject && project) {
+      const projectContext = createProjectContext(project);
+      const projectChanges = detectProjectChanges(projectContext.entity as Project);
+      if (projectChanges.length > 0) {
+        await submitEntity(projectContext, reason);
+        projectStore.updateProject(project.id, { isModified: false });
+      }
+    }
+
+    // AI : 4. Otherwise, if new project and there were no overlays, just publish the empty project
+    const hasNewOverlays = extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0;
+    if (
+      !hasNewOverlays &&
+      extCtx.entityType === "project" &&
+      extCtx.changeType === "create" &&
+      project?.status === null
+    ) {
+      await submitEntity(createProjectContext(project, "create"), reason);
+    }
+  }
+
+  // AI : Submit single entity context directly
+  async function submitStandardContext(context: SubmissionContext, reason: string): Promise<void> {
+    await submitEntity(context, reason);
     if (context.entityType === "project") {
-      await submitProject(context, changes);
-    } else {
-      await submitOverlay(context, changes);
+      projectStore.updateProject(context.entityId, { isModified: false });
     }
   }
 
@@ -657,9 +684,10 @@ export function useSubmissionService() {
     getChangeType,
     createProjectContext,
     createOverlayContext,
-    detectChanges,
+    detectProjectChanges,
     buildSummary,
     validate,
-    submit,
+    submitExtendedContext,
+    submitStandardContext,
   };
 }

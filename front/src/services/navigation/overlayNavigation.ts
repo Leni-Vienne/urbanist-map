@@ -2,21 +2,72 @@ import L from "leaflet";
 import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
+import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
+import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerOpacities,
 } from "@/services/map/standaloneProjectMarkers";
 import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { resolveOverlayCorners } from "@/services/overlay/overlayPositionResolver";
 import { requestScrollTo } from "@/services/layout/accordionState";
+
+/**
+ * AI : Resolve overlay corners with priority-based fallback
+ * AI : Priority order:
+ * AI : 1. Live Leaflet instance (if rendered on map - most current)
+ * AI : 2. Edit mode cache (if user moved overlay in edit mode)
+ * AI : 3. Mode-aware cache (backend data for current mode)
+ * AI : 4. OverlayStore overlays object (fallback)
+ * @param overlayId - ID of the overlay
+ * @returns Corners array or null if overlay not found
+ */
+function resolveOverlayCorners(overlayId: string): { lat: number; lng: number }[] | null {
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+
+  // AI : Priority 1: Live Leaflet instance (most accurate, reflects current map state)
+  const overlayObject = overlayStore.overlays[overlayId];
+  if (overlayObject?.overlay) {
+    const corners = overlayObject.overlay.getCorners();
+    if (corners.length === 4) {
+      return corners;
+    }
+  }
+
+  // AI : Priority 2: Edit mode cache (user modifications not yet saved)
+  const editCache = overlayStore.getFromEditModeCache(overlayId);
+  if (editCache?.corners && editCache.corners.length === 4) {
+    return editCache.corners;
+  }
+
+  // AI : Priority 3: Mode-aware cache (backend data for current mode)
+  // AI : Need to search through all cached cities to find this overlay
+  const currentMode = overlayStore.mode;
+  for (const modeCache of mapStore.cityProjectsCache.values()) {
+    const cachedData = modeCache.get(currentMode);
+    if (cachedData) {
+      const cachedOverlay = cachedData.find((o) => o.id === overlayId);
+      if (cachedOverlay?.corners && cachedOverlay.corners.length === 4) {
+        return cachedOverlay.corners;
+      }
+    }
+  }
+
+  // AI : Priority 4: Direct overlay object (fallback)
+  if (overlayObject?.corners && overlayObject.corners.length === 4) {
+    return overlayObject.corners;
+  }
+
+  return null;
+}
 
 /**
  * AI : Shared logic for navigating to a city, loading its cities and projects
@@ -37,12 +88,7 @@ async function prepareNavigationToCity(
     // AI : Check if we need to update the country context (new selection or initial selection)
     const isNewCountryContext = isDifferentCountry || !mapStore.selectedCountryCode;
 
-    // AI : Step 1: Prepare for cross-country flight (switches to esri if needed)
-    // prepareCrossCountryFlight(countryCode); // AI : Removed as part of cleanup
-
     if (isNewCountryContext) {
-      // AI : Step 2: Only clear map content when acting switching countries
-      // AI : This prevents unnecessary removal of city markers when navigating within the same country
       if (isDifferentCountry) {
         clearAllMapContent();
       }
@@ -54,13 +100,12 @@ async function prepareNavigationToCity(
       await Promise.all([
         loadCitiesForCountry(countryCode),
         // AI : Always reload ALL global city markers to maintain global context
-        // AI : This fixes city markers appearing only for the current country or disappearing
         loadAllCityMarkersGlobally(),
       ]);
     }
   }
 
-  // AI : Step 3: Set selected city state (overlays are rendered separately via loadAndRenderCityData)
+  // AI : Set selected city state (overlays are rendered separately via loadAndRenderCityData)
   loadCityProjects(cityId, cityName, null, countryCode);
 }
 
@@ -86,24 +131,23 @@ function zoomToOverlayAndSelect(
 
   map.value.once("moveend", () => {
     // AI : CRITICAL: After zoom completes, check if overlay needs to be rendered
-    // AI : This handles the case where overlays were loaded while zoomed out
-    // AI : The overlay might exist in overlayStore but not be rendered on the map
     const overlayObj = overlayStore.overlays[overlayId];
     if (overlayObj && !overlayObj.overlay) {
-      // AI : Overlay object exists but Leaflet overlay not created - this shouldn't happen
-      // AI : but if it does, we need to trigger a re-render
       console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
     } else if (overlayObj?.overlay && !map.value.hasLayer(overlayObj.overlay)) {
-      //  AI : Overlay exists but not on map - add it now that zoom is correct
       const currentZoom = map.value.getZoom();
+      // AI : CRITICAL: Only re-add if the overlay should be visible in the current mode
+      // AI : This prevents adding a pending overlay back to the map when in view mode
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-        overlayObj.overlay.addTo(map.value);
+        const authStore = useAuthStore();
+        if (isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
+          overlayObj.overlay.addTo(map.value);
+        }
       }
     }
 
     // AI : Wait for element to exist, then wait for image to load before selecting
     // AI : This fixes the bug where first click adds blue outline but doesn't open toolbar
-    // AI : getElement() returns null until the DOM element is created (takes a few frames)
     function waitForElementThenSelect(): void {
       const overlayObj = overlayStore.overlays[overlayId];
       const element = overlayObj?.overlay?.getElement();
@@ -113,7 +157,6 @@ function zoomToOverlayAndSelect(
         return;
       }
 
-      // AI : Only select if autoSelect is enabled
       if (!autoSelect) return;
 
       if (element.complete && element.naturalWidth > 0) {
@@ -142,7 +185,7 @@ function zoomToOverlayAndSelect(
 function handleSameOverlayNavigation(overlayId: string, autoSelect: boolean): boolean {
   const corners = resolveOverlayCorners(overlayId);
   if (corners !== null) {
-    zoomToOverlayAndSelect(overlayId, corners, autoSelect); // AI : Same overlay, no cross-country
+    zoomToOverlayAndSelect(overlayId, corners, autoSelect);
   }
   return true;
 }
@@ -178,15 +221,13 @@ export async function navigateToOverlayWithCity(
 
     if (isSameCity) {
       // AI : Additional check: verify overlay is actually rendered, not just cached
-      // AI : City data is cleared when zooming out below threshold, so we need to check
-      // AI : if the Leaflet overlay exists before using the quick path
       const overlayObj = overlayStore.overlays[overlayId];
       const isOverlayRendered = overlayObj?.overlay !== null && overlayObj?.overlay !== undefined;
 
       if (isOverlayRendered) {
         const corners = resolveOverlayCorners(overlayId);
         if (corners !== null) {
-          return zoomToOverlayAndSelect(overlayId, corners, autoSelect); // AI : Same city, pass autoSelect
+          return zoomToOverlayAndSelect(overlayId, corners, autoSelect);
         }
       }
       // AI : Overlay not rendered (cleared on unzoom), fall through to reload city data
@@ -196,30 +237,22 @@ export async function navigateToOverlayWithCity(
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
     // AI : CRITICAL FIX: Use loadAndRenderCityData to properly load city data
-    // AI : This must happen BEFORE the flight animation to ensure the data is loaded
-    // AI : even if the user interrupts the animation
     const result = await loadAndRenderCityData(cityId, true);
 
-    // AI : Find the overlay in the fetched data
     const matchingOverlay = result.overlays.find((o) => o.id === overlayId);
 
-    // AI : Check if the overlay exists and belongs to the correct city
     if (!matchingOverlay || matchingOverlay.project?.cityId !== cityId) {
       console.warn(
         `Overlay ${overlayId} not found in city ${cityId} or doesn't belong to this city`,
       );
-      // AI : Still fly to coordinates to show the general area
     }
 
-    // AI : Always fly to the overlay when navigating between cities
-    // AI : We know we are far away (different city), so we don't check current zoom level
     if (matchingOverlay?.corners && matchingOverlay.corners.length === 4) {
       zoomToOverlayAndSelect(overlayId, matchingOverlay.corners, autoSelect);
     } else {
       console.warn(`Cannot navigate to overlay ${overlayId} - missing corners`);
     }
 
-    // AI : If overlay still not found, return false
     return false;
   } catch (error) {
     console.error("Failed to navigate to overlay with city:", error);
@@ -246,53 +279,38 @@ export async function navigateToStandaloneProject(
   projectId?: string,
 ): Promise<void> {
   try {
-    // AI : Prepare navigation with cross-country flight support
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
     // AI : CRITICAL FIX: Load city data to populate mapStore cache
-    // AI : This is needed for CurrentLocationPanel to display projects
-    // AI : Previously only overlays called this, causing standalone projects to not populate the panel
     await loadAndRenderCityData(cityId, true);
 
-    // AI : Wait a bit for markers to be added to the map
     await new Promise<void>((resolve) => void setTimeout(() => resolve(), 200));
 
     // AI : Request scroll to project in adjacent panels IMMEDIATELY after data is loaded
-    // AI : This ensures the accordion opens while the flight is happening, providing instant feedback
     if (projectId) {
       requestScrollTo("project", projectId);
     }
 
-    // AI : Fly to marker project coordinates
     mobileAwareFlyTo([lat, lng], 18, {
       duration: 1.5,
       easeLinearity: 0.25,
     });
 
-    // AI : Handle post-flight actions
     map.value.once("moveend", () => {
-      // AI : If projectId provided, open the project info popup
       if (projectId) {
         const overlayStore = useOverlayStore();
         const uiStore = useUiStore();
 
-        // AI : Get the marker from the map using projectId (more efficient than searching)
         const marker = getStandaloneProjectMarkerByProjectId(projectId);
         if (!marker) return;
 
-        // AI : Create teleport target at marker position
         createProjectInfoTeleportTarget(marker);
-
-        // AI : Update marker opacities (make this one fully opaque)
         updateStandaloneProjectMarkerOpacities(marker);
 
-        // AI : Close overlay popup if it's open (only one popup at a time)
         if (overlayStore.showInfoPopup) {
           overlayStore.hideInfoPopup();
         }
 
-        // AI : Open project info popup using uiStore (same as click handler)
-        // AI : Project data is loaded from backend by InfoPopupContainer if needed
         uiStore.openProjectInfoPopup(projectId);
       }
     });

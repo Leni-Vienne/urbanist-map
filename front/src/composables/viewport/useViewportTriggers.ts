@@ -9,9 +9,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import { pruneMapEntities } from "@/services/map/viewportPruning";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
-import { renderOverlayMarkersFromData, removeOverlayMarkers } from "@/services/map/cityOverlays";
+import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
 import {
   addStandaloneProjectMarkerForProject,
@@ -23,18 +23,18 @@ import {
   fetchCityStandaloneProjectsOrCache,
   fetchCityOverlaysOrCache,
 } from "@/services/navigation/cityDataLoader";
-import type { OverlayData, OverlayObject } from "@/types/index";
 import {
-  createProjectObject,
-  toProjectPartial,
-  type StandaloneProject,
-} from "@/utils/typeFactories";
+  processStandaloneMarkers,
+  renderFullOverlays,
+  hydrateOverlayStoreObjects,
+} from "@/services/navigation/cityRenderingCore";
+import type { OverlayData, OverlayObject } from "@/types/index";
+import { type StandaloneProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
 
 // AI : Module-level state shared across composable instances and standalone functions
-// AI : loadedCityIds is now imported from useCityDataLoader to be shared with navigation
 // AI : Track last zoom level to detect marker ↔ overlay transitions
 const lastZoomLevel = ref<number | null>(null);
 
@@ -42,7 +42,7 @@ const lastZoomLevel = ref<number | null>(null);
  * AI : Main viewport content manager
  * AI : Handles all overlay and project rendering based on viewport bounds
  */
-export function useViewportContentManager() {
+export function useViewportTriggers() {
   // AI : Initialize all stores at root level for better performance and cleaner code
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -56,6 +56,7 @@ export function useViewportContentManager() {
    */
   function clearContentExceptActiveCity(activeCityId: number, isEditMode: boolean) {
     // AI : Clear overlay images for ALL, markers for non-active cities only
+    const markersToRemoveFromCache: string[] = [];
     for (const [overlayId, overlay] of Object.entries(overlayStore.overlays)) {
       const belongsToActiveCity = overlay.project?.cityId === activeCityId;
       const isLocal = isEditMode && overlay.status === null;
@@ -70,7 +71,15 @@ export function useViewportContentManager() {
       if (!belongsToActiveCity && !isLocal && overlay.marker) {
         overlay.marker.remove();
         overlayStore.updateOverlay(overlayId, { marker: null });
+        // AI : Also clear from allMarkers so fresh markers can be created
+        // AI : when this city is re-loaded at zoom 13/14.
+        markersToRemoveFromCache.push(overlayId);
       }
+    }
+
+    // AI : Batch clear removed markers from allMarkers
+    if (markersToRemoveFromCache.length > 0) {
+      overlayStore.clearMarkersFromCache(markersToRemoveFromCache);
     }
 
     // AI : Clear standalone markers for non-active cities
@@ -97,7 +106,31 @@ export function useViewportContentManager() {
    */
   function getVisibleCitiesInViewport(): typeof citiesWithProjects.value {
     const bounds = map.value.getBounds();
-    return citiesWithProjects.value.filter((city) => bounds.contains([city.lat, city.lng]));
+    const visible = citiesWithProjects.value.filter((city) =>
+      bounds.contains([city.lat, city.lng]),
+    );
+
+    // AI : Fallback: when zoomed in far enough that no city marker is in the viewport
+    // AI : (e.g. viewing a contribution far from the city center, or loading a shared URL),
+    // AI : find the nearest city so its data still gets loaded.
+    if (visible.length === 0 && citiesWithProjects.value.length > 0) {
+      console.log("No cities in viewport, using fallback nearest city logic");
+      const center = map.value.getCenter();
+      let nearest = citiesWithProjects.value[0]!;
+      let minDist = Infinity;
+      for (const city of citiesWithProjects.value) {
+        const dLat = city.lat - center.lat;
+        const dLng = city.lng - center.lng;
+        const dist = dLat * dLat + dLng * dLng;
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = city;
+        }
+      }
+      return [nearest];
+    }
+
+    return visible;
   }
 
   /**
@@ -196,12 +229,12 @@ export function useViewportContentManager() {
   function renderAllLoadedOverlays(fullRender = true) {
     const mode = overlayStore.mode;
 
-    let allOverlays: OverlayData[] = [];
+    const allOverlays: OverlayData[] = [];
 
     for (const cityId of loadedCityIds.value) {
       const cityData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
       if (cityData) {
-        allOverlays = allOverlays.concat(cityData);
+        allOverlays.push(...cityData);
       }
     }
 
@@ -223,11 +256,24 @@ export function useViewportContentManager() {
       }
 
       const zoom = map.value.getZoom();
+      const previousZoom = lastZoomLevel.value;
 
-      // AI : Always prune entities based on new viewport
-      // AI : This ensures city markers (which are visible at low zoom) are correctly added/removed
-      // AI : and that overlays re-appear when zooming out and back in
-      pruneMapEntities();
+      // AI : Detect low→high threshold crossing before pruning.
+      // AI : When crossing this boundary, renderFullOverlays() will call runViewportRenderLoop()
+      // AI : after removing the dot markers (overlayMarkersLayer). Calling it here first
+      // AI : queues async store-managed marker creation before dot markers are removed,
+      // AI : causing a visual glitch where markers appear to re-appear during zoom.
+      const crossedLowToHigh =
+        zoom >= MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD &&
+        previousZoom !== null &&
+        previousZoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS &&
+        zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+
+      // AI : Prune entities (city markers, overlay visibility).
+      // AI : Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
+      if (!crossedLowToHigh) {
+        runViewportRenderLoop();
+      }
 
       // AI : CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
@@ -241,7 +287,6 @@ export function useViewportContentManager() {
         } else {
           // AI : No active city, clear everything as before
           clearAllOverlays(isEditMode);
-          removeOverlayMarkers();
           clearAllStandaloneProjectMarkers();
           loadedCityIds.value.clear();
         }
@@ -251,7 +296,6 @@ export function useViewportContentManager() {
       }
 
       // AI : Check if we crossed the marker ↔ overlay threshold
-      const previousZoom = lastZoomLevel.value;
       const crossedThreshold =
         previousZoom !== null &&
         ((previousZoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS &&
@@ -350,112 +394,44 @@ export function useViewportContentManager() {
     mode: AppMode,
   ) {
     try {
-      // AI : OPTIMIZATION: Check cache first before querying backend
-      // AI : Use shared function to avoid code duplication
+      // AI : Check cache first before querying backend
       const allProjects = await fetchCityStandaloneProjectsOrCache(cityId, mode);
 
       // AI : Create a working copy to avoid mutating cache
       const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];
 
-      // AI : In edit mode, include local pending projects from store
+      // AI : In edit mode, also include local (unsaved) pending projects from the store
       if (mode === "edit") {
         const localProjects = Object.values(projectStore.projects).filter(
           (p) => p.city.id === cityId && p.status === null,
         );
 
         for (const localP of localProjects) {
-          // AI : Check if project is already explicitly in the list
           if (!projectsToRender.find((p) => p.id === localP.id)) {
-            // AI : Type-safe push thanks to StandaloneProject union type
             projectsToRender.push(localP);
           }
         }
       }
 
-      if (projectsToRender.length === 0) return;
-
-      // AI : Get project IDs that have overlays
-      const projectIdsWithOverlays = new Set<string>();
-      for (const overlay of overlaysData) {
-        if (overlay.projectId) {
-          projectIdsWithOverlays.add(overlay.projectId);
-        }
-      }
-
-      // AI : Create standalone markers for projects without any visible overlays
-      for (const project of projectsToRender) {
-        // AI : Type narrowing for different overlay count properties
-        let overlayCount = 0;
-        if ("overlayCount" in project) {
-          overlayCount = project.overlayCount;
-        } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
-          overlayCount = project.overlayIds.length;
-        } else if ("overlays" in project && Array.isArray(project.overlays)) {
-          overlayCount = project.overlays.length;
-        }
-
-        if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-          addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
-        }
-      }
+      // AI : Delegate marker creation to the shared rendering core
+      processStandaloneMarkers(projectsToRender, overlaysData);
     } catch (error) {
       console.error(`Error adding standalone markers for city ${cityId}:`, error);
     }
   }
 
-  /**
-   * AI : Render full overlay images (high zoom)
-   */
-  function renderFullOverlays(overlaysData: OverlayData[]) {
-    // AI : Remove low-zoom markers
-    removeOverlayMarkers();
-
-    // AI : Store UNFILTERED data - filtering happens in pruneOverlays at render time
-    // AI : This ensures overlays can be recreated when filters are toggled back on
-    overlayStore.setViewModeOverlays(overlaysData);
-
-    // AI : CRITICAL: Update mapStore for panels
-    // AI : Panels (like Current Location) read from mapStore.currentCityOverlays
-    mapStore.currentCityOverlays = overlaysData;
-
-    // AI : Update existing overlay objects with fresh backend data
-    // AI : This is critical for mode switches (e.g., view → moderation) where overlays
-    // AI : are already loaded but need updated data like suggestedCorners for change requests
-    // AI : OPTIMIZATION: Use batch update to prevent O(N^2) state spreading
-    const updates: Record<string, Partial<OverlayData>> = {};
-
-    for (const overlayData of overlaysData) {
-      if (overlayStore.overlays[overlayData.id]) {
-        updates[overlayData.id] = {
-          hasPendingChanges: overlayData.hasPendingChanges,
-          suggestedCorners: overlayData.suggestedCorners,
-          pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
-          // AI : Don't update corners/centroid as those are the approved positions
-          // AI : and shouldn't change when switching modes
-        };
-      }
-    }
-
-    if (Object.keys(updates).length > 0) {
-      overlayStore.batchUpdateOverlays(updates);
-    }
-
-    // AI : Render overlays
-    // AI : DELEGATE TO PRUNING SERVICE
-    // AI : Instead of rendering loop here (which renders everything),
-    // AI : defer to pruneMapEntities which checks visibility bounds first.
-    // AI : This prevents network requests for off-screen images.
-    pruneMapEntities();
-  }
+  // AI : renderFullOverlays is imported from cityRenderingCore and called directly
 
   /**
    * AI : Render overlay markers only (low zoom)
    */
   function renderMarkersOnly(overlaysData: OverlayData[]) {
-    // AI : In edit mode, preserve overlay store data so local overlays can be restored when zooming back in
-    // AI : In view mode, clear everything since local overlays shouldn't be visible anyway
+    // AI : Always preserve store data when crossing to marker-only zoom.
+    // AI : This keeps allMarkers intact and markers on the Leaflet map so that:
+    // AI :  - pruneOverlays can show them at zoom 13 via showMarkers=true
+    // AI :  - createSingleMarker's allMarkers guard fires on zoom-in, skipping recreation
     const isEditMode = overlayStore.mode === "edit";
-    clearAllOverlays(isEditMode);
+    clearAllOverlays(true);
 
     // AI : Collect all overlays to render as markers
     const allOverlaysForMarkers = [...overlaysData];
@@ -488,8 +464,17 @@ export function useViewportContentManager() {
       }
     }
 
-    // AI : Render markers
-    renderOverlayMarkersFromData(allOverlaysForMarkers);
+    // AI : Update the store with all required overlays for the markers
+    overlayStore.setViewModeOverlays(allOverlaysForMarkers);
+
+    // AI : Sync batch updates for any fresh data
+    hydrateOverlayStoreObjects(allOverlaysForMarkers);
+
+    // AI : Render interactive markers for everything in the store
+    // AI : createSingleMarker safely ignores markers that already exist
+    for (const overlayObject of Object.values(overlayStore.overlays)) {
+      createSingleMarker(overlayObject);
+    }
   }
 
   /**
@@ -639,8 +624,6 @@ export function useViewportContentManager() {
     isLoading,
   };
 }
-
-// AI : Navigation loading functions moved to useCityDataLoader.ts to break circular dependency
 
 // AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

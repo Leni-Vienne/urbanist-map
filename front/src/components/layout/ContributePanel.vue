@@ -192,8 +192,7 @@ import type {
   UserContributionOverlay,
 } from "@/types/index";
 
-// AI : Lazy-loaded - same chunk as CurrentLocationPanel's async import
-const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
+import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 
 // AI : Async component import for submission dialog
 const SubmissionConfirmationDialog = defineAsyncComponent(
