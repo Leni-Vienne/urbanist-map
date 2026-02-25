@@ -112,8 +112,8 @@ import { map } from "@/services/core/map";
 import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
-// AI : Lazy-loaded - only needed when a city is selected and projects are shown
-const ProjectAccordionPanel = defineAsyncComponent(() => import("./ProjectAccordionPanel.vue"));
+
+import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import type { ProjectForModeration, OverlayForModeration } from "@/types/index";
 

@@ -81,10 +81,14 @@ import { useLatestContributions } from "@/composables/overlay/useLatestContribut
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useToast } from "@/composables/ui/useToast";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 
 const { t } = useI18n();
+const overlayStore = useOverlayStore();
+const toast = useToast();
 
 // AI : Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
@@ -125,6 +129,23 @@ function handleContributionLeave(contribution: LatestContribution) {
 
 // AI : Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
+  // AI : In moderation mode, auto-select the country for the moderation panel
+  // AI : Block navigation if the moderator can't moderate this country
+  if (overlayStore.mode === "moderation" && contribution.countryCode) {
+    const { canModerateCountry, syncModerationCountry } =
+      await import("@/composables/overlay/useOverlayClickHandler");
+    if (!canModerateCountry(contribution.countryCode)) {
+      toast.add({
+        severity: "warn",
+        summary: t("moderation.title"),
+        detail: t("moderation.noAccessToThisCountry"),
+        life: 4000,
+      });
+      return;
+    }
+    syncModerationCountry(contribution.countryCode);
+  }
+
   if (contribution.type === "overlay") {
     const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
     const { handleOverlayClickNavigation } = useOverlayClickHandler();

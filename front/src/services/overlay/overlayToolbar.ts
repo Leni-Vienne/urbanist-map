@@ -1,7 +1,3 @@
-// AI : Leaflet toolbar tool definitions for overlay editing
-// AI : Extracted from useOverlay.ts to reduce file complexity
-// AI : Contains all toolbar actions for both edit and view modes
-
 import L from "leaflet";
 import "leaflet-toolbar";
 import { t } from "@/locales";

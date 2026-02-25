@@ -1,18 +1,9 @@
-// AI : ============================================================================
-// AI : PROJECT SELECTION SERVICE - Unified project list and selection management
-// AI : ============================================================================
 // AI : Combines city projects retrieval and selected project state management
-// AI : ============================================================================
-
 import { computed } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type { Project } from "@/types/index";
 import { createProjectObject, createProjectObjectFromAPI } from "@/utils/typeFactories";
-
-// AI : ============================================================================
-// AI : CITY PROJECTS
-// AI : ============================================================================
 
 /**
  * AI : Get all accessible projects including:

@@ -209,10 +209,14 @@ function setupOverlayLoadHandler(
   let isInitialized = false;
 
   const tryInit = () => {
-    if (isInitialized) return;
+    if (isInitialized) {
+      return;
+    }
+
+    const hasLayer = map.value.hasLayer(overlay);
 
     // AI : Guard: Only proceed if overlay is still on map (prevents errors during rapid viewport changes)
-    if (!map.value.hasLayer(overlay)) {
+    if (!hasLayer) {
       return;
     }
 
@@ -229,6 +233,10 @@ function setupOverlayLoadHandler(
         // AI : Re-check existence before running (user might have panned away)
         if (map.value.hasLayer(overlay)) {
           onOverlayLoaded(overlayObject, onReady);
+        } else {
+          // AI : Layer was removed from map (e.g. mode switch) before image loaded
+          // AI : Clean up tracking to allow future re-creation
+          overlaysBeingCreated.delete(overlayObject.id);
         }
       });
     }
@@ -477,7 +485,18 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   const overlayStore = useOverlayStore();
 
   // AI : Skip replaced overlays - their images are deleted and would cause 404 errors
-  if (cdnOverlay.status === "replaced") return;
+  if (cdnOverlay.status === "replaced") {
+    return;
+  }
+
+  // AI : CRITICAL: Skip overlays that shouldn't be visible in the current mode.
+  // AI : This catches race conditions where renderViewModeOverlays was queued during one mode
+  // AI : but executes after a mode switch (e.g. pending overlay queued during edit mode,
+  // AI : but mode switched to view before the async callback fires).
+  const authStore = useAuthStore();
+  if (!isOverlayVisible(cdnOverlay, overlayStore.mode, authStore.user?.id)) {
+    return;
+  }
 
   // AI : Check if overlay exists in store WITH a valid Leaflet layer
   // AI : If overlay exists but has null layer (preserved after zoom out), we need to re-render it
@@ -523,6 +542,14 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     return;
   }
 
+  // AI : CRITICAL FIX: Immediately track the Leaflet layer on the existing store object
+  // AI : so mode-switch cleanup can find and remove it even before onOverlayFullyLoaded fires.
+  // AI : Without this, switching tabs quickly leaves an orphaned layer on the map because
+  // AI : the store entry still has overlay: null while the actual Leaflet layer is rendered.
+  if (existingOverlay) {
+    existingOverlay.overlay = newOverlay;
+  }
+
   // AI : Register the overlay in the store ONLY after the image has loaded and Leaflet is done.
   // AI : Registering earlier would create ghost overlays if clearAllOverlays() is called
   // AI : during a concurrent zoom animation.
@@ -530,9 +557,46 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI :   - overlayObjectWithMethods.overlay is set (by createLeafletOverlay above)
   // AI :   - the marker exists in overlayStore.allMarkers (created by createSingleMarker above)
   function onOverlayFullyLoaded() {
+    // AI : CRITICAL: Check if overlay should still be visible in the current mode
+    // AI : The mode may have changed during async image loading (e.g. Edit → View switch
+    // AI : while a pending overlay's image was still loading). If the overlay is no longer
+    // AI : visible, remove it from the map and clean up — don't add it to the store.
+    const authStore = useAuthStore();
+    const visible = isOverlayVisible(
+      overlayObjectWithMethods,
+      overlayStore.mode,
+      authStore.user?.id,
+    );
+    if (!visible) {
+      if (
+        overlayObjectWithMethods.overlay &&
+        map.value.hasLayer(overlayObjectWithMethods.overlay)
+      ) {
+        overlayObjectWithMethods.overlay.remove();
+      }
+      overlaysBeingCreated.delete(cdnOverlay.id);
+      return;
+    }
+
     const marker = overlayStore.allMarkers[cdnOverlay.id];
-    // AI : Marker may be gone if the user panned away before the image finished loading
-    if (!marker) return;
+    // AI : Marker may be gone if the user panned away or mode switched before image loaded
+    if (!marker) {
+      // AI : Also remove the Leaflet layer from the map to prevent orphaned images
+      if (
+        overlayObjectWithMethods.overlay &&
+        map.value.hasLayer(overlayObjectWithMethods.overlay)
+      ) {
+        overlayObjectWithMethods.overlay.remove();
+      }
+      overlaysBeingCreated.delete(cdnOverlay.id);
+      return;
+    }
+
+    // AI : Safety net: re-add the marker if it was removed from the map
+    // AI : during a zoom-out cleanup before the image finished loading.
+    if (!map.value.hasLayer(marker)) {
+      marker.addTo(map.value);
+    }
 
     overlayObjectWithMethods.marker = marker;
 

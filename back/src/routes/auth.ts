@@ -535,7 +535,7 @@ export const authRouter = router({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@constructionmap.org to request account deletion.",
+              "Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@urbanistmap.org to request account deletion.",
           });
         }
 

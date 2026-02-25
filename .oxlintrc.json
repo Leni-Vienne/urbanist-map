@@ -45,6 +45,7 @@
     "number-literal-case": "off",
     "no-inferrable-types": "off",
     "no-use-before-define": "off",
+    "prefer-ternary": "off",
     "no-explicit-any": "off", // temp maybe
     "max-statements": "off", // temp maybe
     "no-undefined": "off", // temp maybe

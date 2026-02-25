@@ -101,7 +101,8 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     overlayIds: data.overlayIds ?? [],
     // AI : Map coordinates for display (computed from lat/lng)
     mapCoordinates: data.mapCoordinates ?? null,
-    ...data,
+    // AI : Legacy DB field kept for migration reasons, not used in frontend
+    latestUpdateOn: data.latestUpdateOn ?? null,
   };
 }
 
@@ -161,7 +162,9 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,
-    ...data,
+    suggestedCorners: data.suggestedCorners ?? undefined,
+    hasPendingChanges: data.hasPendingChanges ?? undefined,
+    isTooBig: data.isTooBig ?? undefined,
   };
 }
 

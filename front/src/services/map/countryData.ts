@@ -1,6 +1,5 @@
 // AI : Country data loading service (no marker rendering)
 import { removeCityMarkers } from "@/services/map/cityMarkers";
-import { removeOverlayMarkers } from "@/services/map/cityOverlays";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { trpc } from "@/client";
@@ -145,7 +144,6 @@ export function clearAllMapContent(preserveCityMarkers = false): void {
   if (!preserveCityMarkers) {
     removeCityMarkers();
   }
-  removeOverlayMarkers();
   clearAllOverlays();
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();

@@ -14,6 +14,9 @@ This document outlines the granular functional test scenarios required to ensure
 - **Regression Focus**:
   - **Flicker**: Assert DOM elements for markers do not detach and reattach unnecessarily during minor zoom adjustments around the threshold (Visual instability).
   - **Disappearance**: Zoom out slightly and zoom back in; ensure images re-render immediately without needing a pan interaction.
+  - **Double-marker glitch on low→high crossing**: Zoom from mid zoom (overlay dot markers visible) quickly through `MIN_ZOOM_FOR_OVERLAYS`. Verify that dot markers do NOT visually re-appear/flash before the store-managed marker is placed. The sequence must be: dot markers removed → store marker created (not: store marker created alongside dot markers, then dot markers removed).
+  - **No marker recreation when crossing zoom 14**: Start at zoom ≤ 12 (below `VIEWPORT_LOAD_THRESHOLD`), zoom to 13 (dot markers appear), then zoom to 14 (overlay images appear). Verify in the console that `createSingleMarker` is NOT called (i.e. the `"in overlayMarkers.ts, creating marker"` log does NOT appear). The dot-marker created at zoom 13 must be reused and promoted, not recreated. Repeat the cycle (zoom out to 12, back to 13, back to 14) and confirm the same behaviour.
+  - **No marker recreation when descending then returning**: Zoom to 14 (markers + images visible), zoom down to 13 (images disappear, markers stay), zoom back to 14. Confirm `createSingleMarker` is not called on the return to 14.
 
 ### 1.2. City Marker Logic & Filtering
 
@@ -1075,3 +1078,85 @@ This document outlines the granular functional test scenarios required to ensure
   3.  Select an image file and confirm.
   4.  **Check**: The overlay image **appears on the map** immediately.
   5.  **Check**: The standalone project marker is **removed** once the overlay appears.
+
+## 35. City Rendering Core Refactor (Feb 23)
+
+### 35.1. Viewport Path — Full Overlay Rendering
+
+- **Scenario**: Pan/zoom loads overlays via the viewport manager.
+- **Steps**:
+  1.  Zoom into a city past **MIN_ZOOM_FOR_OVERLAYS**.
+  2.  **Check**: Overlay images appear (not just dot markers).
+  3.  **Check**: Overlay marker colors correctly reflect status (e.g., yellow for `hasPendingChanges`).
+  4.  Zoom back out below threshold.
+  5.  **Check**: Images disappear, dot markers appear at centroids.
+  6.  Zoom in again.
+  7.  **Check**: Images re-appear correctly (no blank map).
+
+### 35.2. Navigation Path — City Marker Click
+
+- **Scenario**: Clicking a city marker loads overlays via `cityDataRenderer.loadAndRenderCityData`.
+- **Steps**:
+  1.  At high zoom, click a **City Marker**.
+  2.  **Check**: Overlay images load (`forceFullOverlays = true` path).
+  3.  **Check**: Standalone markers appear for projects with no overlays.
+  4.  At low zoom, click a City Marker.
+  5.  **Check**: Dot markers appear (not images).
+  6.  **Regression**: Verify no circular dependency errors in console.
+
+### 35.3. Mode Switch Preserves Rendering
+
+- **Scenario**: Switching mode after viewport load re-renders correctly.
+- **Steps**:
+  1.  Load a city in **View Mode** at high zoom.
+  2.  Switch to **Edit Mode**.
+  3.  **Check**: `hasPendingChanges` / `suggestedCorners` are refreshed via batch update.
+  4.  **Check**: Marker colors update immediately (yellow for pending changes).
+  5.  Switch back to **View Mode**.
+  6.  **Check**: Markers return to timeline colors.
+
+## 36. Cross-City Overlay Marker Cleanup (Recent Fix - Feb 23)
+
+### 36.1. Overlay Markers Cleared When Switching to Overlay-Less City
+
+- **Scenario**: Navigating from a city with overlays to one with only standalone projects clears old overlay markers.
+- **Steps**:
+  1.  Navigate to **City A** (has overlays) at zoom 14+. Overlay images and markers appear.
+  2.  Click **City B** marker (a nearby city with only standalone projects, no overlays).
+  3.  **Check**: City A's overlay images are removed from the map.
+  4.  **Check**: City A's overlay markers (dots/icons) are removed from the map.
+  5.  **Check**: City B's standalone project markers appear.
+  6.  **Regression**: Click City A again.
+  7.  **Check**: City A's overlays and markers re-render correctly (no duplicates).
+
+### 36.2. Cross-City Zoom Without Click (Viewport Loading)
+
+- **Scenario**: Zooming from one city to a nearby one via viewport loading preserves marker consistency.
+- **Steps**:
+  1.  Click **City A** marker → overlays load at zoom 14+.
+  2.  Unzoom to zoom level 10 or below.
+  3.  Zoom back into **City B** (nearby, without clicking its marker).
+  4.  At **zoom 13**: **Check** interactive overlay markers appear for City B. (Hovering highlights them).
+  5.  At **zoom 14**: **Check** overlay images AND their interactive markers are both visible.
+  6.  **Regression**: Unzoom to 12, zoom back to 14. Verify markers still appear.
+
+### 36.3. Upfront Overlay Markers on City Navigation
+
+- **Scenario**: Overlay markers appear instantly and are fully interactive when clicking a city marker, before images load.
+- **Steps**:
+  1.  Click a **City Marker** at zoom 14+.
+  2.  **Check**: Interactive overlay markers appear **immediately** (alongside standalone project markers) and respond to hover.
+  3.  **Check**: Overlay images load in the background and appear after a short delay.
+  4.  **Check**: Once images are loaded, markers remain interactive and visible (no flash/disappearance).
+  5.  **Regression**: Clear browser cache and repeat — verify markers appear before images on slow connection.
+
+### 36.4. Standalone Project Marker Cleanup on City Switch
+
+- **Scenario**: Old standalone project markers are removed instantly when navigating to a new city.
+- **Steps**:
+  1.  Click a **City Marker** for a city that has standalone projects (projects without overlays).
+  2.  Verify standalone project markers appear on the map.
+  3.  Click a **different City Marker**.
+  4.  **Check**: Old standalone project markers disappear **instantly** (no ~500ms delay).
+  5.  **Check**: New city's standalone project markers appear correctly.
+  6.  **Regression**: Switch to a city with **no** standalone projects — verify old markers are still removed instantly.

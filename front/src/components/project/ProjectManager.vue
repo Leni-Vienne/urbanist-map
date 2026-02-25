@@ -57,7 +57,7 @@ import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/country
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { createProject } from "@/services/project/projects";
-import { loadAndRenderCityData } from "@/services/navigation/cityDataRenderer";
+import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 import { getCityProjects } from "@/services/project/projectSelection";
 import type { Project, NearbyProject } from "@/types/index";
