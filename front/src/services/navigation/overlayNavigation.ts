@@ -8,7 +8,9 @@ import { map } from "@/services/core/map";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
+import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import {
   getStandaloneProjectMarkerByProjectId,
   updateStandaloneProjectMarkerOpacities,
@@ -134,8 +136,13 @@ function zoomToOverlayAndSelect(
       console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
     } else if (overlayObj?.overlay && !map.value.hasLayer(overlayObj.overlay)) {
       const currentZoom = map.value.getZoom();
+      // AI : CRITICAL: Only re-add if the overlay should be visible in the current mode
+      // AI : This prevents adding a pending overlay back to the map when in view mode
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
-        overlayObj.overlay.addTo(map.value);
+        const authStore = useAuthStore();
+        if (isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
+          overlayObj.overlay.addTo(map.value);
+        }
       }
     }
 
