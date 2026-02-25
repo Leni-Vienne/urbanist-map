@@ -1,4 +1,4 @@
-import L from "leaflet";
+import type * as L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
