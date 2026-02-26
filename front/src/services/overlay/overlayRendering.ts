@@ -44,6 +44,7 @@ import {
 } from "@/services/overlay/overlayMarkers";
 import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
+import { checkOverlaySizeAndWarn } from "@/services/overlay/overlayEditing";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
@@ -285,8 +286,8 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   updateMarkerTooltip(overlayObject);
 
   // AI : Check size validation for overlays in edit mode
-  if (overlayStore.mode === "edit" && overlayCallbacks.checkOverlaySize) {
-    overlayCallbacks.checkOverlaySize(layer, overlayObject);
+  if (overlayStore.mode === "edit") {
+    checkOverlaySizeAndWarn(layer, overlayObject);
   }
 
   // AI : Setup hover events for project highlighting after element is available
@@ -345,6 +346,8 @@ function setupOverlayEventHandlers(
 
   // Listens to the map being moved
   overlay.on("dragend", () => {
+    // AI : Re-validate size after drag — isTooBig may be stale from a previous edit/undo
+    checkOverlaySizeAndWarn(overlay, overlayObject);
     saveToHistory(overlayObject);
   });
 
@@ -354,9 +357,7 @@ function setupOverlayEventHandlers(
     updateMarkerPosition(overlayObject);
 
     // AI : Validate overlay size in real-time
-    if (overlayCallbacks.checkOverlaySize) {
-      overlayCallbacks.checkOverlaySize(overlay, overlayObject);
-    }
+    checkOverlaySizeAndWarn(overlay, overlayObject);
 
     saveToHistory(overlayObject);
   });

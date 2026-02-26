@@ -200,9 +200,6 @@ export function useViewportTriggers() {
           renderAllLoadedOverlays(false);
         }
       }
-
-      // AI : Update caches for Current Location Panel (already done above, but keeping for consistency)
-      updateMapStoreCaches(overlaysData, [], mode);
     } catch (error) {
       console.error(`Error loading city ${cityId}:`, error);
       // AI : Even on error, mark as loaded to prevent infinite retries
@@ -334,45 +331,6 @@ export function useViewportTriggers() {
       console.error("Error refreshing viewport:", error);
     } finally {
       isLoading.value = false;
-    }
-  }
-
-  /**
-   * AI : Update MapStore caches for panels
-   * AI : Groups flat viewport data by city so panels can query by city ID
-   */
-  function updateMapStoreCaches(overlays: OverlayData[], standaloneProjects: any[], mode: AppMode) {
-    // AI : Group overlays by city
-    const overlaysByCity = new Map<number, OverlayData[]>();
-    for (const overlay of overlays) {
-      // AI : Backend returns full city object in 'city' field or cityId in project
-      const cityId = overlay.project?.cityId;
-      if (cityId) {
-        const list = overlaysByCity.get(cityId) ?? [];
-        list.push(overlay);
-        overlaysByCity.set(cityId, list);
-      }
-    }
-
-    // AI : Update city projects cache
-    for (const [cityId, data] of overlaysByCity.entries()) {
-      mapStore.setCityProjectsCache(cityId, mode, data);
-    }
-
-    // AI : Group standalone projects by city
-    const standaloneByCity = new Map<number, any[]>();
-    for (const project of standaloneProjects) {
-      const cityId = project.cityId;
-      if (cityId) {
-        const list = standaloneByCity.get(cityId) ?? [];
-        list.push(project);
-        standaloneByCity.set(cityId, list);
-      }
-    }
-
-    // AI : Update standalone cache
-    for (const [cityId, data] of standaloneByCity.entries()) {
-      mapStore.setCityStandaloneProjectsCache(cityId, mode, data);
     }
   }
 

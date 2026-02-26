@@ -194,6 +194,13 @@ export function checkOverlaySizeAndWarn(
   const element = overlay.getElement();
   if (!element) return;
 
+  // AI : Resolve store once — needed to sync isTooBig so that subsequent
+  // AI : updateOverlay (Object.assign from store) propagates the correct value.
+  // AI : Without this, the store retains a stale isTooBig:true after the overlay
+  // AI : becomes valid again, causing the drag handler (which reads from the store)
+  // AI : to wrongly color the marker red.
+  const overlayStore = useOverlayStore();
+
   if (!validation.isValid) {
     // AI : Add red border to indicate size problem
     element.style.border = "4px solid #ef4444";
@@ -202,6 +209,7 @@ export function checkOverlaySizeAndWarn(
     // AI : Update marker color if not already marked
     if (!overlayObject.isTooBig) {
       overlayObject.isTooBig = true;
+      overlayStore.updateOverlay(overlayObject.id, { isTooBig: true });
       updateMarkerTooltip(overlayObject);
     }
 
@@ -221,6 +229,7 @@ export function checkOverlaySizeAndWarn(
     // AI : Clear size issue flag and update marker color
     if (overlayObject.isTooBig) {
       overlayObject.isTooBig = false;
+      overlayStore.updateOverlay(overlayObject.id, { isTooBig: false });
       updateMarkerTooltip(overlayObject);
     }
   }

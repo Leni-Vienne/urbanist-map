@@ -3,22 +3,16 @@
 // AI : keeping these tiny primitives out of the lazy chunks (overlayRendering, overlayToolbar).
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import type { OverlayObject } from "@/types/index";
 
 // AI : Cross-chunk callback registry. Modules in the initial bundle assign these at init time;
 // AI : lazy chunks (overlayRendering, overlayToolbar) read them at call time.
 // AI : Using a plain object so importers can mutate properties directly without ES module re-export restrictions.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const overlayCallbacks: {
-  // AI : Registered by overlay.ts (initial bundle); called from overlayRendering.ts (lazy chunk)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  checkOverlaySize: ((overlay: any, overlayObject: OverlayObject) => void) | null;
   // AI : Registered by overlayEditing.ts (initial bundle); called from overlayToolbar.ts (lazy chunk)
   focusCameraToOverlay: ((direction: "next" | "previous") => void) | null;
   undo: (() => void) | null;
   redo: (() => void) | null;
 } = {
-  checkOverlaySize: null,
   focusCameraToOverlay: null,
   undo: null,
   redo: null,

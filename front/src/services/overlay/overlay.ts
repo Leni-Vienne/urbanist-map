@@ -10,7 +10,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
-import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 // AI : overlayEditing is a lazy chunk - dynamic import to avoid pulling it into this chunk's static graph
 // AI : Both callbacks are registered before they could ever be called (requires user interaction in edit mode)
 
@@ -243,9 +242,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 // AI : Register toolbar callbacks to avoid circular dependencies
 // AI : Dynamic import keeps overlayEditing out of this module's static chunk, eliminating the facade chunk
 queueMicrotask(async () => {
-  const { checkOverlaySizeAndWarn, registerNavigationCallback } =
-    await import("@/services/overlay/overlayEditing");
+  const { registerNavigationCallback } = await import("@/services/overlay/overlayEditing");
   registerNavigationCallback(navigateOverlaySequence);
-  // AI : overlayRendering.ts reads from the registry, so this avoids a static import of the heavy rendering module
-  overlayCallbacks.checkOverlaySize = checkOverlaySizeAndWarn;
 });
