@@ -158,7 +158,16 @@ function pruneBackendOverlays(
   for (const data of filteredOverlays) {
     if (data.corners.length !== 4) continue;
 
-    const isInViewport = intersectsViewport(computeCornersBBox(data.corners), bounds);
+    // AI : Hoist layer lookup to use live corners for the viewport check.
+    // AI : data.corners is the backend position — stale if the user has moved the overlay
+    // AI : in edit mode. When a layer exists, layer.getCorners() reflects the actual
+    // AI : current position and is used for the in-viewport decision.
+    // AI : When no layer exists yet, data.corners decides whether to create one.
+    const layer = registry.getLayer(data.id);
+    const liveCorners = layer?.getCorners();
+    const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.corners;
+
+    const isInViewport = intersectsViewport(computeCornersBBox(effectiveCorners), bounds);
 
     if (isInViewport) {
       if (destructionQueue.has(data.id)) {
@@ -166,7 +175,6 @@ function pruneBackendOverlays(
         destructionQueue.delete(data.id);
       }
 
-      const layer = registry.getLayer(data.id);
       const marker = registry.getMarker(data.id);
 
       if (!layer && showImages) {
@@ -184,7 +192,6 @@ function pruneBackendOverlays(
       }
     } else {
       // AI : Not visible → queue for cleanup
-      const layer = registry.getLayer(data.id);
       const marker = registry.getMarker(data.id);
       if (layer || marker) {
         queueForDestruction(data.id);
@@ -208,7 +215,7 @@ function pruneBackendOverlays(
  */
 function pruneLocalOverlays(
   mapInstance: L.Map,
-  bounds: L.LatLngBounds,
+  _bounds: L.LatLngBounds,
   showImages: boolean,
   showMarkers: boolean,
 ) {
@@ -227,17 +234,19 @@ function pruneLocalOverlays(
     const passesCompletionFilter =
       filterByCompletionStatus([overlay], overlayStore.mode).length > 0;
 
-    const shouldDisplay =
-      isAllowedByMode &&
-      passesCompletionFilter &&
-      intersectsViewport(computeCornersBBox(overlay.corners), bounds);
+    const layer = registry.getLayer(id);
+
+    // AI : Local overlays are actively being created by the user — no viewport bounds check.
+    // AI : overlay.corners is NOT updated during drag, and even live layer corners can be
+    // AI : outside the viewport if moveend fires while the overlay has been moved off-screen.
+    // AI : Only explicit deletion or a mode switch should remove a local overlay.
+    const shouldDisplay = isAllowedByMode && passesCompletionFilter;
 
     if (shouldDisplay) {
       if (destructionQueue.has(id)) {
         destructionQueue.delete(id);
       }
 
-      const layer = registry.getLayer(id);
       const marker = registry.getMarker(id);
 
       if (!layer && showImages) {
@@ -252,7 +261,6 @@ function pruneLocalOverlays(
         syncLayerToMap(marker, showMarkers, mapInstance);
       }
     } else {
-      const layer = registry.getLayer(id);
       const marker = registry.getMarker(id);
       if (layer || marker) {
         queueForDestruction(id);
