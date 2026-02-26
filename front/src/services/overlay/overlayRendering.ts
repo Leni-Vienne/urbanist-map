@@ -83,7 +83,7 @@ export function createLeafletOverlay(
       // AI : CRITICAL: Only enable credentials for local backend URLs (pending images)
       // AI : R2 CDN URLs don't support credentials and will fail if crossOrigin is set
       crossOrigin: imageRequiresCredentials(imageUrl) ? "use-credentials" : undefined,
-      //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
+      mode: "resizeRotate",
     });
 
     // AI : Register immediately so mode-switch cleanup (registry.clearEntry) can remove this
