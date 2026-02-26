@@ -95,6 +95,16 @@ declare module "leaflet" {
 
   interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
     actions?: L.Toolbar2.Action[];
+    // resizeRotate is the most conveniant mode (tool) for the site
+    mode:
+      | "drag"
+      | "scale"
+      | "distort"
+      | "rotate"
+      | "freeRotate"
+      | "resizeRotate"
+      | "transform"
+      | "lock";
     corners?: { lat: number; lng: number }[];
     editable?: boolean;
     keyboard?: boolean;
