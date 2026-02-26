@@ -12,6 +12,7 @@
     "editor.formatOnSave": true
   },
   // TypeScript behavior for better team feedback
+  "typescript.experimental.useTsgo": false,
   "typescript.validate.enable": true,
   "typescript.tsserver.experimental.enableProjectDiagnostics": true,
   // Cleaner diffs across the team

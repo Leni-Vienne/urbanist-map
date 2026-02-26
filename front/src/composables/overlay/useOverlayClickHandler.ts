@@ -1,7 +1,7 @@
 import {
   navigateToOverlayWithCity,
   navigateToStandaloneProject,
-} from "@/services/navigation/overlayNavigation";
+} from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/overlayActions";
 import { switchMode } from "@/services/overlay/modeSwitching";

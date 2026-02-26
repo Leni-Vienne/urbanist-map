@@ -1,6 +1,6 @@
 // AI : Shared rendering primitives for city overlays and standalone markers.
 // AI : Used by both viewport-based loading (useViewportContentManager) and
-// AI : navigation-triggered loading (cityDataRenderer / overlayNavigation).
+// AI : navigation-triggered loading (cityDataRenderer / projectNavigation).
 // AI : This module has no circular dependency risk: it only imports from stores,
 // AI : map primitives, and utility services — none of which import from this file.
 
