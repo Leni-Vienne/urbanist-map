@@ -38,6 +38,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { storeToRefs } from "pinia";
 import type { Project } from "@/types/index";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 
 interface Props {
   modelValue: number | undefined;
@@ -112,9 +113,10 @@ function getReferenceLocation(): { lat: number; lng: number } | null {
       console.error("Overlay object not found for id", idSelectedOverlay.value);
       return null;
     }
-    if (overlayObject.overlay) {
+    const layer = registry.getLayer(overlayObject.id);
+    if (layer) {
       try {
-        const bounds = overlayObject.overlay.getBounds();
+        const bounds = layer.getBounds();
         const center = bounds.getCenter();
         return { lat: center.lat, lng: center.lng };
       } catch (error) {

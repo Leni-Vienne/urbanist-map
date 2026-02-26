@@ -24,6 +24,7 @@ import {
 } from "@/services/overlay/overlayMarkers";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 
 // AI : Navigation function callback - will be registered by useOverlay.ts
@@ -66,14 +67,15 @@ export async function updateOverlayEditingState(): Promise<void> {
 
   // AI : Update existing overlays in-place instead of recreating them
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
-    if (!overlayObject.overlay) return;
+    const layer = registry.getLayer(overlayObject.id);
+    if (!layer) return;
 
     // AI : Ensure overlay is on the map before attempting to manipulate it
-    if (!map.value.hasLayer(overlayObject.overlay)) return;
+    if (!map.value.hasLayer(layer)) return;
 
     // AI : Update overlay options using the setOptions method
     const isEditMode = overlayStore.mode === "edit";
-    overlayObject.overlay.setOptions({
+    layer.setOptions({
       actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : getViewTools())],
       draggable: isEditMode,
     });
@@ -86,7 +88,7 @@ export async function updateOverlayEditingState(): Promise<void> {
         const leafletCorners = cachedModifications.corners.map((corner) =>
           L.latLng(corner.lat, corner.lng),
         );
-        overlayObject.overlay.setCorners(leafletCorners);
+        layer.setCorners(leafletCorners);
 
         // AI : Only initialize history if it's empty (preserve existing undo/redo history)
         if (overlayObject.history.length === 0) {
@@ -112,7 +114,7 @@ export async function updateOverlayEditingState(): Promise<void> {
         const leafletCorners = overlayObject.corners.map((corner) =>
           L.latLng(corner.lat, corner.lng),
         );
-        overlayObject.overlay.setCorners(leafletCorners);
+        layer.setCorners(leafletCorners);
         overlayObject.isModified = false;
 
         // AI : Update marker position to match backend corners
@@ -127,8 +129,7 @@ export async function updateOverlayEditingState(): Promise<void> {
   // AI : Restore selection state after toolbar rebuild
   if (wasSelected && selectedOverlayId) {
     requestAnimationFrame(() => {
-      const overlay = overlayStore.overlays[selectedOverlayId];
-      if (overlay?.overlay) {
+      if (registry.hasReadyLayer(selectedOverlayId)) {
         selectOverlay(selectedOverlayId);
       }
     });
@@ -137,10 +138,10 @@ export async function updateOverlayEditingState(): Promise<void> {
   // AI : Reopen popup after toolbar is rebuilt with new actions
   if (wasPopupOpen && selectedOverlayId) {
     requestAnimationFrame(() => {
-      const overlay = overlayStore.overlays[selectedOverlayId];
-      if (overlay?.overlay) {
+      const layer = registry.getLayer(selectedOverlayId);
+      if (layer) {
         // AI : Find and click the info button to recreate teleport target and reopen popup
-        const overlayElement = overlay.overlay.getElement();
+        const overlayElement = layer.getElement();
         let infoButton = overlayElement?.parentElement?.querySelector<HTMLElement>(
           ".leaflet-toolbar-icon.pi-ellipsis-v",
         );
@@ -322,7 +323,7 @@ export function addOverlay(
 
       L.DomEvent.on(element, "load", () => {
         if (element.complete && element.naturalWidth > 0) {
-          overlayObject.overlay = newOverlay;
+          registry.setLayer(overlayObject.id, newOverlay);
           overlayObject.corners = newOverlay.getCorners();
 
           // AI : Store reference and initialize with proper reactivity
@@ -398,9 +399,10 @@ function applyHistoryAction(action: "undo" | "redo") {
   if (!overlayStore.idSelectedOverlay) return;
 
   const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
-  if (!overlayObject?.overlay) return;
+  const layer = overlayObject ? registry.getLayer(overlayObject.id) : null;
+  if (!overlayObject || !layer) return;
 
-  const { history, redoStack, overlay } = overlayObject;
+  const { history, redoStack } = overlayObject;
   const isUndo = action === "undo";
 
   if ((isUndo && history.length <= 1) || (!isUndo && redoStack.length === 0)) {
@@ -416,7 +418,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     const previousState = history[history.length - 1];
     if (!previousState) return;
 
-    overlay.setCorners(previousState);
+    layer.setCorners(previousState);
 
     // AI : If we're back to the initial state (history.length === 1) and overlay is approved, mark as unmodified
     if (history.length === 1 && overlayObject.status === "approved") {
@@ -428,7 +430,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     if (!stateToRestore) return;
 
     history.push(stateToRestore);
-    overlay.setCorners(stateToRestore);
+    layer.setCorners(stateToRestore);
 
     // AI : Redoing any change means the overlay is modified again
     overlayObject.isModified = true;

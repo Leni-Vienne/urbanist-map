@@ -23,6 +23,7 @@ import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { updateMarkerTooltip, updateMarkerPosition } from "@/services/overlay/overlayMarkers";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type {
   OverlayObject,
   Project,
@@ -176,9 +177,10 @@ function resetOverlayField(
     overlayStore.removeFromEditModeCache(overlayId);
 
     const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
-    if (overlayObject.overlay && cornersToUse.length === 4) {
+    const overlayLayer = registry.getLayer(overlayId);
+    if (overlayLayer && cornersToUse.length === 4) {
       const leafletCorners = cornersToUse.map((corner) => L.latLng(corner.lat, corner.lng));
-      overlayObject.overlay.setCorners(leafletCorners);
+      overlayLayer.setCorners(leafletCorners);
     }
 
     updateMarkerPosition(overlayObject);

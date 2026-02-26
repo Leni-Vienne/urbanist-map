@@ -157,8 +157,6 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     corners: data.corners ?? [],
     imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? "", isPending),
     isModified: data.isModified ?? false,
-    overlay: data.overlay ?? null,
-    marker: data.marker ?? null,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,

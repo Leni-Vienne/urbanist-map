@@ -5,6 +5,7 @@ import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -35,8 +36,9 @@ function resolveOverlayCorners(overlayId: string): { lat: number; lng: number }[
 
   // AI : Priority 1: Live Leaflet instance (most accurate, reflects current map state)
   const overlayObject = overlayStore.overlays[overlayId];
-  if (overlayObject?.overlay) {
-    const corners = overlayObject.overlay.getCorners();
+  const liveLayer = overlayObject ? registry.getLayer(overlayObject.id) : null;
+  if (liveLayer) {
+    const corners = liveLayer.getCorners();
     if (corners.length === 4) {
       return corners;
     }
@@ -132,16 +134,17 @@ function zoomToOverlayAndSelect(
   map.value.once("moveend", () => {
     // AI : CRITICAL: After zoom completes, check if overlay needs to be rendered
     const overlayObj = overlayStore.overlays[overlayId];
-    if (overlayObj && !overlayObj.overlay) {
+    const overlayLayer = registry.getLayer(overlayId);
+    if (overlayObj && !overlayLayer) {
       console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
-    } else if (overlayObj?.overlay && !map.value.hasLayer(overlayObj.overlay)) {
+    } else if (overlayLayer && !map.value.hasLayer(overlayLayer)) {
       const currentZoom = map.value.getZoom();
       // AI : CRITICAL: Only re-add if the overlay should be visible in the current mode
       // AI : This prevents adding a pending overlay back to the map when in view mode
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
         const authStore = useAuthStore();
-        if (isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
-          overlayObj.overlay.addTo(map.value);
+        if (overlayObj && isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
+          overlayLayer.addTo(map.value);
         }
       }
     }
@@ -149,8 +152,8 @@ function zoomToOverlayAndSelect(
     // AI : Wait for element to exist, then wait for image to load before selecting
     // AI : This fixes the bug where first click adds blue outline but doesn't open toolbar
     function waitForElementThenSelect(): void {
-      const overlayObj = overlayStore.overlays[overlayId];
-      const element = overlayObj?.overlay?.getElement();
+      const currentLayer = registry.getLayer(overlayId);
+      const element = currentLayer?.getElement();
 
       if (!element) {
         requestAnimationFrame(waitForElementThenSelect);
@@ -221,8 +224,7 @@ export async function navigateToOverlayWithCity(
 
     if (isSameCity) {
       // AI : Additional check: verify overlay is actually rendered, not just cached
-      const overlayObj = overlayStore.overlays[overlayId];
-      const isOverlayRendered = overlayObj?.overlay !== null && overlayObj?.overlay !== undefined;
+      const isOverlayRendered = registry.getLayer(overlayId) !== null;
 
       if (isOverlayRendered) {
         const corners = resolveOverlayCorners(overlayId);

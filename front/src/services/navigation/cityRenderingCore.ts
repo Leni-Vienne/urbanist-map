@@ -119,7 +119,7 @@ export function renderFullOverlays(overlaysData: OverlayData[]): void {
  */
 export function renderMarkersOnly(overlaysData: OverlayData[]): void {
   // AI : CRITICAL: Must preserve store data! We only want to remove the image layers from map,
-  // AI : not destroy the reactive objects or delete the markers from allMarkers cache
+  // AI : not destroy the reactive objects or clear the marker refs from the registry
   clearAllOverlays(true);
 
   hydrateStoreWithOverlays(overlaysData);
