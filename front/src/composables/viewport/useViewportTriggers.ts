@@ -102,7 +102,6 @@ export function useViewportTriggers() {
     // AI : (e.g. viewing a contribution far from the city center, or loading a shared URL),
     // AI : find the nearest city so its data still gets loaded.
     if (visible.length === 0 && citiesWithProjects.value.length > 0) {
-      console.log("No cities in viewport, using fallback nearest city logic");
       const center = map.value.getCenter();
       let nearest = citiesWithProjects.value[0]!;
       let minDist = Infinity;
