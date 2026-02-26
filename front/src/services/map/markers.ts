@@ -6,6 +6,7 @@ import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
+import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : ============================================================================
 // AI : ICON CREATION
@@ -271,21 +272,25 @@ export function updateOverlayMarkersColors(
   // AI : If specific overlay ID provided, only update that one
   if (specificOverlayId) {
     const overlayObject = overlays[specificOverlayId];
-    if (overlayObject?.marker) {
-      const markerColor = getOverlayMarkerColor(overlayObject, mode);
-      const colorIcon = createOverlayIcon(markerColor);
-      overlayObject.marker.setIcon(colorIcon);
+    if (overlayObject) {
+      const marker = getMarker(overlayObject.id);
+      if (marker) {
+        const markerColor = getOverlayMarkerColor(overlayObject, mode);
+        const colorIcon = createOverlayIcon(markerColor);
+        marker.setIcon(colorIcon);
+      }
     }
     return;
   }
 
   // AI : Otherwise, iterate through all overlay objects that have markers
   for (const overlayObject of Object.values(overlays)) {
-    if (overlayObject.marker) {
+    const marker = getMarker(overlayObject.id);
+    if (marker) {
       // AI : Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
-      overlayObject.marker.setIcon(colorIcon);
+      marker.setIcon(colorIcon);
     }
   }
 }

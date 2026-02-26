@@ -10,6 +10,7 @@ import {
   updateMarkerTooltip,
   getOverlayBounds,
 } from "@/services/overlay/overlayMarkers";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
@@ -99,7 +100,7 @@ export function useChangeRequestPreview() {
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     // AI : Already loaded, nothing to do
-    if (overlayObject?.overlay !== null) {
+    if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
       return true;
     }
 
@@ -169,7 +170,7 @@ export function useChangeRequestPreview() {
       }
     }
 
-    if (overlayObject?.overlay === null) {
+    if (!overlayObject || registry.getLayer(overlayObject.id) === null) {
       toast.add({
         severity: "error",
         summary: t("overlay.loadFailed"),
@@ -233,7 +234,8 @@ export function useChangeRequestPreview() {
     wasAlreadyLoaded: boolean,
   ): void {
     const overlayObject = overlayStore.overlays[overlayId];
-    if (!overlayObject?.overlay) {
+    const overlayLayer = overlayObject ? registry.getLayer(overlayObject.id) : null;
+    if (!overlayObject || !overlayLayer) {
       return;
     }
 
@@ -259,7 +261,7 @@ export function useChangeRequestPreview() {
     }
 
     // AI : Apply the position change
-    overlayObject.overlay.setCorners(targetLatLngs);
+    overlayLayer.setCorners(targetLatLngs);
     updateMarkerPosition(overlayObject);
     updateMarkerTooltip(overlayObject);
 
@@ -291,7 +293,7 @@ export function useChangeRequestPreview() {
       const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
 
       // AI : Step 2: Check if overlay is already loaded
-      const wasAlreadyLoaded = Boolean(overlayStore.overlays[change.entityId]?.overlay);
+      const wasAlreadyLoaded = registry.getLayer(change.entityId) !== null;
 
       // AI : Step 3: Ensure overlay is loaded (handles navigation if needed)
       const loaded = await ensureOverlayLoaded(overlayForModeration, latLngs);

@@ -2,6 +2,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
+import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 import { buildProjectPayload } from "@/services/project/projectMutations";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
@@ -330,7 +331,7 @@ export function useSubmissionService() {
 
     // AI : Overlay-specific validation with Zod
     if (context.entityType === "overlay") {
-      const corners = context.entity.overlay?.getCorners() ?? context.entity.corners;
+      const corners = getLayer(context.entity.id)?.getCorners() ?? context.entity.corners;
 
       const validationData = prepareOverlayValidationData({
         id: context.entity.id,

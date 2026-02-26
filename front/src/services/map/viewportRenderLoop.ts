@@ -6,12 +6,12 @@ import { map } from "@/services/core/map";
 // AI : Dynamic import for chunk splitting - overlayRendering pulls in leaflet-distortableimage
 // AI : which is only needed when the user zooms in far enough to see overlay images
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayObject, OverlayData } from "@/types/index";
 import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { overlaysBeingCreated } from "@/services/overlay/overlayLifecycle";
 
 // AI : Sync a Leaflet layer's presence on the map to match the desired state
 function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstance: L.Map) {
@@ -53,8 +53,10 @@ function intersectsViewport(
 }
 
 /**
- * AI : Main pruning function - determines what should be on the map based on bounds
- * AI : Iterates through stores and adds/removes layers from map directly
+ * AI : Main pruning function - determines what should be on the map based on bounds.
+ * AI : Delegates to two structurally disjoint pipelines:
+ * AI :   pruneBackendOverlays — for overlays sourced from the backend (status !== null)
+ * AI :   pruneLocalOverlays   — for local/unsaved overlays only (status === null)
  */
 export function runViewportRenderLoop() {
   const mapInstance = map.value;
@@ -91,22 +93,13 @@ function processDestructionQueue() {
   // AI : Destruction is cheaper than creation, so we can process more
   let processedCount = 0;
   const BATCH_SIZE = 10;
-  const overlayStore = useOverlayStore();
 
   const iterator = destructionQueue.values();
   let result = iterator.next();
 
   while (!result.done && processedCount < BATCH_SIZE) {
     const id = result.value;
-    const overlay = overlayStore.overlays[id];
-
-    if (overlay?.overlay) {
-      overlay.overlay.remove();
-      overlay.overlay = null; // AI : Destroy to force fresh reload
-    }
-    if (overlay?.marker) {
-      overlay.marker.remove();
-    }
+    registry.clearEntry(id);
 
     destructionQueue.delete(id);
     processedCount += 1;
@@ -120,8 +113,15 @@ function processDestructionQueue() {
   }
 }
 
+function queueForDestruction(id: string) {
+  destructionQueue.add(id);
+  if (!isDestructionQueueRunning) {
+    processDestructionQueue();
+  }
+}
+
 /**
- * AI : Manage overlay visibility
+ * AI : Prune overlay visibility — dispatches to two structurally disjoint pipelines.
  */
 function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
   // AI : Markers start appearing at VIEWPORT_LOAD_THRESHOLD
@@ -130,94 +130,99 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 
   const showImages = zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
   // AI : Markers are shown whenever we're past the load threshold, regardless of whether
-  // AI : full overlay images are displayed. This prevents markers from being toggled off
-  // AI : at zoom 13 when they were preserved from a prior zoom-14 session.
-  const showMarkers = true; // AI : pruneOverlays already returns early below VIEWPORT_LOAD_THRESHOLD
+  // AI : full overlay images are displayed.
+  const showMarkers = true;
+
+  pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
+  pruneLocalOverlays(mapInstance, bounds, showImages, showMarkers);
+}
+
+/**
+ * AI : Pipeline 1 — Backend overlays (status !== null).
+ * AI : Source of truth: viewModeOverlays (already filtered to status !== null by construction).
+ * AI : No overlap with pruneLocalOverlays possible — backend overlays never have status === null.
+ */
+function pruneBackendOverlays(
+  mapInstance: L.Map,
+  bounds: L.LatLngBounds,
+  showImages: boolean,
+  showMarkers: boolean,
+) {
   const overlayStore = useOverlayStore();
-
-  // AI : Helper to check visibility and existence
-  // AI : We iterate viewModeOverlays (source of truth for what SHOULD be there)
-  // AI : AND existing overlays (to handle edit-mode temporary overlays)
-
-  const processedIds = new Set<string>();
-
-  // AI : Filter overlays by completion status (for FilterControl to work)
   const filteredOverlays = filterByCompletionStatus(
     overlayStore.viewModeOverlays,
     overlayStore.mode,
   );
+  const overlaysToRender: OverlayData[] = [];
 
-  const overlaysToRender: typeof filteredOverlays = [];
-
-  // 1. Process potential overlays from viewMode (Backend Data)
   for (const data of filteredOverlays) {
-    processedIds.add(data.id);
-
     if (data.corners.length !== 4) continue;
 
-    const existingInstance = overlayStore.overlays[data.id];
     const isInViewport = intersectsViewport(computeCornersBBox(data.corners), bounds);
 
     if (isInViewport) {
       if (destructionQueue.has(data.id)) {
-        // AI : If timed for destruction but now visible, SAVE IT
+        // AI : Timed for destruction but now visible again — save it
         destructionQueue.delete(data.id);
       }
 
-      if (!existingInstance && showImages) {
-        // AI : Visible but not instantiated -> Queue for creation
-        overlaysToRender.push(data);
-      } else if (existingInstance) {
-        // AI : Exists -> Ensure it's on map (and restored if null)
-        if (existingInstance.overlay === null && showImages) {
-          // AI : Instance exists but Leaflet layer was destroyed -> Queue for recreation
-          overlaysToRender.push(data);
-        } else {
-          syncLayerToMap(existingInstance.overlay, showImages, mapInstance);
-        }
+      const layer = registry.getLayer(data.id);
+      const marker = registry.getMarker(data.id);
 
-        if (existingInstance.marker === null && showMarkers) {
-          createSingleMarker(existingInstance);
-        } else {
-          syncLayerToMap(existingInstance.marker, showMarkers, mapInstance);
-        }
+      if (!layer && showImages) {
+        // AI : Visible but not instantiated → queue for creation
+        overlaysToRender.push(data);
+      } else if (layer) {
+        syncLayerToMap(layer, showImages, mapInstance);
       }
-    } else if (existingInstance) {
-      // AI : Not visible -> Queue for Cleanup
-      if (existingInstance.overlay || existingInstance.marker) {
-        destructionQueue.add(data.id);
-        if (!isDestructionQueueRunning) {
-          processDestructionQueue();
-        }
+
+      if (!marker && showMarkers) {
+        const overlayObject = overlayStore.overlays[data.id];
+        if (overlayObject) createSingleMarker(overlayObject);
+      } else {
+        syncLayerToMap(marker, showMarkers, mapInstance);
+      }
+    } else {
+      // AI : Not visible → queue for cleanup
+      const layer = registry.getLayer(data.id);
+      const marker = registry.getMarker(data.id);
+      if (layer || marker) {
+        queueForDestruction(data.id);
       }
     }
   }
 
-  // AI : Verify if we have overlays to render
   if (overlaysToRender.length > 0) {
     // AI : Dynamic import keeps leaflet-distortableimage out of the initial bundle
-    // AI : Module is cached after first load, so subsequent calls are essentially synchronous
     void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
       renderViewModeOverlays(overlaysToRender, true, false);
     });
   }
+}
 
-  // 2. Process remaining overlays in store (e.g. newly created ones in Edit Mode)
-  // AI : CRITICAL: This loop handles LOCAL/UNSAVED overlays that aren't in viewModeOverlays yet.
-  // AI : These should ONLY be visible in 'edit' mode.
-  // AI : In 'view' and 'moderation' modes, viewModeOverlays is the exhaustive source of truth.
-
+/**
+ * AI : Pipeline 2 — Local/unsaved overlays only (status === null).
+ * AI : Source: overlayStore.overlays filtered to status === null.
+ * AI : Structural gate: if status !== null, skip immediately — no defensive guards needed.
+ * AI : These overlays are ONLY visible in edit mode.
+ */
+function pruneLocalOverlays(
+  mapInstance: L.Map,
+  bounds: L.LatLngBounds,
+  showImages: boolean,
+  showMarkers: boolean,
+) {
+  const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
-
-  // AI : Collect edit-mode overlays needing Leaflet layer recreation to batch the dynamic import
   const editOverlaysToRecreate: OverlayObject[] = [];
 
   for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
-    if (processedIds.has(id)) continue;
+    // AI : STRUCTURAL GATE — this pipeline owns local overlays exclusively.
+    // AI : Backend overlays (status !== null) are handled by pruneBackendOverlays.
+    if (overlay.status !== null) continue;
 
     if (overlay.corners.length !== 4) continue;
 
-    // AI : Filter using centralized visibility logic
     const isAllowedByMode = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
     const passesCompletionFilter =
       filterByCompletionStatus([overlay], overlayStore.mode).length > 0;
@@ -232,79 +237,52 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
         destructionQueue.delete(id);
       }
 
-      if (overlay.overlay === null && showImages) {
-        // AI : CRITICAL: Only recreate overlays that are truly local/unsaved (status === null).
-        // AI : Backend overlays (pending/approved) are managed via viewModeOverlays and will be
-        // AI : handled by the first loop above once loadCityData updates viewModeOverlays.
-        // AI : Pushing backend overlays here during the async race window causes the
-        // AI : editOverlaysToRecreate and renderSingleOverlay paths to fight, producing
-        // AI : duplicate Leaflet layers.
-        if (overlay.status === null) {
-          editOverlaysToRecreate.push(overlay);
-        }
-      } else {
-        syncLayerToMap(overlay.overlay, showImages, mapInstance);
+      const layer = registry.getLayer(id);
+      const marker = registry.getMarker(id);
+
+      if (!layer && showImages) {
+        editOverlaysToRecreate.push(overlay);
+      } else if (layer) {
+        syncLayerToMap(layer, showImages, mapInstance);
       }
 
-      if (overlay.marker === null && showMarkers) {
+      if (!marker && showMarkers) {
         createSingleMarker(overlay);
       } else {
-        syncLayerToMap(overlay.marker, showMarkers, mapInstance);
+        syncLayerToMap(marker, showMarkers, mapInstance);
       }
-    } else if (overlay.overlay || overlay.marker) {
-      // AI : Not visible or not allowed -> Queue for Cleanup
-      destructionQueue.add(id);
-      if (!isDestructionQueueRunning) {
-        processDestructionQueue();
+    } else {
+      const layer = registry.getLayer(id);
+      const marker = registry.getMarker(id);
+      if (layer || marker) {
+        queueForDestruction(id);
       }
     }
   }
 
   if (editOverlaysToRecreate.length > 0) {
     // AI : Dynamic import keeps leaflet-distortableimage out of the initial bundle
-    // AI : Module is cached after first load, so subsequent calls are essentially synchronous
-    // AI : Capture mode at queue time so we can detect mode switches in the async callback
-    const queuedMode = overlayStore.mode;
+    // AI : Capture mode at queue time so beginCreation's atomic mutex prevents races —
+    // AI : no manual queuedMode re-check needed (beginCreation returns false if race occurred).
     void import("@/services/overlay/overlayRendering").then(({ createLeafletOverlay }) => {
       for (const overlay of editOverlaysToRecreate) {
-        // AI : CRITICAL: Re-check visibility before adding to map.
-        // AI : The mode may have changed between when the overlay was queued (sync loop)
-        // AI : and when this async callback fires, which would leave an orphaned layer.
-        if (overlayStore.mode !== queuedMode) {
-          const currentlyVisible = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
-          if (!currentlyVisible) continue;
+        // AI : beginCreation is the single atomic gate:
+        // AI :   - returns false if already has a layer (concurrent pruneOverlays call completed first)
+        // AI :   - returns false if already being created (in-flight async callback)
+        // AI : No separate mode re-check or overlay.overlay guard needed.
+        if (!registry.beginCreation(overlay.id)) continue;
+
+        // AI : Pass onReady so the creation mutex is released when the image finishes loading.
+        // AI : createLeafletOverlay handles cancelCreation itself on abort/zoom-too-low paths.
+        const id = overlay.id;
+        const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay, () => {
+          registry.cancelCreation(id);
+        });
+
+        if (!newOverlay) {
+          // AI : Synchronous creation failure (e.g., invalid overlay object)
+          registry.cancelCreation(overlay.id);
         }
-
-        // AI : CRITICAL: Use overlaysBeingCreated as a mutex to prevent duplicate layers.
-        // AI : renderSingleOverlay (triggered concurrently via renderViewModeOverlays) may already
-        // AI : be creating a tracked layer for this overlay. If so, skip it here to avoid creating
-        // AI : an untracked duplicate that cleanup can never find.
-        if (overlaysBeingCreated.has(overlay.id)) continue;
-        overlaysBeingCreated.add(overlay.id);
-
-        // AI : CRITICAL: Re-check that the overlay was not already created by a concurrent callback.
-        // AI : pruneOverlays may be called twice before any async callback fires (once from a map
-        // AI : event, once from renderFullOverlays). Both capture the same OverlayObject reference
-        // AI : with overlay.overlay === null. When cb1 fires it creates LAYER_C and sets
-        // AI : overlay.overlay = LAYER_C. When cb2 fires, without this guard, it creates LAYER_D,
-        // AI : sets overlay.overlay = LAYER_D, and LAYER_C becomes permanently orphaned on the map.
-        if (overlay.overlay !== null) {
-          overlaysBeingCreated.delete(overlay.id);
-          continue;
-        }
-
-        const newOverlay = createLeafletOverlay(overlay.imageUrl, overlay);
-        if (newOverlay) {
-          overlay.overlay = newOverlay;
-          // AI : CRITICAL: Use updateOverlay (merge into current store entry) rather than addOverlay
-          // AI : (which replaces the entry with the old reference). After batchUpdateOverlays runs,
-          // AI : overlays.value[id] may be a new object; addOverlay would revert it to OBJ_A,
-          // AI : losing hydration metadata applied by hydrateOverlayStoreObjects.
-          overlayStore.updateOverlay(overlay.id, { overlay: newOverlay });
-        }
-
-        // AI : Always release the mutex — whether creation succeeded or failed.
-        overlaysBeingCreated.delete(overlay.id);
       }
     });
   }

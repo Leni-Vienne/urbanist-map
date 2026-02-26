@@ -158,13 +158,11 @@ import type { OverlayData } from "@shared/types";
 export type { OverlayData } from "@shared/types";
 
 // AI : Frontend overlay type - extends backend OverlayData with UI state
+// AI : Leaflet layer references (image overlay + marker) live in overlayRenderRegistry,
+// AI : not on this type. OverlayObject is pure domain data.
 export interface OverlayObject extends OverlayData {
   // AI : Computed fields
   imageUrl: string;
-
-  // AI : Map interaction fields
-  overlay: L.DistortableImageOverlay | null;
-  marker: L.Marker | null;
 
   // AI : Editor state
   history: { lat: number; lng: number }[][];

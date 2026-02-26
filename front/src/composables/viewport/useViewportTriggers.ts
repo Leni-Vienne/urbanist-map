@@ -11,6 +11,7 @@ import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
 import {
@@ -28,7 +29,7 @@ import {
   renderFullOverlays,
   hydrateOverlayStoreObjects,
 } from "@/services/navigation/cityRenderingCore";
-import type { OverlayData, OverlayObject } from "@/types/index";
+import type { OverlayData } from "@/types/index";
 import { type StandaloneProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
@@ -56,30 +57,17 @@ export function useViewportTriggers() {
    */
   function clearContentExceptActiveCity(activeCityId: number, isEditMode: boolean) {
     // AI : Clear overlay images for ALL, markers for non-active cities only
-    const markersToRemoveFromCache: string[] = [];
     for (const [overlayId, overlay] of Object.entries(overlayStore.overlays)) {
       const belongsToActiveCity = overlay.project?.cityId === activeCityId;
       const isLocal = isEditMode && overlay.status === null;
 
       // AI : Always remove overlay images when zoomed out
-      if (overlay.overlay) {
-        overlay.overlay.remove();
-        overlayStore.updateOverlay(overlayId, { overlay: null });
-      }
+      registry.removeLayerFromMap(overlayId);
 
       // AI : Remove markers only for non-active cities
-      if (!belongsToActiveCity && !isLocal && overlay.marker) {
-        overlay.marker.remove();
-        overlayStore.updateOverlay(overlayId, { marker: null });
-        // AI : Also clear from allMarkers so fresh markers can be created
-        // AI : when this city is re-loaded at zoom 13/14.
-        markersToRemoveFromCache.push(overlayId);
+      if (!belongsToActiveCity && !isLocal) {
+        registry.removeMarkerFromMap(overlayId);
       }
-    }
-
-    // AI : Batch clear removed markers from allMarkers
-    if (markersToRemoveFromCache.length > 0) {
-      overlayStore.clearMarkersFromCache(markersToRemoveFromCache);
     }
 
     // AI : Clear standalone markers for non-active cities
@@ -541,34 +529,16 @@ export function useViewportTriggers() {
         // AI : CRITICAL: When switching modes, hide overlays that shouldn't be visible in the new mode
         // AI : We unmount them (remove from map) but keep in store so they can reappear when switching modes
         if (hasLoadedOverlays) {
-          const updates: Record<string, Partial<OverlayObject>> = {};
-          const markersToRemove: string[] = [];
           const currentUserId = authStore.user?.id;
 
           for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
-            // AI : Determine if overlay should be hidden based on new mode //
             const shouldHide = !isOverlayVisible(overlay, newMode, currentUserId);
 
             if (shouldHide) {
-              if (overlay.overlay) overlay.overlay.remove();
-              if (overlay.marker) overlay.marker.remove();
-
-              // AI : Queue update instead of triggering reactivity immediately
-              updates[id] = { overlay: null, marker: null };
-
-              // AI : CRITICAL: Clear from allMarkers cache so it can be recreated when switching back
-              markersToRemove.push(id);
+              // AI : Remove layer and marker from map, clear from registry so they can
+              // AI : be recreated when switching back to a mode where they're visible.
+              registry.clearEntry(id);
             }
-          }
-
-          // AI : Execute batch updates (O(1) reactivity trigger)
-          if (Object.keys(updates).length > 0) {
-            overlayStore.batchUpdateOverlays(updates);
-          }
-
-          // AI : Batch clear markers
-          if (markersToRemove.length > 0) {
-            overlayStore.clearMarkersFromCache(markersToRemove);
           }
         }
 

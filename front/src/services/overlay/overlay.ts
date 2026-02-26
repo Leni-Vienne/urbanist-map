@@ -8,6 +8,7 @@ import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 // AI : overlayEditing is a lazy chunk - dynamic import to avoid pulling it into this chunk's static graph
@@ -27,8 +28,9 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   }
 
   // AI : Fallback to marker position if bounds unavailable
-  if (overlay.marker) {
-    mobileAwareFlyTo(overlay.marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
+  const marker = getMarker(overlay.id);
+  if (marker) {
+    mobileAwareFlyTo(marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
     return true;
   }
 
