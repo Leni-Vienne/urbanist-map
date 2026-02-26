@@ -454,13 +454,17 @@ function setupOverlayMovementTracking(
 }
 
 /**
- * AI : Render backend CDN overlays on the map for view mode
+ * AI : Render backend CDN overlays on the map for view mode.
+ * AI : Returns true if at least one overlay render was actually started (beginCreation succeeded).
+ * AI : Returns false if all overlays were skipped (already rendering, already ready, zoom too low).
+ * AI : Callers that pass an onReady callback should only fall back to polling if this returns false.
  */
 export function renderViewModeOverlays(
   viewModeOverlays: OverlayData[],
   createMarkers = true,
   forceRerender = false,
-) {
+  onReady?: () => void,
+): boolean {
   const overlayStore = useOverlayStore();
 
   let overlaysToRender: OverlayData[] = [];
@@ -478,20 +482,29 @@ export function renderViewModeOverlays(
     });
   }
 
+  let anyStarted = false;
   for (const cdnOverlay of overlaysToRender) {
-    renderSingleOverlay(cdnOverlay, createMarkers);
+    if (renderSingleOverlay(cdnOverlay, createMarkers, onReady)) {
+      anyStarted = true;
+    }
   }
+  return anyStarted;
 }
 
 /**
- * AI : Render a single CDN overlay as read-only distortable overlay on the map
+ * AI : Render a single CDN overlay as read-only distortable overlay on the map.
+ * AI : Returns true if creation was actually started (beginCreation succeeded), false otherwise.
  */
-function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
+function renderSingleOverlay(
+  cdnOverlay: OverlayData,
+  createMarkers = true,
+  onReady?: () => void,
+): boolean {
   const overlayStore = useOverlayStore();
 
   // AI : Skip replaced overlays - their images are deleted and would cause 404 errors
   if (cdnOverlay.status === "replaced") {
-    return;
+    return false;
   }
 
   // AI : CRITICAL: Skip overlays that shouldn't be visible in the current mode.
@@ -500,14 +513,14 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : but mode switched to view before the async callback fires).
   const authStore = useAuthStore();
   if (!isOverlayVisible(cdnOverlay, overlayStore.mode, authStore.user?.id)) {
-    return;
+    return false;
   }
 
   // AI : beginCreation atomically checks + prevents duplicate layers:
   // AI :   - returns false if already has a ready layer (re-render not needed)
   // AI :   - returns false if already being created (concurrent call guard)
   if (!registry.beginCreation(cdnOverlay.id)) {
-    return;
+    return false;
   }
 
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
@@ -539,7 +552,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   if (!newOverlay) {
     // AI : Creation failed - release the creation mutex
     registry.cancelCreation(cdnOverlay.id);
-    return;
+    return false;
   }
 
   // AI : registry.setLayer was called inside createLeafletOverlay, so mode-switch cleanup
@@ -592,7 +605,13 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
     if (cdnOverlay.projectId) {
       removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
     }
+
+    // AI : Notify caller that this overlay is fully ready on the map
+    onReady?.();
   }
+
+  // AI : Creation was successfully started — onReady is wired; caller should NOT fall back to polling.
+  return true;
 }
 
 // AI : Accept HMR updates for this module
