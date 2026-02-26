@@ -3,7 +3,7 @@ import {
   navigateToStandaloneProject,
 } from "@/services/navigation/overlayNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { navigateToOverlay } from "@/services/overlay/overlay";
+import { navigateToOverlay } from "@/services/overlay/overlayActions";
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";

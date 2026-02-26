@@ -145,6 +145,7 @@ async function checkModeratorChangeRequestPermission(
   if (!isSupportedEntityType(entityType)) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       message: `Invalid entity type: ${entityType}`,
     });
   }

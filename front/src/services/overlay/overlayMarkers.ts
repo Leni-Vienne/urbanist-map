@@ -21,7 +21,12 @@ import {
   syncModerationCityFromOverlay,
 } from "@/services/overlay/overlaySelection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
-import { calculateCentroidFromCorners } from "@shared/overlayValidation";
+import {
+  calculateCentroidFromCorners,
+  validateOverlaySize,
+  leafletCornersToCorners,
+} from "@shared/overlayValidation";
+import { useToast } from "@/composables/ui/useToast";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 // AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
@@ -320,6 +325,68 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   }
 
   return null;
+}
+
+/**
+ * AI : Check overlay size in real-time and show visual warning if too large.
+ * AI : Moved here from overlayEditing to break the overlayRendering ↔ overlayEditing cycle.
+ */
+export function checkOverlaySizeAndWarn(
+  overlay: L.DistortableImageOverlay,
+  overlayObject: OverlayObject,
+): void {
+  const corners = overlay.getCorners();
+
+  // AI : Guard clause - corners can be undefined for newly created overlays
+  if (corners.length !== 4) {
+    return;
+  }
+
+  const cornersArray = leafletCornersToCorners(corners);
+  const validation = validateOverlaySize(cornersArray);
+
+  const element = overlay.getElement();
+  if (!element) return;
+
+  // AI : Resolve store once — needed to sync isTooBig so that subsequent
+  // AI : updateOverlay (Object.assign from store) propagates the correct value.
+  // AI : Without this, the store retains a stale isTooBig:true after the overlay
+  // AI : becomes valid again, causing the drag handler (which reads from the store)
+  // AI : to wrongly color the marker red.
+  const overlayStore = useOverlayStore();
+
+  if (!validation.isValid) {
+    // AI : Add red border to indicate size problem
+    element.style.border = "4px solid #ef4444";
+    element.style.boxShadow = "0 0 0 2px rgba(239, 68, 68, 0.3)";
+
+    // AI : Update marker color if not already marked
+    if (!overlayObject.isTooBig) {
+      overlayObject.isTooBig = true;
+      overlayStore.updateOverlay(overlayObject.id, { isTooBig: true });
+      updateMarkerTooltip(overlayObject);
+    }
+
+    // AI : Show toast message every time overlay is edited while too large
+    const toast = useToast();
+    toast.add({
+      severity: "warn",
+      summary: t("upload.overlayTooLarge"),
+      detail: t("upload.maximumSizeOnMap"),
+      life: 3000,
+    });
+  } else {
+    // AI : Remove warning styling
+    element.style.border = "";
+    element.style.boxShadow = "";
+
+    // AI : Clear size issue flag and update marker color
+    if (overlayObject.isTooBig) {
+      overlayObject.isTooBig = false;
+      overlayStore.updateOverlay(overlayObject.id, { isTooBig: false });
+      updateMarkerTooltip(overlayObject);
+    }
+  }
 }
 
 // AI : Accept HMR updates for this module

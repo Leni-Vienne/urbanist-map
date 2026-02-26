@@ -1,12 +1,11 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref, shallowRef } from "vue";
+import { ref } from "vue";
 import type { OverlayObject, OverlayData, LatestContribution } from "@/types/index";
 import { clearAll as clearAllLayers } from "@/services/overlay/overlayRenderRegistry";
 import type { AppMode } from "@shared/types";
 
 export const useOverlayStore = defineStore("overlay", () => {
-  // AI : Central store for overlay data
-  const overlays = shallowRef<Record<string, OverlayObject>>({});
+  const overlays = ref<Record<string, OverlayObject>>({});
   const idSelectedOverlay = ref<string | null>(null);
 
   // AI : Map mode state (view, edit, or moderation)
@@ -67,42 +66,20 @@ export const useOverlayStore = defineStore("overlay", () => {
     editModeOverlayCache.value.delete(overlayId);
   }
 
-  // AI : Add overlay to store with proper reactivity for shallowRef
   function addOverlay(overlayId: string, overlay: OverlayObject) {
-    // AI : Create new object reference to trigger reactivity with shallowRef
-    overlays.value = {
-      ...overlays.value,
-      [overlayId]: overlay,
-    };
+    overlays.value[overlayId] = overlay;
   }
 
-  // AI : Update overlay in store with proper reactivity for shallowRef
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
     const current = overlays.value[overlayId];
-    if (current === null) return;
-
-    // AI : Create new object with updates to trigger reactivity
-    overlays.value = {
-      ...overlays.value,
-      [overlayId]: Object.assign({}, current, updates),
-    };
+    if (!current) return;
+    Object.assign(current, updates);
   }
 
-  // AI : Batch update multiple overlays at once to avoid performance issues with shallowRef
   function batchUpdateOverlays(updates: Record<string, Partial<OverlayObject>>) {
-    const newOverlays = { ...overlays.value };
-    let hasChanges = false;
-
     for (const [id, update] of Object.entries(updates)) {
-      const current = newOverlays[id];
-      if (current) {
-        newOverlays[id] = Object.assign({}, current, update);
-        hasChanges = true;
-      }
-    }
-
-    if (hasChanges) {
-      overlays.value = newOverlays;
+      const current = overlays.value[id];
+      if (current) Object.assign(current, update);
     }
   }
 
