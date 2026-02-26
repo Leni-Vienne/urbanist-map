@@ -56,7 +56,7 @@ import {
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
-import { createProject } from "@/services/project/projects";
+import { createProject } from "@/services/project/projectMutations";
 import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
 import { getCityProjects } from "@/services/project/projectSelection";
@@ -206,12 +206,8 @@ async function findProjectFromNearbyProjects(projectId: string): Promise<Project
   return nearbyProject ? createProjectObjectFromAPI(nearbyProject) : null;
 }
 
-// AI : Add project to store with reactivity trigger
 function addProjectToStore(projectId: string, project: Project): void {
-  // AI : Create new object reference to trigger shallowRef reactivity
-  const updatedProjects = { ...projects.value };
-  updatedProjects[projectId] = project;
-  projects.value = updatedProjects;
+  projects.value[projectId] = project;
 }
 
 // AI : Process image after project selection

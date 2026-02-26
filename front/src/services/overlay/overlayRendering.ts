@@ -24,7 +24,7 @@ import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { createOverlayFromCDN } from "@/utils/typeFactories";
+import { createOverlayObject } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import {
   selectOverlay,
@@ -41,10 +41,9 @@ import {
   updateMarkerPosition,
   updateMarkerTooltip,
   createSingleMarker,
+  checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
-import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
-import { checkOverlaySizeAndWarn } from "@/services/overlay/overlayEditing";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
@@ -526,7 +525,7 @@ function renderSingleOverlay(
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
 
   // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
-  const overlayObject = createOverlayFromCDN(cdnOverlay);
+  const overlayObject = createOverlayObject(cdnOverlay);
 
   // AI : Preserve UI state (like view choice) from existing store object if re-rendering
   if (existingOverlay) {

@@ -253,8 +253,6 @@ function removeOverlayOutline(overlayObject: OverlayObject): void {
  * Scales up the marker if it exists (visible even when zoomed out)
  */
 export function highlightOverlayById(overlayId: string): void {
-  const overlayStore = useOverlayStore();
-
   // AI : Scale up the marker for visibility at any zoom level
   const marker = getMarker(overlayId);
   if (marker) {
