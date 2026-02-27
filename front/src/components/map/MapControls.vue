@@ -24,7 +24,7 @@
         @click.stop="showHelpModal"
         @dblclick.stop
         raised
-        icon="pi pi-question-circle"
+        icon="pi pi-question"
         :aria-label="$t('controls.help')"
         v-tooltip.right="$t('controls.help')"
         severity="help"
