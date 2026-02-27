@@ -40,12 +40,8 @@
           <!-- AI : Contribution info -->
           <div class="contribution-info">
             <h2 class="contribution-name">{{ contribution.name }}</h2>
+            <div class="contribution-location">{{ getLocationDisplay(contribution) }}</div>
             <div class="contribution-time">{{ formatRelativeTime(contribution.updatedAt, t) }}</div>
-            <div class="contribution-location">
-              <i class="pi pi-map-marker"></i>
-
-              <span>{{ getLocationDisplay(contribution) }}</span>
-            </div>
           </div>
 
           <!-- AI : Chevron indicator for clickability -->
@@ -220,7 +216,7 @@ onMounted(() => {
 .contribution-thumbnail {
   width: 60px;
   height: 60px;
-  border-radius: 0.375rem;
+  border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--p-surface-100);
   flex-shrink: 0;
@@ -237,9 +233,20 @@ onMounted(() => {
 }
 
 .contribution-name {
-  font-size: 0.9375rem;
-  margin: 0 0 0.25rem 0;
-  line-height: 1.3;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.2rem 0;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contribution-location {
+  font-size: 0.75rem;
+  color: var(--p-surface-500);
+  margin-bottom: 0.1rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -247,21 +254,7 @@ onMounted(() => {
 
 .contribution-time {
   font-size: 0.75rem;
-  color: var(--p-surface-500);
-}
-
-.contribution-location {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--p-surface-600);
-  margin-bottom: 0.25rem;
-}
-
-.contribution-location i {
-  color: var(--p-surface-500);
-  font-size: 0.625rem;
+  color: var(--p-surface-400);
 }
 
 .contribution-card:hover .tap-indicator {
@@ -288,6 +281,7 @@ onMounted(() => {
 
   .contribution-name {
     font-size: 0.8125rem;
+    color: #1f2937;
   }
 }
 </style>
