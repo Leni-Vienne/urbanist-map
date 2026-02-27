@@ -60,7 +60,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
-import { useBeforeUnload } from "@/composables/core/useBeforeUnload";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 
@@ -115,9 +114,6 @@ function updateWindowWidth() {
     document.body.style.height = "";
   }
 }
-
-// AI : Initialize beforeunload handler for modified overlays
-useBeforeUnload();
 
 onMounted(async () => {
   // AI : Add window resize listener for mobile detection
