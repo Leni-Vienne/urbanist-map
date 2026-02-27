@@ -134,17 +134,27 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
   });
 }
 
+// AI : Cache overlay DivIcon instances — only 7 colors exist, no need to recreate on every call.
+// AI : setIcon() reconstructs the marker DOM element each time, so reusing the same object
+// AI : still triggers DOM work. The real gain comes from skipping setIcon() when color is unchanged
+// AI : (see updateMarkerTooltip). This cache avoids the SVG string + L.divIcon allocation cost.
+const _overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
+
 // AI : Create overlay marker icon with picture frame (for overlay markers specifically)
 export function createOverlayIcon(color: MarkerColor): L.DivIcon {
+  if (_overlayIconCache[color]) {
+    return _overlayIconCache[color]!;
+  }
   const svgString = createOverlayMarkerSVG(color);
-
-  return L.divIcon({
+  const icon = L.divIcon({
     html: svgString,
     className: "custom-svg-marker overlay-marker",
     iconSize: [markerSize, markerHeight],
     iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
     popupAnchor: [0, -markerHeight],
   });
+  _overlayIconCache[color] = icon;
+  return icon;
 }
 
 // AI : Create standalone/project marker icon with simple circle (for standalone projects)
