@@ -394,10 +394,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     // Methods
     hasChanged,
     resetChanges,
-    getChangesToSubmit,
     formatValue,
     getFieldClasses,
-    handleApprovedEntityUpdate,
     showErrorToast,
     submitChanges,
   };

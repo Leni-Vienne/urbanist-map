@@ -25,8 +25,4 @@ export function useBeforeUnload() {
   onUnmounted(() => {
     globalThis.removeEventListener("beforeunload", handleBeforeUnload);
   });
-
-  return {
-    checkForModifiedOverlays,
-  };
 }

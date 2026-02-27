@@ -1,5 +1,4 @@
 import L, { type LatLng } from "leaflet";
-import { computed } from "vue";
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
@@ -17,10 +16,7 @@ import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/country
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
-import {
-  previewState,
-  clearChangeRequestPreview,
-} from "@/services/overlay/changeRequestPreviewState";
+import { previewState } from "@/services/overlay/changeRequestPreviewState";
 
 // AI : Composable to handle change request position preview
 // AI : Combines state management + navigation logic for previewing change request positions
@@ -48,9 +44,6 @@ export function useChangeRequestPreview() {
   const toast = useToast();
   const overlayStore = useOverlayStore();
 
-  // AI : State management (from usePositionPreview)
-  const hasActivePreview = computed(() => previewState.value.type !== "none");
-
   function isPreviewingChange(changeId: string): boolean {
     const state = previewState.value;
     if (state.type === "none") return false;
@@ -61,10 +54,6 @@ export function useChangeRequestPreview() {
     const state = previewState.value;
     if (state.type === "none" || state.changeId !== changeId) return null;
     return state.type === "current" ? "current" : "suggested";
-  }
-
-  function clearPreview(): void {
-    clearChangeRequestPreview();
   }
 
   // AI : Type guard for coordinate array
@@ -331,14 +320,9 @@ export function useChangeRequestPreview() {
   }
 
   return {
-    // AI : State queries
     previewState,
-    hasActivePreview,
     isPreviewingChange,
     getPreviewType,
-    clearPreview,
-    // AI : Actions
     previewGeometry,
-    parseGeometry,
   };
 }

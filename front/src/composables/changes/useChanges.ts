@@ -229,39 +229,6 @@ export function useChangeRequests() {
     }
   }
 
-  async function getChangeHistory(entityType?: "project" | "overlay", entityId?: string) {
-    isLoading.value = true;
-    try {
-      const result = await withErrorHandling(
-        async () => trpc.changes.getChangeHistory.query({ entityType, entityId }),
-        { errorMessage: "Failed to fetch change history" },
-      );
-
-      if (result) {
-        changeHistory.value = result;
-      }
-      return result;
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  function groupChangeRequestsByEntity() {
-    const grouped = new Map<string, ChangeRequest[]>();
-
-    for (const request of pendingChangeRequests.value) {
-      const key = `${request.entityType}:${request.entityId}`;
-      let list = grouped.get(key);
-      if (!list) {
-        list = [];
-        grouped.set(key, list);
-      }
-      list.push(request);
-    }
-
-    return grouped;
-  }
-
   function getConflictingChanges() {
     const conflicts = new Map<string, ChangeRequest[]>();
 
@@ -280,67 +247,13 @@ export function useChangeRequests() {
     return conflicts;
   }
 
-  const groupedChangeRequests = computed(() => groupChangeRequestsByEntity());
-
   const conflictingChanges = computed(() => getConflictingChanges());
 
   const hasConflicts = computed(() => conflictingChanges.value.size > 0);
 
-  const hasChangeRequests = computed(() => pendingChangeRequests.value.length > 0);
-
   // AI : ============================================================================
   // AI : FIELD CHANGES
   // AI : ============================================================================
-
-  async function submitProjectFieldChange(
-    projectId: string,
-    fieldName: string,
-    oldValue: FieldChange["oldValue"],
-    newValue: FieldChange["newValue"],
-    changeReason?: string,
-  ) {
-    return withErrorToast(
-      async () =>
-        submitChangeRequest({
-          entityType: "project",
-          entityId: projectId,
-          changes: [
-            {
-              fieldName,
-              oldValue,
-              newValue,
-              changeReason,
-            },
-          ],
-        }),
-      "Failed to submit project field change",
-    );
-  }
-
-  async function submitOverlayFieldChange(
-    overlayId: string,
-    fieldName: string,
-    oldValue: FieldChange["oldValue"],
-    newValue: FieldChange["newValue"],
-    changeReason?: string,
-  ) {
-    return withErrorToast(
-      async () =>
-        submitChangeRequest({
-          entityType: "overlay",
-          entityId: overlayId,
-          changes: [
-            {
-              fieldName,
-              oldValue,
-              newValue,
-              changeReason,
-            },
-          ],
-        }),
-      "Failed to submit overlay field change",
-    );
-  }
 
   async function submitMultipleFieldChanges(
     entityType: "project" | "overlay",
@@ -358,74 +271,11 @@ export function useChangeRequests() {
     );
   }
 
-  function createFieldChangeHelper(entityType: "project" | "overlay", entityId: string) {
-    const pendingChanges: FieldChange[] = [];
-
-    function addFieldChange(
-      fieldName: string,
-      oldValue: FieldChange["oldValue"],
-      newValue: FieldChange["newValue"],
-      changeReason?: string,
-    ) {
-      const existingIndex = pendingChanges.findIndex((change) => change.fieldName === fieldName);
-
-      if (existingIndex !== -1) {
-        pendingChanges[existingIndex] = { fieldName, oldValue, newValue, changeReason };
-      } else {
-        pendingChanges.push({ fieldName, oldValue, newValue, changeReason });
-      }
-    }
-
-    function removeFieldChange(fieldName: string) {
-      const index = pendingChanges.findIndex((change) => change.fieldName === fieldName);
-      if (index !== -1) {
-        pendingChanges.splice(index, 1);
-      }
-    }
-
-    async function submitAllChanges() {
-      if (pendingChanges.length === 0) {
-        throw new Error("No changes to submit");
-      }
-
-      const result = await submitMultipleFieldChanges(entityType, entityId, [...pendingChanges]);
-
-      if (result?.success != undefined) {
-        pendingChanges.length = 0;
-      }
-
-      return result;
-    }
-
-    function clearChanges() {
-      pendingChanges.length = 0;
-    }
-
-    function getChanges() {
-      return [...pendingChanges];
-    }
-
-    function hasChanges() {
-      return pendingChanges.length > 0;
-    }
-
-    return {
-      addFieldChange,
-      removeFieldChange,
-      submitAllChanges,
-      clearChanges,
-      getChanges,
-      hasChanges,
-    };
-  }
-
   return {
     // AI : Change requests
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
     changeHistory: computed(() => changeHistory.value),
-    groupedChangeRequests,
     conflictingChanges,
-    hasChangeRequests,
     hasConflicts,
     isLoading: computed(() => isLoading.value),
 
@@ -434,13 +284,9 @@ export function useChangeRequests() {
     approveChangeRequests,
     rejectChangeRequests,
     deleteChangeRequest,
-    getChangeHistory,
     resetChangeRequestsLoaded,
 
     // AI : Field changes
-    submitProjectFieldChange,
-    submitOverlayFieldChange,
     submitMultipleFieldChanges,
-    createFieldChangeHelper,
   };
 }

@@ -682,10 +682,7 @@ export function useSubmissionService() {
   }
 
   return {
-    getChangeType,
     createProjectContext,
-    createOverlayContext,
-    detectProjectChanges,
     buildSummary,
     validate,
     submitExtendedContext,
