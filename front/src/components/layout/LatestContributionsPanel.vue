@@ -154,7 +154,7 @@ async function handleContributionClick(contribution: LatestContribution) {
     // AI : Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
       const { navigateToStandaloneProject } =
-        await import("@/services/navigation/overlayNavigation");
+        await import("@/services/navigation/projectNavigation");
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,
