@@ -1,12 +1,8 @@
 // AI : Frontend composable for Zod validation with i18n error mapping
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { t } from "@/locales";
 import type { z } from "zod";
-import {
-  getValidationError,
-  getValidationErrorsMap,
-  type ValidationError,
-} from "@shared/validation/schemas";
+import { getValidationError, type ValidationError } from "@shared/validation/schemas";
 
 // AI : Composable for reactive field validation
 export function useFieldValidation<T>(schema: z.ZodType<T>) {
@@ -15,20 +11,6 @@ export function useFieldValidation<T>(schema: z.ZodType<T>) {
 
   // AI : Track which fields have been touched (validated at least once)
   const touchedFields = ref<Set<string>>(new Set());
-
-  // AI : Validate entire form data
-  function validateForm(data: T): { success: boolean; errors: Record<string, ValidationError> } {
-    const result = schema.safeParse(data);
-
-    if (result.success) {
-      fieldErrors.value = {};
-      return { success: true, errors: {} };
-    }
-
-    const errors = getValidationErrorsMap(result.error);
-    fieldErrors.value = errors;
-    return { success: false, errors };
-  }
 
   // AI : Validate a single field - now validates on input after first blur
   function validateField(fieldPath: string, data: T): ValidationError | null {
@@ -68,34 +50,9 @@ export function useFieldValidation<T>(schema: z.ZodType<T>) {
     return Boolean(fieldErrors.value[fieldPath]);
   }
 
-  // AI : Check if a field has been touched (validated at least once)
-  function isFieldTouched(fieldPath: string): boolean {
-    return touchedFields.value.has(fieldPath);
-  }
-
-  // AI : Clear all errors
-  function clearErrors() {
-    fieldErrors.value = {};
-  }
-
-  // AI : Clear error for a specific field (but keep it as touched)
-  function clearFieldError(fieldPath: string) {
-    const { [fieldPath]: _, ...rest } = fieldErrors.value;
-    fieldErrors.value = rest;
-  }
-
-  // AI : Computed property to check if form has any errors
-  const hasErrors = computed(() => Object.keys(fieldErrors.value).length > 0);
-
   return {
-    fieldErrors,
-    validateForm,
     validateField,
     getFieldError,
     hasFieldError,
-    isFieldTouched,
-    clearErrors,
-    clearFieldError,
-    hasErrors,
   };
 }

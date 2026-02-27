@@ -141,10 +141,14 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
   // AI : Local overlays (status === null) also use local storage
   const isPending = status === "pending" || status === null;
 
+  const filename = data.filename ?? "";
+  const isDataUrl = filename.startsWith("data:");
+  const imageUrl = data.imageUrl ?? (isDataUrl ? filename : buildImageUrl(filename, isPending));
+
   return {
     id,
     version: data.version ?? 1,
-    filename: data.filename ?? "",
+    filename,
     caption: data.caption ?? null,
     status,
     authorId: data.authorId ?? "",
@@ -155,10 +159,8 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
     corners: data.corners ?? [],
-    imageUrl: data.imageUrl ?? buildImageUrl(data.filename ?? "", isPending),
+    imageUrl,
     isModified: data.isModified ?? false,
-    overlay: data.overlay ?? null,
-    marker: data.marker ?? null,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,
@@ -166,25 +168,6 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     hasPendingChanges: data.hasPendingChanges ?? undefined,
     isTooBig: data.isTooBig ?? undefined,
   };
-}
-
-/**
- * AI : Convert OverlayData from backend to OverlayObject with UI state
- */
-export function createOverlayFromCDN(overlayData: OverlayData): OverlayObject {
-  const isDataUrl = overlayData.filename.startsWith("data:");
-  // AI : Pending overlays are stored locally, not in R2 - force backend URL for them
-  const isPending = overlayData.status === "pending";
-  const imageUrl = isDataUrl
-    ? overlayData.filename
-    : buildImageUrl(overlayData.filename, isPending);
-
-  return createOverlayObject({
-    ...overlayData,
-    imageUrl,
-    createdAt: new Date(overlayData.createdAt),
-    updatedAt: new Date(overlayData.updatedAt),
-  });
 }
 
 /**

@@ -259,6 +259,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         lat: userContributionProject.lat,
         lng: userContributionProject.lng,
         cityId: userContributionProject.cityId,
+        latestUpdateOn: null, // feature has been removed bur still required in DB schema, can be null
         city: {
           id: userContributionProject.cityId,
           name: userContributionProject.cityName,
@@ -393,10 +394,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     // Methods
     hasChanged,
     resetChanges,
-    getChangesToSubmit,
     formatValue,
     getFieldClasses,
-    handleApprovedEntityUpdate,
     showErrorToast,
     submitChanges,
   };

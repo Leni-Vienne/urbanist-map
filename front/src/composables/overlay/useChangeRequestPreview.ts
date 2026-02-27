@@ -1,5 +1,4 @@
 import L, { type LatLng } from "leaflet";
-import { computed } from "vue";
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
@@ -10,16 +9,14 @@ import {
   updateMarkerTooltip,
   getOverlayBounds,
 } from "@/services/overlay/overlayMarkers";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
-import {
-  previewState,
-  clearChangeRequestPreview,
-} from "@/services/overlay/changeRequestPreviewState";
+import { previewState } from "@/services/overlay/changeRequestPreviewState";
 
 // AI : Composable to handle change request position preview
 // AI : Combines state management + navigation logic for previewing change request positions
@@ -47,9 +44,6 @@ export function useChangeRequestPreview() {
   const toast = useToast();
   const overlayStore = useOverlayStore();
 
-  // AI : State management (from usePositionPreview)
-  const hasActivePreview = computed(() => previewState.value.type !== "none");
-
   function isPreviewingChange(changeId: string): boolean {
     const state = previewState.value;
     if (state.type === "none") return false;
@@ -60,10 +54,6 @@ export function useChangeRequestPreview() {
     const state = previewState.value;
     if (state.type === "none" || state.changeId !== changeId) return null;
     return state.type === "current" ? "current" : "suggested";
-  }
-
-  function clearPreview(): void {
-    clearChangeRequestPreview();
   }
 
   // AI : Type guard for coordinate array
@@ -99,7 +89,7 @@ export function useChangeRequestPreview() {
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     // AI : Already loaded, nothing to do
-    if (overlayObject?.overlay !== null) {
+    if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
       return true;
     }
 
@@ -169,7 +159,7 @@ export function useChangeRequestPreview() {
       }
     }
 
-    if (overlayObject?.overlay === null) {
+    if (!overlayObject || registry.getLayer(overlayObject.id) === null) {
       toast.add({
         severity: "error",
         summary: t("overlay.loadFailed"),
@@ -233,7 +223,8 @@ export function useChangeRequestPreview() {
     wasAlreadyLoaded: boolean,
   ): void {
     const overlayObject = overlayStore.overlays[overlayId];
-    if (!overlayObject?.overlay) {
+    const overlayLayer = overlayObject ? registry.getLayer(overlayObject.id) : null;
+    if (!overlayObject || !overlayLayer) {
       return;
     }
 
@@ -259,7 +250,7 @@ export function useChangeRequestPreview() {
     }
 
     // AI : Apply the position change
-    overlayObject.overlay.setCorners(targetLatLngs);
+    overlayLayer.setCorners(targetLatLngs);
     updateMarkerPosition(overlayObject);
     updateMarkerTooltip(overlayObject);
 
@@ -291,7 +282,7 @@ export function useChangeRequestPreview() {
       const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
 
       // AI : Step 2: Check if overlay is already loaded
-      const wasAlreadyLoaded = Boolean(overlayStore.overlays[change.entityId]?.overlay);
+      const wasAlreadyLoaded = registry.getLayer(change.entityId) !== null;
 
       // AI : Step 3: Ensure overlay is loaded (handles navigation if needed)
       const loaded = await ensureOverlayLoaded(overlayForModeration, latLngs);
@@ -329,14 +320,9 @@ export function useChangeRequestPreview() {
   }
 
   return {
-    // AI : State queries
     previewState,
-    hasActivePreview,
     isPreviewingChange,
     getPreviewType,
-    clearPreview,
-    // AI : Actions
     previewGeometry,
-    parseGeometry,
   };
 }

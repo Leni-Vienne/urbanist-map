@@ -43,8 +43,6 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   return createOverlayObject({
     ...savedOverlay,
     project: project ? { ...project, city: project.city } : null,
-    overlay: null,
-    marker: null,
     corners: savedOverlay.corners,
     // AI : Set isModified flag based on edit mode cache for proper marker color
     isModified: cachedModifications?.isModified ?? savedOverlay.isModified,

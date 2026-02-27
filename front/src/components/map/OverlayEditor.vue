@@ -52,7 +52,7 @@
 import { ref, computed, watch } from "vue";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-import { updateOverlayInfo } from "@/services/overlay/overlay";
+import { updateOverlayInfo } from "@/services/overlay/overlayActions";
 import { useUiStore, type OverlayEditTarget } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types/index";
 

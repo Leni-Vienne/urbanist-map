@@ -5,6 +5,7 @@ import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -35,8 +36,9 @@ function resolveOverlayCorners(overlayId: string): { lat: number; lng: number }[
 
   // AI : Priority 1: Live Leaflet instance (most accurate, reflects current map state)
   const overlayObject = overlayStore.overlays[overlayId];
-  if (overlayObject?.overlay) {
-    const corners = overlayObject.overlay.getCorners();
+  const liveLayer = overlayObject ? registry.getLayer(overlayObject.id) : null;
+  if (liveLayer) {
+    const corners = liveLayer.getCorners();
     if (corners.length === 4) {
       return corners;
     }
@@ -121,7 +123,7 @@ function zoomToOverlayAndSelect(
   if (corners.length !== 4) return false;
 
   const bounds = L.latLngBounds(corners.map((c) => L.latLng(c.lat, c.lng)));
-  mobileAwareFlyToBounds(bounds, {
+  const flightSkipped = mobileAwareFlyToBounds(bounds, {
     padding: [50, 50] as [number, number],
     duration: 1.5,
     easeLinearity: 0.25,
@@ -129,46 +131,99 @@ function zoomToOverlayAndSelect(
 
   const overlayStore = useOverlayStore();
 
+  // AI : Wait for element to exist, then wait for image to load before selecting
+  // AI : This fixes the bug where first click adds blue outline but doesn't open toolbar
+  function waitForElementThenSelect(): void {
+    const currentLayer = registry.getLayer(overlayId);
+    const element = currentLayer?.getElement();
+
+    if (!element) {
+      requestAnimationFrame(waitForElementThenSelect);
+      return;
+    }
+
+    if (!autoSelect) return;
+
+    if (element.complete && element.naturalWidth > 0) {
+      selectOverlay(overlayId);
+    } else {
+      element.addEventListener(
+        "load",
+        () => {
+          selectOverlay(overlayId);
+        },
+        { once: true },
+      );
+    }
+  }
+
+  // AI : If flight was skipped (camera already at target), select immediately without
+  // AI : waiting for moveend — which will never fire since no animation was triggered.
+  if (flightSkipped) {
+    waitForElementThenSelect();
+    return true;
+  }
+
   map.value.once("moveend", () => {
     // AI : CRITICAL: After zoom completes, check if overlay needs to be rendered
     const overlayObj = overlayStore.overlays[overlayId];
-    if (overlayObj && !overlayObj.overlay) {
-      console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
-    } else if (overlayObj?.overlay && !map.value.hasLayer(overlayObj.overlay)) {
+    const overlayLayer = registry.getLayer(overlayId);
+    if (overlayObj && !overlayLayer) {
+      // AI : Layer was cleared (zoom-out pruning) but overlay data is still in the store.
+      // AI : Re-render it and select it via onReady callback once the image is fully loaded.
+      // AI : This avoids the polling loop that could spin forever if the layer never appears.
+      // AI : If another render is already in flight (beginCreation returns false inside
+      // AI : renderViewModeOverlays), fall back to the polling loop which will find the layer
+      // AI : once that in-flight render completes.
+      void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
+        if (registry.hasReadyLayer(overlayId)) {
+          // AI : Layer appeared between moveend and the async import resolving — select now
+          if (autoSelect) selectOverlay(overlayId);
+          return;
+        }
+        // AI : Pass createMarkers=true so the marker is (re)created if it was wiped by
+        // AI : clearAll(preserveMarkers=false) when zooming out in view mode.
+        // AI : createSingleMarker has a duplicate guard so this is safe if the marker exists.
+        // AI : Without the marker, onOverlayFullyLoaded aborts and onReady is never called.
+        const ourRenderStarted = renderViewModeOverlays(
+          [overlayObj],
+          true,
+          false,
+          autoSelect ? () => selectOverlay(overlayId) : undefined,
+        );
+        if (ourRenderStarted) {
+          // AI : Our render is in flight with onReady wired — do NOT poll.
+          // AI : waitForElementThenSelect would race: it calls selectOverlay before
+          // AI : overlayStore.addOverlay runs (deferred via scheduleInitialization rAF queue),
+          // AI : setting idSelectedOverlay early so onReady's selectOverlay hits the
+          // AI : "already selected" early-exit guard and never opens the toolbar.
+          return;
+        }
+        if (registry.hasReadyLayer(overlayId)) {
+          // AI : Layer became ready between our render call and here (very fast completion)
+          if (autoSelect) selectOverlay(overlayId);
+          return;
+        }
+        if (registry.isCreating(overlayId)) {
+          // AI : A different render (e.g. viewport loop) is in flight without our onReady —
+          // AI : poll until it lands so we can select after it completes.
+          waitForElementThenSelect();
+          return;
+        }
+        // AI : renderViewModeOverlays was a no-op (e.g. zoom < MIN_ZOOM_FOR_OVERLAYS).
+        // AI : Nothing we can do — the overlay can't be shown at this zoom level.
+      });
+      // AI : Do NOT call waitForElementThenSelect here — the onReady callback handles selection
+      return;
+    } else if (overlayLayer && !map.value.hasLayer(overlayLayer)) {
       const currentZoom = map.value.getZoom();
       // AI : CRITICAL: Only re-add if the overlay should be visible in the current mode
       // AI : This prevents adding a pending overlay back to the map when in view mode
       if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
         const authStore = useAuthStore();
-        if (isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
-          overlayObj.overlay.addTo(map.value);
+        if (overlayObj && isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
+          overlayLayer.addTo(map.value);
         }
-      }
-    }
-
-    // AI : Wait for element to exist, then wait for image to load before selecting
-    // AI : This fixes the bug where first click adds blue outline but doesn't open toolbar
-    function waitForElementThenSelect(): void {
-      const overlayObj = overlayStore.overlays[overlayId];
-      const element = overlayObj?.overlay?.getElement();
-
-      if (!element) {
-        requestAnimationFrame(waitForElementThenSelect);
-        return;
-      }
-
-      if (!autoSelect) return;
-
-      if (element.complete && element.naturalWidth > 0) {
-        selectOverlay(overlayId);
-      } else {
-        element.addEventListener(
-          "load",
-          () => {
-            selectOverlay(overlayId);
-          },
-          { once: true },
-        );
       }
     }
 
@@ -221,8 +276,7 @@ export async function navigateToOverlayWithCity(
 
     if (isSameCity) {
       // AI : Additional check: verify overlay is actually rendered, not just cached
-      const overlayObj = overlayStore.overlays[overlayId];
-      const isOverlayRendered = overlayObj?.overlay !== null && overlayObj?.overlay !== undefined;
+      const isOverlayRendered = registry.getLayer(overlayId) !== null;
 
       if (isOverlayRendered) {
         const corners = resolveOverlayCorners(overlayId);

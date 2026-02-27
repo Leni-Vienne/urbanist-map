@@ -1,4 +1,4 @@
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { trpc, type RouterOutput } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 
@@ -11,8 +11,6 @@ const isLoading = ref(false);
  * AI : authStore triggers the dialog on login by checking the count directly via trpc.
  */
 export function useModeratedContributions() {
-  const hasUnacknowledgedItems = computed(() => moderatedContributions.value.length > 0);
-
   // AI : Always fetches fresh — no cache, avoids stale data if a different user logs in
   async function fetchModeratedContributions() {
     isLoading.value = true;
@@ -63,9 +61,7 @@ export function useModeratedContributions() {
   return {
     moderatedContributions,
     isLoading,
-    hasUnacknowledgedItems,
     fetchModeratedContributions,
-    acknowledgeContributions,
     acknowledgeAll,
   };
 }
