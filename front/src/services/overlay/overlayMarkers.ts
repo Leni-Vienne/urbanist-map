@@ -66,8 +66,16 @@ export function updateMarkerTooltip(
   if (!marker) return;
 
   const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, overlayStore.mode);
-  const colorIcon = createOverlayIcon(markerColor);
-  marker.setIcon(colorIcon);
+
+  // AI : Skip setIcon() if color hasn't changed — setIcon() detaches and rebuilds the marker's
+  // AI : DOM element even when the icon is visually identical, causing unnecessary layout cost.
+  // AI : We track the current color on the marker object directly (no separate Map needed,
+  // AI : no cleanup required when the marker is removed).
+  const markerWithColor = marker as L.Marker & { _cmorgColor?: MarkerColor };
+  if (markerWithColor._cmorgColor !== markerColor) {
+    marker.setIcon(createOverlayIcon(markerColor));
+    markerWithColor._cmorgColor = markerColor;
+  }
 
   // AI : View mode: ensure no tooltip is bound
   // AI : Edit & Moderation modes: show tooltips

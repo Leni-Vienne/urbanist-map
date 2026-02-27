@@ -44,7 +44,7 @@
     "hono": "^4.12.3",
     "hono-sessions": "^0.8.1",
     "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
-    "leaflet-toolbar": "^0.4.0-alpha.2",
+    "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar",
     "nodemailer": "^8.0.1",
     "pinia": "^3.0.4",
     "pino": "^10.3.1",
@@ -56,7 +56,7 @@
     "tailwindcss": "^4.2.1",
     "tailwindcss-primeui": "^0.6.1",
     "uuid": "^13.0.0",
-    "vite": "8.0.0-beta.15",
+    "vite": "8.0.0-beta.16",
     "vite-plugin-qrcode": "^0.3.0",
     "vue": "^3.5.29",
     "vue-i18n": "^11.2.8",
@@ -90,6 +90,9 @@
     "unplugin-vue-components": "^31.0.0",
     "vite-plugin-vue-devtools": "^8.0.6",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar"
   },
   "lint-staged": {
     "*": "bunx oxfmt --no-error-on-unmatched-pattern"
