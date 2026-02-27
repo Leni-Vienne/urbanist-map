@@ -7,6 +7,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
+import { clearEntry as clearRegistryEntry } from "@/services/overlay/overlayRenderRegistry";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
@@ -30,22 +31,11 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) return;
 
-  // AI : Remove visual elements
-  if (overlayObject.overlay) {
-    if (map.value.hasLayer(overlayObject.overlay)) {
-      map.value.removeLayer(overlayObject.overlay);
-    }
-  }
-
-  if (overlayObject.marker) {
-    if (map.value.hasLayer(overlayObject.marker)) {
-      map.value.removeLayer(overlayObject.marker);
-    }
-  }
+  // AI : Remove Leaflet layer and marker from map via registry
+  clearRegistryEntry(overlayId);
 
   // AI : Remove from store
   delete overlayStore.overlays[overlayId];
-  delete overlayStore.allMarkers[overlayId];
 
   // AI : Clear specific caches
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);

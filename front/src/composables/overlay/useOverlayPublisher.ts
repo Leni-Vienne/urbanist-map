@@ -1,4 +1,3 @@
-import { ref } from "vue";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -11,17 +10,18 @@ import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
+import { getLayer, renameEntry } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : Extract corners from overlay object, falling back to stored corners if needed
 function getCornersFromOverlay(overlay: OverlayObject) {
-  if (overlay.overlay) {
-    return overlay.overlay.getCorners();
+  const layer = getLayer(overlay.id);
+  if (layer) {
+    return layer.getCorners();
   }
   return overlay.corners;
 }
 
 export function useOverlayPublisher() {
-  const isPublishing = ref(false);
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -160,12 +160,8 @@ export function useOverlayPublisher() {
     updatedOverlays[newId] = overlay;
     overlayStore.overlays = updatedOverlays;
 
-    // AI : Update marker in allMarkers if it exists
-    if (overlayStore.allMarkers[oldId]) {
-      const marker = overlayStore.allMarkers[oldId];
-      delete overlayStore.allMarkers[oldId];
-      overlayStore.allMarkers[newId] = marker;
-    }
+    // AI : Move the registry entry (layer + marker) from old ID to new ID
+    renameEntry(oldId, newId);
 
     // AI : Update project's overlayIds array to use new ID
     if (project?.id) {
@@ -203,8 +199,9 @@ export function useOverlayPublisher() {
     updateMarkerTooltip(overlay);
 
     // AI : Ensure the overlay stays visible on the map after ID change
-    if (overlay.overlay && !map.value.hasLayer(overlay.overlay)) {
-      overlay.overlay.addTo(map.value);
+    const layer = getLayer(overlay.id);
+    if (layer && !map.value.hasLayer(layer)) {
+      layer.addTo(map.value);
     }
 
     // AI : Update cache with new overlay state to refresh marker color (changes from Orange to Yellow)
@@ -238,8 +235,6 @@ export function useOverlayPublisher() {
     if (!validateOverlayForPublishing(overlay, project)) {
       return;
     }
-
-    isPublishing.value = true;
 
     try {
       // AI : Step 1 - Ensure project exists on server first (only for brand new projects)
@@ -305,13 +300,10 @@ export function useOverlayPublisher() {
       throw new Error("Publish Failed: Failed to save to server. Please try again.", {
         cause: error,
       });
-    } finally {
-      isPublishing.value = false;
     }
   }
 
   return {
-    isPublishing,
     publishOverlay,
   };
 }

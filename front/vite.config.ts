@@ -73,11 +73,12 @@ export default defineConfig(({ mode }) => ({
       "@": "/src",
       "@shared": path.resolve(__dirname, "../shared"),
 
-      // AI : Temporary alias for debugging local library changes
+      // AI : Temporary alias for testing local library changes
       /*"leaflet-distortableimage": path.resolve(
         __dirname,
         "../../Leaflet.DistortableImage",
-      ),*/
+      ),
+      "leaflet-toolbar": path.resolve(__dirname, "../../Leaflet.toolbar"),*/
     },
   },
   // To prevent annoying automatic reloads in devmode

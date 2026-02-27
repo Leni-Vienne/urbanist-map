@@ -6,6 +6,7 @@ import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
+import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : ============================================================================
 // AI : ICON CREATION
@@ -133,17 +134,27 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
   });
 }
 
+// AI : Cache overlay DivIcon instances — only 7 colors exist, no need to recreate on every call.
+// AI : setIcon() reconstructs the marker DOM element each time, so reusing the same object
+// AI : still triggers DOM work. The real gain comes from skipping setIcon() when color is unchanged
+// AI : (see updateMarkerTooltip). This cache avoids the SVG string + L.divIcon allocation cost.
+const _overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
+
 // AI : Create overlay marker icon with picture frame (for overlay markers specifically)
 export function createOverlayIcon(color: MarkerColor): L.DivIcon {
+  if (_overlayIconCache[color]) {
+    return _overlayIconCache[color]!;
+  }
   const svgString = createOverlayMarkerSVG(color);
-
-  return L.divIcon({
+  const icon = L.divIcon({
     html: svgString,
     className: "custom-svg-marker overlay-marker",
     iconSize: [markerSize, markerHeight],
     iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
     popupAnchor: [0, -markerHeight],
   });
+  _overlayIconCache[color] = icon;
+  return icon;
 }
 
 // AI : Create standalone/project marker icon with simple circle (for standalone projects)
@@ -271,21 +282,25 @@ export function updateOverlayMarkersColors(
   // AI : If specific overlay ID provided, only update that one
   if (specificOverlayId) {
     const overlayObject = overlays[specificOverlayId];
-    if (overlayObject?.marker) {
-      const markerColor = getOverlayMarkerColor(overlayObject, mode);
-      const colorIcon = createOverlayIcon(markerColor);
-      overlayObject.marker.setIcon(colorIcon);
+    if (overlayObject) {
+      const marker = getMarker(overlayObject.id);
+      if (marker) {
+        const markerColor = getOverlayMarkerColor(overlayObject, mode);
+        const colorIcon = createOverlayIcon(markerColor);
+        marker.setIcon(colorIcon);
+      }
     }
     return;
   }
 
   // AI : Otherwise, iterate through all overlay objects that have markers
   for (const overlayObject of Object.values(overlays)) {
-    if (overlayObject.marker) {
+    const marker = getMarker(overlayObject.id);
+    if (marker) {
       // AI : Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
-      overlayObject.marker.setIcon(colorIcon);
+      marker.setIcon(colorIcon);
     }
   }
 }
