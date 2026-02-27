@@ -19,15 +19,6 @@
                   @click-contributor="handleProjectContributorClick"
                 />
               </div>
-              <div class="metadata-item" v-if="project.cityName || project.countryName">
-                <i class="pi pi-map-marker"></i>
-                <ClickableLocation
-                  :city-id="project.cityId"
-                  :city-name="project.cityName"
-                  :country-code="project.countryCode"
-                  :country-name="project.countryName"
-                />
-              </div>
               <div class="metadata-item">
                 <i class="pi pi-images"></i>
                 <span
@@ -235,7 +226,6 @@ import type {
 import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
-import ClickableLocation from "@/components/common/ClickableLocation.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
 import { formatProjectDateRange } from "@/utils/projectDateFormat";
 
@@ -475,7 +465,7 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  padding: 0.25rem 0.5rem 0.5rem 1rem;
   background: transparent;
   cursor: pointer;
   transition: all 0.15s ease;

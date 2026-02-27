@@ -184,7 +184,7 @@ function getInfoTool() {
 const previousOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      className: "pi pi-arrow-left",
+      className: "pi pi-chevron-left",
       tooltip: "", // AI : Will be set in initialize
     },
   },
@@ -204,7 +204,7 @@ const previousOverlayTool = L.Toolbar2.Action.extend({
 const nextOverlayTool = L.Toolbar2.Action.extend({
   options: {
     toolbarIcon: {
-      className: "pi pi-arrow-right",
+      className: "pi pi-chevron-right",
       tooltip: "", // AI : Will be set in initialize
     },
   },

@@ -120,9 +120,9 @@
             <template v-if="lastSelectedCity">
               <span class="separator">|</span>
               <span
-                :class="['city-name', { clickable: !showingCityProjects }]"
-                @click="!showingCityProjects ? handleCityClick() : null"
-                :title="!showingCityProjects ? $t('contribute.viewCityProjects') : ''"
+                :class="['city-name', 'clickable', { 'city-link--flying': cityLinkClicked }]"
+                @click="handleCityClick()"
+                :title="$t('contribute.viewCityProjects')"
               >
                 {{ lastSelectedCity.name }}
               </span>
@@ -170,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, defineAsyncComponent } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useNewProject } from "@/composables/overlay/useNewProject";
@@ -180,6 +180,12 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { map } from "@/services/core/map";
+import {
+  smartZoomToCity,
+  citiesWithProjects,
+  type CityWithProjects,
+} from "@/services/map/cityMarkers";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
@@ -327,27 +333,71 @@ function handleMyContributionsClick() {
   fetchUserContributions();
 }
 
-// AI : Handle city name click - switch back to showing city projects
+// AI : City breadcrumb clicked state - true until the user manually moves the map
+const cityLinkClicked = ref(false);
+let dragStartHandler: (() => void) | null = null;
+let zoomStartHandler: (() => void) | null = null;
+
+function detachCityLinkHandlers() {
+  if (dragStartHandler) {
+    map.value.off("dragstart", dragStartHandler);
+    dragStartHandler = null;
+  }
+  if (zoomStartHandler) {
+    map.value.off("zoomstart", zoomStartHandler);
+    zoomStartHandler = null;
+  }
+}
+
+onUnmounted(detachCityLinkHandlers);
+
+// AI : Handle city name click - switch back to showing city projects and smart zoom
 function handleCityClick() {
   if (!lastSelectedCity.value) return;
 
-  // AI : Switch to city project mode
-  showingCityProjects.value = true;
+  // AI : Smart zoom to city if we have coordinates
+  const city = citiesWithProjects.value.find(
+    (c: CityWithProjects) => c.id === lastSelectedCity.value!.id,
+  );
+  if (city) {
+    cityLinkClicked.value = true;
+    detachCityLinkHandlers();
 
-  // AI : Re-select the city to load city projects
-  mapStore.setSelectedCity(lastSelectedCity.value);
+    dragStartHandler = () => {
+      cityLinkClicked.value = false;
+      detachCityLinkHandlers();
+    };
+    map.value.once("dragstart", dragStartHandler);
 
-  // AI : Switch to edit mode if not already
-  if (overlayStore.mode !== "edit") {
-    overlayStore.setMode("edit");
+    map.value.once("moveend", () => {
+      zoomStartHandler = () => {
+        cityLinkClicked.value = false;
+        zoomStartHandler = null;
+        if (dragStartHandler) {
+          map.value.off("dragstart", dragStartHandler);
+          dragStartHandler = null;
+        }
+      };
+      map.value.once("zoomstart", zoomStartHandler);
+    });
+
+    const overlays = mapStore.getCityOverlaysAndProjectsCache(city.id, overlayStore.mode) ?? [];
+    const projects = mapStore.getCityStandaloneProjectsCache(city.id, overlayStore.mode) ?? [];
+    smartZoomToCity(city, { overlays, projects });
   }
 
-  // AI : Fetch with city filter
-  // AI : The cache will prevent redundant calls if we've already fetched this
-  fetchUserContributions({
-    cityId: lastSelectedCity.value.id,
-    includeCityProjects: true,
-  });
+  // AI : Switch to city project mode only if not already there
+  if (!showingCityProjects.value) {
+    showingCityProjects.value = true;
+    mapStore.setSelectedCity(lastSelectedCity.value);
+    if (overlayStore.mode !== "edit") {
+      overlayStore.setMode("edit");
+    }
+    fetchUserContributions({
+      cityId: lastSelectedCity.value.id,
+      includeCityProjects: true,
+    });
+  }
 }
 
 // AI : Computed filtered projects based on two independent checkboxes
@@ -636,5 +686,9 @@ onMounted(() => {
 .city-name.clickable:hover {
   color: var(--p-primary-600);
   background-color: var(--p-primary-50);
+}
+
+.city-name.city-link--flying {
+  color: var(--p-surface-900);
 }
 </style>

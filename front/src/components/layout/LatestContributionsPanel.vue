@@ -16,7 +16,6 @@
             <img
               v-if="contribution.type === 'overlay' && contribution.filename"
               :src="getContributionImageUrl(contribution.filename)"
-              :alt="contribution.name"
               class="w-full h-full object-cover"
               :crossorigin="
                 imageRequiresCredentials(getContributionImageUrl(contribution.filename))
@@ -206,7 +205,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem;
+  padding: 0.5rem;
   background: transparent;
   cursor: pointer;
   transition: all 0.15s ease;

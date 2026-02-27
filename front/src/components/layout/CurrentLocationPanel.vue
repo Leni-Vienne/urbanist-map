@@ -80,7 +80,12 @@
               {{ cityHeader.countryName }}
             </span>
             <i class="pi pi-angle-right separator"></i>
-            <span class="city-name">{{ cityHeader.cityName }}</span>
+            <span
+              class="city-name city-link"
+              :class="{ 'city-link--flying': cityLinkClicked }"
+              @click="handleBreadcrumbCityClick"
+              >{{ cityHeader.cityName }}</span
+            >
           </template>
         </span>
         <!-- AI : New Project button - aligned to the right -->
@@ -99,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onActivated, onDeactivated, nextTick, defineAsyncComponent } from "vue";
+import { computed, ref, onActivated, onDeactivated, onUnmounted, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useToast } from "@/composables/ui/useToast";
@@ -108,8 +113,12 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isValidCountryCode } from "@/services/map/countryData";
 import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import {
+  smartZoomToCity,
+  citiesWithProjects,
+  type CityWithProjects,
+} from "@/services/map/cityMarkers";
 import { map } from "@/services/core/map";
-import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
 
@@ -250,6 +259,61 @@ async function handleCountryClick() {
 
   // AI : Clear the selected city to show the city list panel
   mapStore.clearSelectedCity();
+}
+
+// AI : City breadcrumb clicked state - true until the user manually moves the map
+const cityLinkClicked = ref(false);
+let dragStartHandler: (() => void) | null = null;
+let zoomStartHandler: (() => void) | null = null;
+
+function detachCityLinkHandlers() {
+  if (dragStartHandler) {
+    map.value.off("dragstart", dragStartHandler);
+    dragStartHandler = null;
+  }
+  if (zoomStartHandler) {
+    map.value.off("zoomstart", zoomStartHandler);
+    zoomStartHandler = null;
+  }
+}
+
+onUnmounted(detachCityLinkHandlers);
+
+// AI : Handle city breadcrumb click - smart zoom to fit all city content
+function handleBreadcrumbCityClick() {
+  const selectedCity = mapStore.selectedCity;
+  if (!selectedCity) return;
+  const city = citiesWithProjects.value.find((c: CityWithProjects) => c.id === selectedCity.id);
+  if (!city) return;
+
+  cityLinkClicked.value = true;
+  detachCityLinkHandlers();
+
+  // AI : Manual drag clears state immediately
+  dragStartHandler = () => {
+    cityLinkClicked.value = false;
+    detachCityLinkHandlers();
+  };
+  map.value.once("dragstart", dragStartHandler);
+
+  // AI : After the programmatic fly ends, manual zoom also clears state
+  map.value.once("moveend", () => {
+    zoomStartHandler = () => {
+      cityLinkClicked.value = false;
+      zoomStartHandler = null;
+      if (dragStartHandler) {
+        map.value.off("dragstart", dragStartHandler);
+        dragStartHandler = null;
+      }
+    };
+    map.value.once("zoomstart", zoomStartHandler);
+  });
+
+  const overlays =
+    mapStore.getCityOverlaysAndProjectsCache(selectedCity.id, overlayStore.mode) ?? [];
+  const projects =
+    mapStore.getCityStandaloneProjectsCache(selectedCity.id, overlayStore.mode) ?? [];
+  smartZoomToCity(city, { overlays, projects });
 }
 
 // AI : Custom overlay click handler - lazily imported since it's only reachable after city selection
@@ -433,6 +497,24 @@ onActivated(() => {
   /* AI : Prevent wrapping */
   min-width: 0;
   /* AI : Allow shrinking in flex container */
+}
+
+.city-link {
+  color: var(--p-primary-500);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--p-border-radius);
+  margin: -0.25rem -0.5rem;
+}
+
+.city-link:hover {
+  color: var(--p-primary-600);
+  background-color: var(--p-primary-50);
+}
+
+.city-link--flying {
+  color: var(--p-surface-900);
 }
 
 /* AI : City list view styles */

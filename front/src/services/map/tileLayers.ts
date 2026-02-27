@@ -178,8 +178,7 @@ const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 const tileLayerConfigs = {
   osm: {
     label: "Plan",
-    flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world map
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     options: {
       minZoom: 0,
       maxZoom: 22,
@@ -193,7 +192,6 @@ const tileLayerConfigs = {
   },
   esri: {
     label: "Satellite",
-    flagUrl: "https://flagcdn.com/16x12/un.png", // UN flag for world
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     options: {
       minZoom: 0,
@@ -207,7 +205,6 @@ const tileLayerConfigs = {
   },
   FRA: {
     label: "France",
-    flagUrl: "https://flagcdn.com/16x12/fr.png",
     url: "https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal",
     options: {
       minZoom: 0,
@@ -221,7 +218,6 @@ const tileLayerConfigs = {
   },
   CHE: {
     label: "Switzerland",
-    flagUrl: "https://flagcdn.com/16x12/ch.png",
     url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png",
     options: {
       minZoom: 2,

@@ -90,13 +90,6 @@ export function getMarker(id: string): L.Marker | null {
   return entries.get(id)?.marker ?? null;
 }
 
-export function clearMarker(id: string): void {
-  const entry = entries.get(id);
-  if (entry) {
-    entry.marker = null;
-  }
-}
-
 // ─── Full entry lifecycle ─────────────────────────────────────────────────────
 
 /**
