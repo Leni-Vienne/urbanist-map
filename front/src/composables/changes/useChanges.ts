@@ -10,6 +10,7 @@ import { withErrorHandling, withErrorToast } from "@/services/core/errorHandling
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 import L from "leaflet";
 
 // AI : ============================================================================
@@ -162,11 +163,12 @@ export function useChangeRequests() {
     pendingModsStore.clearModification(overlayId);
 
     // AI : Reset overlay position to approved corners
-    if (overlayObject.overlay && overlayObject.corners?.length === 4) {
+    const layer = getLayer(overlayId);
+    if (layer && overlayObject.corners?.length === 4) {
       const leafletCorners = overlayObject.corners.map((corner: { lat: number; lng: number }) =>
         L.latLng(corner.lat, corner.lng),
       );
-      overlayObject.overlay.setCorners(leafletCorners);
+      layer.setCorners(leafletCorners);
       overlayObject.isModified = false;
 
       // AI : Update marker position to match approved corners
