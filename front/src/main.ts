@@ -1,5 +1,6 @@
 import App from "./App.vue";
 import { createApp } from "vue";
+import { useUnsavedChanges } from "./composables/core/useUnsavedChanges";
 import PrimeVue from "primevue/config";
 import Aura from "@primeuix/themes/aura";
 import { definePreset } from "@primeuix/themes";
@@ -68,6 +69,12 @@ updateTranslationSettings(currentLocale);
 const app = createApp(App);
 
 app.use(createPinia());
+
+const { hasUnsavedChanges } = useUnsavedChanges();
+window.addEventListener("beforeunload", (event) => {
+  if (hasUnsavedChanges()) event.preventDefault();
+});
+
 app.use(router);
 app.use(i18n);
 

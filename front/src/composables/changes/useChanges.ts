@@ -11,6 +11,8 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import L from "leaflet";
+import { OverlayObject } from "@/types";
+import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : ============================================================================
 // AI : CHANGE REQUESTS
@@ -27,7 +29,7 @@ const isLoading = ref(false);
 // AI : Simple loaded flag for change requests
 const changeRequestsLoaded = ref(false);
 
-function clearOverlayChangeRequestState(overlayObject: any) {
+function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
   overlayObject.suggestedCorners = undefined;
   overlayObject.isViewingApprovedPosition = undefined;
@@ -153,7 +155,7 @@ export function useChangeRequests() {
     );
   }
 
-  function resetOverlayPositionToApproved(overlayObject: any, overlayId: string) {
+  function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
     const overlayStore = useOverlayStore();
     const pendingModsStore = usePendingModificationsStore();
 
@@ -162,14 +164,13 @@ export function useChangeRequests() {
     pendingModsStore.clearModification(overlayId);
 
     // AI : Reset overlay position to approved corners
-    if (overlayObject.overlay && overlayObject.corners?.length === 4) {
-      const leafletCorners = overlayObject.corners.map((corner: { lat: number; lng: number }) =>
+    overlayObject.isModified = false;
+    const layer = getLayer(overlayId);
+    if (layer && overlayObject.corners?.length === 4) {
+      const leafletCorners = overlayObject.corners.map((corner) =>
         L.latLng(corner.lat, corner.lng),
       );
-      overlayObject.overlay.setCorners(leafletCorners);
-      overlayObject.isModified = false;
-
-      // AI : Update marker position to match approved corners
+      layer.setCorners(leafletCorners);
       updateMarkerPosition(overlayObject);
     }
   }
@@ -228,39 +229,6 @@ export function useChangeRequests() {
     }
   }
 
-  async function getChangeHistory(entityType?: "project" | "overlay", entityId?: string) {
-    isLoading.value = true;
-    try {
-      const result = await withErrorHandling(
-        async () => trpc.changes.getChangeHistory.query({ entityType, entityId }),
-        { errorMessage: "Failed to fetch change history" },
-      );
-
-      if (result) {
-        changeHistory.value = result;
-      }
-      return result;
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  function groupChangeRequestsByEntity() {
-    const grouped = new Map<string, ChangeRequest[]>();
-
-    for (const request of pendingChangeRequests.value) {
-      const key = `${request.entityType}:${request.entityId}`;
-      let list = grouped.get(key);
-      if (!list) {
-        list = [];
-        grouped.set(key, list);
-      }
-      list.push(request);
-    }
-
-    return grouped;
-  }
-
   function getConflictingChanges() {
     const conflicts = new Map<string, ChangeRequest[]>();
 
@@ -279,67 +247,13 @@ export function useChangeRequests() {
     return conflicts;
   }
 
-  const groupedChangeRequests = computed(() => groupChangeRequestsByEntity());
-
   const conflictingChanges = computed(() => getConflictingChanges());
 
   const hasConflicts = computed(() => conflictingChanges.value.size > 0);
 
-  const hasChangeRequests = computed(() => pendingChangeRequests.value.length > 0);
-
   // AI : ============================================================================
   // AI : FIELD CHANGES
   // AI : ============================================================================
-
-  async function submitProjectFieldChange(
-    projectId: string,
-    fieldName: string,
-    oldValue: any,
-    newValue: any,
-    changeReason?: string,
-  ) {
-    return withErrorToast(
-      async () =>
-        submitChangeRequest({
-          entityType: "project",
-          entityId: projectId,
-          changes: [
-            {
-              fieldName,
-              oldValue,
-              newValue,
-              changeReason,
-            },
-          ],
-        }),
-      "Failed to submit project field change",
-    );
-  }
-
-  async function submitOverlayFieldChange(
-    overlayId: string,
-    fieldName: string,
-    oldValue: any,
-    newValue: any,
-    changeReason?: string,
-  ) {
-    return withErrorToast(
-      async () =>
-        submitChangeRequest({
-          entityType: "overlay",
-          entityId: overlayId,
-          changes: [
-            {
-              fieldName,
-              oldValue,
-              newValue,
-              changeReason,
-            },
-          ],
-        }),
-      "Failed to submit overlay field change",
-    );
-  }
 
   async function submitMultipleFieldChanges(
     entityType: "project" | "overlay",
@@ -357,74 +271,11 @@ export function useChangeRequests() {
     );
   }
 
-  function createFieldChangeHelper(entityType: "project" | "overlay", entityId: string) {
-    const pendingChanges: FieldChange[] = [];
-
-    function addFieldChange(
-      fieldName: string,
-      oldValue: FieldChange["oldValue"],
-      newValue: FieldChange["newValue"],
-      changeReason?: string,
-    ) {
-      const existingIndex = pendingChanges.findIndex((change) => change.fieldName === fieldName);
-
-      if (existingIndex !== -1) {
-        pendingChanges[existingIndex] = { fieldName, oldValue, newValue, changeReason };
-      } else {
-        pendingChanges.push({ fieldName, oldValue, newValue, changeReason });
-      }
-    }
-
-    function removeFieldChange(fieldName: string) {
-      const index = pendingChanges.findIndex((change) => change.fieldName === fieldName);
-      if (index !== -1) {
-        pendingChanges.splice(index, 1);
-      }
-    }
-
-    async function submitAllChanges() {
-      if (pendingChanges.length === 0) {
-        throw new Error("No changes to submit");
-      }
-
-      const result = await submitMultipleFieldChanges(entityType, entityId, [...pendingChanges]);
-
-      if (result?.success != undefined) {
-        pendingChanges.length = 0;
-      }
-
-      return result;
-    }
-
-    function clearChanges() {
-      pendingChanges.length = 0;
-    }
-
-    function getChanges() {
-      return [...pendingChanges];
-    }
-
-    function hasChanges() {
-      return pendingChanges.length > 0;
-    }
-
-    return {
-      addFieldChange,
-      removeFieldChange,
-      submitAllChanges,
-      clearChanges,
-      getChanges,
-      hasChanges,
-    };
-  }
-
   return {
     // AI : Change requests
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
     changeHistory: computed(() => changeHistory.value),
-    groupedChangeRequests,
     conflictingChanges,
-    hasChangeRequests,
     hasConflicts,
     isLoading: computed(() => isLoading.value),
 
@@ -433,13 +284,9 @@ export function useChangeRequests() {
     approveChangeRequests,
     rejectChangeRequests,
     deleteChangeRequest,
-    getChangeHistory,
     resetChangeRequestsLoaded,
 
     // AI : Field changes
-    submitProjectFieldChange,
-    submitOverlayFieldChange,
     submitMultipleFieldChanges,
-    createFieldChangeHelper,
   };
 }

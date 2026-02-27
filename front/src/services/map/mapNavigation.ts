@@ -127,26 +127,34 @@ export function mobileAwareFlyTo(
 }
 
 /**
+ * AI : Scale flight duration based on how far the camera needs to travel.
+ * AI : The caller supplies a maximum duration; nearby moves get a shorter one.
+ * AI : Breakpoints (linear interpolation between them):
+ * AI :   centerDistance < 200 m  AND zoomDiff < 1  →  minDuration (0.3 s)
+ * AI :   centerDistance > 5 000 m OR  zoomDiff > 3  →  maxDuration (caller value)
+ */
+function scaledDuration(centerDistance: number, zoomDiff: number, maxDuration: number): number {
+  const minDuration = 0.3;
+
+  // AI : Normalise each axis to [0, 1] then take the max so either axis alone
+  // AI : can drive a longer animation (e.g. big zoom-out with little panning).
+  const distanceFactor = Math.min(centerDistance / 5000, 1);
+  const zoomFactor = Math.min(zoomDiff / 3, 1);
+  const t = Math.max(distanceFactor, zoomFactor);
+
+  return minDuration + t * (maxDuration - minDuration);
+}
+
+/**
  * AI : Mobile-aware flyToBounds - uses asymmetric padding on mobile
+ * AI : Returns true if the flight was skipped (camera already at target), false otherwise
  */
 export function mobileAwareFlyToBounds(
   bounds: L.LatLngBoundsExpression,
   options?: FitBoundsOptions,
-): void {
+): boolean {
   const targetBounds = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds);
   const currentZoom = map.value.getZoom();
-
-  const applyOffset = shouldApplyMobileOffset();
-  const flyOptions: FitBoundsOptions = applyOffset
-    ? {
-        ...options,
-        paddingTopLeft: [50, 50] as [number, number],
-        paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number], // AI : 45% to cover drawer + margin
-      }
-    : {
-        ...options,
-        padding: options?.padding ?? ([50, 50] as [number, number]),
-      };
 
   // AI : For shake prevention with asymmetric padding, we need a different approach
   // AI : Calculate the center point that would result from fitting these bounds
@@ -172,11 +180,30 @@ export function mobileAwareFlyToBounds(
   // AI : Only skip if center is very close AND zoom is similar
   // AI : Use larger threshold for bounds since we're comparing centers, not corners
   if (centerDistance < distanceThreshold * 10 && zoomDiff < 0.1) {
-    return; // AI : Already viewing these bounds, skip animation
+    return true; // AI : Already viewing these bounds, skip animation
   }
+
+  // AI : Scale duration so nearby overlays don't suffer a comically slow 1.5 s crawl
+  const maxDuration = typeof options?.duration === "number" ? options.duration : 1.5;
+  const duration = scaledDuration(centerDistance, zoomDiff, maxDuration);
+
+  const applyOffset = shouldApplyMobileOffset();
+  const flyOptions: FitBoundsOptions = applyOffset
+    ? {
+        ...options,
+        duration,
+        paddingTopLeft: [50, 50] as [number, number],
+        paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number], // AI : 45% to cover drawer + margin
+      }
+    : {
+        ...options,
+        duration,
+        padding: options?.padding ?? ([50, 50] as [number, number]),
+      };
 
   // AI : Use the already-normalized targetBounds for consistency
   map.value.flyToBounds(targetBounds, flyOptions);
+  return false;
 }
 
 // AI : ============================================================================

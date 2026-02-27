@@ -9,6 +9,7 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import type { OverlayObject } from "@/types/index";
 import { map } from "@/services/core/map";
+import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : leaflet-toolbar registers map._toolbars via L.Map.addInitHook, which only runs for maps
 // AI : created AFTER leaflet-toolbar is imported. Since this module loads lazily (after the map
@@ -337,7 +338,8 @@ function applyImageRatioFix(
   cornersInfo: CornersInfo,
   dimensions: Dimensions,
 ) {
-  if (!overlayObject.overlay) return;
+  const ratioLayer = getLayer(overlayObject.id);
+  if (!ratioLayer) return;
 
   const { centerPoint, angleRad } = cornersInfo;
   const { width, height } = dimensions;
@@ -365,7 +367,7 @@ function applyImageRatioFix(
     newCorners.push(map.value.containerPointToLatLng([x, y]));
   }
 
-  overlayObject.overlay.setCorners(newCorners);
+  ratioLayer.setCorners(newCorners);
 }
 
 function resetImageRatio() {
@@ -376,16 +378,19 @@ function resetImageRatio() {
   }
 
   const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
-  if (!overlayObject?.overlay) return;
+  if (!overlayObject) return;
+  const resetLayer = getLayer(overlayObject.id);
+  if (!resetLayer) return;
 
-  const element = overlayObject.overlay.getElement();
+  const element = resetLayer.getElement();
   if (!(element instanceof HTMLImageElement)) return;
 
   // AI : Use existing image element instead of creating a new one to avoid CDN fetch
   const processRatio = () => {
-    if (!overlayObject.overlay) return;
+    const innerLayer = getLayer(overlayObject.id);
+    if (!innerLayer) return;
 
-    const currentCorners = overlayObject.overlay.getCorners();
+    const currentCorners = innerLayer.getCorners();
     if (currentCorners.length !== 4) return;
 
     // AI : Convert corners to Leaflet LatLng objects for type compatibility

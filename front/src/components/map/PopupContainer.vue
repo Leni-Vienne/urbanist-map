@@ -69,7 +69,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
 
-import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlay";
+import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlayActions";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
