@@ -1,16 +1,12 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref, shallowRef } from "vue";
-import type L from "leaflet";
+import { ref } from "vue";
 import type { OverlayObject, OverlayData, LatestContribution } from "@/types/index";
+import { clearAll as clearAllLayers } from "@/services/overlay/overlayRenderRegistry";
 import type { AppMode } from "@shared/types";
 
 export const useOverlayStore = defineStore("overlay", () => {
-  // AI : Central store for overlay data
-  const overlays = shallowRef<Record<string, OverlayObject>>({});
+  const overlays = ref<Record<string, OverlayObject>>({});
   const idSelectedOverlay = ref<string | null>(null);
-
-  // AI : Tracking of all markers, even for images not currently loaded
-  const allMarkers = shallowRef<Record<string, L.Marker>>({});
 
   // AI : Map mode state (view, edit, or moderation)
   const mode = ref<AppMode>("view");
@@ -70,56 +66,20 @@ export const useOverlayStore = defineStore("overlay", () => {
     editModeOverlayCache.value.delete(overlayId);
   }
 
-  // AI : Add overlay to store with proper reactivity for shallowRef
   function addOverlay(overlayId: string, overlay: OverlayObject) {
-    // AI : Create new object reference to trigger reactivity with shallowRef
-    overlays.value = {
-      ...overlays.value,
-      [overlayId]: overlay,
-    };
+    overlays.value[overlayId] = overlay;
   }
 
-  /**
-   * AI : Clear markers from allMarkers cache by IDs
-   * AI : Used when preserving overlay store data but needing to allow marker recreation
-   */
-  function clearMarkersFromCache(markerIds: string[]) {
-    if (markerIds.length === 0) return;
-
-    const markersCopy = { ...allMarkers.value };
-    for (const id of markerIds) {
-      delete markersCopy[id];
-    }
-    allMarkers.value = markersCopy;
-  }
-
-  // AI : Update overlay in store with proper reactivity for shallowRef
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
     const current = overlays.value[overlayId];
-    if (current === null) return;
-
-    // AI : Create new object with updates to trigger reactivity
-    overlays.value = {
-      ...overlays.value,
-      [overlayId]: Object.assign({}, current, updates),
-    };
+    if (!current) return;
+    Object.assign(current, updates);
   }
 
-  // AI : Batch update multiple overlays at once to avoid performance issues with shallowRef
   function batchUpdateOverlays(updates: Record<string, Partial<OverlayObject>>) {
-    const newOverlays = { ...overlays.value };
-    let hasChanges = false;
-
     for (const [id, update] of Object.entries(updates)) {
-      const current = newOverlays[id];
-      if (current) {
-        newOverlays[id] = Object.assign({}, current, update);
-        hasChanges = true;
-      }
-    }
-
-    if (hasChanges) {
-      overlays.value = newOverlays;
+      const current = overlays.value[id];
+      if (current) Object.assign(current, update);
     }
   }
 
@@ -164,25 +124,11 @@ export const useOverlayStore = defineStore("overlay", () => {
   // AI : NOTE: We preserve public data (latestContributions, viewModeOverlays)
   // AI : and only clear user-specific or edit-mode data
   function clearAllState() {
-    // AI : Remove overlays and markers from Leaflet map before clearing store
-    // AI : This prevents "ghost" overlays when reconnecting/reloading data
-    for (const obj of Object.values(overlays.value)) {
-      if (obj.overlay) {
-        obj.overlay.remove();
-      }
-      if (obj.marker) {
-        obj.marker.remove();
-      }
-    }
+    // AI : Remove all Leaflet layers and markers from map via registry (replaces manual iteration)
+    clearAllLayers(false);
 
-    // AI : Also ensure all markers in the cache are removed (some might not be attached to current overlays)
-    for (const marker of Object.values(allMarkers.value)) {
-      marker.remove();
-    }
-
-    // AI : Clear overlays and markers (may contain unapproved user content)
+    // AI : Clear overlay data (may contain unapproved user content)
     overlays.value = {};
-    allMarkers.value = {};
     idSelectedOverlay.value = null;
 
     // AI : Clear edit mode cache and state (user-specific)
@@ -208,7 +154,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     // State
     overlays,
     idSelectedOverlay,
-    allMarkers,
     mode,
     viewModeOverlays,
     loadedEditOverlays,
@@ -232,7 +177,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     addOverlay,
     updateOverlay,
     batchUpdateOverlays,
-    clearMarkersFromCache,
     requestOverlayReplacement,
     resetReplacement,
     showInfoPopupForOverlay,

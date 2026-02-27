@@ -1,0 +1,193 @@
+// AI : Centralized registry for all Leaflet layer references (image overlays + markers).
+// AI : This is the single source of truth for "is this overlay rendered on the map?".
+// AI : Replaces: overlaysBeingCreated Set, overlayStore.allMarkers, overlay.overlay field,
+// AI :           and overlay.marker field on OverlayObject.
+// AI :
+// AI : Design principles:
+// AI :   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
+// AI :   - All creation goes through beginCreation() — atomically prevents duplicate layers
+// AI :   - clearAll() is the single cleanup path, replacing map.eachLayer() eachLayer sweeps
+import type * as L from "leaflet";
+import { map } from "@/services/core/map";
+
+interface RegistryEntry {
+  layer: L.DistortableImageOverlay | null;
+  marker: L.Marker | null;
+}
+
+const entries = new Map<string, RegistryEntry>();
+// AI : Tracks IDs currently being created — replaces the exported overlaysBeingCreated Set.
+// AI : Internal to this module; callers use beginCreation/cancelCreation API.
+const creating = new Set<string>();
+
+// ─── Creation mutex ───────────────────────────────────────────────────────────
+
+/**
+ * AI : Atomically begin creation for an overlay.
+ * Returns true if creation can proceed, false if:
+ *   - Already being created (prevents duplicate async callbacks)
+ *   - Already has a ready layer (prevents re-creation)
+ * Callers MUST call cancelCreation() on all failure paths.
+ */
+export function beginCreation(id: string): boolean {
+  if (creating.has(id)) return false;
+  const entry = entries.get(id);
+  if (entry?.layer != null) return false;
+  creating.add(id);
+  return true;
+}
+
+export function cancelCreation(id: string): void {
+  creating.delete(id);
+}
+
+export function isCreating(id: string): boolean {
+  return creating.has(id);
+}
+
+// ─── Layer (DistortableImageOverlay) ─────────────────────────────────────────
+
+export function setLayer(id: string, layer: L.DistortableImageOverlay): void {
+  const entry = entries.get(id);
+  if (entry) {
+    entry.layer = layer;
+  } else {
+    entries.set(id, { layer, marker: null });
+  }
+}
+
+export function getLayer(id: string): L.DistortableImageOverlay | null {
+  return entries.get(id)?.layer ?? null;
+}
+
+export function hasReadyLayer(id: string): boolean {
+  return (entries.get(id)?.layer ?? null) !== null;
+}
+
+/**
+ * AI : Null the layer reference without touching the marker.
+ * Used after the Leaflet layer has already been removed from the map (zoom threshold).
+ */
+export function clearLayer(id: string): void {
+  const entry = entries.get(id);
+  if (entry) {
+    entry.layer = null;
+  }
+}
+
+// ─── Marker ──────────────────────────────────────────────────────────────────
+
+export function setMarker(id: string, marker: L.Marker): void {
+  const entry = entries.get(id);
+  if (entry) {
+    entry.marker = marker;
+  } else {
+    entries.set(id, { layer: null, marker });
+  }
+}
+
+export function getMarker(id: string): L.Marker | null {
+  return entries.get(id)?.marker ?? null;
+}
+
+export function clearMarker(id: string): void {
+  const entry = entries.get(id);
+  if (entry) {
+    entry.marker = null;
+  }
+}
+
+// ─── Full entry lifecycle ─────────────────────────────────────────────────────
+
+/**
+ * AI : Remove a single overlay's layer and marker from the Leaflet map and clear the entry.
+ * Used for targeted cleanup (e.g. overlay deletion, viewport exit).
+ */
+export function clearEntry(id: string): void {
+  const entry = entries.get(id);
+  if (!entry) return;
+
+  if (entry.layer && map.value.hasLayer(entry.layer)) {
+    entry.layer.remove();
+  }
+  if (entry.marker && map.value.hasLayer(entry.marker)) {
+    entry.marker.remove();
+  }
+
+  entries.delete(id);
+  creating.delete(id);
+}
+
+/**
+ * AI : Clear all entries from the registry.
+ * @param preserveMarkers - If true (zoom threshold crossing), only remove image layers
+ *                          and keep marker refs + markers on map.
+ *                          If false (default, full reset), remove both layers and markers.
+ */
+export function clearAll(preserveMarkers = false): void {
+  creating.clear();
+
+  for (const [id, entry] of entries) {
+    if (entry.layer && map.value.hasLayer(entry.layer)) {
+      entry.layer.remove();
+    }
+
+    if (preserveMarkers) {
+      // AI : Zoom threshold: null the image layer but keep the marker alive on the map.
+      // AI : This prevents marker flicker when crossing the zoom 13/14 boundary.
+      entry.layer = null;
+    } else {
+      if (entry.marker && map.value.hasLayer(entry.marker)) {
+        entry.marker.remove();
+      }
+      entries.delete(id);
+    }
+  }
+}
+
+/**
+ * AI : Rename an entry (used when a local overlay gets a backend ID after submission).
+ * The Leaflet layer and marker stay on the map — only the registry key changes.
+ */
+export function renameEntry(oldId: string, newId: string): void {
+  const entry = entries.get(oldId);
+  if (!entry) return;
+  entries.delete(oldId);
+  entries.set(newId, entry);
+  if (creating.has(oldId)) {
+    creating.delete(oldId);
+    creating.add(newId);
+  }
+}
+
+/**
+ * AI : Remove a single overlay's layer from the map without touching the marker.
+ * Used by clearContentExceptActiveCity (zoom out while city is still active).
+ */
+export function removeLayerFromMap(id: string): void {
+  const entry = entries.get(id);
+  if (!entry?.layer) return;
+  if (map.value.hasLayer(entry.layer)) {
+    entry.layer.remove();
+  }
+  entry.layer = null;
+}
+
+/**
+ * AI : Remove a single overlay's marker from the map and clear it from the registry.
+ * Used by clearContentExceptActiveCity for non-active cities.
+ */
+export function removeMarkerFromMap(id: string): void {
+  const entry = entries.get(id);
+  if (!entry?.marker) return;
+  if (map.value.hasLayer(entry.marker)) {
+    entry.marker.remove();
+  }
+  entry.marker = null;
+}
+
+// AI : Accept HMR updates for this module
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}

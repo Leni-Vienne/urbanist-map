@@ -10,12 +10,14 @@ import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 /**
  * AI : Initialize history for overlay if not already set
  */
 export function initializeOverlayHistory(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
+  const layer = getLayer(overlayObject.id);
+  if (!layer) return;
 
   // AI : Defensive guard: ensure history array exists (can be undefined if factory had a bug)
   if (!overlayObject.history) {
@@ -27,7 +29,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
     return;
   }
 
-  const initialCorners = overlayObject.overlay.getCorners();
+  const initialCorners = layer.getCorners();
   if (initialCorners.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
     overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // Can't use structuredClone because corners are a class instance
@@ -54,7 +56,7 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
   }
 
   // AI : Priority 3: Initialize from current overlay state
-  const currentCorners = overlayObject.overlay?.getCorners();
+  const currentCorners = getLayer(overlayObject.id)?.getCorners();
   if (currentCorners?.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
     overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))]; // Can't use structuredClone because corners are a class instance
@@ -99,8 +101,9 @@ export function saveOverlayModificationsToCache(
   const overlayStore = useOverlayStore();
   const pendingModsStore = usePendingModificationsStore();
 
-  if ((overlayStore.mode !== "edit" && forceMode !== "edit") || !overlayObject.overlay) return;
-  const corners = overlayObject.overlay.getCorners();
+  const layer = getLayer(overlayObject.id);
+  if ((overlayStore.mode !== "edit" && forceMode !== "edit") || !layer) return;
+  const corners = layer.getCorners();
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
 
@@ -125,9 +128,10 @@ export function saveOverlayModificationsToCache(
  * AI : Save the current state of an overlay to history
  */
 export function saveToHistory(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
+  const layer = getLayer(overlayObject.id);
+  if (!layer) return;
 
-  const currentState = overlayObject.overlay.getCorners();
+  const currentState = layer.getCorners();
 
   // AI : Check if current state is different from last saved state
   if (overlayObject.history.length > 0) {

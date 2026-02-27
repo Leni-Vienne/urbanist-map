@@ -24,7 +24,7 @@ import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-import { createOverlayFromCDN } from "@/utils/typeFactories";
+import { createOverlayObject } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import {
   selectOverlay,
@@ -41,9 +41,10 @@ import {
   updateMarkerPosition,
   updateMarkerTooltip,
   createSingleMarker,
+  checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
-import { overlaysBeingCreated, overlayCallbacks } from "@/services/overlay/overlayLifecycle";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
@@ -82,10 +83,12 @@ export function createLeafletOverlay(
       // AI : CRITICAL: Only enable credentials for local backend URLs (pending images)
       // AI : R2 CDN URLs don't support credentials and will fail if crossOrigin is set
       crossOrigin: imageRequiresCredentials(imageUrl) ? "use-credentials" : undefined,
-      //mode: 'resizeRotate' // doesn't work but should, it's an issue from the package
+      mode: "resizeRotate",
     });
 
-    overlayObject.overlay = newOverlay;
+    // AI : Register immediately so mode-switch cleanup (registry.clearEntry) can remove this
+    // AI : layer even before the zoom animation completes or the image loads.
+    registry.setLayer(overlayObject.id, newOverlay);
 
     setupOverlayEventHandlers(newOverlay, overlayObject);
 
@@ -103,8 +106,9 @@ export function createLeafletOverlay(
         // AI : The mode might have changed while waiting for zoom animation (View -> Edit -> View)
         const authStore = useAuthStore();
         if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
-          // AI : Abort adding if no longer visible
-          overlaysBeingCreated.delete(overlayObject.id);
+          // AI : Abort: clear the layer we registered above and release the creation mutex
+          registry.clearLayer(overlayObject.id);
+          registry.cancelCreation(overlayObject.id);
           return;
         }
 
@@ -116,9 +120,9 @@ export function createLeafletOverlay(
 
         newOverlay.addTo(map.value);
       } else {
-        // AI : Zoom is too low - overlay won't be added to map
-        // AI : Remove from in-progress tracking since onAddedToMap will never fire
-        overlaysBeingCreated.delete(overlayObject.id);
+        // AI : Zoom is too low — layer won't be added. Clear registry ref and release mutex.
+        registry.clearLayer(overlayObject.id);
+        registry.cancelCreation(overlayObject.id);
       }
     };
 
@@ -236,7 +240,7 @@ function setupOverlayLoadHandler(
         } else {
           // AI : Layer was removed from map (e.g. mode switch) before image loaded
           // AI : Clean up tracking to allow future re-creation
-          overlaysBeingCreated.delete(overlayObject.id);
+          registry.cancelCreation(overlayObject.id);
         }
       });
     }
@@ -254,6 +258,7 @@ function setupOverlayLoadHandler(
   L.DomEvent.on(element, "error", () => {
     console.warn("Overlay image failed to load:", overlayObject.id);
     initQueue.delete(overlayObject.id); // Cancel pending init if error
+    registry.cancelCreation(overlayObject.id);
     // AI : Execute callback even on error so the overlay is registered in the store
     // AI : This prevents it from being stuck in a "rendering" state without a store entry
     if (onReady) {
@@ -270,8 +275,8 @@ function setupOverlayLoadHandler(
  */
 function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): void {
   const overlayStore = useOverlayStore();
-
-  if (!overlayObject.overlay) return;
+  const layer = registry.getLayer(overlayObject.id);
+  if (!layer) return;
 
   updateMarkerPosition(overlayObject);
 
@@ -280,21 +285,21 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   updateMarkerTooltip(overlayObject);
 
   // AI : Check size validation for overlays in edit mode
-  if (overlayStore.mode === "edit" && overlayCallbacks.checkOverlaySize) {
-    overlayCallbacks.checkOverlaySize(overlayObject.overlay, overlayObject);
+  if (overlayStore.mode === "edit") {
+    checkOverlaySizeAndWarn(layer, overlayObject);
   }
 
   // AI : Setup hover events for project highlighting after element is available
-  setupProjectHoverEvents(overlayObject.overlay, overlayObject);
+  setupProjectHoverEvents(layer, overlayObject);
 
   // AI : CRITICAL: Setup movement tracking AFTER overlay is loaded and has a DOM element
   // AI : This must be called here (not in setupOverlayEventHandlers) because overlay.getElement()
   // AI : returns null until the overlay is added to the map and the image loads
-  setupOverlayMovementTracking(overlayObject.overlay, overlayObject);
+  setupOverlayMovementTracking(layer, overlayObject);
 
   // AI : Ensure new overlays start with no outline unless they're selected
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
-    const element = overlayObject.overlay.getElement();
+    const element = layer.getElement();
     if (element) {
       element.style.boxShadow = "";
       element.style.outline = "none";
@@ -340,6 +345,8 @@ function setupOverlayEventHandlers(
 
   // Listens to the map being moved
   overlay.on("dragend", () => {
+    // AI : Re-validate size after drag — isTooBig may be stale from a previous edit/undo
+    checkOverlaySizeAndWarn(overlay, overlayObject);
     saveToHistory(overlayObject);
   });
 
@@ -349,9 +356,7 @@ function setupOverlayEventHandlers(
     updateMarkerPosition(overlayObject);
 
     // AI : Validate overlay size in real-time
-    if (overlayCallbacks.checkOverlaySize) {
-      overlayCallbacks.checkOverlaySize(overlay, overlayObject);
-    }
+    checkOverlaySizeAndWarn(overlay, overlayObject);
 
     saveToHistory(overlayObject);
   });
@@ -448,13 +453,17 @@ function setupOverlayMovementTracking(
 }
 
 /**
- * AI : Render backend CDN overlays on the map for view mode
+ * AI : Render backend CDN overlays on the map for view mode.
+ * AI : Returns true if at least one overlay render was actually started (beginCreation succeeded).
+ * AI : Returns false if all overlays were skipped (already rendering, already ready, zoom too low).
+ * AI : Callers that pass an onReady callback should only fall back to polling if this returns false.
  */
 export function renderViewModeOverlays(
   viewModeOverlays: OverlayData[],
   createMarkers = true,
   forceRerender = false,
-) {
+  onReady?: () => void,
+): boolean {
   const overlayStore = useOverlayStore();
 
   let overlaysToRender: OverlayData[] = [];
@@ -467,26 +476,34 @@ export function renderViewModeOverlays(
     // AI : 1. Don't exist in the store yet (new overlays)
     // AI : 2. Exist but have null Leaflet layer (need re-rendering after zoom out)
     overlaysToRender = viewModeOverlays.filter((cdnOverlay) => {
-      const existing = overlayStore.overlays[cdnOverlay.id];
-      if (!existing) return true; // New overlay
-      return existing.overlay === null; // Needs re-rendering
+      if (!overlayStore.overlays[cdnOverlay.id]) return true; // New overlay
+      return !registry.hasReadyLayer(cdnOverlay.id); // Needs re-rendering after zoom out
     });
   }
 
+  let anyStarted = false;
   for (const cdnOverlay of overlaysToRender) {
-    renderSingleOverlay(cdnOverlay, createMarkers);
+    if (renderSingleOverlay(cdnOverlay, createMarkers, onReady)) {
+      anyStarted = true;
+    }
   }
+  return anyStarted;
 }
 
 /**
- * AI : Render a single CDN overlay as read-only distortable overlay on the map
+ * AI : Render a single CDN overlay as read-only distortable overlay on the map.
+ * AI : Returns true if creation was actually started (beginCreation succeeded), false otherwise.
  */
-function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
+function renderSingleOverlay(
+  cdnOverlay: OverlayData,
+  createMarkers = true,
+  onReady?: () => void,
+): boolean {
   const overlayStore = useOverlayStore();
 
   // AI : Skip replaced overlays - their images are deleted and would cause 404 errors
   if (cdnOverlay.status === "replaced") {
-    return;
+    return false;
   }
 
   // AI : CRITICAL: Skip overlays that shouldn't be visible in the current mode.
@@ -495,25 +512,20 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   // AI : but mode switched to view before the async callback fires).
   const authStore = useAuthStore();
   if (!isOverlayVisible(cdnOverlay, overlayStore.mode, authStore.user?.id)) {
-    return;
+    return false;
   }
 
-  // AI : Check if overlay exists in store WITH a valid Leaflet layer
-  // AI : If overlay exists but has null layer (preserved after zoom out), we need to re-render it
+  // AI : beginCreation atomically checks + prevents duplicate layers:
+  // AI :   - returns false if already has a ready layer (re-render not needed)
+  // AI :   - returns false if already being created (concurrent call guard)
+  if (!registry.beginCreation(cdnOverlay.id)) {
+    return false;
+  }
+
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
-  const hasValidLayer = existingOverlay && existingOverlay.overlay !== null;
-
-  // AI : CRITICAL: Also check if this overlay is currently being created
-  // AI : This prevents duplicates when renderFullOverlays is called multiple times rapidly
-  if (hasValidLayer || overlaysBeingCreated.has(cdnOverlay.id)) {
-    return;
-  }
-
-  // AI : Mark this overlay as being created
-  overlaysBeingCreated.add(cdnOverlay.id);
 
   // AI : Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
-  const overlayObject = createOverlayFromCDN(cdnOverlay);
+  const overlayObject = createOverlayObject(cdnOverlay);
 
   // AI : Preserve UI state (like view choice) from existing store object if re-rendering
   if (existingOverlay) {
@@ -537,30 +549,18 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
   );
 
   if (!newOverlay) {
-    // AI : Creation failed - remove from in-progress tracking
-    overlaysBeingCreated.delete(cdnOverlay.id);
-    return;
+    // AI : Creation failed - release the creation mutex
+    registry.cancelCreation(cdnOverlay.id);
+    return false;
   }
 
-  // AI : CRITICAL FIX: Immediately track the Leaflet layer on the existing store object
-  // AI : so mode-switch cleanup can find and remove it even before onOverlayFullyLoaded fires.
-  // AI : Without this, switching tabs quickly leaves an orphaned layer on the map because
-  // AI : the store entry still has overlay: null while the actual Leaflet layer is rendered.
-  if (existingOverlay) {
-    existingOverlay.overlay = newOverlay;
-  }
-
-  // AI : Register the overlay in the store ONLY after the image has loaded and Leaflet is done.
-  // AI : Registering earlier would create ghost overlays if clearAllOverlays() is called
-  // AI : during a concurrent zoom animation.
-  // AI : By the time this fires:
-  // AI :   - overlayObjectWithMethods.overlay is set (by createLeafletOverlay above)
-  // AI :   - the marker exists in overlayStore.allMarkers (created by createSingleMarker above)
+  // AI : registry.setLayer was called inside createLeafletOverlay, so mode-switch cleanup
+  // AI : (registry.clearEntry) can already find and remove this layer.
+  // AI : Register overlay data in the store ONLY after the image has loaded and Leaflet is done.
   function onOverlayFullyLoaded() {
-    // AI : CRITICAL: Check if overlay should still be visible in the current mode
+    // AI : CRITICAL: Check if overlay should still be visible in the current mode.
     // AI : The mode may have changed during async image loading (e.g. Edit → View switch
-    // AI : while a pending overlay's image was still loading). If the overlay is no longer
-    // AI : visible, remove it from the map and clean up — don't add it to the store.
+    // AI : while a pending overlay's image was still loading).
     const authStore = useAuthStore();
     const visible = isOverlayVisible(
       overlayObjectWithMethods,
@@ -568,27 +568,20 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
       authStore.user?.id,
     );
     if (!visible) {
-      if (
-        overlayObjectWithMethods.overlay &&
-        map.value.hasLayer(overlayObjectWithMethods.overlay)
-      ) {
-        overlayObjectWithMethods.overlay.remove();
-      }
-      overlaysBeingCreated.delete(cdnOverlay.id);
+      const layer = registry.getLayer(cdnOverlay.id);
+      if (layer && map.value.hasLayer(layer)) layer.remove();
+      registry.clearLayer(cdnOverlay.id);
+      registry.cancelCreation(cdnOverlay.id);
       return;
     }
 
-    const marker = overlayStore.allMarkers[cdnOverlay.id];
+    const marker = registry.getMarker(cdnOverlay.id);
     // AI : Marker may be gone if the user panned away or mode switched before image loaded
     if (!marker) {
-      // AI : Also remove the Leaflet layer from the map to prevent orphaned images
-      if (
-        overlayObjectWithMethods.overlay &&
-        map.value.hasLayer(overlayObjectWithMethods.overlay)
-      ) {
-        overlayObjectWithMethods.overlay.remove();
-      }
-      overlaysBeingCreated.delete(cdnOverlay.id);
+      const layer = registry.getLayer(cdnOverlay.id);
+      if (layer && map.value.hasLayer(layer)) layer.remove();
+      registry.clearLayer(cdnOverlay.id);
+      registry.cancelCreation(cdnOverlay.id);
       return;
     }
 
@@ -598,22 +591,26 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true) {
       marker.addTo(map.value);
     }
 
-    overlayObjectWithMethods.marker = marker;
-
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
 
     // AI : Update the tooltip here rather than in createSingleMarker, because the mode may have
     // AI : changed during the async image load (e.g. a View -> Edit switch mid-navigation).
     updateMarkerTooltip(overlayObjectWithMethods);
 
-    overlaysBeingCreated.delete(cdnOverlay.id);
+    registry.cancelCreation(cdnOverlay.id);
 
     // AI : A standalone project marker may have been shown for this project while its overlays
     // AI : were pending/invisible. Remove it now that a real overlay is on the map.
     if (cdnOverlay.projectId) {
       removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
     }
+
+    // AI : Notify caller that this overlay is fully ready on the map
+    onReady?.();
   }
+
+  // AI : Creation was successfully started — onReady is wired; caller should NOT fall back to polling.
+  return true;
 }
 
 // AI : Accept HMR updates for this module

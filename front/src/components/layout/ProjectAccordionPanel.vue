@@ -727,7 +727,7 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     if (!props.disableAutoModeSwitch && overlayStore.mode !== "edit") {
       overlayStore.setMode("edit");
     }
-    const { navigateToStandaloneProject } = await import("@/services/navigation/overlayNavigation");
+    const { navigateToStandaloneProject } = await import("@/services/navigation/projectNavigation");
     await navigateToStandaloneProject(
       project.lat,
       project.lng,

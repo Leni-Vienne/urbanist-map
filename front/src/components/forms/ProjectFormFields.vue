@@ -236,8 +236,7 @@ const { t } = useI18n();
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
 
 // AI : Setup field validation
-const { getFieldError, hasFieldError, validateField, isFieldTouched } =
-  useFieldValidation(projectSchema);
+const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
 
 // AI : Local isProposed state synced with parent
 const localIsProposed = ref(props.isProposed);

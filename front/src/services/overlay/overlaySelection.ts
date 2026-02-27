@@ -8,6 +8,7 @@
 import type L from "leaflet";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { getMarker, getLayer } from "@/services/overlay/overlayRenderRegistry";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
@@ -37,8 +38,9 @@ function cleanupPreviousSelection(
   }
 
   // AI : Call deselect on the Leaflet overlay to remove toolbar and handles
-  if (previouslySelected.overlay) {
-    previouslySelected.overlay.deselect();
+  const prevLayer = getLayer(previouslySelected.id);
+  if (prevLayer) {
+    prevLayer.deselect();
   }
 }
 
@@ -61,8 +63,9 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
 
   // AI : Call overlay.select() to show toolbar and handles (single source of truth)
-  if (newlySelected.overlay) {
-    selectOverlayInLeaflet(newlySelected.overlay);
+  const newLayer = getLayer(newlySelected.id);
+  if (newLayer) {
+    selectOverlayInLeaflet(newLayer);
   }
 
   // AI : Apply project highlights (sister overlays) when selecting
@@ -95,7 +98,7 @@ function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
  * AI : Apply selection outline, waiting for image load if needed
  */
 function applyOutlineAfterImageLoad(overlayObject: OverlayObject): void {
-  const imgElement = overlayObject.overlay?.getElement();
+  const imgElement = getLayer(overlayObject.id)?.getElement();
 
   if (!(imgElement instanceof HTMLImageElement)) {
     // AI : Fallback for non-image elements
@@ -217,9 +220,10 @@ function findCityIdForOverlay(overlayId: string, mode: string): number | null {
 }
 
 function applySelectionOutline(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
+  const selLayer = getLayer(overlayObject.id);
+  if (!selLayer) return;
 
-  const element = overlayObject.overlay.getElement();
+  const element = selLayer.getElement();
   if (element) {
     // AI : Calculate appropriate outline size based on overlay dimensions
     const outlineSize = calculateOutlineSize(element, 20);
@@ -234,9 +238,10 @@ function applySelectionOutline(overlayObject: OverlayObject): void {
  * AI : Remove outline from a single overlay
  */
 function removeOverlayOutline(overlayObject: OverlayObject): void {
-  if (!overlayObject.overlay) return;
+  const removeLayer = getLayer(overlayObject.id);
+  if (!removeLayer) return;
 
-  const element = overlayObject.overlay.getElement();
+  const element = removeLayer.getElement();
   if (element) {
     element.style.boxShadow = "";
     element.style.outline = "none";
@@ -248,10 +253,8 @@ function removeOverlayOutline(overlayObject: OverlayObject): void {
  * Scales up the marker if it exists (visible even when zoomed out)
  */
 export function highlightOverlayById(overlayId: string): void {
-  const overlayStore = useOverlayStore();
-
   // AI : Scale up the marker for visibility at any zoom level
-  const marker = overlayStore.allMarkers[overlayId];
+  const marker = getMarker(overlayId);
   if (marker) {
     const markerElement = marker.getElement();
     if (markerElement) {
@@ -271,10 +274,8 @@ export function highlightOverlayById(overlayId: string): void {
  * AI : Remove highlight from a single overlay by ID - used for hover leave from side menu
  */
 export function removeOverlayHighlight(overlayId: string): void {
-  const overlayStore = useOverlayStore();
-
   // AI : Reset marker scale
-  const marker = overlayStore.allMarkers[overlayId];
+  const marker = getMarker(overlayId);
   if (marker) {
     const markerElement = marker.getElement();
     if (markerElement) {
@@ -307,11 +308,14 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 
   // AI : Remove all outlines from overlays in this project
   for (const overlayObject of Object.values(overlayStore.overlays)) {
-    if (overlayObject.projectId === projectId && overlayObject.overlay) {
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        element.style.boxShadow = "";
-        element.style.outline = "none";
+    if (overlayObject.projectId === projectId) {
+      const projLayer = getLayer(overlayObject.id);
+      if (projLayer) {
+        const element = projLayer.getElement();
+        if (element) {
+          element.style.boxShadow = "";
+          element.style.outline = "none";
+        }
       }
     }
   }
@@ -326,15 +330,18 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
   if (!projectId) return;
 
   for (const overlayObject of Object.values(overlayStore.overlays)) {
-    if (overlayObject.projectId === projectId && overlayObject.overlay) {
-      const element = overlayObject.overlay.getElement();
-      if (element) {
-        // AI : Calculate appropriate outline size based on overlay dimensions
-        const outlineSize = calculateOutlineSize(element, 20);
+    if (overlayObject.projectId === projectId) {
+      const hoverLayer = getLayer(overlayObject.id);
+      if (hoverLayer) {
+        const element = hoverLayer.getElement();
+        if (element) {
+          // AI : Calculate appropriate outline size based on overlay dimensions
+          const outlineSize = calculateOutlineSize(element, 20);
 
-        // AI : Use box-shadow instead of outline to avoid scaling issues
-        element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
-        element.style.outline = "none";
+          // AI : Use box-shadow instead of outline to avoid scaling issues
+          element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
+          element.style.outline = "none";
+        }
       }
     }
   }
