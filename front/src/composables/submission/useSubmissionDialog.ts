@@ -290,36 +290,6 @@ export function useSubmissionDialog() {
     return t("submission.updateOverlays");
   }
 
-  // AI : Prepare project submission and show dialog
-  function prepareProjectSubmission(project: Project): void {
-    try {
-      const context = submissionService.createProjectContext(project);
-      const validation = submissionService.validate(context);
-
-      if (!validation.isValid) {
-        toast.add({
-          severity: "error",
-          summary: t("toast.validationFailed"),
-          detail: validation.errors.join(", "),
-          life: 5000,
-        });
-        return;
-      }
-
-      submissionSummary.value = submissionService.buildSummary(context);
-      pendingSubmissionContext.value = context;
-      showSubmissionDialog.value = true;
-    } catch (error: unknown) {
-      console.error("Error preparing submission:", error);
-      toast.add({
-        severity: "error",
-        summary: t("common.error"),
-        detail: error instanceof Error ? error.message : t("errors.preparingSubmission"),
-        life: 5000,
-      });
-    }
-  }
-
   // AI : Prepare combined project+overlay submission (for save project button)
   // AI : UNIFIED function used by both ContributePanel and InfoPopup for consistent behavior
   function prepareProjectWithOverlaysSubmission(
@@ -656,7 +626,6 @@ export function useSubmissionDialog() {
     isSubmitting,
 
     // AI : Prepare submission methods
-    prepareProjectSubmission,
     prepareProjectWithOverlaysSubmission,
     prepareOverlaySubmission,
 

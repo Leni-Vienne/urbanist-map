@@ -1,4 +1,3 @@
-import { ref } from "vue";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -23,7 +22,6 @@ function getCornersFromOverlay(overlay: OverlayObject) {
 }
 
 export function useOverlayPublisher() {
-  const isPublishing = ref(false);
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -238,8 +236,6 @@ export function useOverlayPublisher() {
       return;
     }
 
-    isPublishing.value = true;
-
     try {
       // AI : Step 1 - Ensure project exists on server first (only for brand new projects)
       // AI : Skip if project is already published (pending/approved) to avoid duplicate publishProject calls
@@ -304,13 +300,10 @@ export function useOverlayPublisher() {
       throw new Error("Publish Failed: Failed to save to server. Please try again.", {
         cause: error,
       });
-    } finally {
-      isPublishing.value = false;
     }
   }
 
   return {
-    isPublishing,
     publishOverlay,
   };
 }
