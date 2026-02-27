@@ -169,7 +169,6 @@ function zoomToOverlayAndSelect(
     const overlayObj = overlayStore.overlays[overlayId];
     const overlayLayer = registry.getLayer(overlayId);
     if (overlayObj && !overlayLayer) {
-      console.warn(`Overlay ${overlayId} exists in store but has no Leaflet overlay`);
       // AI : Layer was cleared (zoom-out pruning) but overlay data is still in the store.
       // AI : Re-render it and select it via onReady callback once the image is fully loaded.
       // AI : This avoids the polling loop that could spin forever if the layer never appears.
