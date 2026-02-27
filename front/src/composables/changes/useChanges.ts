@@ -11,6 +11,8 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import L from "leaflet";
+import { OverlayObject } from "@/types";
+import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : ============================================================================
 // AI : CHANGE REQUESTS
@@ -27,7 +29,7 @@ const isLoading = ref(false);
 // AI : Simple loaded flag for change requests
 const changeRequestsLoaded = ref(false);
 
-function clearOverlayChangeRequestState(overlayObject: any) {
+function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
   overlayObject.suggestedCorners = undefined;
   overlayObject.isViewingApprovedPosition = undefined;
@@ -153,7 +155,7 @@ export function useChangeRequests() {
     );
   }
 
-  function resetOverlayPositionToApproved(overlayObject: any, overlayId: string) {
+  function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
     const overlayStore = useOverlayStore();
     const pendingModsStore = usePendingModificationsStore();
 
@@ -162,14 +164,13 @@ export function useChangeRequests() {
     pendingModsStore.clearModification(overlayId);
 
     // AI : Reset overlay position to approved corners
-    if (overlayObject.overlay && overlayObject.corners?.length === 4) {
-      const leafletCorners = overlayObject.corners.map((corner: { lat: number; lng: number }) =>
+    overlayObject.isModified = false;
+    const layer = getLayer(overlayId);
+    if (layer && overlayObject.corners?.length === 4) {
+      const leafletCorners = overlayObject.corners.map((corner) =>
         L.latLng(corner.lat, corner.lng),
       );
-      overlayObject.overlay.setCorners(leafletCorners);
-      overlayObject.isModified = false;
-
-      // AI : Update marker position to match approved corners
+      layer.setCorners(leafletCorners);
       updateMarkerPosition(overlayObject);
     }
   }
@@ -294,8 +295,8 @@ export function useChangeRequests() {
   async function submitProjectFieldChange(
     projectId: string,
     fieldName: string,
-    oldValue: any,
-    newValue: any,
+    oldValue: FieldChange["oldValue"],
+    newValue: FieldChange["newValue"],
     changeReason?: string,
   ) {
     return withErrorToast(
@@ -319,8 +320,8 @@ export function useChangeRequests() {
   async function submitOverlayFieldChange(
     overlayId: string,
     fieldName: string,
-    oldValue: any,
-    newValue: any,
+    oldValue: FieldChange["oldValue"],
+    newValue: FieldChange["newValue"],
     changeReason?: string,
   ) {
     return withErrorToast(
