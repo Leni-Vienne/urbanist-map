@@ -71,20 +71,10 @@
       <div v-show="showInfoPopup" ref="infoSlot" class="info-anchor" />
     </div>
   </Teleport>
-
-  <SubmissionConfirmationDialog
-    v-if="showSubmissionDialog"
-    v-model:visible="showSubmissionDialog"
-    :summary="submissionSummary"
-    :is-submitting="isSubmitting"
-    @confirm="confirmSubmission"
-    @cancel="cancelSubmission"
-    @remove-change="handleRemoveChange"
-  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick, defineAsyncComponent } from "vue";
+import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import L from "leaflet";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
@@ -338,19 +328,8 @@ function redo() {
 
 const projectStore = useProjectStore();
 
-const {
-  showSubmissionDialog,
-  submissionSummary,
-  isSubmitting,
-  prepareOverlaySubmission,
-  confirmSubmission,
-  cancelSubmission,
-  handleRemoveChange,
-} = useSubmissionDialog();
-
-const SubmissionConfirmationDialog = defineAsyncComponent(
-  () => import("@/components/submission/SubmissionConfirmationDialog.vue"),
-);
+// AI : Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
+const { prepareOverlaySubmission } = useSubmissionDialog();
 
 function onSave() {
   const overlay = selectedOverlay.value;
