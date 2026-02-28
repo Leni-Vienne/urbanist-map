@@ -1,28 +1,52 @@
 <template>
   <!-- AI : Tab navigation -->
-  <div :class="tabContainerClass">
+  <div class="flex bg-surface-0 border-b border-surface-100 shrink-0">
     <button
-      :class="[tabButtonClass, { active: activeTab === 'latest' }]"
+      :class="[
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
+        activeTab === 'latest'
+          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
+          : 'text-surface-600 border-transparent hover:text-surface-700',
+      ]"
       @click="$emit('update:activeTab', 'latest')"
     >
       {{ $t("navigation.latestContributions") }}
     </button>
     <button
       v-if="mapStore.selectedCity || mapStore.selectedCountryCode"
-      :class="[tabButtonClass, { active: activeTab === 'currentLocation' }]"
+      :class="[
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
+        activeTab === 'currentLocation'
+          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
+          : 'text-surface-600 border-transparent hover:text-surface-700',
+      ]"
       @click="$emit('update:activeTab', 'currentLocation')"
     >
       {{ $t("navigation.currentLocation") }}
     </button>
     <button
-      :class="[tabButtonClass, { active: activeTab === 'contribute' }]"
+      :class="[
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
+        activeTab === 'contribute'
+          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
+          : 'text-surface-600 border-transparent hover:text-surface-700',
+      ]"
       @click="handleUploadsTabClick"
     >
       {{ $t("navigation.contribute") }}
     </button>
     <button
       v-if="authStore.isModerator"
-      :class="[tabButtonClass, { active: activeTab === 'moderation' }]"
+      :class="[
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
+        activeTab === 'moderation'
+          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
+          : 'text-surface-600 border-transparent hover:text-surface-700',
+      ]"
       @click="$emit('update:activeTab', 'moderation')"
     >
       {{ $t("navigation.moderation") }}
@@ -42,8 +66,7 @@ const uiStore = useUiStore();
 
 defineProps<{
   activeTab: PanelTab;
-  tabContainerClass: string;
-  tabButtonClass: string;
+  variant?: "desktop" | "mobile";
 }>();
 
 const emit = defineEmits<{
@@ -64,48 +87,3 @@ function handleUploadsTabClick() {
   }
 }
 </script>
-
-<style scoped>
-/* AI : Tab navigation base styles */
-.tab-navigation,
-.drawer-tabs {
-  display: flex;
-  background-color: var(--p-surface-0);
-  border-bottom: 1px solid var(--p-surface-100);
-  flex-shrink: 0;
-}
-
-/* AI : Tab button base styles */
-.tab-button,
-.drawer-tab {
-  flex: 1;
-  padding: var(--tab-padding-y, 0.5rem) var(--tab-padding-x, 0);
-  border: none;
-  background: transparent;
-  font-weight: 500;
-  font-size: var(--tab-font-size, 0.875rem);
-  cursor: pointer;
-  transition: all 150ms ease-out;
-  text-align: center;
-  border-bottom: 2px solid transparent;
-  color: var(--p-surface-600);
-}
-
-.tab-button:hover,
-.drawer-tab:hover {
-  color: var(--p-surface-700);
-  background-color: var(--p-surface-50);
-}
-
-.tab-button.active,
-.drawer-tab.active {
-  font-weight: 600;
-  color: var(--p-primary-600);
-  border-bottom-color: var(--p-primary-600);
-}
-
-/* AI : Mobile drawer specific adjustments */
-.drawer-tab {
-  --tab-padding-y: 0.75rem;
-}
-</style>

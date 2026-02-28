@@ -1,5 +1,5 @@
 <template>
-  <span class="clickable-location">
+  <span>
     <!-- AI : City link (if available) -->
     <span
       v-if="cityId && cityName"
@@ -56,9 +56,3 @@ async function handleCityClick() {
   }
 }
 </script>
-
-<style scoped>
-.clickable-location {
-  display: inline;
-}
-</style>

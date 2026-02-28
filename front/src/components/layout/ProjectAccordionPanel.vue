@@ -1,36 +1,51 @@
 <template>
-  <div :class="panelClass">
-    <div class="panel-content">
-      <div class="panel-header">
-        <h2 class="panel-title">{{ title }}</h2>
-        <div v-if="$slots['header-actions']" class="header-actions">
+  <div :class="['h-full flex flex-col', panelClass]">
+    <div class="flex-1">
+      <div
+        class="sticky top-0 bg-[var(--p-surface-0)] flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
+      >
+        <h2
+          class="m-0 text-[1.1rem] font-semibold text-[var(--p-surface-900)] tracking-tight whitespace-nowrap"
+        >
+          {{ title }}
+        </h2>
+        <div v-if="$slots['header-actions']" class="flex items-center gap-3 w-full">
           <slot name="header-actions"></slot>
         </div>
       </div>
 
-      <div v-if="projects.length > 0" class="grouped-accordion-container">
+      <div v-if="projects.length > 0" class="flex flex-col gap-2">
         <template v-for="countryGroup in groupedByCountry" :key="countryGroup.countryCode">
-          <div class="country-group">
+          <div
+            class="bg-[var(--p-surface-0)] border border-[var(--p-surface-200)] rounded-lg overflow-hidden"
+          >
             <!-- AI : Country header (hide if grouping disabled) -->
             <div
               v-if="!disableGrouping"
-              class="country-group-header"
+              class="py-[0.875rem] px-4 bg-[var(--p-primary-50)] border-b-2 border-[var(--p-primary-200)] cursor-pointer transition-colors duration-150 select-none hover:bg-[var(--p-primary-100)]"
               @click="handleToggleCountryExpanded(countryGroup.countryCode)"
             >
-              <div class="country-header-content">
+              <div class="flex items-center gap-3">
                 <i
                   :class="[
-                    'pi',
+                    'pi text-[var(--p-primary-600)] text-xs transition-transform',
                     isCountryExpanded(countryGroup.countryCode)
                       ? 'pi-chevron-down'
                       : 'pi-chevron-right',
                   ]"
                 ></i>
-                <h3 class="country-group-title">
+                <h3
+                  class="m-0 text-base font-bold text-[var(--p-surface-900)] flex-1 flex items-center gap-1.5"
+                >
                   {{ countryGroup.countryName }}
-                  <span class="country-code-badge">({{ countryGroup.countryCode }})</span>
+                  <span class="text-[0.8125rem] font-semibold text-[var(--p-text-muted-color)]"
+                    >({{ countryGroup.countryCode }})</span
+                  >
                 </h3>
-                <span class="country-group-count">{{ countryGroup.totalProjects }}</span>
+                <span
+                  class="text-[0.8125rem] font-bold text-[var(--p-primary-700)] bg-[var(--p-primary-200)] px-[0.625rem] py-1 rounded-xl min-w-[28px] text-center"
+                  >{{ countryGroup.totalProjects }}</span
+                >
               </div>
             </div>
 
@@ -40,25 +55,30 @@
                 <!-- AI : City header (hide if grouping disabled) -->
                 <div
                   v-if="!disableGrouping"
-                  class="city-group-header"
+                  class="flex items-center justify-between py-[0.625rem] px-[0.875rem] mt-3 mb-2 first:mt-1 bg-[var(--p-surface-100)] border-l-[3px] border-l-[var(--p-surface-400)] rounded cursor-pointer transition-colors duration-150 select-none hover:bg-[var(--p-surface-200)]"
                   :data-city-key="cityGroup.key"
                   @click="toggleCityExpanded(cityGroup.key)"
                 >
-                  <div class="city-header-content">
+                  <div class="flex items-center gap-2">
                     <i
                       :class="[
-                        'pi',
+                        'pi text-[var(--p-surface-500)] text-[0.625rem] transition-transform',
                         isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right',
                       ]"
                     ></i>
-                    <h4 class="city-group-title">
+                    <h4 class="m-0 text-[0.8125rem] font-semibold text-[var(--p-surface-700)]">
                       {{ cityGroup.cityName }}
-                      <span v-if="cityGroup.cityNameLocal" class="city-namelocal"
+                      <span
+                        v-if="cityGroup.cityNameLocal"
+                        class="text-xs font-medium text-[var(--p-text-muted-color)] ml-1"
                         >({{ cityGroup.cityNameLocal }})</span
                       >
                     </h4>
                   </div>
-                  <span class="city-group-count">{{ cityGroup.projects.length }}</span>
+                  <span
+                    class="text-[0.6875rem] font-semibold text-[var(--p-surface-600)] bg-[var(--p-surface-200)] px-2 py-0.5 rounded-xl min-w-[20px] text-center"
+                    >{{ cityGroup.projects.length }}</span
+                  >
                 </div>
 
                 <!-- AI : City accordion (always expanded if grouping disabled) -->
@@ -747,173 +767,3 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   }
 }
 </script>
-
-<style scoped>
-/* AI : Grouped accordion container */
-.grouped-accordion-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.country-group {
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.country-group-header {
-  padding: 0.875rem 1rem;
-  background: var(--p-primary-50);
-  border-bottom: 2px solid var(--p-primary-200);
-  cursor: pointer;
-  transition: background 0.15s ease;
-  user-select: none;
-}
-
-.country-group-header:hover {
-  background: var(--p-primary-100);
-}
-
-.country-header-content {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.country-header-content i {
-  color: var(--p-primary-600);
-  font-size: 0.75rem;
-  transition: transform 0.2s ease;
-}
-
-.country-group-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--p-surface-900);
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.country-code-badge {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--p-text-muted-color);
-}
-
-.country-group-count {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--p-primary-700);
-  background: var(--p-primary-200);
-  padding: 0.25rem 0.625rem;
-  border-radius: 12px;
-  min-width: 28px;
-  text-align: center;
-}
-
-.city-group-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.625rem 0.875rem;
-  margin-top: 0.75rem;
-  margin-bottom: 0.5rem;
-  background: var(--p-surface-100);
-  border-left: 3px solid var(--p-surface-400);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  user-select: none;
-}
-
-.city-group-header:hover {
-  background: var(--p-surface-200);
-}
-
-.city-group-header:first-child {
-  margin-top: 0.25rem;
-}
-
-.city-header-content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.city-header-content i {
-  color: var(--p-surface-500);
-  font-size: 0.625rem;
-  transition: transform 0.2s ease;
-}
-
-.city-group-title {
-  margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--p-surface-700);
-}
-
-.city-namelocal {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--p-text-muted-color);
-  margin-left: 0.25rem;
-}
-
-.city-group-count {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--p-surface-600);
-  background: var(--p-surface-200);
-  padding: 0.125rem 0.5rem;
-  border-radius: 12px;
-  min-width: 20px;
-  text-align: center;
-}
-
-/* AI : Component wrapper */
-.my-contributions-panel,
-.moderation-panel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-content {
-  flex: 1;
-}
-
-/* Sticky header for panel title  */
-.panel-header {
-  position: sticky;
-  top: 0;
-  background-color: var(--p-surface-0);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-  padding: 1rem 1rem 0.75rem 1rem;
-  z-index: 10;
-}
-
-.panel-title {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  letter-spacing: -0.025em;
-  white-space: nowrap;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-}
-</style>

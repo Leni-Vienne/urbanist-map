@@ -1,25 +1,27 @@
 <template>
-  <div class="map-wrapper">
+  <div class="absolute inset-0 overflow-hidden">
     <!-- AI : Mode border overlay - separate from map container to avoid Leaflet rendering issues -->
     <div
       v-if="overlayStore.mode !== 'view'"
       :class="[
-        'mode-border',
-        overlayStore.mode === 'edit' ? 'edit-mode-border' : 'moderation-mode-border',
+        'absolute inset-0 border-4 pointer-events-none z-[900] animate-[borderFadeIn_0.3s_ease-in-out]',
+        overlayStore.mode === 'edit' ? 'border-amber-500' : 'border-blue-500',
       ]"
     ></div>
 
-    <div id="mapDiv" class="map-container">
-      <div v-if="isLoading" class="loading-overlay">
-        <div class="loading-content">
+    <div id="mapDiv" class="absolute inset-0">
+      <div v-if="isLoading" class="absolute inset-0 flex justify-center items-center bg-gray-200">
+        <div class="text-center">
           <i class="pi pi-spin pi-spinner text-4xl"></i>
           <p class="mt-2">{{ t("pages.home.loadingMapAndData") }}</p>
         </div>
       </div>
 
       <!-- AI : Top controls container (Search + User Menu) -->
-      <div class="top-controls-container">
-        <div class="city-search-container">
+      <div
+        class="absolute top-4 left-4 right-4 flex justify-between items-start gap-4 z-[1000] pointer-events-none"
+      >
+        <div class="pointer-events-auto min-w-0 flex-[0_1_100%] md:flex-[0_1_280px]">
           <CitySearch />
         </div>
         <UserMenu class="flex-shrink-0" />
@@ -29,7 +31,10 @@
       <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
 
       <!-- AI : Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
-      <div v-if="authStore.isAuthenticated" class="mode-controls-desktop">
+      <div
+        v-if="authStore.isAuthenticated"
+        class="absolute bottom-5 left-0 right-0 z-[900] pointer-events-none hidden md:block"
+      >
         <ModeControls />
       </div>
 
@@ -161,46 +166,6 @@ async function initializeMapAndOverlays() {
 </script>
 
 <style scoped>
-.map-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-}
-
-.map-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-/* AI : Mode borders - positioned relative to map container below tooltips and dialogs */
-.mode-border {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border: 4px solid;
-  pointer-events: none;
-  z-index: 900;
-  animation: borderFadeIn 0.3s ease-in-out;
-}
-
-.edit-mode-border {
-  border-color: #f59e0b;
-  /* Orange for edit mode */
-}
-
-.moderation-mode-border {
-  border-color: #3b82f6;
-  /* Blue for moderation mode */
-}
-
 @keyframes borderFadeIn {
   from {
     opacity: 0;
@@ -208,67 +173,6 @@ async function initializeMapAndOverlays() {
 
   to {
     opacity: 1;
-  }
-}
-
-/* AI : Desktop mode controls - positioned absolutely within map container below tooltips and dialogs */
-.mode-controls-desktop {
-  position: absolute;
-  bottom: 1.25rem;
-  left: 0;
-  right: 0;
-  z-index: 900;
-  pointer-events: none;
-}
-
-@media (max-width: 768px) {
-  .mode-controls-desktop {
-    display: none;
-  }
-}
-
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: rgb(221, 221, 221);
-}
-
-.loading-content {
-  text-align: center;
-}
-
-/* AI : Top controls container */
-.top-controls-container {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-.city-search-container {
-  pointer-events: auto;
-  flex: 0 1 280px;
-  /* Grow to max 280px, but allow shrinking */
-  min-width: 0;
-  /* Allow shrinking below content size */
-}
-
-@media (max-width: 768px) {
-  .city-search-container {
-    flex-basis: 100%;
-    /* Try to take full width available */
   }
 }
 
@@ -285,15 +189,12 @@ async function initializeMapAndOverlays() {
     margin: 0 !important;
     font-size: 0.75rem !important;
     max-width: calc(100vw - 8rem) !important;
-    /* AI : Leave space for scale */
     position: fixed !important;
     display: block !important;
     visibility: visible !important;
     line-height: 1.3 !important;
     white-space: normal !important;
-    /* AI : Allow text wrapping */
     word-break: break-word !important;
-    /* AI : Break long words if needed */
   }
 }
 

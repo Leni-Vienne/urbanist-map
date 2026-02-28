@@ -11,33 +11,43 @@
     :style="{ width: '600px' }"
     @hide="handleClose"
   >
-    <div class="upload-dialog-content">
+    <div class="flex flex-col gap-4 py-2">
       <!-- AI : Instructions Section - always visible -->
-      <div class="instructions-section">
-        <p class="section-description">{{ $t("imageUpload.uploadDescription") }}</p>
-      </div>
-      <br />
+      <p class="text-sm text-[var(--p-surface-600)] leading-relaxed m-0">
+        {{ $t("imageUpload.uploadDescription") }}
+      </p>
+
       <!-- AI : PDF Extraction Section with TokenTool Link - always visible -->
-      <div class="pdf-section">
-        <h3 class="section-title">{{ $t("imageUpload.pdfExtraction") }}</h3>
-        <i18n-t keypath="imageUpload.pdfExtractionDescription" tag="p" class="section-description">
+      <div class="flex flex-col gap-1">
+        <h3 class="text-base font-semibold text-[var(--p-surface-900)] m-0">
+          {{ $t("imageUpload.pdfExtraction") }}
+        </h3>
+        <i18n-t
+          keypath="imageUpload.pdfExtractionDescription"
+          tag="p"
+          class="text-sm text-[var(--p-surface-600)] leading-relaxed m-0"
+        >
           <template #toolLink>
             <a
               href="https://www.rptools.net/toolbox/token-tool/"
               target="_blank"
               rel="noopener noreferrer"
-              class="tokentool-link"
+              class="text-[var(--p-primary-500)] no-underline font-medium transition-colors duration-200 hover:text-[var(--p-primary-600)] hover:underline"
             >
               {{ $t("imageUpload.tokenToolLink") }}
             </a>
           </template>
         </i18n-t>
       </div>
-      <br />
+
       <!-- AI : File Upload Drop Zone - compact with integrated preview -->
       <div
-        class="upload-zone"
-        :class="{ 'has-file': selectedFile }"
+        class="rounded-lg p-4 transition-all duration-200 min-h-[120px] flex items-center justify-center border-2 border-dashed"
+        :class="
+          selectedFile
+            ? 'border-[var(--p-green-300)] bg-[var(--p-green-50)] cursor-default'
+            : 'border-[var(--p-surface-300)] bg-[var(--p-surface-50)] cursor-pointer hover:border-[var(--p-primary-400)] hover:bg-[var(--p-primary-50)]'
+        "
         @drop.prevent="handleDrop"
         @dragover.prevent="handleDragOver"
         @dragleave="handleDragLeave"
@@ -51,10 +61,17 @@
         />
 
         <!-- AI : Show preview and filename when file selected -->
-        <div v-if="selectedFile" class="file-preview-container">
-          <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Preview" class="image-preview" />
-          <div class="file-info-compact">
-            <p class="filename-compact">{{ selectedFileName }}</p>
+        <div v-if="selectedFile" class="flex items-center gap-4 w-full cursor-pointer group">
+          <img
+            v-if="imagePreviewUrl"
+            :src="imagePreviewUrl"
+            alt="Preview"
+            class="w-20 h-20 object-cover rounded-md border-2 border-[var(--p-green-200)] shrink-0 group-hover:opacity-90 transition-opacity"
+          />
+          <div class="flex-1 flex flex-col gap-2 items-start">
+            <p class="text-sm font-medium text-[var(--p-green-900)] font-mono break-all m-0">
+              {{ selectedFileName }}
+            </p>
             <Button
               :label="$t('imageUpload.changeImage')"
               icon="pi pi-refresh"
@@ -67,16 +84,30 @@
         </div>
 
         <!-- AI : Show drop zone when no file selected -->
-        <div v-else class="drop-zone-content" @click="triggerFileInput">
-          <i class="pi pi-cloud-upload" style="font-size: 2rem; color: var(--p-primary-500)"></i>
-          <p class="drop-zone-text">{{ $t("imageUpload.dragDrop") }}</p>
-          <p class="drop-zone-subtext">{{ $t("imageUpload.orClick") }}</p>
-          <p class="supported-formats">{{ $t("imageUpload.supportedFormats") }}</p>
+        <div
+          v-else
+          class="flex flex-col items-center gap-2 text-center w-full"
+          @click="triggerFileInput"
+        >
+          <i class="pi pi-cloud-upload text-[2rem] text-[var(--p-primary-500)]"></i>
+          <p class="text-sm font-medium text-[var(--p-surface-700)] m-0">
+            {{ $t("imageUpload.dragDrop") }}
+          </p>
+          <p class="text-xs text-[var(--p-surface-500)] m-0">{{ $t("imageUpload.orClick") }}</p>
+          <p class="text-[0.7rem] text-[var(--p-surface-400)] m-0">
+            {{ $t("imageUpload.supportedFormats") }}
+          </p>
         </div>
       </div>
 
       <!-- AI : Inline error message for file validation -->
-      <p v-if="fileSizeError" class="file-error-message">{{ fileSizeError }}</p>
+      <p
+        v-if="fileSizeError"
+        class="flex items-center gap-2 text-[var(--p-red-600)] text-sm font-medium m-0"
+      >
+        <i class="pi pi-exclamation-triangle"></i>
+        {{ fileSizeError }}
+      </p>
     </div>
 
     <template #footer>
@@ -287,228 +318,3 @@ function handleClose() {
   uiStore.closeImageUploadDialog();
 }
 </script>
-
-<style scoped>
-.upload-dialog-content {
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem 0;
-}
-
-/* AI : Success banner styling - compact notification at top */
-.success-banner {
-  background: var(--p-green-50);
-  border: 2px solid var(--p-green-200);
-  border-radius: 8px;
-  padding: 1rem;
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.success-banner-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.success-icon {
-  font-size: 2rem;
-  color: var(--p-green-600);
-  flex-shrink: 0;
-}
-
-.success-text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.success-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--p-green-900);
-  margin: 0;
-}
-
-.selected-filename {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--p-green-700);
-  margin: 0;
-  font-family: monospace;
-  word-break: break-all;
-}
-
-/* AI : Section styling */
-.instructions-section,
-.best-practices-section,
-.pdf-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  margin: 0;
-}
-
-.section-description {
-  font-size: 0.875rem;
-  color: var(--p-surface-600);
-  line-height: 1.5;
-  margin: 0;
-}
-
-/* AI : Best practices list */
-.practices-list {
-  margin: 0;
-  padding-left: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.practices-list li {
-  font-size: 0.875rem;
-  color: var(--p-surface-600);
-  line-height: 1.5;
-}
-
-/* AI : TokenTool link styling */
-.tokentool-link {
-  color: var(--p-primary-500);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s ease;
-}
-
-.tokentool-link:hover {
-  color: var(--p-primary-600);
-  text-decoration: underline;
-}
-
-/* AI : Upload zone styling - compact version */
-.upload-zone {
-  margin-top: 0.5rem;
-  border: 2px dashed var(--p-surface-300);
-  border-radius: 8px;
-  padding: 1rem;
-  background: var(--p-surface-50);
-  transition: all 0.2s ease;
-  cursor: pointer;
-  min-height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.upload-zone:not(.has-file):hover {
-  border-color: var(--p-primary-400);
-  background: var(--p-primary-50);
-}
-
-.upload-zone.has-file {
-  border-color: var(--p-green-300);
-  background: var(--p-green-50);
-  cursor: default;
-}
-
-.drop-zone-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  text-align: center;
-  width: 100%;
-}
-
-.drop-zone-text {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--p-surface-700);
-  margin: 0;
-}
-
-.drop-zone-subtext {
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-  margin: 0;
-}
-
-.supported-formats {
-  font-size: 0.7rem;
-  color: var(--p-surface-400);
-  margin: 0;
-  margin-top: 0.25rem;
-}
-
-/* AI : File preview container */
-.file-preview-container {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: 100%;
-  cursor: pointer;
-}
-
-.file-preview-container:hover .image-preview {
-  opacity: 0.9;
-}
-
-.image-preview {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 2px solid var(--p-green-200);
-  flex-shrink: 0;
-}
-
-.file-info-compact {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-start;
-}
-
-.filename-compact {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--p-green-900);
-  font-family: monospace;
-  word-break: break-all;
-  margin: 0;
-}
-
-/* AI : Inline error message for file validation */
-.file-error-message {
-  color: var(--p-red-600);
-  font-size: 0.875rem;
-  font-weight: 500;
-  margin: 0;
-  margin-top: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.file-error-message::before {
-  content: "⚠";
-}
-</style>

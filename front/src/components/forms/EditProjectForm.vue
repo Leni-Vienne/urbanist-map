@@ -1,6 +1,6 @@
 <template>
-  <div class="editable-project-form">
-    <form @submit.prevent="form.submitChanges" class="project-form">
+  <div class="p-6 max-sm:p-4">
+    <form @submit.prevent="form.submitChanges" class="flex flex-col gap-4">
       <ProjectFormFields
         ref="formFieldsRef"
         :form-data="form.formData"
@@ -20,7 +20,9 @@
       />
 
       <!-- Form actions -->
-      <div class="form-actions">
+      <div
+        class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-[var(--p-surface-200)]"
+      >
         <Button
           v-if="form.hasChanges.value"
           type="button"
@@ -124,34 +126,3 @@ const form = useEditableProjectForm({
   onClose: () => emit("close"),
 });
 </script>
-
-<style scoped>
-.editable-project-form {
-  padding: 1.5rem;
-}
-
-.project-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-@media (max-width: 640px) {
-  .editable-project-form {
-    padding: 1rem;
-  }
-
-  .form-actions {
-    flex-direction: column-reverse;
-  }
-}
-</style>

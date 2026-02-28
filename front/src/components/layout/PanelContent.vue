@@ -15,9 +15,9 @@
           (activeTab === 'contribute' && !authStore.isAuthenticated) ||
           (activeTab === 'moderation' && !authStore.isModerator)
         "
-        class="signin-prompt"
+        class="flex items-center justify-center h-full p-8"
       >
-        <div class="signin-content">
+        <div class="text-center max-w-[280px] flex flex-col items-center">
           <i class="pi pi-user text-4xl text-muted-color mb-4"></i>
           <h3 class="text-lg font-semibold mb-2">
             {{
@@ -57,21 +57,3 @@ defineProps<{
   contentContainerClass: string;
 }>();
 </script>
-
-<style scoped>
-.signin-prompt {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 2rem;
-}
-
-.signin-content {
-  text-align: center;
-  max-width: 280px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-</style>

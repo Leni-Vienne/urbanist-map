@@ -2,10 +2,14 @@
   <!-- AI : Custom draggable bottom drawer with continuous positioning -->
   <Teleport to="body">
     <Transition name="drawer-fade">
-      <div v-if="visible" class="draggable-drawer-container" @click.self="handleBackdropClick">
+      <div
+        v-if="visible"
+        class="fixed inset-0 z-[1100] pointer-events-none"
+        @click.self="handleBackdropClick"
+      >
         <div
           ref="drawerRef"
-          class="draggable-drawer"
+          class="draggable-drawer fixed bottom-0 left-0 right-0 bg-surface-0 rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] flex flex-col overflow-visible z-[1101] touch-none pointer-events-auto"
           :style="drawerStyle"
           @touchstart="handleTouchStart"
           @touchmove="handleTouchMove"
@@ -13,26 +17,40 @@
           @mousedown="handleMouseDown"
         >
           <!-- AI : Slot for content above drawer (e.g., mode controls) -->
-          <div class="drawer-above-content" :style="{ bottom: aboveContentBottom }">
+          <div
+            class="absolute left-0 right-0 mb-2 pointer-events-none"
+            :style="{ bottom: aboveContentBottom }"
+          >
             <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
           </div>
 
           <!-- AI : Drag handle at the top -->
-          <div class="drawer-handle" @click.stop>
-            <div class="handle-bar"></div>
+          <div
+            class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0"
+            @click.stop
+          >
+            <div
+              class="w-10 h-1 bg-surface-300 rounded-sm transition-colors duration-200 hover:bg-surface-400"
+            ></div>
           </div>
 
           <!-- AI : Header -->
-          <div class="drawer-header" :class="{ 'drawer-header--compact': isCompact }">
+          <div
+            class="drawer-header shrink-0 bg-surface-0 cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            :class="{ 'py-0 px-4 pb-[0.3em] text-center': isCompact }"
+          >
             <slot name="header">
-              <h3 class="drawer-title" :class="{ 'drawer-title--compact': isCompact }">
+              <h3
+                class="m-0 text-lg font-semibold text-surface-900 select-none transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                :class="{ 'text-sm font-medium': isCompact }"
+              >
                 {{ header }}
               </h3>
             </slot>
           </div>
 
           <!-- AI : Content -->
-          <div class="drawer-content">
+          <div class="flex-1 overflow-y-auto overflow-x-hidden bg-surface-0">
             <slot></slot>
           </div>
         </div>
@@ -231,108 +249,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.draggable-drawer-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1100;
-  pointer-events: none;
-}
-
-.draggable-drawer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--p-surface-0);
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  z-index: 1101;
-  touch-action: none;
+/* AI : Deep children of the above-content slot need pointer events */
+:deep(.control-wrapper > *) {
   pointer-events: auto;
 }
 
-/* No idea why but those 4 classes below are needed, otherwise the dragrabble drawer disappears on mobile */
+/* No idea why but those 4 classes below are needed, otherwise the draggable drawer disappears on mobile */
 .drawer-fade-enter-from .draggable-drawer,
 .drawer-fade-leave-to .draggable-drawer {
   transform: translateY(100%);
-}
-
-/* AI : Content above drawer - positioned above the drawer, moves with it
-   Bottom position is controlled dynamically to ensure min 110px from viewport bottom */
-.drawer-above-content {
-  position: absolute;
-  left: 0;
-  right: 0;
-  margin-bottom: 0.5rem;
-  pointer-events: none;
-}
-
-.drawer-handle {
-  padding: 0.5rem 0 0.4rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: grab;
-  flex-shrink: 0;
-}
-
-.drawer-handle:active {
-  cursor: grabbing;
-}
-
-.handle-bar {
-  width: 40px;
-  height: 4px;
-  background: var(--p-surface-300);
-  border-radius: 2px;
-  transition: background-color 0.2s ease;
-}
-
-.drawer-handle:hover .handle-bar {
-  background: var(--p-surface-400);
-}
-
-.drawer-header {
-  flex-shrink: 0;
-  background: var(--p-surface-0);
-  cursor: grab;
-  transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.drawer-header--compact {
-  padding: 0rem 1rem 0.3em;
-  text-align: center;
-}
-
-.drawer-header:active {
-  cursor: grabbing;
-}
-
-.drawer-title {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  user-select: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.drawer-title--compact {
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.drawer-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: var(--p-surface-0);
 }
 </style>
