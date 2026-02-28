@@ -99,6 +99,7 @@ function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
 function isKeyUsed(key: string, files: string[], fileContents: Map<string, string>): boolean {
   // AI: Build patterns to search for
   // Common patterns: t('key'), $t('key'), t("key"), $t("key"), i18n.t('key'), etc.
+  // Also match bare string literals like `const k = "key"; t(k)` (variable-indirected usage)
   const patterns = [
     `t('${key}'`,
     `t("${key}"`,
@@ -106,6 +107,8 @@ function isKeyUsed(key: string, files: string[], fileContents: Map<string, strin
     `$t("${key}"`,
     `t(\`${key}\``,
     `$t(\`${key}\``,
+    `'${key}'`,
+    `"${key}"`,
   ];
 
   for (const file of files) {
