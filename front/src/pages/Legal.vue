@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex justify-center items-start min-h-screen bg-gradient-to-br from-[var(--p-primary-50)] to-[var(--p-primary-100)] p-10 overflow-y-auto"
+    class="flex justify-center items-start h-full bg-gradient-to-br from-[var(--p-primary-50)] to-[var(--p-primary-100)] p-10 overflow-y-auto"
   >
     <div
       class="bg-[var(--p-surface-0)] p-8 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] max-w-[700px] w-full"

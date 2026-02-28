@@ -16,7 +16,7 @@
           :class="{ active: showInfoPopup }"
           @click="toggleInfoPopup"
         >
-          ℹ
+          <i class="pi pi-ellipsis-v" />
         </button>
 
         <span class="sep" />
@@ -35,16 +35,20 @@
         <!-- Nav prev/next + index -->
         <template v-if="showNav">
           <span class="sep" />
-          <button :title="t('toolbar.previousOverlay')" @click="goToPrevious">‹</button>
+          <button :title="t('toolbar.previousOverlay')" @click="goToPrevious">
+            <i class="pi pi-chevron-left" />
+          </button>
           <span v-if="overlayIndex" class="index-label"
             >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
           >
-          <button :title="t('toolbar.nextOverlay')" @click="goToNext">›</button>
+          <button :title="t('toolbar.nextOverlay')" @click="goToNext">
+            <i class="pi pi-chevron-right" />
+          </button>
         </template>
 
         <span class="sep" />
-        <button title="Bring to front" @click="stackToFront">↑</button>
-        <button title="Send to back" @click="stackToBack">↓</button>
+        <button title="Bring to front" @click="stackToFront"><i class="pi pi-arrow-up" /></button>
+        <button title="Send to back" @click="stackToBack"><i class="pi pi-arrow-down" /></button>
 
         <!-- Edit-only tools -->
         <template v-if="isEditMode">
@@ -416,8 +420,12 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  color: #374151;
+  color: #6b7280;
   padding: 0 4px;
+}
+
+.toolbar-bar button .pi {
+  font-size: 14px;
 }
 
 .toolbar-bar button:hover {
@@ -451,7 +459,7 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
 
 .opacity-label,
 .index-label {
-  font-size: 11px;
+  font-size: 13px;
   color: #9ca3af;
   min-width: 28px;
   text-align: right;
