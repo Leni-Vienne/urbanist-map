@@ -30,6 +30,7 @@ import {
   selectOverlay,
   setupProjectHoverEvents,
   syncModerationCityFromOverlay,
+  applySelectionOutline,
 } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
@@ -309,6 +310,11 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
       element.style.boxShadow = "";
       element.style.outline = "none";
     }
+  } else {
+    // AI : Overlay finished loading while already selected (out-of-viewport navigation):
+    // AI : applyOutlineAfterImageLoad ran before the layer existed so no listener was set.
+    // AI : Apply the outline now that the image is fully loaded and in the DOM.
+    applySelectionOutline(overlayObject);
   }
 
   // AI : Invoke the caller's callback now that the overlay is fully initialized

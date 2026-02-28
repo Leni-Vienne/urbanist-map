@@ -219,7 +219,7 @@ function findCityIdForOverlay(overlayId: string, mode: string): number | null {
   return foundCityId;
 }
 
-function applySelectionOutline(overlayObject: OverlayObject): void {
+export function applySelectionOutline(overlayObject: OverlayObject): void {
   const selLayer = getLayer(overlayObject.id);
   if (!selLayer) return;
 
