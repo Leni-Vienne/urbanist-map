@@ -36,53 +36,17 @@ declare module "leaflet" {
     _animatingZoom?: boolean; // _animatingZoom isn't documented for some reason
   }
 
-  // AI : Leaflet.Toolbar type definitions (not included in the package)
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  namespace Toolbar2 {
-    class Action extends L.Handler {
-      constructor(map: L.Map, options: any);
-      static extend(options: any): any;
-      initialize?(...args: any[]): void;
-    }
-    class Toolbar extends L.Control {
-      constructor(options: any);
-    }
-  }
-
-  // AI : Toolbar2 constructor (used in toolbar actions)
-  class Toolbar2 extends L.Evented {
-    constructor(options?: { actions?: (typeof Toolbar2.Action)[] });
-  }
-
-  // AI : Leaflet distortableimage types - prefixed with _ to indicate intentionally unused
-  // eslint-disable-next-line @typesript-eslint/no-unused-vars
-  const DistortAction: typeof L.Toolbar2.Action;
-  const RotateAction: typeof L.Toolbar2.Action;
-  const FreeRotateAction: typeof L.Toolbar2.Action;
-  const OpacityAction: typeof L.Toolbar2.Action;
-  const OpacitiesAction: typeof L.Toolbar2.Action;
-  const DeleteAction: typeof L.Toolbar2.Action;
-  const StackAction: typeof L.Toolbar2.Action;
-  const EditAction: typeof L.Toolbar2.Action;
-  const DragAction: typeof L.Toolbar2.Action;
-  const ResizeRotateAction: typeof L.Toolbar2.Action;
-
-  const IconUtil: IconUtils;
-
-  interface IconUtils {
-    create: () => string;
-    addClassToSvg: () => void;
-    toggleXlink: (el: HTMLElement, on_class: string, off_class: string) => void;
-    toggleTitle: (el: HTMLElement, on_title: string, off_title: string) => void;
-  }
+  // Minimal type for DistortableImage edit actions (ResizeRotateAction, DistortAction, etc.)
+  // leaflet-toolbar is loaded as a side-effect only; we never reference L.Toolbar2 directly.
+  type DistortableAction = abstract new (...args: any[]) => object;
 
   // AI : Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {
-    actions: L.Toolbar2.Action[];
+    actions: DistortableAction[];
     editing: {
       _disableKeyboard: () => void;
-      addTool: (tool: L.Toolbar2.Action) => void;
-      removeTool: (tool: L.Toolbar2.Action) => void;
+      addTool: (tool: InstanceType<DistortableAction>) => void;
+      removeTool: (tool: InstanceType<DistortableAction>) => void;
     };
     getCorners: () => { lat: number; lng: number }[];
     setCorners: (corners: { lat: number; lng: number }[]) => void;
@@ -94,7 +58,7 @@ declare module "leaflet" {
   }
 
   interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
-    actions?: L.Toolbar2.Action[];
+    actions?: DistortableAction[];
     // resizeRotate is the most conveniant mode (tool) for the site
     mode:
       | "drag"
@@ -111,6 +75,7 @@ declare module "leaflet" {
     dragBehavior?: "map" | "overlay" | "auto";
     selectOnDrag: boolean;
     draggable: boolean;
+    suppressToolbar?: boolean;
   }
 
   function distortableImageOverlay(
