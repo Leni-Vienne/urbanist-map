@@ -13,7 +13,9 @@
         :project="project"
         :show-description="true"
         :show-coordinates="!overlay"
+        :edit-mode="!viewMode"
         :available-cities="availableCities"
+        @field-click="emit('edit-project', project)"
       >
         <template #actions="{ project }">
           <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
@@ -78,7 +80,15 @@
         <div class="info-card">
           <div class="info-row">
             <span class="info-label">{{ $t("common.name") }}:</span>
-            <span class="info-value">{{ overlay.caption ?? "—" }}</span>
+            <span v-if="overlay.caption" class="info-value">{{ overlay.caption }}</span>
+            <button
+              v-else-if="!viewMode"
+              class="ml-auto text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-600)] cursor-pointer bg-transparent border-none p-0 outline-none"
+              @click="emit('edit-overlay', overlay)"
+            >
+              + {{ $t("common.addField") }}
+            </button>
+            <span v-else class="info-value">—</span>
           </div>
           <!-- AI : Show view original button for pending replacements -->
           <div
@@ -100,7 +110,7 @@
     <!-- Actions Section - Edit mode buttons -->
     <div v-if="!viewMode" class="mt-4 flex gap-2 items-stretch">
       <Button
-        v-if="hasChanges"
+        class="flex-1"
         :label="
           isPublishedToBackend
             ? $t('project.submitChangeRequest')
@@ -110,15 +120,15 @@
         "
         :icon="isPublishedToBackend ? 'pi pi-send' : 'pi pi-cloud-upload'"
         :severity="isPublishedToBackend ? 'info' : 'success'"
-        :class="{ 'flex-1': hasChanges }"
         :loading="publishLoading"
+        :disabled="!hasChanges"
         @click="handlePublishClick"
       />
       <Button
+        class="flex-1"
         :label="$t('project.addImages')"
         severity="secondary"
         outlined
-        :class="{ 'flex-1': hasChanges, 'w-full': !hasChanges }"
         @click="emit('add-images')"
       >
         <template #icon>

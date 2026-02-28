@@ -199,6 +199,19 @@ function pruneBackendOverlays(
     }
   }
 
+  // AI : Destroy markers/layers for overlays that are filtered OUT by completion status.
+  // AI : pruneLocalOverlays handles this correctly; mirror the same logic here so that
+  // AI : toggling a filter off immediately removes the corresponding backend markers.
+  const filteredIds = new Set(filteredOverlays.map((o) => o.id));
+  for (const data of overlayStore.viewModeOverlays) {
+    if (filteredIds.has(data.id)) continue;
+    const marker = registry.getMarker(data.id);
+    const layer = registry.getLayer(data.id);
+    if (marker || layer) {
+      queueForDestruction(data.id);
+    }
+  }
+
   if (overlaysToRender.length > 0) {
     // AI : Dynamic import keeps leaflet-distortableimage out of the initial bundle
     void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
