@@ -29,6 +29,7 @@ import {
   renderFullOverlays,
   hydrateOverlayStoreObjects,
 } from "@/services/navigation/cityRenderingCore";
+import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 import type { OverlayData } from "@/types/index";
 import { type StandaloneProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
@@ -415,10 +416,20 @@ export function useViewportTriggers() {
     // AI : Sync batch updates for any fresh data
     hydrateOverlayStoreObjects(allOverlaysForMarkers);
 
-    // AI : Render interactive markers for everything in the store
+    // AI : Filter using OverlayData (which carries project info) so that getOverlayMarkerColor
+    // AI : can compute the correct timeline-based color in view mode.
+    // AI : Filtering overlayStore.overlays (OverlayObject) would yield wrong colors
+    // AI : because OverlayObjects in the store don't carry the embedded project.
+    const visibleOverlayIds = new Set(
+      filterByCompletionStatus(allOverlaysForMarkers, overlayStore.mode).map((o) => o.id),
+    );
+
+    // AI : Render interactive markers only for completion-filter-passing overlays
     // AI : createSingleMarker safely ignores markers that already exist
     for (const overlayObject of Object.values(overlayStore.overlays)) {
-      createSingleMarker(overlayObject);
+      if (visibleOverlayIds.has(overlayObject.id)) {
+        createSingleMarker(overlayObject);
+      }
     }
   }
 

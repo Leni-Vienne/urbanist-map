@@ -15,11 +15,21 @@
       </div>
       <div v-if="showDescription" :class="cls.row">
         <span :class="cls.label">{{ $t("common.description") }}:</span>
-        <span :class="cls.value">{{ project.description ?? "—" }}</span>
+        <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
+        <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
+          + {{ $t("common.addField") }}
+        </button>
+        <span v-else :class="cls.value">—</span>
       </div>
       <div :class="cls.row">
         <span :class="cls.label">{{ $t("project.location") }}:</span>
-        <span :class="cls.value">{{ projectLocationDisplay }}</span>
+        <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
+          projectLocationDisplay
+        }}</span>
+        <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
+          + {{ $t("common.addField") }}
+        </button>
+        <span v-else :class="cls.value">—</span>
       </div>
       <div :class="cls.row">
         <span :class="cls.label">{{ $t("project.period") }}:</span>
@@ -46,6 +56,12 @@
           >{{ formatSourceUrl(project.sourceUrl) }}</a
         >
       </div>
+      <div v-else-if="editMode" :class="cls.row">
+        <span :class="cls.label">{{ $t("project.source") }}:</span>
+        <button :class="cls.addBtn" @click="emit('field-click')">
+          + {{ $t("common.addField") }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -59,20 +75,26 @@ import { useI18n } from "vue-i18n";
 
 const { t: $t } = useI18n();
 
+const emit = defineEmits<{ "field-click": [] }>();
+
 const cls = {
   row: "flex justify-between items-start py-1",
   label: "text-sm font-semibold text-[var(--p-text-secondary)] min-w-[80px] mr-2",
   value: "flex-1 text-right text-sm break-words",
+  addBtn:
+    "ml-auto text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-600)] cursor-pointer bg-transparent border-none p-0 outline-none",
 };
 
 interface Props {
   project: Project | null;
   showDescription?: boolean;
+  editMode?: boolean;
   availableCities?: { id: number; name: string; countryCode: string }[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showDescription: false,
+  editMode: false,
   availableCities: () => [],
 });
 

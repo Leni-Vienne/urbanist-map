@@ -11,6 +11,7 @@ import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneP
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
@@ -125,7 +126,11 @@ export function renderMarkersOnly(overlaysData: OverlayData[]): void {
   hydrateStoreWithOverlays(overlaysData);
 
   const overlayStore = useOverlayStore();
+  const mode = overlayStore.mode;
+  // AI : Filter on OverlayData (has project field) so getOverlayMarkerColor can compute
+  // AI : the correct timeline-based color in view mode.
+  const visibleIds = new Set(filterByCompletionStatus(overlaysData, mode).map((o) => o.id));
   for (const overlayObject of Object.values(overlayStore.overlays)) {
-    createSingleMarker(overlayObject);
+    if (visibleIds.has(overlayObject.id)) createSingleMarker(overlayObject);
   }
 }

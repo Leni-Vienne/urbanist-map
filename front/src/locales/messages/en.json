@@ -24,7 +24,8 @@
     "contact": "Contact",
     "email": "Email",
     "actions": "Actions",
-    "approved": "Approved"
+    "approved": "Approved",
+    "addField": "add"
   },
   "relativeTime": {
     "justNow": "just now",
