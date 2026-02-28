@@ -114,8 +114,8 @@
     "clickMapToPlace": "Click on the map to place your project",
     "information": "Project Information",
     "edit": "Edit Project",
-    "publish": "Publish Project",
-    "submitChangeRequest": "Submit Changes",
+    "publish": "Submit",
+    "submitChangeRequest": "Submit",
     "period": "Period",
     "source": "Source",
     "addImages": "Add Images"
@@ -198,7 +198,7 @@
     "navigationFailed": "Navigation Failed",
     "failedToNavigate": "Failed to navigate to image",
     "publishFailedDetail": "Failed to save image to the backend",
-    "publishOverlay": "Publish Image",
+    "publishOverlay": "Submit",
     "viewCurrentPosition": "View Current Position",
     "viewSuggestedPosition": "View Suggested Position",
     "overlayTooLarge": "Image too large (max 1km × 1km)",
@@ -465,7 +465,7 @@
     "resetRatio": "Reset Image Ratio",
     "delete": "Delete this image",
     "replace": "Replace this image",
-    "save": "Save changes"
+    "save": "Submit"
   },
   "markerTooltip": {
     "status": {
@@ -504,6 +504,7 @@
   "imageUpload": {
     "pdfExtractionDescription": "If your images are sourced from a PDF, it is recommended to use tools like {toolLink} to extract the images in the best possible quality.",
     "dialogTitle": "Add Image to Project",
+    "replacementDialogTitle": "Replace Image",
     "uploadDescription": "Upload images showing street layouts, construction plans or aerial views. The goal is to align the image with the map to give a better understanding of the project. Images with a non-vertical view angle are not accepted since they can't be aligned with the map. Have a look at the latest contributions to see what it should look like.",
     "pdfExtraction": "Extracting from PDFs",
     "tokenToolLink": "TokenTool",

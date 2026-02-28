@@ -1,7 +1,9 @@
 <template>
   <Dialog
     v-model:visible="isVisible"
-    :header="$t('imageUpload.dialogTitle')"
+    :header="
+      isReplacementMode ? $t('imageUpload.replacementDialogTitle') : $t('imageUpload.dialogTitle')
+    "
     :modal="true"
     :closable="true"
     :closeOnEscape="true"
@@ -148,6 +150,8 @@ const selectedFileName = ref("");
 const imagePreviewUrl = ref("");
 const imageDataUrl = ref("");
 const fileSizeError = ref(""); // AI : Inline error message for file validation
+
+const isReplacementMode = computed(() => !!overlayStore.replacementOverlayId);
 
 // AI : Computed visibility from store
 const isVisible = computed({

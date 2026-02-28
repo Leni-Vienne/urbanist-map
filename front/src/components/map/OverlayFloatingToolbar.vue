@@ -2,24 +2,26 @@
   <!-- Teleport into the Leaflet marker icon — Leaflet owns pan/zoom positioning -->
   <Teleport :to="markerIconEl" v-if="markerIconEl">
     <div
-      class="toolbar-anchor"
+      class="absolute -translate-x-1/2 -translate-y-[calc(100%+20px)] pointer-events-auto flex flex-col items-center gap-1 font-sans"
       @click.stop
       @mousedown.stop
       @dblclick.stop
       @wheel.stop
       @touchstart.stop
     >
-      <div class="toolbar-bar">
+      <div
+        class="flex items-center gap-0.5 bg-white border border-gray-200 rounded-[10px] py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
+      >
         <!-- Info toggle -->
         <button
           :title="t('toolbar.info')"
-          :class="{ active: showInfoPopup }"
+          :class="btnCls({ active: showInfoPopup })"
           @click="toggleInfoPopup"
         >
           <i class="pi pi-ellipsis-v" />
         </button>
 
-        <span class="sep" />
+        <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
 
         <!-- Opacity slider -->
         <input
@@ -29,50 +31,76 @@
           :value="opacity"
           @input="onOpacityInput"
           :title="`Opacity: ${opacity}%`"
+          class="w-[72px] h-1 cursor-pointer accent-indigo-600"
         />
-        <span class="opacity-label">{{ opacity }}%</span>
+        <span class="text-[13px] text-gray-400 min-w-7 text-right">{{ opacity }}%</span>
 
         <!-- Nav prev/next + index -->
         <template v-if="showNav">
-          <span class="sep" />
-          <button :title="t('toolbar.previousOverlay')" @click="goToPrevious">
+          <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
+          <button :title="t('toolbar.previousOverlay')" :class="btnCls()" @click="goToPrevious">
             <i class="pi pi-chevron-left" />
           </button>
-          <span v-if="overlayIndex" class="index-label"
+          <span v-if="overlayIndex" class="text-[13px] text-gray-400 min-w-7 text-center"
             >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
           >
-          <button :title="t('toolbar.nextOverlay')" @click="goToNext">
+          <button :title="t('toolbar.nextOverlay')" :class="btnCls()" @click="goToNext">
             <i class="pi pi-chevron-right" />
           </button>
         </template>
 
-        <span class="sep" />
-        <button title="Bring to front" @click="stackToFront"><i class="pi pi-arrow-up" /></button>
-        <button title="Send to back" @click="stackToBack"><i class="pi pi-arrow-down" /></button>
+        <template v-if="hasCollision">
+          <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
+          <button title="Bring to front" :class="btnCls()" @click="stackToFront">
+            <i class="pi pi-arrow-up" />
+          </button>
+          <button title="Send to back" :class="btnCls()" @click="stackToBack">
+            <i class="pi pi-arrow-down" />
+          </button>
+        </template>
 
         <!-- Edit-only tools -->
         <template v-if="isEditMode">
-          <span class="sep" />
-          <button :title="t('toolbar.undo')" :disabled="!canUndo" @click="undo">
+          <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
+          <button :title="t('toolbar.undo')" :disabled="!canUndo" :class="btnCls()" @click="undo">
             <i class="pi pi-undo" />
           </button>
-          <button v-if="canRedo" :title="t('toolbar.redo')" @click="redo">
+          <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo">
             <i class="pi pi-refresh" />
           </button>
-          <button v-if="canReplaceImage" :title="t('toolbar.replace')" @click="onReplace">
+          <button
+            v-if="canReplaceImage"
+            :title="t('toolbar.replace')"
+            :class="btnCls()"
+            @click="onReplace"
+          >
             <i class="pi pi-image" />
           </button>
-          <button v-if="canDelete" :title="t('toolbar.delete')" class="danger" @click="onDelete">
+          <button
+            v-if="canDelete"
+            :title="t('toolbar.delete')"
+            :class="btnCls({ danger: true })"
+            @click="onDelete"
+          >
             <i class="pi pi-trash" />
           </button>
-          <button :title="t('toolbar.save')" :disabled="!hasUnsavedModifications" @click="onSave">
-            <i class="pi pi-save" />
+          <button
+            :title="t('toolbar.save')"
+            :disabled="!hasUnsavedModifications"
+            :class="btnCls()"
+            @click="onSave"
+          >
+            <i class="pi pi-send" />
           </button>
         </template>
       </div>
 
       <!-- Teleport anchor for UnifiedProjectPopup (via PopupContainer) -->
-      <div v-show="showInfoPopup" ref="infoSlot" class="info-anchor" />
+      <div
+        v-show="showInfoPopup"
+        ref="infoSlot"
+        class="absolute top-full left-0 w-0 h-0 overflow-visible pointer-events-none"
+      />
     </div>
   </Teleport>
 </template>
@@ -85,22 +113,19 @@ import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { type OverlayObject } from "@/types";
-import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import { getLayer } from "@/services/overlay/overlayRenderRegistry";
+import { getLayer, getAllLayers } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import "@/services/overlay/overlayActions"; // ensure navigateOverlaySequence callback is registered
-import { deleteOverlayDirect } from "@/services/core/entityRemoval";
-import { withErrorHandling } from "@/services/core/errorHandling";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
-const toast = useToast();
 const pendingModsStore = usePendingModificationsStore();
 
 const { idSelectedOverlay, mode } = storeToRefs(overlayStore);
@@ -143,6 +168,8 @@ function destroyMarker() {
     cancelAnimationFrame(retryRafId);
     retryRafId = null;
   }
+  detachCollisionLayer();
+  hasCollision.value = false;
 }
 
 function createMarker(latlng: L.LatLng) {
@@ -189,6 +216,81 @@ function stopRAF() {
     rafId = null;
   }
 }
+// ─── SAT collision (convex quad vs convex quad) ───────────────────────────────
+
+function projectOnAxis(corners: L.LatLng[], axLat: number, axLng: number) {
+  let min = Infinity,
+    max = -Infinity;
+  for (const c of corners) {
+    const p = c.lat * axLat + c.lng * axLng;
+    if (p < min) min = p;
+    if (p > max) max = p;
+  }
+  return { min, max };
+}
+
+function quadsOverlap(a: L.LatLng[], b: L.LatLng[]): boolean {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const p1 = poly[i],
+        p2 = poly[(i + 1) % poly.length];
+      const dlat = p2!.lat - p1!.lat,
+        dlng = p2!.lng - p1!.lng;
+      const pa = projectOnAxis(a, -dlng, dlat);
+      const pb = projectOnAxis(b, -dlng, dlat);
+      if (pa.max < pb.min || pb.max < pa.min) return false;
+    }
+  }
+  return true;
+}
+
+// ─── Collision detection ───────────────────────────────────────────────────────
+
+const hasCollision = ref(false);
+let collisionLayer: L.DistortableImageOverlay | null = null;
+
+function checkCollision() {
+  const id = selectedId.value;
+  if (!id) {
+    hasCollision.value = false;
+    return;
+  }
+  const layer = getLayer(id);
+  if (!layer) {
+    hasCollision.value = false;
+    return;
+  }
+  try {
+    const corners = (layer as any).getCorners() as L.LatLng[];
+    hasCollision.value = getAllLayers().some(([otherId, other]) => {
+      if (otherId === id) return false;
+      try {
+        return quadsOverlap(corners, (other as any).getCorners() as L.LatLng[]);
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    hasCollision.value = false;
+  }
+}
+
+function attachCollisionLayer(id: string) {
+  const layer = getLayer(id) as L.DistortableImageOverlay | null;
+  if (!layer || layer === collisionLayer) return;
+  detachCollisionLayer();
+  collisionLayer = layer;
+  (layer as any).on("edit dragend", checkCollision);
+}
+
+function detachCollisionLayer() {
+  if (collisionLayer) {
+    (collisionLayer as any).off("edit dragend", checkCollision);
+    collisionLayer = null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function initForSelection() {
   if (!map.value) return;
@@ -203,6 +305,8 @@ function initForSelection() {
   createMarker(latlng);
   opacity.value = readOpacity();
   startRAF();
+  attachCollisionLayer(selectedId.value!);
+  checkCollision();
 }
 
 watch(
@@ -220,8 +324,12 @@ watch(
 // Edge case: selectedId set before MapView's onMounted initializes the map
 watch(
   map,
-  (newMap) => {
-    if (newMap && selectedId.value && !anchorMarker) initForSelection();
+  (newMap, oldMap) => {
+    oldMap?.off("moveend", checkCollision);
+    if (newMap) {
+      newMap.on("moveend", checkCollision);
+      if (selectedId.value && !anchorMarker) initForSelection();
+    }
   },
   { immediate: true },
 );
@@ -229,6 +337,7 @@ watch(
 onUnmounted(() => {
   stopRAF();
   destroyMarker();
+  map.value?.off("moveend", checkCollision);
 });
 
 function readOpacity(): number {
@@ -331,6 +440,7 @@ function redo() {
 }
 
 const projectStore = useProjectStore();
+const { handleDeleteOverlay } = useProjectDeletion();
 
 // AI : Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { prepareOverlaySubmission } = useSubmissionDialog();
@@ -359,21 +469,17 @@ async function onDelete() {
   if (!id) return;
   const overlay = overlayStore.overlays[id];
   if (!overlay) return;
-  const name = overlay.caption ?? "this overlay";
-  if (!confirm(t("overlay.confirmDelete", { name }))) return;
-  await withErrorHandling(
-    async () => {
-      const ok = await deleteOverlayDirect(id, {
-        updateUserContributions: true,
-        clearCityCaches: true,
-      });
-      if (ok) {
-        overlayStore.idSelectedOverlay = null;
-        toast.add({ severity: "success", summary: "Overlay deleted", life: 3000 });
-      }
-    },
-    { errorMessage: "Failed to delete overlay", logError: true },
-  );
+  const project = overlay.projectId
+    ? (projectStore.projects[overlay.projectId] ??
+      projectStore.allProjects[overlay.projectId] ??
+      null)
+    : null;
+  const overlayCount = overlay.projectId
+    ? Object.values(overlayStore.overlays).filter((o) => o.projectId === overlay.projectId).length
+    : 0;
+  await handleDeleteOverlay(id, project, overlayCount, overlay.caption ?? null, () => {
+    overlayStore.idSelectedOverlay = null;
+  });
 }
 
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {
@@ -382,111 +488,15 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
   if (overlayObject.isModified) return true;
   return false;
 }
+
+function btnCls(opts?: { active?: boolean; danger?: boolean }): string {
+  const base =
+    "min-w-[26px] h-[26px] border-0 rounded-md cursor-pointer flex items-center justify-center text-sm px-1 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-transparent";
+  if (opts?.active) return `${base} bg-indigo-100 text-indigo-600 hover:bg-indigo-100`;
+  if (opts?.danger) return `${base} bg-transparent text-red-600 hover:bg-red-100`;
+  return `${base} bg-transparent text-gray-500 hover:bg-gray-100`;
+}
 </script>
-
-<style scoped>
-/* toolbar-anchor sits inside the 0×0 marker icon — absolutely positioned above the anchor point */
-.toolbar-anchor {
-  position: absolute;
-  transform: translate(-50%, calc(-100% - 20px));
-  pointer-events: all;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  font-family: system-ui, sans-serif;
-}
-
-.toolbar-bar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 4px 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  white-space: nowrap;
-}
-
-.toolbar-bar button {
-  min-width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  color: #6b7280;
-  padding: 0 4px;
-}
-
-.toolbar-bar button .pi {
-  font-size: 14px;
-}
-
-.toolbar-bar button:hover {
-  background: #f3f4f6;
-}
-.toolbar-bar button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.toolbar-bar button:disabled:hover {
-  background: transparent;
-}
-.toolbar-bar button.active {
-  background: #e0e7ff;
-  color: #4f46e5;
-}
-.toolbar-bar button.danger {
-  color: #dc2626;
-}
-.toolbar-bar button.danger:hover {
-  background: #fee2e2;
-}
-
-.sep {
-  width: 1px;
-  height: 18px;
-  background: #e5e7eb;
-  margin: 0 2px;
-  flex-shrink: 0;
-}
-
-.opacity-label,
-.index-label {
-  font-size: 13px;
-  color: #9ca3af;
-  min-width: 28px;
-  text-align: right;
-}
-
-.index-label {
-  text-align: center;
-}
-
-input[type="range"] {
-  width: 72px;
-  height: 4px;
-  cursor: pointer;
-  accent-color: #4f46e5;
-}
-
-/* Teleport anchor for UnifiedProjectPopup — zero-size, aligned with left edge of toolbar-bar */
-.info-anchor {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 0;
-  height: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-</style>
 
 <style>
 /* Global: reset Leaflet's default DivIcon styles on our anchor marker */

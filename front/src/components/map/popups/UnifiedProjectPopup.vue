@@ -111,15 +111,9 @@
     <div v-if="!viewMode" class="mt-4 flex gap-2 items-stretch">
       <Button
         class="flex-1"
-        :label="
-          isPublishedToBackend
-            ? $t('project.submitChangeRequest')
-            : overlay
-              ? $t('overlay.publishOverlay')
-              : $t('project.publish')
-        "
-        :icon="isPublishedToBackend ? 'pi pi-send' : 'pi pi-cloud-upload'"
-        :severity="isPublishedToBackend ? 'info' : 'success'"
+        :label="$t('project.submitChangeRequest')"
+        icon="pi pi-send"
+        severity="success"
         :loading="publishLoading"
         :disabled="!hasChanges"
         @click="handlePublishClick"

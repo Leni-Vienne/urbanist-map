@@ -24,6 +24,7 @@
               icon="pi pi-question-circle"
               severity="help"
               aria-hidden="true"
+              tabindex="-1"
               class="pointer-events-none shrink-0"
             />
             <div class="flex-1 text-[var(--p-text-color)] text-[0.9rem]">
@@ -35,6 +36,7 @@
               icon="pi pi-map"
               severity="secondary"
               aria-hidden="true"
+              tabindex="-1"
               class="pointer-events-none shrink-0"
             />
             <div class="flex-1 text-[var(--p-text-color)] text-[0.9rem]">
@@ -46,6 +48,7 @@
               icon="pi pi-filter"
               severity="secondary"
               aria-hidden="true"
+              tabindex="-1"
               class="pointer-events-none shrink-0"
             />
             <div class="flex-1 text-[var(--p-text-color)] text-[0.9rem]">

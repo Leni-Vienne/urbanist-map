@@ -114,8 +114,8 @@
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
     "information": "Informations du projet",
     "edit": "Modifier le projet",
-    "publish": "Publier le projet",
-    "submitChangeRequest": "Publier",
+    "publish": "Envoyer",
+    "submitChangeRequest": "Envoyer",
     "period": "Période",
     "source": "Source",
     "addImages": "Ajouter"
@@ -198,7 +198,7 @@
     "navigationFailed": "Échec de la navigation",
     "failedToNavigate": "Échec de la navigation vers l'image",
     "publishFailedDetail": "Échec de l'enregistrement de l'image",
-    "publishOverlay": "Publier l'image",
+    "publishOverlay": "Envoyer",
     "viewCurrentPosition": "Voir la position actuelle",
     "viewSuggestedPosition": "Voir la position suggérée",
     "overlayTooLarge": "Image trop grande (max 1km × 1km)",
@@ -330,8 +330,8 @@
     "confirmTitle": "Confirmer l'enregistrement",
     "requiresModeration": "Requiert modération",
     "immediateUpdate": "Mise à jour immédiate",
-    "confirmSubmit": "Confirmer et soumettre",
-    "changeRequestSubmitted": "Demande de modification soumise avec succès",
+    "confirmSubmit": "Confirmer et envoyer",
+    "changeRequestSubmitted": "Modifications envoyées avec succès",
     "changesSaved": "Modifications enregistrées avec succès",
     "submissionSuccessful": "Enregistrement réussi",
     "overlayCaption": "Légende de l'image",
@@ -465,7 +465,7 @@
     "resetRatio": "Réinitialiser le ratio de l'image",
     "delete": "Supprimer cette image",
     "replace": "Remplacer cette image",
-    "save": "Sauvegarder les modifications"
+    "save": "Envoyer"
   },
   "markerTooltip": {
     "status": {
@@ -504,6 +504,7 @@
   "imageUpload": {
     "pdfExtractionDescription": "Si vos images proviennent d'un PDF, il est recommandé d'utiliser des outils comme {toolLink} pour les extraire dans la meilleure qualité possible.",
     "dialogTitle": "Ajouter une image au projet",
+    "replacementDialogTitle": "Remplacer l'image",
     "uploadDescription": "Ajouter une image vue de dessus d'un plan de rue. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées. Jetez un œil aux dernières contributions pour voir comment elles devraient se présenter.",
     "pdfExtraction": "Extraction depuis des PDFs",
     "tokenToolLink": "TokenTool",
@@ -630,22 +631,22 @@
     "approveOneToRejectOthers": "Approuver l'une rejettera les autres",
     "replacementConflicts": {
       "title": "Conflits de remplacement détectés",
-      "approvingWillReplace": "L'approbation de ce remplacement remplacera la superposition approuvée \"{original}\".",
+      "approvingWillReplace": "L'approbation de ce remplacement remplacera l'image approuvée \"{original}\".",
       "pendingChanges": "{count} demande(s) de modification en attente",
       "competingReplacements": "{count} remplacement(s) concurrent(s)",
-      "changesWillBeConflicted": "Ces demandes de modification en attente seront marquées comme en conflit car la superposition d'origine est remplacée.",
+      "changesWillBeConflicted": "Ces demandes de modification en attente seront marquées comme en conflit car l'image d'origine est remplacée.",
       "competingWillBeRejected": "Ces contributions de remplacement concurrentes seront automatiquement rejetées.",
       "approveAndResolve": "Approuver et résoudre les conflits"
     },
     "deleteOverlay": {
-      "title": "Supprimer la superposition ?",
+      "title": "Supprimer l'image ?",
       "message": "Êtes-vous sûr de vouloir supprimer \"{caption}\" ? Cette action ne peut pas être annulée.",
       "messageUnnamed": "Êtes-vous sûr de vouloir supprimer cette superposition ? Cette action ne peut pas être annulée.",
-      "deleteButton": "Supprimer la superposition",
-      "deleteSuccess": "Superposition supprimée",
+      "deleteButton": "Supprimer l'image",
+      "deleteSuccess": "Image supprimée",
       "deleteSuccessDetail": "La superposition a été supprimée avec succès",
       "deleteFailed": "Échec de la suppression",
-      "deleteFailedDetail": "Échec de la suppression de la superposition",
+      "deleteFailedDetail": "Échec de la suppression de l'image",
       "cannotDeleteApproved": "Impossible de supprimer les superpositions approuvées"
     },
     "moderatedContributions": {
