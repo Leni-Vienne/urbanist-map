@@ -13,7 +13,7 @@
           ? 'bg-amber-500/95 border-amber-600 text-white shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:shadow-[0_6px_16px_rgba(245,158,11,0.5)]'
           : overlayStore.mode === 'moderation'
             ? 'bg-blue-500/95 border-blue-600 text-white shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_16px_rgba(59,130,246,0.5)]'
-            : 'bg-white/95 border-[var(--p-surface-border)] text-[var(--p-text-color)] shadow-[0_2px_8px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.25)]',
+            : 'bg-white/95 border-[var(--p-surface-300)] text-[var(--p-text-color)] shadow-[0_2px_8px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.25)]',
       ]"
       @click="handleModeSwitch"
       :aria-label="$t('map.switchMode')"

@@ -143,6 +143,11 @@ async function handleResetPassword() {
     const result = await authStore.resetPassword(token, newPassword.value);
 
     if (result.success) {
+      // AI : Auto-login after successful password reset — failure is non-fatal
+      if (result.email) {
+        await authStore.signIn(result.email, newPassword.value).catch(() => {});
+      }
+
       toast.add({
         severity: "success",
         summary: $t("common.success"),

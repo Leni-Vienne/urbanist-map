@@ -100,6 +100,7 @@
     "alreadyStarted": "Déjà commencé, date de début inconnue",
     "proposed": "Proposé",
     "proposedOn": "Proposé le",
+    "proposedIn": "Proposé en",
     "startsIn": "Commence en",
     "startsOn": "Commence le",
     "endsIn": "Se termine en",
@@ -185,6 +186,7 @@
     "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
   },
   "overlay": {
+    "overlayImage": "image",
     "overlayImages": "images",
     "overlayInformation": "Informations sur l'image",
     "notSet": "Non défini",

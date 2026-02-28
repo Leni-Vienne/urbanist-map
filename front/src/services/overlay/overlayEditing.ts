@@ -75,7 +75,9 @@ export async function updateOverlayEditingState(): Promise<void> {
     // AI : Update overlay options using the setOptions method
     const isEditMode = overlayStore.mode === "edit";
     layer.setOptions({
-      actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : getViewTools())],
+      actions: [
+        ...(isEditMode ? getEditToolsForOverlay(overlayObject) : getViewTools(overlayObject)),
+      ],
       draggable: isEditMode,
     });
 

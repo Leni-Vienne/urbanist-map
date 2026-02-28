@@ -94,7 +94,12 @@
 
     <!-- AI : Footer actions -->
     <template #footer>
-      <Button :label="$t('common.close')" severity="secondary" outlined @click="emit('close')" />
+      <Button
+        :label="$t('common.close')"
+        severity="secondary"
+        outlined
+        @click="isVisible = false"
+      />
       <Button
         v-if="moderatedContributions.length > 0"
         :label="$t('moderation.moderatedContributions.acknowledgeAll')"

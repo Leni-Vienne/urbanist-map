@@ -27,8 +27,10 @@
               <div class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]">
                 <i class="pi pi-images text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
                 <span
-                  >{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
-                  {{ $t("overlay.overlayImages") }}</span
+                  >{{ overlayCount }}
+                  {{
+                    overlayCount === 1 ? $t("overlay.overlayImage") : $t("overlay.overlayImages")
+                  }}</span
                 >
               </div>
               <div
@@ -150,7 +152,12 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
               <p
-                class="text-[15px] font-bold text-[var(--p-surface-900)] m-0 leading-tight flex-1 min-w-0 truncate"
+                :class="[
+                  'text-[15px] font-bold m-0 leading-tight flex-1 min-w-0 truncate',
+                  overlay.name
+                    ? 'text-[var(--p-surface-900)]'
+                    : 'italic text-[var(--p-surface-400)]',
+                ]"
               >
                 {{ overlay.name || $t("overlay.untitled") }}
               </p>
@@ -280,6 +287,10 @@ const emit = defineEmits<{
 }>();
 
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
+
+const overlayCount = computed(
+  () => props.project.overlayCount || (props.project.overlays?.length ?? 0),
+);
 
 const shouldShowOverlays = computed(() => {
   return props.project.overlays && props.project.overlays.length > 0;
