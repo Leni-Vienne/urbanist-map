@@ -220,7 +220,8 @@
     "noChangesToSave": "Aucune modification à enregistrer",
     "zoomingToProject": "Zoom vers le projet",
     "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
-    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image"
+    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image",
+    "changesSaved": "Modifications sauvegardées"
   },
   "map": {
     "clickCityMarker": "Cliquez sur une ville",
@@ -463,7 +464,8 @@
     "redo": "Rétablir (ctrl + y)",
     "resetRatio": "Réinitialiser le ratio de l'image",
     "delete": "Supprimer cette image",
-    "replace": "Remplacer cette image"
+    "replace": "Remplacer cette image",
+    "save": "Sauvegarder les modifications"
   },
   "markerTooltip": {
     "status": {

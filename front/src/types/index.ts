@@ -1,4 +1,4 @@
-import L from "leaflet";
+import * as L from "leaflet";
 import type { RouterOutput } from "@/client";
 import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back/src/db/schema";
 

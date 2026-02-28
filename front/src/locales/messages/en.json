@@ -220,7 +220,8 @@
     "noChangesToSave": "No changes to save",
     "zoomingToProject": "Zooming to Project",
     "zoomInToSeeOverlay": "Zoom level was too low, automatically zooming in to show the uploaded image",
-    "onlyOneOverlayInProject": "This project only has one image"
+    "onlyOneOverlayInProject": "This project only has one image",
+    "changesSaved": "Changes saved"
   },
   "map": {
     "clickCityMarker": "Click on a city marker",
@@ -463,7 +464,8 @@
     "redo": "Redo (ctrl + y)",
     "resetRatio": "Reset Image Ratio",
     "delete": "Delete this image",
-    "replace": "Replace this image image"
+    "replace": "Replace this image",
+    "save": "Save changes"
   },
   "markerTooltip": {
     "status": {

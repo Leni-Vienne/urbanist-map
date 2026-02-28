@@ -11,7 +11,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import L from "leaflet";
-import { OverlayObject } from "@/types";
+import { type OverlayObject } from "@/types";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : ============================================================================
