@@ -166,7 +166,7 @@ export function useChangeRequests() {
     // AI : Reset overlay position to approved corners
     overlayObject.isModified = false;
     const layer = getLayer(overlayId);
-    if (layer && overlayObject.corners?.length === 4) {
+    if (layer && overlayObject.corners.length === 4) {
       const leafletCorners = overlayObject.corners.map((corner) =>
         L.latLng(corner.lat, corner.lng),
       );
