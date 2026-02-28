@@ -1,18 +1,19 @@
 <template>
-  <div class="latest-contributions-panel">
-    <div class="panel-content">
-      <div class="contributions-list" v-if="contributions.length > 0">
-        <!-- AI : Clean borderless cards for both overlays and standalone projects -->
+  <div class="h-full flex flex-col">
+    <div class="flex-1 flex flex-col">
+      <div v-if="contributions.length > 0" class="flex-1 flex flex-col px-4 py-3">
         <div
           v-for="contribution in contributions"
           :key="contribution.id"
-          class="contribution-card"
+          class="group flex items-center gap-3 py-2 cursor-pointer transition-all duration-150 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98]"
           @click="handleContributionClick(contribution)"
           @mouseenter="handleContributionHover(contribution)"
           @mouseleave="handleContributionLeave(contribution)"
         >
-          <!-- AI : Contribution thumbnail image (overlay) or icon (st) -->
-          <div class="contribution-thumbnail">
+          <!-- Contribution thumbnail image (overlay) or icon (standalone) -->
+          <div
+            class="w-[50px] h-[50px] md:w-[60px] md:h-[60px] rounded-xl overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center relative"
+          >
             <img
               v-if="contribution.type === 'overlay' && contribution.filename"
               :src="getContributionImageUrl(contribution.filename)"
@@ -25,27 +26,35 @@
               @error="(event) => handleImageError(event, contribution.id)"
               @load="(event) => handleImageLoad(event, contribution.id)"
             />
-            <!-- AI : Standalone project icon -->
             <i
               v-else-if="contribution.type === 'standalone'"
               class="pi pi-building text-2xl text-primary-500"
             ></i>
-            <!-- AI : Fallback icon if image fails -->
             <i
               v-else-if="imageErrors[contribution.id]"
               class="pi pi-image text-2xl text-surface-400"
             ></i>
           </div>
 
-          <!-- AI : Contribution info -->
-          <div class="contribution-info">
-            <h2 class="contribution-name">{{ contribution.name }}</h2>
-            <div class="contribution-location">{{ getLocationDisplay(contribution) }}</div>
-            <div class="contribution-time">{{ formatRelativeTime(contribution.updatedAt, t) }}</div>
+          <!-- Contribution info -->
+          <div class="flex-1 min-w-0">
+            <h2
+              class="text-[13px] md:text-sm font-semibold text-[#1f2937] truncate leading-tight mb-0.5"
+            >
+              {{ contribution.name }}
+            </h2>
+            <div class="text-xs text-gray-500 truncate mb-0.5">
+              {{ getLocationDisplay(contribution) }}
+            </div>
+            <div class="text-xs text-gray-400">
+              {{ formatRelativeTime(contribution.updatedAt, t) }}
+            </div>
           </div>
 
-          <!-- AI : Chevron indicator for clickability -->
-          <i class="pi pi-chevron-right tap-indicator"></i>
+          <!-- Chevron indicator for clickability -->
+          <i
+            class="pi pi-chevron-right text-sm text-gray-400 shrink-0 transition-colors duration-150 group-hover:text-gray-600"
+          ></i>
         </div>
       </div>
 
@@ -167,121 +176,3 @@ onMounted(() => {
   fetchLatestContributions();
 });
 </script>
-
-<style scoped>
-/* AI : Import shared panel CSS */
-@import "../../assets/panel-common.css";
-
-/* AI : Latest contributions panel with prototype-inspired design */
-.latest-contributions-panel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-content {
-  flex: 1;
-  padding: 0;
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
-}
-
-/* AI : Contributions list container */
-.contributions-list {
-  flex: 1;
-  padding: 1rem 0 1rem 1rem;
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
-}
-
-/* AI : Clean borderless contribution cards */
-.contribution-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-radius: 0;
-}
-
-.contribution-card:hover {
-  background-color: var(--p-surface-50);
-}
-
-/* AI : Contribution thumbnail */
-.contribution-thumbnail {
-  width: 60px;
-  height: 60px;
-  border-radius: 0.75rem;
-  overflow: hidden;
-  background-color: var(--p-surface-100);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-/* AI : Contribution info section */
-.contribution-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.contribution-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 0.2rem 0;
-  line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.contribution-location {
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-  margin-bottom: 0.1rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.contribution-time {
-  font-size: 0.75rem;
-  color: var(--p-surface-400);
-}
-
-.contribution-card:hover .tap-indicator {
-  color: var(--p-surface-600);
-}
-
-/* AI : Mobile active state for touch feedback */
-.contribution-card:active {
-  background-color: var(--p-surface-100);
-  transform: scale(0.98);
-}
-
-/* AI : Mobile responsive adjustments */
-@media (max-width: 768px) {
-  .contribution-card {
-    padding: 0.625rem;
-    gap: 0.625rem;
-  }
-
-  .contribution-thumbnail {
-    width: 50px;
-    height: 50px;
-  }
-
-  .contribution-name {
-    font-size: 0.8125rem;
-    color: #1f2937;
-  }
-}
-</style>

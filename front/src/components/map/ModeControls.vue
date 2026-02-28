@@ -1,19 +1,28 @@
 <template>
   <!-- AI : Shared mode controls component - used in both desktop and mobile -->
-  <div :class="isMobile ? 'mode-controls-wrapper-mobile' : 'mode-controls-wrapper'" @dblclick.stop>
+  <div
+    class="flex justify-center items-center pointer-events-none"
+    :class="isMobile ? 'relative z-20' : ''"
+    @dblclick.stop
+  >
     <button
       type="button"
-      class="mode-indicator"
-      :class="{
-        'edit-mode': overlayStore.mode === 'edit',
-        'moderation-mode': overlayStore.mode === 'moderation',
-      }"
+      class="group appearance-none font-[inherit] flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-[1.5rem] font-semibold text-[0.9rem] border-2 transition-all duration-200 pointer-events-auto cursor-pointer select-none hover:scale-105 active:scale-[0.98]"
+      :class="[
+        overlayStore.mode === 'edit'
+          ? 'bg-amber-500/95 border-amber-600 text-white shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:shadow-[0_6px_16px_rgba(245,158,11,0.5)]'
+          : overlayStore.mode === 'moderation'
+            ? 'bg-blue-500/95 border-blue-600 text-white shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_16px_rgba(59,130,246,0.5)]'
+            : 'bg-white/95 border-[var(--p-surface-border)] text-[var(--p-text-color)] shadow-[0_2px_8px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.25)]',
+      ]"
       @click="handleModeSwitch"
       :aria-label="$t('map.switchMode')"
     >
-      <i :class="['pi', getModeIcon()]"></i>
+      <i :class="['pi', getModeIcon(), 'text-base']"></i>
       <span>{{ getModeLabel() }}</span>
-      <i class="pi pi-refresh switch-icon"></i>
+      <i
+        class="pi pi-refresh ml-1 opacity-70 text-[0.85rem] transition-transform duration-300 group-hover:opacity-100 group-hover:rotate-180"
+      ></i>
     </button>
   </div>
 </template>
@@ -158,92 +167,3 @@ function handleModeSwitch() {
   }
 }
 </script>
-
-<style scoped>
-/* AI : Mode controls wrapper - centers the clickable mode pill */
-.mode-controls-wrapper,
-.mode-controls-wrapper-mobile {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: none;
-}
-
-.mode-controls-wrapper-mobile {
-  position: relative;
-  z-index: 20;
-  /* AI : Ensure it sits coverage SatellitePreview (z-index 10) if they overlap */
-}
-
-/* AI : Clickable mode indicator pill with integrated switch icon */
-.mode-indicator {
-  /* AI : Reset button defaults */
-  appearance: none;
-  font-family: inherit;
-  /* AI : Layout and styling */
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  border-radius: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-color);
-  border: 2px solid var(--surface-border);
-  transition: all 0.2s ease-in-out;
-  pointer-events: auto;
-  cursor: pointer;
-  user-select: none;
-}
-
-.mode-indicator:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-}
-
-.mode-indicator:active {
-  transform: scale(0.98);
-}
-
-.mode-indicator.edit-mode {
-  background: rgba(245, 158, 11, 0.95);
-  border-color: #d97706;
-  color: white;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-}
-
-.mode-indicator.edit-mode:hover {
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
-}
-
-.mode-indicator.moderation-mode {
-  background: rgba(59, 130, 246, 0.95);
-  border-color: #2563eb;
-  color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
-
-.mode-indicator.moderation-mode:hover {
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
-}
-
-.mode-indicator i {
-  font-size: 1rem;
-}
-
-/* AI : Refresh icon on the right side of the pill */
-.switch-icon {
-  margin-left: 0.25rem;
-  opacity: 0.7;
-  font-size: 0.85rem;
-  transition: transform 0.3s ease;
-}
-
-.mode-indicator:hover .switch-icon {
-  opacity: 1;
-  transform: rotate(180deg);
-}
-</style>

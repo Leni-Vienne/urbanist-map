@@ -1,5 +1,5 @@
 <template>
-  <div class="moderation-container">
+  <div class="flex flex-col">
     <!-- AI : Replacement Conflicts Dialog -->
     <ReplacementConflictsDialog
       v-model:visible="showConflictsDialog"
@@ -38,9 +38,15 @@
     />
 
     <!-- AI : Country Selector for Moderation -->
-    <div v-if="showCountrySelector" class="country-selector-container">
-      <label for="country-select" class="country-selector-label">
-        <i class="pi pi-globe"></i>
+    <div
+      v-if="showCountrySelector"
+      class="flex items-center gap-3 px-3 py-2 bg-surface-50 border border-surface-200 rounded-md"
+    >
+      <label
+        for="country-select"
+        class="flex items-center gap-2 font-semibold text-surface-700 text-[0.9375rem] whitespace-nowrap"
+      >
+        <i class="pi pi-globe text-primary"></i>
         {{ $t("moderation.selectCountry") }}:
       </label>
       <Select
@@ -53,10 +59,10 @@
         :filter="availableCountries.length > 10"
         :loading="countriesLoading"
         @change="handleCountryChange"
-        class="country-dropdown"
+        class="flex-1 min-w-[200px] max-w-[300px]"
       >
         <template #option="{ option }">
-          <div class="country-option">
+          <div class="flex items-center justify-between gap-2 w-full">
             <span>{{ option.name }}</span>
             <Badge
               v-if="getPendingCount(option.code) > 0"
@@ -69,9 +75,12 @@
     </div>
 
     <!-- AI : Message when moderator needs to select a country -->
-    <div v-if="showCountrySelector && !selectedCountryCode" class="no-country-message">
-      <i class="pi pi-info-circle"></i>
-      <p>{{ $t("moderation.pleaseSelectCountry") }}</p>
+    <div
+      v-if="showCountrySelector && !selectedCountryCode"
+      class="flex items-center gap-3 p-6 bg-blue-50 border border-blue-200 rounded-md text-blue-700"
+    >
+      <i class="pi pi-info-circle text-2xl text-blue-600"></i>
+      <p class="m-0 text-[0.9375rem] font-medium">{{ $t("moderation.pleaseSelectCountry") }}</p>
     </div>
 
     <!-- AI : Projects Section - pure approve/reject workflow for pending items -->
@@ -121,7 +130,7 @@
         <!-- AI : This prevents approving overlays before their parent project is approved -->
         <button
           v-if="overlay.status === 'pending' && project.status === 'pending'"
-          class="action-btn disabled-btn"
+          class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center text-surface-400 cursor-not-allowed opacity-60"
           disabled
           v-tooltip.top="$t('tooltips.approveProjectFirst')"
         >
@@ -839,84 +848,3 @@ async function executeRejectChange(changeId: string) {
   }
 }
 </script>
-
-<style scoped>
-/* AI : Import shared panel CSS */
-@import "../../assets/panel-common.css";
-
-/* AI : Main moderation container */
-.moderation-container {
-  display: flex;
-  flex-direction: column;
-}
-
-/* AI : Moderation header actions - align button to the right */
-.moderation-header-actions {
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-}
-
-/* AI : Country selector styling */
-.country-selector-container {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 6px;
-}
-
-.country-selector-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  color: var(--p-surface-700);
-  font-size: 0.9375rem;
-  white-space: nowrap;
-}
-
-.country-selector-label i {
-  color: var(--p-primary-color);
-}
-
-.country-dropdown {
-  flex: 1;
-  min-width: 200px;
-  max-width: 300px;
-}
-
-/* AI : Country option with pending count badge */
-.country-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-/* AI : No country selected message */
-.no-country-message {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  background: var(--p-blue-50);
-  border: 1px solid var(--p-blue-200);
-  border-radius: 6px;
-  color: var(--p-blue-700);
-}
-
-.no-country-message i {
-  font-size: 1.5rem;
-  color: var(--p-blue-600);
-}
-
-.no-country-message p {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 500;
-}
-</style>

@@ -22,7 +22,7 @@
     <template #project-actions="{ project }">
       <!-- AI : Edit button - navigates to project for editing -->
       <button
-        class="action-btn edit-btn"
+        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
         @click.stop="handleEditProjectClick(project)"
         v-tooltip.top="$t('tooltips.editProject')"
       >
@@ -30,7 +30,7 @@
       </button>
       <!-- AI : Add image button - same icon as in UnifiedProjectPopup -->
       <button
-        class="action-btn add-image-btn"
+        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-surface-600 hover:text-surface-700 hover:bg-surface-100 hover:border-surface-300"
         @click.stop="handleAddImageToProject(project)"
         v-tooltip.top="$t('project.addImages')"
       >
@@ -54,8 +54,12 @@
       </button>
       <!-- AI : Save button - uses save icon, disabled when no changes -->
       <button
-        class="action-btn save-btn"
-        :class="{ disabled: !isProjectModified(project.id) }"
+        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center transition-all duration-150 text-sm text-green-500"
+        :class="
+          isProjectModified(project.id)
+            ? 'cursor-pointer hover:text-green-600 hover:bg-green-50 hover:border-green-200'
+            : 'opacity-40 cursor-not-allowed pointer-events-none'
+        "
         :disabled="!isProjectModified(project.id)"
         @click.stop="handleSaveProjectClick(project)"
         v-tooltip.top="getProjectSaveTooltip(project)"
@@ -64,7 +68,7 @@
       </button>
       <button
         v-if="!project.status || project.status === 'pending' || project.status === 'rejected'"
-        class="action-btn delete-btn"
+        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
         @click.stop="handleDeleteProjectClick(project)"
         v-tooltip.top="$t('contribute.deleteProject')"
       >
@@ -76,7 +80,7 @@
       <!-- AI : Edit button - hide for replaced overlays (can't be edited) -->
       <button
         v-if="overlay.status !== 'replaced'"
-        class="action-btn edit-btn"
+        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
         @click.stop="handleEditOverlayClick(overlay)"
         v-tooltip.top="$t('tooltips.editOverlay')"
       >
@@ -85,7 +89,7 @@
       <!-- AI : Show delete for drafts (null/undefined), pending, or rejected overlays -->
       <button
         v-if="!overlay.status || overlay.status === 'pending' || overlay.status === 'rejected'"
-        class="action-btn delete-btn"
+        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
         @click.stop="handleDeleteOverlayClick(overlay)"
         v-tooltip.top="$t('contribute.deleteOverlay')"
       >
@@ -96,7 +100,7 @@
     <template #change-actions="{ change }">
       <button
         v-if="change.status === 'pending' || change.status === 'conflicted'"
-        class="action-btn delete-btn"
+        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
         @click.stop="handleDeleteChangeRequestClick(change)"
         v-tooltip.top="$t('contribute.deleteChangeRequest')"
       >
@@ -106,21 +110,31 @@
 
     <template #header-actions>
       <!-- AI : Wrapper with column layout for two rows -->
-      <div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%">
+      <div class="flex flex-col gap-3 w-full">
         <!-- AI : First row - breadcrumb and buttons -->
-        <div class="header-actions-container">
-          <span class="city-header">
+        <div class="flex gap-4 items-center justify-between w-full">
+          <span class="flex items-center gap-2 text-base min-w-0 flex-1">
             <span
-              :class="['panel-name', { clickable: showingCityProjects }]"
+              :class="[
+                'font-semibold shrink-0 text-surface-800',
+                showingCityProjects
+                  ? 'text-primary-500 cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 hover:text-primary-600 hover:bg-primary-50'
+                  : '',
+              ]"
               @click="showingCityProjects ? handleMyContributionsClick() : null"
               :title="showingCityProjects ? $t('contribute.viewAllContributions') : ''"
             >
               {{ $t("contribute.myContributions") }}
             </span>
             <template v-if="lastSelectedCity">
-              <span class="separator">|</span>
+              <span class="text-surface-400 font-normal mx-1 shrink-0">|</span>
               <span
-                :class="['city-name', 'clickable', { 'city-link--flying': cityLinkClicked }]"
+                :class="[
+                  'font-semibold cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0',
+                  cityLinkClicked
+                    ? 'text-surface-900'
+                    : 'text-primary-500 hover:text-primary-600 hover:bg-primary-50',
+                ]"
                 @click="handleCityClick()"
                 :title="$t('contribute.viewCityProjects')"
               >
@@ -130,28 +144,36 @@
           </span>
 
           <!-- AI : Buttons on the right -->
-          <div style="display: flex; gap: 0.5rem">
+          <div class="flex gap-2">
             <Button
               @click="handleAddOverlayClick"
               severity="primary"
               size="small"
               icon="pi pi-plus"
               :label="$t('common.add')"
-              class="add-project-button"
+              class="font-semibold"
               v-tooltip.bottom="$t('dialog.createNewProject')"
             />
           </div>
         </div>
 
         <!-- AI : Second row - filters -->
-        <div class="header-filters-row">
-          <div class="field-checkbox">
+        <div class="flex items-center gap-4 flex-wrap">
+          <div class="flex items-center gap-2">
             <Checkbox v-model="showPending" inputId="showPending" binary />
-            <label for="showPending">{{ $t("help.filters.showPending") }}</label>
+            <label
+              for="showPending"
+              class="text-sm text-surface-600 cursor-pointer whitespace-nowrap"
+              >{{ $t("help.filters.showPending") }}</label
+            >
           </div>
-          <div class="field-checkbox">
+          <div class="flex items-center gap-2">
             <Checkbox v-model="showApproved" inputId="showApproved" binary />
-            <label for="showApproved">{{ $t("help.filters.showApproved") }}</label>
+            <label
+              for="showApproved"
+              class="text-sm text-surface-600 cursor-pointer whitespace-nowrap"
+              >{{ $t("help.filters.showApproved") }}</label
+            >
           </div>
         </div>
       </div>
@@ -594,101 +616,3 @@ onMounted(() => {
   refreshPendingChangeRequests(true);
 });
 </script>
-
-<style scoped>
-/* AI : Import shared panel CSS */
-@import "../../assets/panel-common.css";
-
-/* AI : Custom two-row header layout for My Contributions panel */
-.my-contributions-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-/* AI : First row - action buttons aligned to the right */
-.header-buttons-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  justify-content: flex-end;
-  width: 100%;
-}
-
-/* AI : Second row - filter checkboxes */
-.header-filters-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.field-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.field-checkbox label {
-  font-size: 0.875rem;
-  color: var(--p-surface-600);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-/* AI : Breadcrumb styling */
-.panel-name {
-  color: var(--p-surface-800);
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.panel-name.clickable {
-  color: var(--p-primary-500);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--p-border-radius);
-  margin: -0.25rem -0.5rem;
-}
-
-.panel-name.clickable:hover {
-  color: var(--p-primary-600);
-  background-color: var(--p-primary-50);
-}
-
-.separator {
-  color: var(--p-surface-400);
-  font-weight: 400;
-  margin: 0 0.5rem;
-  flex-shrink: 0;
-}
-
-.city-name {
-  color: var(--p-surface-800);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.city-name.clickable {
-  color: var(--p-primary-500);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--p-border-radius);
-  margin: -0.25rem -0.5rem;
-}
-
-.city-name.clickable:hover {
-  color: var(--p-primary-600);
-  background-color: var(--p-primary-50);
-}
-
-.city-name.city-link--flying {
-  color: var(--p-surface-900);
-}
-</style>

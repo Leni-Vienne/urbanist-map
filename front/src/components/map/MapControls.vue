@@ -1,7 +1,9 @@
 <template>
-  <div class="map-buttons">
+  <div
+    class="absolute top-[72px] left-4 z-[1000] flex flex-col gap-3 transition-opacity duration-300"
+  >
     <!-- AI : Zoom Controls -->
-    <div class="buttons-stacked">
+    <div class="flex flex-col gap-1.5 mb-3">
       <Button
         @click.stop="handleZoomIn"
         @dblclick.stop
@@ -31,7 +33,7 @@
       />
     </div>
 
-    <div class="buttons-stacked">
+    <div class="flex flex-col gap-1.5 mb-3">
       <!-- AI : Filter Control (View Mode Only) -->
       <FilterControl
         v-if="mode !== 'edit'"
@@ -154,26 +156,3 @@ function showHelpModal() {
   uiStore.welcomeDialogVisible = true;
 }
 </script>
-
-<style scoped>
-.map-buttons {
-  position: absolute;
-  top: 72px;
-  /* AI : Moved down to make room for city search (16px + 40px search + 16px gap) */
-  left: 16px;
-  z-index: 1000;
-  /* important on mobile */
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: opacity 0.3s ease;
-}
-
-/* AI : Overlay completion status filter buttons */
-.buttons-stacked {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-</style>

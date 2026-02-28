@@ -1,5 +1,5 @@
 <template>
-  <div class="flexible-date-picker">
+  <div class="w-full flex flex-col gap-2">
     <!-- AI : Precision Selection -->
     <div class="flex gap-4 mb-2">
       <div class="flex items-center gap-2">
@@ -263,10 +263,3 @@ function validate() {
   emit("blur");
 }
 </script>
-
-<style scoped>
-.flexible-date-picker :deep(.p-radiobutton) .p-radiobutton-box {
-  width: 18px;
-  height: 18px;
-}
-</style>

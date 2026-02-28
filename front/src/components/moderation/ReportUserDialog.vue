@@ -6,21 +6,23 @@
     :modal="true"
     :closable="true"
     :draggable="false"
-    class="report-user-dialog"
+    :style="{ width: '400px', maxWidth: '90vw' }"
   >
-    <div class="report-content">
-      <p class="report-description">
+    <div class="flex flex-col gap-4">
+      <p class="m-0 text-[var(--p-surface-600)] text-sm leading-relaxed">
         {{ $t("moderation.reportUser.reportDescription") }}
       </p>
 
-      <div class="form-field">
-        <label for="report-reason">{{ $t("moderation.reportUser.reason") }}</label>
+      <div class="flex flex-col gap-2">
+        <label for="report-reason" class="font-medium text-sm text-[var(--p-surface-700)]">{{
+          $t("moderation.reportUser.reason")
+        }}</label>
         <Textarea
           id="report-reason"
           v-model="reason"
           :placeholder="$t('moderation.reportUser.reasonPlaceholder')"
           rows="3"
-          class="reason-input"
+          class="w-full"
         />
       </div>
     </div>
@@ -111,39 +113,3 @@ function handleCancel() {
   dialogVisible.value = false;
 }
 </script>
-
-<style scoped>
-.report-user-dialog {
-  width: 400px;
-  max-width: 90vw;
-}
-
-.report-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.report-description {
-  margin: 0;
-  color: var(--p-surface-600);
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-field label {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--p-surface-700);
-}
-
-.reason-input {
-  width: 100%;
-}
-</style>

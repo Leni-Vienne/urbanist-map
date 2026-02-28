@@ -1,15 +1,20 @@
 <template>
   <AccordionContent>
-    <Card class="marker-project-card" @click="handleCardClick">
+    <Card
+      class="cursor-pointer transition-all duration-150 hover:!bg-[var(--p-surface-50)] active:!bg-[var(--p-surface-100)] active:scale-[0.98]"
+      @click="handleCardClick"
+    >
       <template #content>
-        <div class="project-content-wrapper">
-          <div class="project-info-section">
-            <div v-if="project.description" class="project-description">
-              <p>{{ project.description }}</p>
+        <div class="flex flex-row items-start gap-3">
+          <div class="flex-1 min-w-0">
+            <div v-if="project.description" class="mb-4">
+              <p class="text-sm leading-relaxed text-[var(--p-surface-700)] m-0">
+                {{ project.description }}
+              </p>
             </div>
-            <div class="project-metadata">
-              <div class="metadata-item">
-                <i class="pi pi-clock"></i>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]">
+                <i class="pi pi-clock text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
                 <ContributorInfo
                   :date="project.updatedAt"
                   :contributor-id="project.ownerId"
@@ -19,18 +24,18 @@
                   @click-contributor="handleProjectContributorClick"
                 />
               </div>
-              <div class="metadata-item">
-                <i class="pi pi-images"></i>
+              <div class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]">
+                <i class="pi pi-images text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
                 <span
                   >{{ project.overlayCount || (project.overlays ? project.overlays.length : 0) }}
                   {{ $t("overlay.overlayImages") }}</span
                 >
               </div>
               <div
-                class="metadata-item"
                 v-if="project.startDate || project.endDate || project.proposalDate"
+                class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]"
               >
-                <i class="pi pi-calendar"></i>
+                <i class="pi pi-calendar text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
                 <span>{{
                   formatProjectDateRange(
                     project.startDate,
@@ -43,32 +48,37 @@
                   )
                 }}</span>
               </div>
-              <div class="metadata-item" v-if="project.sourceUrl">
-                <i class="pi pi-link"></i>
-                <a :href="project.sourceUrl" target="_blank" class="app-link" @click.stop>
-                  {{ formatSourceUrl(project.sourceUrl) }}
-                </a>
+              <div
+                v-if="project.sourceUrl"
+                class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]"
+              >
+                <i class="pi pi-link text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
+                <a
+                  :href="project.sourceUrl"
+                  target="_blank"
+                  class="text-[var(--p-primary-600)] no-underline hover:underline"
+                  @click.stop
+                  >{{ formatSourceUrl(project.sourceUrl) }}</a
+                >
               </div>
             </div>
           </div>
 
-          <!-- AI : Actions column - either slot actions, edit button, or chevron indicator -->
-          <div class="project-actions-column" @click.stop>
-            <!-- AI : Project actions slot for moderation panel -->
+          <!-- Actions column - either slot actions, edit button, or chevron -->
+          <div class="flex flex-col gap-2 shrink-0 self-center" @click.stop>
             <slot v-if="$slots['project-actions']" name="project-actions" :project="project"></slot>
-
-            <!-- AI : Edit button if showEditButtons prop is true and no slot actions -->
             <button
               v-else-if="showEditButtons"
-              class="action-btn edit-btn"
+              class="w-8 h-8 border border-[var(--p-surface-200)] rounded-md bg-white flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-[var(--p-primary-500)] hover:text-[var(--p-primary-600)] hover:bg-[var(--p-primary-50)] hover:border-[var(--p-primary-200)]"
               @click.stop="$emit('edit-project', project)"
               v-tooltip.top="$t('common.edit')"
             >
               <i class="pi pi-pencil"></i>
             </button>
-
-            <!-- AI : Chevron indicator for all projects when no action buttons - signals clickability -->
-            <i v-else class="pi pi-chevron-right tap-indicator"></i>
+            <i
+              v-else
+              class="pi pi-chevron-right text-sm text-[var(--p-surface-400)] shrink-0 transition-colors duration-150"
+            ></i>
           </div>
         </div>
 
@@ -90,26 +100,33 @@
       </template>
     </Card>
 
-    <!-- AI : Project overlays with borderless design -->
+    <!-- Project overlays -->
     <div v-if="shouldShowOverlays" class="flex flex-col mt-4">
       <div
         v-for="overlay in project.overlays"
         :key="overlay.id"
         :data-overlay-id="overlay.id"
-        class="overlay-card-wrapper"
-        :class="{
-          'has-changes': getOverlayChangeRequestsForOverlay(overlay.id).length > 0,
-        }"
+        class="flex flex-col transition-all duration-150"
+        :class="
+          getOverlayChangeRequestsForOverlay(overlay.id).length > 0
+            ? 'border-l-[3px] border-orange-400 bg-orange-50 rounded my-1'
+            : ''
+        "
       >
         <div
-          class="overlay-card"
+          class="group flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer transition-all duration-150 active:scale-[0.98]"
+          :class="
+            getOverlayChangeRequestsForOverlay(overlay.id).length > 0
+              ? 'hover:bg-orange-100 active:bg-orange-100'
+              : 'hover:bg-[var(--p-surface-50)] active:bg-[var(--p-surface-100)]'
+          "
           @click="handleOverlayCardClick(overlay, true)"
           @mouseenter="$emit('highlight-overlay', overlay.id)"
           @mouseleave="$emit('remove-highlight', overlay.id)"
         >
-          <!-- AI : Overlay thumbnail -->
+          <!-- Overlay thumbnail -->
           <div
-            class="w-15 h-15 rounded-md overflow-hidden bg-surface-100 flex items-center justify-center flex-shrink-0"
+            class="w-[60px] h-[60px] rounded-xl overflow-hidden bg-[var(--p-surface-100)] flex items-center justify-center shrink-0"
           >
             <img
               v-if="!imageErrors[overlay.id]"
@@ -129,16 +146,17 @@
             <i v-if="imageErrors[overlay.id]" class="pi pi-image text-2xl text-surface-400"></i>
           </div>
 
-          <!-- AI : Overlay info -->
+          <!-- Overlay info -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
-              <p class="overlay-name">
+              <p
+                class="text-[15px] font-bold text-[var(--p-surface-900)] m-0 leading-tight flex-1 min-w-0 truncate"
+              >
                 {{ overlay.name || $t("overlay.untitled") }}
               </p>
             </div>
             <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
               <i class="pi pi-map-marker text-surface-500"></i>
-
               <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
             </div>
             <div class="text-xs text-surface-500 mb-2">
@@ -156,38 +174,37 @@
                 v-if="!hideStatusBadges"
                 :value="$t(`status.${overlay.status ?? 'draft'}`)"
                 :severity="getStatusSeverity(overlay.status)"
-                class="overlay-status-tag"
+                class="mr-2 capitalize"
                 rounded
               />
               <button
                 v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
-                class="replacement-badge"
+                class="inline-flex items-center gap-1 py-1 px-2 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-md cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800"
                 @click.stop="onNavigateToOverlay(overlay.replacesOverlayId)"
                 v-tooltip.top="$t('overlay.viewOriginalOverlay')"
               >
-                <i class="pi pi-arrow-up-left"></i>
+                <i class="pi pi-arrow-up-left text-[10px]"></i>
                 {{ $t("overlay.replaces") }}
               </button>
             </div>
           </div>
 
-          <!-- AI : Overlay action buttons slot -->
+          <!-- Overlay action buttons slot -->
           <div v-if="$slots['overlay-actions']" class="flex flex-col gap-2" @click.stop>
             <slot name="overlay-actions" :overlay="overlay" :project="project"></slot>
           </div>
-
-          <!-- AI : Edit button if showEditButtons prop is true and no slot actions -->
           <button
             v-else-if="showEditButtons"
-            class="action-btn edit-btn"
+            class="w-8 h-8 border border-[var(--p-surface-200)] rounded-md bg-white flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-[var(--p-primary-500)] hover:text-[var(--p-primary-600)] hover:bg-[var(--p-primary-50)] hover:border-[var(--p-primary-200)]"
             @click.stop=""
             v-tooltip.top="$t('common.edit')"
           >
             <i class="pi pi-pencil"></i>
           </button>
-
-          <!-- AI : Chevron indicator when no action buttons -->
-          <i v-else class="pi pi-chevron-right tap-indicator"></i>
+          <i
+            v-else
+            class="pi pi-chevron-right text-sm text-[var(--p-surface-400)] shrink-0 transition-colors duration-150 group-hover:text-[var(--p-surface-600)]"
+          ></i>
         </div>
 
         <ChangeRequestSection
@@ -354,187 +371,7 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
 </script>
 
 <style scoped>
-/* COPIED STYLES FROM ProjectAccordionPanel.vue */
-
-.marker-project-card {
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.marker-project-card:hover {
-  background-color: var(--p-surface-50) !important;
-}
-
-.marker-project-card:active {
-  background-color: var(--p-surface-100) !important;
-  transform: scale(0.98);
-}
-
-.project-content-wrapper {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.project-info-section {
-  flex: 1;
-  min-width: 0;
-}
-
-.project-description {
-  margin-bottom: 1rem;
-}
-
-.project-description p {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--p-surface-700);
-  margin: 0;
-}
-
-.project-metadata {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.metadata-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  color: var(--p-surface-600);
-}
-
-.metadata-item i {
-  color: var(--p-surface-500);
-  font-size: 0.75rem;
-  width: 14px;
-  flex-shrink: 0;
-}
-
-.project-actions-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  align-self: center;
-}
-
-.project-actions-column > * {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 0.875rem;
-}
-
-.action-btn:hover {
-  border-color: #d1d5db;
-  background-color: #f9fafb;
-}
-
-/* Overlay Styles */
-.overlay-card-wrapper {
-  display: flex;
-  flex-direction: column;
-  transition: all 0.15s ease;
-}
-
-.overlay-card-wrapper.has-changes {
-  border-left: 3px solid var(--p-orange-400);
-  background: var(--p-orange-50);
-  border-radius: 4px;
-  margin: 0.25rem 0;
-}
-
-.overlay-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0.5rem 0.5rem 1rem;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-radius: 0;
-}
-
-.overlay-card:hover {
-  background-color: var(--p-surface-50);
-}
-
-.overlay-card:active {
-  background-color: var(--p-surface-100);
-  transform: scale(0.98);
-}
-
-.overlay-card:hover .tap-indicator,
-.marker-project-card:hover .tap-indicator {
-  color: var(--p-surface-600);
-}
-
-.overlay-card-wrapper.has-changes .overlay-card {
-  background: transparent;
-}
-
-.overlay-card-wrapper.has-changes .overlay-card:hover {
-  background-color: var(--p-orange-100);
-}
-
-.overlay-card .overlay-name {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--p-surface-900);
-  margin: 0 0 0.25rem 0;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-  width: 0;
-  flex: 1;
-  min-width: 0;
-}
-
-.replacement-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--p-purple-700);
-  background-color: var(--p-purple-50);
-  border: 1px solid var(--p-purple-200);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.replacement-badge:hover {
-  background-color: var(--p-purple-100);
-  border-color: var(--p-purple-300);
-  color: var(--p-purple-800);
-}
-
-.replacement-badge i {
-  font-size: 0.625rem;
-}
-
+/* Container classes passed as string props to ChangeRequestSection */
 .project-change-requests {
   padding: 0.75rem;
   background: var(--p-surface-50);
@@ -546,19 +383,5 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
   padding: 0.75rem 1rem;
   background: var(--p-orange-25);
   border-top: 1px solid var(--p-orange-200);
-}
-
-.overlay-status-tag {
-  margin-right: 0.5rem;
-  text-transform: capitalize;
-}
-
-.app-link {
-  color: var(--p-primary-600);
-  text-decoration: none;
-}
-
-.app-link:hover {
-  text-decoration: underline;
 }
 </style>
