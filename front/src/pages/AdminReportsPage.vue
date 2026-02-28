@@ -1,5 +1,5 @@
 <template>
-  <div class="p-8 max-w-[1400px] mx-auto">
+  <div class="p-8 max-w-[1400px] mx-auto h-full overflow-y-auto">
     <div class="flex items-center gap-4 mb-8">
       <h1 class="m-0 text-3xl font-semibold">{{ t("admin.reports.title") }}</h1>
       <Badge

@@ -1,5 +1,5 @@
 <template>
-  <div class="p-8 max-w-[1200px] mx-auto h-screen overflow-y-auto">
+  <div class="p-8 max-w-[1200px] mx-auto h-full overflow-y-auto">
     <div class="flex items-center gap-4 mb-8">
       <Button
         icon="pi pi-arrow-left"
