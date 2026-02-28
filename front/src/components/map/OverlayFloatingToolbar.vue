@@ -49,13 +49,20 @@
         <!-- Edit-only tools -->
         <template v-if="isEditMode">
           <span class="sep" />
-          <button :title="t('toolbar.undo')" @click="undo"><i class="pi pi-undo" /></button>
-          <button :title="t('toolbar.redo')" @click="redo"><i class="pi pi-refresh" /></button>
-          <button :title="t('toolbar.replace')" @click="onReplace">
+          <button :title="t('toolbar.undo')" :disabled="!canUndo" @click="undo">
+            <i class="pi pi-undo" />
+          </button>
+          <button v-if="canRedo" :title="t('toolbar.redo')" @click="redo">
+            <i class="pi pi-refresh" />
+          </button>
+          <button v-if="canReplaceImage" :title="t('toolbar.replace')" @click="onReplace">
             <i class="pi pi-image" />
           </button>
           <button v-if="canDelete" :title="t('toolbar.delete')" class="danger" @click="onDelete">
             <i class="pi pi-trash" />
+          </button>
+          <button :title="t('toolbar.save')" :disabled="!hasUnsavedModifications" @click="onSave">
+            <i class="pi pi-save" />
           </button>
         </template>
       </div>
@@ -64,16 +71,26 @@
       <div v-show="showInfoPopup" ref="infoSlot" class="info-anchor" />
     </div>
   </Teleport>
+
+  <SubmissionConfirmationDialog
+    v-if="showSubmissionDialog"
+    v-model:visible="showSubmissionDialog"
+    :summary="submissionSummary"
+    :is-submitting="isSubmitting"
+    @confirm="confirmSubmission"
+    @cancel="cancelSubmission"
+    @remove-change="handleRemoveChange"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onUnmounted, nextTick, defineAsyncComponent } from "vue";
 import L from "leaflet";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
-import { OverlayObject } from "@/types";
+import { type OverlayObject } from "@/types";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
@@ -82,11 +99,15 @@ import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import "@/services/overlay/overlayActions"; // ensure navigateOverlaySequence callback is registered
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import { withErrorHandling } from "@/services/core/errorHandling";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 const toast = useToast();
+const pendingModsStore = usePendingModificationsStore();
 
 const { idSelectedOverlay, mode } = storeToRefs(overlayStore);
 const selectedId = idSelectedOverlay;
@@ -255,9 +276,23 @@ const overlayIndex = computed(() => {
 
 const showNav = computed(() => (overlayIndex.value?.total ?? 0) > 1);
 
+const selectedOverlay = computed(() => overlayStore.overlays[selectedId.value ?? ""]);
+
 const canDelete = computed(() => {
-  const overlay = overlayStore.overlays[selectedId.value ?? ""];
-  return overlay ? canDeleteOverlay(overlay) : false;
+  return selectedOverlay.value ? canDeleteOverlay(selectedOverlay.value) : false;
+});
+
+const canReplaceImage = computed(() => {
+  const status = selectedOverlay.value?.status;
+  return status === "approved" || status === "rejected";
+});
+
+const canUndo = computed(() => (selectedOverlay.value?.history?.length ?? 0) > 1);
+const canRedo = computed(() => (selectedOverlay.value?.redoStack?.length ?? 0) > 0);
+const hasUnsavedModifications = computed(() => {
+  const id = selectedId.value;
+  if (!id) return false;
+  return selectedOverlay.value?.isModified === true || pendingModsStore.hasPendingModifications(id);
 });
 
 // --- Actions ---
@@ -283,15 +318,15 @@ function goToNext() {
 function stackToFront() {
   const layer = getLayer(selectedId.value ?? "");
   if (!layer) return;
-  const edit = (layer as any).editing;
-  if (edit._toggledImage) edit._toggleOrder();
+  (layer as any).bringToFront();
+  (layer as any).editing._toggledImage = false;
 }
 
 function stackToBack() {
   const layer = getLayer(selectedId.value ?? "");
   if (!layer) return;
-  const edit = (layer as any).editing;
-  if (!edit._toggledImage) edit._toggleOrder();
+  (layer as any).bringToBack();
+  (layer as any).editing._toggledImage = true;
 }
 
 function undo() {
@@ -299,6 +334,32 @@ function undo() {
 }
 function redo() {
   overlayCallbacks.redo?.();
+}
+
+const projectStore = useProjectStore();
+
+const {
+  showSubmissionDialog,
+  submissionSummary,
+  isSubmitting,
+  prepareOverlaySubmission,
+  confirmSubmission,
+  cancelSubmission,
+  handleRemoveChange,
+} = useSubmissionDialog();
+
+const SubmissionConfirmationDialog = defineAsyncComponent(
+  () => import("@/components/submission/SubmissionConfirmationDialog.vue"),
+);
+
+function onSave() {
+  const overlay = selectedOverlay.value;
+  if (!overlay) return;
+  const project =
+    projectStore.projects[overlay.projectId ?? ""] ??
+    projectStore.allProjects[overlay.projectId ?? ""] ??
+    null;
+  prepareOverlaySubmission(overlay, project ?? undefined);
 }
 
 function onReplace() {
@@ -382,6 +443,13 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
 
 .toolbar-bar button:hover {
   background: #f3f4f6;
+}
+.toolbar-bar button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.toolbar-bar button:disabled:hover {
+  background: transparent;
 }
 .toolbar-bar button.active {
   background: #e0e7ff;
