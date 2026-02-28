@@ -254,6 +254,12 @@ function determineChangeType(
   return "update_pending";
 }
 
+// AI : Module-level singleton state — one dialog instance shared across the entire app
+const showSubmissionDialog = ref(false);
+const submissionSummary = ref<SubmissionSummary | null>(null);
+const pendingSubmissionContext = ref<SubmissionContext | SubmissionContextExtended | null>(null);
+const isSubmitting = ref(false);
+
 export function useSubmissionDialog() {
   const { t } = useI18n();
   const toast = useToast();
@@ -262,12 +268,6 @@ export function useSubmissionDialog() {
   const uiStore = useUiStore();
   const pendingModsStore = usePendingModificationsStore();
   const submissionService = useSubmissionService();
-
-  // AI : Shared dialog state
-  const showSubmissionDialog = ref(false);
-  const submissionSummary = ref<SubmissionSummary | null>(null);
-  const pendingSubmissionContext = ref<SubmissionContext | SubmissionContextExtended | null>(null);
-  const isSubmitting = ref(false);
 
   // AI : Get all new/unpublished overlays for a project from the overlay store
   function getNewOverlaysForProject(projectId: string): OverlayObject[] {

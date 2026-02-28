@@ -179,20 +179,10 @@
       </div>
     </template>
   </ProjectAccordionPanel>
-
-  <!-- AI : Submission Confirmation Dialog for publishing projects -->
-  <SubmissionConfirmationDialog
-    v-model:visible="showSubmissionDialog"
-    :summary="submissionSummary"
-    :is-submitting="isSubmitting"
-    @confirm="confirmSubmission"
-    @cancel="cancelSubmission"
-    @remove-change="handleRemoveChange"
-  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useNewProject } from "@/composables/overlay/useNewProject";
@@ -222,11 +212,6 @@ import type {
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 
-// AI : Async component import for submission dialog
-const SubmissionConfirmationDialog = defineAsyncComponent(
-  () => import("@/components/submission/SubmissionConfirmationDialog.vue"),
-);
-
 // AI : Type definition from tRPC backend response for change requests
 type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
 
@@ -247,16 +232,8 @@ const projectStore = useProjectStore();
 const mapStore = useMapStore();
 const pendingModsStore = usePendingModificationsStore();
 
-// AI : Use submission dialog composable for all submission-related state and handlers
-const {
-  showSubmissionDialog,
-  submissionSummary,
-  isSubmitting,
-  prepareProjectWithOverlaysSubmission,
-  confirmSubmission,
-  cancelSubmission,
-  handleRemoveChange,
-} = useSubmissionDialog();
+// AI : Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
+const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
 
 // AI : Filter state - both true by default to show everything
 const showPending = ref(true);

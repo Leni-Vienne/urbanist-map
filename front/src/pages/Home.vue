@@ -50,6 +50,17 @@
 
     <!-- AI : Image Upload Dialog - always rendered so it's available from any part of the app -->
     <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
+
+    <!-- AI : Submission Confirmation Dialog - singleton, driven by useSubmissionDialog module-level state -->
+    <SubmissionConfirmationDialog
+      v-if="showSubmissionDialog"
+      v-model:visible="showSubmissionDialog"
+      :summary="submissionSummary"
+      :is-submitting="isSubmitting"
+      @confirm="confirmSubmission"
+      @cancel="cancelSubmission"
+      @remove-change="handleRemoveChange"
+    />
   </div>
 </template>
 
@@ -62,6 +73,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -75,6 +87,19 @@ const ProjectManager = defineAsyncComponent(
 const ImageUploadDialog = defineAsyncComponent(
   () => import("@/components/common/ImageUploadDialog.vue"),
 );
+const SubmissionConfirmationDialog = defineAsyncComponent(
+  () => import("@/components/submission/SubmissionConfirmationDialog.vue"),
+);
+
+// AI : Singleton submission dialog - one instance for the entire app
+const {
+  showSubmissionDialog,
+  submissionSummary,
+  isSubmitting,
+  confirmSubmission,
+  cancelSubmission,
+  handleRemoveChange,
+} = useSubmissionDialog();
 
 // AI : Create refs to track app state
 const desktopSideMenuOpen = ref(true); // AI : Open by default on desktop
