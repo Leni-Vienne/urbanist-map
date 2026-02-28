@@ -1,5 +1,10 @@
 // AI : Shared composable for submission dialog state and handlers
-import { ref } from "vue";
+import {
+  showSubmissionDialog,
+  submissionSummary,
+  pendingSubmissionContext,
+  isSubmitting,
+} from "./submissionDialogState";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -12,7 +17,6 @@ import { useToast } from "@/composables/ui/useToast";
 import {
   useSubmissionService,
   type SubmissionContext,
-  type SubmissionSummary,
   type SubmissionChange,
   type SubmissionChangeType,
   type SubmissionContextExtended,
@@ -253,12 +257,6 @@ function determineChangeType(
   if (requiresModeration) return "update_approved";
   return "update_pending";
 }
-
-// AI : Module-level singleton state — one dialog instance shared across the entire app
-const showSubmissionDialog = ref(false);
-const submissionSummary = ref<SubmissionSummary | null>(null);
-const pendingSubmissionContext = ref<SubmissionContext | SubmissionContextExtended | null>(null);
-const isSubmitting = ref(false);
 
 export function useSubmissionDialog() {
   const { t } = useI18n();

@@ -26,20 +26,8 @@ import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 
-// AI : Navigation function callback - will be registered by useOverlay.ts
-// AI : Declared at module level to avoid temporal dead zone issues
-let focusCameraToOverlayCallback: ((direction: "next" | "previous") => void) | null = null;
-
-export function registerNavigationCallback(callback: (direction: "next" | "previous") => void) {
-  focusCameraToOverlayCallback = callback;
-}
-
-// AI : Wrapper to call the navigation callback if it's registered
-function focusCameraToOverlay(direction: "next" | "previous") {
-  if (focusCameraToOverlayCallback) {
-    focusCameraToOverlayCallback(direction);
-  }
-}
+// AI : focusCameraToOverlay is registered into overlayCallbacks by overlayActions.ts (app-utils chunk)
+// AI : at module init — no dynamic import or callback registration needed here.
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -392,8 +380,9 @@ export function setupKeyboardShortcuts() {
   keyboardShortcutsRegistered = true;
 }
 
-// AI : Register toolbar callbacks - overlayToolbar.ts (lazy chunk) reads these at call time
-Object.assign(overlayCallbacks, { focusCameraToOverlay, undo, redo });
+// AI : Register undo/redo callbacks - overlayToolbar.ts (lazy chunk) reads these at call time
+// AI : focusCameraToOverlay is already set in overlayCallbacks by overlayActions.ts, so not overwritten here.
+Object.assign(overlayCallbacks, { undo, redo });
 
 // AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

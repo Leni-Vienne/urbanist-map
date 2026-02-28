@@ -10,8 +10,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
-// AI : overlayEditing is a lazy chunk - dynamic import to avoid pulling it into this chunk's static graph
-// AI : Both callbacks are registered before they could ever be called (requires user interaction in edit mode)
+import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 
 // AI : Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
@@ -240,9 +239,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   updateMarkerTooltip(overlayObject);
 }
 
-// AI : Register toolbar callbacks to avoid circular dependencies
-// AI : Dynamic import keeps overlayEditing out of this module's static chunk, eliminating the facade chunk
-queueMicrotask(async () => {
-  const { registerNavigationCallback } = await import("@/services/overlay/overlayEditing");
-  registerNavigationCallback(navigateOverlaySequence);
-});
+// AI : Register navigation callback directly into overlayCallbacks — no dynamic import needed.
+// AI : overlayCallbacks lives in overlayLifecycle (same app-utils chunk).
+// AI : overlayEditing reads overlayCallbacks.focusCameraToOverlay at call time without overriding it.
+overlayCallbacks.focusCameraToOverlay = navigateOverlaySequence;
