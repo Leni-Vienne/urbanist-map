@@ -40,6 +40,9 @@
 
       <!-- AI : Satellite Preview Button -->
       <SatellitePreview />
+
+      <!-- Floating toolbar for selected overlays (replaces leaflet-toolbar popup) -->
+      <OverlayFloatingToolbar />
     </div>
   </div>
 </template>
@@ -64,6 +67,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extra bundle "cost"
+import OverlayFloatingToolbar from "@/components/map/OverlayFloatingToolbar.vue";
 
 const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
 const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));

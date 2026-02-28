@@ -19,11 +19,6 @@ body {
   overflow: hidden;
 }
 
-/* Override Tailwind's display: block for Leaflet toolbar icons */
-.leaflet-toolbar-icon svg {
-  display: inline;
-}
-
 .leaflet-control-attribution a {
   color: #005a7d !important;
   /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
@@ -77,15 +72,6 @@ body {
 .app-link:hover {
   color: var(--p-primary-700);
   text-decoration-color: var(--p-primary-700);
-}
-
-/* AI : Reduce tooltip delay for Leaflet toolbar buttons */
-.leaflet-toolbar-icon {
-  transition-delay: 0.2s !important;
-}
-
-.leaflet-toolbar-icon:hover::after {
-  transition-delay: 0.2s !important;
 }
 
 /* Fix toast width on mobile, otherwise it's too wide */

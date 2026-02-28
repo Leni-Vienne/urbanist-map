@@ -33,7 +33,9 @@ export function formatProjectDateRange(
       dbToFlexibleDate(proposalDate, proposalDatePrecision),
     );
     const proposedKey =
-      proposalDatePrecision === "day" ? "project.proposedOn" : "project.proposedIn";
+      proposalDatePrecision === "day" || proposalDatePrecision === null
+        ? "project.proposedOn"
+        : "project.proposedIn";
     return `${t(proposedKey)} ${proposalDateStr}`;
   }
 

@@ -61,8 +61,9 @@ function navigateOverlaySequence(direction: "next" | "previous") {
   const project = projectStore.projects[currentOverlay.projectId];
   let projectOverlayIds: string[];
 
-  // AI : If project is not in memory, just find overlays with same projectId
-  if (!project) {
+  // AI : If project is not in memory, or overlayIds not yet populated (only set on popup open),
+  // AI : derive siblings from already-loaded overlays instead.
+  if (!project || !project.overlayIds.length) {
     projectOverlayIds = Object.values(overlayStore.overlays)
       .filter((overlay) => overlay.projectId === currentOverlay.projectId)
       .map((overlay) => overlay.id);
