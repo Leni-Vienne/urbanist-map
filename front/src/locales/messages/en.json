@@ -65,14 +65,14 @@
     "currentLocation": "Current Location",
     "contribute": "Contribute",
     "moderation": "Moderation",
-    "unsavedOverlaysWarning": "You have unsaved overlays. Navigating will discard them. Continue?",
-    "unsavedOverlaysSwitchCity": "You have unsaved overlays. Switching to another city will discard them. Continue?",
-    "unsavedOverlaysReloadCity": "You have unsaved overlays. Reloading this city will discard them. Continue?"
+    "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?",
+    "unsavedOverlaysSwitchCity": "You have unsaved images. Switching to another city will discard them. Continue?",
+    "unsavedOverlaysReloadCity": "You have unsaved images. Reloading this city will discard them. Continue?"
   },
   "projectPicker": {
-    "noProjectsAvailable": "No projects available. Create your first project to add overlays.",
+    "noProjectsAvailable": "No projects available. Create your first project to add images.",
     "selectProject": "Select a project",
-    "overlaysCount": "{count} overlays",
+    "overlaysCount": "{count} images",
     "createNewProject": "Create a new project"
   },
   "project": {
@@ -157,14 +157,14 @@
     "tryChangingFilters": "Try changing your filter settings.",
     "noProjectsFound": "No projects found.",
     "createFirstProject": "Add your first project!",
-    "deleteOverlay": "Delete overlay",
+    "deleteOverlay": "Delete image",
     "deleteProject": "Delete project",
     "deleteChangeRequest": "Delete change request",
     "confirmDeleteOverlay": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
     "confirmDeleteProject": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
-    "confirmDeleteProjectWithOverlays": "Are you sure you want to delete \"{name}\" and its {count} overlay(s)? This action cannot be undone.",
+    "confirmDeleteProjectWithOverlays": "Are you sure you want to delete \"{name}\" and its {count} image(s)? This action cannot be undone.",
     "confirmDeleteChangeRequest": "Are you sure you want to delete your suggestion for \"{field}\"? This action cannot be undone.",
-    "overlayDeleted": "Overlay deleted successfully",
+    "overlayDeleted": "Image deleted successfully",
     "projectDeleted": "Project deleted successfully",
     "changeRequestDeleted": "Change request deleted successfully",
     "deleteProjectError": "Failed to delete project. Please try again."
@@ -186,45 +186,45 @@
   },
   "overlay": {
     "overlayImages": "images",
-    "overlayInformation": "Overlay Information",
+    "overlayInformation": "Image Information",
     "notSet": "Not set",
     "changedFrom": "Changed from",
     "untitled": "Untitled",
     "unknownLocation": "Unknown Location",
     "loadingProjects": "Loading projects...",
     "navigationFailed": "Navigation Failed",
-    "failedToNavigate": "Failed to navigate to overlay",
-    "publishFailedDetail": "Failed to save overlay to the backend",
+    "failedToNavigate": "Failed to navigate to image",
+    "publishFailedDetail": "Failed to save image to the backend",
     "publishOverlay": "Publish Image",
     "viewCurrentPosition": "View Current Position",
     "viewSuggestedPosition": "View Suggested Position",
-    "overlayTooLarge": "Overlay too large (max 1km × 1km)",
+    "overlayTooLarge": "Image too large (max 1km × 1km)",
     "invalidCoordinates": "Invalid Coordinates",
     "couldNotParseCoordinates": "Could not parse geometry coordinates",
     "previewFailed": "Preview Failed",
     "couldNotPreviewCoordinates": "Could not preview coordinates on map",
     "coordinatesViewOnMap": "Coordinates (view on map)",
     "replaces": "Replaces",
-    "viewOriginalOverlay": "View Original Overlay",
-    "viewPositionRequired": "View position first (required for replacement overlays)",
-    "overlayCreated": "Overlay Created",
-    "positionOverlayOnMap": "Now position the overlay on the map",
+    "viewOriginalOverlay": "View Original Image",
+    "viewPositionRequired": "View position first (required for replacement images)",
+    "overlayCreated": "Image Created",
+    "positionOverlayOnMap": "Now position the image on the map",
     "uploadFailed": "Upload Failed",
     "uploadFailedDetail": "Failed to upload the image file",
-    "lastOverlayDeleted": "Last Overlay Deleted",
+    "lastOverlayDeleted": "Last Image Deleted",
     "projectNowShowsAsMarker": "The project now appears as a marker on the map",
     "confirmDelete": "Are you sure you want to delete {name}?",
     "noChangesToSave": "No changes to save",
     "zoomingToProject": "Zooming to Project",
     "zoomInToSeeOverlay": "Zoom level was too low, automatically zooming in to show the uploaded image",
-    "onlyOneOverlayInProject": "This project only has one overlay"
+    "onlyOneOverlayInProject": "This project only has one image"
   },
   "map": {
     "clickCityMarker": "Click on a city marker",
     "viewMode": "View Mode",
     "editMode": "Edit Mode",
     "viewModeTooltip": "Browse and view projects on the map",
-    "editModeTooltip": "Add and edit overlay positions on the map",
+    "editModeTooltip": "Add and edit image positions on the map",
     "switchMode": "Switch mode",
     "controls": {
       "filterProjects": "Filter projects by status",
@@ -330,15 +330,15 @@
     "changeRequestSubmitted": "Change request submitted successfully",
     "changesSaved": "Changes saved successfully",
     "submissionSuccessful": "Submission successful",
-    "overlayCaption": "Overlay Caption",
-    "overlayPosition": "Overlay Position",
+    "overlayCaption": "Image Caption",
+    "overlayPosition": "Image Position",
     "previousPosition": "(Current position)",
     "newPosition": "(New position)",
     "submitChangeRequest": "Submit Change Request",
-    "updateOverlays": "Update Overlays",
+    "updateOverlays": "Update Images",
     "removeChange": "Remove this change",
     "noChangesToSubmit": "No changes to submit",
-    "newOverlay": "New overlay"
+    "newOverlay": "New image"
   },
   "pages": {
     "home": {
@@ -350,7 +350,7 @@
         "signInCancelled": "Sign in was cancelled or failed.",
         "unexpectedError": "An unexpected error occurred during sign in.",
         "authenticationError": "Authentication error occurred.",
-        "initializationError": "Failed to initialize map and overlays"
+        "initializationError": "Failed to initialize map and images"
       }
     },
     "emailVerification": {
@@ -392,7 +392,7 @@
         "deletion": "Right to erasure: delete your account and all personal data (email {email} to request account deletion)",
         "portability": "Right to portability: export your data in JSON format (email {email})",
         "howTo": "To exercise these rights, contact me at {email}. I will respond within 30 days.",
-        "note": "Note: When you delete your account, your personal information (email, username) is removed, but your contributions (projects, overlays) are anonymized and may remain publicly visible."
+        "note": "Note: When you delete your account, your personal information (email, username) is removed, but your contributions (projects, images) are anonymized and may remain publicly visible."
       },
       "thirdParty": {
         "title": "Third-Party Services",
@@ -410,7 +410,7 @@
         "account": "Account data (email, username, password): Until you delete your account",
         "logs": "Server logs (IP addresses): Automatically deleted after 90 days",
         "sessions": "Session cookies: Expire after 30 days of inactivity",
-        "contributions": "Contributions (projects, overlays): Anonymized when you delete your account, but may remain publicly visible",
+        "contributions": "Contributions (projects, images): Anonymized when you delete your account, but may remain publicly visible",
         "deletion": "When you delete your account, all personal data is permanently removed within 30 days."
       },
       "cookies": {
@@ -449,26 +449,26 @@
   "tooltips": {
     "editProject": "Edit Project",
     "suggestChanges": "Suggest Changes",
-    "editOverlay": "Edit Overlay",
-    "approveProjectFirst": "Approve the project first to moderate its overlays"
+    "editOverlay": "Edit Image",
+    "approveProjectFirst": "Approve the project first to moderate its images"
   },
   "toolbar": {
     "info": "Info",
-    "previousOverlay": "Go to previous overlay",
-    "nextOverlay": "Go to next overlay",
+    "previousOverlay": "Go to previous image",
+    "nextOverlay": "Go to next image",
     "undo": "Undo (ctrl + z)",
     "redo": "Redo (ctrl + y)",
     "resetRatio": "Reset Image Ratio",
-    "delete": "Delete this overlay",
-    "replace": "Replace this overlay image"
+    "delete": "Delete this image",
+    "replace": "Replace this image image"
   },
   "markerTooltip": {
     "status": {
-      "replacementOverlay": "Replacement overlay",
+      "replacementOverlay": "Replacement image",
       "pendingApproval": "Pending approval",
-      "rejected": "Rejected overlay",
-      "localOverlay": "Local overlay",
-      "newOverlay": "New overlay"
+      "rejected": "Rejected image",
+      "localOverlay": "Local image",
+      "newOverlay": "New image"
     },
     "modifiers": {
       "modified": "modified",
@@ -492,7 +492,7 @@
   "upload": {
     "noFileSelected": "No file selected",
     "selectImageFile": "Please select an image file to upload",
-    "overlayTooLarge": "Overlay is too large",
+    "overlayTooLarge": "Image is too large",
     "maximumSizeOnMap": "Maximum size is 1km × 1km",
     "fileTooLarge": "File is too large. Maximum size is {maxSize}MB."
   },
@@ -545,7 +545,7 @@
   },
   "errors": {
     "projectNotFound": "Project not found",
-    "projectRequired": "Project Required: A project must be selected to add an overlay",
+    "projectRequired": "Project Required: A project must be selected to add an image",
     "checkConflictsFailed": "Failed to check for conflicts"
   },
   "moderation": {
@@ -558,14 +558,14 @@
     "projectUpdated": "Project Updated",
     "projectRejected": "Project Rejected",
     "projectRejectedDetail": "The project has been rejected",
-    "overlayApproved": "Overlay Approved",
-    "overlayApprovedDetail": "The overlay has been approved successfully",
-    "overlayRejected": "Overlay Rejected",
-    "overlayRejectedDetail": "The overlay has been rejected",
+    "overlayApproved": "Image Approved",
+    "overlayApprovedDetail": "The image has been approved successfully",
+    "overlayRejected": "Image Rejected",
+    "overlayRejectedDetail": "The image has been rejected",
     "switchedToEditMode": "Switched to Edit Mode",
     "switchedToViewMode": "Switched to View Mode",
     "switchedToModerationMode": "Switched to Moderation Mode",
-    "clickAgainToAdd": "Click the button again to add an overlay",
+    "clickAgainToAdd": "Click the button again to add an image",
     "modeSwitchError": "Mode Switch Error",
     "modeSwitchErrorDetail": "Failed to switch mode. Please try again.",
     "undoAction": "Undo {action} {entity}: {name}",
@@ -593,12 +593,12 @@
     "reason": "Reason",
     "requested": "Requested",
     "fetchSubmissionsFailed": "Failed to load pending submissions. Please refresh the page.",
-    "overlayNotFound": "Overlay not found",
+    "overlayNotFound": "Image not found",
     "projectNotFound": "Project not found",
-    "overlayVersionConflict": "This overlay was modified by another user. Please review the updated version before approving.",
+    "overlayVersionConflict": "This image was modified by another user. Please review the updated version before approving.",
     "projectVersionConflict": "This project was modified by another user. Please review the updated version before approving.",
-    "overlayApprovalFailed": "Failed to approve overlay",
-    "overlayRejectionFailed": "Failed to reject overlay",
+    "overlayApprovalFailed": "Failed to approve image",
+    "overlayRejectionFailed": "Failed to reject image",
     "projectApprovalFailed": "Failed to approve project",
     "projectRejectionFailed": "Failed to reject project",
     "conflictDetected": "Competing Changes",
@@ -623,23 +623,23 @@
     "approveOneToRejectOthers": "Approving one will reject the others",
     "replacementConflicts": {
       "title": "Replacement Conflicts Detected",
-      "approvingWillReplace": "Approving this replacement will replace the approved overlay \"{original}\".",
+      "approvingWillReplace": "Approving this replacement will replace the approved image \"{original}\".",
       "pendingChanges": "{count} Pending Change Request(s)",
       "competingReplacements": "{count} Competing Replacement(s)",
-      "changesWillBeConflicted": "These pending change requests will be marked as conflicted since the original overlay is being replaced.",
+      "changesWillBeConflicted": "These pending change requests will be marked as conflicted since the original image is being replaced.",
       "competingWillBeRejected": "These competing replacement submissions will be automatically rejected.",
       "approveAndResolve": "Approve & Resolve Conflicts"
     },
     "deleteOverlay": {
-      "title": "Delete Overlay?",
+      "title": "Delete Image?",
       "message": "Are you sure you want to delete \"{caption}\"? This action cannot be undone.",
-      "messageUnnamed": "Are you sure you want to delete this overlay? This action cannot be undone.",
-      "deleteButton": "Delete Overlay",
-      "deleteSuccess": "Overlay Deleted",
-      "deleteSuccessDetail": "The overlay has been deleted successfully",
+      "messageUnnamed": "Are you sure you want to delete this image? This action cannot be undone.",
+      "deleteButton": "Delete Image",
+      "deleteSuccess": "Image Deleted",
+      "deleteSuccessDetail": "The image has been deleted successfully",
       "deleteFailed": "Delete Failed",
-      "deleteFailedDetail": "Failed to delete the overlay",
-      "cannotDeleteApproved": "Cannot delete approved overlays"
+      "deleteFailedDetail": "Failed to delete the image",
+      "cannotDeleteApproved": "Cannot delete approved images"
     },
     "moderatedContributions": {
       "title": "Moderation Results",
@@ -690,7 +690,7 @@
       "not_construction": "Not a urban project",
       "spam": "Spam or inappropriate content"
     },
-    "rejectAllOverlays": "Also reject all {count} pending overlay(s)"
+    "rejectAllOverlays": "Also reject all {count} pending image(s)"
   },
   "location": {
     "navigateToCity": "Navigate to {city}",
@@ -701,7 +701,7 @@
   },
   "replacementOverlay": {
     "uploadFailed": "Upload Failed",
-    "uploadFailedDetail": "Failed to process the image overlay"
+    "uploadFailedDetail": "Failed to process the image image"
   },
   "projectSelector": {
     "suggestChanges": "Suggest Changes"
@@ -713,8 +713,8 @@
     "satellite": "Satellite"
   },
   "toasts": {
-    "replacementOverlayCreated": "Replacement Overlay Created",
-    "replacementOverlayDetail": "Your replacement overlay has been created and is ready for editing",
+    "replacementOverlayCreated": "Replacement Image Created",
+    "replacementOverlayDetail": "Your replacement image has been created and is ready for editing",
     "standaloneProjectSuccess": "Standalone project created successfully",
     "projectUpdateSuccess": "Project Updated",
     "projectUpdateDetail": "Project changes saved locally",
@@ -777,16 +777,16 @@
       "rejected": "Rejected",
       "banned": "Banned",
       "projects": "projects",
-      "overlays": "overlays",
+      "overlays": "images",
       "noCaption": "(No caption)",
-      "noOverlays": "No overlays for this project",
+      "noOverlays": "No images for this project",
       "deleteProjectDialog": {
         "title": "Delete Project",
-        "message": "Are you sure you want to delete project \"{name}\"? This will also delete all associated overlays. This action cannot be undone."
+        "message": "Are you sure you want to delete project \"{name}\"? This will also delete all associated images. This action cannot be undone."
       },
       "deleteOverlayDialog": {
-        "title": "Delete Overlay",
-        "message": "Are you sure you want to delete this overlay? This action cannot be undone."
+        "title": "Delete Image",
+        "message": "Are you sure you want to delete this image? This action cannot be undone."
       },
       "deleteDialog": {
         "reason": "Reason (optional)",
@@ -797,7 +797,7 @@
         "loadError": "Failed to load user contributions",
         "noContributions": "This user has no contributions",
         "projectDeleted": "Project deleted successfully",
-        "overlayDeleted": "Overlay deleted successfully",
+        "overlayDeleted": "Image deleted successfully",
         "deleteError": "Failed to delete"
       }
     },
