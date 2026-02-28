@@ -179,6 +179,14 @@ export function removeMarkerFromMap(id: string): void {
   entry.marker = null;
 }
 
+export function getAllLayers(): Array<[string, L.DistortableImageOverlay]> {
+  const result: Array<[string, L.DistortableImageOverlay]> = [];
+  for (const [id, entry] of entries) {
+    if (entry.layer != null) result.push([id, entry.layer]);
+  }
+  return result;
+}
+
 // AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {

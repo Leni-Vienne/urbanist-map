@@ -64,7 +64,7 @@
         @click.stop="handleSaveProjectClick(project)"
         v-tooltip.top="getProjectSaveTooltip(project)"
       >
-        <i class="pi pi-save"></i>
+        <i class="pi pi-send"></i>
       </button>
       <button
         v-if="!project.status || project.status === 'pending' || project.status === 'rejected'"
@@ -556,10 +556,7 @@ function getProjectSaveTooltip(project: ProjectForModeration): string {
   if (!isProjectModified(project.id)) {
     return t("overlay.noChangesToSave");
   }
-  if (project.status === "approved") {
-    return t("project.submitChangeRequest");
-  }
-  return t("common.save");
+  return t("project.submitChangeRequest");
 }
 
 // AI : Handle save project click - uses shared submission dialog composable

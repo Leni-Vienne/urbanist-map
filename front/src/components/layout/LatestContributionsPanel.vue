@@ -18,6 +18,7 @@
               v-if="contribution.type === 'overlay' && contribution.filename"
               :src="getContributionImageUrl(contribution.filename)"
               class="w-full h-full object-cover"
+              alt=""
               :crossorigin="
                 imageRequiresCredentials(getContributionImageUrl(contribution.filename))
                   ? 'use-credentials'
