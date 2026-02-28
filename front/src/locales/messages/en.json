@@ -2,7 +2,6 @@
   "common": {
     "name": "Name",
     "back": "Back",
-    "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
     "add": "New",
@@ -66,15 +65,7 @@
     "currentLocation": "Current Location",
     "contribute": "Contribute",
     "moderation": "Moderation",
-    "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?",
-    "unsavedOverlaysSwitchCity": "You have unsaved images. Switching to another city will discard them. Continue?",
-    "unsavedOverlaysReloadCity": "You have unsaved images. Reloading this city will discard them. Continue?"
-  },
-  "projectPicker": {
-    "noProjectsAvailable": "No projects available. Create your first project to add images.",
-    "selectProject": "Select a project",
-    "overlaysCount": "{count} images",
-    "createNewProject": "Create a new project"
+    "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
   },
   "project": {
     "create": "Create Project",
@@ -84,7 +75,6 @@
     "missingCityInfo": "Missing City Info",
     "cannotNavigateWithoutCity": "Cannot navigate without city information",
     "timelineStatus": "Timeline Status",
-    "proposedStatus": "Proposed",
     "proposedDescription": "Unconfirmed project, dates not yet set",
     "plannedStatus": "Planned",
     "plannedDescription": "Confirmed project with scheduled dates",
@@ -97,7 +87,6 @@
     "yearOnly": "Year only",
     "monthYear": "Month & Year",
     "fullDate": "Full date",
-    "year": "Year",
     "alreadyStarted": "Already started, start date unknown",
     "proposed": "Proposed",
     "proposedOn": "Proposed on",
@@ -106,7 +95,6 @@
     "startsOn": "Starts on",
     "endsIn": "Ends in",
     "endsOn": "Ends on",
-    "startDateOptional": "Start date is optional if the project has already started",
     "validationError": "Validation Error",
     "locationRequired": "Location is required",
     "timelineChangedFromProposedToPlanned": "Timeline status changed from Proposed ({proposalDate}) to Planned",
@@ -216,12 +204,10 @@
     "uploadFailedDetail": "Failed to upload the image file",
     "lastOverlayDeleted": "Last Image Deleted",
     "projectNowShowsAsMarker": "The project now appears as a marker on the map",
-    "confirmDelete": "Are you sure you want to delete {name}?",
     "noChangesToSave": "No changes to save",
     "zoomingToProject": "Zooming to Project",
     "zoomInToSeeOverlay": "Zoom level was too low, automatically zooming in to show the uploaded image",
-    "onlyOneOverlayInProject": "This project only has one image",
-    "changesSaved": "Changes saved"
+    "onlyOneOverlayInProject": "This project only has one image"
   },
   "map": {
     "clickCityMarker": "Click on a city marker",
@@ -319,8 +305,7 @@
   },
   "app": {
     "title": "Urbanistmap.org",
-    "subtitle": "A crowdsourced map of urban projects worldwide",
-    "closePanel": "Close panel"
+    "subtitle": "A crowdsourced map of urban projects worldwide"
   },
   "footer": {
     "legal": "Legal"
@@ -362,7 +347,6 @@
       "verified": "Email Verified!",
       "verifiedMessage": "Your email has been successfully verified. You can now use all features of Urbanist Map.",
       "signingIn": "Signing you in...",
-      "continueToApp": "Continue to App",
       "verificationFailed": "Verification Failed",
       "backToApp": "Back to App",
       "successDetail": "Email verified successfully!",
@@ -374,10 +358,6 @@
     "legal": {
       "title": "Legal Notice & Privacy Policy",
       "lastUpdated": "Last updated",
-      "publisher": {
-        "title": "Publisher",
-        "content": "This website is published by:"
-      },
       "dataCollection": {
         "title": "Data Collection",
         "content": "I collect minimal information to provide our service:",
@@ -447,7 +427,6 @@
     },
     "help": "Help",
     "filters": "Toggle project filters",
-    "layers": "Map Layers",
     "language": "Language"
   },
   "tooltips": {
@@ -462,7 +441,6 @@
     "nextOverlay": "Go to next image",
     "undo": "Undo (ctrl + z)",
     "redo": "Redo (ctrl + y)",
-    "resetRatio": "Reset Image Ratio",
     "delete": "Delete this image",
     "replace": "Replace this image",
     "save": "Submit"
@@ -713,8 +691,6 @@
     "suggestChanges": "Suggest Changes"
   },
   "layerControl": {
-    "baseMaps": "Base Maps",
-    "submitTileLayer": "Submit a new tile layer",
     "plan": "Plan",
     "satellite": "Satellite"
   },

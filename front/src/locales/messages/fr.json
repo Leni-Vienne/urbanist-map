@@ -2,7 +2,6 @@
   "common": {
     "name": "Nom",
     "back": "Retour",
-    "save": "Enregistrer",
     "cancel": "Annuler",
     "edit": "Modifier",
     "add": "Nouveau",
@@ -66,15 +65,7 @@
     "currentLocation": "Emplacement Actuel",
     "contribute": "Contribuer",
     "moderation": "Modération",
-    "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?",
-    "unsavedOverlaysSwitchCity": "Vous avez des images non enregistrées. Changer de ville les supprimera. Continuer ?",
-    "unsavedOverlaysReloadCity": "Vous avez des images non enregistrées. Recharger cette ville les supprimera. Continuer ?"
-  },
-  "projectPicker": {
-    "noProjectsAvailable": "Aucun projet disponible. Créez votre premier projet pour ajouter des images.",
-    "selectProject": "Sélectionner un projet",
-    "overlaysCount": "{count} images",
-    "createNewProject": "Créer un nouveau projet"
+    "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
   },
   "project": {
     "create": "Créer un projet",
@@ -84,7 +75,6 @@
     "missingCityInfo": "Informations de ville manquantes",
     "cannotNavigateWithoutCity": "Impossible de naviguer sans informations de ville",
     "timelineStatus": "Statut chronologique",
-    "proposedStatus": "Proposé",
     "proposedDescription": "Projet non confirmé, dates non fixées",
     "plannedStatus": "Prévu",
     "plannedDescription": "Projet confirmé avec dates programmées",
@@ -97,7 +87,6 @@
     "yearOnly": "Année uniquement",
     "monthYear": "Mois & Année",
     "fullDate": "Date complète",
-    "year": "Année",
     "alreadyStarted": "Déjà commencé, date de début inconnue",
     "proposed": "Proposé",
     "proposedOn": "Proposé le",
@@ -106,7 +95,6 @@
     "startsOn": "Commence le",
     "endsIn": "Se termine en",
     "endsOn": "Se termine le",
-    "startDateOptional": "La date de début est facultative si le projet a déjà commencé",
     "validationError": "Erreur de validation",
     "locationRequired": "La localisation est requise",
     "timelineChangedFromProposedToPlanned": "Statut chronologique changé de Proposé ({proposalDate}) à Prévu",
@@ -216,12 +204,10 @@
     "uploadFailedDetail": "Échec du téléchargement du fichier image",
     "lastOverlayDeleted": "Dernière image supprimée",
     "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte",
-    "confirmDelete": "Êtes-vous sûr de vouloir supprimer {name} ?",
     "noChangesToSave": "Aucune modification à enregistrer",
     "zoomingToProject": "Zoom vers le projet",
     "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
-    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image",
-    "changesSaved": "Modifications sauvegardées"
+    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image"
   },
   "map": {
     "clickCityMarker": "Cliquez sur une ville",
@@ -319,8 +305,7 @@
   },
   "app": {
     "title": "Urbanistmap.org",
-    "subtitle": "Une carte participative des projets d'aménagement urbain dans le monde",
-    "closePanel": "Fermer le panneau"
+    "subtitle": "Une carte participative des projets d'aménagement urbain dans le monde"
   },
   "footer": {
     "legal": "Mentions légales"
@@ -362,7 +347,6 @@
       "verified": "Email vérifié !",
       "verifiedMessage": "Votre email a été vérifié avec succès. Vous pouvez maintenant utiliser toutes les fonctionnalités de Urbanist Map.",
       "signingIn": "Connexion en cours...",
-      "continueToApp": "Continuer vers l'application",
       "verificationFailed": "Échec de la vérification",
       "backToApp": "Retour à l'application",
       "successDetail": "Email vérifié avec succès !",
@@ -374,10 +358,6 @@
     "legal": {
       "title": "Mentions légales & Politique de confidentialité",
       "lastUpdated": "Dernière mise à jour",
-      "publisher": {
-        "title": "Éditeur",
-        "content": "Ce site est édité par :"
-      },
       "dataCollection": {
         "title": "Collecte de données",
         "content": "Je collecte un minimum d'informations :",
@@ -447,7 +427,6 @@
     },
     "help": "Aide",
     "filters": "Basculer les filtres de projets",
-    "layers": "Fonds de carte",
     "language": "Langue"
   },
   "tooltips": {
@@ -462,7 +441,6 @@
     "nextOverlay": "Aller à l'image suivante",
     "undo": "Annuler (ctrl + z)",
     "redo": "Rétablir (ctrl + y)",
-    "resetRatio": "Réinitialiser le ratio de l'image",
     "delete": "Supprimer cette image",
     "replace": "Remplacer cette image",
     "save": "Envoyer"
@@ -715,8 +693,6 @@
     "suggestChanges": "Suggérer des modifications"
   },
   "layerControl": {
-    "baseMaps": "Fonds de carte",
-    "submitTileLayer": "Soumettre une nouvelle carte",
     "plan": "Plan",
     "satellite": "Satellite"
   },
