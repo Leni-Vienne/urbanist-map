@@ -2,6 +2,7 @@ import L from "leaflet";
 import "leaflet-toolbar";
 import { t } from "@/locales";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
@@ -511,18 +512,46 @@ const replaceOverlayTool = L.Toolbar2.Action.extend({
 });
 
 /**
+ * AI : Pre-computed project overlay counts for the current render batch.
+ * AI : Set by renderViewModeOverlays before rendering, cleared after.
+ * AI : Avoids timing issues where sibling overlays aren't in the store yet.
+ */
+let _batchProjectCounts: Map<string, number> | null = null;
+
+export function setBatchProjectCounts(counts: Map<string, number> | null) {
+  _batchProjectCounts = counts;
+}
+
+/**
+ * AI : Check if the overlay's parent project has more than one overlay (nav arrows only useful then)
+ */
+function projectHasMultipleOverlays(overlayObject: OverlayObject): boolean {
+  if (!overlayObject.projectId) return false;
+
+  // AI : Use pre-computed batch counts during view-mode rendering (avoids store timing issues)
+  if (_batchProjectCounts !== null) {
+    return (_batchProjectCounts.get(overlayObject.projectId) ?? 0) > 1;
+  }
+
+  // AI : Fall back to local project store (populated in edit mode)
+  const projectStore = useProjectStore();
+  const project = projectStore.projects[overlayObject.projectId];
+  if (project) return project.overlayIds.length > 1;
+
+  // AI : Unknown — default to showing arrows
+  return true;
+}
+
+/**
  * AI : View mode tools - Tools available when not in edit mode
  * AI : Lazy initialization to avoid module load timing issues
  */
-export function getViewTools() {
-  return [
-    getInfoTool(),
-    L.OpacityAction,
-    L.OpacitiesAction,
-    previousOverlayTool,
-    nextOverlayTool,
-    L.StackAction,
-  ];
+export function getViewTools(overlayObject?: OverlayObject) {
+  const includeNav = overlayObject ? projectHasMultipleOverlays(overlayObject) : true;
+  const tools: any[] = [getInfoTool(), L.OpacityAction, L.OpacitiesAction];
+  if (includeNav) tools.push(previousOverlayTool, nextOverlayTool);
+  tools.push(L.StackAction);
+  return tools;
 }
 
 /**
@@ -530,6 +559,7 @@ export function getViewTools() {
  * AI : Dynamically builds toolbar with only tools the user has permission to use
  */
 export function getEditToolsForOverlay(overlayObject: OverlayObject) {
+  const includeNav = projectHasMultipleOverlays(overlayObject);
   const baseTools = [
     getInfoTool(),
     undoTool,
@@ -539,8 +569,7 @@ export function getEditToolsForOverlay(overlayObject: OverlayObject) {
     resetRatioTool,
     L.OpacityAction,
     L.OpacitiesAction,
-    previousOverlayTool,
-    nextOverlayTool,
+    ...(includeNav ? [previousOverlayTool, nextOverlayTool] : []),
     L.StackAction,
     replaceOverlayTool,
   ];

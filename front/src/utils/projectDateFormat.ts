@@ -26,12 +26,15 @@ export function formatProjectDateRange(
   proposalDatePrecision?: "year" | "month" | "day" | null,
   t = (key: string) => key,
 ): string {
-  // AI : If it's a proposed project, show "Proposed on {date}"
+  // AI : If it's a proposed project, show "Proposed on/in {date}"
+  // AI : Use "proposedIn" for year/month precision, "proposedOn" for day (same pattern as startsIn/startsOn)
   if (proposalDate) {
     const proposalDateStr = formatFlexibleDate(
       dbToFlexibleDate(proposalDate, proposalDatePrecision),
     );
-    return `${t("project.proposedOn")} ${proposalDateStr}`;
+    const proposedKey =
+      proposalDatePrecision === "day" ? "project.proposedOn" : "project.proposedIn";
+    return `${t(proposedKey)} ${proposalDateStr}`;
   }
 
   const start = startDate

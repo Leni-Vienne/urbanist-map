@@ -13,43 +13,41 @@
       <p class="mb-6 text-[var(--p-text-color)] text-base">{{ $t("help.paragraph") }}</p>
       <div class="flex flex-col gap-6">
         <!-- AI : Map Controls Buttons -->
-        <div
-          class="border border-[var(--p-surface-border)] rounded-lg p-4 bg-[var(--p-surface-50)]"
-        >
+        <div class="border border-[var(--p-surface-300)] rounded-lg p-4 bg-[var(--p-surface-50)]">
           <h4
-            class="m-0 mb-4 text-base font-semibold text-[var(--p-primary-color)] border-b border-[var(--p-surface-border)] pb-2"
+            class="m-0 mb-4 text-base font-semibold text-[var(--p-primary-color)] border-b border-[var(--p-surface-300)] pb-2"
           >
             {{ $t("help.buttons.title") }}
           </h4>
           <div class="flex items-center gap-4 mb-3">
-            <div
-              class="shrink-0 w-10 h-10 flex items-center justify-center bg-[var(--p-surface-0)] border border-[var(--p-surface-border)] rounded-[6px]"
+            <Button
+              icon="pi pi-question-circle"
+              severity="help"
               aria-hidden="true"
-            >
-              <Button icon="pi pi-question-circle" size="small" severity="help" disabled />
-            </div>
+              class="pointer-events-none shrink-0"
+            />
             <div class="flex-1 text-[var(--p-text-color)] text-[0.9rem]">
               {{ $t("help.buttons.help") }}
             </div>
           </div>
           <div class="flex items-center gap-4 mb-3">
-            <div
-              class="shrink-0 w-10 h-10 flex items-center justify-center bg-[var(--p-surface-0)] border border-[var(--p-surface-border)] rounded-[6px]"
+            <Button
+              icon="pi pi-map"
+              severity="secondary"
               aria-hidden="true"
-            >
-              <Button icon="pi pi-map" size="small" severity="secondary" disabled />
-            </div>
+              class="pointer-events-none shrink-0"
+            />
             <div class="flex-1 text-[var(--p-text-color)] text-[0.9rem]">
               {{ $t("help.buttons.layers") }}
             </div>
           </div>
           <div class="flex items-center gap-4">
-            <div
-              class="shrink-0 w-10 h-10 flex items-center justify-center bg-[var(--p-surface-0)] border border-[var(--p-surface-border)] rounded-[6px]"
+            <Button
+              icon="pi pi-filter"
+              severity="secondary"
               aria-hidden="true"
-            >
-              <Button icon="pi pi-filter" size="small" severity="secondary" disabled />
-            </div>
+              class="pointer-events-none shrink-0"
+            />
             <div class="flex-1 text-[var(--p-text-color)] text-[0.9rem]">
               {{ $t("help.buttons.filters") }}
             </div>
@@ -72,7 +70,7 @@
         </div>
       </div>
 
-      <div class="pt-4 mt-6 border-t border-[var(--p-surface-border)] flex items-center">
+      <div class="pt-4 mt-6 border-t border-[var(--p-surface-300)] flex items-center">
         <Checkbox v-model="dontShowAgain" inputId="dontShowAgain" :binary="true" />
         <label
           for="dontShowAgain"

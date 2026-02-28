@@ -43,7 +43,11 @@ import {
   createSingleMarker,
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
-import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
+import {
+  getEditToolsForOverlay,
+  getViewTools,
+  setBatchProjectCounts,
+} from "@/services/overlay/overlayToolbar";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
@@ -75,7 +79,9 @@ export function createLeafletOverlay(
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
-      actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : getViewTools())],
+      actions: [
+        ...(isEditMode ? getEditToolsForOverlay(overlayObject) : getViewTools(overlayObject)),
+      ],
       corners: leafletCorners,
       dragBehavior: "auto",
       selectOnDrag: false,
@@ -466,6 +472,17 @@ export function renderViewModeOverlays(
 ): boolean {
   const overlayStore = useOverlayStore();
 
+  // AI : Pre-compute project overlay counts from ALL view-mode overlays before rendering any.
+  // AI : This avoids timing issues where sibling overlays aren't in the store yet when
+  // AI : the toolbar for the first overlay of a project is built.
+  const projectCounts = new Map<string, number>();
+  for (const o of overlayStore.viewModeOverlays) {
+    if (o.projectId) {
+      projectCounts.set(o.projectId, (projectCounts.get(o.projectId) ?? 0) + 1);
+    }
+  }
+  setBatchProjectCounts(projectCounts);
+
   let overlaysToRender: OverlayData[] = [];
 
   if (forceRerender) {
@@ -487,6 +504,10 @@ export function renderViewModeOverlays(
       anyStarted = true;
     }
   }
+
+  // AI : Clear batch counts — getViewTools is called synchronously during rendering above
+  setBatchProjectCounts(null);
+
   return anyStarted;
 }
 
