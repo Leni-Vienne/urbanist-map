@@ -45,6 +45,7 @@
       <a
         :href="project.sourceUrl"
         target="_blank"
+        rel="noopener noreferrer"
         class="text-[13px] text-[var(--p-primary-600)] no-underline hover:underline break-words"
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >

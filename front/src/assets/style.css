@@ -21,7 +21,7 @@ body {
 
 /* Otherwise the UnifiedProjectPopup is in the Helvetica font */
 .leaflet-container {
-  font-family: "DM Sans", system-ui, sans-serif;
+  font-family: inherit;
 }
 
 .leaflet-control-attribution a {

@@ -453,7 +453,7 @@
     }
   },
   "forms": {
-    "saveChanges": "Save Changes"
+    "saveChanges": "Save"
   },
   "dialog": {
     "createNewProject": "Create New Project"

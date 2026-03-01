@@ -99,7 +99,7 @@
             <a
               href="https://policies.google.com/privacy"
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               class="text-[var(--p-primary-color)]"
               >{{ t("pages.legal.thirdParty.googleLink") }}</a
             >
@@ -109,7 +109,7 @@
             <a
               href="https://www.cloudflare.com/privacypolicy/"
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               class="text-[var(--p-primary-color)]"
               >{{ t("pages.legal.thirdParty.cloudflareLink") }}</a
             >
@@ -119,7 +119,7 @@
             <a
               href="https://aws.amazon.com/privacy/"
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               class="text-[var(--p-primary-color)]"
               >{{ t("pages.legal.thirdParty.awsLink") }}</a
             >
