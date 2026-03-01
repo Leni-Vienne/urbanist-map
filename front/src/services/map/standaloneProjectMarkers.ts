@@ -3,7 +3,11 @@ import { watch } from "vue";
 import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
-import { visibleCompletionStates } from "@/services/overlay/completionFilters";
+import {
+  visibleCompletionStates,
+  filterByCompletionStatus,
+} from "@/services/overlay/completionFilters";
+import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -53,11 +57,30 @@ function initializePopupWatcher() {
     },
   );
 
-  // AI : Watch completion filter changes and refresh all standalone markers
+  // AI : Watch completion filter changes: refresh standalone markers AND sync overlay marker visibility.
+  // AI : Inlined here to avoid importing viewportRenderLoop (which would create a circular dependency
+  // AI : via viewportRenderLoop → overlayRendering → standaloneProjectMarkers).
+  // AI : runViewportRenderLoop is NOT called — it runs on the next map event and handles proper
+  // AI : destruction; here we only need an immediate show/hide pass that works at all zoom levels.
   watch(
     () => visibleCompletionStates.value,
     () => {
       refreshAllStandaloneMarkers();
+
+      // AI : Sync overlay marker visibility to the current completion filter
+      const overlayStore = useOverlayStore();
+      const mapInstance = map.value;
+      const filteredIds = new Set(
+        filterByCompletionStatus(overlayStore.viewModeOverlays, overlayStore.mode).map((o) => o.id),
+      );
+      for (const id of Object.keys(overlayStore.overlays)) {
+        const marker = registry.getMarker(id);
+        if (!marker) continue;
+        const shouldBeVisible = filteredIds.has(id);
+        const isOnMap = mapInstance.hasLayer(marker);
+        if (shouldBeVisible && !isOnMap) marker.addTo(mapInstance);
+        else if (!shouldBeVisible && isOnMap) marker.remove();
+      }
     },
     { deep: true },
   );
@@ -393,12 +416,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       updateStandaloneProjectMarkerOpacities(marker);
     })();
   });
-
-  // AI : Store marker in map for easy lookup
-  standaloneProjectMarkerMap.set(project.id, marker);
-
-  // AI : Add marker to layer
-  marker.addTo(standaloneProjectsLayer);
 }
 
 /**

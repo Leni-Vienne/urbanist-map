@@ -90,13 +90,6 @@ export function getMarker(id: string): L.Marker | null {
   return entries.get(id)?.marker ?? null;
 }
 
-export function clearMarker(id: string): void {
-  const entry = entries.get(id);
-  if (entry) {
-    entry.marker = null;
-  }
-}
-
 // ─── Full entry lifecycle ─────────────────────────────────────────────────────
 
 /**
@@ -184,6 +177,14 @@ export function removeMarkerFromMap(id: string): void {
     entry.marker.remove();
   }
   entry.marker = null;
+}
+
+export function getAllLayers(): Array<[string, L.DistortableImageOverlay]> {
+  const result: Array<[string, L.DistortableImageOverlay]> = [];
+  for (const [id, entry] of entries) {
+    if (entry.layer != null) result.push([id, entry.layer]);
+  }
+  return result;
 }
 
 // AI : Accept HMR updates for this module

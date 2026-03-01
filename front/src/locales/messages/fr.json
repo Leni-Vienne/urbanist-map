@@ -2,7 +2,6 @@
   "common": {
     "name": "Nom",
     "back": "Retour",
-    "save": "Enregistrer",
     "cancel": "Annuler",
     "edit": "Modifier",
     "add": "Nouveau",
@@ -24,7 +23,9 @@
     "contact": "Contact",
     "email": "Email",
     "actions": "Actions",
-    "approved": "Approuvé"
+    "approved": "Approuvé",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
+    "addField": "ajouter"
   },
   "relativeTime": {
     "justNow": "à l'instant",
@@ -64,56 +65,42 @@
     "latestContributions": "Contributions Récentes",
     "currentLocation": "Emplacement Actuel",
     "contribute": "Contribuer",
-    "moderation": "Modération",
-    "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?",
-    "unsavedOverlaysSwitchCity": "Vous avez des images non enregistrées. Changer de ville les supprimera. Continuer ?",
-    "unsavedOverlaysReloadCity": "Vous avez des images non enregistrées. Recharger cette ville les supprimera. Continuer ?"
-  },
-  "projectPicker": {
-    "noProjectsAvailable": "Aucun projet disponible. Créez votre premier projet pour ajouter des images.",
-    "selectProject": "Sélectionner un projet",
-    "overlaysCount": "{count} images",
-    "createNewProject": "Créer un nouveau projet"
+    "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
   },
   "project": {
     "create": "Créer un projet",
     "name": "Nom du projet",
     "location": "Localisation",
     "noLocation": "Aucun emplacement",
-    "missingCityInfo": "Informations de ville manquantes",
     "cannotNavigateWithoutCity": "Impossible de naviguer sans informations de ville",
     "timelineStatus": "Statut chronologique",
-    "proposedStatus": "Proposé",
     "proposedDescription": "Projet non confirmé, dates non fixées",
-    "plannedStatus": "Prévu",
     "plannedDescription": "Projet confirmé avec dates programmées",
     "proposalDate": "Date de proposition",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
-    "startDate": "Date de début des travaux",
-    "endDate": "Date de fin des travaux",
+    "startDate": "Début des travaux",
+    "endDate": "Fin des travaux",
     "sourceUrl": "URL source",
     "optionalField": "Optionnel",
     "yearOnly": "Année uniquement",
     "monthYear": "Mois & Année",
     "fullDate": "Date complète",
-    "year": "Année",
     "alreadyStarted": "Déjà commencé, date de début inconnue",
     "proposed": "Proposé",
     "proposedOn": "Proposé le",
+    "proposedIn": "Proposé en",
     "startsIn": "Commence en",
     "startsOn": "Commence le",
     "endsIn": "Se termine en",
     "endsOn": "Se termine le",
-    "startDateOptional": "La date de début est facultative si le projet a déjà commencé",
-    "validationError": "Erreur de validation",
     "locationRequired": "La localisation est requise",
     "timelineChangedFromProposedToPlanned": "Statut chronologique changé de Proposé ({proposalDate}) à Prévu",
     "timelineChangedFromPlannedToProposed": "Statut chronologique changé de Prévu ({startDate} à {endDate}) à Proposé",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
     "information": "Informations du projet",
     "edit": "Modifier le projet",
-    "publish": "Publier le projet",
-    "submitChangeRequest": "Publier",
+    "publish": "Envoyer",
+    "submitChangeRequest": "Envoyer",
     "period": "Période",
     "source": "Source",
     "addImages": "Ajouter"
@@ -130,20 +117,6 @@
     "completed": "Terminé"
   },
   "help": {
-    "title": "Bienvenue",
-    "intro": "Urbanistmap.org est une carte participative des projets d'aménagement urbain dans le monde.",
-    "paragraph": "Étant souvent difficile de trouver ces informations sur internet, j'espère que le site vous sera utile et éveillera votre curiosité. N'hésitez pas à contribuer, que ce soit en ajoutant un projet officiel ou une idée que vous avez pour votre ville.",
-    "gotIt": "J'ai compris !",
-    "dontShowAgain": "Ne plus afficher cette fenêtre",
-    "buttons": {
-      "title": "Contrôles de la carte",
-      "help": "Afficher ce guide d'aide",
-      "layers": "Changer de carte (plan, satellite, etc.)",
-      "filters": "Filtres de statut de projet (proposé, prévu, en cours, terminé)"
-    },
-    "modes": {
-      "description": "Bouton pour basculer entre le Mode Visualisation (projets approuvés uniquement) et le Mode Édition (modifier vos propres projets)"
-    },
     "filters": {
       "showPending": "Afficher en attente",
       "showApproved": "Afficher approuvé"
@@ -160,14 +133,18 @@
     "deleteOverlay": "Supprimer l'image",
     "deleteProject": "Supprimer le projet",
     "deleteChangeRequest": "Supprimer la suggestion",
-    "confirmDeleteOverlay": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
-    "confirmDeleteProject": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
     "confirmDeleteProjectWithOverlays": "Êtes-vous sûr de vouloir supprimer \"{name}\" et ses {count} image(s) ? Cette action est irréversible.",
     "confirmDeleteChangeRequest": "Êtes-vous sûr de vouloir supprimer votre suggestion pour \"{field}\" ? Cette action est irréversible.",
     "overlayDeleted": "Image supprimée avec succès",
     "projectDeleted": "Projet supprimé avec succès",
     "changeRequestDeleted": "Suggestion supprimée avec succès",
-    "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer."
+    "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer.",
+    "guest": {
+      "title": "Contribuez à la carte",
+      "description": "Participez à la cartographie des projets d'aménagement urbain : ajoutez des projets officiels ou vos propres idées pour votre ville (transports, logements, espaces publics, aménagements paysagers...).",
+      "signIn": "Se connecter",
+      "createAccount": "Créer un compte"
+    }
   },
   "contribution": {
     "noContributionsFound": "Aucune contribution trouvée.",
@@ -185,6 +162,7 @@
     "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
   },
   "overlay": {
+    "overlayImage": "image",
     "overlayImages": "images",
     "overlayInformation": "Informations sur l'image",
     "notSet": "Non défini",
@@ -195,7 +173,7 @@
     "navigationFailed": "Échec de la navigation",
     "failedToNavigate": "Échec de la navigation vers l'image",
     "publishFailedDetail": "Échec de l'enregistrement de l'image",
-    "publishOverlay": "Publier l'image",
+    "publishOverlay": "Envoyer",
     "viewCurrentPosition": "Voir la position actuelle",
     "viewSuggestedPosition": "Voir la position suggérée",
     "overlayTooLarge": "Image trop grande (max 1km × 1km)",
@@ -213,7 +191,6 @@
     "uploadFailedDetail": "Échec du téléchargement du fichier image",
     "lastOverlayDeleted": "Dernière image supprimée",
     "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte",
-    "confirmDelete": "Êtes-vous sûr de vouloir supprimer {name} ?",
     "noChangesToSave": "Aucune modification à enregistrer",
     "zoomingToProject": "Zoom vers le projet",
     "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
@@ -232,7 +209,6 @@
       "proposed": "Proposé",
       "planned": "Planifié",
       "inProgress": "En cours",
-      "completed": "Terminé",
       "toggleProposed": "Afficher/masquer les projets proposés",
       "togglePlanned": "Afficher/masquer les projets planifiés",
       "toggleInProgress": "Afficher/masquer les projets en cours",
@@ -315,8 +291,7 @@
   },
   "app": {
     "title": "Urbanistmap.org",
-    "subtitle": "Une carte participative des projets d'aménagement urbain dans le monde",
-    "closePanel": "Fermer le panneau"
+    "subtitle": "Une carte participative des projets d'aménagement urbain dans le monde"
   },
   "footer": {
     "legal": "Mentions légales"
@@ -326,8 +301,8 @@
     "confirmTitle": "Confirmer l'enregistrement",
     "requiresModeration": "Requiert modération",
     "immediateUpdate": "Mise à jour immédiate",
-    "confirmSubmit": "Confirmer et soumettre",
-    "changeRequestSubmitted": "Demande de modification soumise avec succès",
+    "confirmSubmit": "Confirmer et envoyer",
+    "changeRequestSubmitted": "Modifications envoyées avec succès",
     "changesSaved": "Modifications enregistrées avec succès",
     "submissionSuccessful": "Enregistrement réussi",
     "overlayCaption": "Légende de l'image",
@@ -358,7 +333,6 @@
       "verified": "Email vérifié !",
       "verifiedMessage": "Votre email a été vérifié avec succès. Vous pouvez maintenant utiliser toutes les fonctionnalités de Urbanist Map.",
       "signingIn": "Connexion en cours...",
-      "continueToApp": "Continuer vers l'application",
       "verificationFailed": "Échec de la vérification",
       "backToApp": "Retour à l'application",
       "successDetail": "Email vérifié avec succès !",
@@ -370,10 +344,6 @@
     "legal": {
       "title": "Mentions légales & Politique de confidentialité",
       "lastUpdated": "Dernière mise à jour",
-      "publisher": {
-        "title": "Éditeur",
-        "content": "Ce site est édité par :"
-      },
       "dataCollection": {
         "title": "Collecte de données",
         "content": "Je collecte un minimum d'informations :",
@@ -441,9 +411,7 @@
       "in": "Zoomer",
       "out": "Dézoomer"
     },
-    "help": "Aide",
     "filters": "Basculer les filtres de projets",
-    "layers": "Fonds de carte",
     "language": "Langue"
   },
   "tooltips": {
@@ -458,9 +426,9 @@
     "nextOverlay": "Aller à l'image suivante",
     "undo": "Annuler (ctrl + z)",
     "redo": "Rétablir (ctrl + y)",
-    "resetRatio": "Réinitialiser le ratio de l'image",
     "delete": "Supprimer cette image",
-    "replace": "Remplacer cette image"
+    "replace": "Remplacer cette image",
+    "save": "Envoyer"
   },
   "markerTooltip": {
     "status": {
@@ -499,6 +467,7 @@
   "imageUpload": {
     "pdfExtractionDescription": "Si vos images proviennent d'un PDF, il est recommandé d'utiliser des outils comme {toolLink} pour les extraire dans la meilleure qualité possible.",
     "dialogTitle": "Ajouter une image au projet",
+    "replacementDialogTitle": "Remplacer l'image",
     "uploadDescription": "Ajouter une image vue de dessus d'un plan de rue. Le but est d'aligner l'image avec la carte pour mieux faire connaître le projet. Les images avec un angle de vue non vertical ne sont pas acceptées. Jetez un œil aux dernières contributions pour voir comment elles devraient se présenter.",
     "pdfExtraction": "Extraction depuis des PDFs",
     "tokenToolLink": "TokenTool",
@@ -595,12 +564,12 @@
     "reason": "Raison",
     "requested": "Demandé",
     "fetchSubmissionsFailed": "Échec du chargement des contributions en attente. Veuillez actualiser la page.",
-    "overlayNotFound": "Overlay introuvable",
+    "overlayNotFound": "Image introuvable",
     "projectNotFound": "Projet introuvable",
-    "overlayVersionConflict": "Cet overlay a été modifié par un autre utilisateur. Veuillez examiner la version mise à jour avant d'approuver.",
+    "overlayVersionConflict": "Cet image a été modifié par un autre utilisateur. Veuillez examiner la version mise à jour avant d'approuver.",
     "projectVersionConflict": "Ce projet a été modifié par un autre utilisateur. Veuillez examiner la version mise à jour avant d'approuver.",
-    "overlayApprovalFailed": "Échec de l'approbation de l'overlay",
-    "overlayRejectionFailed": "Échec du rejet de l'overlay",
+    "overlayApprovalFailed": "Échec de l'approbation de l'image",
+    "overlayRejectionFailed": "Échec du rejet de l'image",
     "projectApprovalFailed": "Échec de l'approbation du projet",
     "projectRejectionFailed": "Échec du rejet du projet",
     "conflictDetected": "Modifications concurrentes",
@@ -620,27 +589,25 @@
     "conflictResolvedDetail": "La modification sélectionnée a été approuvée. Les autres suggestions pour ce champ ont été marquées comme non sélectionnées.",
     "conflictsRejected": "Toutes les modifications rejetées",
     "conflictsRejectedDetail": "Toutes les modifications suggérées ont été rejetées",
-    "currentValue": "Actuel",
-    "newValue": "Nouveau",
     "approveOneToRejectOthers": "Approuver l'une rejettera les autres",
     "replacementConflicts": {
       "title": "Conflits de remplacement détectés",
-      "approvingWillReplace": "L'approbation de ce remplacement remplacera la superposition approuvée \"{original}\".",
+      "approvingWillReplace": "L'approbation de ce remplacement remplacera l'image approuvée \"{original}\".",
       "pendingChanges": "{count} demande(s) de modification en attente",
       "competingReplacements": "{count} remplacement(s) concurrent(s)",
-      "changesWillBeConflicted": "Ces demandes de modification en attente seront marquées comme en conflit car la superposition d'origine est remplacée.",
+      "changesWillBeConflicted": "Ces demandes de modification en attente seront marquées comme en conflit car l'image d'origine est remplacée.",
       "competingWillBeRejected": "Ces contributions de remplacement concurrentes seront automatiquement rejetées.",
       "approveAndResolve": "Approuver et résoudre les conflits"
     },
     "deleteOverlay": {
-      "title": "Supprimer la superposition ?",
+      "title": "Supprimer l'image ?",
       "message": "Êtes-vous sûr de vouloir supprimer \"{caption}\" ? Cette action ne peut pas être annulée.",
       "messageUnnamed": "Êtes-vous sûr de vouloir supprimer cette superposition ? Cette action ne peut pas être annulée.",
-      "deleteButton": "Supprimer la superposition",
-      "deleteSuccess": "Superposition supprimée",
+      "deleteButton": "Supprimer l'image",
+      "deleteSuccess": "Image supprimée",
       "deleteSuccessDetail": "La superposition a été supprimée avec succès",
       "deleteFailed": "Échec de la suppression",
-      "deleteFailedDetail": "Échec de la suppression de la superposition",
+      "deleteFailedDetail": "Échec de la suppression de l'image",
       "cannotDeleteApproved": "Impossible de supprimer les superpositions approuvées"
     },
     "moderatedContributions": {
@@ -656,7 +623,6 @@
       "title": "Statistiques de l'utilisateur",
       "contributorStats": "Statistiques du contributeur",
       "submittedBy": "Contributeur",
-      "username": "Nom d'utilisateur",
       "approved": "{count} approuvés",
       "rejected": "{count} rejetés",
       "reports": "Signalements",
@@ -709,8 +675,6 @@
     "suggestChanges": "Suggérer des modifications"
   },
   "layerControl": {
-    "baseMaps": "Fonds de carte",
-    "submitTileLayer": "Soumettre une nouvelle carte",
     "plan": "Plan",
     "satellite": "Satellite"
   },
@@ -729,7 +693,6 @@
     "reports": {
       "title": "Utilisateurs signalés",
       "columns": {
-        "username": "Nom d'utilisateur",
         "reportCount": "Signalements",
         "pendingItems": "Éléments en attente",
         "rejectedItems": "Éléments rejetés",
@@ -754,13 +717,10 @@
         "banReason": "Raison du bannissement"
       },
       "banDialog": {
-        "title": "Bannir l'utilisateur",
         "confirmMessage": "Vous êtes sur le point de bannir l'utilisateur \"{username}\".",
         "reason": "Raison du bannissement",
         "reasonPlaceholder": "Entrez la raison du bannissement de cet utilisateur...",
-        "deleteContent": "Supprimer tout le contenu en attente et rejeté de cet utilisateur",
-        "cancel": "Annuler",
-        "confirm": "Bannir l'utilisateur"
+        "deleteContent": "Supprimer tout le contenu en attente et rejeté de cet utilisateur"
       },
       "messages": {
         "loadError": "Échec du chargement des utilisateurs signalés",
@@ -776,7 +736,6 @@
     "userContributions": {
       "title": "Contributions de l'utilisateur",
       "manageContributions": "Gérer les contributions",
-      "rejected": "Rejeté",
       "banned": "Banni",
       "projects": "projets",
       "overlays": "images",

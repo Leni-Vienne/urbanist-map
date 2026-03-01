@@ -1065,11 +1065,11 @@
 
     "leaflet": ["leaflet@1.9.4", "", {}, "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA=="],
 
-    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#e248253", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-e248253", "sha512-+8bshrYXEdFsXsFXY9Ywx1lQ6tVkaZ5Ku/Y6r8/77aomPHJpPw1NFBv/qs/GJBgYp2vRG38BOUIoc238EIaelg=="],
+    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#3c70685", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-3c70685", "sha512-7hm17AfIo+yIzzDd+LiwsL/shVGauTHOgBISduNHt7WUdAT2SyWKXaxrOz4oAKHqCYgn3Td58lqIIL9ZDj03wQ=="],
 
     "leaflet-google-places-autocomplete": ["leaflet-google-places-autocomplete@0.0.9", "", {}, "sha512-NHefPZn53GQIjuAZmwEN/KTy8TobEu8kRU/WlYR58j5WrQU3vZ4w2OKVUCFzKU5jlWxeZP/SQTFhmXf2vkHIeQ=="],
 
-    "leaflet-toolbar": ["leaflet-toolbar@github:Leni-vienne/Leaflet.toolbar#0fa5db6", { "peerDependencies": { "leaflet": "*" } }, "Leni-Vienne-Leaflet.toolbar-0fa5db6", "sha512-ZbX6tuLzH5wYircAxEZ72A4zFrX8PKC/K86Cnx3xF3gQowkKAiJNwQfXnIBMZBvlierZDq2VVRvV2Avisoo5SQ=="],
+    "leaflet-toolbar": ["leaflet-toolbar@github:Leni-vienne/Leaflet.toolbar#a0533d7", { "peerDependencies": { "leaflet": "*" } }, "Leni-Vienne-Leaflet.toolbar-a0533d7", "sha512-D6dAFZYHRZ8rVODZfgZ16QbKKeaKansjgcLw9LS+JT5zC/PJgC9SkmoPLakD8FUlwWUvsWXRmmtkVHEMUSdifg=="],
 
     "lightningcss": ["lightningcss@1.31.1", "", { "dependencies": { "detect-libc": "^2.0.3" }, "optionalDependencies": { "lightningcss-android-arm64": "1.31.1", "lightningcss-darwin-arm64": "1.31.1", "lightningcss-darwin-x64": "1.31.1", "lightningcss-freebsd-x64": "1.31.1", "lightningcss-linux-arm-gnueabihf": "1.31.1", "lightningcss-linux-arm64-gnu": "1.31.1", "lightningcss-linux-arm64-musl": "1.31.1", "lightningcss-linux-x64-gnu": "1.31.1", "lightningcss-linux-x64-musl": "1.31.1", "lightningcss-win32-arm64-msvc": "1.31.1", "lightningcss-win32-x64-msvc": "1.31.1" } }, "sha512-l51N2r93WmGUye3WuFoN5k10zyvrVs0qfKBhyC5ogUQ6Ew6JUSswh78mbSO+IU3nTWsyOArqPCcShdQSadghBQ=="],
 
@@ -1674,6 +1674,8 @@
     "html-encoding-sniffer/@exodus/bytes": ["@exodus/bytes@1.7.0", "", { "peerDependencies": { "@exodus/crypto": "^1.0.0-rc.4" }, "optionalPeers": ["@exodus/crypto"] }, "sha512-5i+BtvujK/vM07YCGDyz4C4AyDzLmhxHMtM5HpUyPRtJPBdFPsj290ffXW+UXY21/G7GtXeHD2nRmq0T1ShyQQ=="],
 
     "is-expression/acorn": ["acorn@7.4.1", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-nQyp0o1/mNdbTO1PO6kHkwSrmgZ0MT/jCCpNiwbUjGoRN4dlBhqJtoQuCnEOKzgTVwg0ZWiCoQy6SxMebQVh8A=="],
+
+    "leaflet-distortableimage/leaflet-toolbar": ["leaflet-toolbar@github:Leni-vienne/Leaflet.toolbar#a0533d7", { "peerDependencies": { "leaflet": "*" } }, "Leni-Vienne-Leaflet.toolbar-a0533d7", "sha512-D6dAFZYHRZ8rVODZfgZ16QbKKeaKansjgcLw9LS+JT5zC/PJgC9SkmoPLakD8FUlwWUvsWXRmmtkVHEMUSdifg=="],
 
     "lint-staged/commander": ["commander@14.0.2", "", {}, "sha512-TywoWNNRbhoD0BXs1P3ZEScW8W5iKrnbithIl0YH+uCmBd0QpPOA8yc82DS3BIE5Ma6FnBVUsJ7wVUDz4dvOWQ=="],
 

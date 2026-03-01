@@ -1,7 +1,7 @@
 <template>
-  <div class="admin-reports-page">
-    <div class="page-header">
-      <h1>{{ t("admin.reports.title") }}</h1>
+  <div class="p-8 max-w-[1400px] mx-auto h-full overflow-y-auto">
+    <div class="flex items-center gap-4 mb-8">
+      <h1 class="m-0 text-3xl font-semibold">{{ t("admin.reports.title") }}</h1>
       <Badge
         v-if="reportedUsers && reportedUsers.length > 0"
         :value="reportedUsers.length"
@@ -18,11 +18,14 @@
       />
     </div>
 
-    <div v-if="isLoading" class="loading-container">
+    <div v-if="isLoading" class="flex justify-center items-center min-h-[400px]">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="!reportedUsers || reportedUsers.length === 0" class="empty-container">
+    <div
+      v-else-if="!reportedUsers || reportedUsers.length === 0"
+      class="flex justify-center items-center min-h-[400px]"
+    >
       <Message severity="info" :closable="false">
         {{ t("admin.reports.messages.noReports") }}
       </Message>
@@ -40,7 +43,7 @@
     >
       <Column :expander="true" headerStyle="width: 3rem" />
 
-      <Column field="username" :header="t('admin.reports.columns.username')" sortable>
+      <Column field="username" :header="t('auth.username')" sortable>
         <template #body="slotProps">
           <span class="font-semibold">{{ slotProps.data.username || "N/A" }}</span>
         </template>
@@ -79,7 +82,7 @@
 
       <Column :header="t('common.actions')">
         <template #body="slotProps">
-          <div class="action-buttons">
+          <div class="flex gap-2 flex-wrap">
             <Button
               :label="t('admin.reports.actions.clearReports')"
               icon="pi pi-check"
@@ -103,9 +106,11 @@
       </Column>
 
       <template #expansion="slotProps">
-        <div class="expansion-content">
-          <h3>{{ t("admin.reports.details.reporters") }}</h3>
-          <DataTable :value="slotProps.data.reports" class="reporters-table">
+        <div class="px-8 py-4">
+          <h3 class="mt-6 mb-4 text-lg font-semibold">
+            {{ t("admin.reports.details.reporters") }}
+          </h3>
+          <DataTable :value="slotProps.data.reports" class="mb-6">
             <Column
               field="reporterUsername"
               :header="t('admin.reports.details.reporterUsername')"
@@ -123,13 +128,15 @@
             </Column>
           </DataTable>
 
-          <div v-if="slotProps.data.banned" class="ban-info">
-            <h3>{{ t("admin.reports.details.banInfo") }}</h3>
-            <p>
+          <div v-if="slotProps.data.banned" class="bg-[var(--p-surface-50)] p-4 rounded-md mt-4">
+            <h3 class="mt-0 mb-4 text-lg font-semibold">
+              {{ t("admin.reports.details.banInfo") }}
+            </h3>
+            <p class="my-2">
               <strong>{{ t("admin.reports.details.bannedAt") }}:</strong>
               {{ new Date(slotProps.data.bannedAt).toLocaleString() }}
             </p>
-            <p>
+            <p class="my-2">
               <strong>{{ t("admin.reports.details.banReason") }}:</strong>
               {{ slotProps.data.banReason }}
             </p>
@@ -141,19 +148,21 @@
     <!-- Ban User Dialog -->
     <Dialog
       v-model:visible="showBanDialog"
-      :header="t('admin.reports.banDialog.title')"
+      :header="t('admin.reports.actions.banUser')"
       :modal="true"
       :closable="true"
       class="ban-dialog"
       :style="{ width: '500px' }"
     >
-      <div class="ban-dialog-content">
+      <div>
         <p class="mb-4">
           {{ t("admin.reports.banDialog.confirmMessage", { username: selectedUser?.username }) }}
         </p>
 
-        <div class="field">
-          <label for="banReason">{{ t("admin.reports.banDialog.reason") }}</label>
+        <div class="mb-4">
+          <label for="banReason" class="block mb-2 font-semibold">{{
+            t("admin.reports.banDialog.reason")
+          }}</label>
           <Textarea
             id="banReason"
             v-model="banReason"
@@ -163,24 +172,19 @@
             maxlength="500"
             class="w-full"
           />
-          <small class="text-muted">{{ banReason.length }}/500</small>
+          <small class="text-[var(--p-text-muted-color)]">{{ banReason.length }}/500</small>
         </div>
 
-        <div class="field-checkbox mt-4">
+        <div class="flex items-center gap-2 mt-4">
           <Checkbox id="deleteContent" v-model="deleteContent" :binary="true" />
           <label for="deleteContent">{{ t("admin.reports.banDialog.deleteContent") }}</label>
         </div>
       </div>
 
       <template #footer>
+        <Button :label="t('common.cancel')" icon="pi pi-times" text @click="closeBanDialog" />
         <Button
-          :label="t('admin.reports.banDialog.cancel')"
-          icon="pi pi-times"
-          text
-          @click="closeBanDialog"
-        />
-        <Button
-          :label="t('admin.reports.banDialog.confirm')"
+          :label="t('admin.reports.actions.banUser')"
           icon="pi pi-ban"
           severity="danger"
           @click="confirmBan"
@@ -336,89 +340,3 @@ onMounted(() => {
   loadReportedUsers();
 });
 </script>
-
-<style scoped>
-.admin-reports-page {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 600;
-}
-
-.loading-container,
-.error-container,
-.empty-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.expansion-content {
-  padding: 1rem 2rem;
-}
-
-.expansion-content h3 {
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-.reporters-table {
-  margin-bottom: 1.5rem;
-}
-
-.ban-info {
-  background: var(--surface-50);
-  padding: 1rem;
-  border-radius: 6px;
-  margin-top: 1rem;
-}
-
-.ban-info h3 {
-  margin-top: 0;
-}
-
-.ban-info p {
-  margin: 0.5rem 0;
-}
-
-.ban-dialog-content .field {
-  margin-bottom: 1rem;
-}
-
-.ban-dialog-content label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.field-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.text-muted {
-  color: var(--text-color-secondary);
-}
-</style>

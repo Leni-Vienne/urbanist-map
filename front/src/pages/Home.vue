@@ -1,5 +1,5 @@
 <template>
-  <div class="home-container">
+  <div class="flex h-screen">
     <!-- AI : Desktop SideMenu -->
     <SideMenu
       v-if="!isMobile"
@@ -11,21 +11,21 @@
     <!-- AI : Mobile Bottom Drawer -->
     <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
 
-    <div class="main-content">
+    <div class="grow flex flex-col relative">
       <!-- AI : Info message banner (displayed at top when config.infoMessage is set) -->
       <Message
         v-if="authStore.infoMessage && !infoBannerDismissed"
         severity="info"
         :closable="true"
         @close="infoBannerDismissed = true"
-        class="info-message-banner"
+        class="shrink-0 m-0 !rounded-none"
         icon="pi pi-info-circle"
       >
         {{ authStore.infoMessage }}
       </Message>
 
       <!-- AI : Map container that fills remaining space -->
-      <div class="map-container">
+      <div class="flex-1 relative overflow-hidden">
         <MapView />
       </div>
 
@@ -50,6 +50,9 @@
 
     <!-- AI : Image Upload Dialog - always rendered so it's available from any part of the app -->
     <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
+
+    <!-- AI : Submission Confirmation Dialog - loads lazily when first submission is triggered -->
+    <SubmissionDialogWrapper v-if="showSubmissionDialog" />
   </div>
 </template>
 
@@ -62,6 +65,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -74,6 +78,10 @@ const ProjectManager = defineAsyncComponent(
 );
 const ImageUploadDialog = defineAsyncComponent(
   () => import("@/components/common/ImageUploadDialog.vue"),
+);
+// AI : Loads lazily the first time a submission is triggered (not on page load)
+const SubmissionDialogWrapper = defineAsyncComponent(
+  () => import("@/components/submission/SubmissionDialogWrapper.vue"),
 );
 
 // AI : Create refs to track app state
@@ -181,29 +189,3 @@ onUnmounted(() => {
   document.body.style.height = "";
 });
 </script>
-
-<style scoped>
-.home-container {
-  display: flex;
-  height: 100vh;
-}
-
-.main-content {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-.info-message-banner {
-  flex-shrink: 0;
-  margin: 0;
-  border-radius: 0;
-}
-
-.map-container {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-}
-</style>

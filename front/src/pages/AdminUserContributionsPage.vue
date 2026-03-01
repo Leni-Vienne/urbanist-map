@@ -1,21 +1,21 @@
 <template>
-  <div class="admin-user-contributions-page">
-    <div class="page-header">
+  <div class="p-8 max-w-[1200px] mx-auto h-full overflow-y-auto">
+    <div class="flex items-center gap-4 mb-8">
       <Button
         icon="pi pi-arrow-left"
-        class="back-button"
+        class="shrink-0"
         severity="secondary"
         text
         @click="$router.push('/admin/reports')"
       />
-      <h1>{{ t("admin.userContributions.title") }}</h1>
+      <h1 class="m-0 text-2xl font-semibold">{{ t("admin.userContributions.title") }}</h1>
     </div>
 
-    <div v-if="isLoading" class="loading-container">
+    <div v-if="isLoading" class="flex justify-center items-center min-h-[300px]">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="errorRef" class="error-container">
+    <div v-else-if="errorRef" class="flex justify-center items-center min-h-[300px]">
       <Message severity="error" :closable="false">
         {{ t("admin.userContributions.messages.loadError") }}
       </Message>
@@ -23,39 +23,41 @@
 
     <template v-else-if="data">
       <!-- AI : User header card -->
-      <div class="user-header-card">
-        <div class="user-info">
-          <i class="pi pi-user user-icon"></i>
-          <div class="user-details">
-            <span class="username">{{ data.user.username ?? data.user.email }}</span>
-            <span class="email">{{ data.user.email }}</span>
+      <div class="flex items-center gap-8 p-6 bg-[var(--p-surface-50)] rounded-lg mb-8 flex-wrap">
+        <div class="flex items-center gap-4">
+          <i
+            class="pi pi-user text-[2rem] p-4 rounded-full text-[var(--p-primary-600)] bg-[var(--p-primary-100)]"
+          ></i>
+          <div class="flex flex-col">
+            <span class="text-xl font-semibold">{{ data.user.username ?? data.user.email }}</span>
+            <span class="text-[var(--p-text-muted-color)] text-sm">{{ data.user.email }}</span>
           </div>
         </div>
-        <div class="user-stats">
+        <div class="flex items-center gap-2 ml-auto">
           <Badge :value="data.user.approvedCount" severity="success" />
           <span>{{ t("common.approved") }}</span>
           <Badge :value="data.user.rejectedCount" severity="danger" />
-          <span>{{ t("admin.userContributions.rejected") }}</span>
+          <span>{{ t("status.rejected") }}</span>
         </div>
-        <Badge v-if="data.user.banned" severity="danger" class="banned-badge">
+        <Badge v-if="data.user.banned" severity="danger" class="ml-4">
           {{ t("admin.userContributions.banned") }}
         </Badge>
       </div>
 
       <!-- AI : Cities accordion -->
-      <div v-if="data.cities.length === 0" class="empty-container">
+      <div v-if="data.cities.length === 0" class="flex justify-center items-center min-h-[300px]">
         <Message severity="info" :closable="false">
           {{ t("admin.userContributions.messages.noContributions") }}
         </Message>
       </div>
 
-      <Accordion v-else class="cities-accordion">
+      <Accordion v-else class="mt-4">
         <AccordionPanel v-for="city in data.cities" :key="city.cityId" :value="String(city.cityId)">
           <AccordionHeader @click="loadCityDetails(city.cityId)">
-            <div class="city-header">
-              <span class="city-name">{{ city.cityName }}</span>
-              <span class="country-code">{{ city.countryCode }}</span>
-              <div class="city-counts">
+            <div class="flex items-center gap-4 w-full">
+              <span class="font-semibold">{{ city.cityName }}</span>
+              <span class="text-[var(--p-text-muted-color)] text-sm">{{ city.countryCode }}</span>
+              <div class="flex items-center gap-2 ml-auto text-sm">
                 <Badge :value="city.projectCount" severity="secondary" />
                 <span>{{ t("admin.userContributions.projects") }}</span>
                 <Badge :value="city.overlayCount" severity="secondary" />
@@ -64,19 +66,21 @@
             </div>
           </AccordionHeader>
           <AccordionContent>
-            <div v-if="loadingCity === city.cityId" class="city-loading">
+            <div v-if="loadingCity === city.cityId" class="flex justify-center p-8">
               <ProgressSpinner style="width: 30px; height: 30px" />
             </div>
-            <div v-else-if="cityDetails[city.cityId]" class="city-details">
+            <div v-else-if="cityDetails[city.cityId]" class="flex flex-col gap-6">
               <!-- AI : Projects with their overlays grouped together -->
               <div
                 v-for="project in cityDetails[city.cityId]?.projects"
                 :key="project.id"
-                class="project-section"
+                class="bg-[var(--p-surface-50)] rounded-lg p-4"
               >
-                <div class="project-header">
-                  <div class="project-info">
-                    <span class="project-name">{{ project.name }}</span>
+                <div
+                  class="flex justify-between items-center mb-4 pb-3 border-b border-[var(--p-surface-200)]"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="font-semibold text-base">{{ project.name }}</span>
                     <Badge :value="project.status" :severity="getStatusSeverity(project.status)" />
                   </div>
                   <Button
@@ -92,43 +96,46 @@
                 <!-- AI : Overlays for this project -->
                 <div
                   v-if="getOverlaysForProject(city.cityId, project.id).length > 0"
-                  class="project-overlays"
+                  class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3"
                 >
                   <div
                     v-for="overlay in getOverlaysForProject(city.cityId, project.id)"
                     :key="overlay.id"
-                    class="overlay-card"
+                    class="relative bg-[var(--p-surface-100)] rounded-lg overflow-hidden"
                   >
                     <img
                       :src="getThumbnailUrl(overlay.filename)"
                       :alt="overlay.caption ?? 'Overlay'"
-                      class="overlay-thumbnail"
+                      class="w-full aspect-square object-cover"
                     />
-                    <div class="overlay-info">
-                      <span class="overlay-caption">{{
+                    <div class="p-2 flex flex-col gap-1">
+                      <span class="text-xs truncate">{{
                         overlay.caption ?? t("admin.userContributions.noCaption")
                       }}</span>
                       <Badge
                         :value="overlay.status"
                         :severity="getStatusSeverity(overlay.status)"
-                        class="overlay-status"
+                        class="self-start"
                       />
                     </div>
                     <Button
                       icon="pi pi-trash"
                       severity="danger"
                       size="small"
-                      class="delete-btn"
+                      class="absolute top-2 right-2"
                       @click="confirmDeleteOverlay(overlay)"
                     />
                   </div>
                 </div>
-                <div v-else class="no-overlays">
+                <div v-else class="text-[var(--p-text-muted-color)] text-sm italic p-2">
                   {{ t("admin.userContributions.noOverlays") }}
                 </div>
               </div>
 
-              <div v-if="cityDetails[city.cityId]?.projects.length === 0" class="empty-city">
+              <div
+                v-if="cityDetails[city.cityId]?.projects.length === 0"
+                class="text-[var(--p-text-muted-color)] text-center p-8"
+              >
                 {{ t("admin.userContributions.messages.noContributions") }}
               </div>
             </div>
@@ -144,10 +151,12 @@
       :modal="true"
       :style="{ width: '450px' }"
     >
-      <div class="delete-dialog-content">
+      <div>
         <p>{{ deleteDialogMessage }}</p>
-        <div class="field">
-          <label for="deleteReason">{{ t("admin.userContributions.deleteDialog.reason") }}</label>
+        <div class="mt-4">
+          <label for="deleteReason" class="block mb-2 font-semibold">{{
+            t("admin.userContributions.deleteDialog.reason")
+          }}</label>
           <Textarea
             id="deleteReason"
             v-model="deleteReason"
@@ -404,223 +413,3 @@ onMounted(() => {
   loadUserContributions();
 });
 </script>
-
-<style scoped>
-.admin-user-contributions-page {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  height: 100vh;
-  overflow-y: auto;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.back-button {
-  flex-shrink: 0;
-}
-
-.loading-container,
-.error-container,
-.empty-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 300px;
-}
-
-.user-header-card {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  padding: 1.5rem;
-  background: var(--p-surface-50);
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.user-icon {
-  font-size: 2rem;
-  color: var(--p-primary-600);
-  background: var(--p-primary-100);
-  padding: 1rem;
-  border-radius: 50%;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.username {
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.email {
-  color: var(--p-text-secondary);
-  font-size: 0.875rem;
-}
-
-.user-stats {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-
-.banned-badge {
-  margin-left: 1rem;
-}
-
-.cities-accordion {
-  margin-top: 1rem;
-}
-
-.city-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: 100%;
-}
-
-.city-name {
-  font-weight: 600;
-}
-
-.country-code {
-  color: var(--p-text-secondary);
-  font-size: 0.875rem;
-}
-
-.city-counts {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-  font-size: 0.875rem;
-}
-
-.city-loading {
-  display: flex;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.city-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* AI : Project section with grouped overlays */
-.project-section {
-  background: var(--p-surface-50);
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-.project-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--p-surface-200);
-}
-
-.project-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.project-name {
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-/* AI : Overlays grid within project */
-.project-overlays {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem;
-}
-
-.overlay-card {
-  position: relative;
-  background: var(--p-surface-100);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.overlay-thumbnail {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-}
-
-.overlay-info {
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.overlay-caption {
-  font-size: 0.75rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.overlay-status {
-  align-self: flex-start;
-}
-
-.delete-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-}
-
-.no-overlays {
-  color: var(--p-text-secondary);
-  font-size: 0.875rem;
-  font-style: italic;
-  padding: 0.5rem;
-}
-
-.empty-city {
-  color: var(--p-text-secondary);
-  text-align: center;
-  padding: 2rem;
-}
-
-.delete-dialog-content .field {
-  margin-top: 1rem;
-}
-
-.delete-dialog-content label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-</style>

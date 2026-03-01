@@ -1,20 +1,29 @@
 <template>
-  <div class="language-menu-container" :class="{ 'w-full': displayMode === 'list-item' }">
+  <div :class="{ 'w-full': displayMode === 'list-item' }">
     <!-- AI : Language Menu Toggle Button -->
     <button
+      v-if="displayMode === 'icon'"
       type="button"
-      :class="[
-        displayMode === 'icon' ? 'language-menu-trigger' : 'language-menu-item',
-        { 'w-full': displayMode === 'list-item' },
-      ]"
+      class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--p-surface-0)] border border-[var(--p-surface-300)] cursor-pointer transition-all duration-200 text-[var(--p-surface-600)] hover:bg-[var(--p-surface-50)] hover:border-[var(--p-surface-400)] hover:text-[var(--p-primary-600)] hover:shadow-sm"
       @click="toggleMenu"
       ref="languageMenuRef"
       :aria-label="$t('controls.language')"
       @dblclick.stop
     >
-      <i class="pi pi-language"></i>
-      <span v-if="displayMode === 'list-item'" class="ml-2">{{ $t("controls.language") }}</span>
-      <span v-if="displayMode === 'list-item'" class="ml-auto text-sm text-surface-500">{{
+      <i class="pi pi-language text-base"></i>
+    </button>
+    <button
+      v-else
+      type="button"
+      class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-[var(--p-surface-700)] transition-colors duration-200 text-[0.9rem] hover:bg-[var(--p-surface-100)]"
+      @click="toggleMenu"
+      ref="languageMenuRef"
+      :aria-label="$t('controls.language')"
+      @dblclick.stop
+    >
+      <i class="pi pi-language text-base"></i>
+      <span class="ml-2">{{ $t("controls.language") }}</span>
+      <span class="ml-auto text-sm text-[var(--p-surface-500)]">{{
         currentLocale.toUpperCase()
       }}</span>
     </button>
@@ -26,8 +35,12 @@
           v-for="locale in availableLocales"
           :key="locale.code"
           type="button"
-          class="locale-btn flex items-center gap-2 px-2 py-1.5 hover:bg-surface-100 cursor-pointer border-round w-full"
-          :class="{ 'bg-primary-50 text-primary-700': currentLocale === locale.code }"
+          class="appearance-none font-[inherit] border-0 text-left flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded w-full transition-colors duration-150 disabled:opacity-70 disabled:cursor-wait"
+          :class="
+            currentLocale === locale.code
+              ? 'bg-[var(--p-primary-50)] text-[var(--p-primary-700)]'
+              : 'bg-transparent hover:bg-[var(--p-surface-100)]'
+          "
           :disabled="isLoading"
           @click="changeLocale(locale.code)"
         >
@@ -113,71 +126,3 @@ async function changeLocale(newLocale: Locale): Promise<void> {
   }
 }
 </script>
-
-<style scoped>
-.language-menu-trigger {
-  /* AI : Reset button defaults */
-  appearance: none;
-  font-family: inherit;
-  padding: 0;
-  /* AI : Layout and styling */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-300);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--p-surface-600);
-}
-
-.language-menu-item {
-  appearance: none;
-  font-family: inherit;
-  background: transparent;
-  border: none;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  padding: 0.35rem 0.5rem;
-  /* Matches reduced padding in UserMenu */
-  width: 100%;
-  cursor: pointer;
-  border-radius: var(--p-border-radius);
-  color: var(--p-surface-700);
-  transition: background-color 0.2s;
-  font-size: 0.9rem;
-}
-
-.language-menu-item:hover {
-  background-color: var(--p-surface-100);
-}
-
-/* AI : Reset button defaults for locale buttons */
-.locale-btn {
-  appearance: none;
-  font-family: inherit;
-  background: transparent;
-  border: none;
-  text-align: left;
-}
-
-.locale-btn:disabled {
-  opacity: 0.7;
-  cursor: wait;
-}
-
-.language-menu-trigger:hover {
-  background: var(--p-surface-50);
-  border-color: var(--p-surface-400);
-  color: var(--p-primary-600);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.pi-language {
-  font-size: 16px;
-}
-</style>

@@ -1,9 +1,9 @@
 <template>
-  <div :class="['change-requests-container', containerClass]">
-    <div v-if="showHeader" class="change-requests-header">
-      <div v-if="isOverlayChanges" class="change-indicator">
+  <div :class="['mt-4', containerClass]">
+    <div v-if="showHeader" class="mb-3">
+      <div v-if="isOverlayChanges" class="flex items-center gap-2">
         <i class="pi pi-exclamation-triangle text-orange-500"></i>
-        <span class="change-header-text">
+        <span class="text-[0.8125rem] font-semibold text-orange-700">
           {{
             isMyContributions
               ? $t("moderation.yourPendingChanges")
@@ -11,17 +11,17 @@
           }}
         </span>
       </div>
-      <h3 v-else class="change-requests-title">
+      <h3 v-else class="m-0 mb-3 text-sm font-semibold text-surface-700">
         {{
           isMyContributions ? $t("moderation.yourPendingChanges") : $t("moderation.pendingChanges")
         }}
       </h3>
-      <p v-if="isMyContributions" class="change-requests-subtitle">
+      <p v-if="isMyContributions" class="mt-2 text-xs text-surface-500 italic">
         {{ $t("moderation.moderatorReviewRequired") }}
       </p>
     </div>
 
-    <div class="change-requests-list">
+    <div class="flex flex-col gap-2">
       <!-- AI : Iterate over grouped changes -->
       <template
         v-for="group in groupedChanges"
@@ -32,11 +32,16 @@
         "
       >
         <!-- AI : Single non-conflicting change -->
-        <div v-if="group.type === 'single'" class="change-item">
-          <div class="change-content">
-            <div class="change-field">
-              <div class="field-header">
-                <strong>{{ formatFieldName(group.change.fieldName) }}:</strong>
+        <div
+          v-if="group.type === 'single'"
+          class="bg-surface-0 border border-surface-200 rounded p-2"
+        >
+          <div class="flex flex-row items-center gap-3">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <strong class="text-surface-700 text-[0.8125rem]"
+                  >{{ formatFieldName(group.change.fieldName) }}:</strong
+                >
               </div>
               <ChangeValueDisplay
                 :change="group.change"
@@ -47,27 +52,33 @@
                 @click-contributor="handleClickContributor"
               />
             </div>
-            <div v-if="$slots['change-actions']" class="change-actions">
+            <div v-if="$slots['change-actions']" class="flex gap-1 justify-end flex-shrink-0">
               <slot name="change-actions" :change="group.change"></slot>
             </div>
           </div>
         </div>
 
         <!-- AI : Grouped conflicting changes -->
-        <div v-else class="change-item conflicted">
-          <div class="conflict-banner">
+        <div v-else class="border-2 border-blue-300 bg-blue-50/30 rounded overflow-hidden">
+          <div
+            class="flex items-center gap-2 px-2 py-2 bg-blue-100 border-b border-blue-200 text-blue-700 font-semibold text-[0.8125rem]"
+          >
             <i
-              class="pi pi-info-circle conflict-info-icon"
+              class="pi pi-info-circle text-blue-600 cursor-help text-base"
               v-tooltip.top="$t('moderation.resolveConflictsTooltip')"
             ></i>
             <span>{{ $t("moderation.conflictDetected") }}</span>
           </div>
 
           <!-- AI : List all competing changes -->
-          <div v-for="change in group.changes" :key="change.id" class="conflict-option">
-            <div class="change-content">
-              <div class="change-field">
-                <div class="field-header"></div>
+          <div
+            v-for="change in group.changes"
+            :key="change.id"
+            class="bg-surface-0 rounded mx-2 px-3 py-2 my-2 border border-blue-200 first:mt-3 last:mb-2 hover:bg-blue-50/40 hover:border-blue-300 transition-colors duration-150"
+          >
+            <div class="flex flex-row items-center gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1"></div>
                 <ChangeValueDisplay
                   :change="change"
                   :projects="projects"
@@ -77,7 +88,7 @@
                   @click-contributor="handleClickContributor"
                 />
               </div>
-              <div v-if="$slots['change-actions']" class="change-actions">
+              <div v-if="$slots['change-actions']" class="flex gap-1 justify-end flex-shrink-0">
                 <slot name="change-actions" :change="change"></slot>
               </div>
             </div>
@@ -288,152 +299,3 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
   });
 }
 </script>
-
-<style scoped>
-.change-requests-container {
-  margin-top: 1rem;
-}
-
-.change-requests-title {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--p-surface-700);
-}
-
-.change-requests-subtitle {
-  margin: 0.5rem 0 0 0;
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-  font-style: italic;
-}
-
-.change-requests-header {
-  margin-bottom: 0.75rem;
-}
-
-.change-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.change-header-text {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--p-orange-700);
-}
-
-.change-requests-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.change-item {
-  background: white;
-  border: 1px solid var(--p-surface-200);
-  border-radius: 4px;
-  padding: 0.5rem;
-}
-
-.change-item.conflicted {
-  border-color: var(--p-blue-300);
-  border-width: 2px;
-  background: var(--p-blue-25);
-  padding: 0;
-}
-
-.conflict-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  margin: -0.5rem -0.5rem 0.5rem -0.5rem;
-  background: var(--p-blue-100);
-  border-bottom: 1px solid var(--p-blue-200);
-  border-radius: 4px 4px 0 0;
-  color: var(--p-blue-700);
-  font-weight: 600;
-  font-size: 0.8125rem;
-}
-
-.conflict-banner i {
-  color: var(--p-blue-600);
-}
-
-.conflict-info-icon {
-  cursor: help;
-  font-size: 1rem;
-}
-
-.field-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.change-content {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.change-field {
-  flex: 1;
-  min-width: 0;
-}
-
-.change-field strong {
-  color: var(--p-surface-700);
-  font-size: 0.8125rem;
-}
-
-.change-actions {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
-
-/* AI : Styling for grouped conflict options */
-.conflict-option {
-  background: white;
-  border-radius: 4px;
-  padding: 0.75rem;
-  margin: 0.5rem 0;
-  border: 1px solid var(--p-blue-200);
-}
-
-.conflict-option:first-of-type {
-  margin-top: 0.75rem;
-}
-
-.conflict-option:last-of-type {
-  margin-bottom: 0;
-}
-
-.conflict-option:hover {
-  background: var(--p-blue-25);
-  border-color: var(--p-blue-300);
-}
-
-/* AI : Adjust conflict banner for grouped display */
-.change-item.conflicted > .conflict-banner {
-  margin: 0;
-  border-radius: 4px 4px 0 0;
-}
-</style>

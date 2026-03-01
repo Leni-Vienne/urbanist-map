@@ -10,7 +10,7 @@ export function useProjectFormValidation() {
   function showError(detail: string) {
     toast.add({
       severity: "error",
-      summary: t("project.validationError"),
+      summary: t("toast.validationError"),
       detail,
       life: 3000,
     });

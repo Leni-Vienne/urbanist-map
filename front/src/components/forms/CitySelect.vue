@@ -19,9 +19,11 @@
       <div class="flex items-center justify-between w-full">
         <span>
           {{ option.name }}
-          <span v-if="option.nameLocal" class="text-gray-600"> ({{ option.nameLocal }})</span>
+          <span v-if="option.nameLocal" class="text-[var(--p-surface-600)]">
+            ({{ option.nameLocal }})</span
+          >
         </span>
-        <span class="text-xs text-gray-500">
+        <span class="text-xs text-[var(--p-surface-500)]">
           {{ option.countryCode }}
           <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }} km)</span>
         </span>
