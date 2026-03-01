@@ -24,7 +24,10 @@
                   @click-contributor="handleProjectContributorClick"
                 />
               </div>
-              <div class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]">
+              <div
+                v-if="overlayCount > 0"
+                class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]"
+              >
                 <i class="pi pi-images text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
                 <span
                   >{{ overlayCount }}
@@ -58,6 +61,7 @@
                 <a
                   :href="project.sourceUrl"
                   target="_blank"
+                  rel="noopener noreferrer"
                   class="text-[var(--p-primary-600)] no-underline hover:underline"
                   @click.stop
                   >{{ formatSourceUrl(project.sourceUrl) }}</a

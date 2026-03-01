@@ -6,6 +6,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { map } from "@/services/core/map";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/overlayRenderRegistry";
 import {
@@ -45,6 +46,9 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   if (overlayStore.idSelectedOverlay === overlayId) {
     overlayStore.idSelectedOverlay = null;
   }
+
+  // AI : Clear any pending modifications for this overlay (prevents stale entries in submission dialog)
+  usePendingModificationsStore().clearModification(overlayId);
 }
 
 /**

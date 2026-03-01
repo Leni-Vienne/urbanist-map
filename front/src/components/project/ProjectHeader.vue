@@ -7,7 +7,7 @@
         v-if="!hideStatusBadges"
         :value="$t(`status.${status ?? 'draft'}`)"
         :severity="getStatusSeverity(status)"
-        class="mr-2 capitalize"
+        class="mr-2 capitalize shrink-0"
         rounded
       />
     </div>
