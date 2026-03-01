@@ -17,7 +17,7 @@
     :draggable="false"
     :header="$t('projectSelector.suggestChanges')"
     @update:visible="uiStore.closeProjectEditForm"
-    class="edit-form-dialog"
+    :pt="{ root: { class: 'max-w-[90vw]' }, content: { class: '!p-0' } }"
   >
     <EditProjectForm
       v-if="projectEditForm.data"
@@ -517,16 +517,6 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 </script>
 
 <style scoped>
-/* AI : Edit form dialogs - ensure proper modal behavior */
-:deep(.edit-form-dialog .p-dialog) {
-  max-width: 90vw;
-  max-height: 90vh;
-}
-
-:deep(.edit-form-dialog .p-dialog-content) {
-  padding: 0;
-}
-
 /* AI : Temporary marker styles */
 :global(.temp-marker-icon) {
   background: transparent !important;

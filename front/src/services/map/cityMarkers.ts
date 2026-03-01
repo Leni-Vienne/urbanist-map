@@ -154,9 +154,12 @@ export function removeCityMarkers(): void {
 /**
  * AI : Smart zoom logic: Fit bounds of all content (center + projects + overlays)
  */
-function smartZoomToCity(
+export function smartZoomToCity(
   city: { lat: number; lng: number },
-  data: Awaited<ReturnType<typeof loadAndRenderCityData>>,
+  data: {
+    overlays: { corners?: { lat: number; lng: number }[] | null }[];
+    projects: { lat: number | null; lng: number | null }[];
+  },
 ) {
   const { overlays, projects } = data;
 

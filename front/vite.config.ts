@@ -176,8 +176,6 @@ export default defineConfig(({ mode }) => ({
             // AI : (useOverlayClickHandler, overlayNavigation, etc.) into a single lazy chunk.
             // AI : overlayMarkers/overlayHistory/entityRemoval are excluded because they load
             // AI : during the zoom-into-city flow and must remain independently loadable.
-            // AI : overlayRendering/overlayToolbar are excluded because they carry
-            // AI : leaflet-distortableimage (heavy, edit-mode-only).
             {
               name: "overlay-services",
               test: (id: string) =>

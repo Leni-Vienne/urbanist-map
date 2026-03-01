@@ -1,7 +1,12 @@
 <template>
   <Transition name="help-fade">
-    <button v-if="actuallyVisible" type="button" class="help-button" @click="handleClick">
-      <i class="pi pi-map-marker"></i>
+    <button
+      v-if="actuallyVisible"
+      type="button"
+      class="appearance-none font-[inherit] absolute top-[80px] md:top-[10px] left-1/2 -translate-x-1/2 flex items-center gap-2 px-5 py-3 bg-[var(--p-surface-0)] text-[var(--p-surface-700)] border-2 border-[var(--p-surface-300)] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.08),0_0_0_1px_rgba(255,255,255,0.5)] text-sm font-semibold cursor-pointer z-[1000] whitespace-nowrap transition-colors duration-200 hover:bg-[var(--p-surface-200)] active:scale-[0.98]"
+      @click="handleClick"
+    >
+      <i class="pi pi-map-marker text-[0.875rem] text-[var(--p-primary-500)]"></i>
       <span>{{ buttonText }}</span>
     </button>
   </Transition>
@@ -11,18 +16,21 @@
 import { ref, computed, onUnmounted, watch } from "vue";
 import { map } from "@/services/core/map";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useI18n } from "vue-i18n";
 import { citiesWithProjects, activateCity } from "@/services/map/cityMarkers";
 const { t } = useI18n();
 const visible = ref(false);
+const dismissed = ref(false);
 const mapStore = useMapStore();
+const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-// AI : Computed visibility - hide when marker placement bar is visible
+// AI : Computed visibility - hide when marker placement bar is visible or dismissed
 const actuallyVisible = computed(() => {
-  return visible.value && !uiStore.markerPlacementBarVisible;
+  return visible.value && !uiStore.markerPlacementBarVisible && !dismissed.value;
 });
 
 const buttonText = computed(() => {
@@ -68,6 +76,18 @@ watch(
   { immediate: true },
 );
 
+// AI : Dismiss permanently once contributions are loaded (user found their way)
+watch(
+  () => overlayStore.viewModeOverlays.length > 0,
+  (hasContributions) => {
+    if (hasContributions) {
+      dismissed.value = true;
+      hideButton();
+    }
+  },
+  { immediate: true },
+);
+
 // AI : Handle button click - find nearest city marker and activates it
 function handleClick() {
   // AI : Use reactive data instead of scanning DOM
@@ -105,58 +125,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.help-button {
-  /* AI : Reset button defaults */
-  appearance: none;
-  font-family: inherit;
-  /* AI : Layout and styling */
-  position: absolute;
-  top: 10px;
-  /* AI : Desktop - plenty of space above */
-  left: 50%;
-  transform: translateX(-50%);
-
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-
-  background: var(--p-surface-0);
-  color: var(--p-surface-700);
-  border: 2px solid var(--p-surface-300);
-  border-radius: 9999px;
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(255, 255, 255, 0.5);
-
-  font-size: 14px;
-  font-weight: 600;
-
-  cursor: pointer;
-  z-index: 1000;
-  white-space: nowrap;
+.help-fade-enter-active,
+.help-fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-.help-button:hover {
-  color: var(--p-surface-700);
-  background: var(--p-surface-200);
-  border-color: var(--p-surface-300);
-}
-
-.help-button:active {
-  transform: translateX(-50%) scale(0.98);
-}
-
-.help-button i {
-  font-size: 0.875rem;
-  color: var(--p-primary-500);
-}
-
-/* AI : Lower help button on mobile to avoid overlap with search/controls */
-@media (max-width: 768px) {
-  .help-button {
-    top: 80px;
-    /* AI : Account for search bar + controls on mobile */
-  }
+.help-fade-enter-from,
+.help-fade-leave-to {
+  opacity: 0;
 }
 </style>

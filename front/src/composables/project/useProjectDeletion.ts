@@ -23,7 +23,7 @@ export function useProjectDeletion() {
     overlayName: string | null,
     onSuccess?: () => void,
   ): Promise<boolean> {
-    const confirmMessage = t("contribute.confirmDeleteOverlay", {
+    const confirmMessage = t("common.confirmDelete", {
       name: overlayName ?? t("overlay.untitled"),
     });
     if (!confirm(confirmMessage)) return false;
@@ -68,7 +68,7 @@ export function useProjectDeletion() {
             name: projectName,
             count: overlayCount,
           })
-        : t("contribute.confirmDeleteProject", { name: projectName });
+        : t("common.confirmDelete", { name: projectName });
 
     if (!confirm(confirmMessage)) return false;
 

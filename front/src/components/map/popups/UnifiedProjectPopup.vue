@@ -1,6 +1,10 @@
 <template>
-  <div :class="['unified-popup', `popup-source-${props.source}`]" @click.stop>
-    <div v-if="loading" class="loading-spinner">
+  <div
+    :class="['unified-popup', `popup-source-${props.source}`]"
+    class="p-4 w-[300px] min-h-[200px] bg-[var(--p-surface-0)] cursor-text select-text rounded-xl shadow-[var(--p-shadow-md)] pointer-events-auto relative z-[1000]"
+    @click.stop
+  >
+    <div v-if="loading" class="flex justify-center items-center h-[200px]">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
     <div v-else class="project-details">
@@ -9,7 +13,9 @@
         :project="project"
         :show-description="true"
         :show-coordinates="!overlay"
+        :edit-mode="!viewMode"
         :available-cities="availableCities"
+        @field-click="emit('edit-project', project)"
       >
         <template #actions="{ project }">
           <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
@@ -42,10 +48,10 @@
       </ProjectMetadataCard>
 
       <!-- Overlay Information Section (only if viewing an overlay) -->
-      <div v-if="overlay" class="overlay-section">
+      <div v-if="overlay" class="mt-4">
         <div class="section-header-row">
           <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
-          <div class="overlay-actions">
+          <div class="flex gap-1">
             <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
             <Button
               v-if="!viewMode && user"
@@ -74,18 +80,26 @@
         <div class="info-card">
           <div class="info-row">
             <span class="info-label">{{ $t("common.name") }}:</span>
-            <span class="info-value">{{ overlay.caption ?? "—" }}</span>
+            <span v-if="overlay.caption" class="info-value">{{ overlay.caption }}</span>
+            <button
+              v-else-if="!viewMode"
+              class="ml-auto text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-600)] cursor-pointer bg-transparent border-none p-0 outline-none"
+              @click="emit('edit-overlay', overlay)"
+            >
+              + {{ $t("common.addField") }}
+            </button>
+            <span v-else class="info-value">—</span>
           </div>
           <!-- AI : Show view original button for pending replacements -->
           <div
             v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
-            class="info-row replacement-info"
+            class="mt-2 pt-2 border-t border-[var(--p-surface-200)]"
           >
             <button
-              class="replacement-link-button"
+              class="inline-flex items-center gap-2 font-medium text-sm text-[var(--p-purple-600)] bg-[var(--p-purple-50)] border border-[var(--p-purple-200)] rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-[var(--p-purple-100)] hover:border-[var(--p-purple-300)] hover:text-[var(--p-purple-700)]"
               @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
             >
-              <i class="pi pi-arrow-left"></i>
+              <i class="pi pi-arrow-left text-sm"></i>
               {{ $t("overlay.viewOriginalOverlay") }}
             </button>
           </div>
@@ -94,27 +108,21 @@
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div v-if="!viewMode" class="actions-section">
+    <div v-if="!viewMode" class="mt-4 flex gap-2 items-stretch">
       <Button
-        v-if="hasChanges"
-        :label="
-          isPublishedToBackend
-            ? $t('project.submitChangeRequest')
-            : overlay
-              ? $t('overlay.publishOverlay')
-              : $t('project.publish')
-        "
-        :icon="isPublishedToBackend ? 'pi pi-send' : 'pi pi-cloud-upload'"
-        :severity="isPublishedToBackend ? 'info' : 'success'"
-        :class="{ 'flex-1': hasChanges }"
+        class="flex-1"
+        :label="$t('project.submitChangeRequest')"
+        icon="pi pi-send"
+        severity="success"
         :loading="publishLoading"
+        :disabled="!hasChanges"
         @click="handlePublishClick"
       />
       <Button
+        class="flex-1"
         :label="$t('project.addImages')"
         severity="secondary"
         outlined
-        :class="{ 'flex-1': hasChanges, 'w-full': !hasChanges }"
         @click="emit('add-images')"
       >
         <template #icon>
@@ -239,23 +247,7 @@ const canDeleteProject = computed(() => {
 <style scoped>
 @import "../../../assets/info-card-shared.css";
 
-.unified-popup {
-  padding: 1rem;
-  width: 420px;
-  min-height: 200px;
-  background-color: var(--p-surface-0);
-  cursor: text;
-  user-select: text;
-  border-radius: 0.75rem;
-  box-shadow: var(--p-shadow-md);
-  max-width: 300px;
-  border: 1px solid var(--p-surface-border);
-  pointer-events: auto;
-  position: relative;
-  z-index: 1000;
-}
-
-/* AI : Triangle arrow pointing to the triggering element */
+/* AI : Arrow pointing to the triggering element */
 .unified-popup::before {
   content: "";
   position: absolute;
@@ -267,89 +259,22 @@ const canDeleteProject = computed(() => {
   border-bottom: 10px solid var(--p-surface-0);
 }
 
-/* AI : Positioning for overlay toolbar source - appears to the right of toolbar */
+/* AI : Positioning for overlay toolbar source */
 .popup-source-overlay {
   transform: translateY(20px);
 }
 
-/* AI : Triangle position for overlay source - positioned at left edge for now (user will translate) */
 .popup-source-overlay::before {
   left: 10px;
 }
 
-/* AI : Positioning for project marker source - centered below marker */
+/* AI : Positioning for project marker source */
 .popup-source-marker {
   transform: translateX(-50%) translateY(20px);
 }
 
-/* AI : Triangle position for marker source - centered at top */
 .popup-source-marker::before {
   left: 50%;
   transform: translateX(-50%);
-}
-
-.loading-spinner {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-}
-
-.unified-popup .p-button-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-}
-
-.overlay-section {
-  margin-top: 1rem;
-}
-
-.overlay-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.replacement-info {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--p-surface-200);
-}
-
-.replacement-link-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--p-purple-600);
-  background-color: var(--p-purple-50);
-  border: 1px solid var(--p-purple-200);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  padding: 0.375rem 0.75rem;
-  transition: all 0.2s;
-  width: 100%;
-  justify-content: center;
-}
-
-.replacement-link-button:hover {
-  background-color: var(--p-purple-100);
-  border-color: var(--p-purple-300);
-  color: var(--p-purple-700);
-}
-
-.replacement-link-button i {
-  font-size: 0.875rem;
-}
-
-.actions-section {
-  margin-top: 1rem;
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
-}
-
-.actions-section .flex-1 {
-  flex: 1;
 }
 </style>

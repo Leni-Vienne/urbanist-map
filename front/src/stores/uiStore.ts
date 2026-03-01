@@ -31,9 +31,9 @@ interface ImageUploadDialogState {
 export const useUiStore = defineStore("ui", () => {
   // AI : Dialog visibility states
   const authModalVisible = ref(false);
+  const authModalInitialMode = ref<"login" | "signup">("login");
   const markerPlacementBarVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
-  const welcomeDialogVisible = ref(false);
 
   // AI : Badge indicator — set by ModeratedContributionsWatcher so UserMenu never imports the composable
   const hasUnacknowledgedModeratedContributions = ref(false);
@@ -185,15 +185,14 @@ export const useUiStore = defineStore("ui", () => {
     projectInfoPopup.value.visible = false;
     moderatedContributionsDialogVisible.value = false;
     imageUploadDialog.value.visible = false;
-    welcomeDialogVisible.value = false;
   }
 
   return {
     // AI : State
     authModalVisible,
+    authModalInitialMode,
     markerPlacementBarVisible,
     moderatedContributionsDialogVisible,
-    welcomeDialogVisible,
     hasUnacknowledgedModeratedContributions,
     projectDialog,
     projectEditForm,

@@ -6,117 +6,130 @@
     :style="{ width: '700px', maxHeight: '80vh' }"
     @update:visible="handleVisibilityChange"
   >
-    <div
-      v-if="conflicts"
-      class="conflicts-container"
-    >
+    <div v-if="conflicts" class="flex flex-col gap-6">
       <!-- Image Comparison -->
       <div
         v-if="conflicts.originalOverlayFilename && conflicts.newOverlayFilename"
-        class="image-comparison"
+        class="flex items-center justify-center gap-8 p-6 bg-[var(--p-surface-50)] rounded-lg border border-[var(--p-surface-200)]"
       >
-        <div class="comparison-item">
-          <div class="comparison-label">{{ $t('common.current') }}</div>
+        <div class="flex flex-col items-center gap-2 flex-1 max-w-[250px]">
+          <div class="text-sm font-semibold text-[var(--p-surface-700)] uppercase tracking-wider">
+            {{ $t("common.current") }}
+          </div>
           <img
             :src="buildImageUrl(conflicts.originalOverlayFilename, false)"
             :alt="conflicts.originalOverlayCaption || 'Original overlay'"
-            class="comparison-thumbnail"
+            class="w-full h-auto max-h-[200px] object-contain rounded-lg border-2 border-[var(--p-surface-300)] bg-[var(--p-surface-0)]"
           />
-          <div class="comparison-caption">{{ conflicts.originalOverlayCaption || $t('overlay.untitled') }}</div>
+          <div class="text-sm text-[var(--p-surface-600)] text-center font-medium">
+            {{ conflicts.originalOverlayCaption || $t("overlay.untitled") }}
+          </div>
         </div>
-        <div class="comparison-arrow">
+        <div class="text-4xl text-[var(--p-primary-500)] flex-shrink-0">
           <i class="pi pi-arrow-right"></i>
         </div>
-        <div class="comparison-item">
-          <div class="comparison-label">{{ $t('common.new') }}</div>
+        <div class="flex flex-col items-center gap-2 flex-1 max-w-[250px]">
+          <div class="text-sm font-semibold text-[var(--p-surface-700)] uppercase tracking-wider">
+            {{ $t("common.new") }}
+          </div>
           <img
             :src="buildImageUrl(conflicts.newOverlayFilename, true)"
             :alt="conflicts.newOverlayCaption || 'New overlay'"
-            class="comparison-thumbnail"
+            class="w-full h-auto max-h-[200px] object-contain rounded-lg border-2 border-[var(--p-surface-300)] bg-[var(--p-surface-0)]"
           />
-          <div class="comparison-caption">{{ conflicts.newOverlayCaption || $t('overlay.untitled') }}</div>
+          <div class="text-sm text-[var(--p-surface-600)] text-center font-medium">
+            {{ conflicts.newOverlayCaption || $t("overlay.untitled") }}
+          </div>
         </div>
       </div>
 
       <!-- Pending Change Requests -->
-      <div
-        v-if="conflicts.pendingChangeRequests.length > 0"
-        class="section"
-      >
-        <div class="section-header">
-          <i class="pi pi-exclamation-triangle"></i>
-          <span>{{ $t('moderation.replacementConflicts.pendingChanges', { count: conflicts.pendingChangeRequests.length }) }}</span>
+      <div v-if="conflicts.pendingChangeRequests.length > 0" class="flex flex-col gap-3">
+        <div class="flex items-center gap-2 text-base font-semibold text-[var(--p-surface-800)]">
+          <i class="pi pi-exclamation-triangle text-[var(--p-orange-600)]"></i>
+          <span>{{
+            $t("moderation.replacementConflicts.pendingChanges", {
+              count: conflicts.pendingChangeRequests.length,
+            })
+          }}</span>
         </div>
-        <div class="scrollable-list">
+        <div class="max-h-[250px] overflow-y-auto flex flex-col gap-3 pr-2">
           <div
             v-for="change in conflicts.pendingChangeRequests"
             :key="change.id"
-            class="conflict-item"
+            class="p-4 bg-[var(--p-surface-50)] border border-[var(--p-surface-200)] rounded-lg"
           >
-            <div class="item-header">
+            <div class="flex justify-between items-center mb-2">
               <strong>{{ $t(`fields.${change.fieldName}`) }}</strong>
-              <Tag
-                severity="warning"
-                :value="$t('status.pending')"
-                size="small"
-              />
+              <Tag severity="warning" :value="$t('status.pending')" size="small" />
             </div>
-            <div class="change-diff">
-              <span class="value-text">{{ formatValue(change.oldValue) }}</span>
+            <div class="flex items-center gap-3 mt-2 p-2 bg-[var(--p-surface-0)] rounded-md">
+              <span class="px-2 py-1 bg-[var(--p-surface-100)] rounded text-sm font-mono">{{
+                formatValue(change.oldValue)
+              }}</span>
               <i class="pi pi-arrow-right"></i>
-              <span class="value-text">{{ formatValue(change.newValue) }}</span>
+              <span class="px-2 py-1 bg-[var(--p-surface-100)] rounded text-sm font-mono">{{
+                formatValue(change.newValue)
+              }}</span>
             </div>
             <div
               v-if="change.changeReason"
-              class="change-reason"
+              class="mt-2 p-2 text-sm text-[var(--p-surface-700)] bg-[var(--p-surface-100)] rounded italic"
             >
               {{ change.changeReason }}
             </div>
           </div>
         </div>
-        <p class="warning-text">
-          {{ $t('moderation.replacementConflicts.changesWillBeConflicted') }}
+        <p
+          class="m-0 p-3 bg-[var(--p-red-50)] text-[var(--p-red-900)] rounded-md text-sm font-medium"
+        >
+          {{ $t("moderation.replacementConflicts.changesWillBeConflicted") }}
         </p>
       </div>
 
       <!-- Competing Replacements -->
-      <div
-        v-if="conflicts.competingReplacements.length > 0"
-        class="section"
-      >
-        <div class="section-header">
-          <i class="pi pi-clone"></i>
-          <span>{{ $t('moderation.replacementConflicts.competingReplacements', { count: conflicts.competingReplacements.length }) }}</span>
+      <div v-if="conflicts.competingReplacements.length > 0" class="flex flex-col gap-3">
+        <div class="flex items-center gap-2 text-base font-semibold text-[var(--p-surface-800)]">
+          <i class="pi pi-clone text-[var(--p-orange-600)]"></i>
+          <span>{{
+            $t("moderation.replacementConflicts.competingReplacements", {
+              count: conflicts.competingReplacements.length,
+            })
+          }}</span>
         </div>
-        <div class="scrollable-list">
+        <div class="max-h-[250px] overflow-y-auto flex flex-col gap-3 pr-2">
           <div
             v-for="competing in conflicts.competingReplacements"
             :key="competing.id"
-            class="conflict-item competing-item"
+            class="p-4 bg-[var(--p-surface-50)] border border-[var(--p-surface-200)] rounded-lg"
           >
-            <div class="competing-content">
+            <div class="flex gap-4 items-center">
               <img
                 :src="buildThumbnailUrl(competing.filename, true)"
                 :alt="competing.caption || 'Competing overlay'"
-                class="competing-thumbnail"
+                class="w-20 h-20 object-cover rounded-md border-2 border-[var(--p-surface-300)] flex-shrink-0"
               />
-              <div class="competing-details">
-                <div class="item-header">
-                  <strong>{{ competing.caption || $t('overlay.untitled') }}</strong>
-                  <span class="item-date">{{ formatDate(competing.createdAt) || '—' }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-center mb-2">
+                  <strong>{{ competing.caption || $t("overlay.untitled") }}</strong>
+                  <span class="text-sm text-[var(--p-surface-600)]">{{
+                    formatDate(competing.createdAt) || "—"
+                  }}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <p class="warning-text">
-          {{ $t('moderation.replacementConflicts.competingWillBeRejected') }}
+        <p
+          class="m-0 p-3 bg-[var(--p-red-50)] text-[var(--p-red-900)] rounded-md text-sm font-medium"
+        >
+          {{ $t("moderation.replacementConflicts.competingWillBeRejected") }}
         </p>
       </div>
     </div>
 
     <template #footer>
-      <div class="dialog-footer">
+      <div class="flex justify-end gap-3">
         <Button
           :label="$t('common.cancel')"
           severity="secondary"
@@ -136,10 +149,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { buildImageUrl, buildThumbnailUrl } from '@/utils/imageUrl'
-import { useI18n } from 'vue-i18n'
-import { formatDate } from '@/utils/dateFormat'
+import { ref, watch } from "vue";
+import { buildImageUrl, buildThumbnailUrl } from "@/utils/imageUrl";
+import { useI18n } from "vue-i18n";
+import { formatDate } from "@/utils/dateFormat";
 
 const { t: $t } = useI18n();
 
@@ -177,219 +190,51 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isLoading: false
+  isLoading: false,
 });
 
 // AI : Emits
 const emit = defineEmits<{
-  'update:visible': [value: boolean];
-  'confirm': [];
-  'cancel': [];
+  "update:visible": [value: boolean];
+  confirm: [];
+  cancel: [];
 }>();
 
 // AI : Local visibility state
 const isVisible = ref(props.visible);
 
 // AI : Watch for external visibility changes
-watch(() => props.visible, (newValue) => {
-  isVisible.value = newValue;
-});
+watch(
+  () => props.visible,
+  (newValue) => {
+    isVisible.value = newValue;
+  },
+);
 
 // AI : Handle visibility change from dialog
 function handleVisibilityChange(value: boolean) {
-  emit('update:visible', value);
+  emit("update:visible", value);
 }
 
 // AI : Handle cancel button
 function handleCancel() {
-  emit('cancel');
+  emit("cancel");
   isVisible.value = false;
 }
 
 // AI : Handle confirm button
 function handleConfirm() {
-  emit('confirm');
+  emit("confirm");
 }
 
 // AI : Format value for display
 function formatValue(value: any): string {
   if (value === null || value === undefined) {
-    return $t('common.unknown');
+    return $t("common.unknown");
   }
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     return JSON.stringify(value);
   }
   return String(value);
 }
-
 </script>
-
-<style scoped>
-.conflicts-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.image-comparison {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  padding: 1.5rem;
-  background-color: var(--p-surface-50);
-  border-radius: 0.5rem;
-  border: 1px solid var(--p-surface-200);
-}
-
-.comparison-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  max-width: 250px;
-}
-
-.comparison-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--p-surface-700);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.comparison-thumbnail {
-  width: 100%;
-  height: auto;
-  max-height: 200px;
-  object-fit: contain;
-  border-radius: 0.5rem;
-  border: 2px solid var(--p-surface-300);
-  background-color: var(--p-surface-0);
-}
-
-.comparison-caption {
-  font-size: 0.875rem;
-  color: var(--p-surface-600);
-  text-align: center;
-  font-weight: 500;
-}
-
-.comparison-arrow {
-  font-size: 2rem;
-  color: var(--p-primary-500);
-  flex-shrink: 0;
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--p-surface-800);
-}
-
-.section-header i {
-  color: var(--p-orange-600);
-}
-
-.scrollable-list {
-  max-height: 250px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-right: 0.5rem;
-}
-
-.conflict-item {
-  padding: 1rem;
-  background-color: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 0.5rem;
-}
-
-.item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.item-date {
-  font-size: 0.875rem;
-  color: var(--p-surface-600);
-}
-
-.competing-content {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.competing-thumbnail {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 0.375rem;
-  border: 2px solid var(--p-surface-300);
-  flex-shrink: 0;
-}
-
-.competing-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.change-diff {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background-color: var(--p-surface-0);
-  border-radius: 0.375rem;
-}
-
-.value-text {
-  padding: 0.25rem 0.5rem;
-  background-color: var(--p-surface-100);
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  font-family: monospace;
-}
-
-.change-reason {
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--p-surface-700);
-  background-color: var(--p-surface-100);
-  border-radius: 0.25rem;
-  font-style: italic;
-}
-
-.warning-text {
-  margin: 0;
-  padding: 0.75rem;
-  background-color: var(--p-red-50);
-  color: var(--p-red-900);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-</style>

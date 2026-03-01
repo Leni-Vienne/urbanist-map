@@ -2,21 +2,30 @@
   <!-- AI : Floating bar for marker placement, positioned inside map container -->
   <Teleport to="#mapDiv">
     <!-- AI : Semi-transparent backdrop to focus attention on map -->
-    <div v-if="markerPlacementMode && visible" class="marker-placement-backdrop"></div>
+    <div
+      v-if="markerPlacementMode && visible"
+      class="absolute inset-0 bg-black/30 z-[1998] pointer-events-none"
+    ></div>
 
-    <div v-if="markerPlacementMode && visible" class="marker-placement-bar" @click.stop>
-      <div class="placement-content">
-        <i class="pi pi-map-marker placement-icon"></i>
-        <div class="placement-text">
-          <span v-if="!markerCoordinates" class="instruction">{{
-            $t("project.clickMapToPlace")
-          }}</span>
-          <span v-else class="coordinates-text"
+    <div
+      v-if="markerPlacementMode && visible"
+      class="absolute top-[10px] left-[10px] right-[10px] md:top-5 md:left-1/2 md:right-auto md:-translate-x-1/2 bg-[var(--p-surface-0)] border-2 border-[var(--p-primary-color)] rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.3)] flex items-center gap-4 px-[18px] py-[14px] md:px-6 md:py-4 md:max-w-[calc(100vw-40px)] md:min-w-[320px] z-[2000]"
+      @click.stop
+    >
+      <div class="flex items-center gap-2 flex-1">
+        <i class="pi pi-map-marker text-[var(--p-primary-color)] text-xl"></i>
+        <div class="flex-1">
+          <span
+            v-if="!markerCoordinates"
+            class="text-[var(--p-text-color)] text-base font-semibold"
+            >{{ $t("project.clickMapToPlace") }}</span
+          >
+          <span v-else class="font-mono text-[15px] text-[var(--p-primary-color)] font-semibold"
             >{{ markerCoordinates.lat.toFixed(5) }}, {{ markerCoordinates.lng.toFixed(5) }}</span
           >
         </div>
       </div>
-      <div class="placement-actions">
+      <div class="flex gap-2">
         <Button
           v-if="markerCoordinates"
           :label="$t('common.continue')"
@@ -26,10 +35,10 @@
         <Button :label="$t('common.cancel')" severity="secondary" size="small" @click="onCancel" />
       </div>
     </div>
-    <!-- AI : Cursor-following marker icon until first click -->
+    <!-- AI : Cursor-following marker icon — hidden on touch/mobile devices -->
     <div
       v-if="markerPlacementMode && visible && !markerCoordinates"
-      class="cursor-marker"
+      class="hidden md:block absolute pointer-events-none z-[1999] -translate-x-1/2 -translate-y-full"
       :style="{ left: cursorPosition.x + 'px', top: cursorPosition.y + 'px' }"
       v-html="cursorMarkerSvg"
     ></div>
@@ -151,117 +160,3 @@ defineExpose({
   setMarkerCoordinates,
 });
 </script>
-
-<style scoped>
-/* AI : Semi-transparent backdrop to dim everything except the map area */
-.marker-placement-backdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 1998;
-  pointer-events: none;
-  /* AI : Allow clicks through to map for repositioning */
-}
-
-/* AI : Floating marker placement bar - positioned relative to map container */
-.marker-placement-bar {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: white;
-  border: 2px solid var(--p-primary-500);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 24px;
-  max-width: calc(100vw - 40px);
-  min-width: 320px;
-  z-index: 2000;
-}
-
-/* AI : Cursor-following marker icon */
-.cursor-marker {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1999;
-  transform: translate(-50%, -100%);
-}
-
-.placement-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-}
-
-.placement-icon {
-  color: var(--p-primary-600);
-  font-size: 20px;
-}
-
-.placement-text {
-  flex: 1;
-}
-
-.instruction {
-  color: var(--p-surface-700);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.coordinates-text {
-  font-family: monospace;
-  font-size: 15px;
-  color: var(--p-primary-700);
-  font-weight: 600;
-}
-
-.placement-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* AI : Mobile responsive */
-@media (max-width: 768px) {
-  .marker-placement-bar {
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    transform: none;
-    max-width: none;
-    min-width: auto;
-    padding: 14px 18px;
-  }
-
-  .placement-content {
-    gap: 8px;
-  }
-
-  .placement-icon {
-    font-size: 18px;
-  }
-
-  .instruction {
-    font-size: 14px;
-  }
-
-  .coordinates-text {
-    font-size: 13px;
-  }
-
-  .placement-actions {
-    gap: 6px;
-  }
-
-  /* AI : Hide cursor marker on mobile (touch devices don't have cursor) */
-  .cursor-marker {
-    display: none;
-  }
-}
-</style>

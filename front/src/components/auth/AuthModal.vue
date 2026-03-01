@@ -270,6 +270,7 @@ import { useToast } from "@/composables/ui/useToast";
 
 const props = defineProps<{
   visible: boolean;
+  initialMode?: "login" | "signup";
 }>();
 
 const emit = defineEmits<{
@@ -280,7 +281,7 @@ const { t: $t } = useI18n();
 const authStore = useAuthStore();
 const toast = useToast();
 
-const isLoginMode = ref(true);
+const isLoginMode = ref(props.initialMode !== "signup");
 const isForgotPasswordMode = ref(false);
 const loading = ref(false);
 const oauthLoading = ref(false);

@@ -6,37 +6,65 @@
     :style="{ width: '450px' }"
     @update:visible="handleClose"
   >
-    <div class="user-stats-content">
-      <div class="submitter-header">
-        <i class="pi pi-user submitter-icon"></i>
-        <div class="submitter-info">
-          <div class="submitter-label">{{ $t("moderation.userStats.submittedBy") }}</div>
-          <div class="submitter-name">{{ username || $t("moderation.unknownUser") }}</div>
+    <div class="flex flex-col gap-4 py-2">
+      <!-- Submitter header card -->
+      <div
+        class="flex items-center gap-4 p-4 rounded-lg border-2 border-[var(--p-primary-200)]"
+        style="
+          background: linear-gradient(135deg, var(--p-primary-50) 0%, var(--p-primary-100) 100%);
+        "
+      >
+        <i
+          class="pi pi-user text-4xl text-[var(--p-primary-600)] bg-white p-3 rounded-full shadow-sm"
+        ></i>
+        <div class="flex-1">
+          <div
+            class="text-xs font-semibold uppercase tracking-wider text-[var(--p-primary-700)] mb-1"
+          >
+            {{ $t("moderation.userStats.submittedBy") }}
+          </div>
+          <div class="text-xl font-bold text-[var(--p-primary-900)]">
+            {{ username || $t("moderation.unknownUser") }}
+          </div>
         </div>
       </div>
 
-      <div class="stats-divider"></div>
+      <div class="h-px bg-[var(--p-surface-200)]"></div>
 
-      <div class="stat-row">
-        <span class="stat-label">{{ $t("moderation.userStats.approved") }}:</span>
-        <span class="stat-value stat-approved">{{ approvedCount }}</span>
+      <!-- Approved stat -->
+      <div class="flex justify-between items-center p-2 bg-[var(--p-surface-50)] rounded">
+        <span class="font-semibold text-[var(--p-surface-700)]"
+          >{{ $t("moderation.userStats.approved") }}:</span
+        >
+        <span class="font-bold text-lg text-[var(--p-green-600)]">{{ approvedCount }}</span>
       </div>
 
-      <div class="stat-row">
-        <span class="stat-label">{{ $t("moderation.userStats.rejected") }}:</span>
-        <span class="stat-value stat-rejected">{{ rejectedCount }}</span>
+      <!-- Rejected stat -->
+      <div class="flex justify-between items-center p-2 bg-[var(--p-surface-50)] rounded">
+        <span class="font-semibold text-[var(--p-surface-700)]"
+          >{{ $t("moderation.userStats.rejected") }}:</span
+        >
+        <span class="font-bold text-lg text-[var(--p-red-600)]">{{ rejectedCount }}</span>
       </div>
 
-      <div v-if="reportCount > 0" class="stat-row report-row">
-        <span class="stat-label">
+      <!-- Reports stat -->
+      <div
+        v-if="reportCount > 0"
+        class="flex justify-between items-center p-2 bg-[var(--p-orange-50)] border border-[var(--p-orange-200)] rounded"
+      >
+        <span class="font-semibold text-[var(--p-surface-700)] flex items-center gap-2">
           <i class="pi pi-exclamation-triangle"></i>
           {{ $t("moderation.userStats.reports") }}:
         </span>
-        <span class="stat-value stat-warning">{{ reportCount }}</span>
+        <span class="font-bold text-lg text-[var(--p-orange-600)]">{{ reportCount }}</span>
       </div>
 
-      <div v-if="hasHighRejectionRate" class="warning-message">
-        <i class="pi pi-exclamation-triangle"></i>
+      <!-- High rejection warning -->
+      <div
+        v-if="hasHighRejectionRate"
+        class="flex items-center gap-2 p-3 bg-[var(--p-red-50)] border border-[var(--p-red-200)] rounded text-[var(--p-red-700)] font-semibold text-sm"
+      >
+        <i class="pi pi-exclamation-triangle text-[var(--p-red-600)]"></i>
         {{ $t("moderation.userStats.highRejectionRate") }}
       </div>
     </div>
@@ -129,112 +157,3 @@ function goToContributions() {
   }
 }
 </script>
-
-<style scoped>
-.user-stats-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0.5rem 0;
-}
-
-.submitter-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: linear-gradient(135deg, var(--p-primary-50) 0%, var(--p-primary-100) 100%);
-  border-radius: 8px;
-  border: 2px solid var(--p-primary-200);
-}
-
-.submitter-icon {
-  font-size: 2rem;
-  color: var(--p-primary-600);
-  background: white;
-  padding: 0.75rem;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.submitter-info {
-  flex: 1;
-}
-
-.submitter-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--p-primary-700);
-  letter-spacing: 0.5px;
-  margin-bottom: 0.25rem;
-}
-
-.submitter-name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--p-primary-900);
-}
-
-.stats-divider {
-  height: 1px;
-  background: var(--p-surface-200);
-  margin: 0.5rem 0;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: var(--p-surface-50);
-  border-radius: 4px;
-}
-
-.stat-row.report-row {
-  background: var(--p-orange-50);
-  border: 1px solid var(--p-orange-200);
-}
-
-.stat-label {
-  font-weight: 600;
-  color: var(--p-surface-700);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.stat-value {
-  font-weight: 700;
-  font-size: 1.125rem;
-}
-
-.stat-approved {
-  color: var(--p-green-600);
-}
-
-.stat-rejected {
-  color: var(--p-red-600);
-}
-
-.stat-warning {
-  color: var(--p-orange-600);
-}
-
-.warning-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--p-red-50);
-  border: 1px solid var(--p-red-200);
-  border-radius: 4px;
-  color: var(--p-red-700);
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.warning-message i {
-  color: var(--p-red-600);
-}
-</style>
