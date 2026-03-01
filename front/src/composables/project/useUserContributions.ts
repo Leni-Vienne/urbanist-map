@@ -160,6 +160,9 @@ export function useUserContributions() {
     cityId?: number;
     includeCityProjects?: boolean;
   }) {
+    const authStore = useAuthStore();
+    if (!authStore.user) return;
+
     // AI : Use cache key helper from store to avoid duplication
     const cacheKey = projectStore.getUserContributionsCacheKey(options);
 
