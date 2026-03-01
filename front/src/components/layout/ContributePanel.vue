@@ -125,27 +125,20 @@
           <span class="flex items-center gap-2 text-base min-w-0 flex-1">
             <span
               :class="[
-                'font-semibold shrink-0 text-surface-800',
+                'font-semibold shrink-0 transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2',
                 showingCityProjects
-                  ? 'text-primary-500 cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 hover:text-primary-600 hover:bg-primary-50'
-                  : '',
+                  ? 'text-primary-500 cursor-pointer hover:text-primary-600 hover:bg-primary-50'
+                  : 'text-surface-800',
               ]"
               @click="showingCityProjects ? handleMyContributionsClick() : null"
               :title="showingCityProjects ? $t('contribute.viewAllContributions') : ''"
             >
               {{ $t("contribute.myContributions") }}
             </span>
-            <template v-if="lastSelectedCity">
+            <template v-if="showingCityProjects && lastSelectedCity">
               <span class="text-surface-400 font-normal mx-1 shrink-0">|</span>
               <span
-                :class="[
-                  'font-semibold cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0',
-                  cityLinkClicked
-                    ? 'text-surface-900'
-                    : 'text-primary-500 hover:text-primary-600 hover:bg-primary-50',
-                ]"
-                @click="handleCityClick()"
-                :title="$t('contribute.viewCityProjects')"
+                class="font-semibold text-surface-900 py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
               >
                 {{ lastSelectedCity.name }}
               </span>
@@ -191,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useNewProject } from "@/composables/overlay/useNewProject";
@@ -201,12 +194,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { map } from "@/services/core/map";
-import {
-  smartZoomToCity,
-  citiesWithProjects,
-  type CityWithProjects,
-} from "@/services/map/cityMarkers";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
@@ -339,73 +326,6 @@ function handleMyContributionsClick() {
   // AI : Fetch all user contributions (no city scoping)
   // AI : The cache will prevent redundant calls if we've already fetched this
   fetchUserContributions();
-}
-
-// AI : City breadcrumb clicked state - true until the user manually moves the map
-const cityLinkClicked = ref(false);
-let dragStartHandler: (() => void) | null = null;
-let zoomStartHandler: (() => void) | null = null;
-
-function detachCityLinkHandlers() {
-  if (dragStartHandler) {
-    map.value.off("dragstart", dragStartHandler);
-    dragStartHandler = null;
-  }
-  if (zoomStartHandler) {
-    map.value.off("zoomstart", zoomStartHandler);
-    zoomStartHandler = null;
-  }
-}
-
-onUnmounted(detachCityLinkHandlers);
-
-// AI : Handle city name click - switch back to showing city projects and smart zoom
-function handleCityClick() {
-  if (!lastSelectedCity.value) return;
-
-  // AI : Smart zoom to city if we have coordinates
-  const city = citiesWithProjects.value.find(
-    (c: CityWithProjects) => c.id === lastSelectedCity.value!.id,
-  );
-  if (city) {
-    cityLinkClicked.value = true;
-    detachCityLinkHandlers();
-
-    dragStartHandler = () => {
-      cityLinkClicked.value = false;
-      detachCityLinkHandlers();
-    };
-    map.value.once("dragstart", dragStartHandler);
-
-    map.value.once("moveend", () => {
-      zoomStartHandler = () => {
-        cityLinkClicked.value = false;
-        zoomStartHandler = null;
-        if (dragStartHandler) {
-          map.value.off("dragstart", dragStartHandler);
-          dragStartHandler = null;
-        }
-      };
-      map.value.once("zoomstart", zoomStartHandler);
-    });
-
-    const overlays = mapStore.getCityOverlaysAndProjectsCache(city.id, overlayStore.mode) ?? [];
-    const projects = mapStore.getCityStandaloneProjectsCache(city.id, overlayStore.mode) ?? [];
-    smartZoomToCity(city, { overlays, projects });
-  }
-
-  // AI : Switch to city project mode only if not already there
-  if (!showingCityProjects.value) {
-    showingCityProjects.value = true;
-    mapStore.setSelectedCity(lastSelectedCity.value);
-    if (overlayStore.mode !== "edit") {
-      overlayStore.setMode("edit");
-    }
-    fetchUserContributions({
-      cityId: lastSelectedCity.value.id,
-      includeCityProjects: true,
-    });
-  }
 }
 
 // AI : Computed filtered projects based on two independent checkboxes
