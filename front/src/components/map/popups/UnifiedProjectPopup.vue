@@ -1,23 +1,21 @@
 <template>
   <div
     :class="['unified-popup', `popup-source-${props.source}`]"
-    class="p-4 w-[300px] min-h-[200px] bg-[var(--p-surface-0)] cursor-text select-text rounded-xl shadow-[var(--p-shadow-md)] pointer-events-auto relative z-[1000]"
+    class="w-[300px] min-h-[200px] bg-[var(--p-surface-0)] cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-[1000]"
     @click.stop
   >
-    <div v-if="loading" class="flex justify-center items-center h-[200px]">
+    <div v-if="loading" class="flex justify-center items-center h-[200px] p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
-    <div v-else class="project-details">
-      <!-- Project Information Section -->
-      <ProjectMetadataCard
-        :project="project"
-        :show-description="true"
-        :show-coordinates="!overlay"
-        :edit-mode="!viewMode"
-        :available-cities="availableCities"
-        @field-click="emit('edit-project', project)"
+    <div v-else>
+      <!-- Project header: title + action buttons -->
+      <div
+        class="px-4 pt-3 pb-2 flex justify-between items-center border-b border-[var(--p-surface-200)]"
       >
-        <template #actions="{ project }">
+        <span class="text-sm font-semibold text-[var(--p-text-secondary)] tracking-wide">
+          {{ $t("project.information") }}
+        </span>
+        <div class="flex gap-1">
           <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
           <Button
             v-if="!viewMode && project && user"
@@ -44,71 +42,85 @@
             @click="emit('close-popup')"
             v-tooltip.top="$t('common.close')"
           />
-        </template>
-      </ProjectMetadataCard>
-
-      <!-- Overlay Information Section (only if viewing an overlay) -->
-      <div v-if="overlay" class="mt-4">
-        <div class="section-header-row">
-          <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
-          <div class="flex gap-1">
-            <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
-            <Button
-              v-if="!viewMode && user"
-              icon="pi pi-pencil"
-              :class="['p-button-sm', 'p-button-text']"
-              @click="emit('edit-overlay', overlay)"
-              v-tooltip.top="
-                overlay.authorId === user.id
-                  ? $t('tooltips.editOverlay')
-                  : $t('tooltips.suggestChanges')
-              "
-            />
-            <!-- AI : Delete button (only for pending overlays owned by user) -->
-            <Button
-              v-if="
-                !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
-              "
-              icon="pi pi-trash"
-              :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
-              @click="emit('delete-overlay', overlay)"
-              v-tooltip.top="$t('contribute.deleteOverlay')"
-            />
-          </div>
         </div>
+      </div>
 
-        <div class="info-card">
-          <div class="info-row">
-            <span class="info-label">{{ $t("common.name") }}:</span>
-            <span v-if="overlay.caption" class="info-value">{{ overlay.caption }}</span>
-            <button
-              v-else-if="!viewMode"
-              class="ml-auto text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-600)] cursor-pointer bg-transparent border-none p-0 outline-none"
-              @click="emit('edit-overlay', overlay)"
-            >
-              + {{ $t("common.addField") }}
-            </button>
-            <span v-else class="info-value">—</span>
+      <!-- Project fields + overlay section -->
+      <div class="px-4 pt-3 pb-4">
+        <ProjectMetadataCard
+          :project="project"
+          :show-description="true"
+          :edit-mode="!viewMode"
+          :available-cities="availableCities"
+          @field-click="emit('edit-project', project)"
+        />
+
+        <!-- Overlay Information Section (only if viewing an overlay) -->
+        <div v-if="overlay" class="mt-4">
+          <div class="section-header-row">
+            <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
+            <div class="flex gap-1">
+              <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
+              <Button
+                v-if="!viewMode && user"
+                icon="pi pi-pencil"
+                :class="['p-button-sm', 'p-button-text']"
+                @click="emit('edit-overlay', overlay)"
+                v-tooltip.top="
+                  overlay.authorId === user.id
+                    ? $t('tooltips.editOverlay')
+                    : $t('tooltips.suggestChanges')
+                "
+              />
+              <!-- AI : Delete button (only for pending overlays owned by user) -->
+              <Button
+                v-if="
+                  !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
+                "
+                icon="pi pi-trash"
+                :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
+                @click="emit('delete-overlay', overlay)"
+                v-tooltip.top="$t('contribute.deleteOverlay')"
+              />
+            </div>
           </div>
-          <!-- AI : Show view original button for pending replacements -->
-          <div
-            v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
-            class="mt-2 pt-2 border-t border-[var(--p-surface-200)]"
-          >
-            <button
-              class="inline-flex items-center gap-2 font-medium text-sm text-[var(--p-purple-600)] bg-[var(--p-purple-50)] border border-[var(--p-purple-200)] rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-[var(--p-purple-100)] hover:border-[var(--p-purple-300)] hover:text-[var(--p-purple-700)]"
-              @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
+
+          <div class="info-card">
+            <div class="info-row">
+              <span class="info-label">{{ $t("common.name") }}:</span>
+              <span v-if="overlay.caption" class="info-value">{{ overlay.caption }}</span>
+              <button
+                v-else-if="!viewMode"
+                class="ml-auto text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-600)] cursor-pointer bg-transparent border-none p-0 outline-none"
+                @click="emit('edit-overlay', overlay)"
+              >
+                + {{ $t("common.addField") }}
+              </button>
+              <span v-else class="info-value">—</span>
+            </div>
+            <!-- AI : Show view original button for pending replacements -->
+            <div
+              v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
+              class="mt-2 pt-2 border-t border-[var(--p-surface-200)]"
             >
-              <i class="pi pi-arrow-left text-sm"></i>
-              {{ $t("overlay.viewOriginalOverlay") }}
-            </button>
+              <button
+                class="inline-flex items-center gap-2 font-medium text-sm text-[var(--p-purple-600)] bg-[var(--p-purple-50)] border border-[var(--p-purple-200)] rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-[var(--p-purple-100)] hover:border-[var(--p-purple-300)] hover:text-[var(--p-purple-700)]"
+                @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
+              >
+                <i class="pi pi-arrow-left text-sm"></i>
+                {{ $t("overlay.viewOriginalOverlay") }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div v-if="!viewMode" class="mt-4 flex gap-2 items-stretch">
+    <div
+      v-if="!viewMode"
+      class="px-4 pb-4 pt-3 flex gap-2 items-stretch border-t border-[var(--p-surface-200)]"
+    >
       <Button
         class="flex-1"
         :label="$t('project.submitChangeRequest')"

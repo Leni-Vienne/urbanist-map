@@ -34,6 +34,7 @@ export function useProjectDeletion() {
     if (!success) return false;
 
     // AI : If it was the last overlay, add a standalone project marker to show the project
+    // AI : (entityRemoval.removeOverlay also does this for backend projects; this is a safety net for local-only projects)
     if (isLastOverlay && project?.id && project.lat && project.lng) {
       // AI : Get updated project from store, or use the passed project
       const updatedProject =
@@ -41,12 +42,6 @@ export function useProjectDeletion() {
 
       await new Promise<void>((resolve) => void setTimeout(() => resolve(), 150));
       addStandaloneProjectMarkerForProject(updatedProject as unknown as Project);
-      toast.add({
-        severity: "info",
-        summary: t("overlay.lastOverlayDeleted"),
-        detail: t("overlay.projectNowShowsAsMarker"),
-        life: 4000,
-      });
     }
 
     onSuccess?.();
