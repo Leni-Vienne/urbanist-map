@@ -19,6 +19,11 @@ body {
   overflow: hidden;
 }
 
+/* Otherwise the UnifiedProjectPopup is in the Helvetica font */
+.leaflet-container {
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+
 .leaflet-control-attribution a {
   color: #005a7d !important;
   /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
