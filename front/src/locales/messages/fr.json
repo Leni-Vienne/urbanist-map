@@ -123,9 +123,6 @@
     "gotIt": "J'ai compris !",
     "dontShowAgain": "Ne plus afficher cette fenêtre",
     "buttons": {
-      "title": "Contrôles de la carte",
-      "help": "Afficher ce guide d'aide",
-      "layers": "Changer de carte (plan, satellite, etc.)",
       "filters": "Filtres de statut de projet (proposé, prévu, en cours, terminé)"
     },
     "modes": {

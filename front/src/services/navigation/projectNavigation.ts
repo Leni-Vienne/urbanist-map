@@ -17,7 +17,7 @@ import {
   updateStandaloneProjectMarkerOpacities,
 } from "@/services/map/standaloneProjectMarkers";
 import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { requestScrollTo } from "@/services/layout/accordionState";
 
 /**
@@ -219,7 +219,7 @@ function zoomToOverlayAndSelect(
       const currentZoom = map.value.getZoom();
       // AI : CRITICAL: Only re-add if the overlay should be visible in the current mode
       // AI : This prevents adding a pending overlay back to the map when in view mode
-      if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+      if (currentZoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
         const authStore = useAuthStore();
         if (overlayObj && isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
           overlayLayer.addTo(map.value);

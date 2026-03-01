@@ -6,7 +6,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useAuthStore } from "@/stores/authStore";
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
@@ -146,7 +146,7 @@ export function useViewportTriggers() {
 
     // AI : RENDER all cities together based on zoom level
     const zoom = map.value.getZoom();
-    if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+    if (zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
       renderAllLoadedOverlays(true);
     } else {
       renderAllLoadedOverlays(false);
@@ -189,7 +189,7 @@ export function useViewportTriggers() {
         const zoom = map.value.getZoom();
 
         // AI : RENDER based on zoom level
-        if (zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+        if (zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
           // AI : CRITICAL FIX: Render ALL loaded cities, not just the one we just fetched
           // AI : This prevents "fighting" between nearby cities where loading one clears the other
           renderAllLoadedOverlays();
@@ -242,6 +242,8 @@ export function useViewportTriggers() {
 
       const zoom = map.value.getZoom();
       const previousZoom = lastZoomLevel.value;
+      const loadThreshold = getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD);
+      const overlayThreshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
       // AI : Detect low→high threshold crossing before pruning.
       // AI : When crossing this boundary, renderFullOverlays() will call runViewportRenderLoop()
@@ -249,10 +251,10 @@ export function useViewportTriggers() {
       // AI : queues async store-managed marker creation before dot markers are removed,
       // AI : causing a visual glitch where markers appear to re-appear during zoom.
       const crossedLowToHigh =
-        zoom >= MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD &&
+        zoom >= loadThreshold &&
         previousZoom !== null &&
-        previousZoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS &&
-        zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+        previousZoom < overlayThreshold &&
+        zoom >= overlayThreshold;
 
       // AI : Prune entities (city markers, overlay visibility).
       // AI : Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
@@ -261,7 +263,7 @@ export function useViewportTriggers() {
       }
 
       // AI : CRITICAL: Don't load data until zoomed in past threshold
-      if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) {
+      if (zoom < loadThreshold) {
         const isEditMode = overlayStore.mode === "edit";
         const activeCityId = mapStore.selectedCity?.id;
 
@@ -283,10 +285,8 @@ export function useViewportTriggers() {
       // AI : Check if we crossed the marker ↔ overlay threshold
       const crossedThreshold =
         previousZoom !== null &&
-        ((previousZoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS &&
-          zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) ||
-          (previousZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS &&
-            zoom < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS));
+        ((previousZoom < overlayThreshold && zoom >= overlayThreshold) ||
+          (previousZoom >= overlayThreshold && zoom < overlayThreshold));
 
       lastZoomLevel.value = zoom;
 
@@ -322,7 +322,7 @@ export function useViewportTriggers() {
       // AI : After loading all new cities, trigger a single render
       // AI : This ensures we show all cities together without fighting/flickering
       const currentZoom = map.value.getZoom();
-      if (currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) {
+      if (currentZoom >= overlayThreshold) {
         renderAllLoadedOverlays(true);
       } else {
         renderAllLoadedOverlays(false);

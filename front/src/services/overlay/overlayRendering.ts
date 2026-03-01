@@ -23,7 +23,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import {
@@ -104,7 +104,8 @@ export function createLeafletOverlay(
     // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
       const currentZoom = map.value.getZoom();
-      const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+      const shouldShowImage =
+        currentZoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
       // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
       if (shouldShowImage) {

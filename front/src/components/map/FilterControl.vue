@@ -7,7 +7,7 @@
     raised
     icon="pi pi-filter"
     :aria-label="$t('controls.filters')"
-    v-tooltip.right="$t('map.controls.filterProjects')"
+    v-tooltip.right="{ value: $t('map.controls.filterProjects'), disabled: isMobile }"
     :severity="showFilterPanel ? undefined : 'secondary'"
   />
 
@@ -135,6 +135,9 @@ import { ref, watch } from "vue";
 import { visibleCompletionStates, toggleFilter } from "@/services/overlay/completionFilters";
 import { createButtonSVG } from "@/services/map/markers";
 import type { viewModeMarkerColor } from "@/types/index";
+import { useIsMobile } from "@/composables/ui/useIsMobile";
+
+const { isMobile } = useIsMobile();
 
 // AI : Panel visibility state
 const showFilterPanel = ref(false);

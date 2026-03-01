@@ -123,9 +123,6 @@
     "gotIt": "Got it!",
     "dontShowAgain": "Don't show this window again",
     "buttons": {
-      "title": "Map Controls",
-      "help": "Show this help guide",
-      "layers": "Switch between map tile layers (street view, satellite, etc.)",
       "filters": "Open project status filters (proposed, planned, in progress, completed)"
     },
     "modes": {

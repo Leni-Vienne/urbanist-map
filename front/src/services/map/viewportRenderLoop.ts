@@ -11,7 +11,7 @@ import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
 // AI : Sync a Leaflet layer's presence on the map to match the desired state
 function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstance: L.Map) {
@@ -126,9 +126,9 @@ function queueForDestruction(id: string) {
 function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
   // AI : Markers start appearing at VIEWPORT_LOAD_THRESHOLD
   // AI : Images start appearing at MIN_ZOOM_FOR_OVERLAYS
-  if (zoom < MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD) return;
+  if (zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
 
-  const showImages = zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+  const showImages = zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   // AI : Markers are shown whenever we're past the load threshold, regardless of whether
   // AI : full overlay images are displayed.
   const showMarkers = true;

@@ -21,7 +21,7 @@ import {
   updateMarkerTooltip,
   createMarker,
 } from "@/services/overlay/overlayMarkers";
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
@@ -188,7 +188,8 @@ export function addOverlay(
   }
 
   // AI : Check if we need to zoom in to make overlay visible
-  const needsZoom = currentZoomLevel.value < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+  const needsZoom =
+    currentZoomLevel.value < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const projectStore = useProjectStore();
 
   // AI : Try to find project in multiple store locations
