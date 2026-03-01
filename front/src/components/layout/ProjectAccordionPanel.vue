@@ -737,7 +737,7 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     if (!project.cityId || !project.cityName) {
       toast.add({
         severity: "warn",
-        summary: t("project.missingCityInfo"),
+        summary: t("location.missingCityInfo"),
         detail: t("project.cannotNavigateWithoutCity"),
         life: 3000,
       });

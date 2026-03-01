@@ -24,6 +24,7 @@
     "email": "Email",
     "actions": "Actions",
     "approved": "Approuvé",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
     "addField": "ajouter"
   },
   "relativeTime": {
@@ -64,7 +65,6 @@
     "latestContributions": "Contributions Récentes",
     "currentLocation": "Emplacement Actuel",
     "contribute": "Contribuer",
-    "moderation": "Modération",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
   },
   "project": {
@@ -72,11 +72,9 @@
     "name": "Nom du projet",
     "location": "Localisation",
     "noLocation": "Aucun emplacement",
-    "missingCityInfo": "Informations de ville manquantes",
     "cannotNavigateWithoutCity": "Impossible de naviguer sans informations de ville",
     "timelineStatus": "Statut chronologique",
     "proposedDescription": "Projet non confirmé, dates non fixées",
-    "plannedStatus": "Prévu",
     "plannedDescription": "Projet confirmé avec dates programmées",
     "proposalDate": "Date de proposition",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
@@ -95,7 +93,6 @@
     "startsOn": "Commence le",
     "endsIn": "Se termine en",
     "endsOn": "Se termine le",
-    "validationError": "Erreur de validation",
     "locationRequired": "La localisation est requise",
     "timelineChangedFromProposedToPlanned": "Statut chronologique changé de Proposé ({proposalDate}) à Prévu",
     "timelineChangedFromPlannedToProposed": "Statut chronologique changé de Prévu ({startDate} à {endDate}) à Proposé",
@@ -150,8 +147,6 @@
     "deleteOverlay": "Supprimer l'image",
     "deleteProject": "Supprimer le projet",
     "deleteChangeRequest": "Supprimer la suggestion",
-    "confirmDeleteOverlay": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
-    "confirmDeleteProject": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
     "confirmDeleteProjectWithOverlays": "Êtes-vous sûr de vouloir supprimer \"{name}\" et ses {count} image(s) ? Cette action est irréversible.",
     "confirmDeleteChangeRequest": "Êtes-vous sûr de vouloir supprimer votre suggestion pour \"{field}\" ? Cette action est irréversible.",
     "overlayDeleted": "Image supprimée avec succès",
@@ -222,7 +217,6 @@
       "proposed": "Proposé",
       "planned": "Planifié",
       "inProgress": "En cours",
-      "completed": "Terminé",
       "toggleProposed": "Afficher/masquer les projets proposés",
       "togglePlanned": "Afficher/masquer les projets planifiés",
       "toggleInProgress": "Afficher/masquer les projets en cours",
@@ -604,8 +598,6 @@
     "conflictResolvedDetail": "La modification sélectionnée a été approuvée. Les autres suggestions pour ce champ ont été marquées comme non sélectionnées.",
     "conflictsRejected": "Toutes les modifications rejetées",
     "conflictsRejectedDetail": "Toutes les modifications suggérées ont été rejetées",
-    "currentValue": "Actuel",
-    "newValue": "Nouveau",
     "approveOneToRejectOthers": "Approuver l'une rejettera les autres",
     "replacementConflicts": {
       "title": "Conflits de remplacement détectés",
@@ -640,7 +632,6 @@
       "title": "Statistiques de l'utilisateur",
       "contributorStats": "Statistiques du contributeur",
       "submittedBy": "Contributeur",
-      "username": "Nom d'utilisateur",
       "approved": "{count} approuvés",
       "rejected": "{count} rejetés",
       "reports": "Signalements",
@@ -711,7 +702,6 @@
     "reports": {
       "title": "Utilisateurs signalés",
       "columns": {
-        "username": "Nom d'utilisateur",
         "reportCount": "Signalements",
         "pendingItems": "Éléments en attente",
         "rejectedItems": "Éléments rejetés",
@@ -736,13 +726,10 @@
         "banReason": "Raison du bannissement"
       },
       "banDialog": {
-        "title": "Bannir l'utilisateur",
         "confirmMessage": "Vous êtes sur le point de bannir l'utilisateur \"{username}\".",
         "reason": "Raison du bannissement",
         "reasonPlaceholder": "Entrez la raison du bannissement de cet utilisateur...",
-        "deleteContent": "Supprimer tout le contenu en attente et rejeté de cet utilisateur",
-        "cancel": "Annuler",
-        "confirm": "Bannir l'utilisateur"
+        "deleteContent": "Supprimer tout le contenu en attente et rejeté de cet utilisateur"
       },
       "messages": {
         "loadError": "Échec du chargement des utilisateurs signalés",
@@ -758,7 +745,6 @@
     "userContributions": {
       "title": "Contributions de l'utilisateur",
       "manageContributions": "Gérer les contributions",
-      "rejected": "Rejeté",
       "banned": "Banni",
       "projects": "projets",
       "overlays": "images",

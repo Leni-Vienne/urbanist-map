@@ -49,7 +49,7 @@
       ]"
       @click="$emit('update:activeTab', 'moderation')"
     >
-      {{ $t("navigation.moderation") }}
+      {{ $t("moderation.title") }}
     </button>
   </div>
 </template>

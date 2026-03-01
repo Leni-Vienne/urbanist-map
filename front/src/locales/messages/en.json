@@ -24,6 +24,7 @@
     "email": "Email",
     "actions": "Actions",
     "approved": "Approved",
+    "confirmDelete": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
     "addField": "add"
   },
   "relativeTime": {
@@ -64,7 +65,6 @@
     "latestContributions": "Latest Contributions",
     "currentLocation": "Current Location",
     "contribute": "Contribute",
-    "moderation": "Moderation",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
   },
   "project": {
@@ -72,11 +72,9 @@
     "name": "Project Name",
     "location": "Location",
     "noLocation": "No Location",
-    "missingCityInfo": "Missing City Info",
     "cannotNavigateWithoutCity": "Cannot navigate without city information",
     "timelineStatus": "Timeline Status",
     "proposedDescription": "Unconfirmed project, dates not yet set",
-    "plannedStatus": "Planned",
     "plannedDescription": "Confirmed project with scheduled dates",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
@@ -95,7 +93,6 @@
     "startsOn": "Starts on",
     "endsIn": "Ends in",
     "endsOn": "Ends on",
-    "validationError": "Validation Error",
     "locationRequired": "Location is required",
     "timelineChangedFromProposedToPlanned": "Timeline status changed from Proposed ({proposalDate}) to Planned",
     "timelineChangedFromPlannedToProposed": "Timeline status changed from Planned ({startDate} to {endDate}) to Proposed",
@@ -150,8 +147,6 @@
     "deleteOverlay": "Delete image",
     "deleteProject": "Delete project",
     "deleteChangeRequest": "Delete change request",
-    "confirmDeleteOverlay": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
-    "confirmDeleteProject": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
     "confirmDeleteProjectWithOverlays": "Are you sure you want to delete \"{name}\" and its {count} image(s)? This action cannot be undone.",
     "confirmDeleteChangeRequest": "Are you sure you want to delete your suggestion for \"{field}\"? This action cannot be undone.",
     "overlayDeleted": "Image deleted successfully",
@@ -222,7 +217,6 @@
       "proposed": "Proposed",
       "planned": "Planned",
       "inProgress": "In Progress",
-      "completed": "Completed",
       "toggleProposed": "Toggle proposed projects",
       "togglePlanned": "Toggle planned projects",
       "toggleInProgress": "Toggle in progress projects",
@@ -602,8 +596,6 @@
     "conflictResolvedDetail": "The selected change has been approved. Other suggestions for this field were marked as not selected.",
     "conflictsRejected": "All Changes Rejected",
     "conflictsRejectedDetail": "All suggested changes have been rejected",
-    "currentValue": "Current",
-    "newValue": "New",
     "approveOneToRejectOthers": "Approving one will reject the others",
     "replacementConflicts": {
       "title": "Replacement Conflicts Detected",
@@ -638,7 +630,6 @@
       "title": "User Statistics",
       "contributorStats": "Contributor Statistics",
       "submittedBy": "Contributor",
-      "username": "Username",
       "approved": "{count} approved",
       "rejected": "{count} rejected",
       "reports": "Reports",
@@ -709,7 +700,6 @@
     "reports": {
       "title": "Reported Users",
       "columns": {
-        "username": "Username",
         "reportCount": "Reports",
         "pendingItems": "Pending Items",
         "rejectedItems": "Rejected Items",
@@ -734,13 +724,10 @@
         "banReason": "Ban Reason"
       },
       "banDialog": {
-        "title": "Ban User",
         "confirmMessage": "You are about to ban user \"{username}\".",
         "reason": "Ban Reason",
         "reasonPlaceholder": "Enter the reason for banning this user...",
-        "deleteContent": "Delete all pending and rejected content from this user",
-        "cancel": "Cancel",
-        "confirm": "Ban User"
+        "deleteContent": "Delete all pending and rejected content from this user"
       },
       "messages": {
         "loadError": "Failed to load reported users",
@@ -756,7 +743,6 @@
     "userContributions": {
       "title": "User Contributions",
       "manageContributions": "Manage Contributions",
-      "rejected": "Rejected",
       "banned": "Banned",
       "projects": "projects",
       "overlays": "images",
