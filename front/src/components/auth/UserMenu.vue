@@ -11,7 +11,10 @@
         raised
         data-testid="sign-in-button"
         @dblclick.stop
-        @click="uiStore.authModalVisible = true"
+        @click="
+          uiStore.authModalInitialMode = 'login';
+          uiStore.authModalVisible = true;
+        "
       />
     </template>
 
@@ -89,7 +92,11 @@
     </Popover>
 
     <!-- AI : Auth Modal — v-if prevents mounting (and async loading) until actually needed -->
-    <AuthModal v-if="uiStore.authModalVisible" v-model:visible="uiStore.authModalVisible" />
+    <AuthModal
+      v-if="uiStore.authModalVisible"
+      v-model:visible="uiStore.authModalVisible"
+      :initial-mode="uiStore.authModalInitialMode"
+    />
 
     <!-- AI : Moderated Contributions Dialog — same pattern as AuthModal -->
     <ModeratedContributionsDialog

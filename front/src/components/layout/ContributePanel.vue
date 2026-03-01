@@ -108,6 +108,15 @@
       </button>
     </template>
 
+    <template #empty-state>
+      <p
+        v-if="displayedProjects.length === 0"
+        class="text-sm text-muted-color mt-3 max-w-[260px] leading-relaxed"
+      >
+        {{ $t("contribute.guest.description") }}
+      </p>
+    </template>
+
     <template #header-actions>
       <!-- AI : Wrapper with column layout for two rows -->
       <div class="flex flex-col gap-3 w-full">
@@ -157,8 +166,8 @@
           </div>
         </div>
 
-        <!-- AI : Second row - filters -->
-        <div class="flex items-center gap-4 flex-wrap">
+        <!-- AI : Second row - filters (hidden when no contributions yet) -->
+        <div v-if="displayedProjects.length > 0" class="flex items-center gap-4 flex-wrap">
           <div class="flex items-center gap-2">
             <Checkbox v-model="showPending" inputId="showPending" binary />
             <label

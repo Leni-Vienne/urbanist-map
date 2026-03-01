@@ -1,19 +1,19 @@
 <template>
   <div :class="['h-full flex flex-col', panelClass]">
-    <div class="flex-1">
-      <div
-        class="sticky top-0 bg-[var(--p-surface-0)] flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
+    <div
+      class="sticky top-0 bg-[var(--p-surface-0)] flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
+    >
+      <h2
+        class="m-0 text-[1.1rem] font-semibold text-[var(--p-surface-900)] tracking-tight whitespace-nowrap"
       >
-        <h2
-          class="m-0 text-[1.1rem] font-semibold text-[var(--p-surface-900)] tracking-tight whitespace-nowrap"
-        >
-          {{ title }}
-        </h2>
-        <div v-if="$slots['header-actions']" class="flex items-center gap-3 w-full">
-          <slot name="header-actions"></slot>
-        </div>
+        {{ title }}
+      </h2>
+      <div v-if="$slots['header-actions']" class="flex items-center gap-3 w-full">
+        <slot name="header-actions"></slot>
       </div>
+    </div>
 
+    <div class="flex-1 min-h-0">
       <div v-if="projects.length > 0" class="flex flex-col gap-2">
         <template v-for="countryGroup in groupedByCountry" :key="countryGroup.countryCode">
           <div

@@ -117,17 +117,6 @@
     "completed": "Terminé"
   },
   "help": {
-    "title": "Bienvenue",
-    "intro": "Urbanistmap.org est une carte participative des projets d'aménagement urbain dans le monde.",
-    "paragraph": "Étant souvent difficile de trouver ces informations sur internet, j'espère que le site vous sera utile et éveillera votre curiosité. N'hésitez pas à contribuer, que ce soit en ajoutant un projet officiel ou une idée que vous avez pour votre ville.",
-    "gotIt": "J'ai compris !",
-    "dontShowAgain": "Ne plus afficher cette fenêtre",
-    "buttons": {
-      "filters": "Filtres de statut de projet (proposé, prévu, en cours, terminé)"
-    },
-    "modes": {
-      "description": "Bouton pour basculer entre le Mode Visualisation (projets approuvés uniquement) et le Mode Édition (modifier vos propres projets)"
-    },
     "filters": {
       "showPending": "Afficher en attente",
       "showApproved": "Afficher approuvé"
@@ -149,7 +138,13 @@
     "overlayDeleted": "Image supprimée avec succès",
     "projectDeleted": "Projet supprimé avec succès",
     "changeRequestDeleted": "Suggestion supprimée avec succès",
-    "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer."
+    "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer.",
+    "guest": {
+      "title": "Contribuez à la carte",
+      "description": "Participez à la cartographie des projets d'aménagement urbain : ajoutez des projets officiels ou vos propres idées pour votre ville (transports, logements, espaces publics, aménagements paysagers...).",
+      "signIn": "Se connecter",
+      "createAccount": "Créer un compte"
+    }
   },
   "contribution": {
     "noContributionsFound": "Aucune contribution trouvée.",
@@ -416,7 +411,6 @@
       "in": "Zoomer",
       "out": "Dézoomer"
     },
-    "help": "Aide",
     "filters": "Basculer les filtres de projets",
     "language": "Langue"
   },
