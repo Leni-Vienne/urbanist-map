@@ -69,6 +69,9 @@ export function usePanelTabs() {
     const targetMode = tabToMode(newTab);
 
     // 3. Sync map mode if needed
+    // AI : Skip edit-mode switch for unauthenticated users — they see ContributeGuestPanel
+    // AI : which doesn't use edit mode, and switching would eagerly load overlay editing chunks.
+    if (targetMode === "edit" && !authStore.isAuthenticated) return;
     if (overlayStore.mode !== targetMode) {
       switchMode(targetMode);
     }
