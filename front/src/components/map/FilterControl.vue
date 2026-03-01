@@ -116,7 +116,7 @@
             class="marker-icon flex items-center justify-center shrink-0 w-6 h-6"
             v-html="createButtonSVG('grey')"
           ></div>
-          <span class="flex-1">{{ $t("map.controls.completed") }}</span>
+          <span class="flex-1">{{ $t("status.completed") }}</span>
           <i
             :class="[
               'pi',

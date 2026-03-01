@@ -14,11 +14,11 @@
       <div class="flex flex-col gap-6">
         <!-- AI : Map Controls Buttons -->
         <div class="border border-[var(--p-surface-300)] rounded-lg p-4 bg-[var(--p-surface-50)]">
-          <h4
+          <h3
             class="m-0 mb-4 text-base font-semibold text-[var(--p-primary-color)] border-b border-[var(--p-surface-300)] pb-2"
           >
             {{ $t("help.buttons.title") }}
-          </h4>
+          </h3>
           <div class="flex items-center gap-4 mb-3">
             <Button
               icon="pi pi-question-circle"

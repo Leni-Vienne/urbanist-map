@@ -43,7 +43,7 @@
     >
       <Column :expander="true" headerStyle="width: 3rem" />
 
-      <Column field="username" :header="t('admin.reports.columns.username')" sortable>
+      <Column field="username" :header="t('auth.username')" sortable>
         <template #body="slotProps">
           <span class="font-semibold">{{ slotProps.data.username || "N/A" }}</span>
         </template>
@@ -148,7 +148,7 @@
     <!-- Ban User Dialog -->
     <Dialog
       v-model:visible="showBanDialog"
-      :header="t('admin.reports.banDialog.title')"
+      :header="t('admin.reports.actions.banUser')"
       :modal="true"
       :closable="true"
       class="ban-dialog"
@@ -182,14 +182,9 @@
       </div>
 
       <template #footer>
+        <Button :label="t('common.cancel')" icon="pi pi-times" text @click="closeBanDialog" />
         <Button
-          :label="t('admin.reports.banDialog.cancel')"
-          icon="pi pi-times"
-          text
-          @click="closeBanDialog"
-        />
-        <Button
-          :label="t('admin.reports.banDialog.confirm')"
+          :label="t('admin.reports.actions.banUser')"
           icon="pi pi-ban"
           severity="danger"
           @click="confirmBan"

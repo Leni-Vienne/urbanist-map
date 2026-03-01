@@ -37,7 +37,7 @@
           <Badge :value="data.user.approvedCount" severity="success" />
           <span>{{ t("common.approved") }}</span>
           <Badge :value="data.user.rejectedCount" severity="danger" />
-          <span>{{ t("admin.userContributions.rejected") }}</span>
+          <span>{{ t("status.rejected") }}</span>
         </div>
         <Badge v-if="data.user.banned" severity="danger" class="ml-4">
           {{ t("admin.userContributions.banned") }}
