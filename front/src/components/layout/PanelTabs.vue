@@ -34,7 +34,7 @@
           ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
           : 'text-surface-600 border-transparent hover:text-surface-700',
       ]"
-      @click="handleUploadsTabClick"
+      @click="$emit('update:activeTab', 'contribute')"
     >
       {{ $t("navigation.contribute") }}
     </button>
@@ -58,11 +58,9 @@
 import type { PanelTab } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useUiStore } from "@/stores/uiStore";
 
 const authStore = useAuthStore();
 const mapStore = useMapStore();
-const uiStore = useUiStore();
 
 defineProps<{
   activeTab: PanelTab;
@@ -72,18 +70,4 @@ defineProps<{
 const emit = defineEmits<{
   "update:activeTab": [tab: PanelTab];
 }>();
-
-// AI : Handle uploads tab click - show auth dialog if not authenticated
-function handleUploadsTabClick() {
-  if (!authStore.isAuthenticated) {
-    // AI : Store intent to switch to uploads tab after login
-    uiStore.setPostLoginCallback(() => {
-      emit("update:activeTab", "contribute");
-    });
-    // AI : Open auth dialog
-    uiStore.authModalVisible = true;
-  } else {
-    emit("update:activeTab", "contribute");
-  }
-}
 </script>

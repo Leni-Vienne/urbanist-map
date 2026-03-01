@@ -22,15 +22,6 @@
         v-tooltip.right="{ value: $t('controls.zoom.out'), disabled: isMobile }"
         severity="secondary"
       />
-      <Button
-        @click.stop="showHelpModal"
-        @dblclick.stop
-        raised
-        icon="pi pi-question"
-        :aria-label="$t('controls.help')"
-        v-tooltip.right="{ value: $t('controls.help'), disabled: isMobile }"
-        severity="help"
-      />
     </div>
 
     <div class="flex flex-col gap-1.5 mb-3">
@@ -41,13 +32,6 @@
 
   <!-- AI : Help button to guide user to click markers -->
   <MarkerHelpButton />
-
-  <!-- AI : Welcome Dialog -->
-  <!-- AI : Welcome Dialog managed by UI Store -->
-  <WelcomeDialog
-    :modelValue="uiStore.welcomeDialogVisible"
-    @update:modelValue="(val) => (uiStore.welcomeDialogVisible = val)"
-  />
 </template>
 
 <script setup lang="ts">
@@ -60,7 +44,6 @@ import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 import FilterControl from "@/components/map/FilterControl.vue";
 import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
-import WelcomeDialog from "@/components/map/WelcomeDialog.vue";
 
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
@@ -120,10 +103,5 @@ function handleZoomIn() {
 // AI : Handle zoom out
 function handleZoomOut() {
   zoomWithMobileOffset(-1);
-}
-
-// AI : Show help modal
-function showHelpModal() {
-  uiStore.welcomeDialogVisible = true;
 }
 </script>

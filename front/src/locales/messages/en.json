@@ -117,17 +117,6 @@
     "completed": "Completed"
   },
   "help": {
-    "title": "Welcome",
-    "intro": "Urbanistmap.org is a crowdsourced map of urban projects worldwide. Browse projects, view their progress, and contribute by adding your own content.",
-    "paragraph": "As it's often hard to find these information on the internet, I hope this site will be useful and pique your interest. Don't hesitate to contribute, whether by adding an official project or an idea of your own.",
-    "gotIt": "Got it!",
-    "dontShowAgain": "Don't show this window again",
-    "buttons": {
-      "filters": "Open project status filters (proposed, planned, in progress, completed)"
-    },
-    "modes": {
-      "description": "Button to toggle between View Mode (approved projects only) and Edit Mode (modify your own projects)"
-    },
     "filters": {
       "showPending": "Show Pending",
       "showApproved": "Show Approved"
@@ -149,7 +138,13 @@
     "overlayDeleted": "Image deleted successfully",
     "projectDeleted": "Project deleted successfully",
     "changeRequestDeleted": "Change request deleted successfully",
-    "deleteProjectError": "Failed to delete project. Please try again."
+    "deleteProjectError": "Failed to delete project. Please try again.",
+    "guest": {
+      "title": "Contribute to the map",
+      "description": "Help map urban planning projects: add official projects or your own ideas for your city (transport, housing, public spaces, green spaces...).",
+      "signIn": "Sign in",
+      "createAccount": "Create an account"
+    }
   },
   "contribution": {
     "noContributionsFound": "No contributions found.",
@@ -416,7 +411,6 @@
       "in": "Zoom In",
       "out": "Zoom Out"
     },
-    "help": "Help",
     "filters": "Toggle project filters",
     "language": "Language"
   },
