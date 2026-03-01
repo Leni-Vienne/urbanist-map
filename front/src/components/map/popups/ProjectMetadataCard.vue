@@ -1,6 +1,6 @@
 <template>
   <div v-if="project" class="flex flex-col gap-3">
-    <div :class="cls.row">
+    <div v-if="showName" :class="cls.row">
       <span :class="cls.label">{{ $t("project.name") }}</span>
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
@@ -74,17 +74,19 @@ const cls = {
   label: "text-[10px] font-medium uppercase tracking-[0.07em] text-[var(--p-text-muted-color)]",
   value: "text-[13px] text-[var(--p-text-color)] break-words",
   addBtn:
-    "text-xs italic text-[var(--p-primary-600)] hover:text-[var(--p-primary-700)] cursor-pointer bg-transparent border-none p-0 outline-none text-left",
+    "text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-700)] cursor-pointer bg-transparent border-none p-0 outline-none text-left",
 };
 
 interface Props {
   project: Project | null;
+  showName?: boolean;
   showDescription?: boolean;
   editMode?: boolean;
   availableCities?: { id: number; name: string; countryCode: string }[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  showName: true,
   showDescription: false,
   editMode: false,
   availableCities: () => [],
