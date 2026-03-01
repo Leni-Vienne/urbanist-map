@@ -65,12 +65,13 @@ import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers"
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
+
 import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extra bundle "cost"
+
 const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),
 );
-
 const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
 const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));
 const CitySearch = defineAsyncComponent(() => import("@/components/map/CitySearch.vue"));

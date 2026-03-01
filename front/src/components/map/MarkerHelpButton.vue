@@ -16,18 +16,21 @@
 import { ref, computed, onUnmounted, watch } from "vue";
 import { map } from "@/services/core/map";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useI18n } from "vue-i18n";
 import { citiesWithProjects, activateCity } from "@/services/map/cityMarkers";
 const { t } = useI18n();
 const visible = ref(false);
+const dismissed = ref(false);
 const mapStore = useMapStore();
+const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-// AI : Computed visibility - hide when marker placement bar is visible
+// AI : Computed visibility - hide when marker placement bar is visible or dismissed
 const actuallyVisible = computed(() => {
-  return visible.value && !uiStore.markerPlacementBarVisible;
+  return visible.value && !uiStore.markerPlacementBarVisible && !dismissed.value;
 });
 
 const buttonText = computed(() => {
@@ -69,6 +72,18 @@ watch(
   [() => mapStore.selectedCity, () => citiesWithProjects.value.length],
   () => {
     checkVisibility();
+  },
+  { immediate: true },
+);
+
+// AI : Dismiss permanently once contributions are loaded (user found their way)
+watch(
+  () => overlayStore.viewModeOverlays.length > 0,
+  (hasContributions) => {
+    if (hasContributions) {
+      dismissed.value = true;
+      hideButton();
+    }
   },
   { immediate: true },
 );

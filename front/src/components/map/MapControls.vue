@@ -10,7 +10,7 @@
         raised
         icon="pi pi-plus"
         :aria-label="$t('controls.zoom.in')"
-        v-tooltip.right="$t('controls.zoom.in')"
+        v-tooltip.right="{ value: $t('controls.zoom.in'), disabled: isMobile }"
         severity="secondary"
       />
       <Button
@@ -19,7 +19,7 @@
         raised
         icon="pi pi-minus"
         :aria-label="$t('controls.zoom.out')"
-        v-tooltip.right="$t('controls.zoom.out')"
+        v-tooltip.right="{ value: $t('controls.zoom.out'), disabled: isMobile }"
         severity="secondary"
       />
       <Button
@@ -28,18 +28,14 @@
         raised
         icon="pi pi-question"
         :aria-label="$t('controls.help')"
-        v-tooltip.right="$t('controls.help')"
+        v-tooltip.right="{ value: $t('controls.help'), disabled: isMobile }"
         severity="help"
       />
     </div>
 
     <div class="flex flex-col gap-1.5 mb-3">
       <!-- AI : Filter Control (View Mode Only) -->
-      <FilterControl
-        v-if="mode !== 'edit'"
-        ref="filterControlRef"
-        @filter-overlays="handleFilterOverlays"
-      />
+      <FilterControl v-if="mode !== 'edit'" @filter-overlays="handleFilterOverlays" />
     </div>
   </div>
 
@@ -56,44 +52,19 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { defineAsyncComponent, ref, watch } from "vue";
 import L from "leaflet";
+import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 import FilterControl from "@/components/map/FilterControl.vue";
 import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
-
-const WelcomeDialog = defineAsyncComponent(() => import("@/components/map/WelcomeDialog.vue"));
+import WelcomeDialog from "@/components/map/WelcomeDialog.vue";
 
 const overlayStore = useOverlayStore();
-
 const uiStore = useUiStore();
-
-// AI : Refs for popovers
-const layerControlRef = ref();
-const filterControlRef = ref();
-
-// AI : Watch for layer panel visibility changes and close filter panel if needed
-watch(
-  () => layerControlRef.value?.layerPanel?.visible,
-  (isVisible) => {
-    if (isVisible && filterControlRef.value?.filterPanel?.visible) {
-      filterControlRef.value.filterPanel.hide();
-    }
-  },
-);
-
-// AI : Watch for filter panel visibility changes and close layer panel if needed
-watch(
-  () => filterControlRef.value?.filterPanel?.visible,
-  (isVisible) => {
-    if (isVisible && layerControlRef.value?.layerPanel?.visible) {
-      layerControlRef.value.layerPanel.hide();
-    }
-  },
-);
+const { isMobile } = useIsMobile();
 
 const { mode } = storeToRefs(overlayStore);
 

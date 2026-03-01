@@ -2,7 +2,7 @@
 // AI : Thin orchestration layer: delegates data loading to cityDataLoader
 // AI : and all rendering to cityRenderingCore.
 import { map } from "@/services/core/map";
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { loadCityData } from "@/services/navigation/cityDataLoader";
 import {
   processStandaloneMarkers,
@@ -36,7 +36,8 @@ export async function loadAndRenderCityData(
 
   if (overlays && overlays.length > 0) {
     const zoom = map.value.getZoom();
-    const shouldRenderFullOverlays = forceFullOverlays || zoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+    const shouldRenderFullOverlays =
+      forceFullOverlays || zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
     if (shouldRenderFullOverlays) {
       // AI : renderFullOverlays hydrates the store and handles image pruning
