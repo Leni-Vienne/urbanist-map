@@ -1,14 +1,16 @@
 <template>
-  <div class="map-buttons">
+  <div
+    class="absolute top-[72px] left-4 z-[1000] flex flex-col gap-3 transition-opacity duration-300"
+  >
     <!-- AI : Zoom Controls -->
-    <div class="buttons-stacked">
+    <div class="flex flex-col gap-1.5 mb-3">
       <Button
         @click.stop="handleZoomIn"
         @dblclick.stop
         raised
         icon="pi pi-plus"
         :aria-label="$t('controls.zoom.in')"
-        v-tooltip.right="$t('controls.zoom.in')"
+        v-tooltip.right="{ value: $t('controls.zoom.in'), disabled: isMobile }"
         severity="secondary"
       />
       <Button
@@ -17,45 +19,25 @@
         raised
         icon="pi pi-minus"
         :aria-label="$t('controls.zoom.out')"
-        v-tooltip.right="$t('controls.zoom.out')"
+        v-tooltip.right="{ value: $t('controls.zoom.out'), disabled: isMobile }"
         severity="secondary"
-      />
-      <Button
-        @click.stop="showHelpModal"
-        @dblclick.stop
-        raised
-        icon="pi pi-question-circle"
-        :aria-label="$t('controls.help')"
-        v-tooltip.right="$t('controls.help')"
-        severity="help"
       />
     </div>
 
-    <div class="buttons-stacked">
+    <div class="flex flex-col gap-1.5 mb-3">
       <!-- AI : Filter Control (View Mode Only) -->
-      <FilterControl
-        v-if="mode !== 'edit'"
-        ref="filterControlRef"
-        @filter-overlays="handleFilterOverlays"
-      />
+      <FilterControl v-if="mode !== 'edit'" @filter-overlays="handleFilterOverlays" />
     </div>
   </div>
 
   <!-- AI : Help button to guide user to click markers -->
   <MarkerHelpButton />
-
-  <!-- AI : Welcome Dialog -->
-  <!-- AI : Welcome Dialog managed by UI Store -->
-  <WelcomeDialog
-    :modelValue="uiStore.welcomeDialogVisible"
-    @update:modelValue="(val) => (uiStore.welcomeDialogVisible = val)"
-  />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { defineAsyncComponent, ref, watch } from "vue";
 import L from "leaflet";
+import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
@@ -63,35 +45,9 @@ import type { viewModeMarkerColor } from "@/types/index";
 import FilterControl from "@/components/map/FilterControl.vue";
 import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
 
-const WelcomeDialog = defineAsyncComponent(() => import("@/components/map/WelcomeDialog.vue"));
-
 const overlayStore = useOverlayStore();
-
 const uiStore = useUiStore();
-
-// AI : Refs for popovers
-const layerControlRef = ref();
-const filterControlRef = ref();
-
-// AI : Watch for layer panel visibility changes and close filter panel if needed
-watch(
-  () => layerControlRef.value?.layerPanel?.visible,
-  (isVisible) => {
-    if (isVisible && filterControlRef.value?.filterPanel?.visible) {
-      filterControlRef.value.filterPanel.hide();
-    }
-  },
-);
-
-// AI : Watch for filter panel visibility changes and close layer panel if needed
-watch(
-  () => filterControlRef.value?.filterPanel?.visible,
-  (isVisible) => {
-    if (isVisible && layerControlRef.value?.layerPanel?.visible) {
-      layerControlRef.value.layerPanel.hide();
-    }
-  },
-);
+const { isMobile } = useIsMobile();
 
 const { mode } = storeToRefs(overlayStore);
 
@@ -148,32 +104,4 @@ function handleZoomIn() {
 function handleZoomOut() {
   zoomWithMobileOffset(-1);
 }
-
-// AI : Show help modal
-function showHelpModal() {
-  uiStore.welcomeDialogVisible = true;
-}
 </script>
-
-<style scoped>
-.map-buttons {
-  position: absolute;
-  top: 72px;
-  /* AI : Moved down to make room for city search (16px + 40px search + 16px gap) */
-  left: 16px;
-  z-index: 1000;
-  /* important on mobile */
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: opacity 0.3s ease;
-}
-
-/* AI : Overlay completion status filter buttons */
-.buttons-stacked {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-</style>

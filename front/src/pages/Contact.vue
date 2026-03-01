@@ -1,6 +1,10 @@
 <template>
-  <div class="page-container">
-    <div class="page-card">
+  <div
+    class="flex justify-center items-start h-full bg-gradient-to-br from-[var(--p-primary-50)] to-[var(--p-primary-100)] p-10 overflow-y-auto"
+  >
+    <div
+      class="bg-[var(--p-surface-0)] p-8 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] max-w-[600px] w-full text-center"
+    >
       <Button
         icon="pi pi-arrow-left"
         :label="t('common.back')"
@@ -9,14 +13,18 @@
         @click="goHome"
       />
 
-      <h1>{{ t("common.contact") }}</h1>
+      <h1 class="mt-6 mb-4 text-[1.75rem] font-semibold text-[var(--p-text-color)]">
+        {{ t("common.contact") }}
+      </h1>
 
-      <p>{{ t("pages.contact.description") }}</p>
+      <p class="text-[var(--p-text-muted-color)] leading-relaxed mb-6">
+        {{ t("pages.contact.description") }}
+      </p>
 
-      <div class="contact-info">
+      <div class="mt-4">
         <a
           href="mailto:contact@urbanistmap.org"
-          class="contact-link"
+          class="inline-flex items-center gap-2 no-underline text-lg px-6 py-3 rounded-lg bg-[var(--p-primary-50)] hover:bg-[var(--p-primary-100)] transition-colors text-[var(--p-primary-color)]"
         >
           <i class="pi pi-envelope"></i>
           contact@urbanistmap.org
@@ -25,12 +33,24 @@
 
       <Divider />
 
-      <div class="basemap-submission">
-        <h2>{{ t("pages.contact.basemapTitle") }}</h2>
-        <p>{{ t("pages.contact.basemapDescription") }}</p>
-        <div class="example-box">
-          <span class="example-label">{{ t("pages.contact.basemapExample") }}</span>
-          <code>https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png</code>
+      <div class="mt-8 text-left">
+        <h2 class="text-xl font-semibold mb-3 text-[var(--p-text-color)]">
+          {{ t("pages.contact.basemapTitle") }}
+        </h2>
+        <p class="text-[var(--p-text-muted-color)] leading-relaxed mb-0">
+          {{ t("pages.contact.basemapDescription") }}
+        </p>
+        <div
+          class="relative overflow-hidden mt-4 p-5 bg-[var(--p-surface-900)] rounded-lg border border-[var(--p-surface-700)] break-all before:content-[''] before:absolute before:top-0 before:left-0 before:w-1 before:h-full before:bg-[var(--p-primary-500)]"
+        >
+          <span
+            class="block font-semibold mb-3 text-[var(--p-surface-0)] text-[0.85rem] uppercase tracking-[0.05em]"
+            >{{ t("pages.contact.basemapExample") }}</span
+          >
+          <code
+            class="font-mono text-[0.8rem] text-[var(--p-primary-300)] px-[0.6rem] py-[0.4rem] rounded leading-relaxed block"
+            >https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png</code
+          >
         </div>
       </div>
     </div>
@@ -48,111 +68,3 @@ function goHome() {
   router.push("/");
 }
 </script>
-
-<style scoped>
-.page-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  height: 100vh;
-  background: linear-gradient(135deg, var(--p-primary-50), var(--p-primary-100));
-  padding: 40px 20px;
-  overflow-y: auto;
-}
-
-.page-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
-  width: 100%;
-  text-align: center;
-}
-
-h1 {
-  margin: 1.5rem 0 1rem;
-  color: var(--p-text-color);
-  font-size: 1.75rem;
-}
-
-p {
-  color: var(--p-text-muted-color);
-  line-height: 1.6;
-  margin: 0 0 1.5rem;
-}
-
-.contact-info {
-  margin-top: 1rem;
-}
-
-.contact-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--p-primary-color);
-  text-decoration: none;
-  font-size: 1.1rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  background: var(--p-primary-50);
-  transition: background 0.2s;
-}
-
-.contact-link:hover {
-  background: var(--p-primary-100);
-}
-
-.basemap-submission {
-  margin-top: 2rem;
-  text-align: left;
-}
-
-h2 {
-  font-size: 1.25rem;
-  margin-bottom: 0.75rem;
-  color: var(--p-text-color);
-}
-
-.example-box {
-  margin-top: 1rem;
-  padding: 1.25rem;
-  background: var(--p-surface-900);
-  border-radius: 8px;
-  border: 1px solid var(--p-surface-700);
-  word-break: break-all;
-  position: relative;
-  overflow: hidden;
-}
-
-.example-box::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: var(--p-primary-500);
-}
-
-.example-label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: var(--p-surface-0);
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-code {
-  font-family: "JetBrains Mono", "Fira Code", monospace;
-  font-size: 0.8rem;
-  color: var(--p-primary-300);
-  background: rgba(var(--p-primary-500-rgb), 0.1);
-  padding: 0.4rem 0.6rem;
-  border-radius: 4px;
-  line-height: 1.5;
-  display: block;
-}
-</style>

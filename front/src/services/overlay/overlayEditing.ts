@@ -21,25 +21,13 @@ import {
   updateMarkerTooltip,
   createMarker,
 } from "@/services/overlay/overlayMarkers";
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 
-// AI : Navigation function callback - will be registered by useOverlay.ts
-// AI : Declared at module level to avoid temporal dead zone issues
-let focusCameraToOverlayCallback: ((direction: "next" | "previous") => void) | null = null;
-
-export function registerNavigationCallback(callback: (direction: "next" | "previous") => void) {
-  focusCameraToOverlayCallback = callback;
-}
-
-// AI : Wrapper to call the navigation callback if it's registered
-function focusCameraToOverlay(direction: "next" | "previous") {
-  if (focusCameraToOverlayCallback) {
-    focusCameraToOverlayCallback(direction);
-  }
-}
+// AI : focusCameraToOverlay is registered into overlayCallbacks by overlayActions.ts (app-utils chunk)
+// AI : at module init — no dynamic import or callback registration needed here.
 
 /**
  * AI : Update overlay editing state based on current mode
@@ -49,35 +37,25 @@ function focusCameraToOverlay(direction: "next" | "previous") {
 export async function updateOverlayEditingState(): Promise<void> {
   const overlayStore = useOverlayStore();
 
-  // AI : Dynamic import keeps leaflet-toolbar out of the initial bundle
-  // AI : Module is cached after first load (which happens when overlays first render)
-  const { getEditToolsForOverlay, getViewTools } =
-    await import("@/services/overlay/overlayToolbar");
-
-  // AI : Save popup and selection state before toolbar rebuild
-  const wasPopupOpen = overlayStore.showInfoPopup;
+  // No popup save/restore needed: OverlayFloatingToolbar.vue is reactive and persists
+  // across mode switches without any leaflet-toolbar DOM rebuild.
   const selectedOverlayId = overlayStore.idSelectedOverlay;
   const wasSelected = Boolean(selectedOverlayId);
 
-  // AI : Close popup before toolbar rebuild to avoid orphaned teleport state
-  if (wasPopupOpen) {
-    overlayStore.hideInfoPopup();
-  }
-
-  // AI : Update existing overlays in-place instead of recreating them
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
     const layer = registry.getLayer(overlayObject.id);
     if (!layer) return;
 
-    // AI : Ensure overlay is on the map before attempting to manipulate it
     if (!map.value.hasLayer(layer)) return;
 
-    // AI : Update overlay options using the setOptions method
     const isEditMode = overlayStore.mode === "edit";
-    layer.setOptions({
-      actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : getViewTools())],
-      draggable: isEditMode,
-    });
+    // Only pass mode actions — toolbar UI is handled by OverlayFloatingToolbar.vue.
+    // Cast to any[]: L.ResizeRotateAction/DistortAction are registered by leaflet-distortableimage
+    // at runtime but absent from TS types.
+    const modeActions = (
+      isEditMode ? [(L as any).ResizeRotateAction, (L as any).DistortAction] : []
+    ) as any[];
+    layer.setOptions({ actions: modeActions, draggable: isEditMode });
 
     // AI : When entering edit mode, restore cached corner positions if they exist
     if (isEditMode) {
@@ -125,36 +103,11 @@ export async function updateOverlayEditingState(): Promise<void> {
     updateMarkerTooltip(overlayObject);
   });
 
-  // AI : Restore selection state after toolbar rebuild
+  // Restore selection so editing handles reappear after mode switch.
   if (wasSelected && selectedOverlayId) {
     requestAnimationFrame(() => {
       if (registry.hasReadyLayer(selectedOverlayId)) {
         selectOverlay(selectedOverlayId);
-      }
-    });
-  }
-
-  // AI : Reopen popup after toolbar is rebuilt with new actions
-  if (wasPopupOpen && selectedOverlayId) {
-    requestAnimationFrame(() => {
-      const layer = registry.getLayer(selectedOverlayId);
-      if (layer) {
-        // AI : Find and click the info button to recreate teleport target and reopen popup
-        const overlayElement = layer.getElement();
-        let infoButton = overlayElement?.parentElement?.querySelector<HTMLElement>(
-          ".leaflet-toolbar-icon.pi-ellipsis-v",
-        );
-
-        if (!infoButton) {
-          const allInfoButtons = document.querySelectorAll<HTMLElement>(
-            ".leaflet-toolbar-icon.pi-ellipsis-v",
-          );
-          infoButton = allInfoButtons[0];
-        }
-
-        if (infoButton) {
-          infoButton.click();
-        }
       }
     });
   }
@@ -235,7 +188,8 @@ export function addOverlay(
   }
 
   // AI : Check if we need to zoom in to make overlay visible
-  const needsZoom = currentZoomLevel.value < MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+  const needsZoom =
+    currentZoomLevel.value < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const projectStore = useProjectStore();
 
   // AI : Try to find project in multiple store locations
@@ -427,8 +381,9 @@ export function setupKeyboardShortcuts() {
   keyboardShortcutsRegistered = true;
 }
 
-// AI : Register toolbar callbacks - overlayToolbar.ts (lazy chunk) reads these at call time
-Object.assign(overlayCallbacks, { focusCameraToOverlay, undo, redo });
+// AI : Register undo/redo callbacks - overlayToolbar.ts (lazy chunk) reads these at call time
+// AI : focusCameraToOverlay is already set in overlayCallbacks by overlayActions.ts, so not overwritten here.
+Object.assign(overlayCallbacks, { undo, redo });
 
 // AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

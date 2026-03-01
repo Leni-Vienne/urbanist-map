@@ -1,5 +1,5 @@
 <template>
-  <div class="city-search-wrapper" @mousedown.stop @touchstart.stop>
+  <div class="pointer-events-auto w-full" @mousedown.stop @touchstart.stop>
     <span class="p-input-icon-left w-full">
       <i class="pi pi-search" />
       <AutoComplete
@@ -9,16 +9,16 @@
         option-label="displayName"
         @complete="onSearch"
         @item-select="onSelect"
-        class="city-search w-full"
+        class="w-full"
         :min-length="1"
         :loading="isLoading"
         :dropdown="false"
       >
         <template #option="{ option }">
-          <div class="search-result">
-            <span class="city-name">
+          <div class="flex items-center justify-between gap-2 w-full">
+            <span class="flex-1 text-sm">
               {{ option.name
-              }}<span v-if="option.nameLocal" class="city-name-local">
+              }}<span v-if="option.nameLocal" class="text-[var(--p-text-muted-color)]">
                 ({{ option.nameLocal }})</span
               >, {{ option.countryCode }}
             </span>
@@ -26,7 +26,7 @@
               v-if="option.approvedProjectCount > 0"
               :value="option.approvedProjectCount"
               severity="info"
-              class="project-count"
+              class="shrink-0"
             />
           </div>
         </template>
@@ -143,35 +143,6 @@ function onSelect(event: { value: CitySearchResult }) {
 
 <style scoped>
 /* AI : Wrapper prevents map dragging when interacting with search */
-.city-search-wrapper {
-  pointer-events: auto;
-  width: 100%;
-}
-
-.city-search {
-  width: 100%;
-}
-
-.search-result {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.city-name {
-  flex: 1;
-  font-size: 0.875rem;
-}
-
-.city-name-local {
-  color: var(--p-text-muted-color);
-}
-
-.project-count {
-  flex-shrink: 0;
-}
 
 /* AI : Override PrimeVue AutoComplete styles for compact design */
 :deep(.p-autocomplete) {
@@ -183,12 +154,10 @@ function onSelect(event: { value: CitySearchResult }) {
   /* AI : Extra left padding for icon */
   font-size: 0.875rem;
   border-radius: 0.375rem;
-  background: white;
+  background: var(--p-surface-0);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   width: 100%;
-  /* Ensure input takes full width */
   min-width: 0;
-  /* Allow shrinking */
 }
 
 :deep(.p-autocomplete-panel) {

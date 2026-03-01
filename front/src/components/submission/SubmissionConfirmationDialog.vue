@@ -6,9 +6,9 @@
     :style="{ width: '600px' }"
     @update:visible="handleVisibilityChange"
   >
-    <div v-if="summary" class="submission-summary">
+    <div v-if="summary" class="flex flex-col gap-4 py-2">
       <!-- Entity Information -->
-      <div class="entity-info">
+      <div class="flex items-center justify-between p-3 bg-[var(--p-surface-50)] rounded-md">
         <strong>{{ summary.entityName }}</strong>
         <Tag
           :severity="summary.requiresModeration ? 'warn' : 'success'"
@@ -21,20 +21,26 @@
       </div>
 
       <!-- Changes List -->
-      <div v-if="summary.changes.length > 0" class="changes-section">
-        <div class="changes-list">
-          <div v-for="(change, index) in summary.changes" :key="index" class="change-item">
+      <div v-if="summary.changes.length > 0" class="flex flex-col gap-3">
+        <div class="flex flex-col gap-3">
+          <div
+            v-for="(change, index) in summary.changes"
+            :key="index"
+            class="flex flex-col gap-2 p-3 bg-[var(--p-surface-0)] border border-[var(--p-surface-200)] rounded"
+          >
             <!-- AI : Header row with thumbnail (for overlays), label, and delete button -->
-            <div class="change-header">
-              <div class="change-thumbnail-row">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-3 flex-1 min-w-0">
                 <img
                   v-if="change.thumbnailUrl"
                   :src="change.thumbnailUrl"
                   :alt="change.displayLabel"
-                  class="change-thumbnail"
+                  class="w-12 h-12 object-cover rounded border border-[var(--p-surface-200)] shrink-0"
                   @error="handleImageError"
                 />
-                <div class="field-label">{{ change.displayLabel }}</div>
+                <div class="font-medium text-sm text-[var(--p-text-color-secondary)]">
+                  {{ change.displayLabel }}
+                </div>
               </div>
               <!-- AI : Delete button for all changes -->
               <Button
@@ -42,26 +48,32 @@
                 severity="danger"
                 text
                 rounded
-                class="delete-change-btn"
+                class="shrink-0"
                 @click="handleRemoveChange(index, change.field, change.overlayId)"
                 v-tooltip.top="$t('submission.removeChange')"
               />
             </div>
 
-            <div class="change-diff">
-              <span class="value-text old-value">{{ change.oldValue }}</span>
-              <i class="pi pi-arrow-right"></i>
-              <span class="value-text new-value">{{ change.newValue }}</span>
+            <div class="flex items-center gap-3">
+              <span
+                class="flex-1 p-2 rounded text-sm break-words bg-[var(--p-surface-100)] text-[var(--p-text-color-secondary)] line-through"
+                >{{ change.oldValue }}</span
+              >
+              <i class="pi pi-arrow-right text-[var(--p-surface-400)] text-sm shrink-0"></i>
+              <span
+                class="flex-1 p-2 rounded text-sm break-words bg-[var(--p-primary-50)] text-[var(--p-text-color)] font-medium"
+                >{{ change.newValue }}</span
+              >
             </div>
           </div>
         </div>
       </div>
 
       <!-- AI : Reason for changes input (optional) -->
-      <div v-if="summary?.requiresModeration" class="reason-section">
-        <label for="changeReason"
-          >{{ $t("common.reasonForChanges") }}
-          <span class="optional-label">({{ $t("project.optionalField") }})</span></label
+      <div v-if="summary?.requiresModeration" class="flex flex-col gap-2">
+        <label for="changeReason" class="font-medium text-sm text-[var(--p-text-color-secondary)]">
+          {{ $t("common.reasonForChanges") }}
+          <span class="font-normal italic">({{ $t("project.optionalField") }})</span></label
         >
         <Textarea
           id="changeReason"
@@ -73,7 +85,7 @@
     </div>
 
     <template #footer>
-      <div class="dialog-footer">
+      <div class="flex justify-end gap-3">
         <Button :label="$t('common.cancel')" severity="secondary" @click="handleCancel" />
         <Button
           :label="$t('submission.confirmSubmit')"
@@ -152,135 +164,3 @@ function handleRemoveChange(index: number, field: RemovableChange, overlayId?: s
   emit("remove-change", index, field, overlayId);
 }
 </script>
-
-<style scoped>
-.submission-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0.5rem 0;
-}
-
-.entity-info {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem;
-  background: var(--p-surface-50);
-  border-radius: 6px;
-}
-
-.changes-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.changes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.change-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 4px;
-}
-
-/* AI : Header row for overlay changes with thumbnail and delete button */
-.change-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.change-thumbnail-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-  min-width: 0;
-}
-
-/* AI : Thumbnail image styling */
-.change-thumbnail {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid var(--p-surface-200);
-  flex-shrink: 0;
-}
-
-/* AI : Delete button for individual changes */
-.delete-change-btn {
-  flex-shrink: 0;
-}
-
-.field-label {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--p-text-color-secondary);
-}
-
-.change-diff {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.value-text {
-  flex: 1;
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  word-break: break-word;
-}
-
-.old-value {
-  background: var(--p-surface-100);
-  color: var(--p-text-color-secondary);
-  text-decoration: line-through;
-}
-
-.new-value {
-  background: var(--p-primary-50);
-  color: var(--p-text-color);
-  font-weight: 500;
-}
-
-.change-diff i {
-  color: var(--p-surface-400);
-  font-size: 0.875rem;
-  flex-shrink: 0;
-}
-
-.reason-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.reason-section label {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--p-text-color-secondary);
-}
-
-.optional-label {
-  font-weight: 400;
-  font-style: italic;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-</style>

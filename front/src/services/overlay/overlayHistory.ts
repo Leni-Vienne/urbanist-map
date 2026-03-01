@@ -144,8 +144,15 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     }
   }
 
-  overlayObject.history.push(structuredClone(currentState) as { lat: number; lng: number }[]);
-  overlayObject.redoStack = [];
+  // Build new arrays before touching overlayObject.
+  // overlayObject is the raw (non-proxied) object captured in Leaflet closures.
+  // If we mutate overlayObject.history first, the Vue reactive proxy's set trap will see
+  // target.history === newHistory (same reference) and skip the trigger entirely.
+  // By calling updateOverlay first with a fresh array, Vue sees oldArray !== newArray → trigger.
+  const newHistory = [
+    ...overlayObject.history,
+    structuredClone(currentState) as { lat: number; lng: number }[],
+  ];
 
   // AI : Mark overlay as modified when it's moved/changed
   overlayObject.isModified = true;
@@ -155,11 +162,16 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   updateMarkerTooltip(overlayObject);
 
-  // AI : Update store with proper reactivity - critical for info popup to see changes
+  // AI : Update store with proper reactivity - critical for canUndo/canRedo/hasUnsavedModifications
+  // MUST happen before overlayObject.history is reassigned (see comment above).
   const overlayStore = useOverlayStore();
   overlayStore.updateOverlay(overlayObject.id, {
     isModified: true,
-    history: overlayObject.history,
-    redoStack: overlayObject.redoStack,
+    history: newHistory,
+    redoStack: [],
   });
+
+  // Sync raw object so non-reactive code paths (e.g. next saveToHistory call) see fresh state.
+  overlayObject.history = newHistory;
+  overlayObject.redoStack = [];
 }
