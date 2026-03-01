@@ -453,7 +453,7 @@
     }
   },
   "forms": {
-    "saveChanges": "Enregistrer les modifications"
+    "saveChanges": "Enregistrer"
   },
   "dialog": {
     "createNewProject": "Créer un nouveau projet"

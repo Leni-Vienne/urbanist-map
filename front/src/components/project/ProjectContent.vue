@@ -61,6 +61,7 @@
                 <a
                   :href="project.sourceUrl"
                   target="_blank"
+                  rel="noopener noreferrer"
                   class="text-[var(--p-primary-600)] no-underline hover:underline"
                   @click.stop
                   >{{ formatSourceUrl(project.sourceUrl) }}</a
