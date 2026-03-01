@@ -11,7 +11,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import L from "leaflet";
-import { OverlayObject } from "@/types";
+import { type OverlayObject } from "@/types";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 // AI : ============================================================================
@@ -166,7 +166,7 @@ export function useChangeRequests() {
     // AI : Reset overlay position to approved corners
     overlayObject.isModified = false;
     const layer = getLayer(overlayId);
-    if (layer && overlayObject.corners?.length === 4) {
+    if (layer && overlayObject.corners.length === 4) {
       const leafletCorners = overlayObject.corners.map((corner) =>
         L.latLng(corner.lat, corner.lng),
       );

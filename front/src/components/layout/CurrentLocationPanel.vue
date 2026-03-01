@@ -10,13 +10,13 @@
   <!-- AI : Country selected but no city - show city list -->
   <div
     v-else-if="!mapStore.selectedCity && mapStore.selectedCountryCode"
-    class="city-list-container"
+    class="flex flex-col h-full"
   >
-    <div class="city-list-header">
-      <h3 class="header-title">
+    <div class="p-4 border-b border-surface-100 bg-surface-0">
+      <h3 class="m-0 text-base font-semibold text-surface-800">
         {{ selectedCountryName }}
       </h3>
-      <p class="header-subtitle">
+      <p class="mt-1 text-[0.8125rem] text-surface-500">
         {{ $t("currentLocation.selectCityToExplore") }}
       </p>
     </div>
@@ -29,20 +29,27 @@
     />
 
     <!-- AI : City list -->
-    <div v-else ref="cityListRef" class="city-list">
+    <div v-else ref="cityListRef" class="flex-1 overflow-y-auto p-2">
       <button
         v-for="city in citiesInCountry"
         :key="city.id"
-        class="city-item"
+        class="w-full flex items-center justify-between px-4 py-[0.875rem] border-none bg-surface-0 rounded cursor-pointer transition-all duration-150 mb-2 text-left hover:bg-surface-50 hover:translate-x-0.5 active:bg-surface-100"
         @click="handleCityClick(city)"
       >
-        <div class="city-info">
-          <span class="city-name">{{ city.name }}</span>
-          <span v-if="city.nameLocal && city.nameLocal !== city.name" class="city-name-local">
+        <div class="flex flex-col gap-1 flex-1 min-w-0">
+          <span class="text-[0.9375rem] font-medium text-surface-800 truncate">{{
+            city.name
+          }}</span>
+          <span
+            v-if="city.nameLocal && city.nameLocal !== city.name"
+            class="text-[0.8125rem] text-surface-500 italic"
+          >
             {{ city.nameLocal }}
           </span>
         </div>
-        <span class="project-count">
+        <span
+          class="shrink-0 text-[0.8125rem] text-surface-600 bg-surface-100 px-[0.625rem] py-1 rounded-full font-medium"
+        >
           {{ $t("currentLocation.projectsCount", { count: city.projectCount ?? 0 }) }}
         </span>
       </button>
@@ -68,19 +75,26 @@
   >
     <!-- AI : Custom header showing Country > City -->
     <template #header-actions>
-      <div class="header-actions-container">
+      <div class="flex gap-4 items-center justify-between w-full">
         <!-- AI : Always render wrapper to maintain flex layout, conditionally render content -->
-        <span class="city-header">
+        <span
+          class="flex items-center gap-[0.625rem] text-base text-surface-700 font-semibold py-1 min-w-0 flex-1"
+        >
           <template v-if="cityHeader">
             <span
-              class="country-link"
+              class="text-primary-500 cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 shrink-0 hover:text-primary-600 hover:bg-primary-50"
               @click="handleCountryClick"
               :title="$t('currentLocation.clickToZoomCountry')"
             >
               {{ cityHeader.countryName }}
             </span>
-            <i class="pi pi-angle-right separator"></i>
-            <span class="city-name">{{ cityHeader.cityName }}</span>
+            <i class="pi pi-angle-right text-surface-500 text-sm mx-[0.125rem] shrink-0"></i>
+            <span
+              class="text-primary-500 cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0 hover:text-primary-600 hover:bg-primary-50"
+              :class="{ 'text-surface-900': cityLinkClicked }"
+              @click="handleBreadcrumbCityClick"
+              >{{ cityHeader.cityName }}</span
+            >
           </template>
         </span>
         <!-- AI : New Project button - aligned to the right -->
@@ -99,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onActivated, onDeactivated, nextTick, defineAsyncComponent } from "vue";
+import { computed, ref, onActivated, onDeactivated, onUnmounted, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useToast } from "@/composables/ui/useToast";
@@ -108,8 +122,12 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isValidCountryCode } from "@/services/map/countryData";
 import { flyToCountry, mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import {
+  smartZoomToCity,
+  citiesWithProjects,
+  type CityWithProjects,
+} from "@/services/map/cityMarkers";
 import { map } from "@/services/core/map";
-import { citiesWithProjects, type CityWithProjects } from "@/services/map/cityMarkers";
 import { loadCityProjects } from "@/services/navigation/locationNavigation";
 import { createProjectFromOverlayData, createOverlayForModeration } from "@/utils/projectFactories";
 
@@ -252,6 +270,61 @@ async function handleCountryClick() {
   mapStore.clearSelectedCity();
 }
 
+// AI : City breadcrumb clicked state - true until the user manually moves the map
+const cityLinkClicked = ref(false);
+let dragStartHandler: (() => void) | null = null;
+let zoomStartHandler: (() => void) | null = null;
+
+function detachCityLinkHandlers() {
+  if (dragStartHandler) {
+    map.value.off("dragstart", dragStartHandler);
+    dragStartHandler = null;
+  }
+  if (zoomStartHandler) {
+    map.value.off("zoomstart", zoomStartHandler);
+    zoomStartHandler = null;
+  }
+}
+
+onUnmounted(detachCityLinkHandlers);
+
+// AI : Handle city breadcrumb click - smart zoom to fit all city content
+function handleBreadcrumbCityClick() {
+  const selectedCity = mapStore.selectedCity;
+  if (!selectedCity) return;
+  const city = citiesWithProjects.value.find((c: CityWithProjects) => c.id === selectedCity.id);
+  if (!city) return;
+
+  cityLinkClicked.value = true;
+  detachCityLinkHandlers();
+
+  // AI : Manual drag clears state immediately
+  dragStartHandler = () => {
+    cityLinkClicked.value = false;
+    detachCityLinkHandlers();
+  };
+  map.value.once("dragstart", dragStartHandler);
+
+  // AI : After the programmatic fly ends, manual zoom also clears state
+  map.value.once("moveend", () => {
+    zoomStartHandler = () => {
+      cityLinkClicked.value = false;
+      zoomStartHandler = null;
+      if (dragStartHandler) {
+        map.value.off("dragstart", dragStartHandler);
+        dragStartHandler = null;
+      }
+    };
+    map.value.once("zoomstart", zoomStartHandler);
+  });
+
+  const overlays =
+    mapStore.getCityOverlaysAndProjectsCache(selectedCity.id, overlayStore.mode) ?? [];
+  const projects =
+    mapStore.getCityStandaloneProjectsCache(selectedCity.id, overlayStore.mode) ?? [];
+  smartZoomToCity(city, { overlays, projects });
+}
+
 // AI : Custom overlay click handler - lazily imported since it's only reachable after city selection
 async function handleOverlayClick(overlay: OverlayForModeration): Promise<void> {
   const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
@@ -366,161 +439,3 @@ onActivated(() => {
   });
 });
 </script>
-
-<style scoped>
-/* AI : Import shared panel CSS */
-@import "../../assets/panel-common.css";
-
-/* AI : Empty state when no city is selected */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
-  text-align: center;
-  color: var(--p-surface-600);
-  height: 100%;
-}
-
-/* AI : City header breadcrumb styles */
-.city-header {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  font-size: 1rem;
-  color: var(--p-surface-700);
-  font-weight: 600;
-  padding: 0.25rem 0;
-  min-width: 0;
-  /* AI : Allow flex-shrink to work properly */
-  flex: 1;
-  /* AI : Allow city header to take available space */
-}
-
-.country-link {
-  color: var(--p-primary-500);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--p-border-radius);
-  margin: -0.25rem -0.5rem;
-  flex-shrink: 0;
-  /* AI : Prevent country name from shrinking */
-}
-
-.country-link:hover {
-  color: var(--p-primary-600);
-  background-color: var(--p-primary-50);
-}
-
-.separator {
-  color: var(--p-surface-500);
-  font-size: 0.875rem;
-  margin: 0 0.125rem;
-  flex-shrink: 0;
-  /* AI : Keep separator visible */
-}
-
-.city-name {
-  color: var(--p-surface-800);
-  font-weight: 600;
-  overflow: hidden;
-  /* AI : Enable text truncation */
-  text-overflow: ellipsis;
-  /* AI : Show ellipsis for overflow */
-  white-space: nowrap;
-  /* AI : Prevent wrapping */
-  min-width: 0;
-  /* AI : Allow shrinking in flex container */
-}
-
-/* AI : City list view styles */
-.city-list-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.city-list-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--p-surface-100);
-  background: var(--p-surface-0);
-}
-
-.header-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--p-surface-800);
-}
-
-.header-subtitle {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.8125rem;
-  color: var(--p-surface-500);
-}
-
-.city-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.5rem;
-}
-
-.city-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.875rem 1rem;
-  border: none;
-  background: var(--p-surface-0);
-  border-radius: var(--p-border-radius);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  margin-bottom: 0.5rem;
-  text-align: left;
-}
-
-.city-item:hover {
-  background: var(--p-surface-50);
-  transform: translateX(2px);
-}
-
-.city-item:active {
-  background: var(--p-surface-100);
-}
-
-.city-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.city-info .city-name {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--p-surface-800);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.city-name-local {
-  font-size: 0.8125rem;
-  color: var(--p-surface-500);
-  font-style: italic;
-}
-
-.project-count {
-  flex-shrink: 0;
-  font-size: 0.8125rem;
-  color: var(--p-surface-600);
-  background: var(--p-surface-100);
-  padding: 0.25rem 0.625rem;
-  border-radius: 1rem;
-  font-weight: 500;
-}
-</style>

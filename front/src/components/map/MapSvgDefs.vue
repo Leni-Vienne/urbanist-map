@@ -1,5 +1,5 @@
 <template>
-  <svg style="width: 0; height: 0; position: absolute; overflow: hidden" aria-hidden="true">
+  <svg class="w-0 h-0 absolute overflow-hidden" aria-hidden="true">
     <defs>
       <!-- Generate gradients for each marker color -->
       <template v-for="color in Object.keys(markerColors)" :key="color">

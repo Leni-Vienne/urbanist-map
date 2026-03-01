@@ -418,12 +418,14 @@ export const useAuthStore = defineStore("auth", () => {
       const result = await trpc.auth.resetPassword.mutate({ token, password });
       return {
         success: result.success,
+        email: result.success ? result.email : null,
         error: result.success ? null : result.message,
       };
     } catch (error: unknown) {
       console.error("Password reset error:", error);
       return {
         success: false,
+        email: null,
         error: error instanceof Error ? error.message : "Password reset failed",
       };
     }

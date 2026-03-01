@@ -23,13 +23,14 @@ import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
-import { MAP_CONFIG } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import {
   selectOverlay,
   setupProjectHoverEvents,
   syncModerationCityFromOverlay,
+  applySelectionOutline,
 } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
@@ -43,7 +44,6 @@ import {
   createSingleMarker,
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
-import { getEditToolsForOverlay, getViewTools } from "@/services/overlay/overlayToolbar";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
@@ -72,16 +72,22 @@ export function createLeafletOverlay(
       : undefined;
     const isEditMode = overlayStore.mode === "edit";
 
+    // Suppress the built-in leaflet-toolbar popup — OverlayFloatingToolbar.vue handles the UI.
+    // Keep mode actions so editing handles (resize/distort) still work in edit mode.
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
       keyboard: false,
-      actions: [...(isEditMode ? getEditToolsForOverlay(overlayObject) : getViewTools())],
+      suppressToolbar: true,
+      // L.ResizeRotateAction / L.DistortAction are registered by leaflet-distortableimage at runtime.
+      actions: (isEditMode
+        ? [(L as any).ResizeRotateAction, (L as any).DistortAction]
+        : []) as any[],
       corners: leafletCorners,
       dragBehavior: "auto",
       selectOnDrag: false,
       draggable: isEditMode,
-      // AI : CRITICAL: Only enable credentials for local backend URLs (pending images)
-      // AI : R2 CDN URLs don't support credentials and will fail if crossOrigin is set
+      // CRITICAL: Only enable credentials for local backend URLs (pending images).
+      // R2 CDN URLs don't support credentials and will fail if crossOrigin is set.
       crossOrigin: imageRequiresCredentials(imageUrl) ? "use-credentials" : undefined,
       mode: "resizeRotate",
     });
@@ -98,7 +104,8 @@ export function createLeafletOverlay(
     // AI : This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
     const addOverlayWhenReady = () => {
       const currentZoom = map.value.getZoom();
-      const shouldShowImage = currentZoom >= MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS;
+      const shouldShowImage =
+        currentZoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
       // AI : Only add to map if zoom is appropriate (zoom handler will manage later changes)
       if (shouldShowImage) {
@@ -304,6 +311,11 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
       element.style.boxShadow = "";
       element.style.outline = "none";
     }
+  } else {
+    // AI : Overlay finished loading while already selected (out-of-viewport navigation):
+    // AI : applyOutlineAfterImageLoad ran before the layer existed so no listener was set.
+    // AI : Apply the outline now that the image is fully loaded and in the DOM.
+    applySelectionOutline(overlayObject);
   }
 
   // AI : Invoke the caller's callback now that the overlay is fully initialized
@@ -487,6 +499,7 @@ export function renderViewModeOverlays(
       anyStarted = true;
     }
   }
+
   return anyStarted;
 }
 

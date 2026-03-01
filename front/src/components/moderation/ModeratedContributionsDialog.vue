@@ -24,15 +24,17 @@
         {{ $t("moderation.moderatedContributions.description") }}
       </p>
 
-      <div v-for="item in moderatedContributions" :key="item.id" class="moderated-item">
+      <div v-for="item in moderatedContributions" :key="item.id" class="flex gap-4">
         <!-- AI : Thumbnail -->
-        <div class="thumbnail-container">
+        <div
+          class="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-[var(--p-surface-100)] flex items-center justify-center"
+        >
           <!-- AI : Overlay thumbnail -->
           <img
             v-if="item.type === 'overlay' && item.filename"
             :src="buildThumbnailUrl(item.filename, item.status === 'pending')"
             :alt="item.caption || 'Overlay'"
-            class="thumbnail"
+            class="w-full h-full object-cover"
             @error="handleImageError"
           />
           <!-- AI : Standalone project icon -->
@@ -43,11 +45,12 @@
         </div>
 
         <!-- AI : Content -->
-        <div class="item-content">
-          <div class="item-header">
-            <span class="item-title">{{
-              item.caption || item.projectName || $t("overlay.untitled")
-            }}</span>
+        <div class="flex-1 flex flex-col gap-1 min-w-0">
+          <div class="flex items-center justify-between gap-2">
+            <span
+              class="font-semibold text-[0.9375rem] overflow-hidden text-ellipsis whitespace-nowrap"
+              >{{ item.caption || item.projectName || $t("overlay.untitled") }}</span
+            >
             <Tag
               :value="$t(`status.${item.status}`)"
               :severity="
@@ -62,22 +65,27 @@
           </div>
 
           <!-- AI : Show location for all items -->
-          <p v-if="item.cityName" class="item-location">
-            <i class="pi pi-map-marker"></i>
+          <p
+            v-if="item.cityName"
+            class="flex items-center gap-1 text-xs text-[var(--p-surface-600)] m-0"
+          >
+            <i class="pi pi-map-marker text-[var(--p-surface-500)]" style="font-size: 0.625rem"></i>
             {{ item.cityName }}{{ item.countryCode ? `, ${item.countryCode}` : "" }}
           </p>
 
           <!-- AI : Display rejection reason if item was rejected -->
           <p
             v-if="item.status === 'rejected' && item.rejectionReason"
-            class="item-rejection-reason"
+            class="m-0 text-[0.8125rem] text-[var(--p-red-600)] bg-[var(--p-red-50)] p-2 rounded-md border border-[var(--p-red-200)] flex items-start gap-1.5 leading-snug"
           >
-            <i class="pi pi-ban"></i>
-            <strong>{{ $t("moderation.rejectionReason.label") }}:</strong>
-            {{ $t(`moderation.rejectionReason.${item.rejectionReason}`) }}
+            <i class="pi pi-ban flex-shrink-0 mt-0.5"></i>
+            <span
+              ><strong>{{ $t("moderation.rejectionReason.label") }}:</strong>
+              {{ $t(`moderation.rejectionReason.${item.rejectionReason}`) }}</span
+            >
           </p>
 
-          <p class="item-date">
+          <p class="m-0 text-xs text-[var(--p-surface-500)]">
             {{ formatRelativeTime(item.updatedAt, t) }}
           </p>
         </div>
@@ -86,7 +94,12 @@
 
     <!-- AI : Footer actions -->
     <template #footer>
-      <Button :label="$t('common.close')" severity="secondary" outlined @click="emit('close')" />
+      <Button
+        :label="$t('common.close')"
+        severity="secondary"
+        outlined
+        @click="isVisible = false"
+      />
       <Button
         v-if="moderatedContributions.length > 0"
         :label="$t('moderation.moderatedContributions.acknowledgeAll')"
@@ -171,107 +184,3 @@ async function handleAcknowledgeAll() {
   }
 }
 </script>
-
-<style scoped>
-.moderated-item {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--p-surface-border);
-  border-radius: var(--p-border-radius);
-  background: var(--p-surface-ground);
-}
-
-.thumbnail-container {
-  flex-shrink: 0;
-  width: 80px;
-  height: 80px;
-  border-radius: var(--p-border-radius);
-  overflow: hidden;
-  background: var(--p-surface-100);
-  /* AI : Center the building icon */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.thumbnail {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.item-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  /* AI : Reduced from 0.5rem for tighter spacing */
-  min-width: 0;
-}
-
-.item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.item-title {
-  font-weight: 600;
-  font-size: 0.9375rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.item-project {
-  font-size: 0.875rem;
-  color: var(--p-surface-600);
-}
-
-/* AI : Standalone project location display */
-.item-location {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--p-surface-600);
-}
-
-.item-location i {
-  color: var(--p-surface-500);
-  font-size: 0.625rem;
-}
-
-.item-info {
-  font-size: 0.8125rem;
-  color: var(--p-primary-500);
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.item-rejection-reason {
-  font-size: 0.8125rem;
-  color: var(--p-red-600);
-  background: var(--p-red-50);
-  padding: 0.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--p-red-200);
-  display: flex;
-  align-items: flex-start;
-  gap: 0.375rem;
-  line-height: 1.4;
-}
-
-.item-rejection-reason i {
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-}
-
-.item-date {
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-}
-</style>

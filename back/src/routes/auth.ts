@@ -402,6 +402,7 @@ export const authRouter = router({
 
       return {
         success: true,
+        email: matchedUser.email,
         message: "Password reset successfully. Please log in with your new password.",
       };
     } catch (error) {

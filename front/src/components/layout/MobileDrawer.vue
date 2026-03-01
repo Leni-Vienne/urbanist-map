@@ -7,10 +7,10 @@
   >
     <!-- AI : Mode controls above drawer on mobile, with individual floor clamping -->
     <template #above="{ drawerHeightPx }">
-      <div class="mobile-controls-wrapper">
+      <div class="relative w-full h-0 pointer-events-none">
         <!-- AI : Satellite Preview: Minimum floor 80px. Positioned Left. -->
         <div
-          class="control-wrapper"
+          class="absolute left-0 bottom-0 w-full pointer-events-none"
           :style="{
             marginBottom: `${Math.max(0, 30 - Math.max(drawerHeightPx || 0, 65))}px`,
             zIndex: isSatelliteMenuOpen ? 30 : 10,
@@ -21,7 +21,7 @@
 
         <!-- AI : Mode Controls: Minimum floor 110px. Centered. -->
         <div
-          class="control-wrapper mode-layout"
+          class="absolute left-0 bottom-0 w-full pointer-events-none flex justify-center"
           :style="{
             marginBottom: `${Math.max(0, 110 - Math.max(drawerHeightPx || 0, 65))}px`,
             zIndex: 20,
@@ -34,29 +34,40 @@
 
     <!-- AI : Custom header with title and tab navigation -->
     <template #header>
-      <div class="drawer-header-content">
-        <div class="title-container">
-          <h3 class="drawer-title">{{ $t("app.title") }}</h3>
-          <p class="drawer-subtitle">{{ $t("app.subtitle") }}</p>
+      <div class="flex flex-col gap-1">
+        <div class="title-container ml-4">
+          <h3 class="m-0 text-lg font-semibold text-surface-900 select-none leading-tight">
+            {{ $t("app.title") }}
+          </h3>
+          <p class="mt-1 text-xs text-surface-500 leading-tight">{{ $t("app.subtitle") }}</p>
         </div>
 
         <!-- AI : Tab navigation inside fixed header -->
-        <PanelTabs
-          v-model:active-tab="activeTab"
-          tab-container-class="drawer-tabs"
-          tab-button-class="drawer-tab"
-        />
+        <PanelTabs v-model:active-tab="activeTab" variant="mobile" />
       </div>
     </template>
 
     <!-- AI : Scrollable content area -->
-    <PanelContent :active-tab="activeTab" content-container-class="drawer-content" />
+    <PanelContent
+      :active-tab="activeTab"
+      content-container-class="flex-1 overflow-y-auto bg-surface-0 pb-12"
+    />
 
     <!-- AI : Footer with legal links -->
-    <div class="drawer-footer">
-      <a href="/legal" class="footer-link">{{ $t("footer.legal") }}</a>
-      <span class="footer-separator">•</span>
-      <a href="/contact" class="footer-link">{{ $t("common.contact") }}</a>
+    <div
+      class="absolute bottom-0 left-0 right-0 py-[0.2rem] px-4 bg-surface-50 border-t border-surface-100 flex justify-center items-center gap-2"
+    >
+      <a
+        href="/legal"
+        class="text-surface-600 underline underline-offset-[2px] decoration-surface-400 text-[0.65rem] transition-all duration-150 hover:text-primary-600 hover:decoration-primary-600"
+        >{{ $t("footer.legal") }}</a
+      >
+      <span class="text-surface-400 text-[0.65rem]">•</span>
+      <a
+        href="/contact"
+        class="text-surface-600 underline underline-offset-[2px] decoration-surface-400 text-[0.65rem] transition-all duration-150 hover:text-primary-600 hover:decoration-primary-600"
+        >{{ $t("common.contact") }}</a
+      >
     </div>
   </DraggableDrawer>
 </template>
@@ -106,98 +117,3 @@ const activeTab = computed<PanelTab>({
 // AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
 const { authStore, setActiveTab } = usePanelTabs();
 </script>
-
-<style scoped>
-.drawer-header-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.drawer-title {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--p-surface-900);
-  user-select: none;
-  line-height: 1.2;
-}
-
-.drawer-subtitle {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.75rem;
-  color: var(--p-surface-500);
-  line-height: 1.3;
-}
-
-.title-container {
-  margin-left: 1rem;
-}
-
-:deep(.drawer-content) {
-  flex: 1;
-  overflow-y: auto;
-  background-color: var(--p-surface-0);
-  padding-bottom: 3rem;
-  /* AI : Account for footer height */
-}
-
-.drawer-footer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 0.2rem 1rem;
-  background: var(--p-surface-50);
-  border-top: 1px solid var(--p-surface-100);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.footer-link {
-  color: var(--p-surface-600);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: var(--p-surface-400);
-  font-size: 0.65rem;
-  transition: all 0.15s ease;
-}
-
-.footer-link:hover {
-  color: var(--p-primary-600);
-  text-decoration-color: var(--p-primary-600);
-}
-
-.footer-separator {
-  color: var(--p-surface-400);
-  font-size: 0.65rem;
-}
-
-.mobile-controls-wrapper {
-  position: relative;
-  width: 100%;
-  height: 0;
-  /* Wrapper itself has no height, just anchors */
-  pointer-events: none;
-}
-
-.control-wrapper {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  pointer-events: none;
-}
-
-.mode-layout {
-  display: flex;
-  justify-content: center;
-}
-
-/* AI : Enable interactions for children */
-:deep(.control-wrapper > *) {
-  pointer-events: auto;
-}
-</style>

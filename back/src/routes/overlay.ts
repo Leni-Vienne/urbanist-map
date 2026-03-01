@@ -130,7 +130,7 @@ export const overlayRouter = router({
         const overlayContributions = latestOverlays.map((o) => ({
           type: "overlay" as const,
           id: o.id,
-          name: o.caption ?? o.projectName ?? "Untitled",
+          name: o.caption || o.projectName, // fallback to project name if caption is missing
           filename: o.filename,
           updatedAt: o.updatedAt,
           cityId: o.cityId,

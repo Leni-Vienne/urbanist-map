@@ -1,5 +1,10 @@
 // AI : Shared composable for submission dialog state and handlers
-import { ref } from "vue";
+import {
+  showSubmissionDialog,
+  submissionSummary,
+  pendingSubmissionContext,
+  isSubmitting,
+} from "./submissionDialogState";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -12,7 +17,6 @@ import { useToast } from "@/composables/ui/useToast";
 import {
   useSubmissionService,
   type SubmissionContext,
-  type SubmissionSummary,
   type SubmissionChange,
   type SubmissionChangeType,
   type SubmissionContextExtended,
@@ -262,12 +266,6 @@ export function useSubmissionDialog() {
   const uiStore = useUiStore();
   const pendingModsStore = usePendingModificationsStore();
   const submissionService = useSubmissionService();
-
-  // AI : Shared dialog state
-  const showSubmissionDialog = ref(false);
-  const submissionSummary = ref<SubmissionSummary | null>(null);
-  const pendingSubmissionContext = ref<SubmissionContext | SubmissionContextExtended | null>(null);
-  const isSubmitting = ref(false);
 
   // AI : Get all new/unpublished overlays for a project from the overlay store
   function getNewOverlaysForProject(projectId: string): OverlayObject[] {

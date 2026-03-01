@@ -8,7 +8,6 @@
 
 <script setup lang="ts">
 // AI : Leaflet CSS now loaded from CDN in index.html
-import "leaflet-toolbar/dist/leaflet.toolbar.css";
 import "leaflet-distortableimage/dist/leaflet.distortableimage.css";
 import "./assets/style.css"; // Must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import "primeicons/primeicons.css";
@@ -16,7 +15,7 @@ import MapSvgDefs from "@/components/map/MapSvgDefs.vue";
 
 if (import.meta.env.VITE_DEBUG) {
   // AI : Log all JS chunks downloaded during the initial page load
-  window.addEventListener("load", () => {
+  function onLoad() {
     setTimeout(() => {
       const scripts = performance
         .getEntriesByType("resource")
@@ -34,7 +33,12 @@ if (import.meta.env.VITE_DEBUG) {
       const totalKB = (scripts.reduce((sum, res) => sum + res.transferSize, 0) / 1024).toFixed(2);
       console.log(`Initial JS Chunks Loaded:\n\n${cleanList}\n\nTotal Transfer: ${totalKB} kB`);
     }, 1000);
-  });
+  }
+  if (document.readyState === "complete") {
+    onLoad();
+  } else {
+    window.addEventListener("load", onLoad);
+  }
 
   // AI : Describe the nearest meaningful DOM ancestor of a click target for logging
   function describeClickTarget(target: EventTarget | null): string {

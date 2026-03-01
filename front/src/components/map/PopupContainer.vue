@@ -47,16 +47,6 @@
     :overlayObject="overlayObject"
     @update="handleOverlayUpdate"
   />
-
-  <!-- Submission Confirmation Dialog -->
-  <SubmissionConfirmationDialog
-    v-model:visible="showSubmissionDialog"
-    :summary="submissionSummary"
-    :is-submitting="isSubmitting"
-    @confirm="confirmSubmission"
-    @cancel="cancelSubmission"
-    @remove-change="handleRemoveChange"
-  />
 </template>
 
 <script setup lang="ts">
@@ -83,9 +73,6 @@ const UnifiedProjectPopup = defineAsyncComponent(
   () => import("@/components/map/popups/UnifiedProjectPopup.vue"),
 );
 const OverlayEditor = defineAsyncComponent(() => import("@/components/map/OverlayEditor.vue"));
-const SubmissionConfirmationDialog = defineAsyncComponent(
-  () => import("@/components/submission/SubmissionConfirmationDialog.vue"),
-);
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
@@ -102,17 +89,9 @@ const {
   handleDeleteProject: deleteProjectWithConfirm,
 } = useProjectDeletion();
 
-// AI : Use shared submission dialog composable
-const {
-  showSubmissionDialog,
-  submissionSummary,
-  isSubmitting,
-  prepareOverlaySubmission,
-  prepareProjectWithOverlaysSubmission,
-  confirmSubmission,
-  cancelSubmission,
-  handleRemoveChange,
-} = useSubmissionDialog();
+// AI : Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
+const { isSubmitting, prepareOverlaySubmission, prepareProjectWithOverlaysSubmission } =
+  useSubmissionDialog();
 
 // AI : Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);

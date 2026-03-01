@@ -2,7 +2,7 @@
   <!-- AI : Shared project form fields component used by both CreateProjectForm and EditProjectForm -->
   <div class="flex flex-col gap-4">
     <!-- AI : Project name field -->
-    <div class="form-group">
+    <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <InputText
           id="project-name-input"
@@ -14,16 +14,21 @@
           @blur="handleNameBlur"
           @input="handleNameInput"
         />
-        <label for="project-name-input" class="text-gray-600">{{ $t("project.name") }} *</label>
+        <label for="project-name-input" class="text-[var(--p-surface-600)]"
+          >{{ $t("project.name") }} *</label
+        >
       </FloatLabel>
-      <small v-if="nameError" class="validation-error">{{ nameError }}</small>
-      <small v-if="showNameChangeIndicator" class="change-indicator">
+      <small v-if="nameError" class="text-red-600 text-xs block">{{ nameError }}</small>
+      <small
+        v-if="showNameChangeIndicator"
+        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
         {{ $t("overlay.changedFrom") }}: "{{ originalData?.name || $t("overlay.notSet") }}"
       </small>
     </div>
 
     <!-- AI : Project description field -->
-    <div class="form-group">
+    <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <Textarea
           id="project-description-input"
@@ -33,12 +38,17 @@
           @blur="handleDescriptionBlur"
           @input="handleDescriptionInput"
         />
-        <label for="project-description-input" class="text-gray-600"
+        <label for="project-description-input" class="text-[var(--p-surface-600)]"
           >{{ $t("common.description") }} ({{ $t("project.optionalField") }})</label
         >
       </FloatLabel>
-      <small v-if="descriptionError" class="validation-error">{{ descriptionError }}</small>
-      <small v-if="showDescriptionChangeIndicator" class="change-indicator">
+      <small v-if="descriptionError" class="text-red-600 text-xs block">{{
+        descriptionError
+      }}</small>
+      <small
+        v-if="showDescriptionChangeIndicator"
+        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
         {{ $t("overlay.changedFrom") }}: "{{ originalData?.description || $t("overlay.notSet") }}"
       </small>
     </div>
@@ -50,12 +60,15 @@
       @change="handleTimelineStatusChange"
     />
     <!-- AI : Show change indicator when timeline status changes -->
-    <small v-if="showChangeIndicators && timelineStatusChanged" class="change-indicator">
+    <small
+      v-if="showChangeIndicators && timelineStatusChanged"
+      class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+    >
       {{ timelineStatusChangeMessage }}
     </small>
 
     <!-- AI : Proposal date field (shown when project is proposed) -->
-    <div class="form-group" v-if="localIsProposed">
+    <div class="flex flex-col gap-1" v-if="localIsProposed">
       <FlexibleDatePicker
         v-model="flexibleProposalDate"
         :label="$t('project.proposalDate')"
@@ -66,8 +79,13 @@
         @update:modelValue="handleProposalDateChange"
         @blur="handleProposalDateChange"
       />
-      <small class="text-gray-500 block mt-1">{{ $t("project.proposalDateHelp") }}</small>
-      <small v-if="showProposalDateChangeIndicator" class="change-indicator">
+      <small class="text-[var(--p-surface-500)] block mt-1">{{
+        $t("project.proposalDateHelp")
+      }}</small>
+      <small
+        v-if="showProposalDateChangeIndicator"
+        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
         {{ $t("overlay.changedFrom") }}: "{{
           formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
         }}"
@@ -77,7 +95,7 @@
     <!-- AI : Start and end date fields (shown when project is planned) -->
     <div class="flex flex-col gap-4" v-if="!localIsProposed">
       <!-- AI : Start Date (Optional with checkbox) -->
-      <div class="form-group">
+      <div class="flex flex-col gap-1">
         <div class="flex items-center gap-2 mb-2">
           <Checkbox v-model="projectAlreadyStarted" binary inputId="project-started-checkbox" />
           <label for="project-started-checkbox" class="cursor-pointer">{{
@@ -95,7 +113,10 @@
             @update:modelValue="handleDateChange"
             @blur="handleDateChange"
           />
-          <small v-if="showStartDateChangeIndicator" class="change-indicator">
+          <small
+            v-if="showStartDateChangeIndicator"
+            class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+          >
             {{ $t("overlay.changedFrom") }}: "{{
               formatFlexibleDateFromProp(originalData?.startDate) || $t("overlay.notSet")
             }}"
@@ -104,7 +125,7 @@
       </div>
 
       <!-- AI : End Date -->
-      <div class="form-group">
+      <div class="flex flex-col gap-1">
         <FlexibleDatePicker
           v-model="flexibleEndDate"
           :label="$t('project.endDate')"
@@ -114,7 +135,10 @@
           @update:modelValue="handleDateChange"
           @blur="handleDateChange"
         />
-        <small v-if="showEndDateChangeIndicator" class="change-indicator">
+        <small
+          v-if="showEndDateChangeIndicator"
+          class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+        >
           {{ $t("overlay.changedFrom") }}: "{{
             formatFlexibleDateFromProp(originalData?.endDate) || $t("overlay.notSet")
           }}"
@@ -123,7 +147,7 @@
     </div>
 
     <!-- AI : City select field -->
-    <div class="form-group">
+    <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <CitySelect
           ref="citySelectRef"
@@ -134,16 +158,21 @@
           required
           @update:modelValue="handleCityIdUpdate"
         />
-        <label for="location-select" class="text-gray-600">{{ $t("project.location") }} *</label>
+        <label for="location-select" class="text-[var(--p-surface-600)]"
+          >{{ $t("project.location") }} *</label
+        >
       </FloatLabel>
-      <small v-if="cityIdError" class="validation-error">{{ cityIdError }}</small>
-      <small v-if="showCityChangeIndicator" class="change-indicator">
+      <small v-if="cityIdError" class="text-red-600 text-xs block">{{ cityIdError }}</small>
+      <small
+        v-if="showCityChangeIndicator"
+        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
         {{ $t("overlay.changedFrom") }}: {{ getCityNameSafe(originalData?.cityId) }}
       </small>
     </div>
 
     <!-- AI : Source URL field -->
-    <div class="form-group">
+    <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <InputText
           id="source-url-input"
@@ -154,12 +183,15 @@
           @blur="handleSourceUrlBlur"
           @input="handleSourceUrlInput"
         />
-        <label for="source-url-input" class="text-gray-600"
+        <label for="source-url-input" class="text-[var(--p-surface-600)]"
           >{{ $t("project.sourceUrl") }} ({{ $t("project.optionalField") }})</label
         >
       </FloatLabel>
-      <small v-if="sourceUrlError" class="validation-error">{{ sourceUrlError }}</small>
-      <small v-if="showSourceUrlChangeIndicator" class="change-indicator">
+      <small v-if="sourceUrlError" class="text-red-600 text-xs block">{{ sourceUrlError }}</small>
+      <small
+        v-if="showSourceUrlChangeIndicator"
+        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
         {{ $t("overlay.changedFrom") }}: "{{ originalData?.sourceUrl || $t("overlay.notSet") }}"
       </small>
     </div>
@@ -568,32 +600,3 @@ defineExpose({
   },
 });
 </script>
-
-<style scoped>
-/* AI : Form group styling */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-/* AI : Validation error styling */
-.validation-error {
-  color: #dc2626;
-  font-size: 0.75rem;
-  display: block;
-}
-
-/* AI : Change indicator styling (matches BaseEditForm) */
-.change-indicator {
-  color: #92400e;
-  font-style: italic;
-  background: #fef3c7;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  min-height: 1.25rem;
-  display: flex;
-  align-items: center;
-}
-</style>

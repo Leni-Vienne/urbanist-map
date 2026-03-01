@@ -27,14 +27,6 @@ export function setChangeRequestsForPreview(changeRequests: PendingChangeRequest
 }
 
 /**
- * AI : Clear preview state (standalone function, can be called outside composable context)
- * AI : This is safe because it only mutates module-level state without using composable features
- */
-export function clearChangeRequestPreview(): void {
-  previewState.value = { type: "none" };
-}
-
-/**
  * AI : Sync preview state when navigating to an overlay.
  * Finds geometry change requests for the overlay and updates preview state accordingly
  */
