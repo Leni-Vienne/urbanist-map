@@ -1,28 +1,20 @@
 <template>
-  <div v-if="project" class="mb-3">
-    <div class="flex justify-between items-center mb-2">
-      <div class="text-sm font-semibold text-[var(--p-text-secondary)] tracking-wide">
-        {{ $t("project.information") }}
-      </div>
-      <div class="flex gap-1">
-        <slot name="actions" :project="project" />
-      </div>
+  <div v-if="project" class="flex flex-col gap-3">
+    <div v-if="showName" :class="cls.row">
+      <span :class="cls.label">{{ $t("project.name") }}</span>
+      <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
-    <div class="bg-gray-50 rounded-lg p-3 border border-gray-200 divide-y divide-gray-100">
+    <div v-if="showDescription" :class="cls.row">
+      <span :class="cls.label">{{ $t("common.description") }}</span>
+      <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
+      <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
+        + {{ $t("common.addField") }}
+      </button>
+      <span v-else :class="cls.value">—</span>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
       <div :class="cls.row">
-        <span :class="cls.label">{{ $t("project.name") }}:</span>
-        <span :class="cls.value">{{ project.name ?? "—" }}</span>
-      </div>
-      <div v-if="showDescription" :class="cls.row">
-        <span :class="cls.label">{{ $t("common.description") }}:</span>
-        <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
-        <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
-          + {{ $t("common.addField") }}
-        </button>
-        <span v-else :class="cls.value">—</span>
-      </div>
-      <div :class="cls.row">
-        <span :class="cls.label">{{ $t("project.location") }}:</span>
+        <span :class="cls.label">{{ $t("project.location") }}</span>
         <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
           projectLocationDisplay
         }}</span>
@@ -32,8 +24,8 @@
         <span v-else :class="cls.value">—</span>
       </div>
       <div :class="cls.row">
-        <span :class="cls.label">{{ $t("project.period") }}:</span>
-        <span class="flex-1 text-right text-[0.8rem] text-[var(--p-text-muted)] break-words">
+        <span :class="cls.label">{{ $t("project.period") }}</span>
+        <span :class="cls.value">
           {{
             formatProjectDateRange(
               project.startDate,
@@ -47,21 +39,22 @@
           }}
         </span>
       </div>
-      <div v-if="project.sourceUrl" :class="cls.row">
-        <span :class="cls.label">{{ $t("project.source") }}:</span>
-        <a
-          :href="project.sourceUrl"
-          target="_blank"
-          class="flex-1 text-right text-sm text-[var(--p-primary-600)] no-underline hover:underline break-words"
-          >{{ formatSourceUrl(project.sourceUrl) }}</a
-        >
-      </div>
-      <div v-else-if="editMode" :class="cls.row">
-        <span :class="cls.label">{{ $t("project.source") }}:</span>
-        <button :class="cls.addBtn" @click="emit('field-click')">
-          + {{ $t("common.addField") }}
-        </button>
-      </div>
+    </div>
+    <div v-if="project.sourceUrl" :class="cls.row">
+      <span :class="cls.label">{{ $t("project.source") }}</span>
+      <a
+        :href="project.sourceUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-[13px] text-[var(--p-primary-600)] no-underline hover:underline break-words"
+        >{{ formatSourceUrl(project.sourceUrl) }}</a
+      >
+    </div>
+    <div v-else-if="editMode" :class="cls.row">
+      <span :class="cls.label">{{ $t("project.source") }}</span>
+      <button :class="cls.addBtn" @click="emit('field-click')">
+        + {{ $t("common.addField") }}
+      </button>
     </div>
   </div>
 </template>
@@ -78,27 +71,28 @@ const { t: $t } = useI18n();
 const emit = defineEmits<{ "field-click": [] }>();
 
 const cls = {
-  row: "flex justify-between items-start py-1",
-  label: "text-sm font-semibold text-[var(--p-text-secondary)] min-w-[80px] mr-2",
-  value: "flex-1 text-right text-sm break-words",
+  row: "flex flex-col gap-0.5",
+  label: "text-[10px] font-medium uppercase tracking-[0.07em] text-[var(--p-text-muted-color)]",
+  value: "text-[13px] text-[var(--p-text-color)] break-words",
   addBtn:
-    "ml-auto text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-600)] cursor-pointer bg-transparent border-none p-0 outline-none",
+    "text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-700)] cursor-pointer bg-transparent border-none p-0 outline-none text-left",
 };
 
 interface Props {
   project: Project | null;
+  showName?: boolean;
   showDescription?: boolean;
   editMode?: boolean;
   availableCities?: { id: number; name: string; countryCode: string }[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  showName: true,
   showDescription: false,
   editMode: false,
   availableCities: () => [],
 });
 
-// AI : Convert to computed property for reactivity to project changes
 const projectLocationDisplay = computed(() => {
   if (!props.project) return "—";
 
@@ -108,7 +102,6 @@ const projectLocationDisplay = computed(() => {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
 
-  // AI : Use available cities if provided by parent
   if (project.cityId && props.availableCities) {
     const city = props.availableCities.find((c) => c.id === project.cityId);
     if (city) {

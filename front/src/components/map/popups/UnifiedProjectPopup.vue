@@ -1,114 +1,108 @@
 <template>
   <div
     :class="['unified-popup', `popup-source-${props.source}`]"
-    class="p-4 w-[300px] min-h-[200px] bg-[var(--p-surface-0)] cursor-text select-text rounded-xl shadow-[var(--p-shadow-md)] pointer-events-auto relative z-[1000]"
+    class="w-[300px] min-h-[200px] bg-[var(--p-surface-0)] cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-[1000]"
     @click.stop
   >
-    <div v-if="loading" class="flex justify-center items-center h-[200px]">
+    <div v-if="loading" class="flex justify-center items-center h-[200px] p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
-    <div v-else class="project-details">
-      <!-- Project Information Section -->
-      <ProjectMetadataCard
-        :project="project"
-        :show-description="true"
-        :show-coordinates="!overlay"
-        :edit-mode="!viewMode"
-        :available-cities="availableCities"
-        @field-click="emit('edit-project', project)"
-      >
-        <template #actions="{ project }">
-          <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
-          <Button
-            v-if="!viewMode && project && user"
-            icon="pi pi-pencil"
-            :class="['p-button-sm', 'p-button-text']"
-            @click="emit('edit-project', project)"
-            v-tooltip.top="
-              project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
-            "
-          />
-          <!-- AI : Delete button (for unsubmitted projects or pending projects owned by user) -->
-          <Button
-            v-if="canDeleteProject"
-            icon="pi pi-trash"
-            :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
-            @click="emit('delete-project', project)"
-            v-tooltip.top="$t('contribute.deleteProject')"
-          />
-          <!-- AI : Close button (only for project-only view) -->
-          <Button
-            v-if="!overlay"
-            icon="pi pi-times"
-            class="p-button-sm p-button-text p-button-secondary"
-            @click="emit('close-popup')"
-            v-tooltip.top="$t('common.close')"
-          />
-        </template>
-      </ProjectMetadataCard>
-
-      <!-- Overlay Information Section (only if viewing an overlay) -->
-      <div v-if="overlay" class="mt-4">
-        <div class="section-header-row">
-          <div class="section-header">{{ $t("overlay.overlayInformation") }}</div>
-          <div class="flex gap-1">
+    <div v-else>
+      <!-- Project header: project name + action buttons -->
+      <div class="px-4 pt-3 pb-2 border-b border-[var(--p-surface-200)]">
+        <div :class="['flex gap-2', overlay ? 'items-start' : 'items-center']">
+          <!-- Left: project name stacked above overlay subtitle -->
+          <div class="flex-1 flex flex-col gap-0.5 min-w-0">
+            <span class="text-sm font-semibold text-[var(--p-text-color)] leading-snug">
+              {{ project?.name || "—" }}
+            </span>
+            <!-- Overlay subtitle: image name or untitled + text "modifier" link -->
+            <div v-if="overlay" class="flex items-baseline gap-1.5">
+              <span class="text-xs italic text-[var(--p-text-muted-color)] leading-snug">
+                {{ overlay.caption || $t("overlay.untitled") }}
+              </span>
+              <button
+                v-if="!viewMode && user"
+                class="text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-700)] cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
+                @click="emit('edit-overlay', overlay)"
+              >
+                {{ $t("common.edit") }}
+              </button>
+              <button
+                v-if="
+                  !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
+                "
+                class="text-xs italic text-[var(--p-red-400)] hover:text-[var(--p-red-600)] cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
+                @click="emit('delete-overlay', overlay)"
+              >
+                {{ $t("common.delete") }}
+              </button>
+            </div>
+          </div>
+          <!-- Right: project action buttons -->
+          <div class="flex gap-1 shrink-0">
             <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
             <Button
-              v-if="!viewMode && user"
+              v-if="!viewMode && project && user"
               icon="pi pi-pencil"
               :class="['p-button-sm', 'p-button-text']"
-              @click="emit('edit-overlay', overlay)"
+              @click="emit('edit-project', project)"
               v-tooltip.top="
-                overlay.authorId === user.id
-                  ? $t('tooltips.editOverlay')
-                  : $t('tooltips.suggestChanges')
+                project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
               "
             />
-            <!-- AI : Delete button (only for pending overlays owned by user) -->
+            <!-- AI : Delete button (for unsubmitted projects or pending projects owned by user) -->
             <Button
-              v-if="
-                !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
-              "
+              v-if="canDeleteProject"
               icon="pi pi-trash"
               :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
-              @click="emit('delete-overlay', overlay)"
-              v-tooltip.top="$t('contribute.deleteOverlay')"
+              @click="emit('delete-project', project)"
+              v-tooltip.top="$t('contribute.deleteProject')"
+            />
+            <!-- AI : Close button (only for project-only view) -->
+            <Button
+              v-if="!overlay"
+              icon="pi pi-times"
+              class="p-button-sm p-button-text p-button-secondary"
+              @click="emit('close-popup')"
+              v-tooltip.top="$t('common.close')"
             />
           </div>
         </div>
+      </div>
 
-        <div class="info-card">
-          <div class="info-row">
-            <span class="info-label">{{ $t("common.name") }}:</span>
-            <span v-if="overlay.caption" class="info-value">{{ overlay.caption }}</span>
-            <button
-              v-else-if="!viewMode"
-              class="ml-auto text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-600)] cursor-pointer bg-transparent border-none p-0 outline-none"
-              @click="emit('edit-overlay', overlay)"
-            >
-              + {{ $t("common.addField") }}
-            </button>
-            <span v-else class="info-value">—</span>
-          </div>
-          <!-- AI : Show view original button for pending replacements -->
-          <div
-            v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
-            class="mt-2 pt-2 border-t border-[var(--p-surface-200)]"
+      <!-- Project fields + overlay section -->
+      <div class="px-4 pt-3 pb-4">
+        <ProjectMetadataCard
+          :project="project"
+          :show-name="false"
+          :show-description="true"
+          :edit-mode="!viewMode"
+          :available-cities="availableCities"
+          @field-click="emit('edit-project', project)"
+        />
+
+        <!-- AI : Show view original button for pending replacements -->
+        <div
+          v-if="overlay?.replacesOverlayId && overlay?.status === 'pending'"
+          class="mt-3 pt-3 border-t border-[var(--p-surface-200)]"
+        >
+          <button
+            class="inline-flex items-center gap-2 font-medium text-sm text-[var(--p-purple-600)] bg-[var(--p-purple-50)] border border-[var(--p-purple-200)] rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-[var(--p-purple-100)] hover:border-[var(--p-purple-300)] hover:text-[var(--p-purple-700)]"
+            @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
           >
-            <button
-              class="inline-flex items-center gap-2 font-medium text-sm text-[var(--p-purple-600)] bg-[var(--p-purple-50)] border border-[var(--p-purple-200)] rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-[var(--p-purple-100)] hover:border-[var(--p-purple-300)] hover:text-[var(--p-purple-700)]"
-              @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
-            >
-              <i class="pi pi-arrow-left text-sm"></i>
-              {{ $t("overlay.viewOriginalOverlay") }}
-            </button>
-          </div>
+            <i class="pi pi-arrow-left text-sm"></i>
+            {{ $t("overlay.viewOriginalOverlay") }}
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div v-if="!viewMode" class="mt-4 flex gap-2 items-stretch">
+    <div
+      v-if="!viewMode"
+      class="px-4 pb-4 pt-3 flex gap-2 items-stretch border-t border-[var(--p-surface-200)]"
+    >
       <Button
         class="flex-1"
         :label="$t('project.submitChangeRequest')"
