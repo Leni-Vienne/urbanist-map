@@ -1,15 +1,15 @@
-// AI : ============================================================================
-// AI : CITY MARKERS STORE - Manages city marker state for HMR safety
-// AI : ============================================================================
-// AI : This store replaces module-level variables in cityMarkers.ts to ensure
-// AI : state persists correctly during HMR (Hot Module Replacement) in development.
-// AI : ============================================================================
+// ============================================================================
+// CITY MARKERS STORE - Manages city marker state for HMR safety
+// ============================================================================
+// This store replaces module-level variables in cityMarkers.ts to ensure
+// state persists correctly during HMR (Hot Module Replacement) in development.
+// ============================================================================
 
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, shallowRef } from "vue";
 import type * as L from "leaflet";
 
-// AI : Type for unsaved city marker data
+// Type for unsaved city marker data
 interface UnsavedCityData {
   name: string;
   nameLocal: string | null;
@@ -20,12 +20,12 @@ interface UnsavedCityData {
 
 export const useCityMarkersStore = defineStore("cityMarkers", () => {
   const cityMarkersLayer = shallowRef<L.LayerGroup | null>(null);
-  // AI : Use shallowRef to avoid Vue's deep reactivity wrapping which breaks Leaflet marker types
+  // Use shallowRef to avoid Vue's deep reactivity wrapping which breaks Leaflet marker types
   const cityMarkerMap = shallowRef<Map<string, L.Marker>>(new Map());
-  // AI : Track city markers for unsaved projects (cityId → city data)
-  // AI : These markers are preserved when rebuilding city marker layer from backend data
+  // Track city markers for unsaved projects (cityId → city data)
+  // These markers are preserved when rebuilding city marker layer from backend data
   const unsavedCityMarkers = ref<Map<number, UnsavedCityData>>(new Map());
-  // AI : Flags to ensure watchers are only set up once (survives HMR via Pinia)
+  // Flags to ensure watchers are only set up once (survives HMR via Pinia)
   const modeWatcherInitialized = ref(false);
   const cityMarkerWatcherInitialized = ref(false);
 
@@ -48,7 +48,7 @@ export const useCityMarkersStore = defineStore("cityMarkers", () => {
   };
 });
 
-// AI : Enable HMR for this store
+// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useCityMarkersStore, import.meta.hot));

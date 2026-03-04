@@ -1,4 +1,4 @@
-// AI : Shared teleport target management for project info popups
+// Shared teleport target management for project info popups
 import type L from "leaflet";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
@@ -8,7 +8,7 @@ let currentMarkerForPopup: L.Marker | null = null;
 let mapClickHandler: (() => void) | null = null;
 
 /**
- * AI : Update teleport target position based on current marker
+ * Update teleport target position based on current marker
  */
 function updateTeleportTargetPosition() {
   if (!currentMarkerForPopup) return;
@@ -24,24 +24,24 @@ function updateTeleportTargetPosition() {
 }
 
 /**
- * AI : Create teleport target for project info popup at marker position
+ * Create teleport target for project info popup at marker position
  */
 export function createProjectInfoTeleportTarget(marker: L.Marker) {
   const markerLatLng = marker.getLatLng();
   const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
 
-  // AI : Check if teleport target already exists (switching markers)
+  // Check if teleport target already exists (switching markers)
   let teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
 
   if (teleportTarget) {
-    // AI : Target exists, just update its position for the new marker
+    // Target exists, just update its position for the new marker
     teleportTarget.style.left = `${markerPoint.x}px`;
     teleportTarget.style.top = `${markerPoint.y}px`;
     currentMarkerForPopup = marker;
     return;
   }
 
-  // AI : No existing target, create a new one
+  // No existing target, create a new one
   currentMarkerForPopup = marker;
 
   teleportTarget = document.createElement("div");
@@ -60,7 +60,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker) {
   const mapContainer = map.value.getContainer();
   mapContainer.appendChild(teleportTarget);
 
-  // AI : Set reactive state for PopupContainer
+  // Set reactive state for PopupContainer
   setProjectPopupTarget(teleportTarget);
 
   map.value.on("move", updateTeleportTargetPosition);
@@ -78,7 +78,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker) {
 }
 
 /**
- * AI : Clean up teleport target and event listeners
+ * Clean up teleport target and event listeners
  */
 export function cleanupProjectInfoTeleportTarget() {
   map.value.off("move", updateTeleportTargetPosition);
@@ -95,7 +95,7 @@ export function cleanupProjectInfoTeleportTarget() {
     existingTarget.remove();
   }
 
-  // AI : Clear reactive state
+  // Clear reactive state
   setProjectPopupTarget(null);
 
   currentMarkerForPopup = null;

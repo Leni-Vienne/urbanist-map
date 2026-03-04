@@ -1,4 +1,4 @@
-// AI : Unified error handling utilities to eliminate repetitive try-catch-toast patterns
+// Unified error handling utilities to eliminate repetitive try-catch-toast patterns
 import { useToast } from "@/composables/ui/useToast";
 
 interface ErrorHandlingOptions {
@@ -21,7 +21,7 @@ interface ErrorHandlingOptions {
 }
 
 /**
- * AI : Execute a sync or async function with automatic error handling and toast notifications
+ * Execute a sync or async function with automatic error handling and toast notifications
  *
  * @example
  * const result = await withErrorHandling(
@@ -49,7 +49,7 @@ export async function withErrorHandling<T>(
   try {
     const result = await fn();
 
-    // AI : Show success toast if provided
+    // Show success toast if provided
     if (successMessage != undefined) {
       toast.add({
         severity: "success",
@@ -59,19 +59,19 @@ export async function withErrorHandling<T>(
       });
     }
 
-    // AI : Call custom success handler
+    // Call custom success handler
     if (onSuccess) {
       onSuccess(result);
     }
 
     return result;
   } catch (error) {
-    // AI : Log error to console
+    // Log error to console
     if (logError) {
       console.error(errorMessage ?? "Error occurred:", error);
     }
 
-    // AI : Show error toast
+    // Show error toast
     if (errorMessage) {
       toast.add({
         severity: "error",
@@ -81,12 +81,12 @@ export async function withErrorHandling<T>(
       });
     }
 
-    // AI : Call custom error handler
+    // Call custom error handler
     if (onError) {
       onError(error);
     }
 
-    // AI : Rethrow if requested
+    // Rethrow if requested
     if (rethrow) {
       throw error;
     }
@@ -96,7 +96,7 @@ export async function withErrorHandling<T>(
 }
 
 /**
- * AI : Execute a sync or async function with error toast notification (always returns result or throws)
+ * Execute a sync or async function with error toast notification (always returns result or throws)
  * Use this when you want the error to propagate but still show a toast
  *
  * @example

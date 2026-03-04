@@ -1,4 +1,4 @@
-// AI : Type definitions for globalThis extensions
+// Type definitions for globalThis extensions
 declare global {
   // Cloudflareturnstile types
   var turnstile:
@@ -9,7 +9,7 @@ declare global {
       }
     | undefined;
 
-  // AI : Google Identity Services types
+  // Google Identity Services types
   var google:
     | {
         accounts: {

@@ -1,6 +1,6 @@
--- AI : This migration converts cities and countries from UUID to integer IDs (GeoNames-based)
--- AI : WARNING: This will delete all existing city and country data
--- AI : This is acceptable for development environments transitioning to GeoNames
+-- This migration converts cities and countries from UUID to integer IDs (GeoNames-based)
+-- WARNING: This will delete all existing city and country data
+-- This is acceptable for development environments transitioning to GeoNames
 
 -- Step 1: Drop foreign key constraints that reference cities
 ALTER TABLE "projects" DROP CONSTRAINT IF EXISTS "projects_city_id_cities_id_fk";-->statement-breakpoint

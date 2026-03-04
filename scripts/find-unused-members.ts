@@ -1,5 +1,5 @@
 /**
- * AI: Script to find unused members exported from Pinia setup stores and composables.
+ * Script to find unused members exported from Pinia setup stores and composables.
  *
  * Both stores (via defineStore) and composables (via `return { ... }`) expose
  * members that are invisible to static analysis tools like knip. This script
@@ -26,10 +26,10 @@ const COMPOSABLES_DIR = join(ROOT, "front/src/composables");
 const SEARCH_DIR = join(ROOT, "front/src");
 const SEARCH_EXTENSIONS = new Set([".ts", ".vue"]);
 
-// AI: Names shorter than this are flagged as low-confidence results
+// Names shorter than this are flagged as low-confidence results
 const MIN_CONFIDENT_LENGTH = 6;
 
-// AI: Recursively collect all files with the given extensions
+// Recursively collect all files with the given extensions
 function getFilesRecursively(dir: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -43,7 +43,7 @@ function getFilesRecursively(dir: string): string[] {
   return files;
 }
 
-// AI: Extract the shorthand property names from the last `return { }` block in a store/composable file.
+// Extract the shorthand property names from the last `return { }` block in a store/composable file.
 // Only matches shorthand properties (bare identifiers), not `key: value` pairs.
 function extractReturnKeys(content: string): string[] {
   const returnIdx = content.lastIndexOf("return {");
@@ -75,7 +75,7 @@ function extractReturnKeys(content: string): string[] {
   for (const line of body.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("//")) continue;
-    // AI: Match `identifier` or `identifier,` optionally followed by an inline comment.
+    // Match `identifier` or `identifier,` optionally followed by an inline comment.
     // Rejects `key: value` patterns because they contain a colon after the identifier.
     const m = trimmed.match(/^([a-zA-Z_$][\w$]*),?\s*(?:\/\/.*)?$/);
     if (m) keys.push(m[1]!);
@@ -84,7 +84,7 @@ function extractReturnKeys(content: string): string[] {
   return keys;
 }
 
-// AI: Count how many files (excluding the source file itself) contain a word-boundary
+// Count how many files (excluding the source file itself) contain a word-boundary
 // match for the given identifier.
 function countUsages(
   identifier: string,
@@ -123,7 +123,7 @@ const analysisFiles: AnalysisFile[] = [
 ];
 const allSourceFiles = getFilesRecursively(SEARCH_DIR);
 
-// AI: Load all source files into memory once to avoid repeated disk reads
+// Load all source files into memory once to avoid repeated disk reads
 console.log(`Loading ${allSourceFiles.length} source files into memory...`);
 const fileContents = new Map<string, string>();
 for (const f of allSourceFiles) {
@@ -141,7 +141,7 @@ for (const { file, kind, dir } of analysisFiles) {
   const members = extractReturnKeys(content);
   if (members.length === 0) continue;
 
-  // AI: Stores use `export const use...`, composables use `export function use...`
+  // Stores use `export const use...`, composables use `export function use...`
   const useFnMatch = content.match(/export (?:const|function) (use\w+)/);
   const fnName = useFnMatch?.[1] ?? relative(dir, file);
   const icon = kind === "store" ? "📦" : "🔧";

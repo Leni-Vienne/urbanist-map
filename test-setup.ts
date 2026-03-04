@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-// AI : Global test setup for vitest
+// Global test setup for vitest
 
 // Mock environment variables
 Object.defineProperty(import.meta, "env", {
@@ -22,21 +22,21 @@ globalThis.console = {
   error: vi.fn(),
 };
 
-// AI : Mock IntersectionObserver for components that might use it
+// Mock IntersectionObserver for components that might use it
 globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
 
-// AI : Mock ResizeObserver
+// Mock ResizeObserver
 globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
 
-// AI : Mock globalThis.matchMedia for responsive components
+// Mock globalThis.matchMedia for responsive components
 Object.defineProperty(globalThis, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
@@ -51,7 +51,7 @@ Object.defineProperty(globalThis, "matchMedia", {
   })),
 });
 
-// AI : Mock localStorage
+// Mock localStorage
 const localStorageMock = {
   getItem: vi.fn(),
   setItem: vi.fn(),
@@ -62,7 +62,7 @@ Object.defineProperty(globalThis, "localStorage", {
   value: localStorageMock,
 });
 
-// AI : Mock sessionStorage
+// Mock sessionStorage
 Object.defineProperty(globalThis, "sessionStorage", {
   value: localStorageMock,
 });

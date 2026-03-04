@@ -1,9 +1,9 @@
 import { ref } from "vue";
 import type { PendingChangeRequest } from "@/types/index";
 
-// AI : State machine for position preview
-// AI : Extracted to separate file to avoid circular dependency between
-// AI : useChangeRequestPreview.ts <-> useOverlayModes.ts
+// State machine for position preview
+// Extracted to separate file to avoid circular dependency between
+// useChangeRequestPreview.ts <-> useOverlayModes.ts
 type PreviewState =
   | { type: "none" }
   | { type: "current"; changeId: string; overlayId: string }
@@ -16,22 +16,22 @@ type PreviewState =
 
 export const previewState = ref<PreviewState>({ type: "none" });
 
-// AI : Store reference to all change requests for syncing preview state on navigation
+// Store reference to all change requests for syncing preview state on navigation
 let allChangeRequestsRef: PendingChangeRequest[] = [];
 
 /**
- * AI : Set change requests reference for preview state syncing
+ * Set change requests reference for preview state syncing
  */
 export function setChangeRequestsForPreview(changeRequests: PendingChangeRequest[]): void {
   allChangeRequestsRef = changeRequests;
 }
 
 /**
- * AI : Sync preview state when navigating to an overlay.
+ * Sync preview state when navigating to an overlay.
  * Finds geometry change requests for the overlay and updates preview state accordingly
  */
 export function syncPreviewStateOnNavigation(overlayId: string, isViewingApproved: boolean): void {
-  // AI : Find geometry change request for this overlay
+  // Find geometry change request for this overlay
   const geometryChange = allChangeRequestsRef.find(
     (cr) =>
       cr.entityType === "overlay" &&
@@ -40,12 +40,12 @@ export function syncPreviewStateOnNavigation(overlayId: string, isViewingApprove
   );
 
   if (!geometryChange) {
-    // AI : No geometry change request found, clear preview state
+    // No geometry change request found, clear preview state
     previewState.value = { type: "none" };
     return;
   }
 
-  // AI : Update preview state based on which position is being viewed
+  // Update preview state based on which position is being viewed
   if (isViewingApproved) {
     previewState.value = {
       type: "current",
@@ -53,7 +53,7 @@ export function syncPreviewStateOnNavigation(overlayId: string, isViewingApprove
       overlayId,
     };
   } else {
-    // AI : For suggested position, we need the corners from the change request
+    // For suggested position, we need the corners from the change request
     const corners = geometryChange.newValue as { lat: number; lng: number }[] | null;
     if (corners && Array.isArray(corners)) {
       previewState.value = {
@@ -66,7 +66,6 @@ export function syncPreviewStateOnNavigation(overlayId: string, isViewingApprove
   }
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

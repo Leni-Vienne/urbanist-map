@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Dialog
     v-model:visible="visible"
     modal
@@ -13,12 +13,14 @@
     class="p-fluid auth-modal-overflow"
     data-testid="auth-modal"
   >
-    <!-- AI : Forgot Password Mode -->
+    <!-- Forgot Password Mode -->
     <div v-if="isForgotPasswordMode">
-      <p class="text-muted-color mb-4">{{ $t("auth.forgotPasswordMessage") }}</p>
+      <p class="text-muted-color mb-4">
+        {{ $t("auth.forgotPasswordMessage") }}
+      </p>
 
       <form @submit.prevent="handleForgotPassword" class="flex flex-col gap-4" autocomplete="on">
-        <div class="field">
+        <div>
           <label for="forgot-email" class="block text-sm font-medium mb-2">{{
             $t("auth.emailAddress")
           }}</label>
@@ -73,9 +75,9 @@
       </form>
     </div>
 
-    <!-- AI : Normal Auth Mode (Sign In / Sign Up) -->
+    <!-- Normal Auth Mode (Sign In / Sign Up) -->
     <div v-else :class="{ 'pt-3': lastLoginMethod === 'google' && isLoginMode }">
-      <!-- AI : Social Login Section -->
+      <!-- Social Login Section -->
       <div class="mb-6 overflow-visible">
         <div class="flex flex-col gap-3 mb-4 overflow-visible">
           <div class="relative overflow-visible">
@@ -87,9 +89,11 @@
               :loading="oauthLoading"
               :disabled="oauthLoading"
               class="w-full"
-              :class="{ 'last-used-method': lastLoginMethod === 'google' && isLoginMode }"
+              :class="{
+                'last-used-method': lastLoginMethod === 'google' && isLoginMode,
+              }"
             />
-            <!-- AI : Last used badge for Google -->
+            <!-- Last used badge for Google -->
             <span
               v-if="lastLoginMethod === 'google' && isLoginMode"
               class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
@@ -106,9 +110,9 @@
         </div>
 
         <div class="flex items-center my-4">
-          <div class="flex-1 border-t border-surface-300"></div>
+          <div class="flex-1 border-t border-surface"></div>
           <span class="px-3 text-sm text-muted-color">{{ $t("auth.orContinueWithEmail") }}</span>
-          <div class="flex-1 border-t border-surface-300"></div>
+          <div class="flex-1 border-t border-surface"></div>
         </div>
       </div>
 
@@ -126,13 +130,15 @@
             :placeholder="$t('auth.enterEmailAddress')"
             autocomplete="email"
             class="w-full"
-            :class="{ 'last-used-input': lastLoginMethod === 'email' && isLoginMode }"
+            :class="{
+              'last-used-input': lastLoginMethod === 'email' && isLoginMode,
+            }"
             data-testid="auth-email-input"
           />
-          <!-- AI : Last used badge for email method -->
+          <!-- Last used badge for email method -->
           <span
             v-if="lastLoginMethod === 'email' && isLoginMode && form.email"
-            class="absolute top-[1.875rem] -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
+            class="absolute top-7.5 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
             style="
               background-color: var(--p-primary-color);
               color: var(--p-primary-contrast-color);
@@ -145,7 +151,7 @@
           <small v-if="emailError" class="p-error">{{ emailError }}</small>
         </div>
 
-        <div class="field">
+        <div>
           <div class="flex justify-between items-center mb-2">
             <label for="auth-password" class="block text-sm font-medium">{{
               $t("auth.password")
@@ -169,13 +175,15 @@
             required
             :invalid="!!passwordError"
             :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
-            :inputProps="{ autocomplete: isLoginMode ? 'current-password' : 'new-password' }"
+            :inputProps="{
+              autocomplete: isLoginMode ? 'current-password' : 'new-password',
+            }"
             data-testid="auth-password-input"
           />
           <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
         </div>
 
-        <div v-if="!isLoginMode" class="field">
+        <div v-if="!isLoginMode">
           <label for="auth-username" class="block text-sm font-medium mb-2">
             {{ $t("auth.username") }}
           </label>
@@ -191,7 +199,7 @@
           <small class="text-muted-color text-xs">{{ $t("auth.displayName") }}</small>
         </div>
 
-        <!-- AI : Remember Me Checkbox (only in login mode) -->
+        <!-- Remember Me Checkbox (only in login mode) -->
         <div v-if="isLoginMode" class="field-checkbox flex items-center gap-2">
           <Checkbox
             inputId="auth-remember-me"
@@ -205,7 +213,7 @@
           </label>
         </div>
 
-        <!-- AI : CAPTCHA Widget (only for registration) -->
+        <!-- CAPTCHA Widget (only for registration) -->
         <div v-if="!isLoginMode" class="field flex justify-center py-2">
           <div id="turnstile-widget"></div>
         </div>
@@ -218,7 +226,7 @@
           {{ errorMessage }}
         </div>
 
-        <!-- AI : Registration success message -->
+        <!-- Registration success message -->
         <div
           v-if="registrationSuccess && !isLoginMode"
           class="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded"
@@ -242,7 +250,7 @@
             data-testid="auth-submit-button"
           />
 
-          <div class="text-center pt-3 border-t border-surface-300">
+          <div class="text-center pt-3 border-t border-surface">
             <span class="text-sm text-muted-color">
               {{ isLoginMode ? $t("auth.dontHaveAccount") : $t("auth.alreadyHaveAccount") }}
             </span>
@@ -294,7 +302,7 @@ const registrationSuccess = ref(false);
 const captchaToken = ref("");
 const turnstileWidgetId = ref<string | null>(null);
 
-// AI : Track last login method hint
+// Track last login method hint
 const lastLoginMethod = ref<"email" | "google" | null>(null);
 
 const visible = computed({
@@ -309,7 +317,7 @@ const form = reactive({
   rememberMe: false,
 });
 
-// AI : Watch email field to show last login hint
+// Watch email field to show last login hint
 watch(
   () => form.email,
   (email) => {
@@ -321,29 +329,29 @@ watch(
   },
 );
 
-// AI : Reset loading states and errors when modal opens/closes
+// Reset loading states and errors when modal opens/closes
 watch(
   () => props.visible,
   (isVisible) => {
     if (isVisible) {
-      // AI : Reset all state when modal opens
+      // Reset all state when modal opens
       oauthLoading.value = false;
       loading.value = false;
       errorMessage.value = "";
     } else {
-      // AI : Clean up when modal closes
+      // Clean up when modal closes
       oauthLoading.value = false;
       loading.value = false;
     }
 
-    // AI : Handle Turnstile rendering when modal opens or mode changes
+    // Handle Turnstile rendering when modal opens or mode changes
     if (isVisible && !isLoginMode.value) {
       nextTick(() => renderTurnstile());
     }
   },
 );
 
-// AI : Watch mode switch to render/reset Turnstile
+// Watch mode switch to render/reset Turnstile
 watch(isLoginMode, (isLogin) => {
   if (!isLogin && props.visible) {
     nextTick(() => renderTurnstile());
@@ -352,7 +360,7 @@ watch(isLoginMode, (isLogin) => {
   }
 });
 
-// AI : Lazily inject the Turnstile script the first time signup mode is shown
+// Lazily inject the Turnstile script the first time signup mode is shown
 function loadTurnstileScript(): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     if (globalThis.turnstile) {
@@ -379,21 +387,21 @@ function loadTurnstileScript(): Promise<void> {
   });
 }
 
-// AI : Cloudflare Turnstile Integration
+// Cloudflare Turnstile Integration
 async function renderTurnstile() {
   await loadTurnstileScript();
 
-  // AI : Check if globalThis.turnstile is available and widget container exists
+  // Check if globalThis.turnstile is available and widget container exists
   if (globalThis.turnstile && document.getElementById("turnstile-widget")) {
-    // AI : Reset if already rendered to avoid duplicates
+    // Reset if already rendered to avoid duplicates
     if (turnstileWidgetId.value) {
       globalThis.turnstile.remove(turnstileWidgetId.value);
     }
 
-    // AI : Get site key from env (Vite exposes env vars via import.meta.env)
+    // Get site key from env (Vite exposes env vars via import.meta.env)
     const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
     if (!siteKey) {
-      console.warn("AI: Missing VITE_TURNSTILE_SITE_KEY, CAPTCHA will be skipped in dev");
+      console.warn("Missing VITE_TURNSTILE_SITE_KEY, CAPTCHA will be skipped in dev");
       return; // Skip rendering if no key (dev mode)
     }
 
@@ -418,18 +426,18 @@ function resetTurnstile() {
   captchaToken.value = "";
 }
 
-// AI : Helper to translate error messages (handles both i18n keys and plain text)
+// Helper to translate error messages (handles both i18n keys and plain text)
 function translateError(errorKey: string | null | undefined): string {
   if (!errorKey) return "";
 
-  // AI : Check if it looks like an i18n key (contains dots and starts with 'auth.')
+  // Check if it looks like an i18n key (contains dots and starts with 'auth.')
   if (errorKey.startsWith("auth.")) {
-    // AI : Try to translate, fallback to original if key doesn't exist
+    // Try to translate, fallback to original if key doesn't exist
     const translated = $t(errorKey);
     return translated !== errorKey ? translated : errorKey;
   }
 
-  // AI : Return as-is for non-i18n error messages
+  // Return as-is for non-i18n error messages
   return errorKey;
 }
 
@@ -484,7 +492,7 @@ async function handleSubmit() {
         errorMessage.value = translateError(result.error) || $t("auth.error.loginFailed");
       }
     } else {
-      // AI : Pass captcha token
+      // Pass captcha token
       const result = await authStore.signUp(
         form.email,
         form.password,
@@ -492,7 +500,7 @@ async function handleSubmit() {
         captchaToken.value,
       );
       if (result.success) {
-        // AI : Show success message but keep modal open
+        // Show success message but keep modal open
         registrationSuccess.value = true;
         errorMessage.value = "";
         toast.add({
@@ -501,10 +509,10 @@ async function handleSubmit() {
           detail: $t("auth.success.registered"),
           life: 3000,
         });
-        // AI : Do not close modal or reset form to show verification message
+        // Do not close modal or reset form to show verification message
       } else {
         errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
-        // AI : Reset captcha on failure
+        // Reset captcha on failure
         if (globalThis.turnstile && turnstileWidgetId.value) {
           globalThis.turnstile.reset(turnstileWidgetId.value);
           captchaToken.value = "";
@@ -519,7 +527,7 @@ async function handleSubmit() {
   }
 }
 
-// AI : Handle OAuth sign in
+// Handle OAuth sign in
 async function handleOAuthSignIn(provider: "google") {
   oauthLoading.value = true;
   errorMessage.value = "";
@@ -539,16 +547,16 @@ async function handleOAuthSignIn(provider: "google") {
       errorMessage.value = translateError(result.error) || $t("auth.error.googleAuthFailed");
     }
   } catch (error) {
-    console.error("AI: OAuth sign in error:", error);
+    console.error("OAuth sign in error:", error);
     errorMessage.value =
       translateError(error instanceof Error ? error.message : null) || $t("common.error");
   } finally {
-    // AI : Always reset loading state to prevent modal from being stuck in disabled state
+    // Always reset loading state to prevent modal from being stuck in disabled state
     oauthLoading.value = false;
   }
 }
 
-// AI : Handle forgot password request
+// Handle forgot password request
 async function handleForgotPassword() {
   loading.value = true;
   errorMessage.value = "";
@@ -577,7 +585,7 @@ async function handleForgotPassword() {
 </script>
 
 <style scoped>
-/* AI : Allow overflow for badges to appear above dialog content */
+/* Allow overflow for badges to appear above dialog content */
 .auth-modal-overflow :deep(.p-dialog-content) {
   overflow: visible !important;
   padding-top: 1.5rem !important;
@@ -589,7 +597,7 @@ async function handleForgotPassword() {
 </style>
 
 <style scoped>
-/* AI : Highlight last used login method with border color using PrimeVue tokens */
+/* Highlight last used login method with border color using PrimeVue tokens */
 .last-used-method {
   border: 1px solid var(--p-primary-color) !important;
   box-shadow: 0 0 0 2px var(--p-primary-50) !important;

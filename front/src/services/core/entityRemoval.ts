@@ -1,6 +1,6 @@
-// AI : Unified entity removal service
-// AI : Centralizes logic for removing projects and overlays from stores, map, and caches
-// AI : Extracted from composables to separate business logic from Vue context
+// Unified entity removal service
+// Centralizes logic for removing projects and overlays from stores, map, and caches
+// Extracted from composables to separate business logic from Vue context
 
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -17,7 +17,7 @@ import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 
-// AI : Options for deleteOverlayDirect, allowing callers to customize behavior
+// Options for deleteOverlayDirect, allowing callers to customize behavior
 interface DeleteOverlayOptions {
   showToast?: boolean;
   updateUserContributions?: boolean;
@@ -25,34 +25,34 @@ interface DeleteOverlayOptions {
 }
 
 /**
- * AI : Remove overlay from map layers and overlay store
+ * Remove overlay from map layers and overlay store
  */
 export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayStore = useOverlayStore();
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) return;
 
-  // AI : Remove Leaflet layer and marker from map via registry
+  // Remove Leaflet layer and marker from map via registry
   clearRegistryEntry(overlayId);
 
-  // AI : Remove from store
+  // Remove from store
   delete overlayStore.overlays[overlayId];
 
-  // AI : Clear specific caches
+  // Clear specific caches
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
   overlayStore.loadedEditOverlays.delete(overlayId);
 
-  // AI : Reset selection if needed
+  // Reset selection if needed
   if (overlayStore.idSelectedOverlay === overlayId) {
     overlayStore.idSelectedOverlay = null;
   }
 
-  // AI : Clear any pending modifications for this overlay (prevents stale entries in submission dialog)
+  // Clear any pending modifications for this overlay (prevents stale entries in submission dialog)
   usePendingModificationsStore().clearModification(overlayId);
 }
 
 /**
- * AI : Remove project standalone marker from map
+ * Remove project standalone marker from map
  */
 function removeProjectMarkerFromMap(projectId: string) {
   const marker = getStandaloneProjectMarkerByProjectId(projectId);
@@ -62,8 +62,8 @@ function removeProjectMarkerFromMap(projectId: string) {
 }
 
 /**
- * AI : Comprehensive overlay removal
- * AI : Handles Store, Map, Cache, Project Association, and Standalone Marker restoration
+ * Comprehensive overlay removal
+ * Handles Store, Map, Cache, Project Association, and Standalone Marker restoration
  */
 function removeOverlay(
   overlayId: string,
@@ -76,32 +76,32 @@ function removeOverlay(
   const mapStore = useMapStore();
   const authStore = useAuthStore();
 
-  // AI : 1. Find parent project to update its overlay list
+  // 1. Find parent project to update its overlay list
   const allProjectsData = projectStore.allProjects;
-  // AI : Find project by overlayIds array (most reliable source)
+  // Find project by overlayIds array (most reliable source)
   const projectWithOverlay = Object.values(allProjectsData).find((p) =>
     p.overlayIds.includes(overlayId),
   );
 
   if (projectWithOverlay) {
-    // AI : Update project overlay list
+    // Update project overlay list
     const updatedOverlayIds = projectWithOverlay.overlayIds.filter((id) => id !== overlayId);
     projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds });
 
-    // AI : 2. Restore standalone marker if this was the last overlay
+    // 2. Restore standalone marker if this was the last overlay
     const isLastOverlay = updatedOverlayIds.length === 0;
     if (isLastOverlay && projectWithOverlay.lat && projectWithOverlay.lng) {
-      // AI : Small delay ensures map is ready after removal animations
+      // Small delay ensures map is ready after removal animations
       setTimeout(() => {
         addStandaloneProjectMarkerForProject(projectWithOverlay);
       }, 150);
     }
   }
 
-  // AI : 3. Remove native map layers and store entries
+  // 3. Remove native map layers and store entries
   removeOverlayFromMapAndStore(overlayId);
 
-  // AI : 4. Update interactions with other stores
+  // 4. Update interactions with other stores
   if (options.updateUserContributions) {
     projectStore.removeOverlayFromUserContributions(overlayId, authStore.user?.id);
   }
@@ -111,13 +111,13 @@ function removeOverlay(
     mapStore.clearCityStandaloneProjectsCache();
   }
 
-  // AI : Also remove standalone marker for this specific overlay ID (legacy/edge case support)
+  // Also remove standalone marker for this specific overlay ID (legacy/edge case support)
   removeProjectMarkerFromMap(overlayId);
 }
 
 /**
- * AI : Comprehensive project removal
- * AI : Removes project and all its associated overlays
+ * Comprehensive project removal
+ * Removes project and all its associated overlays
  */
 export function removeProject(
   projectId: string,
@@ -130,38 +130,38 @@ export function removeProject(
 
   const project = projectStore.allProjects[projectId];
 
-  // AI : 1. Clean up standalone project marker
+  // 1. Clean up standalone project marker
   const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays) {
     removeProjectMarkerFromMap(projectId);
   }
 
-  // AI : 2. Remove all associated overlays
+  // 2. Remove all associated overlays
   if (project?.overlayIds) {
     for (const overlayId of project.overlayIds) {
       removeOverlayFromMapAndStore(overlayId);
     }
   }
 
-  // AI : 3. Remove project from store
+  // 3. Remove project from store
   if (projectStore.projects[projectId]) {
     delete projectStore.projects[projectId];
   }
 
-  // AI : 4. Update auxiliary stores
+  // 4. Update auxiliary stores
   if (options.updateUserContributions) {
     projectStore.removeProjectFromUserContributions(projectId);
   }
 
-  // AI : 5. Force cache clear to prevent ghost data
+  // 5. Force cache clear to prevent ghost data
   mapStore.clearCityProjectsCache();
   mapStore.clearCityStandaloneProjectsCache();
 }
 
 /**
- * AI : Non-composable overlay deletion function that can be called from anywhere
- * AI : Safe to call from Leaflet toolbar handlers
- * AI : Returns true if deletion was successful
+ * Non-composable overlay deletion function that can be called from anywhere
+ * Safe to call from Leaflet toolbar handlers
+ * Returns true if deletion was successful
  */
 export async function deleteOverlayDirect(
   overlayId: string,
@@ -173,14 +173,14 @@ export async function deleteOverlayDirect(
   const overlayObject = overlayStore.overlays[overlayId];
 
   try {
-    // AI : Check if overlay exists in backend (has a status)
-    // AI : Brand new overlays (status === null or undefined) only exist locally
-    // AI : Using ?? to check for null/undefined - if status is null/undefined, existsInBackend = false
+    // Check if overlay exists in backend (has a status)
+    // Brand new overlays (status === null or undefined) only exist locally
+    // Using ?? to check for null/undefined - if status is null/undefined, existsInBackend = false
     const existsInBackend = (overlayObject?.status ?? null) !== null;
 
     if (existsInBackend) {
-      // AI : Overlay exists in backend, call API to delete it
-      // AI : If it throws, the outer catch handles it and returns false
+      // Overlay exists in backend, call API to delete it
+      // If it throws, the outer catch handles it and returns false
       await trpc.overlay.deleteOverlay.mutate({ id: overlayId });
     }
 

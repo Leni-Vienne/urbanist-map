@@ -1,6 +1,6 @@
-// AI : Tiny state-only file so Home.vue can import just the reactive refs
-// AI : without pulling in useSubmissionDialog's heavy deps (Zod, useSubmissionService, useChanges, projectMutations…)
-// AI : All types are erased at build time — zero runtime dependency on those modules.
+// Tiny state-only file so Home.vue can import just the reactive refs
+// without pulling in useSubmissionDialog's heavy deps (Zod, useSubmissionService, useChanges, projectMutations…)
+// All types are erased at build time — zero runtime dependency on those modules.
 import { ref } from "vue";
 import type {
   SubmissionSummary,

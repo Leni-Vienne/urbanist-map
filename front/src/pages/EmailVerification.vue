@@ -1,28 +1,28 @@
-<template>
+﻿<template>
   <div
-    class="flex justify-center items-center min-h-screen bg-gradient-to-br from-[var(--p-primary-50)] to-[var(--p-primary-100)] p-5"
+    class="flex justify-center items-center min-h-screen bg-linear-to-br from-primary-50 to-primary-100 p-5"
   >
     <div
-      class="bg-[var(--p-surface-0)] p-12 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] text-center max-w-[400px] w-full"
+      class="bg-content-background p-12 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] text-center max-w-100 w-full"
     >
       <div v-if="loading" class="flex flex-col items-center gap-6">
-        <i class="pi pi-spin pi-spinner text-[2rem] text-[var(--p-primary-color)]"></i>
-        <p class="m-0 text-[var(--p-text-muted-color)] leading-relaxed">
+        <i class="pi pi-spin pi-spinner text-[2rem] text-primary-color"></i>
+        <p class="m-0 text-muted-color leading-relaxed">
           {{ t("pages.emailVerification.verifying") }}
         </p>
       </div>
 
       <div v-else-if="success" class="flex flex-col items-center gap-6">
-        <i class="pi pi-check-circle text-[3rem] text-[var(--p-green-500)]"></i>
-        <h2 class="m-0 text-2xl text-[var(--p-text-color)]">
+        <i class="pi pi-check-circle text-[3rem] text-green-500"></i>
+        <h2 class="m-0 text-2xl text-color">
           {{ t("pages.emailVerification.verified") }}
         </h2>
-        <p v-if="!signingIn" class="m-0 text-[var(--p-text-muted-color)] leading-relaxed">
+        <p v-if="!signingIn" class="m-0 text-muted-color leading-relaxed">
           {{ t("pages.emailVerification.verifiedMessage") }}
         </p>
         <p
           v-else
-          class="m-0 text-[var(--p-text-muted-color)] leading-relaxed flex items-center gap-2 justify-center"
+          class="m-0 text-muted-color leading-relaxed flex items-center gap-2 justify-center"
         >
           <i class="pi pi-spin pi-spinner"></i>
           {{ t("pages.emailVerification.signingIn") }}
@@ -30,11 +30,13 @@
       </div>
 
       <div v-else class="flex flex-col items-center gap-6">
-        <i class="pi pi-times-circle text-[3rem] text-[var(--p-red-500)]"></i>
-        <h2 class="m-0 text-2xl text-[var(--p-text-color)]">
+        <i class="pi pi-times-circle text-[3rem] text-red-500"></i>
+        <h2 class="m-0 text-2xl text-color">
           {{ t("pages.emailVerification.verificationFailed") }}
         </h2>
-        <p class="m-0 text-[var(--p-text-muted-color)] leading-relaxed">{{ errorMessage }}</p>
+        <p class="m-0 text-muted-color leading-relaxed">
+          {{ errorMessage }}
+        </p>
         <Button
           @click="goToApp"
           :label="t('pages.emailVerification.backToApp')"
@@ -87,17 +89,17 @@ async function verifyEmail() {
       life: 3000,
     });
 
-    // AI : Auto-login by setting user data from verification response
+    // Auto-login by setting user data from verification response
     if (result.user) {
       signingIn.value = true;
 
-      // AI : Wait a moment so user can see the success message
+      // Wait a moment so user can see the success message
       await new Promise<void>((resolve) => void setTimeout(() => resolve(), 1500));
 
-      // AI : Set user directly on auth store (session is already created by backend via cookies)
+      // Set user directly on auth store (session is already created by backend via cookies)
       authStore.user = result.user;
 
-      // AI : Redirect to home page
+      // Redirect to home page
       router.push("/");
     }
   } catch (error) {

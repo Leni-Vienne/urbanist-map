@@ -1,10 +1,10 @@
-// AI : Unified store for tracking pending overlay modifications
-// AI : Single source of truth for all overlay changes (position, caption) from any UI surface
+// Unified store for tracking pending overlay modifications
+// Single source of truth for all overlay changes (position, caption) from any UI surface
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import type { ApprovalStatus } from "@shared/types";
 
-// AI : Types for tracking modifications
+// Types for tracking modifications
 export type CornersChange = {
   current: { lat: number; lng: number }[];
   original: { lat: number; lng: number }[];
@@ -24,10 +24,10 @@ export type PendingOverlayModification = {
 };
 
 export const usePendingModificationsStore = defineStore("pendingModifications", () => {
-  // AI : Central map of overlay ID → pending modifications
+  // Central map of overlay ID → pending modifications
   const modifications = ref<Map<string, PendingOverlayModification>>(new Map());
 
-  // AI : Save a corners (position) change
+  // Save a corners (position) change
   function saveCornersChange(
     overlayId: string,
     projectId: string | null,
@@ -38,10 +38,10 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     const existing = modifications.value.get(overlayId);
 
     if (existing) {
-      // AI : Update existing modification with corners
+      // Update existing modification with corners
       existing.corners = { current: currentCorners, original: originalCorners };
     } else {
-      // AI : Create new modification entry
+      // Create new modification entry
       modifications.value.set(overlayId, {
         overlayId,
         projectId,
@@ -51,7 +51,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     }
   }
 
-  // AI : Save a caption change
+  // Save a caption change
   function saveCaptionChange(
     overlayId: string,
     projectId: string | null,
@@ -62,10 +62,10 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     const existing = modifications.value.get(overlayId);
 
     if (existing) {
-      // AI : Update existing modification with caption
+      // Update existing modification with caption
       existing.caption = { current: currentCaption, original: originalCaption };
     } else {
-      // AI : Create new modification entry
+      // Create new modification entry
       modifications.value.set(overlayId, {
         overlayId,
         projectId,
@@ -75,40 +75,40 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     }
   }
 
-  // AI : Check if overlay has any pending modifications
+  // Check if overlay has any pending modifications
   function hasPendingModifications(overlayId: string): boolean {
     return modifications.value.has(overlayId);
   }
 
-  // AI : Get pending modifications for a specific overlay
+  // Get pending modifications for a specific overlay
   function getPendingModifications(overlayId: string): PendingOverlayModification | undefined {
     return modifications.value.get(overlayId);
   }
 
-  // AI : Get all modifications for overlays belonging to a specific project
+  // Get all modifications for overlays belonging to a specific project
   function getModificationsForProject(projectId: string): PendingOverlayModification[] {
     return [...modifications.value.values()].filter((mod) => mod.projectId === projectId);
   }
 
-  // AI : Get count of modifications for a project (for UI indicators)
+  // Get count of modifications for a project (for UI indicators)
   function getModificationCountForProject(projectId: string): number {
     return getModificationsForProject(projectId).length;
   }
 
-  // AI : Clear a specific field modification for an overlay (caption or corners)
-  // AI : Returns true if the overlay still has other modifications, false if it was removed entirely
+  // Clear a specific field modification for an overlay (caption or corners)
+  // Returns true if the overlay still has other modifications, false if it was removed entirely
   function clearFieldModification(overlayId: string, field: "caption" | "corners"): boolean {
     const existing = modifications.value.get(overlayId);
     if (!existing) return false;
 
-    // AI : Remove the specific field
+    // Remove the specific field
     if (field === "corners") {
       delete existing.corners;
     } else if (field === "caption") {
       delete existing.caption;
     }
 
-    // AI : If no more modifications remain, remove the entire entry
+    // If no more modifications remain, remove the entire entry
     if (!existing.corners && !existing.caption) {
       modifications.value.delete(overlayId);
       return false;
@@ -117,12 +117,12 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     return true;
   }
 
-  // AI : Clear modification for a specific overlay (after successful submission)
+  // Clear modification for a specific overlay (after successful submission)
   function clearModification(overlayId: string): void {
     modifications.value.delete(overlayId);
   }
 
-  // AI : Check if there are any pending modifications at all
+  // Check if there are any pending modifications at all
   const hasAnyModifications = computed(() => modifications.value.size > 0);
 
   return {
@@ -144,7 +144,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
   };
 });
 
-// AI : Enable HMR for this store
+// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(usePendingModificationsStore, import.meta.hot));

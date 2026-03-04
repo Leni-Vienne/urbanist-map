@@ -1,8 +1,8 @@
-// AI : Shared rendering primitives for city overlays and standalone markers.
-// AI : Used by both viewport-based loading (useViewportContentManager) and
-// AI : navigation-triggered loading (cityDataRenderer / projectNavigation).
-// AI : This module has no circular dependency risk: it only imports from stores,
-// AI : map primitives, and utility services — none of which import from this file.
+// Shared rendering primitives for city overlays and standalone markers.
+// Used by both viewport-based loading (useViewportContentManager) and
+// navigation-triggered loading (cityDataRenderer / projectNavigation).
+// This module has no circular dependency risk: it only imports from stores,
+// map primitives, and utility services — none of which import from this file.
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -11,7 +11,7 @@ import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneP
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
-import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
+import { filterByStatus } from "@/services/overlay/statusFilters";
 import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
@@ -21,10 +21,10 @@ import {
 } from "@/utils/typeFactories";
 
 /**
- * AI : Add standalone project markers for projects that have no visible overlays.
- * AI : Unified version of the near-identical functions that existed in both
- * AI : useViewportContentManager and cityDataRenderer.
- * AI : Also unifies the 3-branch overlayCount type narrowing into one place.
+ * Add standalone project markers for projects that have no visible overlays.
+ * Unified version of the near-identical functions that existed in both
+ * useViewportContentManager and cityDataRenderer.
+ * Also unifies the 3-branch overlayCount type narrowing into one place.
  */
 export function processStandaloneMarkers(
   standaloneProjects: StandaloneProject[],
@@ -42,7 +42,7 @@ export function processStandaloneMarkers(
   }
 
   for (const project of standaloneProjects) {
-    // AI : Unified overlay count check spanning all StandaloneProject union members
+    // Unified overlay count check spanning all StandaloneProject union members
     let overlayCount = 0;
     if ("overlayCount" in project) {
       overlayCount = project.overlayCount;
@@ -59,7 +59,7 @@ export function processStandaloneMarkers(
 }
 
 /**
- * AI : Helper to hydrate the store with a list of overlays and update their reactive properties
+ * Helper to hydrate the store with a list of overlays and update their reactive properties
  */
 export function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
@@ -72,7 +72,7 @@ export function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
         pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
       };
     } else {
-      // AI : Instantiate an OverlayObject so that markers and interactions have a reactive target
+      // Instantiate an OverlayObject so that markers and interactions have a reactive target
       overlayStore.addOverlay(overlayData.id, createOverlayObject(overlayData));
     }
   }
@@ -82,8 +82,8 @@ export function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
 }
 
 /**
- * AI : Shared utility to hydrate the Pinia store with fresh backend data.
- * AI : Used by both full overlay rendering and marker-only rendering.
+ * Shared utility to hydrate the Pinia store with fresh backend data.
+ * Used by both full overlay rendering and marker-only rendering.
  */
 function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
@@ -98,9 +98,9 @@ function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
 }
 
 /**
- * AI : Render full overlay images (high zoom path).
- * AI : Hydrates the store with fresh backend data, updates marker colors, then
- * AI : delegates actual positioning to the pruning service.
+ * Render full overlay images (high zoom path).
+ * Hydrates the store with fresh backend data, updates marker colors, then
+ * delegates actual positioning to the pruning service.
  */
 export function renderFullOverlays(overlaysData: OverlayData[]): void {
   hydrateStoreWithOverlays(overlaysData);
@@ -114,22 +114,22 @@ export function renderFullOverlays(overlaysData: OverlayData[]): void {
 }
 
 /**
- * AI : Render overlay markers only (low zoom path).
- * AI : Clears overlays to ensure a clean state, hydrates the store, and
- * AI : creates interactive markers for each overlay.
+ * Render overlay markers only (low zoom path).
+ * Clears overlays to ensure a clean state, hydrates the store, and
+ * creates interactive markers for each overlay.
  */
 export function renderMarkersOnly(overlaysData: OverlayData[]): void {
-  // AI : CRITICAL: Must preserve store data! We only want to remove the image layers from map,
-  // AI : not destroy the reactive objects or clear the marker refs from the registry
+  // CRITICAL: Must preserve store data! We only want to remove the image layers from map,
+  // not destroy the reactive objects or clear the marker refs from the registry
   clearAllOverlays(true);
 
   hydrateStoreWithOverlays(overlaysData);
 
   const overlayStore = useOverlayStore();
   const mode = overlayStore.mode;
-  // AI : Filter on OverlayData (has project field) so getOverlayMarkerColor can compute
-  // AI : the correct timeline-based color in view mode.
-  const visibleIds = new Set(filterByCompletionStatus(overlaysData, mode).map((o) => o.id));
+  // Filter on OverlayData (has project field) so getOverlayMarkerColor can compute
+  // the correct timeline-based color in view mode.
+  const visibleIds = new Set(filterByStatus(overlaysData, mode).map((o) => o.id));
   for (const overlayObject of Object.values(overlayStore.overlays)) {
     if (visibleIds.has(overlayObject.id)) createSingleMarker(overlayObject);
   }

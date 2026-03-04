@@ -4,13 +4,13 @@ import { eq } from "drizzle-orm";
 import { R2StorageS3, getThumbnailFilename, streamToBuffer } from "../lib/storage";
 import sharp from "sharp";
 
-// AI : Generate and upload thumbnails for existing approved overlays in R2
+// Generate and upload thumbnails for existing approved overlays in R2
 // This is a one-time migration script for overlays that were approved before thumbnail feature
 // Only processes approved overlays since those are in R2 (pending ones stay local)
 async function generateR2Thumbnails() {
   console.log("Starting R2 thumbnail generation for existing approved overlays...");
 
-  // AI : Initialize R2 storage
+  // Initialize R2 storage
   const r2Storage = new R2StorageS3({
     endpoint: process.env.R2_ENDPOINT!,
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
@@ -18,7 +18,7 @@ async function generateR2Thumbnails() {
     bucketName: process.env.R2_BUCKET_NAME!,
   });
 
-  // AI : Query all approved overlays (these are in R2, not local)
+  // Query all approved overlays (these are in R2, not local)
   const approvedOverlays = await db
     .select({ id: overlays.id, filename: overlays.filename })
     .from(overlays)
@@ -36,10 +36,10 @@ async function generateR2Thumbnails() {
 
       console.log(`Checking for thumbnail: ${thumbnailFilename}`);
 
-      // AI : Check if thumbnail already exists in R2
+      // Check if thumbnail already exists in R2
       const existingThumbnail = await r2Storage.get(thumbnailFilename);
       if (existingThumbnail) {
-        // AI : Try to read the size to ensure it's a real file, not an empty folder marker
+        // Try to read the size to ensure it's a real file, not an empty folder marker
         try {
           const buffer = await streamToBuffer(existingThumbnail.body);
           if (buffer.length > 0) {
@@ -56,7 +56,7 @@ async function generateR2Thumbnails() {
 
       console.log(`Thumbnail not found, generating for ${overlay.filename}`);
 
-      // AI : Download original image from R2
+      // Download original image from R2
       const originalImage = await r2Storage.get(overlay.filename);
       if (!originalImage) {
         console.error(`Original image not found in R2: ${overlay.filename}`);
@@ -64,10 +64,10 @@ async function generateR2Thumbnails() {
         continue;
       }
 
-      // AI : Read image into buffer
+      // Read image into buffer
       const imageBuffer = await streamToBuffer(originalImage.body);
 
-      // AI : Generate 120x120 thumbnail using sharp
+      // Generate 120x120 thumbnail using sharp
       const thumbnailBuffer = await sharp(Buffer.from(imageBuffer))
         .resize(120, 120, {
           fit: "cover",
@@ -76,7 +76,7 @@ async function generateR2Thumbnails() {
         .webp()
         .toBuffer();
 
-      // AI : Upload thumbnail to R2 with skipThumbnail option to prevent recursive thumbnail generation
+      // Upload thumbnail to R2 with skipThumbnail option to prevent recursive thumbnail generation
       await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, {
         skipThumbnail: true,
       });
@@ -84,7 +84,7 @@ async function generateR2Thumbnails() {
       console.log(`Generated and uploaded thumbnail for ${overlay.filename}`);
       processedCount += 1;
 
-      // AI : Add small delay to avoid overwhelming R2 (optional, adjust as needed)
+      // Add small delay to avoid overwhelming R2 (optional, adjust as needed)
       await Bun.sleep(100);
     } catch (error) {
       console.error(`Failed to process ${overlay.filename}:`, error);
@@ -99,7 +99,7 @@ async function generateR2Thumbnails() {
   console.log(`Total overlays: ${approvedOverlays.length}`);
 }
 
-// AI : Run the script
+// Run the script
 generateR2Thumbnails()
   .then(() => {
     console.log("Script completed successfully");

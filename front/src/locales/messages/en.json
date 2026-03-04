@@ -768,5 +768,9 @@
       "failed": "Prune Failed",
       "failedDetail": "Failed to run scheduled image deletions"
     }
+  },
+  "theme": {
+    "light": "Light mode",
+    "dark": "Dark mode"
   }
 }

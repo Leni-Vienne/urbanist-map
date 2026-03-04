@@ -12,9 +12,9 @@ import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 
-// AI : Helper function to zoom to overlay bounds with proper error handling
+// Helper function to zoom to overlay bounds with proper error handling
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
-  // AI : Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
+  // Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
     mobileAwareFlyToBounds(overlayBounds, {
@@ -25,7 +25,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
     return true;
   }
 
-  // AI : Fallback to marker position if bounds unavailable
+  // Fallback to marker position if bounds unavailable
   const marker = getMarker(overlay.id);
   if (marker) {
     mobileAwareFlyTo(marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
@@ -36,7 +36,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 }
 
 /**
- * AI : Navigates between overlays in the current project based on direction
+ * Navigates between overlays in the current project based on direction
  * @param direction - Either 'next' or 'previous' to determine navigation direction
  * @returns boolean indicating whether navigation was successful
  */
@@ -60,8 +60,8 @@ function navigateOverlaySequence(direction: "next" | "previous") {
   const project = projectStore.projects[currentOverlay.projectId];
   let projectOverlayIds: string[];
 
-  // AI : If project is not in memory, or overlayIds not yet populated (only set on popup open),
-  // AI : derive siblings from already-loaded overlays instead.
+  // If project is not in memory, or overlayIds not yet populated (only set on popup open),
+  // derive siblings from already-loaded overlays instead.
   if (!project || !project.overlayIds.length) {
     projectOverlayIds = Object.values(overlayStore.overlays)
       .filter((overlay) => overlay.projectId === currentOverlay.projectId)
@@ -120,8 +120,8 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
 }
 
 /**
- * AI : Loads an overlay by ID, fetching from backend if needed
- * AI : This function only handles loading/rendering, not navigation
+ * Loads an overlay by ID, fetching from backend if needed
+ * This function only handles loading/rendering, not navigation
  * @param overlayId - The ID of the overlay to load
  * @param includeIntersecting - Whether to fetch intersecting overlays (defaults to true for backward compatibility)
  * @returns true if overlay was loaded successfully
@@ -132,15 +132,15 @@ async function loadOverlay(
 ): Promise<boolean | null> {
   const overlayStore = useOverlayStore();
 
-  // AI : Check if overlay is already loaded locally
+  // Check if overlay is already loaded locally
   if (overlayStore.overlays[overlayId]) {
     return true;
   }
 
-  // AI : Overlay not found locally - fetch from backend
+  // Overlay not found locally - fetch from backend
   return withErrorHandling(
     async () => {
-      // AI : Fetch overlay, optionally with intersecting overlays
+      // Fetch overlay, optionally with intersecting overlays
       const result = await trpc.overlay.getOverlay.query({
         id: overlayId,
         includeIntersecting,
@@ -150,20 +150,20 @@ async function loadOverlay(
         throw new Error("Overlay not found");
       }
 
-      // AI : Dynamic import - overlayRendering (leaflet-distortableimage) is only needed here
+      // Dynamic import - overlayRendering (leaflet-distortableimage) is only needed here
       const { renderViewModeOverlays } = await import("@/services/overlay/overlayRendering");
 
-      // AI : Render the main overlay
+      // Render the main overlay
       renderViewModeOverlays([result.overlay], true, false);
 
-      // AI : Render intersecting overlays if they exist
+      // Render intersecting overlays if they exist
       if (includeIntersecting && result.intersectingOverlays.length > 0) {
         renderViewModeOverlays(result.intersectingOverlays, true, false);
       }
 
-      // AI : NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration
-      // AI : is async (happens after image loads) and may not complete if zoom level is too low.
-      // AI : The critical point is that the backend fetch succeeded.
+      // NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration
+      // is async (happens after image loads) and may not complete if zoom level is too low.
+      // The critical point is that the backend fetch succeeded.
       return true;
     },
     { errorMessage: "Failed to load overlay", rethrow: true },
@@ -171,7 +171,7 @@ async function loadOverlay(
 }
 
 /**
- * AI : Navigates to a specific overlay by ID (loads + selects + centers)
+ * Navigates to a specific overlay by ID (loads + selects + centers)
  * @param overlayId - The ID of the overlay to navigate to
  * @param centerMap - Whether to center the map on the overlay
  * @param includeIntersecting - Whether to fetch intersecting overlays if overlay needs to be loaded
@@ -182,10 +182,10 @@ export async function navigateToOverlay(
   centerMap: boolean,
   includeIntersecting: boolean,
 ): Promise<boolean> {
-  // AI : Load the overlay first (fetches from backend if needed)
+  // Load the overlay first (fetches from backend if needed)
   await loadOverlay(overlayId, includeIntersecting);
 
-  // AI : Then navigate to it
+  // Then navigate to it
   return selectAndCenterOverlay(overlayId, centerMap);
 }
 
@@ -198,10 +198,10 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
     return false;
   }
 
-  // AI : selectOverlay handles overlay.select() internally
+  // selectOverlay handles overlay.select() internally
   selectOverlay(overlayId);
 
-  // AI : Center map on overlay if requested
+  // Center map on overlay if requested
   if (centerMap) {
     zoomToOverlayBounds(overlay);
   }
@@ -216,14 +216,14 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   const overlayObject = overlayStore.overlays[id];
   if (!overlayObject) return;
 
-  // AI : Track if caption actually changed to set isModified flag
+  // Track if caption actually changed to set isModified flag
   const oldCaption = overlayObject.caption;
   const newCaption = info.caption ?? null;
   const captionChanged = oldCaption !== newCaption;
 
   overlayObject.caption = newCaption;
 
-  // AI : Mark as modified and sync pendingModsStore so submission payload is accurate
+  // Mark as modified and sync pendingModsStore so submission payload is accurate
   if (captionChanged) {
     overlayObject.isModified = true;
     pendingModsStore.saveCaptionChange(
@@ -235,11 +235,11 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
     );
   }
 
-  // AI : Save only the specific overlay being updated, not all overlays
+  // Save only the specific overlay being updated, not all overlays
   updateMarkerTooltip(overlayObject);
 }
 
-// AI : Register navigation callback directly into overlayCallbacks — no dynamic import needed.
-// AI : overlayCallbacks lives in overlayLifecycle (same app-utils chunk).
-// AI : overlayEditing reads overlayCallbacks.focusCameraToOverlay at call time without overriding it.
+// Register navigation callback directly into overlayCallbacks — no dynamic import needed.
+// overlayCallbacks lives in overlayLifecycle (same app-utils chunk).
+// overlayEditing reads overlayCallbacks.focusCameraToOverlay at call time without overriding it.
 overlayCallbacks.focusCameraToOverlay = navigateOverlaySequence;

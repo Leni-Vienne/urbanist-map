@@ -1,8 +1,8 @@
-// AI : Shared types used by both frontend and backend
+// Shared types used by both frontend and backend
 import type { DBProject, DBCity, ApprovalStatus } from "../back/src/db/schema";
 export type { ApprovalStatus } from "../back/src/db/schema";
 
-// AI : Type for map viewing modes (used by both frontend and backend)
+// Type for map viewing modes (used by both frontend and backend)
 export type AppMode = "view" | "edit" | "moderation";
 
 export interface OverlayData {
@@ -10,7 +10,7 @@ export interface OverlayData {
   version: number;
   filename: string;
   caption: string | null;
-  // AI : Allow null for local overlays that haven't been submitted to backend yet
+  // Allow null for local overlays that haven't been submitted to backend yet
   status: ApprovalStatus | null;
   projectId: string | null;
   authorId: string | null;

@@ -1,8 +1,8 @@
-// AI : Shared Zod validation schemas for frontend and backend
+// Shared Zod validation schemas for frontend and backend
 import * as z from "zod";
 import { validateOverlaySize } from "../overlayValidation";
 
-// AI : Project validation schema
+// Project validation schema
 export const projectSchema = z
   .object({
     id: z.uuid().optional(),
@@ -36,7 +36,7 @@ export const projectSchema = z
       .optional(),
   })
   .superRefine((data, ctx) => {
-    // AI : Validate proposal date is not in the future
+    // Validate proposal date is not in the future
     if (data.proposalDate && data.proposalDate > new Date()) {
       ctx.addIssue({
         code: "custom",
@@ -45,10 +45,10 @@ export const projectSchema = z
       });
     }
 
-    // AI : Validate project has either proposalDate OR (startDate AND endDate) OR (endDate ONLY for already started)
+    // Validate project has either proposalDate OR (startDate AND endDate) OR (endDate ONLY for already started)
     const hasProposalDate = data.proposalDate !== null;
     const hasPlannedDates =
-      (data.startDate !== null && data.endDate !== null) || data.endDate !== null; // AI : Allow EndDate only (implies already started)
+      (data.startDate !== null && data.endDate !== null) || data.endDate !== null; // Allow EndDate only (implies already started)
 
     if (!hasProposalDate && !hasPlannedDates) {
       ctx.addIssue({
@@ -58,7 +58,7 @@ export const projectSchema = z
       });
     }
 
-    // AI : Validate end date is after start date
+    // Validate end date is after start date
     if (data.startDate && data.endDate && data.endDate <= data.startDate) {
       ctx.addIssue({
         code: "custom",
@@ -68,7 +68,7 @@ export const projectSchema = z
     }
   });
 
-// AI : Overlay validation schema
+// Overlay validation schema
 export const overlaySchema = z
   .object({
     id: z.uuid(),
@@ -100,7 +100,7 @@ export const overlaySchema = z
       .length(4, "validation.cornersRequired"),
   })
   .superRefine((data, ctx) => {
-    // AI : Validate overlay size constraints (max dimensions in meters)
+    // Validate overlay size constraints (max dimensions in meters)
     const sizeValidation = validateOverlaySize(data.corners);
     if (!sizeValidation.isValid) {
       ctx.addIssue({
@@ -111,12 +111,12 @@ export const overlaySchema = z
     }
   });
 
-// AI : Auth validation schemas
+// Auth validation schemas
 export const registerSchema = z.object({
   email: z.string().email("validation.invalidEmail"),
   password: z.string().min(8, "validation.passwordTooShort"),
   username: z.string().min(3, "validation.usernameTooShort").max(50, "validation.usernameTooLong"),
-  captchaToken: z.string().optional(), // AI : Optional Cloudflare Turnstile token
+  captchaToken: z.string().optional(), // Optional Cloudflare Turnstile token
 });
 
 export const resetPasswordRequestSchema = z.object({
@@ -128,7 +128,7 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8, "validation.passwordTooShort"),
 });
 
-// AI : Change request validation schema
+// Change request validation schema
 export const submitChangeRequestSchema = z.object({
   entityType: z.enum(["project", "overlay"]),
   entityId: z.uuid(),
@@ -148,13 +148,13 @@ export const submitChangeRequestSchema = z.object({
     .min(1, "validation.changesRequired"),
 });
 
-// AI : Validation error with i18n key and parameters
+// Validation error with i18n key and parameters
 export interface ValidationError {
   key: string;
   params?: Record<string, any>;
 }
 
-// AI : Helper function to extract i18n key and params from ZodError
+// Helper function to extract i18n key and params from ZodError
 export function getValidationError(error: z.ZodError, fieldPath?: string): ValidationError {
   const issues = fieldPath
     ? error.issues.filter((issue) => issue.path.join(".") === fieldPath)
@@ -166,7 +166,7 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   }
   const key = issue?.message.startsWith("validation.") ? issue.message : "validation.genericError";
 
-  // AI : Extract constraint values from Zod issue for dynamic i18n parameters
+  // Extract constraint values from Zod issue for dynamic i18n parameters
   const params: Record<string, any> = {};
 
   if (issue.code === "too_small") {
@@ -180,7 +180,7 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   return { key, params: Object.keys(params).length > 0 ? params : undefined };
 }
 
-// AI : Helper function to get all validation errors as a map of field -> ValidationError
+// Helper function to get all validation errors as a map of field -> ValidationError
 export function getValidationErrorsMap(error: z.ZodError): Record<string, ValidationError> {
   const errorMap: Record<string, ValidationError> = {};
 
@@ -192,7 +192,7 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
         : "validation.genericError";
       const params: Record<string, any> = {};
 
-      // AI : Extract constraint values from Zod issue
+      // Extract constraint values from Zod issue
       if (issue.code === "too_small") {
         params.min = issue.minimum;
         params.expected = issue.minimum;
@@ -208,6 +208,6 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
   return errorMap;
 }
 
-// AI : Type exports for TypeScript inference
+// Type exports for TypeScript inference
 export type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
 export type FieldChange = SubmitChangeRequestInput["changes"][number];

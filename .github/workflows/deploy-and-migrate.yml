@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   deploy-and-migrate:
-    # AI : Runner must be hardcoded - environment vars aren't available at runs-on evaluation time
+    # Runner must be hardcoded - environment vars aren't available at runs-on evaluation time
     runs-on:
       - self-hosted
       - home-github-runner
@@ -84,7 +84,7 @@ jobs:
       - name: Extract frontend URL
         id: extract-url
         run: |
-          # AI : Use FRONTEND_URL from GitHub environment variables instead of hardcoding
+          # Use FRONTEND_URL from GitHub environment variables instead of hardcoding
           FRONTEND_URL="${{ vars.FRONTEND_URL }}"
           if [ "${{ env.WRANGLER_ENV }}" = "" ]; then
             echo "PROJECT_NAME=construction-map" >> $GITHUB_ENV
@@ -96,13 +96,13 @@ jobs:
 
       - name: Cleanup old Cloudflare Pages deployments
         run: |
-          # AI : Keep only the 5 most recent deployments, delete the rest
+          # Keep only the 5 most recent deployments, delete the rest
           DEPLOYMENTS=$(curl -s -X GET \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/deployments" \
             -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}" \
             -H "Content-Type: application/json")
 
-          # AI : Extract deployment IDs, skip the first 5 (most recent), delete the rest
+          # Extract deployment IDs, skip the first 5 (most recent), delete the rest
           echo "$DEPLOYMENTS" | jq -r '.result[5:] | .[].id' | while read -r DEPLOYMENT_ID; do
             if [ -n "$DEPLOYMENT_ID" ]; then
               echo "Deleting old deployment: $DEPLOYMENT_ID"
@@ -138,16 +138,16 @@ jobs:
 
         run: |
 
-          # AI : Install sshpass for password authentication if not present
+          # Install sshpass for password authentication if not present
           if ! command -v sshpass &> /dev/null; then
              sudo apt-get update && sudo apt-get install -y sshpass
           fi
 
-          # AI : Setup SSH to skip host key checking
+          # Setup SSH to skip host key checking
           mkdir -p ~/.ssh
           echo "StrictHostKeyChecking no" >> ~/.ssh/config
 
-          # AI : Determine environment-specific values
+          # Determine environment-specific values
           if [ "${{ env.DEPLOY_TARGET }}" = "production" ]; then
             DEPLOY_DIR="/opt/construction-map-prod"
             COMPOSE_PROJECT_NAME="construction-map-prod"
@@ -166,28 +166,28 @@ jobs:
             DATABASE_URL="postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map_preview"
           fi
 
-          # AI : Check if files exist before transfer
+          # Check if files exist before transfer
           ls -la server.bundle.js docker-compose.yml Dockerfile.bun-sharp alloy-config.alloy
           ls -la back/src/email
 
-          # AI : Transfer files to remote server using password
+          # Transfer files to remote server using password
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./docker-compose.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
-          # AI : Conditionally transfer Caddyfile if reverse proxy deployment is enabled
+          # Conditionally transfer Caddyfile if reverse proxy deployment is enabled
           if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
             sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Caddyfile.host "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           fi
 
-          # AI : Compute Dockerfile hash on runner (before SSH) so it can be injected as a literal into the heredoc
+          # Compute Dockerfile hash on runner (before SSH) so it can be injected as a literal into the heredoc
           DOCKERFILE_HASH=$(md5sum ./Dockerfile.bun-sharp | cut -d' ' -f1)
 
-          # AI : Deploy with docker compose on remote server
+          # Deploy with docker compose on remote server
           sshpass -p "$REMOTE_PASSWORD" ssh -p "$REMOTE_PORT" "${REMOTE_USER}@${REMOTE_HOST}" <<EOF
-            # AI : Conditionally install and configure Caddy if reverse proxy is enabled
+            # Conditionally install and configure Caddy if reverse proxy is enabled
             if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
               if ! command -v caddy &> /dev/null; then
                 echo "Installing Caddy..."
@@ -200,28 +200,28 @@ jobs:
               fi
             fi
             
-            # AI : Create deployment directory
+            # Create deployment directory
             sudo mkdir -p ${DEPLOY_DIR}
             cd ${DEPLOY_DIR}
             
-            # AI : Stop existing containers
+            # Stop existing containers
             sudo docker compose down || true
             
-            # AI : Copy new files
+            # Copy new files
             sudo cp /tmp/server.bundle.js ./
             sudo cp /tmp/docker-compose.yml ./
             sudo cp /tmp/Dockerfile.bun-sharp ./
-            # AI : Remove old alloy config if it's a directory (Docker creates it on failed mount)
+            # Remove old alloy config if it's a directory (Docker creates it on failed mount)
             sudo rm -rf ./alloy-config.alloy
             sudo cp /tmp/alloy-config.alloy ./
-            # AI : Copy email templates directory
+            # Copy email templates directory
             sudo mkdir -p ./back/src
             sudo rm -rf ./back/src/email
             sudo cp -r /tmp/email ./back/src/
             
-            # AI : Build custom bun-sharp image only if Dockerfile has changed (hash-based detection)
-            # AI : Hash computed on runner and injected as literal - /opt/bun-sharp.hash stores last built hash on server
-            # AI : To force rebuild: sudo rm /opt/bun-sharp.hash
+            # Build custom bun-sharp image only if Dockerfile has changed (hash-based detection)
+            # Hash computed on runner and injected as literal - /opt/bun-sharp.hash stores last built hash on server
+            # To force rebuild: sudo rm /opt/bun-sharp.hash
             STORED_HASH=\$(cat /opt/bun-sharp.hash 2>/dev/null || echo "")
             if [ "${DOCKERFILE_HASH}" != "\$STORED_HASH" ] || ! sudo docker images | grep -q "bun-sharp.*1.3-alpine"; then
               echo "Dockerfile changed or image missing, rebuilding bun-sharp image... (hash: ${DOCKERFILE_HASH})"
@@ -232,24 +232,24 @@ jobs:
               echo "Dockerfile unchanged (hash: ${DOCKERFILE_HASH}), skipping bun-sharp image rebuild"
             fi
             
-            # AI : Create .env file from GitHub secrets/vars with environment-specific values
+            # Create .env file from GitHub secrets/vars with environment-specific values
             printf 'COMPOSE_PROJECT_NAME=%s\nNODE_ENV=%s\nPOSTGRES_DB=%s\nPOSTGRES_PASSWORD=%s\nDATABASE_URL=%s\nDB_PORT=%s\nBACKEND_PORT=%s\nALLOY_PORT=%s\nLOKI_URL=%s\nJWT_SECRET=%s\nCORS_ORIGIN=%s\nVITE_GOOGLE_CLIENT_ID=%s\nFRONTEND_URL=%s\nPORT=3000\nALERT_EMAIL=%s\nSMTP_USERNAME=%s\nSMTP_PASSWORD=%s\nSES_REGION=%s\nFROM_EMAIL=%s\nR2_ENDPOINT=%s\nR2_ACCESS_KEY_ID=%s\nR2_SECRET_ACCESS_KEY=%s\nR2_BUCKET_NAME=%s\nTURNSTILE_SECRET_KEY=%s\n' \
               "${COMPOSE_PROJECT_NAME}" "${{ env.DEPLOY_TARGET }}" "${POSTGRES_DB}" "${POSTGRES_PASSWORD}" "${DATABASE_URL}" "${DB_PORT}" "${BACKEND_PORT}" "${ALLOY_PORT}" "${LOKI_URL}" "${JWT_SECRET}" "${CORS_ORIGIN}" "${VITE_GOOGLE_CLIENT_ID}" "${FRONTEND_URL}" "${ALERT_EMAIL}" "${SMTP_USERNAME}" "${SMTP_PASSWORD}" "${SES_REGION}" "${FROM_EMAIL}" "${R2_ENDPOINT}" "${R2_ACCESS_KEY_ID}" "${R2_SECRET_ACCESS_KEY}" "${R2_BUCKET_NAME}" "${TURNSTILE_SECRET_KEY}" > .env
             
-            # AI : Start services using docker compose with .env file
+            # Start services using docker compose with .env file
             sudo docker compose up -d
             
-            # AI : Show status
+            # Show status
             sudo docker compose ps
             
-            # AI : Conditionally deploy Caddyfile and reload if reverse proxy is enabled
+            # Conditionally deploy Caddyfile and reload if reverse proxy is enabled
             if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
               sudo cp /tmp/Caddyfile.host /etc/caddy/Caddyfile
               sudo systemctl reload caddy
               echo "Caddy configuration deployed and reloaded"
             fi
             
-            # AI : Clean up temp files
+            # Clean up temp files
             rm -f /tmp/server.bundle.js /tmp/docker-compose.yml /tmp/Dockerfile.bun-sharp /tmp/alloy-config.alloy /tmp/Caddyfile.host
             rm -rf /tmp/email
           EOF

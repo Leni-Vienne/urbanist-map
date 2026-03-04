@@ -3,7 +3,7 @@ import { useToast } from "@/composables/ui/useToast";
 import type { ProjectFormData } from "@/types/index";
 import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
 
-// AI : Shared validation logic for project forms using Zod
+// Shared validation logic for project forms using Zod
 export function useProjectFormValidation() {
   const toast = useToast();
 
@@ -22,8 +22,8 @@ export function useProjectFormValidation() {
     cities: { id: number }[],
     citiesLoaded: boolean,
   ): boolean {
-    // AI : City-related checks (not covered by Zod schema)
-    // AI : cityId is a number, so check explicitly (0 is invalid but falsy)
+    // City-related checks (not covered by Zod schema)
+    // cityId is a number, so check explicitly (0 is invalid but falsy)
     if (!formData.cityId || formData.cityId === 0 || !citiesLoaded) {
       showError(t("project.locationRequired"));
       return false;
@@ -34,8 +34,8 @@ export function useProjectFormValidation() {
       return false;
     }
 
-    // AI : Validate with Zod schema (use dummy lat/lng for form-level validation)
-    // AI : Transform null values to empty strings to match schema expectations
+    // Validate with Zod schema (use dummy lat/lng for form-level validation)
+    // Transform null values to empty strings to match schema expectations
     const validationData = {
       ...formData,
       lat: 0,
@@ -46,7 +46,7 @@ export function useProjectFormValidation() {
     const result = projectSchema.safeParse(validationData);
 
     if (!result.success) {
-      // AI : Get first error and show it
+      // Get first error and show it
       const errors = getValidationErrorsMap(result.error);
       const firstError = Object.values(errors)[0];
       if (!firstError) {

@@ -2,7 +2,7 @@ import { join } from "node:path";
 import enTranslations from "./i18n/en.json";
 import frTranslations from "./i18n/fr.json";
 
-// AI : Type-safe translations
+// Type-safe translations
 type Translations = typeof enTranslations;
 type TemplateName = keyof Translations;
 type Locale = "en" | "fr";
@@ -13,8 +13,8 @@ const translations: Record<Locale, Translations> = {
 };
 
 /**
- * AI : Simple template renderer that replaces {{placeholder}} with values
- * AI : SECURITY: Ensures values are HTML-escaped to prevent injection attacks
+ * Simple template renderer that replaces {{placeholder}} with values
+ * SECURITY: Ensures values are HTML-escaped to prevent injection attacks
  * @param template HTML template string with {{placeholder}} markers
  * @param data Key-value pairs to replace in the template
  * @returns Rendered HTML string
@@ -29,8 +29,8 @@ function escapeHtml(unsafe: string) {
 }
 
 /**
- * AI : Simple template renderer that replaces {{placeholder}} with values
- * AI : SECURITY: Ensures values are HTML-escaped to prevent injection attacks
+ * Simple template renderer that replaces {{placeholder}} with values
+ * SECURITY: Ensures values are HTML-escaped to prevent injection attacks
  * @param template HTML template string with {{placeholder}} markers
  * @param data Key-value pairs to replace in the template
  * @returns Rendered HTML string
@@ -43,7 +43,7 @@ function renderTemplate(template: string, data: Record<string, string>): string 
 }
 
 /**
- * AI : Load and render an email template with translations
+ * Load and render an email template with translations
  * @param templateName Name of the template (e.g., 'verification', 'passwordReset')
  * @param variables Dynamic variables to inject (e.g., { verificationUrl: '...' })
  * @param locale User's preferred language (defaults to 'en')
@@ -55,18 +55,18 @@ export async function renderEmailTemplate(
   locale: Locale = "en",
 ): Promise<{ subject: string; html: string }> {
   try {
-    // AI : Get translations for the specified locale
+    // Get translations for the specified locale
     const translation = translations[locale]?.[templateName];
     if (!translation) {
       throw new Error(`Translation not found for template: ${templateName}, locale: ${locale}`);
     }
 
-    // AI : Convert camelCase template name to kebab-case for file lookup
+    // Convert camelCase template name to kebab-case for file lookup
     const kebabCaseName = templateName.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 
-    // AI : Load HTML template file
-    // AI : In production (Docker), templates are mounted at /app/email
-    // AI : In development, use relative path from this file
+    // Load HTML template file
+    // In production (Docker), templates are mounted at /app/email
+    // In development, use relative path from this file
     const templatePath =
       process.env.NODE_ENV === "production"
         ? join("/app/email/templates", `${kebabCaseName}-email.html`)
@@ -80,13 +80,13 @@ export async function renderEmailTemplate(
 
     const template = await templateFile.text();
 
-    // AI : Merge translations with dynamic variables
+    // Merge translations with dynamic variables
     const data = {
       ...translation,
       ...variables,
     };
 
-    // AI : Render the template
+    // Render the template
     const html = renderTemplate(template, data);
 
     return {

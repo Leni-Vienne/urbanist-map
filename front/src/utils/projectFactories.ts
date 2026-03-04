@@ -1,5 +1,5 @@
-// AI : Factory functions for creating project and overlay objects
-// AI : Eliminates massive code duplication across currentLocationPanel, ContributePanel, and useAllContributions
+// Factory functions for creating project and overlay objects
+// Eliminates massive code duplication across currentLocationPanel, ContributePanel, and useAllContributions
 
 import type {
   OverlayData,
@@ -20,8 +20,8 @@ interface SelectedCity {
 }
 
 /**
- * AI : Create ProjectForModeration from overlay data
- * AI : Used by currentLocationPanel to build projects from city overlay cache
+ * Create ProjectForModeration from overlay data
+ * Used by currentLocationPanel to build projects from city overlay cache
  */
 // eslint-disable-next-line complexity
 export function createProjectFromOverlayData(
@@ -61,8 +61,8 @@ export function createProjectFromOverlayData(
 }
 
 /**
- * AI : Create OverlayForModeration from overlay data
- * AI : Used by currentLocationPanel
+ * Create OverlayForModeration from overlay data
+ * Used by currentLocationPanel
  */
 export function createOverlayForModeration(
   overlayData: OverlayData,
@@ -92,8 +92,8 @@ export function createOverlayForModeration(
 }
 
 /**
- * AI : Create UserContributionOverlay from local (unsaved) overlay object
- * AI : Used by useAllContributions for overlays that exist only in frontend state
+ * Create UserContributionOverlay from local (unsaved) overlay object
+ * Used by useAllContributions for overlays that exist only in frontend state
  */
 export function createLocalOverlayContribution(
   overlay: {
@@ -131,13 +131,13 @@ export function createLocalOverlayContribution(
     cityName: parentProject.cityName,
     countryCode: parentProject.countryCode,
     countryName: parentProject.countryName,
-    imageUrl: overlay.imageUrl, // AI : Preserve local image URL for thumbnail display
+    imageUrl: overlay.imageUrl, // Preserve local image URL for thumbnail display
   };
 }
 
 /**
- * AI : Create UserContribution from local (unsaved) project with overlay
- * AI : Used by useAllContributions for projects that exist only in frontend state
+ * Create UserContribution from local (unsaved) project with overlay
+ * Used by useAllContributions for projects that exist only in frontend state
  */
 export function createLocalProjectContribution(
   localProject: {
@@ -199,7 +199,7 @@ export function createLocalProjectContribution(
       id: localProject.cityId,
       name: localProject.city.name,
       countryCode: localProject.city.countryCode,
-      nameLocal: null, // AI : Default for local project
+      nameLocal: null, // Default for local project
       coordinates: { x: 0, y: 0 },
       approvedProjectCount: 0,
       createdAt: new Date(),

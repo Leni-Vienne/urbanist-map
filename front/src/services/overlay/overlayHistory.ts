@@ -1,10 +1,10 @@
-// AI : ============================================================================
-// AI : OVERLAY HISTORY - Undo/Redo and history state management
-// AI : ============================================================================
-// AI : Extracted from useOverlay.ts to manage overlay position history
-// AI : Provides undo/redo functionality and history state persistence
-// AI : Note: Marker updates are handled by the caller after history operations
-// AI : ============================================================================
+// ============================================================================
+// OVERLAY HISTORY - Corner state and edit mode cache management
+// ============================================================================
+// Manages overlay corner history, resolves corners from various sources
+// (history, coordinates, or live layer state), and persists modifications
+// to the edit mode cache and pending modifications store
+// ============================================================================
 
 import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -13,18 +13,18 @@ import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 /**
- * AI : Initialize history for overlay if not already set
+ * Initialize history for overlay if not already set
  */
 export function initializeOverlayHistory(overlayObject: OverlayObject): void {
   const layer = getLayer(overlayObject.id);
   if (!layer) return;
 
-  // AI : Defensive guard: ensure history array exists (can be undefined if factory had a bug)
+  // Defensive guard: ensure history array exists (can be undefined if factory had a bug)
   if (!overlayObject.history) {
     overlayObject.history = [];
   }
 
-  // AI : Only initialize if history is completely empty
+  // Only initialize if history is completely empty
   if (overlayObject.history.length > 0) {
     return;
   }
@@ -38,16 +38,16 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Get corners for overlay based on priority: history > coordinates > default
+ * Get corners for overlay based on priority: history > coordinates > default
  */
 function getCornersForOverlay(overlayObject: OverlayObject) {
-  // AI : Priority 1: Use history if available (for undo/redo)
+  // Priority 1: Use history if available (for undo/redo)
   if (overlayObject.history.length > 0) {
     const lastCorners = overlayObject.history.at(-1);
     if (lastCorners?.length === 4) return lastCorners;
   }
 
-  // AI : Priority 2: Use corners from overlayObject (skip if all zeros - indicates new overlay)
+  // Priority 2: Use corners from overlayObject (skip if all zeros - indicates new overlay)
   if (
     overlayObject.corners.length === 4 &&
     !overlayObject.corners.every((c) => c.lat === 0 && c.lng === 0)
@@ -55,7 +55,7 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
     return overlayObject.corners;
   }
 
-  // AI : Priority 3: Initialize from current overlay state
+  // Priority 3: Initialize from current overlay state
   const currentCorners = getLayer(overlayObject.id)?.getCorners();
   if (currentCorners?.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
@@ -68,31 +68,31 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
 }
 
 /**
- * AI : Get corners for overlay with edit mode cache fallback
+ * Get corners for overlay with edit mode cache fallback
  * This function prioritizes edit mode cached modifications for position persistence
  */
 export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
   const overlayStore = useOverlayStore();
 
-  // AI : Check edit mode cache only if in edit mode
-  // AI : This ensures view mode always uses backend positions, not stale cached positions
+  // Check edit mode cache only if in edit mode
+  // This ensures view mode always uses backend positions, not stale cached positions
   if (overlayStore.mode === "edit") {
     const cachedModifications = overlayStore.getFromEditModeCache(overlayObject.id);
     if (cachedModifications?.corners.length === 4) {
-      // AI : Update object history with cached modifications
+      // Update object history with cached modifications
       overlayObject.history = [cachedModifications.corners];
       overlayObject.isModified = cachedModifications.isModified;
       return cachedModifications.corners;
     }
   }
 
-  // AI : Use backend corners (view mode or no cache available)
+  // Use backend corners (view mode or no cache available)
   return getCornersForOverlay(overlayObject);
 }
 
 /**
- * AI : Save overlay modifications to edit mode cache for persistence across zoom changes
- * AI : Also saves to pendingModificationsStore for unified modification tracking
+ * Save overlay modifications to edit mode cache for persistence across zoom changes
+ * Also saves to pendingModificationsStore for unified modification tracking
  */
 export function saveOverlayModificationsToCache(
   overlayObject: OverlayObject,
@@ -107,13 +107,13 @@ export function saveOverlayModificationsToCache(
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
 
-  // AI : Save to old cache for backwards compatibility during migration
+  // Save to old cache for backwards compatibility during migration
   overlayStore.saveToEditModeCache(overlayObject.id, {
     corners: mappedCorners,
     isModified: overlayObject.isModified ?? false,
   });
 
-  // AI : Save to new unified store
+  // Save to new unified store
   const overlayStatus = overlayObject.status ?? "pending";
   pendingModsStore.saveCornersChange(
     overlayObject.id,
@@ -125,7 +125,7 @@ export function saveOverlayModificationsToCache(
 }
 
 /**
- * AI : Save the current state of an overlay to history
+ * Save the current state of an overlay to history
  */
 export function saveToHistory(overlayObject: OverlayObject): void {
   const layer = getLayer(overlayObject.id);
@@ -133,7 +133,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   const currentState = layer.getCorners();
 
-  // AI : Check if current state is different from last saved state
+  // Check if current state is different from last saved state
   if (overlayObject.history.length > 0) {
     const lastState = overlayObject.history[overlayObject.history.length - 1];
     const currentStateStr = JSON.stringify(currentState);
@@ -154,15 +154,15 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     structuredClone(currentState) as { lat: number; lng: number }[],
   ];
 
-  // AI : Mark overlay as modified when it's moved/changed
+  // Mark overlay as modified when it's moved/changed
   overlayObject.isModified = true;
 
-  // AI : Save modifications to edit mode cache if in edit mode for persistence across zoom changes
+  // Save modifications to edit mode cache if in edit mode for persistence across zoom changes
   saveOverlayModificationsToCache(overlayObject);
 
   updateMarkerTooltip(overlayObject);
 
-  // AI : Update store with proper reactivity - critical for canUndo/canRedo/hasUnsavedModifications
+  // Update store with proper reactivity - critical for canUndo/canRedo/hasUnsavedModifications
   // MUST happen before overlayObject.history is reassigned (see comment above).
   const overlayStore = useOverlayStore();
   overlayStore.updateOverlay(overlayObject.id, {

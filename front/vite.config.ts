@@ -62,18 +62,18 @@ export default defineConfig(({ mode }) => ({
       ],
     }),
   ],
-  // AI : Configure aliases and externals for CDN usage
+  // Configure aliases and externals for CDN usage
   resolve: {
     alias: {
-      // AI : Redirect leaflet imports to our CDN shim
+      // Redirect leaflet imports to our CDN shim
       leaflet: path.resolve(__dirname, "./src/lib/leaflet-umd-shim.ts"),
-      // AI : Use vue-i18n runtime-only build (no message compiler, uses JIT compilation)
+      // Use vue-i18n runtime-only build (no message compiler, uses JIT compilation)
       "vue-i18n": "vue-i18n/dist/vue-i18n.runtime.esm-bundler.js",
       "@/tables": path.resolve(__dirname, "./back/src/db/schema"),
       "@": "/src",
       "@shared": path.resolve(__dirname, "../shared"),
 
-      // AI : Temporary alias for testing local library changes
+      // Temporary alias for testing local library changes
       /*"leaflet-distortableimage": path.resolve(
         __dirname,
         "../../Leaflet.DistortableImage",
@@ -122,20 +122,20 @@ export default defineConfig(({ mode }) => ({
       "primevue/divider",
     ],
   },
-  // AI : External leaflet to prevent bundling
+  // External leaflet to prevent bundling
   build: {
     sourcemap: true,
     license: true,
-    cssCodeSplit: true, // AI : Extract CSS per chunk for parallel loading
+    cssCodeSplit: true, // Extract CSS per chunk for parallel loading
     rolldownOptions: {
       external: (id) => {
-        // AI : Mark CDN URLs as external so they don't get bundled
+        // Mark CDN URLs as external so they don't get bundled
         return id.includes("unpkg.com/leaflet");
       },
       output: {
         codeSplitting: {
           groups: [
-            // AI : Consolidate the ~14 tiny PrimeVue micro-chunks that Rolldown extracts as
+            // Consolidate the ~14 tiny PrimeVue micro-chunks that Rolldown extracts as
             // shared deps of async components. All of these are already page-loaded, so merging
             // reduces HTTP requests without changing load timing or pulling in lazy-only code.
             // Deliberately excludes form-only components (radiobutton, textarea, floatlabel,
@@ -156,7 +156,7 @@ export default defineConfig(({ mode }) => ({
                 /node_modules\/@primevue\/core\/(utils|baseinput|baseeditableholder)\//.test(id) ||
                 /node_modules\/@primeuix\/utils\/dist\/eventbus/.test(id),
             },
-            // AI : Consolidate the ~12 tiny own-code chunks that Rolldown extracts because
+            // Consolidate the ~12 tiny own-code chunks that Rolldown extracts because
             // they are shared between multiple lazy-loaded components. All confirmed page-loaded.
             // Grouping them into one chunk cuts ~12 HTTP requests from the initial load.
             {
@@ -172,29 +172,29 @@ export default defineConfig(({ mode }) => ({
                   id,
                 ),
             },
-            // AI : Consolidate overlay service modules that are only loaded via panel clicks
-            // AI : (useOverlayClickHandler, overlayNavigation, etc.) into a single lazy chunk.
-            // AI : overlayMarkers/overlayHistory/entityRemoval are excluded because they load
-            // AI : during the zoom-into-city flow and must remain independently loadable.
+            // Consolidate overlay service modules that are only loaded via panel clicks
+            // (useOverlayClickHandler, overlayNavigation, etc.) into a single lazy chunk.
+            // overlayMarkers/overlayHistory/entityRemoval are excluded because they load
+            // during the zoom-into-city flow and must remain independently loadable.
             {
               name: "overlay-services",
               test: (id: string) =>
-                // AI : Do NOT include dynamic import() entry points here (overlayEditing,
-                // AI : overlayNavigation, useOverlayClickHandler) - they create stub+real code
-                // AI : duplication. Their deps (overlay.ts, overlayCityCache, etc.) are included
-                // AI : and those get pulled into overlay-services via static import chains.
-                // AI : The async entry files load overlay-services as a dep chunk automatically.
+                // Do NOT include dynamic import() entry points here (overlayEditing,
+                // overlayNavigation, useOverlayClickHandler) - they create stub+real code
+                // duplication. Their deps (overlay.ts, overlayCityCache, etc.) are included
+                // and those get pulled into overlay-services via static import chains.
+                // The async entry files load overlay-services as a dep chunk automatically.
                 /\/front\/src\/services\/overlay\/(overlay|overlayCityCache|overlayPositionResolver)\.ts/.test(
                   id,
                 ) || /\/front\/src\/services\/project\/projects\.ts/.test(id),
             },
-            // AI : Consolidate the 9-chunk cascade triggered when CurrentLocationPanel first mounts
-            // AI : (applies to both zoom→click-on-overlay and LatestContributionsPanel click flows).
-            // AI : Only TS utility files here — NOT Vue component files. Adding .vue async entries
-            // AI : to the group drags their transitive deps (vue-i18n) out of the initial bundle
-            // AI : into this lazy chunk → Rolldown preloads it at startup again to satisfy the
-            // AI : conflict, defeating the purpose. Async components (CurrentLocationPanel,
-            // AI : ProjectAccordionPanel) load location-panel automatically as a dep chunk.
+            // Consolidate the 9-chunk cascade triggered when CurrentLocationPanel first mounts
+            // (applies to both zoom→click-on-overlay and LatestContributionsPanel click flows).
+            // Only TS utility files here — NOT Vue component files. Adding .vue async entries
+            // to the group drags their transitive deps (vue-i18n) out of the initial bundle
+            // into this lazy chunk → Rolldown preloads it at startup again to satisfy the
+            // conflict, defeating the purpose. Async components (CurrentLocationPanel,
+            // ProjectAccordionPanel) load location-panel automatically as a dep chunk.
             {
               name: "location-panel",
               test: (id: string) =>
@@ -219,7 +219,7 @@ export default defineConfig(({ mode }) => ({
     //__VUE_OPTIONS_API__: false, -> crashes the app
     "process.env.NODE_ENV": JSON.stringify("production"),
     __VUE_PROD_DEVTOOLS__: false, // doesn't seem to change anything
-    // AI : vue-i18n optimizations - tree-shake unused features
+    // vue-i18n optimizations - tree-shake unused features
     __INTLIFY_PROD_DEVTOOLS__: false,
     __VUE_I18N_FULL_INSTALL__: true, // We use globalInjection
     __VUE_I18N_LEGACY_API__: false, // We use composition API (legacy: false)

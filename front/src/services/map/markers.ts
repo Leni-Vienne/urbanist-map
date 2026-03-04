@@ -1,6 +1,6 @@
-// AI : ============================================================================
-// AI : Unified marker management combining icon creation, color logic, and marker updates
-// AI : ============================================================================
+// ============================================================================
+// Unified marker management combining icon creation, color logic, and marker updates
+// ============================================================================
 
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
@@ -8,18 +8,18 @@ import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 
-// AI : ============================================================================
-// AI : ICON CREATION
-// AI : ============================================================================
+// ============================================================================
+// ICON CREATION
+// ============================================================================
 
-// AI : SVG marker configuration
+// SVG marker configuration
 const markerSize = 25;
-const markerHeight = Math.round(markerSize * 1.6); // AI : Must match SVG height calculation
+const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
 
-// AI : Overlay outline color (blue) - used for all overlay outlines regardless of status
+// Overlay outline color (blue) - used for all overlay outlines regardless of status
 export const OVERLAY_OUTLINE_COLOR = "#007bff";
 
-// AI : Single base color per marker - everything else is generated
+// Single base color per marker - everything else is generated
 export const markerColors: Record<MarkerColor, string> = {
   blue: "#1E90FF",
   green: "#32CD32",
@@ -30,19 +30,19 @@ export const markerColors: Record<MarkerColor, string> = {
   grey: "#A0A0A0",
 };
 
-// AI : Simple functions to generate variants from base color
-// AI : NOTE: Global SVGs in MapSvgDefs.vue use these colors but compute them locally.
-// AI : We keep markerColors export for consistency/reuse.
+// Simple functions to generate variants from base color
+// NOTE: Global SVGs in MapSvgDefs.vue use these colors but compute them locally.
+// We keep markerColors export for consistency/reuse.
 
-// AI : Simple marker creation - one base color, generate everything else
-// AI : Used for city markers (generic map markers)
-// AI : References global defs in MapSvgDefs.vue
+// Simple marker creation - one base color, generate everything else
+// Used for city markers (generic map markers)
+// References global defs in MapSvgDefs.vue
 function createMarkerSVG(color: MarkerColor): string {
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
 
-  // AI : References globally defined gradients in MapSvgDefs.vue
-  // AI : IDs format: g-[color] and shadow-grad-[color]
+  // References globally defined gradients in MapSvgDefs.vue
+  // IDs format: g-[color] and shadow-grad-[color]
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
       <!-- Cast shadow (skewed ellipse to the right) -->
@@ -63,7 +63,7 @@ function createMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : Overlay marker with picture frame icon to indicate images/overlays
+// Overlay marker with picture frame icon to indicate images/overlays
 function createOverlayMarkerSVG(color: MarkerColor): string {
   const width = 32;
   const height = 40;
@@ -96,7 +96,7 @@ function createOverlayMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : Simple standalone project marker - standard look for projects without overlays
+// Simple standalone project marker - standard look for projects without overlays
 function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
@@ -121,7 +121,7 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : Create simple SVG icon for Leaflet (city markers)
+// Create simple SVG icon for Leaflet (city markers)
 export function createColorIcon(color: MarkerColor): L.DivIcon {
   const svgString = createMarkerSVG(color);
 
@@ -129,18 +129,18 @@ export function createColorIcon(color: MarkerColor): L.DivIcon {
     html: svgString,
     className: "custom-svg-marker",
     iconSize: [markerSize, markerHeight],
-    iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
+    iconAnchor: [markerSize / 2, markerHeight], // Anchor at bottom center (pin tip)
     popupAnchor: [0, -markerHeight],
   });
 }
 
-// AI : Cache overlay DivIcon instances — only 7 colors exist, no need to recreate on every call.
-// AI : setIcon() reconstructs the marker DOM element each time, so reusing the same object
-// AI : still triggers DOM work. The real gain comes from skipping setIcon() when color is unchanged
-// AI : (see updateMarkerTooltip). This cache avoids the SVG string + L.divIcon allocation cost.
+// Cache overlay DivIcon instances — only 7 colors exist, no need to recreate on every call.
+// setIcon() reconstructs the marker DOM element each time, so reusing the same object
+// still triggers DOM work. The real gain comes from skipping setIcon() when color is unchanged
+// (see updateMarkerTooltip). This cache avoids the SVG string + L.divIcon allocation cost.
 const _overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
 
-// AI : Create overlay marker icon with picture frame (for overlay markers specifically)
+// Create overlay marker icon with picture frame (for overlay markers specifically)
 export function createOverlayIcon(color: MarkerColor): L.DivIcon {
   if (_overlayIconCache[color]) {
     return _overlayIconCache[color]!;
@@ -150,14 +150,14 @@ export function createOverlayIcon(color: MarkerColor): L.DivIcon {
     html: svgString,
     className: "custom-svg-marker overlay-marker",
     iconSize: [markerSize, markerHeight],
-    iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
+    iconAnchor: [markerSize / 2, markerHeight], // Anchor at bottom center (pin tip)
     popupAnchor: [0, -markerHeight],
   });
   _overlayIconCache[color] = icon;
   return icon;
 }
 
-// AI : Create standalone/project marker icon with simple circle (for standalone projects)
+// Create standalone/project marker icon with simple circle (for standalone projects)
 export function createStandaloneProjectIcon(color: MarkerColor): L.DivIcon {
   const svgString = createStandaloneProjectMarkerSVG(color);
 
@@ -165,17 +165,17 @@ export function createStandaloneProjectIcon(color: MarkerColor): L.DivIcon {
     html: svgString,
     className: "custom-svg-marker standalone-marker",
     iconSize: [markerSize, markerHeight],
-    iconAnchor: [markerSize / 2, markerHeight], // AI : Anchor at bottom center (pin tip)
+    iconAnchor: [markerSize / 2, markerHeight], // Anchor at bottom center (pin tip)
     popupAnchor: [0, -markerHeight],
   });
 }
 
-// AI : Get raw marker SVG string for cursor display
+// Get raw marker SVG string for cursor display
 export function getMarkerSvg(color: MarkerColor): string {
   return createStandaloneProjectMarkerSVG(color);
 }
 
-// AI : Create button-sized marker SVG using base color
+// Create button-sized marker SVG using base color
 export function createButtonSVG(color: MarkerColor): string {
   const baseColor = markerColors[color];
   const size = 16;
@@ -196,18 +196,18 @@ export function createButtonSVG(color: MarkerColor): string {
   `;
 }
 
-// AI : ============================================================================
-// AI : MARKER COLORS
-// AI : ============================================================================
+// ============================================================================
+// MARKER COLORS
+// ============================================================================
 
 /**
- * AI : Centralized function to determine marker color based on overlay state and map mode
+ * Centralized function to determine marker color based on overlay state and map mode
  */
 export function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
   mode: AppMode,
 ): MarkerColor {
-  // AI : Extract overlay-specific properties (not present on all overlay types)
+  // Extract overlay-specific properties (not present on all overlay types)
   const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
   const isTooBig = "isTooBig" in overlayData ? overlayData.isTooBig : false;
   const hasPendingChanges =
@@ -217,17 +217,17 @@ export function getOverlayMarkerColor(
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
 
-  // AI : ==================== OVERLAY-SPECIFIC PRIORITY RULES ====================
-  // AI : These rules are unique to overlays and don't apply to projects
+  // ==================== OVERLAY-SPECIFIC PRIORITY RULES ====================
+  // These rules are unique to overlays and don't apply to projects
 
-  // AI : Size validation error (only for local overlays - submitted ones passed backend validation)
+  // Size validation error (only for local overlays - submitted ones passed backend validation)
   if (mode === "edit" && isTooBig && hasBeenModified) return "red";
 
-  // AI : Local replacement overlay (before submission) - show purple
+  // Local replacement overlay (before submission) - show purple
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";
 
-  // AI : Viewing suggested position of overlay with pending changes - show yellow
-  // AI : Default to yellow if pending changes exist and we haven't explicitly selected the approved view
+  // Viewing suggested position of overlay with pending changes - show yellow
+  // Default to yellow if pending changes exist and we haven't explicitly selected the approved view
   if (
     (hasPendingChanges || status === "approved") &&
     (isViewingApprovedPosition === false ||
@@ -236,14 +236,14 @@ export function getOverlayMarkerColor(
     return "yellow";
   }
 
-  // AI : Pending change requests with approved status - use green (viewing approved position)
-  // AI : ONLY when explicitly viewing approved (isViewingApprovedPosition === true)
+  // Pending change requests with approved status - use green (viewing approved position)
+  // ONLY when explicitly viewing approved (isViewingApprovedPosition === true)
   if (hasPendingChanges && status === "approved" && isViewingApprovedPosition === true) {
     return "green";
   }
 
-  // AI : ==================== SHARED STATUS-BASED LOGIC ====================
-  // AI : Delegate to shared helper for common status/mode combinations
+  // ==================== SHARED STATUS-BASED LOGIC ====================
+  // Delegate to shared helper for common status/mode combinations
 
   if (mode === "moderation" || mode === "edit") {
     const statusColor = getApprovalStatusColor(status, mode, {
@@ -254,22 +254,22 @@ export function getOverlayMarkerColor(
     if (statusColor) return statusColor;
   }
 
-  // AI : ==================== VIEW MODE: TIMELINE-BASED COLORS ====================
-  // AI : Based on associated project's timeline dates
+  // ==================== VIEW MODE: TIMELINE-BASED COLORS ====================
+  // Based on associated project's timeline dates
 
   const project = overlayData.project;
   if (!project) return "grey"; // No associated project
 
-  // AI : Use shared timeline helper
+  // Use shared timeline helper
   return getTimelineBasedColor(project.proposalDate, project.startDate, project.endDate);
 }
 
-// AI : ============================================================================
-// AI : MARKER UPDATES
-// AI : ============================================================================
+// ============================================================================
+// MARKER UPDATES
+// ============================================================================
 
 /**
- * AI : Update overlay markers colors for existing markers based on current mode
+ * Update overlay markers colors for existing markers based on current mode
  * @param overlays - Reference to overlays object
  * @param mode - Current map mode (passed as parameter for testability and performance)
  * @param specificOverlayId - Optional overlay ID to update only one overlay (optimization)
@@ -279,7 +279,7 @@ export function updateOverlayMarkersColors(
   mode: AppMode,
   specificOverlayId?: string,
 ): void {
-  // AI : If specific overlay ID provided, only update that one
+  // If specific overlay ID provided, only update that one
   if (specificOverlayId) {
     const overlayObject = overlays[specificOverlayId];
     if (overlayObject) {
@@ -293,11 +293,11 @@ export function updateOverlayMarkersColors(
     return;
   }
 
-  // AI : Otherwise, iterate through all overlay objects that have markers
+  // Otherwise, iterate through all overlay objects that have markers
   for (const overlayObject of Object.values(overlays)) {
     const marker = getMarker(overlayObject.id);
     if (marker) {
-      // AI : Update marker color based on current mode and overlay state
+      // Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
       marker.setIcon(colorIcon);
@@ -305,7 +305,6 @@ export function updateOverlayMarkersColors(
   }
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

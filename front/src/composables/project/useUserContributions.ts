@@ -22,8 +22,8 @@ export function useUserContributions() {
   const projects = computed(() => projectStore.userContributions);
 
   /**
-   * AI : Merged contributions combining backend data with local-only projects/overlays
-   * AI : This allows My Contributions panel to show unsaved/unsubmitted work alongside submitted work
+   * Merged contributions combining backend data with local-only projects/overlays
+   * This allows My Contributions panel to show unsaved/unsubmitted work alongside submitted work
    */
   const allContributions = computed<UserContribution[]>(() => {
     const authStore = useAuthStore();
@@ -32,18 +32,18 @@ export function useUserContributions() {
 
     if (!user) return [];
 
-    // AI : Start with backend contributions
+    // Start with backend contributions
     const backendContributions = [...projectStore.userContributions];
 
-    // AI : Create a map for quick lookup and modification
+    // Create a map for quick lookup and modification
     const contributionsMap = new Map<string, UserContribution>();
     for (const contrib of backendContributions) {
       contributionsMap.set(contrib.id, { ...contrib });
     }
 
-    // AI : Add local-only overlays to their parent projects
-    // AI : Note: We don't filter by authorId here because overlays can be added to projects
-    // AI : the user doesn't own. The project ownership filtering handles access control.
+    // Add local-only overlays to their parent projects
+    // Note: We don't filter by authorId here because overlays can be added to projects
+    // the user doesn't own. The project ownership filtering handles access control.
     const localOverlays = Object.values(overlayStore.overlays).filter(
       (overlay) => overlay.status === null,
     );
@@ -51,11 +51,11 @@ export function useUserContributions() {
     for (const overlay of localOverlays) {
       if (!overlay.projectId) continue;
 
-      // AI : Check if parent project exists in contributions
+      // Check if parent project exists in contributions
       let parentProject = contributionsMap.get(overlay.projectId);
 
       if (parentProject) {
-        // AI : Project exists - add local overlay to it using factory
+        // Project exists - add local overlay to it using factory
         const localOverlayData = createLocalOverlayContribution(
           overlay,
           {
@@ -67,7 +67,7 @@ export function useUserContributions() {
           user.username ?? null,
         );
 
-        // AI : Check if overlay already exists (avoid duplicates)
+        // Check if overlay already exists (avoid duplicates)
         if (!parentProject.overlays.some((o) => o.id === overlay.id)) {
           parentProject = {
             ...parentProject,
@@ -77,12 +77,12 @@ export function useUserContributions() {
           contributionsMap.set(overlay.projectId, parentProject);
         }
       } else {
-        // AI : Parent project not in backend contributions
-        // AI : Check if it exists in local projects store
+        // Parent project not in backend contributions
+        // Check if it exists in local projects store
         const localProject = projectStore.projects[overlay.projectId];
 
         if (localProject && localProject.ownerId === user.id) {
-          // AI : Use factory to create new contribution entry for local project
+          // Use factory to create new contribution entry for local project
           const newContribution = createLocalProjectContribution(
             localProject,
             overlay,
@@ -94,16 +94,16 @@ export function useUserContributions() {
       }
     }
 
-    // AI : Add local-only projects (without overlays or with only local overlays)
+    // Add local-only projects (without overlays or with only local overlays)
     const localProjects = Object.values(projectStore.projects).filter(
       (project) => project.status === null && project.ownerId === user.id,
     );
 
     for (const localProject of localProjects) {
-      // AI : Skip if already added above (when processing local overlays)
+      // Skip if already added above (when processing local overlays)
       if (contributionsMap.has(localProject.id)) continue;
 
-      // AI : Get all local overlays for this project
+      // Get all local overlays for this project
       const projectLocalOverlays = localOverlays.filter((o) => o.projectId === localProject.id);
 
       const overlayData = projectLocalOverlays.map((overlay) =>
@@ -123,7 +123,7 @@ export function useUserContributions() {
         id: localProject.id,
         name: localProject.name,
         description: localProject.description ?? null,
-        status: null, // AI : Local-only project
+        status: null, // Local-only project
         version: 1,
         ownerId: localProject.ownerId,
         ownerUsername: user.username ?? null,
@@ -148,7 +148,7 @@ export function useUserContributions() {
       contributionsMap.set(localProject.id, newContribution);
     }
 
-    // AI : Convert map back to array and sort by updated date (most recent first)
+    // Convert map back to array and sort by updated date (most recent first)
     const result = [...contributionsMap.values()].toSorted(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
@@ -163,12 +163,12 @@ export function useUserContributions() {
     const authStore = useAuthStore();
     if (!authStore.user) return;
 
-    // AI : Use cache key helper from store to avoid duplication
+    // Use cache key helper from store to avoid duplication
     const cacheKey = projectStore.getUserContributionsCacheKey(options);
 
-    // AI : Check if we already have this data cached
+    // Check if we already have this data cached
     if (projectStore.userContributionsCache.has(cacheKey)) {
-      // AI : Load from cache
+      // Load from cache
       projectStore.userContributions = projectStore.userContributionsCache.get(cacheKey) ?? [];
       return;
     }
@@ -194,7 +194,7 @@ export function useUserContributions() {
   }
 
   async function deleteOverlay(overlayId: string): Promise<boolean> {
-    // AI : Delegate to deleteOverlayDirect with composable-appropriate options
+    // Delegate to deleteOverlayDirect with composable-appropriate options
     return deleteOverlayDirect(overlayId, {
       showToast: true,
       updateUserContributions: true,
@@ -204,13 +204,13 @@ export function useUserContributions() {
 
   async function deleteProject(projectId: string): Promise<boolean> {
     try {
-      // AI : Get project to check if it's local-only (not submitted to backend)
+      // Get project to check if it's local-only (not submitted to backend)
       const project = projectStore.allProjects[projectId];
       const isLocalOnly = project?.status === null;
 
-      // AI : For local-only projects, skip backend call and just remove from local state
+      // For local-only projects, skip backend call and just remove from local state
       if (isLocalOnly) {
-        // AI : Use new unified removal service
+        // Use new unified removal service
         removeProject(projectId, { updateUserContributions: false });
 
         toast.add({
@@ -221,14 +221,14 @@ export function useUserContributions() {
         return true;
       }
 
-      // AI : For backend projects, call the API
+      // For backend projects, call the API
       const result = await withErrorHandling(
         async () => trpc.project.deleteProject.mutate({ id: projectId }),
         { errorMessage: t("contribute.deleteProjectError") },
       );
 
       if (result) {
-        // AI : Use new unified removal service
+        // Use new unified removal service
         removeProject(projectId, { updateUserContributions: true });
 
         toast.add({

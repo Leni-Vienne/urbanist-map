@@ -3,23 +3,23 @@ import { projects, overlays } from "./schema";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
-// AI : Maximum number of pending contributions (projects + overlays) per user
+// Maximum number of pending contributions (projects + overlays) per user
 const MAX_PENDING_CONTRIBUTIONS = 50;
 
-// AI : Lifetime limit: 2000 total approved/pending contributions (projects + overlays) per user
-// AI : This prevents database bloat and storage abuse (approx 10-20GB max per user)
+// Lifetime limit: 2000 total approved/pending contributions (projects + overlays) per user
+// This prevents database bloat and storage abuse (approx 10-20GB max per user)
 const MAX_TOTAL_CONTRIBUTIONS = 2000;
 
-// AI : Count total pending contributions for a user
+// Count total pending contributions for a user
 async function countPendingContributions(userId: string): Promise<number> {
   try {
-    // AI : Count pending projects authored by user
+    // Count pending projects authored by user
     const [pendingProjects] = await db
       .select({ count: sql<number>`cast(count(*) as integer)` })
       .from(projects)
       .where(and(eq(projects.ownerId, userId), eq(projects.status, "pending")));
 
-    // AI : Count pending overlays authored by user
+    // Count pending overlays authored by user
     const [pendingOverlays] = await db
       .select({ count: sql<number>`cast(count(*) as integer)` })
       .from(overlays)
@@ -33,20 +33,20 @@ async function countPendingContributions(userId: string): Promise<number> {
   }
 }
 
-// AI : Check if user has reached the pending contribution limit
+// Check if user has reached the pending contribution limit
 async function hasReachedPendingLimit(userId: string): Promise<boolean> {
   const count = await countPendingContributions(userId);
   return count >= MAX_PENDING_CONTRIBUTIONS;
 }
 
-// AI : Check pending limit and throw error if reached (for new contributions only)
+// Check pending limit and throw error if reached (for new contributions only)
 export async function checkPendingLimitForNewContribution(
   userId: string,
   entityId?: string,
 ): Promise<void> {
-  // AI : If entity ID exists, check if it's a new contribution
+  // If entity ID exists, check if it's a new contribution
   if (entityId) {
-    // AI : Check if overlay or project already exists
+    // Check if overlay or project already exists
     const [existingOverlay] = await db
       .select({ id: overlays.id, status: overlays.status })
       .from(overlays)
@@ -61,19 +61,19 @@ export async function checkPendingLimitForNewContribution(
 
     const existingEntity = existingOverlay ?? existingProject;
 
-    // AI : If entity exists, check its status
+    // If entity exists, check its status
     if (existingEntity) {
-      // AI : If it's already pending, this is just an edit to a pending item
-      // AI : We don't count it as a "new" pending contribution since it's already counted
+      // If it's already pending, this is just an edit to a pending item
+      // We don't count it as a "new" pending contribution since it's already counted
       if (existingEntity.status === "pending") {
         return;
       }
-      // AI : If it's NOT pending (e.g. rejected or approved), and we're submitting it
-      // AI : It will become 'pending' again, so we must check the limit!
+      // If it's NOT pending (e.g. rejected or approved), and we're submitting it
+      // It will become 'pending' again, so we must check the limit!
     }
   }
 
-  // AI : Check if user has reached the limit
+  // Check if user has reached the limit
   const reachedLimit = await hasReachedPendingLimit(userId);
   if (reachedLimit) {
     throw new TRPCError({
@@ -84,7 +84,7 @@ export async function checkPendingLimitForNewContribution(
 }
 
 export async function checkTotalContributionLimit(userId: string): Promise<void> {
-  // AI : Count all contributions (approved + pending)
+  // Count all contributions (approved + pending)
   const [userProjects] = await db
     .select({ count: sql<number>`cast(count(*) as integer)` })
     .from(projects)

@@ -1,12 +1,12 @@
-<template>
+﻿<template>
   <Transition name="help-fade">
     <button
       v-if="actuallyVisible"
       type="button"
-      class="appearance-none font-[inherit] absolute top-[80px] md:top-[10px] left-1/2 -translate-x-1/2 flex items-center gap-2 px-5 py-3 bg-[var(--p-surface-0)] text-[var(--p-surface-700)] border-2 border-[var(--p-surface-300)] rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.08),0_0_0_1px_rgba(255,255,255,0.5)] text-sm font-semibold cursor-pointer z-[1000] whitespace-nowrap transition-colors duration-200 hover:bg-[var(--p-surface-200)] active:scale-[0.98]"
+      class="appearance-none font-[inherit] absolute top-20 md:top-2.5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-5 py-3 bg-content-background text-color border-2 border-surface rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.08),0_0_0_1px_rgba(255,255,255,0.5)] text-sm font-semibold cursor-pointer z-1000 whitespace-nowrap transition-colors duration-200 hover:bg-content-hover-background active:scale-[0.98]"
       @click="handleClick"
     >
-      <i class="pi pi-map-marker text-[0.875rem] text-[var(--p-primary-500)]"></i>
+      <i class="pi pi-map-marker text-3.5 text-primary-500"></i>
       <span>{{ buttonText }}</span>
     </button>
   </Transition>
@@ -28,7 +28,7 @@ const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-// AI : Computed visibility - hide when marker placement bar is visible or dismissed
+// Computed visibility - hide when marker placement bar is visible or dismissed
 const actuallyVisible = computed(() => {
   return visible.value && !uiStore.markerPlacementBarVisible && !dismissed.value;
 });
@@ -37,9 +37,9 @@ const buttonText = computed(() => {
   return t("map.clickCityMarker");
 });
 
-// AI : Show button after delay if no city is selected and cities are available
+// Show button after delay if no city is selected and cities are available
 function showButtonWithDelay() {
-  // AI : If timeout is already active, don't restart it
+  // If timeout is already active, don't restart it
   if (timeoutId) return;
 
   timeoutId = globalThis.setTimeout(() => {
@@ -49,7 +49,7 @@ function showButtonWithDelay() {
   }, 3000);
 }
 
-// AI : Hide button and reset state
+// Hide button and reset state
 function hideButton() {
   visible.value = false;
   if (timeoutId) {
@@ -58,7 +58,7 @@ function hideButton() {
   }
 }
 
-// AI : Check visibility rules based on state
+// Check visibility rules based on state
 function checkVisibility() {
   if (citiesWithProjects.value.length > 0 && !mapStore.selectedCity) {
     showButtonWithDelay();
@@ -67,7 +67,7 @@ function checkVisibility() {
   }
 }
 
-// AI : Watch for changes in cities or selected city
+// Watch for changes in cities or selected city
 watch(
   [() => mapStore.selectedCity, () => citiesWithProjects.value.length],
   () => {
@@ -76,7 +76,7 @@ watch(
   { immediate: true },
 );
 
-// AI : Dismiss permanently once contributions are loaded (user found their way)
+// Dismiss permanently once contributions are loaded (user found their way)
 watch(
   () => overlayStore.viewModeOverlays.length > 0,
   (hasContributions) => {
@@ -88,21 +88,21 @@ watch(
   { immediate: true },
 );
 
-// AI : Handle button click - find nearest city marker and activates it
+// Handle button click - find nearest city marker and activates it
 function handleClick() {
-  // AI : Use reactive data instead of scanning DOM
+  // Use reactive data instead of scanning DOM
   const availableCities = citiesWithProjects.value;
 
   if (availableCities.length === 0) return;
 
-  // AI : Find nearest city
+  // Find nearest city
   const center = map.value.getCenter();
   let nearestCity: (typeof availableCities)[0] | null = null;
   let minDistance = Infinity;
 
-  // AI : Find nearest city by distance
+  // Find nearest city by distance
   for (const city of availableCities) {
-    // AI : Simple Euclidean distance is enough for this
+    // Simple Euclidean distance is enough for this
     const distance = Math.sqrt((center.lat - city.lat) ** 2 + (center.lng - city.lng) ** 2);
 
     if (distance < minDistance) {

@@ -7,17 +7,17 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
 
-// AI : User type for our custom authentication
+// User type for our custom authentication
 interface User {
   id: string;
   email: string;
   username: string | null;
   role: string | null;
-  moderatedCountries: string[] | null; // AI : Array of ISO 3-letter country codes (null = admin with all countries)
+  moderatedCountries: string[] | null; // Array of ISO 3-letter country codes (null = admin with all countries)
   emailVerified: boolean;
 }
 
-// AI : Helper function to load Google Identity Services script
+// Helper function to load Google Identity Services script
 async function loadGoogleIdentityScript() {
   return new Promise<void>((resolve, reject) => {
     if (globalThis.google) {
@@ -41,7 +41,7 @@ async function loadGoogleIdentityScript() {
   });
 }
 
-// AI : Get last login method for a given email (for UX hint)
+// Get last login method for a given email (for UX hint)
 function getLastLoginMethod(email: string): "email" | "google" | null {
   try {
     const method = localStorage.getItem(`lastLoginMethod:${email}`);
@@ -51,7 +51,7 @@ function getLastLoginMethod(email: string): "email" | "google" | null {
   }
 }
 
-// AI : Helper function to send Google token to backend
+// Helper function to send Google token to backend
 async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean) {
   const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
     method: "POST",
@@ -71,7 +71,7 @@ async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean)
   return data.user ?? null;
 }
 
-// AI : Helper function to handle successful Google authentication
+// Helper function to handle successful Google authentication
 function handleGoogleAuthSuccess(newUser: User | null) {
   if (newUser?.email) {
     localStorage.setItem(`lastLoginMethod:${newUser.email}`, "google");
@@ -84,7 +84,7 @@ function handleGoogleAuthSuccess(newUser: User | null) {
   };
 }
 
-// AI : Helper function to create Google callback handler
+// Helper function to create Google callback handler
 function createGoogleCallbackHandler(
   rememberMe: boolean,
   userRef: { value: User | null },
@@ -94,7 +94,7 @@ function createGoogleCallbackHandler(
   return (response: { credential: string }) => {
     clearTimeoutFn();
 
-    // AI : Handle async operations internally to satisfy void return type
+    // Handle async operations internally to satisfy void return type
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     (async () => {
       try {
@@ -117,25 +117,25 @@ export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const infoMessage = ref<string | null>(null);
 
-  // AI : Computed properties
+  // Computed properties
   const isAuthenticated = computed(() => Boolean(user.value));
-  // AI : User is a moderator if they're admin OR have moderatedCountries assigned
+  // User is a moderator if they're admin OR have moderatedCountries assigned
   const isModerator = computed(
     () =>
       user.value?.role === "admin" ||
       (user.value?.moderatedCountries !== null && user.value?.moderatedCountries !== undefined),
   );
 
-  // AI : Cached promise so multiple callers share the same in-flight request
+  // Cached promise so multiple callers share the same in-flight request
   let initPromise: Promise<void> | null = null;
 
-  // AI : Initialize auth state — idempotent, subsequent calls return the same promise
+  // Initialize auth state — idempotent, subsequent calls return the same promise
   function initialize(): Promise<void> {
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
       try {
-        // AI : Try to get current user from server (will use session cookies)
+        // Try to get current user from server (will use session cookies)
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
           credentials: "include",
         });
@@ -144,7 +144,7 @@ export const useAuthStore = defineStore("auth", () => {
           const result: { user: User; infoMessage: string | null } = await response.json();
           user.value = result.user;
           infoMessage.value = result.infoMessage;
-          // AI : Check moderated contributions only for authenticated users
+          // Check moderated contributions only for authenticated users
           if (!result.user) return;
           try {
             const contributions = await trpc.overlay.getModeratedContributions.query();
@@ -168,7 +168,7 @@ export const useAuthStore = defineStore("auth", () => {
     return initPromise;
   }
 
-  // AI : Sign up with email and password
+  // Sign up with email and password
   async function signUp(email: string, password: string, username: string, captchaToken?: string) {
     try {
       const result = await trpc.auth.register.mutate({
@@ -193,7 +193,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // AI : Sign in with email and password
+  // Sign in with email and password
   async function signIn(email: string, password: string, rememberMe = false) {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
@@ -210,11 +210,11 @@ export const useAuthStore = defineStore("auth", () => {
 
       if (response.ok && result.success) {
         user.value = result.user ?? null;
-        // AI : Store last login method for UX hint
+        // Store last login method for UX hint
         if (result.user?.email) {
           localStorage.setItem(`lastLoginMethod:${result.user.email}`, "email");
         }
-        // AI : Check moderated contributions after manual sign-in (same as initialize)
+        // Check moderated contributions after manual sign-in (same as initialize)
         try {
           const contributions = await trpc.overlay.getModeratedContributions.query();
           const uiStore = useUiStore();
@@ -245,12 +245,12 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // AI : Google OAuth authentication using simple One Tap
+  // Google OAuth authentication using simple One Tap
   async function signInWithOAuth(
     provider: "google",
     rememberMe = false,
   ): Promise<{ success: boolean; user: User | null; error: string | null }> {
-    // AI : Early validation checks
+    // Early validation checks
     if (provider !== "google") {
       return {
         success: false,
@@ -269,7 +269,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
 
     try {
-      // AI : Load Google Identity Services script if not already loaded
+      // Load Google Identity Services script if not already loaded
       if (!globalThis.google) {
         await loadGoogleIdentityScript();
       }
@@ -282,7 +282,7 @@ export const useAuthStore = defineStore("auth", () => {
         };
       }
 
-      // AI : Initialize Google OAuth with Promise-based flow
+      // Initialize Google OAuth with Promise-based flow
       return await new Promise((resolve) => {
         const timeout = setTimeout(() => {
           resolve({
@@ -303,7 +303,7 @@ export const useAuthStore = defineStore("auth", () => {
           cancel_on_tap_outside: true,
         });
 
-        // AI : Prompt the user to sign in
+        // Prompt the user to sign in
         // @ts-ignore - Google Identity Services types may be incomplete
         globalThis.google?.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
@@ -326,7 +326,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // AI : Sign out
+  // Sign out
   async function signOut() {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/logout`, {
@@ -335,10 +335,10 @@ export const useAuthStore = defineStore("auth", () => {
       });
 
       user.value = null;
-      // AI : Reset initPromise so initialize() re-runs after re-login in the same session
+      // Reset initPromise so initialize() re-runs after re-login in the same session
       initPromise = null;
 
-      // AI : Clear all state on logout to prevent data leakage between accounts
+      // Clear all state on logout to prevent data leakage between accounts
       const uiStore = useUiStore();
       uiStore.hasUnacknowledgedModeratedContributions = false;
       uiStore.moderatedContributionsDialogVisible = false;
@@ -348,19 +348,15 @@ export const useAuthStore = defineStore("auth", () => {
       const overlayStore = useOverlayStore();
       const moderationStore = useModerationStore();
 
-      // AI : Clear map state
+      // Clear map state
       mapStore.clearCityProjectsCache();
       mapStore.clearCityStandaloneProjectsCache();
       mapStore.clearSelectedCity();
 
-      // AI : Clear all project and overlay state
+      // Clear all project and overlay state
       projectStore.clearAllState();
       overlayStore.clearAllState();
       moderationStore.clearAllState();
-
-      // AI : Clear visual map elements directly (no watcher needed)
-      // AI : MOVED TO APP.VUE WATCHER TO AVOID CIRCULAR DEPENDENCY
-      // clearMapOnLogout();
 
       if (response.ok) {
         return { success: true, error: null };
@@ -370,13 +366,13 @@ export const useAuthStore = defineStore("auth", () => {
       }
     } catch (error: unknown) {
       console.error("Sign out error:", error);
-      // AI : Clear local data even if server logout fails
+      // Clear local data even if server logout fails
       user.value = null;
       return { success: false, error: error instanceof Error ? error.message : "Logout failed" };
     }
   }
 
-  // AI : Verify email
+  // Verify email
   async function verifyEmail(token: string) {
     try {
       const result = await trpc.auth.verifyEmail.mutate({ token });
@@ -395,7 +391,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // AI : Request password reset
+  // Request password reset
   async function requestPasswordReset(email: string) {
     try {
       const result = await trpc.auth.requestPasswordReset.mutate({ email });
@@ -412,7 +408,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // AI : Reset password
+  // Reset password
   async function resetPassword(token: string, password: string) {
     try {
       const result = await trpc.auth.resetPassword.mutate({ token, password });
@@ -448,7 +444,7 @@ export const useAuthStore = defineStore("auth", () => {
   };
 });
 
-// AI : Enable HMR for this store
+// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));

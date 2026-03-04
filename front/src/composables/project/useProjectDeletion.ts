@@ -13,8 +13,8 @@ export function useProjectDeletion() {
   const uiStore = useUiStore();
 
   /**
-   * AI : Delete an overlay with confirmation and auto-add standalone project marker if it's the last one
-   * AI : Project parameter accepts any object with id, lat, lng for standalone project marker
+   * Delete an overlay with confirmation and auto-add standalone project marker if it's the last one
+   * Project parameter accepts any object with id, lat, lng for standalone project marker
    */
   async function handleDeleteOverlay(
     overlayId: string,
@@ -33,10 +33,10 @@ export function useProjectDeletion() {
     const success = await deleteOverlay(overlayId);
     if (!success) return false;
 
-    // AI : If it was the last overlay, add a standalone project marker to show the project
-    // AI : (entityRemoval.removeOverlay also does this for backend projects; this is a safety net for local-only projects)
+    // If it was the last overlay, add a standalone project marker to show the project
+    // (entityRemoval.removeOverlay also does this for backend projects; this is a safety net for local-only projects)
     if (isLastOverlay && project?.id && project.lat && project.lng) {
-      // AI : Get updated project from store, or use the passed project
+      // Get updated project from store, or use the passed project
       const updatedProject =
         projectStore.projects[project.id] ?? projectStore.allProjects[project.id] ?? project;
 
@@ -49,7 +49,7 @@ export function useProjectDeletion() {
   }
 
   /**
-   * AI : Delete a project with confirmation
+   * Delete a project with confirmation
    */
   async function handleDeleteProject(
     projectId: string,

@@ -1,6 +1,6 @@
 import { getEmailService } from "./emailService";
 
-// AI : Error entry structure
+// Error entry structure
 interface ErrorEntry {
   timestamp: number;
   method: string;
@@ -10,7 +10,7 @@ interface ErrorEntry {
   ip?: string;
 }
 
-// AI : Error alerter configuration
+// Error alerter configuration
 const THRESHOLD_COUNT = 5; // Number of errors to trigger alert
 const THRESHOLD_WINDOW = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
@@ -21,28 +21,28 @@ class ErrorAlerter {
   private lastAlertTime = 0;
   private intervalId?: NodeJS.Timeout;
 
-  // AI : Add error to circular buffer
+  // Add error to circular buffer
   addError(error: ErrorEntry): void {
     this.errors.push(error);
-    // AI : Keep only last 100 errors to prevent memory leak
+    // Keep only last 100 errors to prevent memory leak
     if (this.errors.length > 100) {
       this.errors.shift();
     }
   }
 
-  // AI : Check if threshold is exceeded and send alert
+  // Check if threshold is exceeded and send alert
   private async checkThreshold(): Promise<void> {
     const now = Date.now();
     const recentErrors = this.errors.filter((error) => now - error.timestamp < THRESHOLD_WINDOW);
 
-    // AI : If threshold exceeded and not in cooldown period
+    // If threshold exceeded and not in cooldown period
     if (recentErrors.length >= THRESHOLD_COUNT && now - this.lastAlertTime > COOLDOWN_PERIOD) {
       await this.sendAlert(recentErrors);
       this.lastAlertTime = now;
     }
   }
 
-  // AI : Send email alert
+  // Send email alert
   private async sendAlert(recentErrors: ErrorEntry[]): Promise<void> {
     try {
       const alertEmail = process.env.ALERT_EMAIL;
@@ -51,18 +51,18 @@ class ErrorAlerter {
         return;
       }
 
-      // AI : Get environment name for identification in alerts
-      // AI : Uses COMPOSE_PROJECT_NAME which is already set per-environment (e.g., construction-map-prod, construction-map-preview)
+      // Get environment name for identification in alerts
+      // Uses COMPOSE_PROJECT_NAME which is already set per-environment (e.g., construction-map-prod, construction-map-preview)
       const envName = process.env.COMPOSE_PROJECT_NAME ?? process.env.NODE_ENV ?? "unknown";
 
-      // AI : Group errors by path for summary
+      // Group errors by path for summary
       const errorsByPath: Record<string, number> = {};
       for (const error of recentErrors) {
         const key = `${error.method} ${error.path}`;
         errorsByPath[key] = (errorsByPath[key] ?? 0) + 1;
       }
 
-      // AI : Build HTML email content
+      // Build HTML email content
       const errorList = Object.entries(errorsByPath)
         .map(([endpoint, count]) => `<li><strong>${endpoint}</strong>: ${count} errors</li>`)
         .join("");
@@ -147,7 +147,7 @@ class ErrorAlerter {
     }
   }
 
-  // AI : Start background monitoring
+  // Start background monitoring
   start(): void {
     if (this.intervalId) {
       console.warn("ErrorAlerter already started");
@@ -163,7 +163,7 @@ class ErrorAlerter {
     );
   }
 
-  // AI : Stop background monitoring
+  // Stop background monitoring
   stop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -173,5 +173,5 @@ class ErrorAlerter {
   }
 }
 
-// AI : Singleton instance
+// Singleton instance
 export const errorAlerter = new ErrorAlerter();

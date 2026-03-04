@@ -1,16 +1,16 @@
-import * as L from "leaflet";
+import type * as L from "leaflet";
 import type { RouterOutput } from "@/client";
 import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back/src/db/schema";
 
-// AI : Type definitions for field modifications in submission dialogs
+// Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
 export type RemovableChange = ModifiableField | "new_overlay";
 
-// AI : Type for marker colors used throughout the application
+// Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 export type viewModeMarkerColor = "yellow" | "orange" | "grey" | "green";
 
-// AI : Interface for camera bounds used in view mode
+// Interface for camera bounds used in view mode
 export interface CameraBounds {
   north: number;
   south: number;
@@ -19,7 +19,7 @@ export interface CameraBounds {
   zoom?: number;
 }
 
-// AI : Extend Leaflet namespace to include custom actions
+// Extend Leaflet namespace to include custom actions
 declare module "leaflet" {
   interface MapOptions {
     doubleTapDragZoom?: boolean | "center";
@@ -40,7 +40,7 @@ declare module "leaflet" {
   // leaflet-toolbar is loaded as a side-effect only; we never reference L.Toolbar2 directly.
   type DistortableAction = abstract new (...args: any[]) => object;
 
-  // AI : Definition for DistortableImageOverlay
+  // Definition for DistortableImageOverlay
   interface DistortableImageOverlay extends L.ImageOverlay {
     actions: DistortableAction[];
     editing: {
@@ -84,10 +84,10 @@ declare module "leaflet" {
   ): DistortableImageOverlay;
 }
 
-// AI : tRPC-inferred types from backend API (for transformed data)
+// tRPC-inferred types from backend API (for transformed data)
 export type City = RouterOutput["cities"]["getCitiesNearLocation"][number];
 
-// AI : Extended Country type for frontend use with additional properties
+// Extended Country type for frontend use with additional properties
 export interface Country extends DBCountry {
   lat: number;
   lng: number;
@@ -101,17 +101,17 @@ export type PendingChangeRequest =
 export type LatestContribution = RouterOutput["overlay"]["getLatestContributions"][number];
 export type NearbyProject = RouterOutput["project"]["getProjectsNearLocation"]["projects"][0];
 
-// AI : Base runtime project type - extends DB schema with computed fields
+// Base runtime project type - extends DB schema with computed fields
 export interface Project extends Omit<DBProject, "status"> {
-  // AI : Override status to allow null for local unsubmitted projects
+  // Override status to allow null for local unsubmitted projects
   status: ApprovalStatus | null;
-  // AI : Computed fields for all contexts
+  // Computed fields for all contexts
   city: DBCity;
   overlayIds: string[];
-  name: string; // AI : Computed from project name field
-  // AI : Center coordinates for all projects (used as marker when no overlays exist)
+  name: string; // Computed from project name field
+  // Center coordinates for all projects (used as marker when no overlays exist)
   mapCoordinates?: { lat: number; lng: number } | null;
-  // AI : UI state for tracking local modifications
+  // UI state for tracking local modifications
   isModified?: boolean;
 }
 
@@ -128,22 +128,22 @@ export interface ProjectFormData {
   sourceUrl: string | null;
 }
 
-// AI : Import shared overlay data type
+// Import shared overlay data type
 import type { OverlayData } from "@shared/types";
 export type { OverlayData } from "@shared/types";
 
-// AI : Frontend overlay type - extends backend OverlayData with UI state
-// AI : Leaflet layer references (image overlay + marker) live in overlayRenderRegistry,
-// AI : not on this type. OverlayObject is pure domain data.
+// Frontend overlay type - extends backend OverlayData with UI state
+// Leaflet layer references (image overlay + marker) live in overlayRenderRegistry,
+// not on this type. OverlayObject is pure domain data.
 export interface OverlayObject extends OverlayData {
-  // AI : Computed fields
+  // Computed fields
   imageUrl: string;
 
-  // AI : Editor state
+  // Editor state
   history: { lat: number; lng: number }[][];
   redoStack: { lat: number; lng: number }[][];
-  isTooBig?: boolean; // AI : Flag for real-time size validation warning
-  isViewingApprovedPosition?: boolean; // AI : True when user is viewing approved position of overlay with pending changes
+  isTooBig?: boolean; // Flag for real-time size validation warning
+  isViewingApprovedPosition?: boolean; // True when user is viewing approved position of overlay with pending changes
 }
 
 export type PanelTab = "latest" | "currentLocation" | "contribute" | "moderation";
@@ -159,17 +159,17 @@ export type OverlayForModeration = Pick<
   | "replacesOverlayId"
   | "replacedByOverlayId"
 > & {
-  name: string; // AI : Display name
-  authorId: string | null; // AI : For spam prevention reporting
-  authorUsername?: string | null; // AI : Display friendly username in moderation UI
-  authorApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
+  name: string; // Display name
+  authorId: string | null; // For spam prevention reporting
+  authorUsername?: string | null; // Display friendly username in moderation UI
+  authorApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)
   authorRejectedCount?: number | null;
-  authorReportCount?: number; // AI : Number of reports for this user
+  authorReportCount?: number; // Number of reports for this user
   cityId: number | null;
   cityName: string | null;
   countryCode: string | null;
   countryName: string | null;
-  imageUrl?: string; // AI : Optional for local overlays not yet uploaded
+  imageUrl?: string; // Optional for local overlays not yet uploaded
 };
 
 export type ProjectForModeration = Pick<
@@ -192,13 +192,13 @@ export type ProjectForModeration = Pick<
   | "lng"
   | "cityId"
 > & {
-  ownerId?: string | null; // AI : For spam prevention reporting (optional, only in moderation)
-  ownerUsername?: string | null; // AI : Display friendly username in moderation UI
-  ownerApprovedCount?: number | null; // AI : User stats for spam detection (optional, only in moderation)
+  ownerId?: string | null; // For spam prevention reporting (optional, only in moderation)
+  ownerUsername?: string | null; // Display friendly username in moderation UI
+  ownerApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)
   ownerRejectedCount?: number | null;
-  ownerReportCount?: number; // AI : Number of reports for this user
+  ownerReportCount?: number; // Number of reports for this user
   city?: {
-    // AI : Full city object with local name support
+    // Full city object with local name support
     id: number;
     name: string;
     nameLocal: string | null;
@@ -211,9 +211,9 @@ export type ProjectForModeration = Pick<
   overlayCount?: number;
 };
 
-// AI : PendingOverlay is defined in types/api.ts - import from there if needed
+// PendingOverlay is defined in types/api.ts - import from there if needed
 
-// AI : Centralized UserContribution types handling local (nullable status) and backend data
+// Centralized UserContribution types handling local (nullable status) and backend data
 type BackendUserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
 
 export type UserContributionOverlay = Omit<
@@ -221,7 +221,7 @@ export type UserContributionOverlay = Omit<
   "status"
 > & {
   status: ApprovalStatus | null;
-  // AI : Frontend-specific fields added by factories
+  // Frontend-specific fields added by factories
   imageUrl?: string;
   authorUsername?: string | null;
   authorApprovedCount?: number | null;
@@ -231,11 +231,11 @@ export type UserContributionOverlay = Omit<
 export type UserContribution = Omit<BackendUserContribution, "status" | "overlays"> & {
   status: ApprovalStatus | null;
   overlays: UserContributionOverlay[];
-  // AI : Date precision fields
+  // Date precision fields
   proposalDatePrecision?: "year" | "month" | "day" | null;
   startDatePrecision?: "year" | "month" | "day" | null;
   endDatePrecision?: "year" | "month" | "day" | null;
-  // AI : Frontend-specific fields added by factories
+  // Frontend-specific fields added by factories
   ownerUsername?: string | null;
   ownerApprovedCount?: number | null;
   ownerRejectedCount?: number | null;

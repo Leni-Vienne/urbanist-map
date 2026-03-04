@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// AI : Background job to cleanup scheduled image deletions
+// Background job to cleanup scheduled image deletions
 // Run this via cron: bun run cleanup-images
 
 import { executePendingDeletions } from "../lib/imageCleanup";

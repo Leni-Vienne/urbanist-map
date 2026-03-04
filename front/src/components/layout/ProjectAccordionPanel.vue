@@ -1,11 +1,9 @@
-<template>
+﻿<template>
   <div :class="['h-full flex flex-col', panelClass]">
     <div
-      class="sticky top-0 bg-[var(--p-surface-0)] flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
+      class="sticky top-0 bg-content-hover-background flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
     >
-      <h2
-        class="m-0 text-[1.1rem] font-semibold text-[var(--p-surface-900)] tracking-tight whitespace-nowrap"
-      >
+      <h2 class="m-0 text-[1.1rem] font-semibold text-color tracking-tight whitespace-nowrap">
         {{ title }}
       </h2>
       <div v-if="$slots['header-actions']" class="flex items-center gap-3 w-full">
@@ -13,142 +11,142 @@
       </div>
     </div>
 
-    <div class="flex-1 min-h-0">
-      <div v-if="projects.length > 0" class="flex flex-col gap-2">
+    <div
+      ref="scrollAreaRef"
+      :class="[
+        'flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        { 'scroll-area': isScrollable },
+      ]"
+    >
+      <div v-if="projects.length > 0" ref="contentRef" class="flex flex-col gap-2 pb-2">
         <template v-for="countryGroup in groupedByCountry" :key="countryGroup.countryCode">
+          <!-- Country header (hide if grouping disabled) -->
           <div
-            class="bg-[var(--p-surface-0)] border border-[var(--p-surface-200)] rounded-lg overflow-hidden"
+            v-if="!disableGrouping"
+            class="py-3.5 px-4 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b-2 border-primary-200 cursor-pointer transition-colors duration-150 select-none hover:bg-[color-mix(in_srgb,var(--p-primary-color)_14%,var(--p-content-background))]"
+            @click="handleToggleCountryExpanded(countryGroup.countryCode)"
           >
-            <!-- AI : Country header (hide if grouping disabled) -->
-            <div
-              v-if="!disableGrouping"
-              class="py-[0.875rem] px-4 bg-[var(--p-primary-50)] border-b-2 border-[var(--p-primary-200)] cursor-pointer transition-colors duration-150 select-none hover:bg-[var(--p-primary-100)]"
-              @click="handleToggleCountryExpanded(countryGroup.countryCode)"
-            >
-              <div class="flex items-center gap-3">
-                <i
-                  :class="[
-                    'pi text-[var(--p-primary-600)] text-xs transition-transform',
-                    isCountryExpanded(countryGroup.countryCode)
-                      ? 'pi-chevron-down'
-                      : 'pi-chevron-right',
-                  ]"
-                ></i>
-                <h3
-                  class="m-0 text-base font-bold text-[var(--p-surface-900)] flex-1 flex items-center gap-1.5"
+            <div class="flex items-center gap-3">
+              <i
+                :class="[
+                  'pi text-primary-600 text-xs transition-transform',
+                  isCountryExpanded(countryGroup.countryCode)
+                    ? 'pi-chevron-down'
+                    : 'pi-chevron-right',
+                ]"
+              ></i>
+              <h3 class="m-0 text-base font-bold text-color flex-1 flex items-center gap-1.5">
+                {{ countryGroup.countryName }}
+                <span class="text-[0.8125rem] font-semibold text-muted-color"
+                  >({{ countryGroup.countryCode }})</span
                 >
-                  {{ countryGroup.countryName }}
-                  <span class="text-[0.8125rem] font-semibold text-[var(--p-text-muted-color)]"
-                    >({{ countryGroup.countryCode }})</span
-                  >
-                </h3>
+              </h3>
+              <span
+                class="text-[0.8125rem] font-bold text-primary-color bg-[color-mix(in_srgb,var(--p-primary-color)_15%,transparent)] px-2.5 py-1 rounded-xl min-w-7 text-center"
+                >{{ countryGroup.totalProjects }}</span
+              >
+            </div>
+          </div>
+
+          <!-- Country content (always expanded if grouping disabled) -->
+          <div v-if="shouldShowCountryContent(countryGroup.countryCode)">
+            <template v-for="cityGroup in countryGroup.cities" :key="cityGroup.key">
+              <!-- City header (hide if grouping disabled) -->
+              <div
+                v-if="!disableGrouping"
+                class="flex items-center justify-between py-2.5 px-3.5 mt-3 mb-2 first:mt-1 bg-content-hover-background border-l-[3px] border-l-content-border-color rounded cursor-pointer transition-colors duration-150 select-none hover:bg-content-hover-background hover:brightness-95 dark:hover:brightness-110"
+                :data-city-key="cityGroup.key"
+                @click="toggleCityExpanded(cityGroup.key)"
+              >
+                <div class="flex items-center gap-2">
+                  <i
+                    :class="[
+                      'pi text-muted-color text-2.5 transition-transform',
+                      isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right',
+                    ]"
+                  ></i>
+                  <h4 class="m-0 text-[0.8125rem] font-semibold text-color">
+                    {{ cityGroup.cityName }}
+                    <span
+                      v-if="cityGroup.cityNameLocal"
+                      class="text-xs font-medium text-muted-color ml-1"
+                      >({{ cityGroup.cityNameLocal }})</span
+                    >
+                  </h4>
+                </div>
                 <span
-                  class="text-[0.8125rem] font-bold text-[var(--p-primary-700)] bg-[var(--p-primary-200)] px-[0.625rem] py-1 rounded-xl min-w-[28px] text-center"
-                  >{{ countryGroup.totalProjects }}</span
+                  class="text-[0.6875rem] font-semibold text-(--p-text-color-secondary) bg-content-hover-background border border-surface px-2 py-0.5 rounded-xl min-w-5 text-center"
+                  >{{ cityGroup.projects.length }}</span
                 >
               </div>
-            </div>
 
-            <!-- AI : Country content (always expanded if grouping disabled) -->
-            <div v-if="shouldShowCountryContent(countryGroup.countryCode)" class="country-content">
-              <template v-for="cityGroup in countryGroup.cities" :key="cityGroup.key">
-                <!-- AI : City header (hide if grouping disabled) -->
-                <div
-                  v-if="!disableGrouping"
-                  class="flex items-center justify-between py-[0.625rem] px-[0.875rem] mt-3 mb-2 first:mt-1 bg-[var(--p-surface-100)] border-l-[3px] border-l-[var(--p-surface-400)] rounded cursor-pointer transition-colors duration-150 select-none hover:bg-[var(--p-surface-200)]"
-                  :data-city-key="cityGroup.key"
-                  @click="toggleCityExpanded(cityGroup.key)"
+              <!-- City accordion (always expanded if grouping disabled) -->
+              <Accordion
+                v-if="shouldShowCityContent(cityGroup.key)"
+                :multiple="true"
+                :lazy="true"
+                v-model:value="activeAccordionPanels"
+                class="city-accordion"
+              >
+                <AccordionPanel
+                  v-for="project in cityGroup.projects"
+                  :key="project.id"
+                  :value="project.id"
+                  :data-project-id="project.id"
                 >
-                  <div class="flex items-center gap-2">
-                    <i
-                      :class="[
-                        'pi text-[var(--p-surface-500)] text-[0.625rem] transition-transform',
-                        isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right',
-                      ]"
-                    ></i>
-                    <h4 class="m-0 text-[0.8125rem] font-semibold text-[var(--p-surface-700)]">
-                      {{ cityGroup.cityName }}
-                      <span
-                        v-if="cityGroup.cityNameLocal"
-                        class="text-xs font-medium text-[var(--p-text-muted-color)] ml-1"
-                        >({{ cityGroup.cityNameLocal }})</span
-                      >
-                    </h4>
-                  </div>
-                  <span
-                    class="text-[0.6875rem] font-semibold text-[var(--p-surface-600)] bg-[var(--p-surface-200)] px-2 py-0.5 rounded-xl min-w-[20px] text-center"
-                    >{{ cityGroup.projects.length }}</span
-                  >
-                </div>
+                  <!-- Extracted Project Header to isolate reactivity -->
+                  <ProjectHeader
+                    :name="project.name"
+                    :status="project.status"
+                    :hide-status-badges="hideStatusBadges"
+                  />
 
-                <!-- AI : City accordion (always expanded if grouping disabled) -->
-                <Accordion
-                  v-if="shouldShowCityContent(cityGroup.key)"
-                  :multiple="true"
-                  :lazy="true"
-                  v-model:value="activeAccordionPanels"
-                  class="city-accordion"
-                >
-                  <AccordionPanel
-                    v-for="project in cityGroup.projects"
-                    :key="project.id"
-                    :value="project.id"
-                    :data-project-id="project.id"
+                  <!-- Extracted Project Content to isolate reactivity -->
+                  <ProjectContent
+                    :project="project"
+                    :project-changes="getProjectChangeRequestsForProject(project)"
+                    :all-change-requests="changeRequests"
+                    :overlay-changes-map="overlayChangesMap"
+                    :projects-context="projects"
+                    :is-contribute-panel="isContributePanel"
+                    :show-user-stats-link="showUserStatsLink"
+                    :hide-status-badges="hideStatusBadges"
+                    :show-edit-buttons="showEditButtons"
+                    :on-navigate-to-overlay="navigateToOverlayById"
+                    :on-overlay-click="onOverlayClick"
+                    @show-user-stats="(data) => emit('show-user-stats', data)"
+                    @edit-project="handleStandaloneProjectClick"
+                    @project-click="handleCardClick"
+                    @highlight-overlay="highlightOverlayById"
+                    @remove-highlight="removeOverlayHighlight"
                   >
-                    <!-- AI : Extracted Project Header to isolate reactivity -->
-                    <ProjectHeader
-                      :name="project.name"
-                      :status="project.status"
-                      :hide-status-badges="hideStatusBadges"
-                    />
-
-                    <!-- AI : Extracted Project Content to isolate reactivity -->
-                    <ProjectContent
-                      :project="project"
-                      :project-changes="getProjectChangeRequestsForProject(project)"
-                      :all-change-requests="changeRequests"
-                      :overlay-changes-map="overlayChangesMap"
-                      :projects-context="projects"
-                      :is-contribute-panel="isContributePanel"
-                      :show-user-stats-link="showUserStatsLink"
-                      :hide-status-badges="hideStatusBadges"
-                      :show-edit-buttons="showEditButtons"
-                      :on-navigate-to-overlay="navigateToOverlayById"
-                      :on-overlay-click="onOverlayClick"
-                      @show-user-stats="(data) => emit('show-user-stats', data)"
-                      @edit-project="handleStandaloneProjectClick"
-                      @project-click="handleCardClick"
-                      @highlight-overlay="highlightOverlayById"
-                      @remove-highlight="removeOverlayHighlight"
-                    >
-                      <template #project-actions="{ project: p }">
-                        <slot
-                          v-if="$slots['project-actions']"
-                          name="project-actions"
-                          :project="p"
-                        ></slot>
-                      </template>
-                      <template #change-actions="{ change }">
-                        <slot name="change-actions" :change="change"></slot>
-                      </template>
-                      <template #overlay-actions="{ overlay, project: p }">
-                        <slot
-                          v-if="$slots['overlay-actions']"
-                          name="overlay-actions"
-                          :overlay="overlay"
-                          :project="p"
-                        ></slot>
-                      </template>
-                    </ProjectContent>
-                  </AccordionPanel>
-                </Accordion>
-              </template>
-            </div>
+                    <template #project-actions="{ project: p }">
+                      <slot
+                        v-if="$slots['project-actions']"
+                        name="project-actions"
+                        :project="p"
+                      ></slot>
+                    </template>
+                    <template #change-actions="{ change }">
+                      <slot name="change-actions" :change="change"></slot>
+                    </template>
+                    <template #overlay-actions="{ overlay, project: p }">
+                      <slot
+                        v-if="$slots['overlay-actions']"
+                        name="overlay-actions"
+                        :overlay="overlay"
+                        :project="p"
+                      ></slot>
+                    </template>
+                  </ProjectContent>
+                </AccordionPanel>
+              </Accordion>
+            </template>
           </div>
         </template>
       </div>
 
-      <!-- AI : Empty state -->
+      <!-- Empty state -->
       <PanelEmptyState
         v-else-if="!isLoading"
         icon="folder"
@@ -160,10 +158,10 @@
         </template>
       </PanelEmptyState>
 
-      <!-- AI : Loading state -->
+      <!-- Loading state -->
       <div
         v-if="isLoading"
-        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+        class="flex flex-col items-center justify-center p-12 text-center text-(--p-text-color-secondary)"
       >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
         <p>{{ $t("overlay.loadingProjects") }}</p>
@@ -173,7 +171,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted, onActivated, onDeactivated, ref } from "vue";
+import {
+  computed,
+  watch,
+  nextTick,
+  onMounted,
+  onActivated,
+  onDeactivated,
+  onBeforeUnmount,
+  ref,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { Accordion, AccordionPanel } from "primevue";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
@@ -202,7 +209,7 @@ import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay
 import { useToast } from "@/composables/ui/useToast";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
-// AI : Props interface
+// Props interface
 interface Props {
   projects: ProjectForModeration[];
   isLoading: boolean;
@@ -261,8 +268,43 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 
-// AI : Watch for new scroll requests (handled reactively)
-// AI : This ensures requests are handled even if projects data matches and doesn't trigger the above watcher
+const scrollAreaRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
+const isScrollable = ref(false);
+
+function updateScrollable() {
+  const el = scrollAreaRef.value;
+  if (el) {
+    isScrollable.value = el.scrollHeight > el.clientHeight;
+  }
+}
+
+// We observe two elements so updateScrollable fires on both:
+// - scrollAreaRef: clientHeight changes when the panel is resized
+// - contentRef: scrollHeight changes as accordions animate or groups expand/collapse
+const scrollObserver = new ResizeObserver(updateScrollable);
+
+onMounted(() => {
+  if (scrollAreaRef.value) scrollObserver.observe(scrollAreaRef.value);
+  updateScrollable();
+});
+
+onActivated(updateScrollable);
+
+onBeforeUnmount(() => scrollObserver.disconnect());
+
+watch(contentRef, (el, oldEl) => {
+  if (oldEl) scrollObserver.unobserve(oldEl);
+  if (el) {
+    scrollObserver.observe(el);
+    updateScrollable();
+  } else {
+    isScrollable.value = false;
+  }
+});
+
+// Watch for new scroll requests (handled reactively)
+// This ensures requests are handled even if projects data matches and doesn't trigger the above watcher
 watch(
   () => pendingScrollRequest.value,
   async (newRequest) => {
@@ -322,7 +364,7 @@ const groupedByCountry = computed(() => {
   return sorted;
 });
 
-// AI : Track if panel is active (visible) to prevent inactive panels from consuming scroll requests
+// Track if panel is active (visible) to prevent inactive panels from consuming scroll requests
 const isPanelActive = ref(false);
 
 onMounted(() => {
@@ -337,9 +379,9 @@ onDeactivated(() => {
   isPanelActive.value = false;
 });
 
-// AI : Watch for panel becoming active while a scroll request is pending
-// AI : This handles the race condition where requestScrollTo fires before the panel is active
-// AI : (e.g., tab switch from Latest to CurrentLocation via KeepAlive or async component mount)
+// Watch for panel becoming active while a scroll request is pending
+// This handles the race condition where requestScrollTo fires before the panel is active
+// (e.g., tab switch from Latest to CurrentLocation via KeepAlive or async component mount)
 watch(
   () => isPanelActive.value,
   async (active) => {
@@ -363,26 +405,26 @@ function shouldShowCityContent(cityKey: string): boolean {
   return props.disableGrouping || isCityExpanded(cityKey);
 }
 
-// AI : Handle scroll requests
+// Handle scroll requests
 async function handleScrollRequest() {
-  // AI : Only active panels should consume requests
+  // Only active panels should consume requests
   if (!isPanelActive.value) {
     return;
   }
 
-  // AI : Peek at request without consuming it yet
+  // Peek at request without consuming it yet
   const request = pendingScrollRequest.value;
   if (!request) {
     return;
   }
 
-  // AI : Check if this panel can handle the request (contains the target)
-  // AI : This prevents the panel from consuming requests for items it doesn't have
+  // Check if this panel can handle the request (contains the target)
+  // This prevents the panel from consuming requests for items it doesn't have
   let canHandle = false;
 
   if (request.type === "overlay") {
     const overlayId = String(request.id);
-    // AI : Efficient nested check using props.projects
+    // Efficient nested check using props.projects
     canHandle = props.projects.some(
       (p) => p.overlays && p.overlays.some((o) => o.id === overlayId),
     );
@@ -398,7 +440,7 @@ async function handleScrollRequest() {
     return;
   }
 
-  // AI : Now consume the request since we confirmed we can handle it
+  // Now consume the request since we confirmed we can handle it
   consumeScrollRequest();
 
   await nextTick();
@@ -407,7 +449,7 @@ async function handleScrollRequest() {
     const overlayId = String(request.id);
     const wasExpanded = expandAccordionForOverlay(overlayId, props.projects);
     await nextTick();
-    // AI : Pass wasAlreadyExpanded: true if wasExpanded === false (it was already open)
+    // Pass wasAlreadyExpanded: true if wasExpanded === false (it was already open)
     await waitForAccordionAnimation(overlayId, !wasExpanded);
   } else if (request.type === "project") {
     const projectId = String(request.id);
@@ -478,14 +520,14 @@ async function waitForAccordionAnimation(
 }
 
 /**
- * AI : Wait for accordion panel transition to complete before scrolling
- * AI : Uses ResizeObserver to dynamically track accordion height changes and scroll in real-time
+ * Wait for accordion panel transition to complete before scrolling
+ * Uses ResizeObserver to dynamically track accordion height changes and scroll in real-time
  */
 async function scrollToOverlayWhenReady(
   element: Element,
   wasAlreadyExpanded: boolean = false,
 ): Promise<void> {
-  // AI : Find the project accordion panel that wraps this element
+  // Find the project accordion panel that wraps this element
   const projectPanel = element.closest("[data-project-id]");
 
   if (!projectPanel) {
@@ -497,10 +539,10 @@ async function scrollToOverlayWhenReady(
     return;
   }
 
-  // AI : Store projectPanel in const to satisfy TypeScript null checking
+  // Store projectPanel in const to satisfy TypeScript null checking
   const panel = projectPanel;
 
-  // AI : If accordion was already expanded, just use smooth scroll immediately
+  // If accordion was already expanded, just use smooth scroll immediately
   if (wasAlreadyExpanded) {
     const viewportHeight = window.innerHeight;
     const projectRect = panel.getBoundingClientRect();
@@ -523,22 +565,22 @@ async function scrollToOverlayWhenReady(
     return;
   }
 
-  // AI : Accordion is expanding, use ResizeObserver to track animation
+  // Accordion is expanding, use ResizeObserver to track animation
   await new Promise<void>((resolve) => {
     let lastHeight = panel.clientHeight;
     let resizeCount = 0;
-    const maxResizes = 20; // AI : Safety limit to prevent infinite observation
+    const maxResizes = 20; // Safety limit to prevent infinite observation
     let timeoutId: NodeJS.Timeout | undefined = undefined;
     let fallbackTimeout: NodeJS.Timeout | undefined = undefined;
 
-    // AI : Function to perform the appropriate scroll based on context
+    // Function to perform the appropriate scroll based on context
     function performScroll(isAnimating: boolean) {
       const viewportHeight = window.innerHeight;
       const projectRect = panel.getBoundingClientRect();
       const elementRect = element.getBoundingClientRect();
       const projectToElementDistance = elementRect.top - projectRect.top;
 
-      // AI : Use smooth scroll when accordion is already open (not animating)
+      // Use smooth scroll when accordion is already open (not animating)
       const scrollBehavior = isAnimating ? "auto" : "smooth";
 
       if (projectToElementDistance < viewportHeight * 0.7) {
@@ -560,15 +602,15 @@ async function scrollToOverlayWhenReady(
       for (const entry of entries) {
         const newHeight = entry.contentRect.height;
 
-        // AI : Only scroll if height actually changed (accordion is expanding)
+        // Only scroll if height actually changed (accordion is expanding)
         if (newHeight !== lastHeight) {
           lastHeight = newHeight;
           resizeCount += 1;
 
-          // AI : Perform instant scroll during animation
+          // Perform instant scroll during animation
           performScroll(true);
 
-          // AI : Reset timeout each time we detect a resize
+          // Reset timeout each time we detect a resize
           clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
             clearTimeout(fallbackTimeout);
@@ -577,7 +619,7 @@ async function scrollToOverlayWhenReady(
           }, 100);
         }
 
-        // AI : Safety check: disconnect after many resizes to prevent infinite loop
+        // Safety check: disconnect after many resizes to prevent infinite loop
         if (resizeCount >= maxResizes) {
           clearTimeout(timeoutId);
           clearTimeout(fallbackTimeout);
@@ -587,17 +629,17 @@ async function scrollToOverlayWhenReady(
       }
     });
 
-    // AI : Start observing the accordion panel for size changes
+    // Start observing the accordion panel for size changes
     observer.observe(panel);
 
-    // AI : Fallback timeout in case ResizeObserver doesn't fire
+    // Fallback timeout in case ResizeObserver doesn't fire
     fallbackTimeout = setTimeout(() => {
       clearTimeout(timeoutId);
       observer.disconnect();
       resolve();
     }, 1000);
 
-    // AI : If no resizes detected in 50ms, use smooth scroll
+    // If no resizes detected in 50ms, use smooth scroll
     timeoutId = setTimeout(() => {
       if (resizeCount === 0) {
         performScroll(false);
@@ -660,7 +702,7 @@ async function navigateToOverlayById(overlayId: string) {
   }
 }
 
-// AI : Pre-compute project changes for O(1) lookup
+// Pre-compute project changes for O(1) lookup
 const projectChangesMap = computed(() => {
   const map = new Map<string, PendingChangeRequest[]>();
   for (const req of props.changeRequests) {
@@ -676,7 +718,7 @@ const projectChangesMap = computed(() => {
   return map;
 });
 
-// AI : Pre-compute overlay changes for O(1) lookup
+// Pre-compute overlay changes for O(1) lookup
 const overlayChangesMap = computed(() => {
   const map = new Map<string, PendingChangeRequest[]>();
   for (const req of props.changeRequests) {
@@ -767,3 +809,60 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   }
 }
 </script>
+
+<style scoped>
+/* Gap entre panels + inset depuis les bords */
+:deep(.city-accordion) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* DO NOT EVER CHANGE THE GAP AND PADDING */
+  padding: 0 0px 0px 12px;
+}
+
+/* Header pleine largeur (all:unset supprime width + box-sizing natifs du button) */
+:deep(.city-accordion .p-accordionheader) {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+}
+
+/* When open: header gets top-only rounding */
+:deep(.city-accordion .p-accordionpanel-active .p-accordionheader) {
+  border-radius: 12px 12px 0 0;
+}
+
+/* Suppression border PrimeVue (le gap fait le séparateur) */
+/* min-width:0 = empêche le panel (flex item dans .city-accordion) de s'élargir */
+:deep(.city-accordion .p-accordionpanel) {
+  border: none !important;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+/* min-width:0 sur .p-accordioncontent (flex item dans le panel column) */
+:deep(.city-accordion .p-accordioncontent) {
+  min-width: 0;
+}
+
+/* Vrai coupable : .p-accordioncontent-wrapper est le grid item de .p-accordioncontent */
+/* PrimeVue met min-height:0 mais pas min-width:0 → le grid item s'élargit à volonté */
+:deep(.city-accordion .p-accordioncontent-wrapper) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Gradient fade en bas */
+.scroll-area {
+  mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+}
+
+/* Contenu : fond + padding contrôlé (évite double-padding avec p-3 du bordered div) */
+:deep(.city-accordion .p-accordioncontent-content) {
+  background: var(--p-content-background);
+  padding: 0.5rem 0.5rem 0.75rem;
+  border-radius: 0 0 12px 12px;
+}
+</style>

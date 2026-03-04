@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Dialog
     v-model:visible="isVisible"
     :header="
@@ -14,27 +14,27 @@
     @hide="handleClose"
   >
     <div class="flex flex-col gap-4 py-2">
-      <!-- AI : Instructions Section - always visible -->
-      <p class="text-sm text-[var(--p-surface-600)] leading-relaxed m-0">
+      <!-- Instructions Section - always visible -->
+      <p class="text-sm text-(--p-text-color-secondary) leading-relaxed m-0">
         {{ $t("imageUpload.uploadDescription") }}
       </p>
 
-      <!-- AI : PDF Extraction Section with TokenTool Link - always visible -->
+      <!-- PDF Extraction Section with TokenTool Link - always visible -->
       <div class="flex flex-col gap-1">
-        <h3 class="text-base font-semibold text-[var(--p-surface-900)] m-0">
+        <h3 class="text-base font-semibold text-color m-0">
           {{ $t("imageUpload.pdfExtraction") }}
         </h3>
         <i18n-t
           keypath="imageUpload.pdfExtractionDescription"
           tag="p"
-          class="text-sm text-[var(--p-surface-600)] leading-relaxed m-0"
+          class="text-sm text-(--p-text-color-secondary) leading-relaxed m-0"
         >
           <template #toolLink>
             <a
               href="https://www.rptools.net/toolbox/token-tool/"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-[var(--p-primary-500)] no-underline font-medium transition-colors duration-200 hover:text-[var(--p-primary-600)] hover:underline"
+              class="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
             >
               {{ $t("imageUpload.tokenToolLink") }}
             </a>
@@ -42,13 +42,13 @@
         </i18n-t>
       </div>
 
-      <!-- AI : File Upload Drop Zone - compact with integrated preview -->
+      <!-- File Upload Drop Zone - compact with integrated preview -->
       <div
-        class="rounded-lg p-4 transition-all duration-200 min-h-[120px] flex items-center justify-center border-2 border-dashed"
+        class="rounded-lg p-4 transition-all duration-200 min-h-30 flex items-center justify-center border-2 border-dashed"
         :class="
           selectedFile
-            ? 'border-[var(--p-green-300)] bg-[var(--p-green-50)] cursor-default'
-            : 'border-[var(--p-surface-300)] bg-[var(--p-surface-50)] cursor-pointer hover:border-[var(--p-primary-400)] hover:bg-[var(--p-primary-50)]'
+            ? 'border-green-300 bg-green-50 cursor-default'
+            : 'border-surface bg-content-hover-background cursor-pointer hover:border-primary-400 hover:bg-primary-50'
         "
         @drop.prevent="handleDrop"
         @dragover.prevent="handleDragOver"
@@ -62,16 +62,16 @@
           @change="handleFileInputChange"
         />
 
-        <!-- AI : Show preview and filename when file selected -->
+        <!-- Show preview and filename when file selected -->
         <div v-if="selectedFile" class="flex items-center gap-4 w-full cursor-pointer group">
           <img
             v-if="imagePreviewUrl"
             :src="imagePreviewUrl"
             alt="Preview"
-            class="w-20 h-20 object-cover rounded-md border-2 border-[var(--p-green-200)] shrink-0 group-hover:opacity-90 transition-opacity"
+            class="w-20 h-20 object-cover rounded-md border-2 border-green-200 shrink-0 group-hover:opacity-90 transition-opacity"
           />
           <div class="flex-1 flex flex-col gap-2 items-start">
-            <p class="text-sm font-medium text-[var(--p-green-900)] font-mono break-all m-0">
+            <p class="text-sm font-medium text-green-900 font-mono break-all m-0">
               {{ selectedFileName }}
             </p>
             <Button
@@ -85,28 +85,27 @@
           </div>
         </div>
 
-        <!-- AI : Show drop zone when no file selected -->
+        <!-- Show drop zone when no file selected -->
         <div
           v-else
           class="flex flex-col items-center gap-2 text-center w-full"
           @click="triggerFileInput"
         >
-          <i class="pi pi-cloud-upload text-[2rem] text-[var(--p-primary-500)]"></i>
-          <p class="text-sm font-medium text-[var(--p-surface-700)] m-0">
+          <i class="pi pi-cloud-upload text-[2rem] text-primary-500"></i>
+          <p class="text-sm font-medium text-color m-0">
             {{ $t("imageUpload.dragDrop") }}
           </p>
-          <p class="text-xs text-[var(--p-surface-500)] m-0">{{ $t("imageUpload.orClick") }}</p>
-          <p class="text-[0.7rem] text-[var(--p-surface-400)] m-0">
+          <p class="text-xs text-muted-color m-0">
+            {{ $t("imageUpload.orClick") }}
+          </p>
+          <p class="text-[0.7rem] text-muted-color m-0">
             {{ $t("imageUpload.supportedFormats") }}
           </p>
         </div>
       </div>
 
-      <!-- AI : Inline error message for file validation -->
-      <p
-        v-if="fileSizeError"
-        class="flex items-center gap-2 text-[var(--p-red-600)] text-sm font-medium m-0"
-      >
+      <!-- Inline error message for file validation -->
+      <p v-if="fileSizeError" class="flex items-center gap-2 text-red-600 text-sm font-medium m-0">
         <i class="pi pi-exclamation-triangle"></i>
         {{ fileSizeError }}
       </p>
@@ -149,11 +148,11 @@ const selectedFile = ref<File | null>(null);
 const selectedFileName = ref("");
 const imagePreviewUrl = ref("");
 const imageDataUrl = ref("");
-const fileSizeError = ref(""); // AI : Inline error message for file validation
+const fileSizeError = ref(""); // Inline error message for file validation
 
-const isReplacementMode = computed(() => !!overlayStore.replacementOverlayId);
+const isReplacementMode = computed(() => Boolean(overlayStore.replacementOverlayId));
 
-// AI : Computed visibility from store
+// Computed visibility from store
 const isVisible = computed({
   get: () => uiStore.imageUploadDialog.visible,
   set: (value: boolean) => {
@@ -163,7 +162,7 @@ const isVisible = computed({
   },
 });
 
-// AI : Reset state when dialog opens/closes
+// Reset state when dialog opens/closes
 watch(
   () => uiStore.imageUploadDialog.visible,
   (visible) => {
@@ -179,12 +178,12 @@ watch(
   },
 );
 
-// AI : Trigger file input when drop zone is clicked
+// Trigger file input when drop zone is clicked
 function triggerFileInput() {
   fileInputRef.value?.click();
 }
 
-// AI : Handle file selection from input
+// Handle file selection from input
 function handleFileInputChange(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -194,24 +193,24 @@ function handleFileInputChange(event: Event) {
   processFile(file);
 }
 
-// AI : Handle drag over event
+// Handle drag over event
 function handleDragOver(event: DragEvent) {
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = "copy";
   }
 }
 
-// AI : Handle drag leave event
+// Handle drag leave event
 function handleDragLeave(event: DragEvent) {
   // Optional: Could add visual feedback here
 }
 
-// AI : Handle drop event
+// Handle drop event
 function handleDrop(event: DragEvent) {
   const file = event.dataTransfer?.files?.[0];
   if (!file) return;
 
-  // AI : Reset file input to allow re-selecting same file
+  // Reset file input to allow re-selecting same file
   if (fileInputRef.value) {
     fileInputRef.value.value = "";
   }
@@ -219,30 +218,32 @@ function handleDrop(event: DragEvent) {
   processFile(file);
 }
 
-// AI : Process file (shared logic for input change and drop)
+// Process file (shared logic for input change and drop)
 function processFile(file: File) {
   try {
-    // AI : Clear any previous error
+    // Clear any previous error
     fileSizeError.value = "";
 
-    // AI : Validate file size before processing (10MB limit matches backend)
+    // Validate file size before processing (10MB limit matches backend)
     const MAX_FILE_SIZE_MB = 10;
     const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      // AI : Show inline error instead of toast
-      fileSizeError.value = t("upload.fileTooLarge", { maxSize: MAX_FILE_SIZE_MB });
-      // AI : Reset file input to allow re-selecting a different file
+      // Show inline error instead of toast
+      fileSizeError.value = t("upload.fileTooLarge", {
+        maxSize: MAX_FILE_SIZE_MB,
+      });
+      // Reset file input to allow re-selecting a different file
       if (fileInputRef.value) {
         fileInputRef.value.value = "";
       }
       return;
     }
 
-    // AI : Store file and filename
+    // Store file and filename
     selectedFile.value = file;
     selectedFileName.value = file.name;
 
-    // AI : Read file to create preview and data URL
+    // Read file to create preview and data URL
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       const dataUrl = reader.result as string;
@@ -261,11 +262,11 @@ function processFile(file: File) {
   }
 }
 
-// AI : Handle confirm - create overlay and close dialog
+// Handle confirm - create overlay and close dialog
 async function handleConfirm() {
   if (!selectedFile.value || !imageDataUrl.value) return;
 
-  // AI : Get project ID from store
+  // Get project ID from store
   const projectId = uiStore.imageUploadDialog.projectId;
   if (!projectId) {
     toast.add({
@@ -279,13 +280,13 @@ async function handleConfirm() {
 
   try {
     const { addOverlay } = await import("@/services/overlay/overlayEditing");
-    // AI : Check if this is a replacement overlay
+    // Check if this is a replacement overlay
     const replacementId = overlayStore.replacementOverlayId;
 
-    // AI : Create overlay for this project (with or without replacement)
+    // Create overlay for this project (with or without replacement)
     addOverlay(imageDataUrl.value, projectId, replacementId ?? undefined);
 
-    // AI : Show appropriate success toast
+    // Show appropriate success toast
     if (replacementId) {
       toast.add({
         severity: "success",
@@ -293,7 +294,7 @@ async function handleConfirm() {
         detail: t("toasts.replacementOverlayDetail"),
         life: 3000,
       });
-      // AI : Reset replacement state after creating the overlay
+      // Reset replacement state after creating the overlay
       overlayStore.resetReplacement();
     } else {
       toast.add({
@@ -304,7 +305,7 @@ async function handleConfirm() {
       });
     }
 
-    // AI : Close dialog
+    // Close dialog
     uiStore.closeImageUploadDialog();
   } catch (error) {
     console.error("Error creating overlay:", error);
@@ -317,7 +318,7 @@ async function handleConfirm() {
   }
 }
 
-// AI : Handle dialog close
+// Handle dialog close
 function handleClose() {
   uiStore.closeImageUploadDialog();
 }

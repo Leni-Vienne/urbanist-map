@@ -4,7 +4,7 @@ import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import type { RouterOutput } from "@/client";
 
-// AI : Type for selected city data (compatible with previous latestClickedCity interface)
+// Type for selected city data (compatible with previous latestClickedCity interface)
 interface SelectedCity {
   id: number;
   name: string;
@@ -13,41 +13,41 @@ interface SelectedCity {
 }
 
 export const useMapStore = defineStore("map", () => {
-  // AI : Currently selected city state (replaces the old latestClickedCity module variable)
+  // Currently selected city state (replaces the old latestClickedCity module variable)
   const selectedCity = ref<SelectedCity | null>(null);
 
-  // AI : Currently selected country code (set when clicking a city marker)
+  // Currently selected country code (set when clicking a city marker)
   const selectedCountryCode = ref<string | null>(null);
 
-  // AI : Current city overlays displayed
+  // Current city overlays displayed
   const currentCityOverlays = ref<OverlayData[]>([]);
 
-  // AI : Cities lookup map (cityId → city info) for panel auto-switch
-  // AI : Populated when cities are loaded globally, avoids circular dependency
+  // Cities lookup map (cityId → city info) for panel auto-switch
+  // Populated when cities are loaded globally, avoids circular dependency
   const citiesLookup = ref<Map<number, SelectedCity>>(new Map());
 
-  // AI : City projects cache - mode-aware for smart caching (cityId → mode → data)
-  // AI : This allows fast mode switching without backend calls while maintaining data correctness
+  // City projects cache - mode-aware for smart caching (cityId → mode → data)
+  // This allows fast mode switching without backend calls while maintaining data correctness
   const cityProjectsCache = ref<Map<number, Map<AppMode, OverlayData[]>>>(new Map());
 
-  // AI : City standalone projects cache - mode-aware (cityId → mode → data)
+  // City standalone projects cache - mode-aware (cityId → mode → data)
   const cityStandaloneProjectsCache = ref<
     Map<number, Map<AppMode, RouterOutput["project"]["getCityProjects"]>>
   >(new Map());
 
-  // AI : Set the currently selected city
+  // Set the currently selected city
   function setSelectedCity(city: SelectedCity | null) {
-    // AI : Prevent redundant updates (prevents infinite loops in watchers)
+    // Prevent redundant updates (prevents infinite loops in watchers)
     if (selectedCity.value?.id === city?.id) return;
     selectedCity.value = city;
   }
 
-  // AI : Clear the selected city
+  // Clear the selected city
   function clearSelectedCity() {
     selectedCity.value = null;
   }
 
-  // AI : City cache management - mode-aware
+  // City cache management - mode-aware
   function getCityOverlaysAndProjectsCache(cityId: number, mode: AppMode): OverlayData[] | null {
     const cityCache = cityProjectsCache.value.get(cityId);
     if (!cityCache) return null;
@@ -65,21 +65,21 @@ export const useMapStore = defineStore("map", () => {
 
   function clearCityProjectsCache(cityId?: number, mode?: AppMode) {
     if (cityId && mode) {
-      // AI : Clear specific mode cache for a city
+      // Clear specific mode cache for a city
       const cityCache = cityProjectsCache.value.get(cityId);
       if (cityCache) {
         cityCache.delete(mode);
       }
     } else if (cityId) {
-      // AI : Clear all mode caches for a city
+      // Clear all mode caches for a city
       cityProjectsCache.value.delete(cityId);
     } else {
-      // AI : Clear entire cache
+      // Clear entire cache
       cityProjectsCache.value.clear();
     }
   }
 
-  // AI : Standalone projects cache management - mode-aware
+  // Standalone projects cache management - mode-aware
   function getCityStandaloneProjectsCache(
     cityId: number,
     mode: AppMode,
@@ -104,16 +104,16 @@ export const useMapStore = defineStore("map", () => {
 
   function clearCityStandaloneProjectsCache(cityId?: number, mode?: AppMode) {
     if (cityId && mode) {
-      // AI : Clear specific mode cache for a city
+      // Clear specific mode cache for a city
       const cityCache = cityStandaloneProjectsCache.value.get(cityId);
       if (cityCache) {
         cityCache.delete(mode);
       }
     } else if (cityId) {
-      // AI : Clear all mode caches for a city
+      // Clear all mode caches for a city
       cityStandaloneProjectsCache.value.delete(cityId);
     } else {
-      // AI : Clear entire cache
+      // Clear entire cache
       cityStandaloneProjectsCache.value.clear();
     }
   }
@@ -139,7 +139,7 @@ export const useMapStore = defineStore("map", () => {
   };
 });
 
-// AI : Enable HMR for this store
+// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useMapStore, import.meta.hot));

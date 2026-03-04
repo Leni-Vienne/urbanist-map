@@ -1,7 +1,7 @@
-<template>
-  <!-- AI : Shared project form fields component used by both CreateProjectForm and EditProjectForm -->
+﻿<template>
+  <!-- Shared project form fields component used by both CreateProjectForm and EditProjectForm -->
   <div class="flex flex-col gap-4">
-    <!-- AI : Project name field -->
+    <!-- Project name field -->
     <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <InputText
@@ -14,20 +14,20 @@
           @blur="handleNameBlur"
           @input="handleNameInput"
         />
-        <label for="project-name-input" class="text-[var(--p-surface-600)]"
+        <label for="project-name-input" class="text-(--p-text-color-secondary)"
           >{{ $t("project.name") }} *</label
         >
       </FloatLabel>
       <small v-if="nameError" class="text-red-600 text-xs block">{{ nameError }}</small>
       <small
         v-if="showNameChangeIndicator"
-        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
       >
         {{ $t("overlay.changedFrom") }}: "{{ originalData?.name || $t("overlay.notSet") }}"
       </small>
     </div>
 
-    <!-- AI : Project description field -->
+    <!-- Project description field -->
     <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <Textarea
@@ -38,7 +38,7 @@
           @blur="handleDescriptionBlur"
           @input="handleDescriptionInput"
         />
-        <label for="project-description-input" class="text-[var(--p-surface-600)]"
+        <label for="project-description-input" class="text-(--p-text-color-secondary)"
           >{{ $t("common.description") }} ({{ $t("project.optionalField") }})</label
         >
       </FloatLabel>
@@ -47,27 +47,27 @@
       }}</small>
       <small
         v-if="showDescriptionChangeIndicator"
-        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
       >
         {{ $t("overlay.changedFrom") }}: "{{ originalData?.description || $t("overlay.notSet") }}"
       </small>
     </div>
 
-    <!-- AI : Timeline status selector -->
+    <!-- Timeline status selector -->
     <TimelineStatusSelector
       v-model="localIsProposed"
       :id-prefix="idPrefix"
       @change="handleTimelineStatusChange"
     />
-    <!-- AI : Show change indicator when timeline status changes -->
+    <!-- Show change indicator when timeline status changes -->
     <small
       v-if="showChangeIndicators && timelineStatusChanged"
-      class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
     >
       {{ timelineStatusChangeMessage }}
     </small>
 
-    <!-- AI : Proposal date field (shown when project is proposed) -->
+    <!-- Proposal date field (shown when project is proposed) -->
     <div class="flex flex-col gap-1" v-if="localIsProposed">
       <FlexibleDatePicker
         v-model="flexibleProposalDate"
@@ -79,12 +79,10 @@
         @update:modelValue="handleProposalDateChange"
         @blur="handleProposalDateChange"
       />
-      <small class="text-[var(--p-surface-500)] block mt-1">{{
-        $t("project.proposalDateHelp")
-      }}</small>
+      <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
       <small
         v-if="showProposalDateChangeIndicator"
-        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
       >
         {{ $t("overlay.changedFrom") }}: "{{
           formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
@@ -92,9 +90,9 @@
       </small>
     </div>
 
-    <!-- AI : Start and end date fields (shown when project is planned) -->
+    <!-- Start and end date fields (shown when project is planned) -->
     <div class="flex flex-col gap-4" v-if="!localIsProposed">
-      <!-- AI : Start Date (Optional with checkbox) -->
+      <!-- Start Date (Optional with checkbox) -->
       <div class="flex flex-col gap-1">
         <div class="flex items-center gap-2 mb-2">
           <Checkbox v-model="projectAlreadyStarted" binary inputId="project-started-checkbox" />
@@ -115,7 +113,7 @@
           />
           <small
             v-if="showStartDateChangeIndicator"
-            class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+            class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
           >
             {{ $t("overlay.changedFrom") }}: "{{
               formatFlexibleDateFromProp(originalData?.startDate) || $t("overlay.notSet")
@@ -124,7 +122,7 @@
         </div>
       </div>
 
-      <!-- AI : End Date -->
+      <!-- End Date -->
       <div class="flex flex-col gap-1">
         <FlexibleDatePicker
           v-model="flexibleEndDate"
@@ -137,7 +135,7 @@
         />
         <small
           v-if="showEndDateChangeIndicator"
-          class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
         >
           {{ $t("overlay.changedFrom") }}: "{{
             formatFlexibleDateFromProp(originalData?.endDate) || $t("overlay.notSet")
@@ -146,7 +144,7 @@
       </div>
     </div>
 
-    <!-- AI : City select field -->
+    <!-- City select field -->
     <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <CitySelect
@@ -158,20 +156,21 @@
           required
           @update:modelValue="handleCityIdUpdate"
         />
-        <label for="location-select" class="text-[var(--p-surface-600)]"
+        <label for="location-select" class="text-(--p-text-color-secondary)"
           >{{ $t("project.location") }} *</label
         >
       </FloatLabel>
       <small v-if="cityIdError" class="text-red-600 text-xs block">{{ cityIdError }}</small>
       <small
         v-if="showCityChangeIndicator"
-        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
       >
-        {{ $t("overlay.changedFrom") }}: {{ getCityNameSafe(originalData?.cityId) }}
+        {{ $t("overlay.changedFrom") }}:
+        {{ getCityNameSafe(originalData?.cityId) }}
       </small>
     </div>
 
-    <!-- AI : Source URL field -->
+    <!-- Source URL field -->
     <div class="flex flex-col gap-1">
       <FloatLabel class="w-full" variant="in">
         <InputText
@@ -183,14 +182,14 @@
           @blur="handleSourceUrlBlur"
           @input="handleSourceUrlInput"
         />
-        <label for="source-url-input" class="text-[var(--p-surface-600)]"
+        <label for="source-url-input" class="text-(--p-text-color-secondary)"
           >{{ $t("project.sourceUrl") }} ({{ $t("project.optionalField") }})</label
         >
       </FloatLabel>
       <small v-if="sourceUrlError" class="text-red-600 text-xs block">{{ sourceUrlError }}</small>
       <small
         v-if="showSourceUrlChangeIndicator"
-        class="italic bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
       >
         {{ $t("overlay.changedFrom") }}: "{{ originalData?.sourceUrl || $t("overlay.notSet") }}"
       </small>
@@ -221,27 +220,27 @@ import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
 
-// AI : Re-export for backward compatibility
+// Re-export for backward compatibility
 export type { ProjectFormData };
 
 interface Props {
-  // AI : v-model for form data
+  // v-model for form data
   formData: ProjectFormData;
-  // AI : Original data for change comparison (used in edit mode)
+  // Original data for change comparison (used in edit mode)
   originalData?: ProjectFormData;
-  // AI : Show change indicators for modified fields
+  // Show change indicators for modified fields
   showChangeIndicators?: boolean;
-  // AI : Unique prefix for input IDs to avoid conflicts
+  // Unique prefix for input IDs to avoid conflicts
   idPrefix?: string;
-  // AI : Initial isProposed state
+  // Initial isProposed state
   isProposed?: boolean;
-  // AI : Pre-filled city data for the CitySelect (uses Project['city'] format from DB)
+  // Pre-filled city data for the CitySelect (uses Project['city'] format from DB)
   prefilledCity?: Project["city"];
-  // AI : Marker coordinates for city proximity search
+  // Marker coordinates for city proximity search
   markerCoordinates?: { lat: number; lng: number } | null;
-  // AI : Function to get CSS classes for fields (from BaseEditForm)
+  // Function to get CSS classes for fields (from BaseEditForm)
   fieldClasses?: (fieldName: string) => string | object | undefined;
-  // AI : Function to check if a field has changed (from BaseEditForm)
+  // Function to check if a field has changed (from BaseEditForm)
   hasChanged?: (fieldName: string) => boolean;
 }
 
@@ -261,20 +260,20 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-// AI : i18n for translations
+// i18n for translations
 const { t } = useI18n();
 
-// AI : Reference to CitySelect component
+// Reference to CitySelect component
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
 
-// AI : Setup field validation
+// Setup field validation
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
 
-// AI : Local isProposed state synced with parent
+// Local isProposed state synced with parent
 const localIsProposed = ref(props.isProposed);
 
-// AI : Local copy of formData to avoid mutating props
-// AI : Explicitly initialize precision fields to null if undefined (for old projects without precision)
+// Local copy of formData to avoid mutating props
+// Explicitly initialize precision fields to null if undefined (for old projects without precision)
 const localFormData = ref<ProjectFormData>({
   ...props.formData,
   proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
@@ -282,8 +281,8 @@ const localFormData = ref<ProjectFormData>({
   endDatePrecision: props.formData.endDatePrecision ?? null,
 });
 
-// AI : Local state for flexible dates
-// AI : We maintain these separately and sync them to localFormData (which uses plain Dates)
+// Local state for flexible dates
+// We maintain these separately and sync them to localFormData (which uses plain Dates)
 const flexibleProposalDate = ref<FlexibleDateInput | null>(
   dbToFlexibleDate(props.formData.proposalDate, props.formData.proposalDatePrecision),
 );
@@ -294,24 +293,24 @@ const flexibleEndDate = ref<FlexibleDateInput | null>(
   dbToFlexibleDate(props.formData.endDate, props.formData.endDatePrecision),
 );
 
-// AI : "Already Started" state
-// AI : If active, startDate is cleared and disabled
+// "Already Started" state
+// If active, startDate is cleared and disabled
 const projectAlreadyStarted = ref(false);
 
-// AI : Initialize "Already Started" if we have an endDate but no startDate in a planned project
-// AI : This assumes "Already Started" means we don't know the startDate
+// Initialize "Already Started" if we have an endDate but no startDate in a planned project
+// This assumes "Already Started" means we don't know the startDate
 if (!props.formData.startDate && props.formData.endDate && !props.isProposed) {
   projectAlreadyStarted.value = true;
 }
 
-// AI : Watch for external formData changes and sync local copy AND flexible states
+// Watch for external formData changes and sync local copy AND flexible states
 watch(
   () => props.formData,
   (newFormData) => {
     localFormData.value = { ...newFormData };
 
-    // AI : Only update flexible inputs if the timestamp is different (simple check)
-    // AI : We use timestamps to avoid unnecessary re-parsing
+    // Only update flexible inputs if the timestamp is different (simple check)
+    // We use timestamps to avoid unnecessary re-parsing
     const currentProposalTs = flexibleDateToDb(flexibleProposalDate.value)?.getTime();
     if (newFormData.proposalDate?.getTime() !== currentProposalTs) {
       flexibleProposalDate.value = dbToFlexibleDate(
@@ -339,7 +338,7 @@ watch(
   { deep: true },
 );
 
-// AI : Sync flexible dates to formData
+// Sync flexible dates to formData
 function syncDatesToFormData() {
   localFormData.value.proposalDate = localIsProposed.value
     ? flexibleDateToDb(flexibleProposalDate.value)
@@ -365,7 +364,7 @@ function syncDatesToFormData() {
   }
 }
 
-// AI : Watch local formData changes and emit to parent
+// Watch local formData changes and emit to parent
 watch(
   localFormData,
   (newFormData) => {
@@ -374,7 +373,7 @@ watch(
   { deep: true },
 );
 
-// AI : Watch projectAlreadyStarted to clear start date if checked
+// Watch projectAlreadyStarted to clear start date if checked
 watch(projectAlreadyStarted, (newValue) => {
   if (newValue) {
     flexibleStartDate.value = null; // Clear the input
@@ -383,16 +382,16 @@ watch(projectAlreadyStarted, (newValue) => {
   handleDateChange(); // Re-validate
 });
 
-// AI : Convert null to undefined for CitySelect compatibility
+// Convert null to undefined for CitySelect compatibility
 const cityIdForSelect = computed(() => localFormData.value.cityId ?? undefined);
 
-// AI : Shared validation helper to avoid rebuilding validation data
+// Shared validation helper to avoid rebuilding validation data
 function validateFieldHelper(fieldPath: string) {
   const validationData = prepareProjectValidationData(localFormData.value);
   validateField(fieldPath, validationData);
 }
 
-// AI : Validation handlers for each field - blur always validates and marks as touched
+// Validation handlers for each field - blur always validates and marks as touched
 function handleNameBlur() {
   validateFieldHelper("name");
 }
@@ -405,7 +404,7 @@ function handleSourceUrlBlur() {
   validateFieldHelper("sourceUrl");
 }
 
-// AI : Input handlers - validate immediately on every input (real-time feedback)
+// Input handlers - validate immediately on every input (real-time feedback)
 function handleNameInput() {
   validateFieldHelper("name");
 }
@@ -418,14 +417,14 @@ function handleSourceUrlInput() {
   validateFieldHelper("sourceUrl");
 }
 
-// AI : Get combined class for inputs with validation state
+// Get combined class for inputs with validation state
 function getInputClass(fieldName: string) {
   const baseClasses = props.fieldClasses?.(fieldName) ?? "";
   const errorClass = hasFieldError(fieldName) ? "p-invalid" : "";
   return [{ "w-full": true }, baseClasses, errorClass];
 }
 
-// AI : Computed properties for change indicators to simplify template logic
+// Computed properties for change indicators to simplify template logic
 const showNameChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("name"),
 );
@@ -456,7 +455,7 @@ const showSourceUrlChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("sourceUrl"),
 );
 
-// AI : Computed error messages for each field
+// Computed error messages for each field
 const nameError = computed(() => getFieldError("name"));
 const descriptionError = computed(() => getFieldError("description"));
 const sourceUrlError = computed(() => getFieldError("sourceUrl"));
@@ -464,31 +463,31 @@ const startDateError = computed(() => getFieldError("startDate"));
 const endDateError = computed(() => getFieldError("endDate"));
 const cityIdError = computed(() => getFieldError("cityId"));
 
-// AI : Date change handler - validates dates whenever they change
+// Date change handler - validates dates whenever they change
 function handleDateChange() {
   syncDatesToFormData();
-  // AI : Validate both date fields when either changes (they depend on each other)
+  // Validate both date fields when either changes (they depend on each other)
   validateFieldHelper("startDate");
   validateFieldHelper("endDate");
 }
 
-// AI : Proposal date change handler
+// Proposal date change handler
 function handleProposalDateChange() {
   syncDatesToFormData();
   validateFieldHelper("proposalDate");
 }
 
-// AI : Handle city ID updates from CitySelect
+// Handle city ID updates from CitySelect
 function handleCityIdUpdate(cityId: number | undefined) {
-  // AI : Update local form data (will trigger watch to emit)
+  // Update local form data (will trigger watch to emit)
   localFormData.value.cityId = cityId ?? null;
-  // AI : Emit city change event for parent components (e.g., to switch tile layer)
+  // Emit city change event for parent components (e.g., to switch tile layer)
   emit("cityChange", cityId ?? null);
-  // AI : Validate city field when it changes
+  // Validate city field when it changes
   validateFieldHelper("cityId");
 }
 
-// AI : Watch for external isProposed changes
+// Watch for external isProposed changes
 watch(
   () => props.isProposed,
   (newValue) => {
@@ -496,7 +495,7 @@ watch(
   },
 );
 
-// AI : Computed to check if project was originally proposed
+// Computed to check if project was originally proposed
 const wasOriginallyProposed = computed(() => {
   if (!props.originalData) return false;
   return Boolean(
@@ -504,22 +503,24 @@ const wasOriginallyProposed = computed(() => {
   );
 });
 
-// AI : Computed to check if timeline status has changed
+// Computed to check if timeline status has changed
 const timelineStatusChanged = computed(() => {
   if (!props.originalData) return false;
   return localIsProposed.value !== wasOriginallyProposed.value;
 });
 
-// AI : Computed message to show what changed when timeline status changes
+// Computed message to show what changed when timeline status changes
 const timelineStatusChangeMessage = computed(() => {
   if (!props.originalData) return "";
 
   if (wasOriginallyProposed.value && !localIsProposed.value) {
-    // AI : Changed from proposed to planned
+    // Changed from proposed to planned
     const oldDate = formatDate(props.originalData.proposalDate) ?? t("overlay.notSet");
-    return t("project.timelineChangedFromProposedToPlanned", { proposalDate: oldDate });
+    return t("project.timelineChangedFromProposedToPlanned", {
+      proposalDate: oldDate,
+    });
   } else if (!wasOriginallyProposed.value && localIsProposed.value) {
-    // AI : Changed from planned to proposed
+    // Changed from planned to proposed
     const oldStart = formatDate(props.originalData.startDate) ?? t("overlay.notSet");
     const oldEnd = formatDate(props.originalData.endDate) ?? t("overlay.notSet");
     return t("project.timelineChangedFromPlannedToProposed", {
@@ -531,27 +532,27 @@ const timelineStatusChangeMessage = computed(() => {
   return "";
 });
 
-// AI : Handle timeline status change
+// Handle timeline status change
 function handleTimelineStatusChange(newIsProposed: boolean) {
   localIsProposed.value = newIsProposed;
   emit("update:isProposed", newIsProposed);
 
-  // AI : Update local form data based on timeline status
+  // Update local form data based on timeline status
   if (newIsProposed) {
-    // AI : Switching to proposed - clear planned dates
+    // Switching to proposed - clear planned dates
     flexibleStartDate.value = null;
     flexibleEndDate.value = null;
     projectAlreadyStarted.value = false;
   } else {
-    // AI : Switching to planned - clear proposal date
+    // Switching to planned - clear proposal date
     flexibleProposalDate.value = null;
 
-    // AI : Restore original dates if available
+    // Restore original dates if available
     if (props.originalData?.startDate) {
       flexibleStartDate.value = dbToFlexibleDate(props.originalData.startDate);
       projectAlreadyStarted.value = false;
     } else {
-      // AI : If no original start date (and we are switching to planned), maybe it was already started?
+      // If no original start date (and we are switching to planned), maybe it was already started?
       flexibleStartDate.value = null;
     }
 
@@ -564,7 +565,7 @@ function handleTimelineStatusChange(newIsProposed: boolean) {
   syncDatesToFormData();
 }
 
-// AI : Watch for city changes in local form data
+// Watch for city changes in local form data
 watch(
   () => localFormData.value.cityId,
   (newCityId) => {
@@ -572,21 +573,21 @@ watch(
   },
   {
     // immediate: true
-    // AI : Actually, we don't need immediate because we init cityIdForSelect computed
+    // Actually, we don't need immediate because we init cityIdForSelect computed
   },
 );
 
-// AI : Safe getter for city name that handles null/undefined conversion
+// Safe getter for city name that handles null/undefined conversion
 function getCityNameSafe(cityId: number | null | undefined): string {
   return citySelectRef.value?.getCityName(cityId ?? undefined) ?? "Not set";
 }
 
-// AI : Helper to format date from prop (Date) using flexible helper
+// Helper to format date from prop (Date) using flexible helper
 function formatFlexibleDateFromProp(date: Date | null | undefined): string {
   return formatFlexibleDate(dbToFlexibleDate(date));
 }
 
-// AI : Expose cities data and methods to parent
+// Expose cities data and methods to parent
 defineExpose({
   citySelectRef,
   get cities() {
