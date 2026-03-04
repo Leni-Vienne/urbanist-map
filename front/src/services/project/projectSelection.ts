@@ -1,4 +1,4 @@
-// AI : Combines city projects retrieval and selected project state management
+// Combines city projects retrieval and selected project state management
 import { computed } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -6,7 +6,7 @@ import type { Project } from "@/types/index";
 import { createProjectObject, createProjectObjectFromAPI } from "@/utils/typeFactories";
 
 /**
- * AI : Get all accessible projects including:
+ * Get all accessible projects including:
  * - Projects from current city overlays
  * - Nearby projects from other cities (lazy loaded)
  * - Local unsaved projects
@@ -18,12 +18,12 @@ export function getCityProjects() {
   const projects = computed(() => {
     const projectMap = new Map<string, Project>();
 
-    // AI : 1. Include local projects first (highest priority - may have unsaved changes)
+    // 1. Include local projects first (highest priority - may have unsaved changes)
     for (const project of Object.values(projectStore.projects)) {
       projectMap.set(project.id, project);
     }
 
-    // AI : 2. Extract projects from current city overlays (only if not in local store)
+    // 2. Extract projects from current city overlays (only if not in local store)
     for (const overlay of mapStore.currentCityOverlays) {
       if (overlay.project?.id && !projectMap.has(overlay.project.id)) {
         const frontendProject = createProjectObject({
@@ -35,7 +35,7 @@ export function getCityProjects() {
       }
     }
 
-    // AI : 3. Include nearby projects from other cities (only if not already added)
+    // 3. Include nearby projects from other cities (only if not already added)
     for (const nearbyProject of projectStore.nearbyProjects) {
       if (!projectMap.has(nearbyProject.id)) {
         const frontendProject = createProjectObjectFromAPI(nearbyProject);
@@ -53,14 +53,14 @@ export function getCityProjects() {
     }));
   });
 
-  // AI : Get overlay count, checking both current city and nearby project data
+  // Get overlay count, checking both current city and nearby project data
   function getOverlayCountForProject(projectId: string): number {
-    // AI : Count from current city overlays
+    // Count from current city overlays
     const cityCount = mapStore.currentCityOverlays.filter(
       (overlay) => overlay.project?.id === projectId,
     ).length;
 
-    // AI : If no overlays in current city, use count from nearby project data
+    // If no overlays in current city, use count from nearby project data
     if (cityCount === 0) {
       const nearbyProject = projectStore.nearbyProjects.find((p) => p.id === projectId);
       return nearbyProject?.overlayCount ?? 0;
@@ -69,7 +69,7 @@ export function getCityProjects() {
     return cityCount;
   }
 
-  // AI : Group projects by city for visual organization
+  // Group projects by city for visual organization
   const projectsByCity = computed(() => {
     const groups = new Map<string, Project[]>();
 
@@ -98,12 +98,12 @@ export function getCityProjects() {
   };
 }
 
-// AI : ============================================================================
-// AI : SELECTED PROJECT
-// AI : ============================================================================
+// ============================================================================
+// SELECTED PROJECT
+// ============================================================================
 
 /**
- * AI : Computed ref for managing the globally selected project ID
+ * Computed ref for managing the globally selected project ID
  * This provides a centralized way to access and modify the selected project
  * across all components, preventing state inconsistencies.
  */

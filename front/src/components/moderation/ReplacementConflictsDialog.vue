@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Dialog
     v-model:visible="isVisible"
     modal
@@ -10,34 +10,34 @@
       <!-- Image Comparison -->
       <div
         v-if="conflicts.originalOverlayFilename && conflicts.newOverlayFilename"
-        class="flex items-center justify-center gap-8 p-6 bg-[var(--p-surface-50)] rounded-lg border border-[var(--p-surface-200)]"
+        class="flex items-center justify-center gap-8 p-6 bg-content-hover-background rounded-lg border border-surface"
       >
-        <div class="flex flex-col items-center gap-2 flex-1 max-w-[250px]">
-          <div class="text-sm font-semibold text-[var(--p-surface-700)] uppercase tracking-wider">
+        <div class="flex flex-col items-center gap-2 flex-1 max-w-62">
+          <div class="text-sm font-semibold text-color uppercase tracking-wider">
             {{ $t("common.current") }}
           </div>
           <img
             :src="buildImageUrl(conflicts.originalOverlayFilename, false)"
             :alt="conflicts.originalOverlayCaption || 'Original overlay'"
-            class="w-full h-auto max-h-[200px] object-contain rounded-lg border-2 border-[var(--p-surface-300)] bg-[var(--p-surface-0)]"
+            class="w-full h-auto max-h-50 object-contain rounded-lg border-2 border-surface bg-content-background"
           />
-          <div class="text-sm text-[var(--p-surface-600)] text-center font-medium">
+          <div class="text-sm text-(--p-text-color-secondary) text-center font-medium">
             {{ conflicts.originalOverlayCaption || $t("overlay.untitled") }}
           </div>
         </div>
-        <div class="text-4xl text-[var(--p-primary-500)] flex-shrink-0">
+        <div class="text-4xl text-primary-500 shrink-0">
           <i class="pi pi-arrow-right"></i>
         </div>
-        <div class="flex flex-col items-center gap-2 flex-1 max-w-[250px]">
-          <div class="text-sm font-semibold text-[var(--p-surface-700)] uppercase tracking-wider">
+        <div class="flex flex-col items-center gap-2 flex-1 max-w-62">
+          <div class="text-sm font-semibold text-color uppercase tracking-wider">
             {{ $t("common.new") }}
           </div>
           <img
             :src="buildImageUrl(conflicts.newOverlayFilename, true)"
             :alt="conflicts.newOverlayCaption || 'New overlay'"
-            class="w-full h-auto max-h-[200px] object-contain rounded-lg border-2 border-[var(--p-surface-300)] bg-[var(--p-surface-0)]"
+            class="w-full h-auto max-h-50 object-contain rounded-lg border-2 border-surface bg-content-background"
           />
-          <div class="text-sm text-[var(--p-surface-600)] text-center font-medium">
+          <div class="text-sm text-(--p-text-color-secondary) text-center font-medium">
             {{ conflicts.newOverlayCaption || $t("overlay.untitled") }}
           </div>
         </div>
@@ -45,43 +45,43 @@
 
       <!-- Pending Change Requests -->
       <div v-if="conflicts.pendingChangeRequests.length > 0" class="flex flex-col gap-3">
-        <div class="flex items-center gap-2 text-base font-semibold text-[var(--p-surface-800)]">
-          <i class="pi pi-exclamation-triangle text-[var(--p-orange-600)]"></i>
+        <div class="flex items-center gap-2 text-base font-semibold text-color">
+          <i class="pi pi-exclamation-triangle text-orange-600"></i>
           <span>{{
             $t("moderation.replacementConflicts.pendingChanges", {
               count: conflicts.pendingChangeRequests.length,
             })
           }}</span>
         </div>
-        <div class="max-h-[250px] overflow-y-auto flex flex-col gap-3 pr-2">
+        <div class="max-h-62 overflow-y-auto flex flex-col gap-3 pr-2">
           <div
             v-for="change in conflicts.pendingChangeRequests"
             :key="change.id"
-            class="p-4 bg-[var(--p-surface-50)] border border-[var(--p-surface-200)] rounded-lg"
+            class="p-4 bg-content-hover-background border border-surface rounded-lg"
           >
             <div class="flex justify-between items-center mb-2">
               <strong>{{ $t(`fields.${change.fieldName}`) }}</strong>
               <Tag severity="warning" :value="$t('status.pending')" size="small" />
             </div>
-            <div class="flex items-center gap-3 mt-2 p-2 bg-[var(--p-surface-0)] rounded-md">
-              <span class="px-2 py-1 bg-[var(--p-surface-100)] rounded text-sm font-mono">{{
+            <div class="flex items-center gap-3 mt-2 p-2 bg-content-background rounded-md">
+              <span class="px-2 py-1 bg-content-hover-background rounded text-sm font-mono">{{
                 formatValue(change.oldValue)
               }}</span>
               <i class="pi pi-arrow-right"></i>
-              <span class="px-2 py-1 bg-[var(--p-surface-100)] rounded text-sm font-mono">{{
+              <span class="px-2 py-1 bg-content-hover-background rounded text-sm font-mono">{{
                 formatValue(change.newValue)
               }}</span>
             </div>
             <div
               v-if="change.changeReason"
-              class="mt-2 p-2 text-sm text-[var(--p-surface-700)] bg-[var(--p-surface-100)] rounded italic"
+              class="mt-2 p-2 text-sm text-color bg-content-hover-background rounded italic"
             >
               {{ change.changeReason }}
             </div>
           </div>
         </div>
         <p
-          class="m-0 p-3 bg-[var(--p-red-50)] text-[var(--p-red-900)] rounded-md text-sm font-medium"
+          class="m-0 p-3 bg-red-50 text-red-900 rounded-md text-sm font-medium dark:bg-red-900/30 dark:text-red-300"
         >
           {{ $t("moderation.replacementConflicts.changesWillBeConflicted") }}
         </p>
@@ -89,30 +89,30 @@
 
       <!-- Competing Replacements -->
       <div v-if="conflicts.competingReplacements.length > 0" class="flex flex-col gap-3">
-        <div class="flex items-center gap-2 text-base font-semibold text-[var(--p-surface-800)]">
-          <i class="pi pi-clone text-[var(--p-orange-600)]"></i>
+        <div class="flex items-center gap-2 text-base font-semibold text-color">
+          <i class="pi pi-clone text-orange-600"></i>
           <span>{{
             $t("moderation.replacementConflicts.competingReplacements", {
               count: conflicts.competingReplacements.length,
             })
           }}</span>
         </div>
-        <div class="max-h-[250px] overflow-y-auto flex flex-col gap-3 pr-2">
+        <div class="max-h-62 overflow-y-auto flex flex-col gap-3 pr-2">
           <div
             v-for="competing in conflicts.competingReplacements"
             :key="competing.id"
-            class="p-4 bg-[var(--p-surface-50)] border border-[var(--p-surface-200)] rounded-lg"
+            class="p-4 bg-content-hover-background border border-surface rounded-lg"
           >
             <div class="flex gap-4 items-center">
               <img
                 :src="buildThumbnailUrl(competing.filename, true)"
                 :alt="competing.caption || 'Competing overlay'"
-                class="w-20 h-20 object-cover rounded-md border-2 border-[var(--p-surface-300)] flex-shrink-0"
+                class="w-20 h-20 object-cover rounded-md border-2 border-surface shrink-0"
               />
               <div class="flex-1 min-w-0">
                 <div class="flex justify-between items-center mb-2">
                   <strong>{{ competing.caption || $t("overlay.untitled") }}</strong>
-                  <span class="text-sm text-[var(--p-surface-600)]">{{
+                  <span class="text-sm text-(--p-text-color-secondary)">{{
                     formatDate(competing.createdAt) || "—"
                   }}</span>
                 </div>
@@ -121,7 +121,7 @@
           </div>
         </div>
         <p
-          class="m-0 p-3 bg-[var(--p-red-50)] text-[var(--p-red-900)] rounded-md text-sm font-medium"
+          class="m-0 p-3 bg-red-50 text-red-900 rounded-md text-sm font-medium dark:bg-red-900/30 dark:text-red-300"
         >
           {{ $t("moderation.replacementConflicts.competingWillBeRejected") }}
         </p>
@@ -156,7 +156,7 @@ import { formatDate } from "@/utils/dateFormat";
 
 const { t: $t } = useI18n();
 
-// AI : Conflicts data structure returned from backend
+// Conflicts data structure returned from backend
 export interface ReplacementConflicts {
   isReplacement: boolean;
   originalOverlayCaption: string | null;
@@ -182,7 +182,7 @@ export interface ReplacementConflicts {
   hasConflicts: boolean;
 }
 
-// AI : Props
+// Props
 interface Props {
   visible: boolean;
   conflicts: ReplacementConflicts | null;
@@ -193,17 +193,17 @@ const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
 });
 
-// AI : Emits
+// Emits
 const emit = defineEmits<{
   "update:visible": [value: boolean];
   confirm: [];
   cancel: [];
 }>();
 
-// AI : Local visibility state
+// Local visibility state
 const isVisible = ref(props.visible);
 
-// AI : Watch for external visibility changes
+// Watch for external visibility changes
 watch(
   () => props.visible,
   (newValue) => {
@@ -211,23 +211,23 @@ watch(
   },
 );
 
-// AI : Handle visibility change from dialog
+// Handle visibility change from dialog
 function handleVisibilityChange(value: boolean) {
   emit("update:visible", value);
 }
 
-// AI : Handle cancel button
+// Handle cancel button
 function handleCancel() {
   emit("cancel");
   isVisible.value = false;
 }
 
-// AI : Handle confirm button
+// Handle confirm button
 function handleConfirm() {
   emit("confirm");
 }
 
-// AI : Format value for display
+// Format value for display
 function formatValue(value: any): string {
   if (value === null || value === undefined) {
     return $t("common.unknown");

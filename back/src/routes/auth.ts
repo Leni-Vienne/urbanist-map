@@ -16,9 +16,9 @@ import { getEmailService } from "../services/emailService";
 import { verifyTurnstileToken } from "../utils/captcha";
 import { renderEmailTemplate } from "../email/templateRenderer";
 
-// AI : Use shared validation schemas
+// Use shared validation schemas
 
-// AI : Utility functions
+// Utility functions
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
@@ -32,7 +32,7 @@ async function sendVerificationEmail(
     const emailService = getEmailService();
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
 
-    // AI : Use template renderer with i18n support
+    // Use template renderer with i18n support
     const { subject, html } = await renderEmailTemplate(
       "verification",
       { verificationUrl },
@@ -43,7 +43,7 @@ async function sendVerificationEmail(
     console.log(`Verification email sent successfully to ${email}`);
   } catch (error) {
     console.error("Failed to send verification email:", error);
-    // AI : In development, fallback to console logging
+    // In development, fallback to console logging
     if (process.env.NODE_ENV === "development") {
       console.log(`[DEV FALLBACK] Verification email to ${email} with token: ${token}`);
       console.log(`Verification link: ${process.env.FRONTEND_URL}/verify?token=${token}`);
@@ -62,14 +62,14 @@ async function sendPasswordResetEmail(
     const emailService = getEmailService();
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
-    // AI : Use template renderer with i18n support
+    // Use template renderer with i18n support
     const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl }, locale);
 
     await emailService.sendEmail(email, subject, html);
     console.log(`Password reset email sent successfully to ${email}`);
   } catch (error) {
     console.error("Failed to send password reset email:", error);
-    // AI : In development, fallback to console logging
+    // In development, fallback to console logging
     if (process.env.NODE_ENV === "development") {
       console.log(`[DEV FALLBACK] Password reset email to ${email} with token: ${token}`);
       console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${token}`);
@@ -80,12 +80,12 @@ async function sendPasswordResetEmail(
 }
 
 export const authRouter = router({
-  // AI : User registration
+  // User registration
   register: publicProcedure.input(registerSchema).mutation(async ({ input, ctx }) => {
     try {
       const { email, password, username, captchaToken } = input;
 
-      // AI : Rate limit: 5 registrations per IP per hour
+      // Rate limit: 5 registrations per IP per hour
       const ip = getClientIp(ctx.hono);
       if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
@@ -94,8 +94,8 @@ export const authRouter = router({
         });
       }
 
-      // AI : Validate CAPTCHA
-      // AI : Optional if key not configured (dev mode), but frontend should send token if configured
+      // Validate CAPTCHA
+      // Optional if key not configured (dev mode), but frontend should send token if configured
       if (process.env.TURNSTILE_SECRET_KEY && captchaToken) {
         const isValidCaptcha = await verifyTurnstileToken(captchaToken, ip);
         if (!isValidCaptcha) {
@@ -106,7 +106,7 @@ export const authRouter = router({
         }
       }
 
-      // AI : Check if user already exists
+      // Check if user already exists
       const existingUserResult = await db
         .select()
         .from(users)
@@ -114,12 +114,12 @@ export const authRouter = router({
         .limit(1);
       const existingUser = existingUserResult[0];
       if (existingUser) {
-        // AI : If user exists but email is not verified, allow re-registration (overwrite)
+        // If user exists but email is not verified, allow re-registration (overwrite)
         if (!existingUser.emailVerified) {
-          // AI : Delete the unverified user
+          // Delete the unverified user
           await db.delete(users).where(eq(users.id, existingUser.id));
         } else {
-          // AI : Check if this is an OAuth-only account
+          // Check if this is an OAuth-only account
           if (existingUser.googleId && !existingUser.passwordHash) {
             throw new TRPCError({
               code: "CONFLICT",
@@ -129,12 +129,12 @@ export const authRouter = router({
 
           throw new TRPCError({
             code: "CONFLICT",
-            message: "auth.error.registrationFailed", // AI : Obscure existing email (security best practice)
+            message: "auth.error.registrationFailed", // Obscure existing email (security best practice)
           });
         }
       }
 
-      // AI : Check username uniqueness if provided
+      // Check username uniqueness if provided
       if (username) {
         const existingUsername = await db
           .select()
@@ -149,14 +149,14 @@ export const authRouter = router({
         }
       }
 
-      // AI : Hash password with Bun
+      // Hash password with Bun
       const passwordHash = await Bun.password.hash(password);
 
-      // AI : Generate verification token
+      // Generate verification token
       const plainVerificationToken = generateToken();
       const emailVerificationToken = await Bun.password.hash(plainVerificationToken);
 
-      // AI : Create user
+      // Create user
       const [newUser] = await db
         .insert(users)
         .values({
@@ -175,7 +175,7 @@ export const authRouter = router({
         });
       }
 
-      // AI : Send verification email
+      // Send verification email
       await sendVerificationEmail(email, plainVerificationToken);
 
       return {
@@ -189,7 +189,7 @@ export const authRouter = router({
         },
       };
     } catch (error) {
-      // AI : If the code threw a TRPCError (intentional client/server error), rethrow it
+      // If the code threw a TRPCError (intentional client/server error), rethrow it
       // So that the specific message (i18n key) is preserved and can be translated on the client.
       if (error instanceof TRPCError) {
         throw error;
@@ -203,12 +203,12 @@ export const authRouter = router({
     }
   }),
 
-  // AI : Verify email
+  // Verify email
   verifyEmail: publicProcedure
     .input(z.object({ token: z.string() }))
     .mutation(async ({ input, ctx }) => {
       try {
-        // AI : Rate limit: 5 verify attempts per IP per hour (brute force protection)
+        // Rate limit: 5 verify attempts per IP per hour (brute force protection)
         const ip = getClientIp(ctx.hono);
         if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
           throw new TRPCError({
@@ -219,7 +219,7 @@ export const authRouter = router({
 
         const { token } = input;
 
-        // AI : Find all users with verification tokens and check each one
+        // Find all users with verification tokens and check each one
         const usersWithTokens = await db.select().from(users).where(eq(users.emailVerified, false));
 
         let matchedUser = null;
@@ -240,7 +240,7 @@ export const authRouter = router({
           });
         }
 
-        // AI : Update user as verified
+        // Update user as verified
         await db
           .update(users)
           .set({
@@ -249,7 +249,7 @@ export const authRouter = router({
           })
           .where(eq(users.id, matchedUser.id));
 
-        // AI : Create session for auto-login (30-day duration)
+        // Create session for auto-login (30-day duration)
         const session = ctx.hono.get("session");
         const sessionDuration = 30 * 24 * 60 * 60; // 30 days in seconds
         const expiresAt = new Date(Date.now() + sessionDuration * 1000);
@@ -265,7 +265,7 @@ export const authRouter = router({
 
         session.set("expiresAt", expiresAt.toISOString());
 
-        // AI : Return user data for frontend to update state
+        // Return user data for frontend to update state
         return {
           success: true,
           message: "Email verified successfully",
@@ -287,13 +287,13 @@ export const authRouter = router({
       }
     }),
 
-  // AI : Request password reset
+  // Request password reset
   requestPasswordReset: publicProcedure
     .input(resetPasswordRequestSchema)
     .mutation(({ input, ctx }) => {
       const { email } = input;
 
-      // AI : Rate limit: 5 password reset requests per IP per hour
+      // Rate limit: 5 password reset requests per IP per hour
       const ip = getClientIp(ctx.hono);
       if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
@@ -302,38 +302,38 @@ export const authRouter = router({
         });
       }
 
-      // AI : SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
-      // AI : Void the promise to indicate intentional fire-and-forget behavior
+      // SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
+      // Void the promise to indicate intentional fire-and-forget behavior
       // eslint-disable-next-line @eslint/no-void
       void (async () => {
         try {
-          // AI : Find user
+          // Find user
           const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
           if (!user) {
-            // AI : User doesn't exist - silently fail for security
+            // User doesn't exist - silently fail for security
             return;
           }
 
-          // AI : SECURITY: Check if email is verified
-          // AI : Prevent password reset bypass for unverified emails
+          // SECURITY: Check if email is verified
+          // Prevent password reset bypass for unverified emails
           if (!user.emailVerified) {
             return;
           }
 
-          // AI : SECURITY: Check if OAuth-only user - silently fail (don't reveal auth method)
+          // SECURITY: Check if OAuth-only user - silently fail (don't reveal auth method)
           if (user.googleId && !user.passwordHash) {
-            // AI : OAuth-only users can't reset password - silently fail to prevent enumeration
+            // OAuth-only users can't reset password - silently fail to prevent enumeration
             return;
           }
 
-          // AI : Generate reset token and expiry (1 hour)
+          // Generate reset token and expiry (1 hour)
           const plainResetToken = generateToken();
           const resetToken = await Bun.password.hash(plainResetToken);
           const resetExpiry = new Date();
           resetExpiry.setHours(resetExpiry.getHours() + 1);
 
-          // AI : Update user with reset token
+          // Update user with reset token
           await db
             .update(users)
             .set({
@@ -342,26 +342,26 @@ export const authRouter = router({
             })
             .where(eq(users.id, user.id));
 
-          // AI : Send password reset email
+          // Send password reset email
           await sendPasswordResetEmail(email, plainResetToken);
         } catch (error) {
-          // AI : Log error but don't expose it to client
+          // Log error but don't expose it to client
           console.error("Password reset background processing error:", error);
         }
       })();
-      // AI : SECURITY: Always return the same response immediately (no timing leak, no info leak)
+      // SECURITY: Always return the same response immediately (no timing leak, no info leak)
       return {
         success: true,
         message: "If an account with this email exists, a password reset link has been sent.",
       };
     }),
 
-  // AI : Reset password
+  // Reset password
   resetPassword: publicProcedure.input(resetPasswordSchema).mutation(async ({ input }) => {
     try {
       const { token, password } = input;
 
-      // AI : Find users with valid reset tokens and check each one
+      // Find users with valid reset tokens and check each one
       const usersWithResetTokens = await db
         .select()
         .from(users)
@@ -385,10 +385,10 @@ export const authRouter = router({
         });
       }
 
-      // AI : Hash new password with Bun
+      // Hash new password with Bun
       const passwordHash = await Bun.password.hash(password);
 
-      // AI : Update user password and clear reset token
+      // Update user password and clear reset token
       await db
         .update(users)
         .set({
@@ -398,7 +398,7 @@ export const authRouter = router({
         })
         .where(eq(users.id, matchedUser.id));
 
-      // AI : Sessions are handled by Hono middleware, no need to invalidate here
+      // Sessions are handled by Hono middleware, no need to invalidate here
 
       return {
         success: true,
@@ -414,12 +414,12 @@ export const authRouter = router({
     }
   }),
 
-  // AI : GDPR Right of Access - Export all user data
+  // GDPR Right of Access - Export all user data
   exportMyData: loggedInProcedure.query(async ({ ctx }) => {
     try {
       const userId = ctx.user.id;
 
-      // AI : Rate limit: 5 data exports per hour per user (prevent abuse)
+      // Rate limit: 5 data exports per hour per user (prevent abuse)
       const ip = getClientIp(ctx.hono);
       if (!globalRateLimiter.check(`export:${userId}`, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
@@ -428,7 +428,7 @@ export const authRouter = router({
         });
       }
 
-      // AI : Get user account data (exclude sensitive fields)
+      // Get user account data (exclude sensitive fields)
       const [user] = await db
         .select({
           id: users.id,
@@ -456,22 +456,22 @@ export const authRouter = router({
         });
       }
 
-      // AI : Get all user projects (approved, pending, rejected - GDPR requires ALL)
+      // Get all user projects (approved, pending, rejected - GDPR requires ALL)
       const userProjects = await db.select().from(projects).where(eq(projects.ownerId, userId));
 
-      // AI : Get all user overlays (approved, pending, rejected - GDPR requires ALL)
+      // Get all user overlays (approved, pending, rejected - GDPR requires ALL)
       const userOverlays = await db.select().from(overlays).where(eq(overlays.authorId, userId));
 
-      // AI : Get all user change requests
+      // Get all user change requests
       const userChangeRequests = await db
         .select()
         .from(changeRequests)
         .where(eq(changeRequests.requestedBy, userId));
 
-      // AI : Audit log: Record data export for compliance
+      // Audit log: Record data export for compliance
       console.log(`[GDPR] Data export requested by user ${userId} (${user.email}) from IP ${ip}`);
 
-      // AI : Return complete data export
+      // Return complete data export
       return {
         account: user,
         projects: userProjects,
@@ -489,7 +489,7 @@ export const authRouter = router({
     }
   }),
 
-  // AI : GDPR Right to Erasure - Delete account and anonymize contributions
+  // GDPR Right to Erasure - Delete account and anonymize contributions
   deleteAccount: loggedInProcedure
     .input(
       z.object({
@@ -502,7 +502,7 @@ export const authRouter = router({
         const userId = ctx.user.id;
         const { confirmEmail, currentPassword } = input;
 
-        // AI : Rate limit: 3 deletion attempts per hour per IP (prevent brute force)
+        // Rate limit: 3 deletion attempts per hour per IP (prevent brute force)
         const ip = getClientIp(ctx.hono);
         if (!globalRateLimiter.check(`delete:${ip}`, 3, 60 * 60 * 1000)) {
           throw new TRPCError({
@@ -511,7 +511,7 @@ export const authRouter = router({
           });
         }
 
-        // AI : Get user to verify email confirmation
+        // Get user to verify email confirmation
         const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
         if (!user) {
@@ -521,7 +521,7 @@ export const authRouter = router({
           });
         }
 
-        // AI : Verify email confirmation matches
+        // Verify email confirmation matches
         if (user.email !== confirmEmail) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -529,10 +529,10 @@ export const authRouter = router({
           });
         }
 
-        // AI : SECURITY: Verify password before allowing deletion (critical safeguard)
-        // AI : Prevents session hijacking from deleting accounts
+        // SECURITY: Verify password before allowing deletion (critical safeguard)
+        // Prevents session hijacking from deleting accounts
         if (!user.passwordHash) {
-          // AI : OAuth-only users (no password) cannot self-delete via API
+          // OAuth-only users (no password) cannot self-delete via API
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
@@ -548,15 +548,15 @@ export const authRouter = router({
           });
         }
 
-        // AI : Audit log: Record account deletion for compliance and forensics
+        // Audit log: Record account deletion for compliance and forensics
         console.log(
           `[GDPR] Account deletion initiated by user ${userId} (${user.email}) from IP ${ip}`,
         );
 
-        // AI : Use transaction to ensure atomic operation
+        // Use transaction to ensure atomic operation
         await db.transaction(async (tx) => {
-          // AI : Anonymize user contributions (set ownerId/authorId/requestedBy to NULL)
-          // AI : This preserves public contributions while removing personal data linkage
+          // Anonymize user contributions (set ownerId/authorId/requestedBy to NULL)
+          // This preserves public contributions while removing personal data linkage
           await tx.update(projects).set({ ownerId: null }).where(eq(projects.ownerId, userId));
 
           await tx.update(overlays).set({ authorId: null }).where(eq(overlays.authorId, userId));
@@ -566,13 +566,13 @@ export const authRouter = router({
             .set({ requestedBy: null })
             .where(eq(changeRequests.requestedBy, userId));
 
-          // AI : Delete user account (removes all personal data)
+          // Delete user account (removes all personal data)
           await tx.delete(users).where(eq(users.id, userId));
         });
 
-        // AI : Session invalidation handled by Hono middleware on logout
+        // Session invalidation handled by Hono middleware on logout
 
-        // AI : Audit log: Confirm successful deletion
+        // Audit log: Confirm successful deletion
         console.log(`[GDPR] Account ${userId} (${user.email}) successfully deleted`);
 
         return {

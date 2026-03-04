@@ -18,7 +18,7 @@ import { t } from "@/locales";
 import type { Project } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
 
-// AI : Result types for approval operations
+// Result types for approval operations
 type ApprovalResult = {
   success: boolean;
   itemName?: string;
@@ -40,7 +40,7 @@ export function useModeration() {
     }
 
     try {
-      // AI : Pass selected country code for country-scoped moderation
+      // Pass selected country code for country-scoped moderation
       const response = await trpc.moderation.getPendingSubmissions.query({
         countryCode: moderationStore.selectedCountryCode ?? undefined,
       });
@@ -51,7 +51,7 @@ export function useModeration() {
         changeRequests: response.changeRequests,
       });
     } catch (error) {
-      // AI : If error is because no country is selected, don't show error toast (UI will prompt user to select)
+      // If error is because no country is selected, don't show error toast (UI will prompt user to select)
       if (error instanceof Error && error.message.includes("must select a country")) {
         console.log("Waiting for country selection before loading moderation data");
       } else {
@@ -70,7 +70,7 @@ export function useModeration() {
     moderationStore.resetModerationLoaded();
   }
 
-  // AI : Generic approval handler for any moderation item type
+  // Generic approval handler for any moderation item type
   async function setApprovalStatus(
     id: string,
     status: "approved" | "rejected",
@@ -81,14 +81,14 @@ export function useModeration() {
       expectedVersion: number;
       status: "approved" | "rejected";
       handleReplacementConflicts?: boolean;
-      rejectionReason?: string; // AI : New parameter for rejection feedback
-      rejectAllOverlays?: boolean; // AI : New parameter for cascading rejection to overlays
+      rejectionReason?: string; // New parameter for rejection feedback
+      rejectAllOverlays?: boolean; // New parameter for cascading rejection to overlays
     }) => Promise<{ success: boolean }>,
     handleReplacementConflicts?: boolean,
-    rejectionReason?: string, // AI : Pass rejection reason to API
-    rejectAllOverlays?: boolean, // AI : Pass cascade flag to API
+    rejectionReason?: string, // Pass rejection reason to API
+    rejectAllOverlays?: boolean, // Pass cascade flag to API
   ): Promise<ApprovalResult> {
-    // AI : Find item by ID and validate existence
+    // Find item by ID and validate existence
     const item = items.find((i) => i.id === id);
     if (!item) {
       return {
@@ -100,13 +100,13 @@ export function useModeration() {
 
     const itemName = item.name ?? (itemType === "project" ? "Unknown Project" : "Unknown");
 
-    // AI : Derive error messages from itemType and status
+    // Derive error messages from itemType and status
     const failureMessageKey =
       status === "approved"
         ? `moderation.${itemType}ApprovalFailed`
         : `moderation.${itemType}RejectionFailed`;
 
-    // AI : Use version-aware approval endpoint with error handling
+    // Use version-aware approval endpoint with error handling
     const result = await withErrorHandling(
       async () =>
         apiCall({
@@ -114,8 +114,8 @@ export function useModeration() {
           expectedVersion: item.version,
           status,
           handleReplacementConflicts,
-          rejectionReason, // AI : Pass rejection reason to backend
-          rejectAllOverlays, // AI : Pass cascade flag to backend
+          rejectionReason, // Pass rejection reason to backend
+          rejectAllOverlays, // Pass cascade flag to backend
         }),
       { errorMessage: `${t(failureMessageKey)}. Please try again.` },
     );
@@ -129,7 +129,7 @@ export function useModeration() {
     }
 
     if (!result.success) {
-      // AI : Handle version conflicts - refresh data and return conflict info
+      // Handle version conflicts - refresh data and return conflict info
       resetModerationLoaded();
       await fetchPendingSubmissions();
       return {
@@ -149,16 +149,16 @@ export function useModeration() {
     };
   }
 
-  // AI : Helper function to set overlay approval status using the generic handler
+  // Helper function to set overlay approval status using the generic handler
   async function setOverlayStatus(
     id: string,
     status: "approved" | "rejected",
     handleReplacementConflicts?: boolean,
-    rejectionReason?: string, // AI : New parameter for rejection feedback
+    rejectionReason?: string, // New parameter for rejection feedback
   ): Promise<ApprovalResult> {
     const overlayStore = useOverlayStore();
 
-    // AI : Get the overlay's replacesOverlayId before approval (for cleanup after)
+    // Get the overlay's replacesOverlayId before approval (for cleanup after)
     const overlay = overlays.value.find((o) => o.id === id);
     const replacesOverlayId = overlay?.replacesOverlayId;
 
@@ -169,31 +169,31 @@ export function useModeration() {
       overlays.value,
       trpc.moderation.setOverlayApprovalStatusWithVersion.mutate,
       handleReplacementConflicts,
-      rejectionReason, // AI : Pass rejection reason through
+      rejectionReason, // Pass rejection reason through
     );
 
-    // AI : Update overlay status in overlay store if approval succeeded and overlay is currently rendered
+    // Update overlay status in overlay store if approval succeeded and overlay is currently rendered
     if (result.success) {
       const overlayObject = overlayStore.overlays[id];
 
       if (overlayObject) {
-        // AI : Update the status in the overlay store
+        // Update the status in the overlay store
         overlayStore.updateOverlay(id, { status });
 
-        // AI : Update marker tooltip to reflect new status
+        // Update marker tooltip to reflect new status
         updateMarkerTooltip(overlayObject);
 
-        // AI : Update all marker colors to reflect status changes
+        // Update all marker colors to reflect status changes
         updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
       }
 
-      // AI : If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
+      // If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
       if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
-        // AI : Remove the original overlay that was replaced
+        // Remove the original overlay that was replaced
         removeOverlayFromMapAndStore(replacesOverlayId);
 
-        // AI : Remove competing replacement overlays from the map
-        // AI : Find all overlays that tried to replace the same original overlay
+        // Remove competing replacement overlays from the map
+        // Find all overlays that tried to replace the same original overlay
         const competingReplacements = Object.values(overlayStore.overlays).filter(
           (o) => o.replacesOverlayId === replacesOverlayId && o.id !== id,
         );
@@ -225,9 +225,9 @@ export function useModeration() {
 
     if (!user) return;
 
-    // AI : Sync moderation store country with map store country on mount
-    // AI : This ensures we don't use stale state from previous sessions
-    // AI : BUT only if the map store country is valid for this user
+    // Sync moderation store country with map store country on mount
+    // This ensures we don't use stale state from previous sessions
+    // BUT only if the map store country is valid for this user
     const mapCountryCode = mapStore.selectedCountryCode;
     const canAccessMapCountry =
       !user.moderatedCountries ||
@@ -236,26 +236,26 @@ export function useModeration() {
     if (mapCountryCode && canAccessMapCountry) {
       moderationStore.setSelectedCountryCode(mapCountryCode);
     }
-    // AI : If map country is null (global view), we preserve the existing moderation store selection
-    // AI : This allows users to return to their previous moderation context
+    // If map country is null (global view), we preserve the existing moderation store selection
+    // This allows users to return to their previous moderation context
 
     const isAdmin = user.role === "admin";
     const hasSelectedCountry = moderationStore.selectedCountryCode !== null;
 
-    // AI : Fetch if admin (no country needed) OR if country already selected
+    // Fetch if admin (no country needed) OR if country already selected
     if (isAdmin || hasSelectedCountry) {
       await fetchPendingSubmissions();
     }
   });
 
-  // AI : Helper function to set project approval status using the generic handler
+  // Helper function to set project approval status using the generic handler
   async function setProjectStatus(
     id: string,
     status: "approved" | "rejected",
-    rejectionReason?: string, // AI : New parameter for rejection feedback
-    rejectAllOverlays?: boolean, // AI : New parameter for cascading rejection
+    rejectionReason?: string, // New parameter for rejection feedback
+    rejectAllOverlays?: boolean, // New parameter for cascading rejection
   ): Promise<ApprovalResult> {
-    // AI : Get project data BEFORE approval (it will be removed from pending list after)
+    // Get project data BEFORE approval (it will be removed from pending list after)
     const projectBeforeApproval = projects.value.find((p) => p.id === id);
 
     const result = await setApprovalStatus(
@@ -265,29 +265,29 @@ export function useModeration() {
       projects.value,
       trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
       undefined, // HandleReplacementConflicts not used for projects
-      rejectionReason, // AI : Pass rejection reason through
-      rejectAllOverlays, // AI : Pass cascade flag through
+      rejectionReason, // Pass rejection reason through
+      rejectAllOverlays, // Pass cascade flag through
     );
 
-    // AI : Update marker visuals if project approval succeeded and project has a standalone marker
+    // Update marker visuals if project approval succeeded and project has a standalone marker
     if (result.success && projectBeforeApproval) {
-      // AI : Update marker color to reflect new status (pending -> approved/rejected)
-      // AI : Use unknown as intermediate type since moderation project may not have all Project fields
+      // Update marker color to reflect new status (pending -> approved/rejected)
+      // Use unknown as intermediate type since moderation project may not have all Project fields
       const projectWithNewStatus = createProjectObject({
         ...projectBeforeApproval,
         status,
       } as unknown as Partial<Project>);
       updateStandaloneProjectMarkerColor(id, projectWithNewStatus);
 
-      // AI : Update marker tooltip to reflect new status
+      // Update marker tooltip to reflect new status
       const marker = getStandaloneProjectMarkerByProjectId(id);
       if (marker) {
         const overlayStore = useOverlayStore();
         updateStandaloneProjectMarkerTooltip(marker, projectWithNewStatus, overlayStore.mode);
       }
 
-      // AI : Invalidate city cache to prevent stale data when reloading the city
-      // AI : This ensures the next city load fetches fresh data from backend with updated status
+      // Invalidate city cache to prevent stale data when reloading the city
+      // This ensures the next city load fetches fresh data from backend with updated status
       if (projectBeforeApproval.cityId) {
         const mapStore = useMapStore();
         const overlayStore = useOverlayStore();

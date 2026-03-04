@@ -8,28 +8,28 @@ import type { AppMode } from "@shared/types";
 import type { PanelTab } from "@/types";
 
 /**
- * AI : Map tab to overlay mode
+ * Map sidemenu panels/tabs to app mode
  */
 function tabToMode(tab: PanelTab): AppMode {
   switch (tab) {
     case "latest":
     case "currentLocation":
-      // AI : View tabs always show view mode (approved overlays only)
+      // View tabs always show view mode (approved overlays only)
       return "view";
     case "contribute":
       return "edit";
     case "moderation":
       return "moderation";
     default:
-      // AI : Exhaustiveness check — all PanelTab values must be handled above
+      // Exhaustiveness check — all PanelTab values must be handled above
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unhandled tab: ${tab}`);
   }
 }
 
 /**
- * AI : Map overlay mode to tab
- * AI : Returns the default tab for a given mode
+ * Map overlay mode to tab
+ * Returns the default tab for a given mode
  */
 function modeToDefaultTab(mode: AppMode): PanelTab {
   switch (mode) {
@@ -40,16 +40,16 @@ function modeToDefaultTab(mode: AppMode): PanelTab {
     case "moderation":
       return "moderation";
     default:
-      // AI : Exhaustiveness check — all AppMode values must be handled above
+      // Exhaustiveness check — all AppMode values must be handled above
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Unhandled mode: ${mode}`);
   }
 }
 
 /**
- * AI : Composable for managing panel tabs and mode synchronization
- * AI : Shared between SideMenu.vue and MobileDrawer.vue
- * AI : Uses explicit actions instead of fragile watcher cascades
+ * Composable for managing panel tabs and mode synchronization
+ * Shared between SideMenu.vue and MobileDrawer.vue
+ * Uses explicit actions instead of fragile watcher cascades
  */
 export function usePanelTabs() {
   const authStore = useAuthStore();
@@ -58,8 +58,8 @@ export function usePanelTabs() {
   const mapStore = useMapStore();
 
   /**
-   * AI : Explicit action to change the active tab
-   * AI : Syncs the appropriate map mode automatically
+   * Explicit action to change the active tab
+   * Syncs the appropriate map mode automatically
    */
   function setActiveTab(newTab: PanelTab) {
     // 1. Update UI state immediately
@@ -69,8 +69,8 @@ export function usePanelTabs() {
     const targetMode = tabToMode(newTab);
 
     // 3. Sync map mode if needed
-    // AI : Skip edit-mode switch for unauthenticated users — they see ContributeGuestPanel
-    // AI : which doesn't use edit mode, and switching would eagerly load overlay editing chunks.
+    // Skip edit-mode switch for unauthenticated users — they see ContributeGuestPanel
+    // which doesn't use edit mode, and switching would eagerly load overlay editing chunks.
     if (targetMode === "edit" && !authStore.isAuthenticated) return;
     if (overlayStore.mode !== targetMode) {
       switchMode(targetMode);
@@ -78,27 +78,27 @@ export function usePanelTabs() {
   }
 
   /**
-   * AI : Explicit action to change the map mode
-   * AI : Syncs the appropriate tab automatically
+   * Explicit action to change the map mode
+   * Syncs the appropriate tab automatically
    */
   function setAppMode(newMode: AppMode) {
     // 1. Sync map mode is handled by component calling this (usually via switchMode direct call)
     // but explicit call here would be redundant if called from ModeControls which calls switchMode.
 
-    // AI : Logic to determine which tab to switch to
+    // Logic to determine which tab to switch to
     let targetTab: PanelTab;
 
     if (newMode === "view") {
-      // AI : Smart switch for View Mode
+      // Smart switch for View Mode
       if (uiStore.activeTab === "currentLocation" || uiStore.activeTab === "latest") {
-        // AI : Already in a view-compatible tab, don't change it!
+        // Already in a view-compatible tab, don't change it!
         return;
       }
-      // AI : Prefer Current Location if a country OR city is selected, otherwise Latest
+      // Prefer Current Location if a country OR city is selected, otherwise Latest
       targetTab =
         mapStore.selectedCity || mapStore.selectedCountryCode ? "currentLocation" : "latest";
     } else {
-      // AI : For Edit/Moderation, use fixed mapping
+      // For Edit/Moderation, use fixed mapping
       targetTab = modeToDefaultTab(newMode);
     }
 
@@ -109,20 +109,20 @@ export function usePanelTabs() {
   }
 
   /**
-   * AI : Watch for map mode changes from other sources (e.g. ModeControls)
-   * AI : This ensures Tabs update even if mode is changed via map buttons
+   * Watch for map mode changes from other sources (e.g. ModeControls)
+   * This ensures Tabs update even if mode is changed via map buttons
    */
   watch(
     () => overlayStore.mode,
     (newMode) => {
-      // AI : We still need to react to external mode changes,
+      // We still need to react to external mode changes,
       // but we use the smart logic in setAppMode to avoid overwriting "Current City"
       setAppMode(newMode);
     },
   );
 
   /**
-   * AI : Watch for authentication changes and reset tab if user signs out
+   * Watch for authentication changes and reset tab if user signs out
    */
   watch(
     () => authStore.isAuthenticated,
@@ -137,7 +137,7 @@ export function usePanelTabs() {
   );
 
   /**
-   * AI : Watch for moderation role changes and reset moderation tab if user loses rights
+   * Watch for moderation role changes and reset moderation tab if user loses rights
    */
   watch(
     () => authStore.isModerator,
@@ -149,15 +149,15 @@ export function usePanelTabs() {
   );
 
   /**
-   * AI : Watch for overlay selection and auto-switch to Current City tab (only in view mode)
+   * Watch for overlay selection and auto-switch to Current City tab (only in view mode)
    */
   watch(
     () => overlayStore.idSelectedOverlay,
     (overlayId) => {
       if (overlayId && mapStore.selectedCity && overlayStore.mode === "view") {
-        // AI : Explicitly switch to Current City tab
-        // AI : No need to call setActiveTab (which triggers switchMode) because we are already in view mode
-        // AI : But for consistency we can use uiStore directly or our action
+        // Explicitly switch to Current City tab
+        // No need to call setActiveTab (which triggers switchMode) because we are already in view mode
+        // But for consistency we can use uiStore directly or our action
         if (uiStore.activeTab !== "currentLocation") {
           uiStore.activeTab = "currentLocation";
         }
@@ -166,15 +166,15 @@ export function usePanelTabs() {
   );
 
   /**
-   * AI : Watch for city selection and auto-switch to Current Location tab (only in view mode)
-   * AI : This handles standalone project navigation from Latest Contributions panel
-   * AI : Previously only overlays triggered tab switch via idSelectedOverlay watcher
+   * Watch for city selection and auto-switch to Current Location tab (only in view mode)
+   * This handles standalone project navigation from Latest Contributions panel
+   * Previously only overlays triggered tab switch via idSelectedOverlay watcher
    */
   watch(
     () => mapStore.selectedCity,
     (selectedCity, previousCity) => {
-      // AI : Only switch tab if a new city is selected (not on clear)
-      // AI : and we're in view mode on a tab that should switch (latest)
+      // Only switch tab if a new city is selected (not on clear)
+      // and we're in view mode on a tab that should switch (latest)
       if (
         selectedCity &&
         overlayStore.mode === "view" &&
@@ -189,6 +189,6 @@ export function usePanelTabs() {
   return {
     authStore,
     setActiveTab,
-    // AI : Expose internal helpers if needed, but primary interface is setActiveTab
+    // Expose internal helpers if needed, but primary interface is setActiveTab
   };
 }

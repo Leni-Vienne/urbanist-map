@@ -1,6 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 
-// AI : Google OAuth utility functions
+// Google OAuth utility functions
 export async function verifyGoogleToken(token: string): Promise<{
   googleId: string;
   email: string;
@@ -21,7 +21,7 @@ export async function verifyGoogleToken(token: string): Promise<{
     }
 
     return {
-      googleId: payload.sub, // AI : Google's unique user ID - this is the secure identifier
+      googleId: payload.sub, // Google's unique user ID - this is the secure identifier
       email: payload.email,
       name: payload.name,
       picture: payload.picture,

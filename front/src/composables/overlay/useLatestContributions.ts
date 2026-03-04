@@ -1,4 +1,4 @@
-// AI : Composable for managing latest contributions (overlays + standalone projects) with caching
+// Composable for managing latest contributions (overlays + standalone projects) with caching
 import { computed } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
@@ -10,9 +10,9 @@ export function useLatestContributions() {
   const isLoading = computed(() => overlayStore.latestContributionsLoading);
   const contributions = computed(() => overlayStore.latestContributions);
 
-  // AI : Fetch latest contributions - load once
+  // Fetch latest contributions - load once
   async function fetchLatestContributions() {
-    // AI : Skip if already loaded
+    // Skip if already loaded
     if (overlayStore.latestContributionsLoaded) {
       return;
     }

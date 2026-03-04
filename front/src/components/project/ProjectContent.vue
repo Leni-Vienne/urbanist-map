@@ -1,110 +1,108 @@
-<template>
+﻿<template>
   <AccordionContent>
-    <Card
-      class="cursor-pointer transition-all duration-150 hover:!bg-[var(--p-surface-50)] active:!bg-[var(--p-surface-100)] active:scale-[0.98]"
+    <div
+      class="rounded-lg border border-surface p-3 cursor-pointer transition-all duration-150 hover:border-(--p-text-muted-color) hover:bg-content-background active:bg-content-background active:scale-[0.98]"
       @click="handleCardClick"
     >
-      <template #content>
-        <div class="flex flex-row items-start gap-3">
-          <div class="flex-1 min-w-0">
-            <div v-if="project.description" class="mb-4">
-              <p class="text-sm leading-relaxed text-[var(--p-surface-700)] m-0">
-                {{ project.description }}
-              </p>
-            </div>
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]">
-                <i class="pi pi-clock text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
-                <ContributorInfo
-                  :date="project.updatedAt"
-                  :contributor-id="project.ownerId"
-                  :contributor-username="project.ownerUsername"
-                  :report-count="project.ownerReportCount ?? 0"
-                  :clickable="showUserStatsLink && !!project.ownerId"
-                  @click-contributor="handleProjectContributorClick"
-                />
-              </div>
-              <div
-                v-if="overlayCount > 0"
-                class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]"
-              >
-                <i class="pi pi-images text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
-                <span
-                  >{{ overlayCount }}
-                  {{
-                    overlayCount === 1 ? $t("overlay.overlayImage") : $t("overlay.overlayImages")
-                  }}</span
-                >
-              </div>
-              <div
-                v-if="project.startDate || project.endDate || project.proposalDate"
-                class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]"
-              >
-                <i class="pi pi-calendar text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
-                <span>{{
-                  formatProjectDateRange(
-                    project.startDate,
-                    project.endDate,
-                    project.proposalDate,
-                    project.startDatePrecision,
-                    project.endDatePrecision,
-                    project.proposalDatePrecision,
-                    $t,
-                  )
-                }}</span>
-              </div>
-              <div
-                v-if="project.sourceUrl"
-                class="flex items-center gap-2 text-[13px] text-[var(--p-surface-600)]"
-              >
-                <i class="pi pi-link text-xs text-[var(--p-surface-500)] w-[14px] shrink-0"></i>
-                <a
-                  :href="project.sourceUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-[var(--p-primary-600)] no-underline hover:underline"
-                  @click.stop
-                  >{{ formatSourceUrl(project.sourceUrl) }}</a
-                >
-              </div>
-            </div>
+      <div class="flex flex-row items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <div v-if="project.description" class="mb-4">
+            <p class="text-sm leading-relaxed text-color m-0">
+              {{ project.description }}
+            </p>
           </div>
-
-          <!-- Actions column - either slot actions, edit button, or chevron -->
-          <div class="flex flex-col gap-2 shrink-0 self-center" @click.stop>
-            <slot v-if="$slots['project-actions']" name="project-actions" :project="project"></slot>
-            <button
-              v-else-if="showEditButtons"
-              class="w-8 h-8 border border-[var(--p-surface-200)] rounded-md bg-white flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-[var(--p-primary-500)] hover:text-[var(--p-primary-600)] hover:bg-[var(--p-primary-50)] hover:border-[var(--p-primary-200)]"
-              @click.stop="$emit('edit-project', project)"
-              v-tooltip.top="$t('common.edit')"
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)">
+              <i class="pi pi-clock text-xs text-muted-color w-3.5 shrink-0"></i>
+              <ContributorInfo
+                :date="project.updatedAt"
+                :contributor-id="project.ownerId"
+                :contributor-username="project.ownerUsername"
+                :report-count="project.ownerReportCount ?? 0"
+                :clickable="showUserStatsLink && !!project.ownerId"
+                @click-contributor="handleProjectContributorClick"
+              />
+            </div>
+            <div
+              v-if="overlayCount > 0"
+              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
             >
-              <i class="pi pi-pencil"></i>
-            </button>
-            <i
-              v-else
-              class="pi pi-chevron-right text-sm text-[var(--p-surface-400)] shrink-0 transition-colors duration-150"
-            ></i>
+              <i class="pi pi-images text-xs text-muted-color w-3.5 shrink-0"></i>
+              <span
+                >{{ overlayCount }}
+                {{
+                  overlayCount === 1 ? $t("overlay.overlayImage") : $t("overlay.overlayImages")
+                }}</span
+              >
+            </div>
+            <div
+              v-if="project.startDate || project.endDate || project.proposalDate"
+              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
+            >
+              <i class="pi pi-calendar text-xs text-muted-color w-3.5 shrink-0"></i>
+              <span>{{
+                formatProjectDateRange(
+                  project.startDate,
+                  project.endDate,
+                  project.proposalDate,
+                  project.startDatePrecision,
+                  project.endDatePrecision,
+                  project.proposalDatePrecision,
+                  $t,
+                )
+              }}</span>
+            </div>
+            <div
+              v-if="project.sourceUrl"
+              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
+            >
+              <i class="pi pi-link text-xs text-muted-color w-3.5 shrink-0"></i>
+              <a
+                :href="project.sourceUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-primary-color no-underline hover:underline"
+                @click.stop
+                >{{ formatSourceUrl(project.sourceUrl) }}</a
+              >
+            </div>
           </div>
         </div>
 
-        <ChangeRequestSection
-          v-if="projectChanges.length > 0"
-          :changes="projectChanges"
-          :all-change-requests="allChangeRequests"
-          :projects="projectsContext"
-          :is-my-contributions="isContributePanel"
-          :on-navigate-to-overlay="onNavigateToOverlay"
-          :show-user-stats-link="showUserStatsLink"
-          @show-user-stats="(data) => $emit('show-user-stats', data)"
-          container-class="project-change-requests"
-        >
-          <template #change-actions="{ change }">
-            <slot name="change-actions" :change="change"></slot>
-          </template>
-        </ChangeRequestSection>
-      </template>
-    </Card>
+        <!-- Actions column - either slot actions, edit button, or chevron -->
+        <div class="flex flex-col gap-2 shrink-0 self-center" @click.stop>
+          <slot v-if="$slots['project-actions']" name="project-actions" :project="project"></slot>
+          <button
+            v-else-if="showEditButtons"
+            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
+            @click.stop="$emit('edit-project', project)"
+            v-tooltip.top="$t('common.edit')"
+          >
+            <i class="pi pi-pencil"></i>
+          </button>
+          <i
+            v-else
+            class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150"
+          ></i>
+        </div>
+      </div>
+
+      <ChangeRequestSection
+        v-if="projectChanges.length > 0"
+        :changes="projectChanges"
+        :all-change-requests="allChangeRequests"
+        :projects="projectsContext"
+        :is-my-contributions="isContributePanel"
+        :on-navigate-to-overlay="onNavigateToOverlay"
+        :show-user-stats-link="showUserStatsLink"
+        @show-user-stats="(data) => $emit('show-user-stats', data)"
+        container-class="project-change-requests"
+      >
+        <template #change-actions="{ change }">
+          <slot name="change-actions" :change="change"></slot>
+        </template>
+      </ChangeRequestSection>
+    </div>
 
     <!-- Project overlays -->
     <div v-if="shouldShowOverlays" class="flex flex-col mt-4">
@@ -114,17 +112,15 @@
         :data-overlay-id="overlay.id"
         class="flex flex-col transition-all duration-150"
         :class="
-          getOverlayChangeRequestsForOverlay(overlay.id).length > 0
-            ? 'border-l-[3px] border-orange-400 bg-orange-50 rounded my-1'
-            : ''
+          getOverlayChangeRequestsForOverlay(overlay.id).length > 0 ? 'pending-overlay-row' : ''
         "
       >
         <div
           class="group flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer transition-all duration-150 active:scale-[0.98]"
           :class="
             getOverlayChangeRequestsForOverlay(overlay.id).length > 0
-              ? 'hover:bg-orange-100 active:bg-orange-100'
-              : 'hover:bg-[var(--p-surface-50)] active:bg-[var(--p-surface-100)]'
+              ? 'pending-overlay-hover'
+              : 'hover:bg-content-hover-background active:bg-content-hover-background'
           "
           @click="handleOverlayCardClick(overlay, true)"
           @mouseenter="$emit('highlight-overlay', overlay.id)"
@@ -132,7 +128,7 @@
         >
           <!-- Overlay thumbnail -->
           <div
-            class="w-[60px] h-[60px] rounded-xl overflow-hidden bg-[var(--p-surface-100)] flex items-center justify-center shrink-0"
+            class="w-15 h-15 rounded-xl overflow-hidden bg-content-hover-background flex items-center justify-center shrink-0"
           >
             <img
               v-if="!imageErrors[overlay.id]"
@@ -149,7 +145,7 @@
               @error="(event) => handleImageError(event, overlay.id)"
               @load="(event) => handleImageLoad(event, overlay.id)"
             />
-            <i v-if="imageErrors[overlay.id]" class="pi pi-image text-2xl text-surface-400"></i>
+            <i v-if="imageErrors[overlay.id]" class="pi pi-image text-2xl text-muted-color"></i>
           </div>
 
           <!-- Overlay info -->
@@ -158,19 +154,17 @@
               <p
                 :class="[
                   'text-[15px] font-bold m-0 leading-tight flex-1 min-w-0 truncate',
-                  overlay.name
-                    ? 'text-[var(--p-surface-900)]'
-                    : 'italic text-[var(--p-surface-400)]',
+                  overlay.name ? 'text-color' : 'italic text-muted-color',
                 ]"
               >
                 {{ overlay.name || $t("overlay.untitled") }}
               </p>
             </div>
-            <div class="flex items-center gap-1.5 text-surface-600 text-xs mb-1">
-              <i class="pi pi-map-marker text-surface-500"></i>
+            <div class="flex items-center gap-1.5 text-(--p-text-color-secondary) text-xs mb-1">
+              <i class="pi pi-map-marker text-muted-color"></i>
               <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
             </div>
-            <div class="text-xs text-surface-500 mb-2">
+            <div class="text-xs text-muted-color mb-2">
               <ContributorInfo
                 :date="overlay.updatedAt"
                 :contributor-id="overlay.authorId"
@@ -194,7 +188,7 @@
                 @click.stop="onNavigateToOverlay(overlay.replacesOverlayId)"
                 v-tooltip.top="$t('overlay.viewOriginalOverlay')"
               >
-                <i class="pi pi-arrow-up-left text-[10px]"></i>
+                <i class="pi pi-arrow-up-left text-2.5"></i>
                 {{ $t("overlay.replaces") }}
               </button>
             </div>
@@ -206,7 +200,7 @@
           </div>
           <button
             v-else-if="showEditButtons"
-            class="w-8 h-8 border border-[var(--p-surface-200)] rounded-md bg-white flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-[var(--p-primary-500)] hover:text-[var(--p-primary-600)] hover:bg-[var(--p-primary-50)] hover:border-[var(--p-primary-200)]"
+            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
             @click.stop=""
             v-tooltip.top="$t('common.edit')"
           >
@@ -214,7 +208,7 @@
           </button>
           <i
             v-else
-            class="pi pi-chevron-right text-sm text-[var(--p-surface-400)] shrink-0 transition-colors duration-150 group-hover:text-[var(--p-surface-600)]"
+            class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150 group-hover:text-(--p-text-color-secondary)"
           ></i>
         </div>
 
@@ -242,7 +236,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { AccordionContent, Card, Tag } from "primevue";
+import { AccordionContent, Tag } from "primevue";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
@@ -300,12 +294,12 @@ const shouldShowOverlays = computed(() => {
   return props.project.overlays && props.project.overlays.length > 0;
 });
 
-// AI : Handle card click - emit event for parent to handle navigation logic
+// Handle card click - emit event for parent to handle navigation logic
 function handleCardClick() {
   emit("project-click", props.project);
 }
 
-// AI : Unified contributor click handler
+// Unified contributor click handler
 function handleContributorClick(
   data: { userId: string; username: string | null; reportCount: number },
   approvedCount: number | null | undefined,
@@ -346,7 +340,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 }
 
 function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
-  // AI : Use O(1) map lookup if available
+  // Use O(1) map lookup if available
   if (props.overlayChangesMap) {
     return props.overlayChangesMap.get(overlayId) || [];
   }
@@ -389,8 +383,8 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
 /* Container classes passed as string props to ChangeRequestSection */
 .project-change-requests {
   padding: 0.75rem;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
+  background: var(--p-content-hover-background);
+  border: 1px solid var(--p-content-border-color);
   border-radius: 6px;
 }
 
@@ -398,5 +392,34 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
   padding: 0.75rem 1rem;
   background: var(--p-orange-25);
   border-top: 1px solid var(--p-orange-200);
+}
+
+/* Pending change row — orange accent strip */
+.pending-overlay-row {
+  border-left: 3px solid #fb923c;
+  /* orange-400 */
+  background: #fff7ed;
+  /* orange-50 */
+  border-radius: 0.25rem;
+  margin: 0.25rem 0;
+}
+
+.pending-overlay-hover:hover,
+.pending-overlay-hover:active {
+  background: #ffedd5;
+  /* orange-100 */
+}
+</style>
+
+<!-- Dark mode rules in a non-scoped block to avoid Vue scoping the .dark-mode selector -->
+<style>
+.dark-mode .pending-overlay-row {
+  background: rgba(251, 146, 60, 0.12) !important;
+  border-left-color: #f97316 !important;
+}
+
+.dark-mode .pending-overlay-hover:hover,
+.dark-mode .pending-overlay-hover:active {
+  background: rgba(251, 146, 60, 0.2) !important;
 }
 </style>

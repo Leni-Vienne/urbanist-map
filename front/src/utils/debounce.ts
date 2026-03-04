@@ -1,5 +1,5 @@
 /**
- * AI : Creates a debounced function that delays invoking the provided function
+ * Creates a debounced function that delays invoking the provided function
  * until after the specified wait time has elapsed since the last invocation.
  *
  * @param func - The function to debounce

@@ -40,7 +40,7 @@
     />
   </Teleport>
 
-  <!-- AI : Overlay Editor Dialog - only in edit mode, renders when local overlay exists OR store has overlay -->
+  <!-- Overlay Editor Dialog - only in edit mode, renders when local overlay exists OR store has overlay -->
   <OverlayEditor
     v-if="mode === 'edit' && (overlayObject || uiStore.overlayEditDialog.overlay)"
     ref="overlayEditorRef"
@@ -89,14 +89,14 @@ const {
   handleDeleteProject: deleteProjectWithConfirm,
 } = useProjectDeletion();
 
-// AI : Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
+// Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { isSubmitting, prepareOverlaySubmission, prepareProjectWithOverlaysSubmission } =
   useSubmissionDialog();
 
-// AI : Ref for overlay editor component
+// Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
 
-// AI : Computed for available cities
+// Computed for available cities
 const availableCities = computed(() => {
   return citiesWithProjects.value.map((city) => ({
     id: city.id,
@@ -105,17 +105,17 @@ const availableCities = computed(() => {
   }));
 });
 
-// AI : Track teleport target existence using reactive state (no MutationObserver)
+// Track teleport target existence using reactive state (no MutationObserver)
 
-// AI : Computed for overlay popup visibility
+// Computed for overlay popup visibility
 const showOverlayPopup = computed(() => showInfoPopup.value && overlayPopupTarget.value);
 
-// AI : Computed for project popup visibility
+// Computed for project popup visibility
 const showProjectPopup = computed(() => {
   return projectInfoPopup.value.visible && activeProject.value && projectPopupTarget.value;
 });
 
-// AI : Get the overlay object for the info popup
+// Get the overlay object for the info popup
 const overlayObject = computed(() => {
   if (!infoPopupOverlayId.value || !overlays.value[infoPopupOverlayId.value]) {
     return null;
@@ -123,20 +123,20 @@ const overlayObject = computed(() => {
   return overlays.value[infoPopupOverlayId.value];
 });
 
-// AI : Helper to convert backend project data and add to store
+// Helper to convert backend project data and add to store
 function convertAndCacheBackendProject(
   backendProject: Omit<DBProject, "status"> & { status: ApprovalStatus | null; city: DBCity },
 ): Project {
-  // AI : CRITICAL: If project already exists, just return it to preserve overlayIds
-  // AI : This fixes bug where opening info popup clears overlayIds, breaking arrow navigation
+  // CRITICAL: If project already exists, just return it to preserve overlayIds
+  // This fixes bug where opening info popup clears overlayIds, breaking arrow navigation
   const existingProject = projects.value[backendProject.id];
   if (existingProject) {
-    return existingProject; // AI : Don't create new project, return existing one!
+    return existingProject; // Don't create new project, return existing one!
   }
 
-  // AI : Project doesn't exist yet, create new one
-  // AI : CRITICAL: Populate overlayIds from currently loaded overlays for this project
-  // AI : Otherwise arrow navigation breaks (thinks there are 0 overlays)
+  // Project doesn't exist yet, create new one
+  // CRITICAL: Populate overlayIds from currently loaded overlays for this project
+  // Otherwise arrow navigation breaks (thinks there are 0 overlays)
   const overlaysForProject = Object.values(overlays.value)
     .filter((o) => o.projectId === backendProject.id)
     .map((o) => o.id);
@@ -145,18 +145,18 @@ function convertAndCacheBackendProject(
     ...backendProject,
     name: backendProject.name,
     city: backendProject.city,
-    overlayIds: overlaysForProject, // AI : Use actual loaded overlays, not empty array!
+    overlayIds: overlaysForProject, // Use actual loaded overlays, not empty array!
   };
 
-  // AI : Add to store for future use (or update if already exists)
+  // Add to store for future use (or update if already exists)
   if (!projects.value[backendProject.id]) {
     projects.value = {
       ...projects.value,
       [backendProject.id]: convertedProject,
     };
 
-    // AI : Cache original for reset functionality (critical for map popup edits)
-    // AI : This is needed because this function bypasses updateProject which normally does the caching
+    // Cache original for reset functionality (critical for map popup edits)
+    // This is needed because this function bypasses updateProject which normally does the caching
     if (backendProject.status !== null) {
       projectStore.cacheProjectBackendState(backendProject.id);
     }
@@ -165,20 +165,20 @@ function convertAndCacheBackendProject(
   return convertedProject;
 }
 
-// AI : Unified computed property for currently active project (from either overlay or project popup)
+// Unified computed property for currently active project (from either overlay or project popup)
 const activeProject = computed(() => {
-  // AI : Priority 1: Check if viewing an overlay popup - get project from overlay
+  // Priority 1: Check if viewing an overlay popup - get project from overlay
   const overlay = overlayObject.value;
   if (overlay?.projectId) {
-    // AI : Try local projects store first
+    // Try local projects store first
     const localProject = projects.value[overlay.projectId];
     if (localProject) return localProject;
 
-    // AI : Try allProjects (includes nearbyProjects)
+    // Try allProjects (includes nearbyProjects)
     const allProjectsData = projectStore.allProjects;
     if (allProjectsData[overlay.projectId]) return allProjectsData[overlay.projectId];
 
-    // AI : Try to find backend project data from overlay or city overlays
+    // Try to find backend project data from overlay or city overlays
     const backendProject =
       overlay.project?.id === overlay.projectId
         ? overlay.project
@@ -189,20 +189,20 @@ const activeProject = computed(() => {
     if (backendProject) return convertAndCacheBackendProject(backendProject);
   }
 
-  // AI : Priority 2: Check if viewing a project popup - get project from project popup state
+  // Priority 2: Check if viewing a project popup - get project from project popup state
   if (projectInfoPopup.value.projectId) {
-    // AI : Try local projects store first
+    // Try local projects store first
     const localProject = projects.value[projectInfoPopup.value.projectId];
     if (localProject) return localProject;
 
-    // AI : Try project from popup state (for backend projects)
+    // Try project from popup state (for backend projects)
     if (projectInfoPopup.value.project) return projectInfoPopup.value.project;
   }
 
   return undefined;
 });
 
-// AI : Handle overlay publishing (overlay mode only) - uses shared composable
+// Handle overlay publishing (overlay mode only) - uses shared composable
 async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   if (!overlay) return;
@@ -211,8 +211,8 @@ async function handlePublishOverlay() {
   prepareOverlaySubmission(overlay, project);
 }
 
-// AI : Handle project publishing (project mode only) - uses shared composable
-// AI : Uses prepareProjectWithOverlaysSubmission for UNIFIED behavior with MyContributions panel
+// Handle project publishing (project mode only) - uses shared composable
+// Uses prepareProjectWithOverlaysSubmission for UNIFIED behavior with MyContributions panel
 async function handlePublishProject() {
   const project = activeProject.value;
   if (!project) return;
@@ -221,35 +221,35 @@ async function handlePublishProject() {
   prepareProjectWithOverlaysSubmission(project, projectModified);
 }
 
-// AI : Handle project editing (both modes)
+// Handle project editing (both modes)
 function handleEditProject(project: Project) {
   uiStore.openProjectEditForm(project);
 }
 
-// AI : Handle overlay editing (overlay mode only)
+// Handle overlay editing (overlay mode only)
 function handleEditOverlay(overlay: OverlayObject) {
   overlayEditorRef.value?.openDialog();
 }
 
-// AI : Handle overlay update (overlay mode only)
+// Handle overlay update (overlay mode only)
 function handleOverlayUpdate(overlayId: string, caption?: string) {
   if (caption === undefined) return;
 
-  // AI : Route through updateOverlayInfo so pendingModsStore is kept in sync with isModified
+  // Route through updateOverlayInfo so pendingModsStore is kept in sync with isModified
   updateOverlayInfo(overlayId, { caption });
 }
 
-// AI : Close project info popup (project mode only)
+// Close project info popup (project mode only)
 function closeProjectInfoPopup() {
   uiStore.closeProjectInfoPopup();
   closeProjectPopupAndResetMarkers();
 }
 
-// AI : Handle view original overlay - navigate to the original overlay being replaced
+// Handle view original overlay - navigate to the original overlay being replaced
 async function handleViewOriginalOverlay(originalOverlayId: string) {
   try {
-    // AI : Navigate to the original overlay using the overlay ID
-    // AI : The navigateToOverlay function will fetch and render the overlay if needed
+    // Navigate to the original overlay using the overlay ID
+    // The navigateToOverlay function will fetch and render the overlay if needed
     const success = await navigateToOverlay(originalOverlayId, true, true);
 
     if (!success) {
@@ -271,22 +271,22 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
   }
 }
 
-// AI : Handle add images button - open dialog for image upload instructions
+// Handle add images button - open dialog for image upload instructions
 function handleAddImages() {
-  // AI : Get currently active project (works for both overlay and project popups)
+  // Get currently active project (works for both overlay and project popups)
   const project = activeProject.value;
   if (!project) return;
 
-  // AI : Open the instructional dialog
+  // Open the instructional dialog
   uiStore.openImageUploadDialog(project.id);
 }
 
-// AI : Handle overlay deletion and show standalone project marker if last overlay
+// Handle overlay deletion and show standalone project marker if last overlay
 async function handleDeleteOverlay(overlay: OverlayObject) {
   const project = activeProject.value;
   const projectId = project?.id;
 
-  // AI : Count overlays in the overlayStore that belong to this project
+  // Count overlays in the overlayStore that belong to this project
   const overlaysForProject = projectId
     ? Object.values(overlays.value).filter((o) => o.projectId === projectId)
     : [];
@@ -297,7 +297,7 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
   });
 }
 
-// AI : Handle project deletion
+// Handle project deletion
 async function handleDeleteProject(project: Project) {
   await deleteProjectWithConfirm(project.id, project.name, project.overlayIds?.length ?? 0, () => {
     if (showOverlayPopup.value) {

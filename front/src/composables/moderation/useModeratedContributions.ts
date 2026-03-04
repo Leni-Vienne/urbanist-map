@@ -6,12 +6,12 @@ const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContribu
 const isLoading = ref(false);
 
 /**
- * AI : Composable for managing moderated contributions (rejected/replaced overlays).
- * AI : Only used in ModeratedContributionsDialog. Opening/closing the dialog is controlled via uiStore.
- * AI : authStore triggers the dialog on login by checking the count directly via trpc.
+ * Composable for managing moderated contributions (rejected/replaced overlays).
+ * Only used in ModeratedContributionsDialog. Opening/closing the dialog is controlled via uiStore.
+ * authStore triggers the dialog on login by checking the count directly via trpc.
  */
 export function useModeratedContributions() {
-  // AI : Always fetches fresh — no cache, avoids stale data if a different user logs in
+  // Always fetches fresh — no cache, avoids stale data if a different user logs in
   async function fetchModeratedContributions() {
     isLoading.value = true;
     try {
@@ -29,8 +29,8 @@ export function useModeratedContributions() {
   }
 
   /**
-   * AI : Acknowledge and clear specific moderated items
-   * AI : Deletes thumbnails and DB records immediately (instead of waiting 15 days)
+   * Acknowledge and clear specific moderated items
+   * Deletes thumbnails and DB records immediately (instead of waiting 15 days)
    */
   async function acknowledgeContributions(contributionIds: string[]) {
     if (contributionIds.length === 0) return { success: false };
@@ -41,7 +41,7 @@ export function useModeratedContributions() {
     );
 
     if (result) {
-      // AI : Remove acknowledged items from local cache
+      // Remove acknowledged items from local cache
       moderatedContributions.value = moderatedContributions.value.filter(
         (item) => !contributionIds.includes(item.id),
       );
@@ -51,7 +51,7 @@ export function useModeratedContributions() {
   }
 
   /**
-   * AI : Acknowledge all moderated contributions at once
+   * Acknowledge all moderated contributions at once
    */
   async function acknowledgeAll() {
     const allIds = moderatedContributions.value.map((item) => item.id);

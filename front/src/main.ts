@@ -46,11 +46,25 @@ const UrbanistmapPreset = definePreset(Aura, {
           focusColor: "#ffffff",
         },
       },
+      dark: {
+        primary: {
+          color: "{indigo.400}",
+          inverseColor: "{surface.900}",
+          hoverColor: "{indigo.300}",
+          activeColor: "{indigo.200}",
+        },
+        highlight: {
+          background: "{indigo.500}",
+          focusBackground: "{indigo.400}",
+          color: "#ffffff",
+          focusColor: "#ffffff",
+        },
+      },
     },
   },
 });
 
-// AI : Setup i18n with empty messages - locales are loaded asynchronously
+// Setup i18n with empty messages - locales are loaded asynchronously
 const currentLocale = getStoredLocale();
 const i18n = createI18n({
   locale: currentLocale,
@@ -60,10 +74,10 @@ const i18n = createI18n({
   globalInjection: true,
 });
 
-// AI : Store i18n instance reference for async loading in other modules
+// Store i18n instance reference for async loading in other modules
 setI18nInstance(i18n);
 
-// AI : Set HTML lang attribute and translation settings based on language support
+// Set HTML lang attribute and translation settings based on language support
 updateTranslationSettings(currentLocale);
 
 const app = createApp(App);
@@ -78,7 +92,7 @@ window.addEventListener("beforeunload", (event) => {
 app.use(router);
 app.use(i18n);
 
-// @ts-ignore - AI : PrimeVue configuration type issue
+// @ts-ignore PrimeVue configuration type issue
 app.use(PrimeVue, {
   ripple: true,
   inputVariant: "filled",
@@ -86,7 +100,7 @@ app.use(PrimeVue, {
     preset: UrbanistmapPreset,
     options: {
       prefix: "p",
-      darkModeSelector: "light",
+      darkModeSelector: ".dark-mode", // .dark-mode
       cssLayer: false,
     },
   },
@@ -94,7 +108,7 @@ app.use(PrimeVue, {
 
 app.use(ToastService);
 
-// AI : Load only the active locale before mounting — the other locale chunk is
+// Load only the active locale before mounting — the other locale chunk is
 // fetched on demand when the user switches language.
 (async function initApp() {
   const messages = await loadLocaleMessages(currentLocale);

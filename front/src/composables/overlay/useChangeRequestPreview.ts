@@ -11,15 +11,15 @@ import {
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadCityProjects } from "@/services/navigation/locationNavigation";
+import { selectCity } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 
-// AI : Composable to handle change request position preview
-// AI : Combines state management + navigation logic for previewing change request positions
+// Composable to handle change request position preview
+// Combines state management + navigation logic for previewing change request positions
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
@@ -28,7 +28,7 @@ interface PreviewGeometryOptions {
   type: "old" | "new";
 }
 
-// AI : Type guard for coordinate object
+// Type guard for coordinate object
 function isCoordinate(value: unknown): value is { lat: number; lng: number } {
   return (
     typeof value === "object" &&
@@ -56,24 +56,24 @@ export function useChangeRequestPreview() {
     return state.type === "current" ? "current" : "suggested";
   }
 
-  // AI : Type guard for coordinate array
+  // Type guard for coordinate array
   function isCoordinateArray(value: unknown): value is { lat: number; lng: number }[] {
     return Array.isArray(value) && value.length > 0 && value.every(isCoordinate);
   }
 
-  // AI : Parse geometry value into corner coordinates
-  // AI : Handles both single coordinate and coordinate arrays from JSONB fields
+  // Parse geometry value into corner coordinates
+  // Handles both single coordinate and coordinate arrays from JSONB fields
   function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
     if (!geometryValue || typeof geometryValue !== "object") {
       return [];
     }
 
-    // AI : Single coordinate (centerCoordinate, centroid)
+    // Single coordinate (centerCoordinate, centroid)
     if (isCoordinate(geometryValue)) {
       return [geometryValue];
     }
 
-    // AI : Array of coordinates (corners)
+    // Array of coordinates (corners)
     if (isCoordinateArray(geometryValue)) {
       return geometryValue;
     }
@@ -81,19 +81,19 @@ export function useChangeRequestPreview() {
     return [];
   }
 
-  // AI : Ensure overlay is loaded into the map (handles navigation if needed)
+  // Ensure overlay is loaded into the map (handles navigation if needed)
   async function ensureOverlayLoaded(
     overlayForModeration: OverlayForModeration,
     targetCorners: LatLng[],
   ): Promise<boolean> {
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
-    // AI : Already loaded, nothing to do
+    // Already loaded, nothing to do
     if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
       return true;
     }
 
-    // AI : Need to load - validate we have required data
+    // Need to load - validate we have required data
     if (!overlayForModeration.cityId || !overlayForModeration.countryCode) {
       toast.add({
         severity: "error",
@@ -104,20 +104,20 @@ export function useChangeRequestPreview() {
       return false;
     }
 
-    // AI : Step 1: Switch to edit mode if needed (pending overlays only visible in edit mode)
+    // Step 1: Switch to edit mode if needed (pending overlays only visible in edit mode)
     const needsEditMode = overlayStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
       switchMode("edit");
       await new Promise<void>((resolve) => void setTimeout(() => resolve(), 100));
     }
 
-    // AI : Step 3: Clear map and load cities for the country
+    // Step 3: Clear map and load cities for the country
     clearAllMapContent();
     const mapStore = useMapStore();
     mapStore.selectedCountryCode = overlayForModeration.countryCode;
     await loadCitiesForCountry(overlayForModeration.countryCode);
 
-    // AI : Step 4: Navigate to overlay position
+    // Step 4: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);
     mobileAwareFlyToBounds(targetBounds, {
       padding: [50, 50] as [number, number],
@@ -125,22 +125,22 @@ export function useChangeRequestPreview() {
       easeLinearity: 0.25,
     });
 
-    // AI : Step 5: Set selected city state
-    loadCityProjects(
+    // Step 5: Set selected city state
+    selectCity(
       overlayForModeration.cityId,
       overlayForModeration.cityName ?? "City",
       null,
       overlayForModeration.countryCode,
     );
 
-    // AI : Wait for overlays to render
+    // Wait for overlays to render
     await new Promise<void>((resolve) => void setTimeout(() => resolve(), 400));
 
-    // AI : Check if overlay loaded successfully
+    // Check if overlay loaded successfully
     overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     if (!overlayObject) {
-      // AI : Debug logging for troubleshooting
+      // Debug logging for troubleshooting
       console.error("[useChangeRequestPreview] Overlay not loaded after city projects loaded", {
         overlayId: overlayForModeration.id,
         availableOverlays: Object.keys(overlayStore.overlays),
@@ -149,7 +149,7 @@ export function useChangeRequestPreview() {
         status: overlayForModeration.status,
       });
 
-      // AI : One more attempt with longer wait
+      // One more attempt with longer wait
       const overlayInMapStore = mapStore.currentCityOverlays.find(
         (o) => o.id === overlayForModeration.id,
       );
@@ -172,7 +172,7 @@ export function useChangeRequestPreview() {
     return true;
   }
 
-  // AI : Navigate to position with smooth bounds transition
+  // Navigate to position with smooth bounds transition
   function navigateToPosition(
     targetLatLngs: L.LatLng[],
     previousBounds: L.LatLngBounds | null,
@@ -180,8 +180,8 @@ export function useChangeRequestPreview() {
   ): void {
     const newBounds = L.latLngBounds(targetLatLngs);
 
-    // AI : If we have previous bounds, create combined bounds to show both positions
-    // AI : This creates a smooth unzoom effect instead of jarring camera jump
+    // If we have previous bounds, create combined bounds to show both positions
+    // This creates a smooth unzoom effect instead of jarring camera jump
     const targetBounds = previousBounds ? newBounds.extend(previousBounds) : newBounds;
 
     mobileAwareFlyToBounds(targetBounds, {
@@ -190,16 +190,16 @@ export function useChangeRequestPreview() {
       easeLinearity: 0.25,
     });
 
-    // AI : Select overlay after flyTo completes
+    // Select overlay after flyTo completes
     map.value.once("moveend", () => {
       selectOverlay(overlayId);
     });
   }
 
-  // AI : Get target corners based on preview type
+  // Get target corners based on preview type
   function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): L.LatLng[] | null {
     if (type === "new") {
-      // AI : Show suggested position
+      // Show suggested position
       if (overlayObject.suggestedCorners?.length !== 4) {
         console.warn("No suggested corners available for overlay", overlayObject.id);
         return null;
@@ -208,7 +208,7 @@ export function useChangeRequestPreview() {
         L.latLng(c.lat, c.lng),
       );
     } else {
-      // AI : Show approved position (always in corners field)
+      // Show approved position (always in corners field)
       if (overlayObject.corners.length !== 4) {
         return null;
       }
@@ -216,7 +216,7 @@ export function useChangeRequestPreview() {
     }
   }
 
-  // AI : Apply position preview to loaded overlay
+  // Apply position preview to loaded overlay
   function applyPositionPreview(
     overlayId: string,
     type: "old" | "new",
@@ -228,20 +228,20 @@ export function useChangeRequestPreview() {
       return;
     }
 
-    // AI : Capture the current bounds BEFORE switching positions
-    // AI : This allows us to show both old and new positions after the switch
+    // Capture the current bounds BEFORE switching positions
+    // This allows us to show both old and new positions after the switch
     let previousBounds: L.LatLngBounds | null = null;
     if (wasAlreadyLoaded) {
       previousBounds = getOverlayBounds(overlayObject);
     }
 
-    // AI : Get target corners based on type
+    // Get target corners based on type
     const targetLatLngs = getTargetCorners(overlayObject, type);
     if (!targetLatLngs) {
       return;
     }
 
-    // AI : Update overlay state based on type
+    // Update overlay state based on type
     if (type === "new") {
       overlayObject.hasPendingChanges = true;
       overlayObject.isViewingApprovedPosition = false;
@@ -249,24 +249,21 @@ export function useChangeRequestPreview() {
       overlayObject.isViewingApprovedPosition = true;
     }
 
-    // AI : Apply the position change
+    // Apply the position change
     overlayLayer.setCorners(targetLatLngs);
     updateMarkerPosition(overlayObject);
     updateMarkerTooltip(overlayObject);
 
-    // AI : Always navigate to the final position to ensure camera is centered correctly
-    // AI : Force navigation even if position didn't change to provide user feedback
-    // AI : If overlay was already loaded, we show both old and new positions with combined bounds
-    // AI : If overlay was just loaded, we still navigate to ensure camera is at the correct position
+    // Always navigate to the final position to ensure camera is centered correctly
     navigateToPosition(targetLatLngs, previousBounds, overlayId);
   }
 
-  // AI : Main function to preview geometry change
+  // Main function to preview geometry change
   async function previewGeometry(options: PreviewGeometryOptions): Promise<void> {
     const { change, overlayForModeration, geometryValue, type } = options;
 
     try {
-      // AI : Step 1: Parse geometry
+      // Step 1: Parse geometry
       const corners = parseGeometry(geometryValue);
 
       if (corners.length === 0) {
@@ -281,19 +278,19 @@ export function useChangeRequestPreview() {
 
       const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
 
-      // AI : Step 2: Check if overlay is already loaded
+      // Step 2: Check if overlay is already loaded
       const wasAlreadyLoaded = registry.getLayer(change.entityId) !== null;
 
-      // AI : Step 3: Ensure overlay is loaded (handles navigation if needed)
+      // Step 3: Ensure overlay is loaded (handles navigation if needed)
       const loaded = await ensureOverlayLoaded(overlayForModeration, latLngs);
       if (!loaded) {
         return;
       }
 
-      // AI : Step 4: Apply position preview
+      // Step 4: Apply position preview
       applyPositionPreview(change.entityId, type, wasAlreadyLoaded);
 
-      // AI : Step 5: Update state machine
+      // Step 5: Update state machine
       if (type === "new") {
         previewState.value = {
           type: "suggested",

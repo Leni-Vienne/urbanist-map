@@ -1,16 +1,16 @@
 import { Page, expect } from "@playwright/test";
 
 /**
- * AI : Authentication helpers for Playwright tests
+ * Authentication helpers for Playwright tests
  */
 export class AuthTestHelpers {
   constructor(private page: Page) {}
 
   /**
-   * AI : Check if user is currently authenticated
+   * Check if user is currently authenticated
    */
   async isAuthenticated(): Promise<boolean> {
-    // AI : Look for user menu or authenticated UI elements using data-testid
+    // Look for user menu or authenticated UI elements using data-testid
     const userMenu = this.page.locator('[data-testid="user-menu"]');
     const signInButton = this.page.locator('[data-testid="sign-in-button"]');
 
@@ -21,10 +21,10 @@ export class AuthTestHelpers {
   }
 
   /**
-   * AI : Open authentication modal
+   * Open authentication modal
    */
   async openAuthModal() {
-    // AI : Look for sign in button using data-testid
+    // Look for sign in button using data-testid
     const signInButton = this.page.locator('[data-testid="sign-in-button"]');
     if ((await signInButton.count()) > 0) {
       await signInButton.click();
@@ -33,7 +33,7 @@ export class AuthTestHelpers {
   }
 
   /**
-   * AI : Perform login with credentials from environment variables
+   * Perform login with credentials from environment variables
    */
   async login(
     email: string = process.env.TEST_USER_EMAIL ?? "test@example.com",
@@ -41,12 +41,12 @@ export class AuthTestHelpers {
   ) {
     await this.openAuthModal();
 
-    // AI : Wait for auth modal to appear
+    // Wait for auth modal to appear
     const authModal = this.page.locator('[data-testid="auth-modal"]');
     if ((await authModal.count()) > 0) {
       await expect(authModal).toBeVisible();
 
-      // AI : Fill login form using data-testid selectors
+      // Fill login form using data-testid selectors
       const emailInput = this.page.locator('[data-testid="auth-email-input"]');
       const passwordInput = this.page.locator(
         '[data-testid="auth-password-input"] input[type="password"]',
@@ -58,10 +58,10 @@ export class AuthTestHelpers {
         await passwordInput.fill(password);
         await loginButton.click();
 
-        // AI : Wait for login to complete
+        // Wait for login to complete
         await this.page.waitForTimeout(2000);
 
-        // AI : Verify login succeeded
+        // Verify login succeeded
         return this.isAuthenticated();
       }
     }
@@ -70,7 +70,7 @@ export class AuthTestHelpers {
   }
 
   /**
-   * AI : Create a test user account (if registration is available)
+   * Create a test user account (if registration is available)
    */
   async createTestUser(
     email: string = process.env.TEST_USER_EMAIL ?? "playwright.test@example.com",
@@ -81,13 +81,13 @@ export class AuthTestHelpers {
 
     const authModal = this.page.locator('[data-testid="auth-modal"]');
     if ((await authModal.count()) > 0) {
-      // AI : Look for registration/signup toggle using data-testid
+      // Look for registration/signup toggle using data-testid
       const modeToggle = this.page.locator('[data-testid="auth-mode-toggle"]');
       if ((await modeToggle.count()) > 0) {
         await modeToggle.click();
         await this.page.waitForTimeout(500);
 
-        // AI : Fill registration form using data-testid selectors
+        // Fill registration form using data-testid selectors
         const emailInput = this.page.locator('[data-testid="auth-email-input"]');
         const passwordInput = this.page.locator(
           '[data-testid="auth-password-input"] input[type="password"]',
@@ -113,7 +113,7 @@ export class AuthTestHelpers {
   }
 
   /**
-   * AI : Logout current user
+   * Logout current user
    */
   async logout() {
     const userMenu = this.page.locator('[data-testid="user-menu"]');
@@ -130,16 +130,16 @@ export class AuthTestHelpers {
   }
 
   /**
-   * AI : Setup authenticated state for tests
+   * Setup authenticated state for tests
    * Uses browser storage to persist login across test runs
    */
   async setupAuthenticatedState() {
-    // AI : Check if already authenticated
+    // Check if already authenticated
     if (await this.isAuthenticated()) {
       return true;
     }
 
-    // AI : Try to restore previous session
+    // Try to restore previous session
     const storedAuth = await this.page.evaluate(() => {
       return localStorage.getItem("auth-token") ?? sessionStorage.getItem("auth-token");
     });
@@ -153,18 +153,18 @@ export class AuthTestHelpers {
       }
     }
 
-    // AI : Attempt login with test credentials
+    // Attempt login with test credentials
     const loginSuccess = await this.login();
     if (loginSuccess) {
       return true;
     }
 
-    // AI : If login fails, try creating a test user
+    // If login fails, try creating a test user
     return this.createTestUser();
   }
 
   /**
-   * AI : Setup unauthenticated state (logout if needed)
+   * Setup unauthenticated state (logout if needed)
    */
   async setupUnauthenticatedState() {
     if (await this.isAuthenticated()) {

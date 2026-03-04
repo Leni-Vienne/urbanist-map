@@ -1,13 +1,13 @@
-// AI : Shared validation helper utilities
+// Shared validation helper utilities
 import type { ProjectFormData } from "@/types/index";
 
-// AI : Dummy city ID for validation when actual value is not available
+// Dummy city ID for validation when actual value is not available
 const DUMMY_CITY_ID = 0;
-// AI : Dummy UUID for validation when actual value is not available (for project/overlay IDs)
+// Dummy UUID for validation when actual value is not available (for project/overlay IDs)
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
 
 /**
- * AI : Prepare project form data for validation by filling in required fields
+ * Prepare project form data for validation by filling in required fields
  * with dummy values when they're not available (for field-level validation)
  */
 export function prepareProjectValidationData(
@@ -25,7 +25,7 @@ export function prepareProjectValidationData(
 }
 
 /**
- * AI : Prepare overlay validation data with required fields
+ * Prepare overlay validation data with required fields
  */
 export function prepareOverlayValidationData(overlay: {
   id: string;

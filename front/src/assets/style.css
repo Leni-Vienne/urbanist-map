@@ -1,8 +1,18 @@
 @import "tailwindcss";
 @import "tailwindcss-primeui";
+
+/* tailwind recommanded those changes but they didn't work without those overrides */
+@theme inline {
+  --color-content-background: var(--p-content-background);
+  --color-primary-color: var(--p-primary-color);
+  --color-primary-hover-color: var(--p-primary-hover-color);
+}
+
+/* Class-based dark mode for Tailwind utilities (mirrors PrimeVue's .dark-mode selector) */
+@custom-variant dark (&:where(.dark-mode, .dark-mode *));
 /* doesn't seem useful? */
 
-/* AI : Prevent scrollbars on map page */
+/* Prevent scrollbars on map page */
 html,
 body {
   overflow: hidden;
@@ -39,24 +49,34 @@ body {
   z-index: 200 !important;
 }
 
+/* Accordion card background: slight blue-white in light, normal content bg in dark */
 :root {
-  /* Tag */
-  --p-tag-warn-background: #fef9c3 !important;
-  --p-tag-warn-color: #ca8a04 !important;
+  --accordion-card-bg: #f8f9fc;
+}
+.dark-mode {
+  --accordion-card-bg: var(--p-content-background);
+}
 
-  --p-message-warn-background: #fef9c3;
-  --p-message-warn-color: #ca8a04;
-
-  /* Toast */
-  --p-toast-warn-background: #fef9c3;
-  --p-toast-warn-color: #ca8a04;
-
-  /* Button / Badge / others — common tokens */
-  --p-button-warn-background: #fef9c3;
-  --p-button-warn-color: #ca8a04;
-
-  --p-badge-warn-background: #fef9c3;
-  --p-badge-warn-color: #ca8a04;
+/* Dark mode overrides */
+.dark-mode {
+  --p-tag-warn-background: #292205 !important;
+  --p-tag-warn-color: #fde68a !important;
+  --p-message-warn-background: #292205;
+  --p-message-warn-color: #fde68a;
+  --p-button-warn-background: #292205;
+  --p-button-warn-color: #fde68a;
+  --p-badge-warn-background: #292205;
+  --p-badge-warn-color: #fde68a;
+  /* Toast: disable glassmorphism (transparent bg + blur look broken on map) */
+  --p-toast-blur: 0 !important;
+  --p-toast-success-background: #052e16 !important;
+  --p-toast-success-color: #4ade80 !important;
+  --p-toast-info-background: #172554 !important;
+  --p-toast-info-color: #60a5fa !important;
+  --p-toast-warn-background: #292205 !important;
+  --p-toast-warn-color: #fbbf24 !important;
+  --p-toast-error-background: #450a0a !important;
+  --p-toast-error-color: #f87171 !important;
 }
 
 .p-popover {
@@ -64,19 +84,19 @@ body {
   /* Ensure popovers appear above other elements like drawers */
 }
 
-/* AI : Shared link styling for consistent, accessible links across the app */
+/* Shared link styling for consistent, accessible links across the app */
 .app-link {
-  color: var(--p-primary-600);
+  color: var(--p-primary-color);
   text-decoration: underline;
   text-underline-offset: 2px;
-  text-decoration-color: var(--p-primary-300);
+  text-decoration-color: color-mix(in srgb, var(--p-primary-color) 50%, transparent);
   transition: all 0.15s ease;
   cursor: pointer;
 }
 
 .app-link:hover {
-  color: var(--p-primary-700);
-  text-decoration-color: var(--p-primary-700);
+  color: var(--p-primary-hover-color);
+  text-decoration-color: var(--p-primary-hover-color);
 }
 
 /* Fix toast width on mobile, otherwise it's too wide */

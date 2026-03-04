@@ -1,5 +1,5 @@
 /**
- * AI: Script to find translation keys that have the same values (duplicates).
+ * Script to find translation keys that have the same values (duplicates).
  *
  * Usage:
  *   bun run scripts/find-duplicate-translations.ts
@@ -10,12 +10,12 @@ import { join } from "node:path";
 
 const LOCALES_DIR = join(import.meta.dir, "../front/src/locales/messages");
 
-// AI: Validates if a string is a simple value (not an object/array)
+// Validates if a string is a simple value (not an object/array)
 function isPrimitive(val: unknown): boolean {
   return typeof val === "string" || typeof val === "number" || typeof val === "boolean";
 }
 
-// AI: Recursively flatten the object to a Map of "key.path" -> "value"
+// Recursively flatten the object to a Map of "key.path" -> "value"
 function flattenObject(
   obj: Record<string, unknown>,
   prefix = "",

@@ -2,11 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import { existsSync } from "node:fs";
 
-// AI : Load test environment variables
 dotenv.config({ path: ".env" });
 
 /**
- * AI : Playwright configuration for Urbanist Map testing
+ * Playwright configuration for Urbanist Map testing
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
@@ -15,7 +14,6 @@ export default defineConfig({
   globalSetup: "./tests/global-setup.ts",
   /* Run tests in files in parallel */
   fullyParallel: false,
-  /* Reduce timeout because 30s is way too much */
   timeout: 15 * 1000,
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: Boolean(process.env.CI),

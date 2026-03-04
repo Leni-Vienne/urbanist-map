@@ -6,7 +6,7 @@ import {
   streamToBuffer,
 } from "../lib/storage";
 
-// AI : Job queue for R2 migrations (in-memory for single-server deployment)
+// Job queue for R2 migrations (in-memory for single-server deployment)
 interface R2MigrationJob {
   filename: string;
   retryCount: number;
@@ -16,13 +16,13 @@ interface R2MigrationJob {
 const migrationQueue: R2MigrationJob[] = [];
 const MAX_RETRIES = 3;
 const CONCURRENT_MIGRATIONS = 3;
-const POLL_INTERVAL_MS = 1000; // AI : Check queue every second
+const POLL_INTERVAL_MS = 1000; // Check queue every second
 
 let isProcessing = false;
 
-// AI : Queue a migration job (non-blocking)
+// Queue a migration job (non-blocking)
 export function queueR2Migration(filename: string): void {
-  // AI : Avoid duplicate jobs
+  // Avoid duplicate jobs
   const exists = migrationQueue.some((job) => job.filename === filename);
   if (exists) {
     logger.warn({ filename }, "R2 migration already queued");
@@ -38,7 +38,7 @@ export function queueR2Migration(filename: string): void {
   logger.info({ filename, queueSize: migrationQueue.length }, "Queued R2 migration");
 }
 
-// AI : Migrate single file to R2 with parallel uploads (optimization #2)
+// Migrate single file to R2 with parallel uploads (optimization #2)
 async function migrateFileToR2(filename: string): Promise<void> {
   const endpoint = process.env.R2_ENDPOINT;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -57,7 +57,7 @@ async function migrateFileToR2(filename: string): Promise<void> {
     bucketName,
   });
 
-  // AI : Fetch both files in parallel
+  // Fetch both files in parallel
   const [localFile, thumbnailFile] = await Promise.all([
     localStorage.get(filename),
     localStorage.get(getThumbnailFilename(filename)),
@@ -67,13 +67,13 @@ async function migrateFileToR2(filename: string): Promise<void> {
     throw new Error(`Local file not found: ${filename}`);
   }
 
-  // AI : Convert to buffers in parallel
+  // Convert to buffers in parallel
   const [imageBuffer, thumbnailBuffer] = await Promise.all([
     streamToBuffer(localFile.body),
     thumbnailFile ? streamToBuffer(thumbnailFile.body) : Promise.resolve(null),
   ]);
 
-  // AI : Upload both to R2 in parallel
+  // Upload both to R2 in parallel
   const uploadPromises = [r2Storage.put(filename, imageBuffer.buffer as ArrayBuffer)];
 
   if (thumbnailBuffer) {
@@ -87,7 +87,7 @@ async function migrateFileToR2(filename: string): Promise<void> {
 
   await Promise.all(uploadPromises);
 
-  // AI : Delete local files after successful migration
+  // Delete local files after successful migration
   try {
     await localStorage.delete(filename);
     if (thumbnailFile) {
@@ -95,11 +95,11 @@ async function migrateFileToR2(filename: string): Promise<void> {
     }
   } catch (error) {
     logger.error({ error, filename }, "Failed to delete local files after R2 migration");
-    // AI : Don't throw - migration succeeded, deletion is cleanup
+    // Don't throw - migration succeeded, deletion is cleanup
   }
 }
 
-// AI : Process jobs from the queue
+// Process jobs from the queue
 async function processQueue(): Promise<void> {
   if (isProcessing || migrationQueue.length === 0) {
     return;
@@ -108,7 +108,7 @@ async function processQueue(): Promise<void> {
   isProcessing = true;
 
   try {
-    // AI : Process up to CONCURRENT_MIGRATIONS jobs in parallel
+    // Process up to CONCURRENT_MIGRATIONS jobs in parallel
     const batch = migrationQueue.splice(0, CONCURRENT_MIGRATIONS);
 
     await Promise.allSettled(
@@ -121,7 +121,7 @@ async function processQueue(): Promise<void> {
           job.retryCount += 1;
 
           if (job.retryCount < MAX_RETRIES) {
-            // AI : Re-queue with exponential backoff delay
+            // Re-queue with exponential backoff delay
             logger.warn(
               { error, filename: job.filename, retryCount: job.retryCount },
               "R2 migration failed, retrying",
@@ -141,11 +141,11 @@ async function processQueue(): Promise<void> {
   }
 }
 
-// AI : Start the background worker
+// Start the background worker
 export function startR2MigrationService(): void {
   logger.info("Starting R2 migration service...");
 
-  // AI : Process queue periodically
+  // Process queue periodically
   setInterval(() => {
     processQueue().catch((error) => logger.error({ error }, "Error in R2 migration worker"));
   }, POLL_INTERVAL_MS);

@@ -1,7 +1,9 @@
-<template>
-  <div class="p-8 max-w-[1400px] mx-auto h-full overflow-y-auto">
+﻿<template>
+  <div class="p-8 max-w-350 mx-auto h-full overflow-y-auto">
     <div class="flex items-center gap-4 mb-8">
-      <h1 class="m-0 text-3xl font-semibold">{{ t("admin.reports.title") }}</h1>
+      <h1 class="m-0 text-3xl font-semibold">
+        {{ t("admin.reports.title") }}
+      </h1>
       <Badge
         v-if="reportedUsers && reportedUsers.length > 0"
         :value="reportedUsers.length"
@@ -18,13 +20,13 @@
       />
     </div>
 
-    <div v-if="isLoading" class="flex justify-center items-center min-h-[400px]">
+    <div v-if="isLoading" class="flex justify-center items-center min-h-100">
       <ProgressSpinner />
     </div>
 
     <div
       v-else-if="!reportedUsers || reportedUsers.length === 0"
-      class="flex justify-center items-center min-h-[400px]"
+      class="flex justify-center items-center min-h-100"
     >
       <Message severity="info" :closable="false">
         {{ t("admin.reports.messages.noReports") }}
@@ -128,7 +130,7 @@
             </Column>
           </DataTable>
 
-          <div v-if="slotProps.data.banned" class="bg-[var(--p-surface-50)] p-4 rounded-md mt-4">
+          <div v-if="slotProps.data.banned" class="bg-content-hover-background p-4 rounded-md mt-4">
             <h3 class="mt-0 mb-4 text-lg font-semibold">
               {{ t("admin.reports.details.banInfo") }}
             </h3>
@@ -156,7 +158,11 @@
     >
       <div>
         <p class="mb-4">
-          {{ t("admin.reports.banDialog.confirmMessage", { username: selectedUser?.username }) }}
+          {{
+            t("admin.reports.banDialog.confirmMessage", {
+              username: selectedUser?.username,
+            })
+          }}
         </p>
 
         <div class="mb-4">
@@ -172,7 +178,7 @@
             maxlength="500"
             class="w-full"
           />
-          <small class="text-[var(--p-text-muted-color)]">{{ banReason.length }}/500</small>
+          <small class="text-muted-color">{{ banReason.length }}/500</small>
         </div>
 
         <div class="flex items-center gap-2 mt-4">
@@ -202,13 +208,13 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc, type RouterOutput } from "@/client";
 
-// AI : Use tRPC types from RouterOutput
+// Use tRPC types from RouterOutput
 type ReportedUser = RouterOutput["moderation"]["getReportedUsers"][number];
 
 const { t } = useI18n();
 const toast = useToast();
 
-// AI : State with proper tRPC types
+// State with proper tRPC types
 const reportedUsers = ref<ReportedUser[]>([]);
 const isLoading = ref(true);
 const isPruning = ref(false);
@@ -218,7 +224,7 @@ const banReason = ref("");
 const deleteContent = ref(false);
 const isBanning = ref(false);
 
-// AI : Run scheduled image deletions on demand
+// Run scheduled image deletions on demand
 async function handlePruneImages() {
   isPruning.value = true;
   try {
@@ -245,7 +251,7 @@ async function handlePruneImages() {
   }
 }
 
-// AI : Load reported users
+// Load reported users
 async function loadReportedUsers() {
   try {
     isLoading.value = true;
@@ -262,17 +268,19 @@ async function loadReportedUsers() {
   }
 }
 
-// AI : Clear reports for a user
+// Clear reports for a user
 async function clearReports(user: ReportedUser) {
   try {
     await trpc.moderation.clearUserReports.mutate({ userId: user.userId });
     toast.add({
       severity: "success",
       summary: t("admin.reports.messages.clearSuccess"),
-      detail: t("admin.reports.messages.clearSuccessDetail", { username: user.username }),
+      detail: t("admin.reports.messages.clearSuccessDetail", {
+        username: user.username,
+      }),
       life: 5000,
     });
-    // AI : Reload the list
+    // Reload the list
     await loadReportedUsers();
   } catch (error) {
     console.error("Error clearing reports:", error);
@@ -284,7 +292,7 @@ async function clearReports(user: ReportedUser) {
   }
 }
 
-// AI : Open ban dialog
+// Open ban dialog
 function openBanDialog(user: ReportedUser) {
   selectedUser.value = user;
   banReason.value = "";
@@ -292,7 +300,7 @@ function openBanDialog(user: ReportedUser) {
   showBanDialog.value = true;
 }
 
-// AI : Close ban dialog
+// Close ban dialog
 function closeBanDialog() {
   showBanDialog.value = false;
   selectedUser.value = null;
@@ -300,7 +308,7 @@ function closeBanDialog() {
   deleteContent.value = false;
 }
 
-// AI : Confirm ban
+// Confirm ban
 async function confirmBan() {
   if (!selectedUser.value || !banReason.value.trim()) return;
 
@@ -335,7 +343,7 @@ async function confirmBan() {
   }
 }
 
-// AI : Load data on mount
+// Load data on mount
 onMounted(() => {
   loadReportedUsers();
 });

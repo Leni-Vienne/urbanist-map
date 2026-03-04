@@ -7,7 +7,7 @@ export const availableLocales = [
 
 export type Locale = (typeof availableLocales)[number]["code"];
 
-// AI : I18n instance type matching createI18n with legacy: false
+// I18n instance type matching createI18n with legacy: false
 type I18nInstance = I18n<
   NonNullable<I18nOptions["messages"]>,
   NonNullable<I18nOptions["datetimeFormats"]>,
@@ -16,16 +16,16 @@ type I18nInstance = I18n<
   false
 >;
 
-// AI : Reference to the i18n instance, set during app initialization
+// Reference to the i18n instance, set during app initialization
 let i18nInstance: I18nInstance | null = null;
 
-// AI : Set the i18n instance reference for use in async loading
+// Set the i18n instance reference for use in async loading
 export function setI18nInstance(instance: I18nInstance): void {
   i18nInstance = instance;
 }
 
-// AI : Global translation function for use outside of Vue components
-// AI : Supports interpolation values for pluralization, named parameters, etc.
+// Global translation function for use outside of Vue components
+// Supports interpolation values for pluralization, named parameters, etc.
 export function t(key: string, values?: Record<string, unknown>): string {
   if (!i18nInstance) {
     return key;
@@ -33,8 +33,8 @@ export function t(key: string, values?: Record<string, unknown>): string {
   return i18nInstance.global.t(key, values ?? {});
 }
 
-// AI : Lazy-load locale messages via dynamic import for chunk splitting.
-// AI : Only the active locale is fetched on startup; the other loads on demand.
+// Lazy-load locale messages via dynamic import for chunk splitting.
+// Only the active locale is fetched on startup; the other loads on demand.
 export async function loadLocaleMessages(locale: Locale): Promise<Record<string, unknown>> {
   if (locale === "fr") {
     return (await import("./messages/fr.json")).default as Record<string, unknown>;
@@ -42,14 +42,14 @@ export async function loadLocaleMessages(locale: Locale): Promise<Record<string,
   return (await import("./messages/en.json")).default as Record<string, unknown>;
 }
 
-// AI : Load and set locale messages, returns true if messages were loaded
+// Load and set locale messages, returns true if messages were loaded
 export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
   if (!i18nInstance) {
     console.error("i18n instance not set");
     return false;
   }
 
-  // AI : Check if locale is already loaded
+  // Check if locale is already loaded
   if (i18nInstance.global.availableLocales.includes(locale)) {
     return true;
   }
@@ -64,43 +64,43 @@ export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
   }
 }
 
-// AI : Get browser locale or fallback to English
+// Get browser locale or fallback to English
 function getBrowserLocale(): Locale {
   const browserLocale = navigator.language.split("-")[0];
   const isSupported = availableLocales.some((l) => l.code === browserLocale);
   return isSupported ? (browserLocale as Locale) : "en";
 }
 
-// AI : Store locale in localStorage
+// Store locale in localStorage
 export function saveLocale(locale: Locale): void {
   localStorage.setItem("urbanist-map-locale", locale);
 }
 
-// AI : Get stored locale or browser locale
+// Get stored locale or browser locale
 export function getStoredLocale(): Locale {
   const stored = localStorage.getItem("urbanist-map-locale");
   const isSupported = availableLocales.some((l) => l.code === stored);
   return isSupported ? (stored as Locale) : getBrowserLocale();
 }
 
-// AI : Check if browser's language is supported by our app
+// Check if browser's language is supported by our app
 function isBrowserLanguageSupported(): boolean {
   const browserLocale = navigator.language.split("-")[0];
   return availableLocales.some((l) => l.code === browserLocale);
 }
 
-// AI : Set HTML translation attributes based on language support
+// Set HTML translation attributes based on language support
 export function updateTranslationSettings(currentLocale: Locale): void {
   const isSupported = isBrowserLanguageSupported();
 
-  // AI : Set the HTML lang attribute
+  // Set the HTML lang attribute
   document.documentElement.lang = currentLocale;
 
-  // AI : Only prevent translation if we support the user's browser language
+  // Only prevent translation if we support the user's browser language
   // If we don't support their language, allow browser translation
   if (isSupported) {
     document.documentElement.setAttribute("translate", "no");
-    // AI : Add or update the Google Chrome no-translate meta tag
+    // Add or update the Google Chrome no-translate meta tag
     let metaTag = document.querySelector('meta[name="google"]');
     metaTag ??= document.createElement("meta");
     if (!metaTag.hasAttribute("name")) {
@@ -109,7 +109,7 @@ export function updateTranslationSettings(currentLocale: Locale): void {
     }
     metaTag.setAttribute("content", "notranslate");
   } else {
-    // AI : Remove translation prevention for unsupported languages
+    // Remove translation prevention for unsupported languages
     document.documentElement.removeAttribute("translate");
     const metaTag = document.querySelector('meta[name="google"]');
     if (metaTag) {

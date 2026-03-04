@@ -1,6 +1,6 @@
 <template>
   <div class="w-full flex flex-col gap-2">
-    <!-- AI : Precision Selection -->
+    <!-- Precision Selection -->
     <div class="flex gap-4 mb-2">
       <div class="flex items-center gap-2">
         <RadioButton
@@ -40,9 +40,9 @@
       </div>
     </div>
 
-    <!-- AI : Input Fields based on precision -->
+    <!-- Input Fields based on precision -->
     <div class="flex gap-2 items-start">
-      <!-- AI : Year Only Mode -->
+      <!-- Year Only Mode -->
       <div v-if="internalPrecision === 'year'" class="w-full">
         <FloatLabel class="w-full" variant="in">
           <DatePicker
@@ -61,7 +61,7 @@
         </FloatLabel>
       </div>
 
-      <!-- AI : Month & Year Mode -->
+      <!-- Month & Year Mode -->
       <div v-else-if="internalPrecision === 'month'" class="flex gap-2 w-full">
         <div class="flex-1">
           <FloatLabel class="w-full" variant="in">
@@ -82,7 +82,7 @@
         </div>
       </div>
 
-      <!-- AI : Full Date Mode -->
+      <!-- Full Date Mode -->
       <div v-else class="w-full">
         <FloatLabel class="w-full" variant="in">
           <label for="date-input">{{ label }} {{ required ? "*" : "" }}</label>
@@ -121,7 +121,7 @@ const props = defineProps<{
   maxDate?: Date;
   minDate?: Date;
   error?: string;
-  uniqueId?: string; // AI : For grouping radio buttons if multiple instances exist
+  uniqueId?: string; // For grouping radio buttons if multiple instances exist
 }>();
 
 const emit = defineEmits<{
@@ -131,43 +131,43 @@ const emit = defineEmits<{
 
 const groupName = props.uniqueId || `precision-group-${Math.random().toString(36).substring(7)}`;
 
-// AI : Track if user has interacted with the field to avoid premature validation errors
+// Track if user has interacted with the field to avoid premature validation errors
 const isTouched = ref(false);
 
-// AI : Internal state
+// Internal state
 const internalPrecision = ref<DatePrecision>("day");
-const yearDateValue = ref<Date | null>(null); // AI : Changed to Date for DatePicker compatibility
+const yearDateValue = ref<Date | null>(null); // Changed to Date for DatePicker compatibility
 const monthDateValue = ref<Date | null>(null);
 const fullDateValue = ref<Date | null>(null);
 
-// AI : Sync from props
+// Sync from props
 watch(
   () => props.modelValue,
   (newVal) => {
     if (newVal) {
       internalPrecision.value = newVal.precision;
 
-      // AI : Init year date
+      // Init year date
       if (newVal.year) {
         yearDateValue.value = new Date(newVal.year, 0, 1);
       }
 
-      // AI : Construct dates for pickers
+      // Construct dates for pickers
       if (newVal.month) {
-        // AI : Month picker needs date
+        // Month picker needs date
         monthDateValue.value = new Date(newVal.year, newVal.month - 1, 1);
 
-        // AI : Full date picker needs date
+        // Full date picker needs date
         if (newVal.day) {
           fullDateValue.value = new Date(newVal.year, newVal.month - 1, newVal.day);
         }
       } else if (newVal.year) {
-        // AI : Also set month/full pickers to that year to be helpful if user switches precision
+        // Also set month/full pickers to that year to be helpful if user switches precision
         monthDateValue.value = new Date(newVal.year, 0, 1);
         fullDateValue.value = new Date(newVal.year, 0, 1);
       }
     } else {
-      // AI : If null, keep last precision or default, but clear values
+      // If null, keep last precision or default, but clear values
       yearDateValue.value = null;
       monthDateValue.value = null;
       fullDateValue.value = null;
@@ -177,14 +177,14 @@ watch(
 );
 
 function handlePrecisionChange() {
-  // AI : When changing precision, try to preserve loaded values
-  // AI : If we have a value in current mode, propagate it to others?
-  // AI : Actually, if we switch FROM year TO month, we should keep year.
-  // AI : But updateModel will read from the active input.
-  // AI : So we need to sync internal states before updateModel if we want preservation.
+  // When changing precision, try to preserve loaded values
+  // If we have a value in current mode, propagate it to others?
+  // Actually, if we switch FROM year TO month, we should keep year.
+  // But updateModel will read from the active input.
+  // So we need to sync internal states before updateModel if we want preservation.
 
-  // AI : Strategy: Always keep the most precise date possible in a shared "currentDate" ?
-  // AI : Or just sync the refs.
+  // Strategy: Always keep the most precise date possible in a shared "currentDate" ?
+  // Or just sync the refs.
 
   if (yearDateValue.value) {
     if (!monthDateValue.value) monthDateValue.value = new Date(yearDateValue.value);

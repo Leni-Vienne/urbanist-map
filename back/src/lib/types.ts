@@ -1,6 +1,6 @@
-// AI : Backend-specific types (storage, file upload)
-// AI : For shared types (ApprovalStatus, OverlayData), see @shared/types
-// AI : For change request types (FieldChange, SubmitChangeRequestInput), see @shared/validation/schemas
+// Backend-specific types (storage, file upload)
+// For shared types (ApprovalStatus, OverlayData), see @shared/types
+// For change request types (FieldChange, SubmitChangeRequestInput), see @shared/validation/schemas
 
 export interface StorageInterface {
   put(filename: string, buffer: ArrayBuffer, options?: { skipThumbnail?: boolean }): Promise<void>;

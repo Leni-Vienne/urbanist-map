@@ -1,14 +1,14 @@
-<template>
-  <!-- AI : Mobile Bottom Drawer - Custom Draggable Implementation -->
+﻿<template>
+  <!-- Mobile Bottom Drawer - Custom Draggable Implementation -->
   <DraggableDrawer
     v-model:visible="isVisible"
     v-model:height-percent="drawerHeight"
     @height-changed="handleHeightChanged"
   >
-    <!-- AI : Mode controls above drawer on mobile, with individual floor clamping -->
+    <!-- Mode controls above drawer on mobile, with individual floor clamping -->
     <template #above="{ drawerHeightPx }">
       <div class="relative w-full h-0 pointer-events-none">
-        <!-- AI : Satellite Preview: Minimum floor 80px. Positioned Left. -->
+        <!-- Satellite Preview: Minimum floor 80px. Positioned Left. -->
         <div
           class="absolute left-0 bottom-0 w-full pointer-events-none"
           :style="{
@@ -19,7 +19,7 @@
           <SatellitePreview :in-drawer="true" @menu-change="handleSatelliteMenuChange" />
         </div>
 
-        <!-- AI : Mode Controls: Minimum floor 110px. Centered. -->
+        <!-- Mode Controls: Minimum floor 110px. Centered. -->
         <div
           class="absolute left-0 bottom-0 w-full pointer-events-none flex justify-center"
           :style="{
@@ -32,40 +32,42 @@
       </div>
     </template>
 
-    <!-- AI : Custom header with title and tab navigation -->
+    <!-- Custom header with title and tab navigation -->
     <template #header>
       <div class="flex flex-col gap-1">
         <div class="title-container ml-4">
-          <h3 class="m-0 text-lg font-semibold text-surface-900 select-none leading-tight">
+          <h3 class="m-0 text-lg font-semibold text-color select-none leading-tight">
             {{ $t("app.title") }}
           </h3>
-          <p class="mt-1 text-xs text-surface-500 leading-tight">{{ $t("app.subtitle") }}</p>
+          <p class="mt-1 text-xs text-muted-color leading-tight">
+            {{ $t("app.subtitle") }}
+          </p>
         </div>
 
-        <!-- AI : Tab navigation inside fixed header -->
+        <!-- Tab navigation inside fixed header -->
         <PanelTabs v-model:active-tab="activeTab" variant="mobile" />
       </div>
     </template>
 
-    <!-- AI : Scrollable content area -->
+    <!-- Scrollable content area -->
     <PanelContent
       :active-tab="activeTab"
-      content-container-class="flex-1 overflow-y-auto bg-surface-0 pb-12"
+      content-container-class="flex-1 overflow-y-auto bg-content-hover-background pb-12"
     />
 
-    <!-- AI : Footer with legal links -->
+    <!-- Footer with legal links -->
     <div
-      class="absolute bottom-0 left-0 right-0 py-[0.2rem] px-4 bg-surface-50 border-t border-surface-100 flex justify-center items-center gap-2"
+      class="absolute bottom-0 left-0 right-0 py-[0.2rem] px-4 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
     >
       <a
         href="/legal"
-        class="text-surface-600 underline underline-offset-[2px] decoration-surface-400 text-[0.65rem] transition-all duration-150 hover:text-primary-600 hover:decoration-primary-600"
+        class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
         >{{ $t("footer.legal") }}</a
       >
-      <span class="text-surface-400 text-[0.65rem]">•</span>
+      <span class="text-muted-color text-[0.65rem]">•</span>
       <a
         href="/contact"
-        class="text-surface-600 underline underline-offset-[2px] decoration-surface-400 text-[0.65rem] transition-all duration-150 hover:text-primary-600 hover:decoration-primary-600"
+        class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
         >{{ $t("common.contact") }}</a
       >
     </div>
@@ -84,7 +86,7 @@ import PanelTabs from "./PanelTabs.vue";
 import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
-// AI : Get store
+// Get store
 const uiStore = useUiStore();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
@@ -94,7 +96,7 @@ function handleSatelliteMenuChange(isOpen: boolean) {
   isSatelliteMenuOpen.value = isOpen;
 }
 
-// AI : Drawer height management
+// Drawer height management
 const drawerHeight = computed({
   get: () => uiStore.mobileDrawerHeightPercent,
   set: (value) => {
@@ -106,14 +108,14 @@ function handleHeightChanged(height: number) {
   uiStore.mobileDrawerHeightPercent = Math.min(90, height);
 }
 
-// AI : Use uiStore.activeTab as single source of truth (shared with SideMenu)
-// AI : Computed with getter/setter for v-model compatibility
+// Use uiStore.activeTab as single source of truth (shared with SideMenu)
+// Computed with getter/setter for v-model compatibility
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  // AI : Use the explicit action from usePanelTabs to handle mode syncing securely
+  // Use the explicit action from usePanelTabs to handle mode syncing securely
   set: (value) => setActiveTab(value),
 });
 
-// AI : Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
+// Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
 const { authStore, setActiveTab } = usePanelTabs();
 </script>

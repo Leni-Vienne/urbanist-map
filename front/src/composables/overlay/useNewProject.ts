@@ -4,7 +4,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { switchMode } from "@/services/overlay/modeSwitching";
 import { storeToRefs } from "pinia";
 
-// AI : Composable for handling new project button click logic (opens marker placement bar)
+// Composable for handling new project button click logic (opens marker placement bar)
 export function useNewProject() {
   const authStore = useAuthStore();
   const uiStore = useUiStore();
@@ -17,11 +17,11 @@ export function useNewProject() {
       return { success: false, reason: "not_authenticated" };
     }
 
-    // AI : Close any open popups and clear selections for clean slate
+    // Close any open popups and clear selections for clean slate
     overlayStore.hideInfoPopup();
     uiStore.closeProjectInfoPopup();
 
-    // AI : Always switch to edit mode when contributing
+    // Always switch to edit mode when contributing
     if (mode.value !== "edit") {
       try {
         switchMode("edit");
@@ -32,7 +32,7 @@ export function useNewProject() {
         return { success: false, reason: "edit_mode_error", error };
       }
     } else {
-      // AI : Already in edit mode - just open marker placement bar
+      // Already in edit mode - just open marker placement bar
       uiStore.markerPlacementBarVisible = true;
       return { success: true, action: "dialog_opened" };
     }

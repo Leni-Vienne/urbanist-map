@@ -3,10 +3,7 @@ import { ref } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { map } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
-
-// AI : country_bboxes is small (~500B) and used for fast pre-checks, keep it eager
 import countryBboxes from "@/assets/country_bboxes.json";
-// AI : FRA.json and CHE.json are large polygon files — loaded lazily on first satellite use
 
 interface BoundingBox {
   minLat: number;
@@ -23,7 +20,7 @@ interface CountryBorder {
 
 type CountryCode = "FRA" | "CHE";
 
-// AI : Helper to convert bbox array to BoundingBox object
+// Helper to convert bbox array to BoundingBox object
 function toBoundingBox(bbox: number[]): BoundingBox {
   return {
     minLng: bbox[0]!,
@@ -33,10 +30,10 @@ function toBoundingBox(bbox: number[]): BoundingBox {
   };
 }
 
-// AI : Cached after first load — undefined until the user first uses satellite mode
+// Cached after first load — undefined until the user first uses satellite mode
 let countryBorders: CountryBorder[] | undefined;
 
-// AI : Dynamically imports all country borders as a single chunk — only loads on first satellite use
+// Dynamically imports all country borders as a single chunk — only loads on first satellite use
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
   if (countryBorders) return countryBorders;
 
@@ -59,14 +56,14 @@ async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
 }
 
 /**
- * AI : Fast check if point is within bounding box
+ * Fast check if point is within bounding box
  */
 function isInBoundingBox(lat: number, lng: number, bbox: BoundingBox): boolean {
   return lat >= bbox.minLat && lat <= bbox.maxLat && lng >= bbox.minLng && lng <= bbox.maxLng;
 }
 
 /**
- * AI : Ray casting algorithm for point-in-polygon detection
+ * Ray casting algorithm for point-in-polygon detection
  * @param lat Point latitude
  * @param lng Point longitude
  * @param ring Polygon ring as array of [lng, lat] coordinates
@@ -88,7 +85,7 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
 }
 
 /**
- * AI : Check if a point is inside any of the country's polygons (ray-casting algorithm with hole support)
+ * Check if a point is inside any of the country's polygons (ray-casting algorithm with hole support)
  */
 function isPointInCountry(
   lat: number,
@@ -134,7 +131,7 @@ function isPointInCountry(
 }
 
 /**
- * AI : Detect which country contains the given coordinates.
+ * Detect which country contains the given coordinates.
  * Async because the GeoJSON border data is lazy-loaded on first call.
  * @param lat Latitude
  * @param lng Longitude
@@ -147,7 +144,7 @@ async function detectCountryFromCoordinates(
   const borders = await ensureCountryBordersLoaded();
 
   for (const country of borders) {
-    // AI : Fast bounding box pre-check (75x faster when outside)
+    // Fast bounding box pre-check (75x faster when outside)
     if (!isInBoundingBox(lat, lng, country.bbox)) {
       continue;
     }
@@ -159,22 +156,22 @@ async function detectCountryFromCoordinates(
   return undefined;
 }
 
-// AI : Default max native zoom for Esri layer (safe baseline)
+// Default max native zoom for Esri layer (safe baseline)
 const BASELINE_ESRI_MAX_ZOOM = 18;
 
-// AI : Available tile layer types (FRA and CHE are used internally via auto-detection)
+// Available tile layer types (FRA and CHE are used internally via auto-detection)
 export type TileLayerType = "FRA" | "esri" | "CHE" | "osm";
 
-// AI : Current active tile layer (OSM as default for built-in labels)
+// Current active tile layer (OSM as default for built-in labels)
 export const currentTileLayer = ref<TileLayerType>("osm");
 
-// AI : Reference to the currently active tile layer instance
+// Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
 // To prevent requesting the tileLayer server for tiles outside the valid range
 const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
 
-// AI : Tile layer configurations with UI labels
+// Tile layer configurations with UI labels
 const tileLayerConfigs = {
   osm: {
     label: "Plan",
@@ -232,25 +229,25 @@ const tileLayerConfigs = {
 };
 
 /**
- * AI : Add tile layers and layer control to the map
+ * Add tile layers and layer control to the map
  */
 
 export function addTileLayer(): void {
-  // AI : Check if tile layers were lost during hot reload
+  // Check if tile layers were lost during hot reload
   if (!activeTileLayer) {
     addTileLayersToMap();
   }
 
-  initEsriMetadataListener(); // AI : Start listening for potential high-res availability
-  initAutoCountrySwitchListener(); // AI : Start listening for country-based satellite switching
+  initEsriMetadataListener(); // Start listening for potential high-res availability
+  initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
 
 /**
- * AI : Initialize all tile layers without layer control (using custom control instead)
+ * Initialize all tile layers without layer control (using custom control instead)
  */
 function addTileLayersToMap(): void {
   try {
-    // AI : Create and add OSM layer as default (has built-in labels)
+    // Create and add OSM layer as default (has built-in labels)
     activeTileLayer = createTileLayer("osm");
     activeTileLayer.addTo(map.value);
   } catch (error) {
@@ -262,22 +259,22 @@ function addTileLayersToMap(): void {
 }
 
 /**
- * AI : Create a tile layer based on configuration
+ * Create a tile layer based on configuration
  */
 function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
   const config = tileLayerConfigs[layerType];
   return L.tileLayer(config.url, config.options);
 }
 
-// AI : Timer for fallback removal of old layers
+// Timer for fallback removal of old layers
 let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * AI : Switch to a different tile layer (for custom layer control)
+ * Switch to a different tile layer (for custom layer control)
  */
 export async function switchTileLayer(layerType: TileLayerType) {
-  // AI : Optimization: If switching to satellite, check if we should directly go to a country layer
-  // AI : This prevents loading ESRI first then immediately switching (avoiding "flash" and wasted requests)
+  // Optimization: If switching to satellite, check if we should directly go to a country layer
+  // This prevents loading ESRI first then immediately switching (avoiding "flash" and wasted requests)
   if (layerType === "esri") {
     const currentZoom = map.value.getZoom();
     if (currentZoom > MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
@@ -304,8 +301,8 @@ export async function switchTileLayer(layerType: TileLayerType) {
   activeTileLayer = newLayer;
   currentTileLayer.value = layerType;
 
-  // AI : Robust Cleanup Strategy (Last Write Wins)
-  // AI : Iterate through all layers and remove any TileLayer that is NOT the active one.
+  // Robust Cleanup Strategy (Last Write Wins)
+  // Iterate through all layers and remove any TileLayer that is NOT the active one.
   function cleanupLayers() {
     map.value.eachLayer((layer) => {
       if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
@@ -331,15 +328,15 @@ export function isTileLayerType(value: string): value is TileLayerType {
   return ["FRA", "esri", "CHE", "osm"].includes(value);
 }
 
-// AI : Debounce timer for metadata queries
+// Debounce timer for metadata queries
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-// AI : Cache for max zoom at locations to prevent repeated queries
+// Cache for max zoom at locations to prevent repeated queries
 // Key: "lat,lng" rounded to ~100m, Value: maxZoom
 const maxZoomCache = new Map<string, number>();
 
 /**
- * AI : Query Esri Metadata to look for high-resolution imagery availability
+ * Query Esri Metadata to look for high-resolution imagery availability
  * and dynamically adjust the maxNativeZoom.
  */
 async function checkEsriMaxZoom() {
@@ -367,7 +364,7 @@ async function checkEsriMaxZoom() {
         applyEsriMaxZoom(maxZoom);
       }
     } catch (error) {
-      console.warn("AI : Failed to fetch Esri metadata", error);
+      console.warn("Failed to fetch Esri metadata", error);
     }
   }, 500);
 }
@@ -388,7 +385,7 @@ function applyEsriMaxZoom(zoomLevel: number) {
   }
 }
 
-// AI : Interface for Esri Identify Response
+// Interface for Esri Identify Response
 interface EsriIdentifyResponse {
   results?: {
     attributes: {
@@ -447,7 +444,7 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   return BASELINE_ESRI_MAX_ZOOM;
 }
 
-// AI : Hook up the listener init
+// Hook up the listener init
 function initEsriMetadataListener() {
   map.value.on("moveend", () => {
     void checkEsriMaxZoom();
@@ -455,7 +452,7 @@ function initEsriMetadataListener() {
 }
 
 /**
- * AI : Automatically switch satellite layer based on map view location and zoom
+ * Automatically switch satellite layer based on map view location and zoom
  */
 async function checkAndAutoSwitchSatelliteLayer() {
   if (currentTileLayer.value === "osm") {
@@ -486,7 +483,7 @@ async function checkAndAutoSwitchSatelliteLayer() {
 }
 
 /**
- * AI : Initialize listener for automatic country-based satellite switching
+ * Initialize listener for automatic country-based satellite switching
  */
 function initAutoCountrySwitchListener() {
   map.value.on("moveend", () => {
@@ -494,7 +491,6 @@ function initAutoCountrySwitchListener() {
   });
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

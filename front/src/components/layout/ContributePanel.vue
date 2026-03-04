@@ -1,5 +1,5 @@
-<template>
-  <!-- AI : Full panel for authenticated users -->
+﻿<template>
+  <!-- Full panel for authenticated users -->
   <ProjectAccordionPanel
     :projects="filteredProjects"
     :is-loading="isLoading"
@@ -20,17 +20,17 @@
     "
   >
     <template #project-actions="{ project }">
-      <!-- AI : Edit button - navigates to project for editing -->
+      <!-- Edit button - navigates to project for editing -->
       <button
-        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
         @click.stop="handleEditProjectClick(project)"
         v-tooltip.top="$t('tooltips.editProject')"
       >
         <i class="pi pi-pencil"></i>
       </button>
-      <!-- AI : Add image button - same icon as in UnifiedProjectPopup -->
+      <!-- Add image button - same icon as in UnifiedProjectPopup -->
       <button
-        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-surface-600 hover:text-surface-700 hover:bg-surface-100 hover:border-surface-300"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
         @click.stop="handleAddImageToProject(project)"
         v-tooltip.top="$t('project.addImages')"
       >
@@ -52,9 +52,9 @@
           <circle cx="9" cy="9" r="2" />
         </svg>
       </button>
-      <!-- AI : Save button - uses save icon, disabled when no changes -->
+      <!-- Save button - uses save icon, disabled when no changes -->
       <button
-        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center transition-all duration-150 text-sm text-green-500"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center transition-all duration-150 text-sm text-green-500"
         :class="
           isProjectModified(project.id)
             ? 'cursor-pointer hover:text-green-600 hover:bg-green-50 hover:border-green-200'
@@ -68,7 +68,7 @@
       </button>
       <button
         v-if="!project.status || project.status === 'pending' || project.status === 'rejected'"
-        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
         @click.stop="handleDeleteProjectClick(project)"
         v-tooltip.top="$t('contribute.deleteProject')"
       >
@@ -77,19 +77,19 @@
     </template>
 
     <template #overlay-actions="{ overlay }">
-      <!-- AI : Edit button - hide for replaced overlays (can't be edited) -->
+      <!-- Edit button - hide for replaced overlays (can't be edited) -->
       <button
         v-if="overlay.status !== 'replaced'"
-        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
         @click.stop="handleEditOverlayClick(overlay)"
         v-tooltip.top="$t('tooltips.editOverlay')"
       >
         <i class="pi pi-pencil"></i>
       </button>
-      <!-- AI : Show delete for drafts (null/undefined), pending, or rejected overlays -->
+      <!-- Show delete for drafts (null/undefined), pending, or rejected overlays -->
       <button
         v-if="!overlay.status || overlay.status === 'pending' || overlay.status === 'rejected'"
-        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
         @click.stop="handleDeleteOverlayClick(overlay)"
         v-tooltip.top="$t('contribute.deleteOverlay')"
       >
@@ -100,7 +100,7 @@
     <template #change-actions="{ change }">
       <button
         v-if="change.status === 'pending' || change.status === 'conflicted'"
-        class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
         @click.stop="handleDeleteChangeRequestClick(change)"
         v-tooltip.top="$t('contribute.deleteChangeRequest')"
       >
@@ -111,24 +111,24 @@
     <template #empty-state>
       <p
         v-if="displayedProjects.length === 0"
-        class="text-sm text-muted-color mt-3 max-w-[260px] leading-relaxed"
+        class="text-sm text-muted-color mt-3 max-w-65 leading-relaxed"
       >
         {{ $t("contribute.guest.description") }}
       </p>
     </template>
 
     <template #header-actions>
-      <!-- AI : Wrapper with column layout for two rows -->
+      <!-- Wrapper with column layout for two rows -->
       <div class="flex flex-col gap-3 w-full">
-        <!-- AI : First row - breadcrumb and buttons -->
+        <!-- First row - breadcrumb and buttons -->
         <div class="flex gap-4 items-center justify-between w-full">
           <span class="flex items-center gap-2 text-base min-w-0 flex-1">
             <span
               :class="[
                 'font-semibold shrink-0 transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2',
                 showingCityProjects
-                  ? 'text-primary-500 cursor-pointer hover:text-primary-600 hover:bg-primary-50'
-                  : 'text-surface-800',
+                  ? 'text-primary-color cursor-pointer hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)]'
+                  : 'text-color',
               ]"
               @click="showingCityProjects ? handleMyContributionsClick() : null"
               :title="showingCityProjects ? $t('contribute.viewAllContributions') : ''"
@@ -136,16 +136,16 @@
               {{ $t("contribute.myContributions") }}
             </span>
             <template v-if="showingCityProjects && lastSelectedCity">
-              <span class="text-surface-400 font-normal mx-1 shrink-0">|</span>
+              <span class="text-muted-color font-normal mx-1 shrink-0">|</span>
               <span
-                class="font-semibold text-surface-900 py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
+                class="font-semibold text-color py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
               >
                 {{ lastSelectedCity.name }}
               </span>
             </template>
           </span>
 
-          <!-- AI : Buttons on the right -->
+          <!-- Buttons on the right -->
           <div class="flex gap-2">
             <Button
               @click="handleAddOverlayClick"
@@ -159,13 +159,13 @@
           </div>
         </div>
 
-        <!-- AI : Second row - filters (hidden when no contributions yet) -->
+        <!-- Second row - filters (hidden when no contributions yet) -->
         <div v-if="displayedProjects.length > 0" class="flex items-center gap-4 flex-wrap">
           <div class="flex items-center gap-2">
             <Checkbox v-model="showPending" inputId="showPending" binary />
             <label
               for="showPending"
-              class="text-sm text-surface-600 cursor-pointer whitespace-nowrap"
+              class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
               >{{ $t("help.filters.showPending") }}</label
             >
           </div>
@@ -173,7 +173,7 @@
             <Checkbox v-model="showApproved" inputId="showApproved" binary />
             <label
               for="showApproved"
-              class="text-sm text-surface-600 cursor-pointer whitespace-nowrap"
+              class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
               >{{ $t("help.filters.showApproved") }}</label
             >
           </div>
@@ -208,15 +208,15 @@ import type {
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 
-// AI : Type definition from tRPC backend response for change requests
+// Type definition from tRPC backend response for change requests
 type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
 
 const { t } = useI18n();
 
-// AI : Use cached composable for user contributions (backend only)
+// Use cached composable for user contributions (backend only)
 const { isLoading, fetchUserContributions, allContributions } = useUserContributions();
 
-// AI : Use deletion composable for delete operations
+// Use deletion composable for delete operations
 const {
   handleDeleteOverlay: deleteOverlayWithMarker,
   handleDeleteProject: deleteProjectWithConfirm,
@@ -228,16 +228,16 @@ const projectStore = useProjectStore();
 const mapStore = useMapStore();
 const pendingModsStore = usePendingModificationsStore();
 
-// AI : Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
+// Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
 
-// AI : Filter state - both true by default to show everything
+// Filter state - both true by default to show everything
 const showPending = ref(true);
 const showApproved = ref(true);
 
 const { handleNewProjectClick } = useNewProject();
 
-// AI : Handle new project button click with error feedback
+// Handle new project button click with error feedback
 async function handleAddOverlayClick() {
   const result = await handleNewProjectClick();
   if (!result.success && result.reason === "edit_mode_error") {
@@ -250,37 +250,37 @@ async function handleAddOverlayClick() {
   }
 }
 
-// AI : Toast for delete operations
+// Toast for delete operations
 const toast = useToast();
 
-// AI : Change requests functionality
+// Change requests functionality
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
   useChangeRequests();
 
-// AI : Watch for city and mode changes to fetch appropriate contributions
-// AI : - Edit mode + city selected: ALL projects in that city (so users can contribute to any project)
-// AI : - Otherwise: User's own contributions from anywhere
+// Watch for city and mode changes to fetch appropriate contributions
+// - Edit mode + city selected: ALL projects in that city (so users can contribute to any project)
+// - Otherwise: User's own contributions from anywhere
 watch(
   () => ({ cityId: mapStore.selectedCity?.id, mode: overlayStore.mode }),
   ({ cityId, mode }) => {
     const isEditMode = mode === "edit";
 
-    // AI : Fetch contributions with appropriate scope
-    // AI : includeCityProjects=true returns ALL city projects (not just user's), allowing contributions to any project in the city
+    // Fetch contributions with appropriate scope
+    // includeCityProjects=true returns ALL city projects (not just user's), allowing contributions to any project in the city
     fetchUserContributions({
       cityId: isEditMode ? cityId : undefined,
       includeCityProjects: isEditMode && Boolean(cityId),
     });
   },
-  { immediate: true }, // AI : Run on mount
+  { immediate: true }, // Run on mount
 );
 
-// AI : Just use allContributions directly - backend handles everything!
+// Just use allContributions directly - backend handles everything!
 const displayedProjects = allContributions;
 
-// AI : Track if we're currently showing city-scoped projects or ALL user contributions
+// Track if we're currently showing city-scoped projects or ALL user contributions
 const showingCityProjects = ref(false);
-// AI : Remember the last selected city even after clearing selection
+// Remember the last selected city even after clearing selection
 const lastSelectedCity = ref<{
   id: number;
   name: string;
@@ -288,12 +288,12 @@ const lastSelectedCity = ref<{
   countryCode?: string;
 } | null>(null);
 
-// AI : Update state based on city selection and mode
+// Update state based on city selection and mode
 watch(
   () => ({ city: mapStore.selectedCity, mode: overlayStore.mode }),
   ({ city, mode }) => {
     if (mode === "edit" && city) {
-      // AI : Remember this city and mark as showing city projects
+      // Remember this city and mark as showing city projects
       lastSelectedCity.value = {
         id: city.id,
         name: city.name,
@@ -302,7 +302,7 @@ watch(
       };
       showingCityProjects.value = true;
     } else if (city) {
-      // AI : In view mode, remember city but not showing city projects
+      // In view mode, remember city but not showing city projects
       lastSelectedCity.value = {
         id: city.id,
         name: city.name,
@@ -310,47 +310,47 @@ watch(
         countryCode: city.countryCode,
       };
     }
-    // AI : Don't clear lastSelectedCity when city is cleared - keep it for breadcrumb
+    // Don't clear lastSelectedCity when city is cleared - keep it for breadcrumb
   },
   { immediate: true },
 );
 
-// AI : Handle "My Contributions" click - switch to show only user's contributions
+// Handle "My Contributions" click - switch to show only user's contributions
 function handleMyContributionsClick() {
-  // AI : Switch to user contribution mode
+  // Switch to user contribution mode
   showingCityProjects.value = false;
 
-  // AI : Clear the selected city to exit city-scoped view
+  // Clear the selected city to exit city-scoped view
   mapStore.clearSelectedCity();
 
-  // AI : Fetch all user contributions (no city scoping)
-  // AI : The cache will prevent redundant calls if we've already fetched this
+  // Fetch all user contributions (no city scoping)
+  // The cache will prevent redundant calls if we've already fetched this
   fetchUserContributions();
 }
 
-// AI : Computed filtered projects based on two independent checkboxes
-// AI : Uses displayedProjects which conditionally shows city data or user contributions
+// Computed filtered projects based on two independent checkboxes
+// Uses displayedProjects which conditionally shows city data or user contributions
 const filteredProjects = computed(() => {
-  // AI : If neither checkbox is selected, show nothing
+  // If neither checkbox is selected, show nothing
   if (!showPending.value && !showApproved.value) {
     return [];
   }
 
-  // AI : If both are selected, show everything
+  // If both are selected, show everything
   if (showPending.value && showApproved.value) {
     return displayedProjects.value;
   }
 
-  // AI : Filter based on which checkbox(es) are selected
+  // Filter based on which checkbox(es) are selected
   return displayedProjects.value.filter((project) => {
-    // AI : Treat unsaved/unsubmitted projects (status === null) as pending
+    // Treat unsaved/unsubmitted projects (status === null) as pending
     const isPending = project.status === "pending" || project.status === null;
     const isApproved =
       project.status === "approved" ||
       project.status === "rejected" ||
       project.status === "replaced";
 
-    // AI : Check if project has pending or unsaved overlays/changes (contributes to "pending")
+    // Check if project has pending or unsaved overlays/changes (contributes to "pending")
     const hasPendingOverlays =
       project.overlays?.some(
         (overlay: UserContributionOverlay) =>
@@ -370,12 +370,12 @@ const filteredProjects = computed(() => {
 
     const hasAnyPending = isPending || hasPendingOverlays || hasPendingChanges;
 
-    // AI : Show if "pending" checkbox is on and project has pending items
+    // Show if "pending" checkbox is on and project has pending items
     if (showPending.value && hasAnyPending) {
       return true;
     }
 
-    // AI : Show if "approved" checkbox is on and project is approved (and has no pending items)
+    // Show if "approved" checkbox is on and project is approved (and has no pending items)
     if (showApproved.value && isApproved && !hasAnyPending) {
       return true;
     }
@@ -384,9 +384,9 @@ const filteredProjects = computed(() => {
   });
 });
 
-// AI : Handle delete overlay click - uses shared deletion composable
+// Handle delete overlay click - uses shared deletion composable
 async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
-  // AI : Find the project that contains this overlay
+  // Find the project that contains this overlay
   const project = displayedProjects.value.find((displayedProject: UserContribution) =>
     displayedProject.overlays?.some(
       (overlayElement: UserContributionOverlay) => overlayElement.id === overlay.id,
@@ -416,71 +416,71 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   }
 }
 
-// AI : Check if overlay is modified using unified pendingModificationsStore
+// Check if overlay is modified using unified pendingModificationsStore
 function isOverlayModified(overlayId: string): boolean {
-  // AI : Check unified pending modifications store
+  // Check unified pending modifications store
   if (pendingModsStore.hasPendingModifications(overlayId)) {
     return true;
   }
 
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) {
-    // AI : Overlay not loaded in store - check edit mode cache for unsaved position changes
+    // Overlay not loaded in store - check edit mode cache for unsaved position changes
     const cached = overlayStore.getFromEditModeCache(overlayId);
     return cached?.isModified ?? false;
   }
   return overlayObject.isModified ?? false;
 }
 
-// AI : Handle edit overlay click - opens the shared OverlayEditor dialog via store
-// AI : This uses the SAME dialog component that PopupContainer uses
+// Handle edit overlay click - opens the shared OverlayEditor dialog via store
+// This uses the SAME dialog component that PopupContainer uses
 function handleEditOverlayClick(overlay: OverlayForModeration) {
-  // AI : Prefer the live store object so in-memory caption changes are not lost on reopen
+  // Prefer the live store object so in-memory caption changes are not lost on reopen
   const liveOverlay = overlayStore.overlays[overlay.id];
   if (liveOverlay) {
     uiStore.openOverlayEditDialog(liveOverlay);
     return;
   }
-  // AI : Fallback: overlay not yet loaded in store (e.g. not on map)
-  // AI : Only id + caption are needed — openOverlayEditDialog accepts OverlayEditTarget
+  // Fallback: overlay not yet loaded in store (e.g. not on map)
+  // Only id + caption are needed — openOverlayEditDialog accepts OverlayEditTarget
   uiStore.openOverlayEditDialog({
     id: overlay.id,
     caption: overlay.name ?? null,
   });
 }
 
-// AI : Handle add image to project - open dialog for image upload instructions
+// Handle add image to project - open dialog for image upload instructions
 function handleAddImageToProject(project: ProjectForModeration) {
-  // AI : Open the instructional dialog
+  // Open the instructional dialog
   uiStore.openImageUploadDialog(project.id);
 }
 
-// AI : Check if project or any of its overlays is modified
+// Check if project or any of its overlays is modified
 function isProjectModified(projectId: string): boolean {
-  // AI : First check if the project itself is modified (from edit form)
+  // First check if the project itself is modified (from edit form)
   const projectInStore = projectStore.projects[projectId];
   if (projectInStore?.isModified) return true;
 
-  // AI : Check for any pending modifications in the unified store (matches infopopup logic)
+  // Check for any pending modifications in the unified store (matches infopopup logic)
   if (pendingModsStore.getModificationCountForProject(projectId) > 0) {
     return true;
   }
 
-  // AI : Check for NEW overlays in overlayStore (status null, never submitted)
-  // AI : This catches overlays that were just added but not yet moved
+  // Check for NEW overlays in overlayStore (status null, never submitted)
+  // This catches overlays that were just added but not yet moved
   const hasNewOverlays = Object.values(overlayStore.overlays).some(
     (overlay) => overlay.projectId === projectId && overlay.status === null,
   );
   if (hasNewOverlays) return true;
 
-  // AI : Also check all overlays for this project from displayed projects
+  // Also check all overlays for this project from displayed projects
   const project = displayedProjects.value.find((p: UserContribution) => p.id === projectId);
   if (!project?.overlays) return false;
 
   return project.overlays.some((overlay: UserContributionOverlay) => isOverlayModified(overlay.id));
 }
 
-// AI : Get save button tooltip based on project status and modification state
+// Get save button tooltip based on project status and modification state
 function getProjectSaveTooltip(project: ProjectForModeration): string {
   if (!isProjectModified(project.id)) {
     return t("overlay.noChangesToSave");
@@ -488,34 +488,34 @@ function getProjectSaveTooltip(project: ProjectForModeration): string {
   return t("project.submitChangeRequest");
 }
 
-// AI : Handle save project click - uses shared submission dialog composable
+// Handle save project click - uses shared submission dialog composable
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return;
 
-  // AI : Check if project itself has changes (not just overlays)
+  // Check if project itself has changes (not just overlays)
   const projectInStore = projectStore.projects[project.id];
   const projectHasChanges = projectInStore?.isModified ?? false;
 
-  // AI : Use composable to prepare and show submission dialog
+  // Use composable to prepare and show submission dialog
   prepareProjectWithOverlaysSubmission(project, projectHasChanges);
 }
 
-// AI : Handle edit project click - opens project edit form
+// Handle edit project click - opens project edit form
 function handleEditProjectClick(project: ProjectForModeration) {
-  // AI : Get the latest project data from displayedProjects (not the potentially stale passed parameter)
+  // Get the latest project data from displayedProjects (not the potentially stale passed parameter)
   const latestProjectData = displayedProjects.value.find(
     (p: UserContribution) => p.id === project.id,
   );
   const projectToEdit = latestProjectData ?? project;
 
-  // AI : Open the project edit form via uiStore
-  // AI : Use unknown as intermediate type since ProjectForModeration may not have all Project fields
+  // Open the project edit form via uiStore
+  // Use unknown as intermediate type since ProjectForModeration may not have all Project fields
   uiStore.openProjectEditForm(projectToEdit as unknown as Project);
 }
 
-// AI : Load initial data
+// Load initial data
 onMounted(() => {
-  // AI : Force user-only mode to show only this user's change requests, even for moderators
+  // Force user-only mode to show only this user's change requests, even for moderators
   refreshPendingChangeRequests(true);
 });
 </script>

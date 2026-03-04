@@ -25,12 +25,12 @@ const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });
 
-// AI : Helper to check if entity type is supported
+// Helper to check if entity type is supported
 function isSupportedEntityType(type: string): type is EntityType {
   return type === "project" || type === "overlay";
 }
 
-// AI : Helper function to convert corners JSON array to PostGIS polygon geometry
+// Helper function to convert corners JSON array to PostGIS polygon geometry
 function convertCornersToGeometry(cornersValue: unknown) {
   const cornersArray = cornersValue as { lat: number; lng: number }[];
   if (!Array.isArray(cornersArray) || cornersArray.length !== 4) {
@@ -40,8 +40,8 @@ function convertCornersToGeometry(cornersValue: unknown) {
     });
   }
 
-  // AI : Build polygon using parameterized PostGIS functions to prevent SQL injection
-  // AI : SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
+  // Build polygon using parameterized PostGIS functions to prevent SQL injection
+  // SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
   const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
   return sql`ST_MakePolygon(
     ST_MakeLine(ARRAY[
@@ -54,7 +54,7 @@ function convertCornersToGeometry(cornersValue: unknown) {
   )`;
 }
 
-// AI : Helper function to convert coordinate object to PostGIS point geometry
+// Helper function to convert coordinate object to PostGIS point geometry
 function convertCoordinateToGeometry(coordValue: unknown) {
   const coordObj = coordValue as { lat: number; lng: number };
   if (!coordObj || typeof coordObj.lat !== "number" || typeof coordObj.lng !== "number") {
@@ -67,7 +67,7 @@ function convertCoordinateToGeometry(coordValue: unknown) {
   return sql`ST_SetSRID(ST_MakePoint(${coordObj.lng}, ${coordObj.lat}), 4326)`;
 }
 
-// AI : Helper function to build update data with proper geometry handling
+// Helper function to build update data with proper geometry handling
 function buildUpdateData(change: { entityType: string; fieldName: string; newValue: unknown }) {
   const isOverlayCornersField = change.entityType === "overlay" && change.fieldName === "corners";
   const isOverlayCentroidField = change.entityType === "overlay" && change.fieldName === "centroid";
@@ -86,16 +86,16 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
     return { centerCoordinate: convertCoordinateToGeometry(change.newValue) };
   }
 
-  // AI : For non-geometry fields, use the value directly
+  // For non-geometry fields, use the value directly
   return { [change.fieldName]: change.newValue };
 }
 
-// AI : Helper to get country code for an entity (project or overlay)
+// Helper to get country code for an entity (project or overlay)
 async function getEntityCountryCode(
   entityType: EntityType,
   entityId: string,
 ): Promise<string | undefined> {
-  // AI : Build query based on entity type - projects join city directly, overlays via projects
+  // Build query based on entity type - projects join city directly, overlays via projects
   const query =
     entityType === "project"
       ? db
@@ -114,17 +114,17 @@ async function getEntityCountryCode(
   return result[0]?.countryCode;
 }
 
-// AI : Helper to check if moderator has permission for a change request's country
+// Helper to check if moderator has permission for a change request's country
 async function checkModeratorChangeRequestPermission(
   changeRequestId: string,
   user: { role: string | null; moderatedCountries: string[] | null },
 ): Promise<string> {
-  // AI : Admins can moderate any country
+  // Admins can moderate any country
   if (user.role === "admin" || user.moderatedCountries === null) {
     return "*";
   }
 
-  // AI : Get the change request and its entity's country code
+  // Get the change request and its entity's country code
   const changeRequest = await db
     .select({
       entityType: changeRequests.entityType,
@@ -141,7 +141,7 @@ async function checkModeratorChangeRequestPermission(
 
   const { entityType, entityId } = request;
 
-  // AI : Get country code for the entity
+  // Get country code for the entity
   if (!isSupportedEntityType(entityType)) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
@@ -150,14 +150,14 @@ async function checkModeratorChangeRequestPermission(
     });
   }
 
-  // AI : Get country code for the entity
+  // Get country code for the entity
   const countryCode = await getEntityCountryCode(entityType, entityId);
 
   if (!countryCode) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Entity not found" });
   }
 
-  // AI : Check if moderator has permission for this country
+  // Check if moderator has permission for this country
   if (!user.moderatedCountries.includes(countryCode)) {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -168,7 +168,7 @@ async function checkModeratorChangeRequestPermission(
   return countryCode;
 }
 
-// AI : Common select fields for change requests with user info
+// Common select fields for change requests with user info
 const changeRequestSelectFields = {
   id: changeRequests.id,
   entityType: changeRequests.entityType,
@@ -191,7 +191,7 @@ export const changesRouter = router({
       try {
         const userId = ctx.user.id;
 
-        // AI : Spam prevention - block banned or heavily reported users
+        // Spam prevention - block banned or heavily reported users
         if (await isUserBlocked(userId)) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -199,7 +199,7 @@ export const changesRouter = router({
           });
         }
 
-        // AI : Rate limit: 20 change requests per IP per hour
+        // Rate limit: 20 change requests per IP per hour
         const ip = getClientIp(ctx.hono);
         if (!globalRateLimiter.check(ip, 20, 60 * 60 * 1000)) {
           throw new TRPCError({
@@ -208,11 +208,11 @@ export const changesRouter = router({
           });
         }
 
-        // AI : Process each change request - replace existing ones for the same field from the same user
+        // Process each change request - replace existing ones for the same field from the same user
         await db.transaction(async (tx) => {
           for (const change of input.changes) {
-            // AI : Delete any existing pending/conflicted change request for the same field from the same user
-            // AI : This allows users to update their suggestions without creating duplicates
+            // Delete any existing pending/conflicted change request for the same field from the same user
+            // This allows users to update their suggestions without creating duplicates
             await tx
               .delete(changeRequests)
               .where(
@@ -225,9 +225,9 @@ export const changesRouter = router({
                 ),
               );
 
-            // AI : Insert the new change request with 'pending' status
-            // AI : Multiple users can have pending changes for the same field
-            // AI : 'conflicted' status is only set by moderators as a soft rejection when approving a competing change
+            // Insert the new change request with 'pending' status
+            // Multiple users can have pending changes for the same field
+            // 'conflicted' status is only set by moderators as a soft rejection when approving a competing change
             await tx.insert(changeRequests).values({
               entityType: input.entityType,
               entityId: input.entityId,
@@ -244,7 +244,7 @@ export const changesRouter = router({
         return { success: true };
       } catch (error) {
         console.error("Error submitting change request:", error);
-        // AI : Log detailed error information for debugging
+        // Log detailed error information for debugging
         if (error instanceof Error) {
           console.error("Error message:", error.message);
           console.error("Error stack:", error.stack);
@@ -263,7 +263,7 @@ export const changesRouter = router({
       try {
         const userId = ctx.user.id;
 
-        // AI : Get change request to check permissions and status
+        // Get change request to check permissions and status
         const changeRequestResult = await db
           .select({
             id: changeRequests.id,
@@ -279,7 +279,7 @@ export const changesRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Change request not found" });
         }
 
-        // AI : Only the requester can delete their own change request
+        // Only the requester can delete their own change request
         if (changeRequest.requestedBy !== userId) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -287,7 +287,7 @@ export const changesRouter = router({
           });
         }
 
-        // AI : Only pending and conflicted change requests can be deleted
+        // Only pending and conflicted change requests can be deleted
         if (changeRequest.status !== "pending" && changeRequest.status !== "conflicted") {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -295,7 +295,7 @@ export const changesRouter = router({
           });
         }
 
-        // AI : Delete the change request
+        // Delete the change request
         await db.delete(changeRequests).where(eq(changeRequests.id, input.id));
 
         return { success: true };
@@ -313,7 +313,7 @@ export const changesRouter = router({
     try {
       const userId = ctx.user.id;
 
-      // AI : Only show pending/conflicted change requests (not approved/rejected)
+      // Only show pending/conflicted change requests (not approved/rejected)
       const myChanges = await db
         .select(changeRequestSelectFields)
         .from(changeRequests)
@@ -326,15 +326,15 @@ export const changesRouter = router({
         )
         .orderBy(changeRequests.createdAt);
 
-      // AI : Add hasConflict field to maintain type consistency with getPendingChangeRequests
-      // AI : For user's own changes, we show conflicts when status is 'conflicted' (another change was chosen)
+      // Add hasConflict field to maintain type consistency with getPendingChangeRequests
+      // For user's own changes, we show conflicts when status is 'conflicted' (another change was chosen)
       const changesWithConflictInfo = myChanges.map((change) => {
         return Object.assign({}, change, {
           hasConflict: change.status === "conflicted",
         });
       });
 
-      // AI : Enrich with city and country names
+      // Enrich with city and country names
       const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
 
       return enrichedChanges;
@@ -352,8 +352,8 @@ export const changesRouter = router({
       const userModeratedCountries = ctx.user.moderatedCountries;
       const isAdmin = ctx.user.role === "admin";
 
-      // AI : Only show 'pending' changes to moderators
-      // AI : 'conflicted' status means "another change was chosen" (soft rejection by moderator)
+      // Only show 'pending' changes to moderators
+      // 'conflicted' status means "another change was chosen" (soft rejection by moderator)
       const pendingChanges = await db
         .select(changeRequestSelectFields)
         .from(changeRequests)
@@ -361,10 +361,10 @@ export const changesRouter = router({
         .where(eq(changeRequests.status, "pending"))
         .orderBy(changeRequests.createdAt);
 
-      // AI : Filter change requests by moderator's assigned countries
+      // Filter change requests by moderator's assigned countries
       let filteredChanges = pendingChanges;
       if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
-        // AI : Get country codes for all change requests
+        // Get country codes for all change requests
         const changeRequestCountries = await Promise.all(
           pendingChanges.map(async (change) => {
             try {
@@ -376,7 +376,7 @@ export const changesRouter = router({
           }),
         );
 
-        // AI : Filter to only changes in moderator's countries
+        // Filter to only changes in moderator's countries
         const allowedChangeIds = new Set(
           changeRequestCountries
             .filter((c) => c.countryCode && userModeratedCountries.includes(c.countryCode))
@@ -386,10 +386,10 @@ export const changesRouter = router({
         filteredChanges = pendingChanges.filter((change) => allowedChangeIds.has(change.id));
       }
 
-      // AI : Add hasConflict flag to changes that have competing requests
+      // Add hasConflict flag to changes that have competing requests
       const changesWithConflictInfo = addConflictFlags(filteredChanges);
 
-      // AI : Enrich with city and country names
+      // Enrich with city and country names
       const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
 
       return enrichedChanges;
@@ -415,7 +415,7 @@ export const changesRouter = router({
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
         }
 
-        // AI : Check moderator has permission for all change requests
+        // Check moderator has permission for all change requests
         for (const changeRequestId of input.changeRequestIds) {
           await checkModeratorChangeRequestPermission(changeRequestId, ctx.user);
         }
@@ -427,7 +427,7 @@ export const changesRouter = router({
 
         for (const change of changesToApprove) {
           await db.transaction(async (tx) => {
-            // AI : Build update data with proper handling for geometry fields
+            // Build update data with proper handling for geometry fields
             const updateData = buildUpdateData(change);
 
             if (change.entityType === "project") {
@@ -447,7 +447,7 @@ export const changesRouter = router({
               approvedBy: moderatorUserId,
             });
 
-            // AI : Mark this change as approved instead of deleting
+            // Mark this change as approved instead of deleting
             await tx
               .update(changeRequests)
               .set({
@@ -457,7 +457,7 @@ export const changesRouter = router({
               })
               .where(eq(changeRequests.id, change.id));
 
-            // AI : Increment the requester's approved count
+            // Increment the requester's approved count
             if (change.requestedBy) {
               await tx
                 .update(users)
@@ -465,9 +465,9 @@ export const changesRouter = router({
                 .where(eq(users.id, change.requestedBy));
             }
 
-            // AI : Mark all other pending changes for the same field as 'conflicted' (soft rejection)
-            // AI : This tells users their suggestion wasn't chosen, not that it was invalid
-            // AI : Note: 'conflicted' does NOT count as rejection (user's suggestion was valid, just not chosen)
+            // Mark all other pending changes for the same field as 'conflicted' (soft rejection)
+            // This tells users their suggestion wasn't chosen, not that it was invalid
+            // Note: 'conflicted' does NOT count as rejection (user's suggestion was valid, just not chosen)
             await tx
               .update(changeRequests)
               .set({
@@ -510,20 +510,20 @@ export const changesRouter = router({
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
         }
 
-        // AI : Check moderator has permission for all change requests
+        // Check moderator has permission for all change requests
         for (const changeRequestId of input.changeRequestIds) {
           await checkModeratorChangeRequestPermission(changeRequestId, ctx.user);
         }
 
-        // AI : Get the requestedBy for each change request to increment their rejection counts
+        // Get the requestedBy for each change request to increment their rejection counts
         const changesToReject = await db
           .select({ id: changeRequests.id, requestedBy: changeRequests.requestedBy })
           .from(changeRequests)
           .where(inArray(changeRequests.id, input.changeRequestIds));
 
-        // AI : Use transaction to atomically update status and increment rejection counts
+        // Use transaction to atomically update status and increment rejection counts
         await db.transaction(async (tx) => {
-          // AI : Mark changes as rejected instead of deleting (for audit trail)
+          // Mark changes as rejected instead of deleting (for audit trail)
           await tx
             .update(changeRequests)
             .set({
@@ -533,7 +533,7 @@ export const changesRouter = router({
             })
             .where(inArray(changeRequests.id, input.changeRequestIds));
 
-          // AI : Increment rejection count for each requester
+          // Increment rejection count for each requester
           for (const change of changesToReject) {
             if (change.requestedBy) {
               await tx

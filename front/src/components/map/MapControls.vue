@@ -1,8 +1,6 @@
 <template>
-  <div
-    class="absolute top-[72px] left-4 z-[1000] flex flex-col gap-3 transition-opacity duration-300"
-  >
-    <!-- AI : Zoom Controls -->
+  <div class="absolute top-18 left-4 z-1000 flex flex-col gap-3 transition-opacity duration-300">
+    <!-- Zoom Controls -->
     <div class="flex flex-col gap-1.5 mb-3">
       <Button
         @click.stop="handleZoomIn"
@@ -25,12 +23,12 @@
     </div>
 
     <div class="flex flex-col gap-1.5 mb-3">
-      <!-- AI : Filter Control (View Mode Only) -->
+      <!-- Filter Control (View Mode Only) -->
       <FilterControl v-if="mode !== 'edit'" @filter-overlays="handleFilterOverlays" />
     </div>
   </div>
 
-  <!-- AI : Help button to guide user to click markers -->
+  <!-- Help button to guide user to click markers -->
   <MarkerHelpButton />
 </template>
 
@@ -51,23 +49,23 @@ const { isMobile } = useIsMobile();
 
 const { mode } = storeToRefs(overlayStore);
 
-// AI : Emit events to parent for complex operations that require access to map state
+// Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{
   "filter-overlays": [status: viewModeMarkerColor];
 }>();
 
-// AI : Handle filter overlays event from FilterControl
+// Handle filter overlays event from FilterControl
 function handleFilterOverlays(status: viewModeMarkerColor) {
   emit("filter-overlays", status);
 }
 
-// AI : Helper to zoom with mobile offset - keeps focus on upper visible area
+// Helper to zoom with mobile offset - keeps focus on upper visible area
 function zoomWithMobileOffset(zoomDelta: number) {
   const isMobile = globalThis.innerWidth <= 768;
   const shouldOffset = isMobile && uiStore.mobileDrawerVisible;
 
   if (!shouldOffset) {
-    // AI : Desktop or drawer closed - use normal zoom with larger delta on mobile
+    // Desktop or drawer closed - use normal zoom with larger delta on mobile
     if (zoomDelta > 0) {
       map.value.zoomIn(isMobile ? 1 : undefined);
     } else {
@@ -76,31 +74,31 @@ function zoomWithMobileOffset(zoomDelta: number) {
     return;
   }
 
-  // AI : Mobile with drawer open - zoom but shift center to keep visible area stable
-  // AI : Strategy: Calculate where the "visual center" (accounting for drawer) currently is,
-  // AI : then zoom to that point so it stays in the same visible position
+  // Mobile with drawer open - zoom but shift center to keep visible area stable
+  // Strategy: Calculate where the "visual center" (accounting for drawer) currently is,
+  // then zoom to that point so it stays in the same visible position
 
-  // AI : The visual center is at 27.5% from top (middle of the 55% visible area)
+  // The visual center is at 27.5% from top (middle of the 55% visible area)
   const visualCenterY = globalThis.innerHeight * 0.275;
   const screenCenterX = globalThis.innerWidth / 2;
 
-  // AI : Get the lat/lng at the visual center point
+  // Get the lat/lng at the visual center point
   const visualCenterPoint = L.point(screenCenterX, visualCenterY);
   const visualCenterLatLng = map.value.containerPointToLatLng(visualCenterPoint);
 
-  // AI : Now zoom to that lat/lng - when it centers on this point,
-  // AI : that point will be at screen center, but since our "visual center" was already
-  // AI : accounting for the drawer, the visible content stays stable
+  // Now zoom to that lat/lng - when it centers on this point,
+  // that point will be at screen center, but since our "visual center" was already
+  // accounting for the drawer, the visible content stays stable
   const newZoom = map.value.getZoom() + (zoomDelta > 0 ? 1 : -1);
   map.value.setZoomAround(visualCenterLatLng, newZoom, { animate: true });
 }
 
-// AI : Handle zoom in
+// Handle zoom in
 function handleZoomIn() {
   zoomWithMobileOffset(1);
 }
 
-// AI : Handle zoom out
+// Handle zoom out
 function handleZoomOut() {
   zoomWithMobileOffset(-1);
 }

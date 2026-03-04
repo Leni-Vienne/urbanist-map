@@ -1,9 +1,9 @@
-// AI : ============================================================================
-// AI : OVERLAY MARKERS - Marker creation and update functions
-// AI : ============================================================================
-// AI : Extracted from useOverlay.ts to manage overlay marker lifecycle
-// AI : These functions handle creating, positioning, and styling overlay markers
-// AI : ============================================================================
+// ============================================================================
+// OVERLAY MARKERS - Marker creation and update functions
+// ============================================================================
+// Extracted from useOverlay.ts to manage overlay marker lifecycle
+// These functions handle creating, positioning, and styling overlay markers
+// ============================================================================
 
 import L from "leaflet";
 import { map } from "@/services/core/map";
@@ -28,11 +28,11 @@ import {
 } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
-// AI : useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
+// useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
 /**
- * AI : Update the marker position based on overlay center
+ * Update the marker position based on overlay center
  */
 export function updateMarkerPosition(overlayObject: OverlayObject): void {
   const layer = registry.getLayer(overlayObject.id);
@@ -41,8 +41,8 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
     return;
   }
 
-  // AI : Calculate centroid from corners (average of all 4 corners) to match backend calculation
-  // AI : This ensures marker position doesn't jump when zooming in/out
+  // Calculate centroid from corners (average of all 4 corners) to match backend calculation
+  // This ensures marker position doesn't jump when zooming in/out
   const corners = layer.getCorners();
   if (corners.length === 4) {
     const centroidLat = (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4;
@@ -52,7 +52,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Update marker tooltip based on overlay storage status
+ * Update marker tooltip based on overlay storage status
  * @param overlayObject - The overlay object to update
  * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
  */
@@ -67,18 +67,18 @@ export function updateMarkerTooltip(
 
   const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, overlayStore.mode);
 
-  // AI : Skip setIcon() if color hasn't changed — setIcon() detaches and rebuilds the marker's
-  // AI : DOM element even when the icon is visually identical, causing unnecessary layout cost.
-  // AI : We track the current color on the marker object directly (no separate Map needed,
-  // AI : no cleanup required when the marker is removed).
+  // Skip setIcon() if color hasn't changed — setIcon() detaches and rebuilds the marker's
+  // DOM element even when the icon is visually identical, causing unnecessary layout cost.
+  // We track the current color on the marker object directly (no separate Map needed,
+  // no cleanup required when the marker is removed).
   const markerWithColor = marker as L.Marker & { _cmorgColor?: MarkerColor };
   if (markerWithColor._cmorgColor !== markerColor) {
     marker.setIcon(createOverlayIcon(markerColor));
     markerWithColor._cmorgColor = markerColor;
   }
 
-  // AI : View mode: ensure no tooltip is bound
-  // AI : Edit & Moderation modes: show tooltips
+  // View mode: ensure no tooltip is bound
+  // Edit & Moderation modes: show tooltips
   if (overlayStore.mode === "view") {
     if (marker.getTooltip()) {
       marker.unbindTooltip();
@@ -86,7 +86,7 @@ export function updateMarkerTooltip(
     return;
   }
   /**
-   * AI : Helper to generate tooltip text based on overlay state
+   * Helper to generate tooltip text based on overlay state
    */
   function getTooltipTextForOverlay(): string {
     const hasBeenModified = overlayObject.isModified;
@@ -129,7 +129,7 @@ export function updateMarkerTooltip(
 
   const tooltipText = getTooltipTextForOverlay();
 
-  // AI : Update tooltip content if it exists, otherwise bind new one
+  // Update tooltip content if it exists, otherwise bind new one
   if (marker.getTooltip()) {
     marker.setTooltipContent(tooltipText);
   } else {
@@ -142,12 +142,12 @@ export function updateMarkerTooltip(
 }
 
 /**
- * AI : Create a single marker for an overlay (for view mode overlays)
+ * Create a single marker for an overlay (for view mode overlays)
  */
 export function createSingleMarker(savedOverlay: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
-  // AI : Skip replaced overlays - the replacement is at the same location, marker would be confusing
+  // Skip replaced overlays - the replacement is at the same location, marker would be confusing
   if (savedOverlay.status === "replaced") {
     return;
   }
@@ -156,15 +156,15 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     return;
   }
 
-  // AI : CRITICAL: Safety check for visibility
-  // AI : This prevents markers from being created for filtered-out overlays during race conditions
+  // CRITICAL: Safety check for visibility
+  // This prevents markers from being created for filtered-out overlays during race conditions
   const authStore = useAuthStore();
   if (!isOverlayVisible(savedOverlay, overlayStore.mode, authStore.user?.id)) {
     return;
   }
 
-  // AI : Calculate centroid from corners using shared utility to match backend calculation
-  // AI : Check edit cache first to prevent flicker when zooming back in on modified overlays
+  // Calculate centroid from corners using shared utility to match backend calculation
+  // Check edit cache first to prevent flicker when zooming back in on modified overlays
   let corners = savedOverlay.corners;
   if (overlayStore.mode === "edit") {
     const cached = overlayStore.getFromEditModeCache(savedOverlay.id);
@@ -183,7 +183,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   }
   const center = L.latLng(centroid.lat, centroid.lng);
 
-  // AI : Enrich overlay with project data for proper marker color calculation
+  // Enrich overlay with project data for proper marker color calculation
   const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
   const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.mode);
   const colorIcon = createOverlayIcon(markerColor);
@@ -192,17 +192,17 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     icon: colorIcon,
   }).addTo(map.value);
 
-  // AI : Add click handler to select/deselect overlay when marker is clicked
+  // Add click handler to select/deselect overlay when marker is clicked
   marker.on("click", (e) => {
-    // AI : Stop propagation to prevent map click handler (deselection) from firing
+    // Stop propagation to prevent map click handler (deselection) from firing
     L.DomEvent.stopPropagation(e);
 
     const overlayObject = overlayStore.overlays[savedOverlay.id];
     if (!overlayObject) return;
 
-    // AI : Set position state for dynamic button feedback
-    // AI : If no explicit position state, default to showing approved position
-    // AI : UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
+    // Set position state for dynamic button feedback
+    // If no explicit position state, default to showing approved position
+    // UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
     if (overlayObject.isViewingApprovedPosition === undefined) {
       if (overlayObject.hasPendingChanges) {
         overlayObject.isViewingApprovedPosition = false;
@@ -211,10 +211,10 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
       }
     }
 
-    // AI : Sync preview state for reactive button highlighting in change request UI
+    // Sync preview state for reactive button highlighting in change request UI
     syncPreviewStateOnNavigation(savedOverlay.id, overlayObject.isViewingApprovedPosition ?? true);
 
-    // AI : Fly to overlay bounds first
+    // Fly to overlay bounds first
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, {
@@ -224,11 +224,11 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
       });
     }
 
-    // AI : In moderation mode, clicking a contribution should load the city context (like clicking a city marker)
-    // AI : Check for overlayObject.project which should now be populated by enrichOverlayWithProject
+    // In moderation mode, clicking a contribution should load the city context (like clicking a city marker)
+    // Check for overlayObject.project which should now be populated by enrichOverlayWithProject
     syncModerationCityFromOverlay(overlayObject);
 
-    // AI : Toggle selection - selectOverlay handles overlay.select() internally
+    // Toggle selection - selectOverlay handles overlay.select() internally
     if (overlayStore.idSelectedOverlay === savedOverlay.id) {
       selectOverlay(null);
     } else {
@@ -236,8 +236,8 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     }
   });
 
-  // AI : Add hover handlers to highlight overlay on marker hover
-  // AI : Capture projectId to avoid non-null assertion inside callbacks
+  // Add hover handlers to highlight overlay on marker hover
+  // Capture projectId to avoid non-null assertion inside callbacks
   const projectId = savedOverlay.projectId;
   if (projectId) {
     marker.on("mouseover", () => {
@@ -250,27 +250,27 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   }
 
   registry.setMarker(savedOverlay.id, marker);
-  // AI : Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
+  // Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
   updateMarkerTooltip(tempOverlayObject, markerColor);
 }
 
 /**
- * AI : Create a marker for new/replacement overlays (for edit mode)
+ * Create a marker for new/replacement overlays (for edit mode)
  */
 export function createMarker(overlayObject: OverlayObject): void {
   const overlayStore = useOverlayStore();
 
-  // AI : CRITICAL: Safety check for visibility
+  // CRITICAL: Safety check for visibility
   const authStore = useAuthStore();
   if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
     return;
   }
 
-  // AI : Use current map center as initial marker position
+  // Use current map center as initial marker position
   const center = map.value.getCenter();
 
-  // AI : Determine marker color based on overlay state
-  // AI : Let getOverlayMarkerColor handle all color logic including replacements after submission
+  // Determine marker color based on overlay state
+  // Let getOverlayMarkerColor handle all color logic including replacements after submission
   const markerColor = getOverlayMarkerColor(overlayObject, "edit");
   const colorIcon = createOverlayIcon(markerColor);
 
@@ -278,9 +278,9 @@ export function createMarker(overlayObject: OverlayObject): void {
     icon: colorIcon,
   }).addTo(map.value);
 
-  // AI : Add click handler to marker to select the overlay
+  // Add click handler to marker to select the overlay
   marker.on("click", () => {
-    // AI : Fly to overlay bounds first
+    // Fly to overlay bounds first
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, {
@@ -290,14 +290,14 @@ export function createMarker(overlayObject: OverlayObject): void {
       });
     }
 
-    // AI : selectOverlay handles overlay.select() internally
+    // selectOverlay handles overlay.select() internally
     selectOverlay(overlayObject.id);
   });
 
-  // AI : Register marker in registry
+  // Register marker in registry
   registry.setMarker(overlayObject.id, marker);
 
-  // AI : Update marker tooltip with proper styling
+  // Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);
 }
 
@@ -336,8 +336,8 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
 }
 
 /**
- * AI : Check overlay size in real-time and show visual warning if too large.
- * AI : Moved here from overlayEditing to break the overlayRendering ↔ overlayEditing cycle.
+ * Check overlay size in real-time and show visual warning if too large.
+ * Moved here from overlayEditing to break the overlayRendering ↔ overlayEditing cycle.
  */
 export function checkOverlaySizeAndWarn(
   overlay: L.DistortableImageOverlay,
@@ -345,7 +345,7 @@ export function checkOverlaySizeAndWarn(
 ): void {
   const corners = overlay.getCorners();
 
-  // AI : Guard clause - corners can be undefined for newly created overlays
+  // Guard clause - corners can be undefined for newly created overlays
   if (corners.length !== 4) {
     return;
   }
@@ -356,26 +356,26 @@ export function checkOverlaySizeAndWarn(
   const element = overlay.getElement();
   if (!element) return;
 
-  // AI : Resolve store once — needed to sync isTooBig so that subsequent
-  // AI : updateOverlay (Object.assign from store) propagates the correct value.
-  // AI : Without this, the store retains a stale isTooBig:true after the overlay
-  // AI : becomes valid again, causing the drag handler (which reads from the store)
-  // AI : to wrongly color the marker red.
+  // Resolve store once — needed to sync isTooBig so that subsequent
+  // updateOverlay (Object.assign from store) propagates the correct value.
+  // Without this, the store retains a stale isTooBig:true after the overlay
+  // becomes valid again, causing the drag handler (which reads from the store)
+  // to wrongly color the marker red.
   const overlayStore = useOverlayStore();
 
   if (!validation.isValid) {
-    // AI : Add red border to indicate size problem
+    // Add red border to indicate size problem
     element.style.border = "4px solid #ef4444";
     element.style.boxShadow = "0 0 0 2px rgba(239, 68, 68, 0.3)";
 
-    // AI : Update marker color if not already marked
+    // Update marker color if not already marked
     if (!overlayObject.isTooBig) {
       overlayObject.isTooBig = true;
       overlayStore.updateOverlay(overlayObject.id, { isTooBig: true });
       updateMarkerTooltip(overlayObject);
     }
 
-    // AI : Show toast message every time overlay is edited while too large
+    // Show toast message every time overlay is edited while too large
     const toast = useToast();
     toast.add({
       severity: "warn",
@@ -384,11 +384,11 @@ export function checkOverlaySizeAndWarn(
       life: 3000,
     });
   } else {
-    // AI : Remove warning styling
+    // Remove warning styling
     element.style.border = "";
     element.style.boxShadow = "";
 
-    // AI : Clear size issue flag and update marker color
+    // Clear size issue flag and update marker color
     if (overlayObject.isTooBig) {
       overlayObject.isTooBig = false;
       overlayStore.updateOverlay(overlayObject.id, { isTooBig: false });
@@ -397,7 +397,6 @@ export function checkOverlaySizeAndWarn(
   }
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

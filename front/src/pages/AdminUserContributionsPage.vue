@@ -1,5 +1,5 @@
-<template>
-  <div class="p-8 max-w-[1200px] mx-auto h-full overflow-y-auto">
+﻿<template>
+  <div class="p-8 max-w-300 mx-auto h-full overflow-y-auto">
     <div class="flex items-center gap-4 mb-8">
       <Button
         icon="pi pi-arrow-left"
@@ -8,29 +8,31 @@
         text
         @click="$router.push('/admin/reports')"
       />
-      <h1 class="m-0 text-2xl font-semibold">{{ t("admin.userContributions.title") }}</h1>
+      <h1 class="m-0 text-2xl font-semibold">
+        {{ t("admin.userContributions.title") }}
+      </h1>
     </div>
 
-    <div v-if="isLoading" class="flex justify-center items-center min-h-[300px]">
+    <div v-if="isLoading" class="flex justify-center items-center min-h-75">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="errorRef" class="flex justify-center items-center min-h-[300px]">
+    <div v-else-if="errorRef" class="flex justify-center items-center min-h-75">
       <Message severity="error" :closable="false">
         {{ t("admin.userContributions.messages.loadError") }}
       </Message>
     </div>
 
     <template v-else-if="data">
-      <!-- AI : User header card -->
-      <div class="flex items-center gap-8 p-6 bg-[var(--p-surface-50)] rounded-lg mb-8 flex-wrap">
+      <!-- User header card -->
+      <div
+        class="flex items-center gap-8 p-6 bg-content-hover-background rounded-lg mb-8 flex-wrap"
+      >
         <div class="flex items-center gap-4">
-          <i
-            class="pi pi-user text-[2rem] p-4 rounded-full text-[var(--p-primary-600)] bg-[var(--p-primary-100)]"
-          ></i>
+          <i class="pi pi-user text-[2rem] p-4 rounded-full text-primary-600 bg-primary-100"></i>
           <div class="flex flex-col">
             <span class="text-xl font-semibold">{{ data.user.username ?? data.user.email }}</span>
-            <span class="text-[var(--p-text-muted-color)] text-sm">{{ data.user.email }}</span>
+            <span class="text-muted-color text-sm">{{ data.user.email }}</span>
           </div>
         </div>
         <div class="flex items-center gap-2 ml-auto">
@@ -44,8 +46,8 @@
         </Badge>
       </div>
 
-      <!-- AI : Cities accordion -->
-      <div v-if="data.cities.length === 0" class="flex justify-center items-center min-h-[300px]">
+      <!-- Cities accordion -->
+      <div v-if="data.cities.length === 0" class="flex justify-center items-center min-h-75">
         <Message severity="info" :closable="false">
           {{ t("admin.userContributions.messages.noContributions") }}
         </Message>
@@ -56,7 +58,7 @@
           <AccordionHeader @click="loadCityDetails(city.cityId)">
             <div class="flex items-center gap-4 w-full">
               <span class="font-semibold">{{ city.cityName }}</span>
-              <span class="text-[var(--p-text-muted-color)] text-sm">{{ city.countryCode }}</span>
+              <span class="text-muted-color text-sm">{{ city.countryCode }}</span>
               <div class="flex items-center gap-2 ml-auto text-sm">
                 <Badge :value="city.projectCount" severity="secondary" />
                 <span>{{ t("admin.userContributions.projects") }}</span>
@@ -70,15 +72,13 @@
               <ProgressSpinner style="width: 30px; height: 30px" />
             </div>
             <div v-else-if="cityDetails[city.cityId]" class="flex flex-col gap-6">
-              <!-- AI : Projects with their overlays grouped together -->
+              <!-- Projects with their overlays grouped together -->
               <div
                 v-for="project in cityDetails[city.cityId]?.projects"
                 :key="project.id"
-                class="bg-[var(--p-surface-50)] rounded-lg p-4"
+                class="bg-content-hover-background rounded-lg p-4"
               >
-                <div
-                  class="flex justify-between items-center mb-4 pb-3 border-b border-[var(--p-surface-200)]"
-                >
+                <div class="flex justify-between items-center mb-4 pb-3 border-b border-surface">
                   <div class="flex items-center gap-3">
                     <span class="font-semibold text-base">{{ project.name }}</span>
                     <Badge :value="project.status" :severity="getStatusSeverity(project.status)" />
@@ -93,7 +93,7 @@
                   />
                 </div>
 
-                <!-- AI : Overlays for this project -->
+                <!-- Overlays for this project -->
                 <div
                   v-if="getOverlaysForProject(city.cityId, project.id).length > 0"
                   class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3"
@@ -101,7 +101,7 @@
                   <div
                     v-for="overlay in getOverlaysForProject(city.cityId, project.id)"
                     :key="overlay.id"
-                    class="relative bg-[var(--p-surface-100)] rounded-lg overflow-hidden"
+                    class="relative bg-content-hover-background rounded-lg overflow-hidden"
                   >
                     <img
                       :src="getThumbnailUrl(overlay.filename)"
@@ -127,14 +127,14 @@
                     />
                   </div>
                 </div>
-                <div v-else class="text-[var(--p-text-muted-color)] text-sm italic p-2">
+                <div v-else class="text-muted-color text-sm italic p-2">
                   {{ t("admin.userContributions.noOverlays") }}
                 </div>
               </div>
 
               <div
                 v-if="cityDetails[city.cityId]?.projects.length === 0"
-                class="text-[var(--p-text-muted-color)] text-center p-8"
+                class="text-muted-color text-center p-8"
               >
                 {{ t("admin.userContributions.messages.noContributions") }}
               </div>
@@ -144,7 +144,7 @@
       </Accordion>
     </template>
 
-    <!-- AI : Unified Delete Confirmation Dialog -->
+    <!-- Unified Delete Confirmation Dialog -->
     <Dialog
       v-model:visible="showDeleteDialog"
       :header="deleteDialogHeader"
@@ -234,12 +234,14 @@ const deleteDialogMessage = computed(() => {
     : t("admin.userContributions.deleteOverlayDialog.message");
 });
 
-// AI : Load initial user data with city summary
+// Load initial user data with city summary
 async function loadUserContributions() {
   try {
     isLoading.value = true;
     errorRef.value = false;
-    data.value = await trpc.admin.adminGetUserContributions.query({ userId });
+    data.value = await trpc.admin.adminGetUserContributions.query({
+      userId,
+    });
   } catch (error) {
     console.error("Error loading user contributions:", error);
     errorRef.value = true;
@@ -248,14 +250,17 @@ async function loadUserContributions() {
   }
 }
 
-// AI : Load city details when accordion is expanded
+// Load city details when accordion is expanded
 async function loadCityDetails(cityId: number) {
-  // AI : Skip if already loaded
+  // Skip if already loaded
   if (cityDetails[cityId]) return;
 
   try {
     loadingCity.value = cityId;
-    const result = await trpc.admin.adminGetUserContributions.query({ userId, cityId });
+    const result = await trpc.admin.adminGetUserContributions.query({
+      userId,
+      cityId,
+    });
     if (result.cityDetails) {
       cityDetails[cityId] = result.cityDetails;
     }
@@ -271,20 +276,20 @@ async function loadCityDetails(cityId: number) {
   }
 }
 
-// AI : Get overlays for a specific project
+// Get overlays for a specific project
 function getOverlaysForProject(cityId: number, projectId: string): OverlayType[] {
   const details = cityDetails[cityId];
   if (!details) return [];
   return details.overlays.filter((o) => o.projectId === projectId);
 }
 
-// AI : Get thumbnail URL for an overlay
+// Get thumbnail URL for an overlay
 function getThumbnailUrl(filename: string): string {
-  // AI : Force backend URL for pending images that aren't on R2 yet
+  // Force backend URL for pending images that aren't on R2 yet
   return buildThumbnailUrl(filename, true);
 }
 
-// AI : Delete project confirmation
+// Delete project confirmation
 function confirmDeleteProject(project: ProjectType) {
   projectToDelete.value = project;
   deleteTargetType.value = "project";
@@ -292,7 +297,7 @@ function confirmDeleteProject(project: ProjectType) {
   showDeleteDialog.value = true;
 }
 
-// AI : Delete overlay confirmation
+// Delete overlay confirmation
 function confirmDeleteOverlay(overlay: OverlayType) {
   overlayToDelete.value = overlay;
   deleteTargetType.value = "overlay";
@@ -300,7 +305,7 @@ function confirmDeleteOverlay(overlay: OverlayType) {
   showDeleteDialog.value = true;
 }
 
-// AI : Unified delete execution
+// Unified delete execution
 async function executeDelete() {
   if (deleteTargetType.value === "project") {
     await adminDeleteProject();
@@ -309,7 +314,7 @@ async function executeDelete() {
   }
 }
 
-// AI : Execute project deletion and remove from UI (admin-specific)
+// Execute project deletion and remove from UI (admin-specific)
 async function adminDeleteProject() {
   if (!projectToDelete.value) return;
 
@@ -322,17 +327,17 @@ async function adminDeleteProject() {
       reason: deleteReason.value || undefined,
     });
 
-    // AI : Remove project and its overlays from all city details and update counts
+    // Remove project and its overlays from all city details and update counts
     for (const cityId of Object.keys(cityDetails)) {
       const details = cityDetails[Number(cityId)];
       if (details) {
-        // AI : Count overlays being deleted for this project
+        // Count overlays being deleted for this project
         const overlaysDeleted = details.overlays.filter((o) => o.projectId === projectId).length;
 
         details.projects = details.projects.filter((p) => p.id !== projectId);
         details.overlays = details.overlays.filter((o) => o.projectId !== projectId);
 
-        // AI : Update city summary counts in the accordion header
+        // Update city summary counts in the accordion header
         const city = data.value?.cities.find((c) => c.cityId === Number(cityId));
         if (city) {
           city.projectCount -= 1;
@@ -360,7 +365,7 @@ async function adminDeleteProject() {
   }
 }
 
-// AI : Execute overlay deletion and remove from UI (admin-specific)
+// Execute overlay deletion and remove from UI (admin-specific)
 async function adminDeleteOverlay() {
   if (!overlayToDelete.value) return;
 
@@ -373,14 +378,14 @@ async function adminDeleteOverlay() {
       reason: deleteReason.value || undefined,
     });
 
-    // AI : Remove overlay from all city details and update counts
+    // Remove overlay from all city details and update counts
     for (const cityId of Object.keys(cityDetails)) {
       const details = cityDetails[Number(cityId)];
       if (details) {
         const hadOverlay = details.overlays.some((o) => o.id === overlayId);
         details.overlays = details.overlays.filter((o) => o.id !== overlayId);
 
-        // AI : Update city summary count in the accordion header
+        // Update city summary count in the accordion header
         if (hadOverlay) {
           const city = data.value?.cities.find((c) => c.cityId === Number(cityId));
           if (city) {

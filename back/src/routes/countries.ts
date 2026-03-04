@@ -12,7 +12,7 @@ import {
 export const countriesRouter = router({
   getAllCountries: publicProcedure.query(async () => {
     try {
-      // AI : Return all countries for moderation dropdown and other uses
+      // Return all countries for moderation dropdown and other uses
       return await db
         .select({
           code: countries.code,
@@ -42,7 +42,7 @@ export const countriesRouter = router({
       try {
         const mode = input?.mode ?? "view";
 
-        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        // SECURITY: Reject moderation mode for unauthenticated users
         if (mode === "moderation" && !ctx.user) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
@@ -66,22 +66,22 @@ export const countriesRouter = router({
           overlayChangeRequestIds,
         );
 
-        // AI : Build country filter for moderators in moderation mode
+        // Build country filter for moderators in moderation mode
         let countryFilter = undefined;
         if (mode === "moderation" && ctx.user) {
           const moderatedCountries = ctx.user.moderatedCountries;
-          // AI : If not admin (moderatedCountries is an array), filter by assigned countries
+          // If not admin (moderatedCountries is an array), filter by assigned countries
           if (moderatedCountries !== null) {
             countryFilter = inArray(countries.code, moderatedCountries);
           }
-          // AI : If admin (moderatedCountries is null), no country filter needed
+          // If admin (moderatedCountries is null), no country filter needed
         }
 
         return await db
           .selectDistinctOn([countries.code], {
             id: countries.id,
             code: countries.code,
-            code2: countries.code2, // AI : ISO 3166-1 alpha-2 for flag icons
+            code2: countries.code2, // ISO 3166-1 alpha-2 for flag icons
             name: countries.name,
             centerCoordinates: countries.centerCoordinates,
           })

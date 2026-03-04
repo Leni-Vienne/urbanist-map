@@ -1,28 +1,30 @@
-<template>
+﻿<template>
   <div :class="['mt-4', containerClass]">
     <div v-if="showHeader" class="mb-3">
       <div v-if="isOverlayChanges" class="flex items-center gap-2">
-        <i class="pi pi-exclamation-triangle text-orange-500"></i>
-        <span class="text-[0.8125rem] font-semibold text-orange-700">
+        <i class="pi pi-exclamation-triangle text-muted-color"></i>
+        <span class="text-[0.8125rem] font-semibold text-muted-color">
           {{
             isMyContributions
               ? $t("moderation.yourPendingChanges")
-              : $t("moderation.pendingChangesFor", { name: entityName })
+              : $t("moderation.pendingChangesFor", {
+                  name: entityName,
+                })
           }}
         </span>
       </div>
-      <h3 v-else class="m-0 mb-3 text-sm font-semibold text-surface-700">
+      <h3 v-else class="m-0 mb-3 text-sm font-semibold text-color">
         {{
           isMyContributions ? $t("moderation.yourPendingChanges") : $t("moderation.pendingChanges")
         }}
       </h3>
-      <p v-if="isMyContributions" class="mt-2 text-xs text-surface-500 italic">
+      <p v-if="isMyContributions" class="mt-2 text-xs text-muted-color italic">
         {{ $t("moderation.moderatorReviewRequired") }}
       </p>
     </div>
 
     <div class="flex flex-col gap-2">
-      <!-- AI : Iterate over grouped changes -->
+      <!-- Iterate over grouped changes -->
       <template
         v-for="group in groupedChanges"
         :key="
@@ -31,15 +33,15 @@
             : `conflict-${group.entityId}-${group.fieldName}`
         "
       >
-        <!-- AI : Single non-conflicting change -->
+        <!-- Single non-conflicting change -->
         <div
           v-if="group.type === 'single'"
-          class="bg-surface-0 border border-surface-200 rounded p-2"
+          class="bg-content-background border border-surface rounded p-2"
         >
           <div class="flex flex-row items-center gap-3">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
-                <strong class="text-surface-700 text-[0.8125rem]"
+                <strong class="text-color text-[0.8125rem]"
                   >{{ formatFieldName(group.change.fieldName) }}:</strong
                 >
               </div>
@@ -52,29 +54,32 @@
                 @click-contributor="handleClickContributor"
               />
             </div>
-            <div v-if="$slots['change-actions']" class="flex gap-1 justify-end flex-shrink-0">
+            <div v-if="$slots['change-actions']" class="flex gap-1 justify-end shrink-0">
               <slot name="change-actions" :change="group.change"></slot>
             </div>
           </div>
         </div>
 
-        <!-- AI : Grouped conflicting changes -->
-        <div v-else class="border-2 border-blue-300 bg-blue-50/30 rounded overflow-hidden">
+        <!-- Grouped conflicting changes -->
+        <div
+          v-else
+          class="border-2 border-blue-300 dark:border-blue-700 bg-blue-50/30 dark:bg-blue-950/20 rounded overflow-hidden"
+        >
           <div
-            class="flex items-center gap-2 px-2 py-2 bg-blue-100 border-b border-blue-200 text-blue-700 font-semibold text-[0.8125rem]"
+            class="flex items-center gap-2 px-2 py-2 bg-blue-100 dark:bg-blue-900/40 border-b border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 font-semibold text-[0.8125rem]"
           >
             <i
-              class="pi pi-info-circle text-blue-600 cursor-help text-base"
+              class="pi pi-info-circle text-blue-600 dark:text-blue-400 cursor-help text-base"
               v-tooltip.top="$t('moderation.resolveConflictsTooltip')"
             ></i>
             <span>{{ $t("moderation.conflictDetected") }}</span>
           </div>
 
-          <!-- AI : List all competing changes -->
+          <!-- List all competing changes -->
           <div
             v-for="change in group.changes"
             :key="change.id"
-            class="bg-surface-0 rounded mx-2 px-3 py-2 my-2 border border-blue-200 first:mt-3 last:mb-2 hover:bg-blue-50/40 hover:border-blue-300 transition-colors duration-150"
+            class="bg-content-background rounded mx-2 px-3 py-2 my-2 border border-blue-200 dark:border-blue-700 first:mt-3 last:mb-2 hover:bg-blue-50/40 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 transition-colors duration-150"
           >
             <div class="flex flex-row items-center gap-3">
               <div class="flex-1 min-w-0">
@@ -88,7 +93,7 @@
                   @click-contributor="handleClickContributor"
                 />
               </div>
-              <div v-if="$slots['change-actions']" class="flex gap-1 justify-end flex-shrink-0">
+              <div v-if="$slots['change-actions']" class="flex gap-1 justify-end shrink-0">
                 <slot name="change-actions" :change="change"></slot>
               </div>
             </div>
@@ -154,13 +159,13 @@ const {
   previewGeometry: previewGeometryComposable,
 } = useChangeRequestPreview();
 
-// AI : Sync change requests for preview state tracking when navigating via markers
+// Sync change requests for preview state tracking when navigating via markers
 watchEffect(() => {
   setChangeRequestsForPreview(props.allChangeRequests);
 });
 
-// AI : Computed property to check if a specific preview is active
-// AI : Preview state is now synced automatically when navigating to overlays via markers/selection
+// Computed property to check if a specific preview is active
+// Preview state is now synced automatically when navigating to overlays via markers/selection
 const isPreviewActive = computed(() => {
   return (changeId: string, type: "old" | "new") => {
     if (!isPreviewingChange(changeId)) return false;
@@ -172,7 +177,7 @@ const isPreviewActive = computed(() => {
   };
 });
 
-// AI : Group changes - separate conflicting changes from non-conflicting ones
+// Group changes - separate conflicting changes from non-conflicting ones
 type ChangeGroup =
   | {
       type: "single";
@@ -194,7 +199,7 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
     if (processedIds.has(change.id)) continue;
 
     if (change.hasConflict) {
-      // AI : Find all conflicting changes for the same field
+      // Find all conflicting changes for the same field
       const conflictingChanges = props.changes.filter(
         (c) =>
           c.entityType === change.entityType &&
@@ -202,12 +207,12 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
           c.fieldName === change.fieldName,
       );
 
-      // AI : Mark all as processed
+      // Mark all as processed
       for (const c of conflictingChanges) {
         processedIds.add(c.id);
       }
 
-      // AI : Add as conflict group
+      // Add as conflict group
       groups.push({
         type: "conflict",
         fieldName: change.fieldName,
@@ -216,7 +221,7 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
         changes: conflictingChanges,
       });
     } else {
-      // AI : Single non-conflicting change
+      // Single non-conflicting change
       processedIds.add(change.id);
       groups.push({
         type: "single",
@@ -228,7 +233,7 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
   return groups;
 });
 
-// AI : Handle contributor click from ContributorInfo component
+// Handle contributor click from ContributorInfo component
 function handleClickContributor(data: {
   userId: string;
   username: string | null;
@@ -243,17 +248,17 @@ function handleClickContributor(data: {
   });
 }
 
-// AI : Format field names for display using i18n
+// Format field names for display using i18n
 function formatFieldName(fieldName: string): string {
   const translationKey = `fields.${fieldName}`;
   const translated = t(translationKey);
-  // AI : If translation exists, use it; otherwise fall back to field name
+  // If translation exists, use it; otherwise fall back to field name
   return translated !== translationKey ? translated : fieldName;
 }
 
-// AI : Wrapper function to handle preview with proper error handling
+// Wrapper function to handle preview with proper error handling
 async function previewGeometry(geometryValue: unknown, type: "old" | "new", changeId: string) {
-  // AI : Find the change request
+  // Find the change request
   const change = props.allChangeRequests.find((c) => c.id === changeId);
   if (!change) {
     toast.add({
@@ -265,12 +270,12 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
     return;
   }
 
-  // AI : Only handle overlay changes
+  // Only handle overlay changes
   if (change.entityType !== "overlay") {
     return;
   }
 
-  // AI : Find the overlay data
+  // Find the overlay data
   let overlayForModeration: OverlayForModeration | null = null;
   for (const project of props.projects) {
     if (project.overlays) {
@@ -290,7 +295,7 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
     return;
   }
 
-  // AI : Delegate to composable
+  // Delegate to composable
   await previewGeometryComposable({
     change,
     overlayForModeration,
