@@ -12,7 +12,7 @@
         >
           <!-- Contribution thumbnail image (overlay) or icon (standalone) -->
           <div
-            class="w-13 h-13 md:w-15 md:h-15 rounded-xl overflow-hidden bg-content-hover-background shrink-0 flex items-center justify-center relative"
+            class="w-13 h-13 md:w-15 md:h-15 rounded-xl overflow-hidden bg-content-hover-background border border-surface shrink-0 flex items-center justify-center relative"
           >
             <img
               v-if="contribution.type === 'overlay' && contribution.filename"

@@ -825,6 +825,7 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   width: 100%;
   box-sizing: border-box;
   border-radius: 12px;
+  background: transparent !important;
 }
 
 /* When open: header gets top-only rounding */
@@ -832,13 +833,13 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   border-radius: 12px 12px 0 0;
 }
 
-/* Suppression border PrimeVue (le gap fait le séparateur) */
-/* min-width:0 = empêche le panel (flex item dans .city-accordion) de s'élargir */
+/* Le panel est la "card" blanche sur fond gris */
 :deep(.city-accordion .p-accordionpanel) {
-  border: none !important;
+  border: 1px solid var(--p-content-border-color) !important;
   min-width: 0;
   overflow: hidden;
   border-radius: 12px;
+  background: var(--accordion-card-bg) !important;
 }
 
 /* min-width:0 sur .p-accordioncontent (flex item dans le panel column) */
@@ -859,9 +860,9 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
 }
 
-/* Contenu : fond + padding contrôlé (évite double-padding avec p-3 du bordered div) */
+/* Contenu : fond transparent (hérité du panel) + padding contrôlé */
 :deep(.city-accordion .p-accordioncontent-content) {
-  background: var(--p-content-background);
+  background: transparent !important;
   padding: 0.5rem 0.5rem 0.75rem;
   border-radius: 0 0 12px 12px;
 }

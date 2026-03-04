@@ -38,7 +38,7 @@
 
         <div
           v-if="errorMessage"
-          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded"
+          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded dark:bg-red-900/30 dark:border-red-700 dark:text-red-300"
         >
           <i class="pi pi-exclamation-triangle"></i>
           {{ errorMessage }}
@@ -46,7 +46,7 @@
 
         <div
           v-if="resetLinkSent"
-          class="p-info flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded"
+          class="p-info flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200"
         >
           <i class="pi pi-info-circle"></i>
           {{ $t("auth.resetLinkSent") }}
@@ -220,7 +220,7 @@
 
         <div
           v-if="errorMessage"
-          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded"
+          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded dark:bg-red-900/30 dark:border-red-700 dark:text-red-300"
         >
           <i class="pi pi-exclamation-triangle"></i>
           {{ errorMessage }}
@@ -229,7 +229,7 @@
         <!-- Registration success message -->
         <div
           v-if="registrationSuccess && !isLoginMode"
-          class="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded"
+          class="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200"
         >
           <div class="flex items-center gap-2 font-semibold text-blue-700">
             <i class="pi pi-info-circle"></i>
