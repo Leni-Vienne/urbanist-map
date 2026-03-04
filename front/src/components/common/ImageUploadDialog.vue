@@ -47,8 +47,8 @@
         class="rounded-lg p-4 transition-all duration-200 min-h-30 flex items-center justify-center border-2 border-dashed"
         :class="
           selectedFile
-            ? 'border-green-300 bg-green-50 cursor-default'
-            : 'border-surface bg-content-hover-background cursor-pointer hover:border-primary-400 hover:bg-primary-50'
+            ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950 cursor-default'
+            : 'border-surface bg-content-hover-background cursor-pointer hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950'
         "
         @drop.prevent="handleDrop"
         @dragover.prevent="handleDragOver"
@@ -68,10 +68,12 @@
             v-if="imagePreviewUrl"
             :src="imagePreviewUrl"
             alt="Preview"
-            class="w-20 h-20 object-cover rounded-md border-2 border-green-200 shrink-0 group-hover:opacity-90 transition-opacity"
+            class="w-20 h-20 object-cover rounded-md border-2 border-green-200 dark:border-green-700 shrink-0 group-hover:opacity-90 transition-opacity"
           />
           <div class="flex-1 flex flex-col gap-2 items-start">
-            <p class="text-sm font-medium text-green-900 font-mono break-all m-0">
+            <p
+              class="text-sm font-medium text-green-900 dark:text-green-300 font-mono break-all m-0"
+            >
               {{ selectedFileName }}
             </p>
             <Button
@@ -105,7 +107,10 @@
       </div>
 
       <!-- Inline error message for file validation -->
-      <p v-if="fileSizeError" class="flex items-center gap-2 text-red-600 text-sm font-medium m-0">
+      <p
+        v-if="fileSizeError"
+        class="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium m-0"
+      >
         <i class="pi pi-exclamation-triangle"></i>
         {{ fileSizeError }}
       </p>

@@ -78,7 +78,7 @@
           <!-- Display rejection reason if item was rejected -->
           <p
             v-if="item.status === 'rejected' && item.rejectionReason"
-            class="m-0 text-[0.8125rem] text-red-600 bg-red-50 p-2 rounded-md border border-red-200 flex items-start gap-1.5 leading-snug"
+            class="m-0 text-[0.8125rem] text-red-600 bg-red-50 p-2 rounded-md border border-red-200 flex items-start gap-1.5 leading-snug dark:bg-red-900/30 dark:border-red-700 dark:text-red-400"
           >
             <i class="pi pi-ban shrink-0 mt-0.5"></i>
             <span

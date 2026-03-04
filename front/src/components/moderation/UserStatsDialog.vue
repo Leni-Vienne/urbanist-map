@@ -56,7 +56,7 @@
       <!-- High rejection warning -->
       <div
         v-if="hasHighRejectionRate"
-        class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-sm"
+        class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-sm dark:bg-red-900/30 dark:border-red-700 dark:text-red-300"
       >
         <i class="pi pi-exclamation-triangle text-red-600"></i>
         {{ $t("moderation.userStats.highRejectionRate") }}

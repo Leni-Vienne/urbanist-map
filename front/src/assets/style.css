@@ -49,19 +49,34 @@ body {
   z-index: 200 !important;
 }
 
-/* Dark mode overrides — only for warn which needs custom styling */
-/* Success / Danger / Secondary / Info are handled by PrimeVue natively */
+/* Accordion card background: slight blue-white in light, normal content bg in dark */
+:root {
+  --accordion-card-bg: #f8f9fc;
+}
+.dark-mode {
+  --accordion-card-bg: var(--p-content-background);
+}
+
+/* Dark mode overrides */
 .dark-mode {
   --p-tag-warn-background: #292205 !important;
   --p-tag-warn-color: #fde68a !important;
   --p-message-warn-background: #292205;
   --p-message-warn-color: #fde68a;
-  --p-toast-warn-background: #292205;
-  --p-toast-warn-color: #ca8a04;
   --p-button-warn-background: #292205;
   --p-button-warn-color: #fde68a;
   --p-badge-warn-background: #292205;
   --p-badge-warn-color: #fde68a;
+  /* Toast: disable glassmorphism (transparent bg + blur look broken on map) */
+  --p-toast-blur: 0 !important;
+  --p-toast-success-background: #052e16 !important;
+  --p-toast-success-color: #4ade80 !important;
+  --p-toast-info-background: #172554 !important;
+  --p-toast-info-color: #60a5fa !important;
+  --p-toast-warn-background: #292205 !important;
+  --p-toast-warn-color: #fbbf24 !important;
+  --p-toast-error-background: #450a0a !important;
+  --p-toast-error-color: #f87171 !important;
 }
 
 .p-popover {

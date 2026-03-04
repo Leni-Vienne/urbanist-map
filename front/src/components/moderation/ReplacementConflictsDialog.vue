@@ -80,7 +80,9 @@
             </div>
           </div>
         </div>
-        <p class="m-0 p-3 bg-red-50 text-red-900 rounded-md text-sm font-medium">
+        <p
+          class="m-0 p-3 bg-red-50 text-red-900 rounded-md text-sm font-medium dark:bg-red-900/30 dark:text-red-300"
+        >
           {{ $t("moderation.replacementConflicts.changesWillBeConflicted") }}
         </p>
       </div>
@@ -118,7 +120,9 @@
             </div>
           </div>
         </div>
-        <p class="m-0 p-3 bg-red-50 text-red-900 rounded-md text-sm font-medium">
+        <p
+          class="m-0 p-3 bg-red-50 text-red-900 rounded-md text-sm font-medium dark:bg-red-900/30 dark:text-red-300"
+        >
           {{ $t("moderation.replacementConflicts.competingWillBeRejected") }}
         </p>
       </div>
