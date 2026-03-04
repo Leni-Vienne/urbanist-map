@@ -1,5 +1,5 @@
-<template>
-  <!-- AI : Geometry field with preview buttons -->
+﻿<template>
+  <!-- Geometry field with preview buttons -->
   <div v-if="isGeometryField(change.fieldName)" class="my-2">
     <div class="flex gap-2 flex-wrap">
       <Button
@@ -21,12 +21,14 @@
     </div>
   </div>
 
-  <!-- AI : City field with clickable locations -->
+  <!-- City field with clickable locations -->
   <div
     v-else-if="change.fieldName === 'cityId'"
     class="flex items-start gap-2 my-1 text-xs flex-wrap"
   >
-    <span class="text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-sm break-words max-w-[150px]">
+    <span
+      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
+    >
       <ClickableLocation
         v-if="change.oldValue"
         :city-id="Number(change.oldValue)"
@@ -38,7 +40,7 @@
     </span>
     <i class="pi pi-arrow-right"></i>
     <span
-      class="text-[var(--p-tag-warn-color)] bg-[var(--p-tag-warn-background)] px-1 py-0.5 rounded-sm break-words max-w-[150px]"
+      class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
     >
       <ClickableLocation
         v-if="change.newValue"
@@ -51,25 +53,26 @@
     </span>
   </div>
 
-  <!-- AI : Regular field with formatted values -->
+  <!-- Regular field with formatted values -->
   <div v-else class="flex items-start gap-2 my-1 text-xs flex-wrap">
-    <span class="text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-sm break-words max-w-[150px]">{{
-      formatValue(change.oldValue, change.fieldName, change)
-    }}</span>
+    <span
+      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
+      >{{ formatValue(change.oldValue, change.fieldName, change) }}</span
+    >
     <i class="pi pi-arrow-right self-center"></i>
     <span
-      class="text-[var(--p-tag-warn-color)] bg-[var(--p-tag-warn-background)] px-1 py-0.5 rounded-sm break-words max-w-[150px]"
+      class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
       >{{ formatValue(change.newValue, change.fieldName, change) }}</span
     >
   </div>
 
-  <!-- AI : Change reason if provided -->
-  <div v-if="change.changeReason" class="text-xs text-surface-600 mt-1">
+  <!-- Change reason if provided -->
+  <div v-if="change.changeReason" class="text-xs text-(--p-text-color-secondary) mt-1">
     <em>{{ $t("moderation.reason") }}: {{ change.changeReason }}</em>
   </div>
 
-  <!-- AI : Change date and contributor -->
-  <div class="text-xs text-surface-400 mt-1">
+  <!-- Change date and contributor -->
+  <div class="text-xs text-muted-color mt-1">
     <em>
       <ContributorInfo
         :date="change.createdAt"
@@ -124,7 +127,7 @@ function formatValue(value: unknown, fieldName: string, change?: PendingChangeRe
     return t("overlay.notSet");
   }
 
-  // AI : Handle cityId field using backend-enriched data
+  // Handle cityId field using backend-enriched data
   if (fieldName === "cityId" && typeof value === "string" && change) {
     const isOldValue = change.oldValue === value;
     const cityName = isOldValue ? change.oldCityName : change.newCityName;

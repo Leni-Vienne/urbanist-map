@@ -1,22 +1,22 @@
-<template>
-  <!-- AI : Custom draggable bottom drawer with continuous positioning -->
+﻿<template>
+  <!-- Custom draggable bottom drawer with continuous positioning -->
   <Teleport to="body">
     <Transition name="drawer-fade">
       <div
         v-if="visible"
-        class="fixed inset-0 z-[1100] pointer-events-none"
+        class="fixed inset-0 z-1100 pointer-events-none"
         @click.self="handleBackdropClick"
       >
         <div
           ref="drawerRef"
-          class="draggable-drawer fixed bottom-0 left-0 right-0 bg-surface-0 rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] flex flex-col overflow-visible z-[1101] touch-none pointer-events-auto"
+          class="draggable-drawer fixed bottom-0 left-0 right-0 bg-content-background rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] flex flex-col overflow-visible z-1101 touch-none pointer-events-auto"
           :style="drawerStyle"
           @touchstart="handleTouchStart"
           @touchmove="handleTouchMove"
           @touchend="handleTouchEnd"
           @mousedown="handleMouseDown"
         >
-          <!-- AI : Slot for content above drawer (e.g., mode controls) -->
+          <!-- Slot for content above drawer (e.g., mode controls) -->
           <div
             class="absolute left-0 right-0 mb-2 pointer-events-none"
             :style="{ bottom: aboveContentBottom }"
@@ -24,24 +24,24 @@
             <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
           </div>
 
-          <!-- AI : Drag handle at the top -->
+          <!-- Drag handle at the top -->
           <div
-            class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0"
+            class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0 bg-content-hover-background rounded-t-2xl"
             @click.stop
           >
             <div
-              class="w-10 h-1 bg-surface-300 rounded-sm transition-colors duration-200 hover:bg-surface-400"
+              class="w-10 h-1 bg-(--p-text-muted-color) rounded-sm transition-colors duration-200 hover:bg-(--p-text-color-secondary)"
             ></div>
           </div>
 
-          <!-- AI : Header -->
+          <!-- Header -->
           <div
-            class="drawer-header shrink-0 bg-surface-0 cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            class="drawer-header shrink-0 bg-content-hover-background cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-in-out"
             :class="{ 'py-0 px-4 pb-[0.3em] text-center': isCompact }"
           >
             <slot name="header">
               <h3
-                class="m-0 text-lg font-semibold text-surface-900 select-none transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                class="m-0 text-lg font-semibold text-color select-none transition-all duration-300 ease-in-out"
                 :class="{ 'text-sm font-medium': isCompact }"
               >
                 {{ header }}
@@ -49,8 +49,8 @@
             </slot>
           </div>
 
-          <!-- AI : Content -->
-          <div class="flex-1 overflow-y-auto overflow-x-hidden bg-surface-0">
+          <!-- Content -->
+          <div class="flex-1 overflow-y-auto overflow-x-hidden bg-content-background">
             <slot></slot>
           </div>
         </div>
@@ -73,7 +73,7 @@ const props = withDefaults(defineProps<Props>(), {
   heightPercent: 40,
 });
 
-// AI : Internal configuration (not exposed as props)
+// Internal configuration (not exposed as props)
 const MIN_HEIGHT_PX = 65;
 const MAX_HEIGHT_PERCENT = 90;
 
@@ -90,23 +90,23 @@ const startHeight = ref(0);
 const currentHeight = ref(props.heightPercent);
 const viewportHeight = ref(0);
 
-// AI : Convert minimum height from pixels to viewport percentage
+// Convert minimum height from pixels to viewport percentage
 const minHeightPercent = computed(() => {
   return (MIN_HEIGHT_PX / viewportHeight.value) * 100;
 });
 
-// AI : Calculate current drawer height in pixels for slot consumers
+// Calculate current drawer height in pixels for slot consumers
 const currentDrawerHeightPx = computed(() => {
   return (currentHeight.value / 100) * viewportHeight.value;
 });
 
-// AI : Position above-content exactly at the top of the drawer (100%)
-// AI : Clamping logic is now delegated to the slot consumer via drawerHeightPx
+// Position above-content exactly at the top of the drawer (100%)
+// Clamping logic is now delegated to the slot consumer via drawerHeightPx
 const aboveContentBottom = computed(() => {
   return "100%";
 });
 
-// AI : Calculate drawer style with smooth transitions
+// Calculate drawer style with smooth transitions
 const drawerStyle = computed(() => {
   const height = Math.min(MAX_HEIGHT_PERCENT, currentHeight.value);
   return {
@@ -115,12 +115,12 @@ const drawerStyle = computed(() => {
   };
 });
 
-// AI : Check if drawer is in compact mode
+// Check if drawer is in compact mode
 const isCompact = computed(() => {
   return currentHeight.value <= minHeightPercent.value;
 });
 
-// AI : Update current height when prop changes
+// Update current height when prop changes
 watch(
   () => props.heightPercent,
   (newHeight) => {
@@ -130,7 +130,7 @@ watch(
   },
 );
 
-// AI : Keep drawer at minimum height when viewport resizes
+// Keep drawer at minimum height when viewport resizes
 watch(
   () => minHeightPercent.value,
   (newMinPercent, oldMinPercent) => {
@@ -146,7 +146,7 @@ watch(
 );
 
 function handleBackdropClick() {
-  // AI : Backdrop clicks disabled for mobile drawer
+  // Backdrop clicks disabled for mobile drawer
 }
 
 function handleTouchStart(e: TouchEvent) {
@@ -171,7 +171,7 @@ function handleTouchMove(e: TouchEvent) {
   const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);
   currentHeight.value = newHeight;
 
-  // AI : Emit updates during drag for continuous reactivity
+  // Emit updates during drag for continuous reactivity
   emit("update:heightPercent", newHeight);
   emit("heightChanged", newHeight);
 }
@@ -203,7 +203,7 @@ function handleMouseDown(e: MouseEvent) {
     const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);
     currentHeight.value = newHeight;
 
-    // AI : Emit updates during drag for continuous reactivity
+    // Emit updates during drag for continuous reactivity
     emit("update:heightPercent", newHeight);
     emit("heightChanged", newHeight);
   }
@@ -231,7 +231,7 @@ function finalizePosition() {
   emit("heightChanged", currentHeight.value);
 }
 
-// AI : Initialize height on mount
+// Initialize height on mount
 onMounted(() => {
   currentHeight.value = props.heightPercent;
   viewportHeight.value = globalThis.innerHeight;
@@ -249,7 +249,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* AI : Deep children of the above-content slot need pointer events */
+/* Deep children of the above-content slot need pointer events */
 :deep(.control-wrapper > *) {
   pointer-events: auto;
 }

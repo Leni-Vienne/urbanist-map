@@ -1,5 +1,5 @@
 <template>
-  <!-- AI : Project Dialog for create/edit -->
+  <!-- Project Dialog for create/edit -->
   <CreateProjectDialog
     v-if="uiStore.projectDialog.visible"
     v-model:visible="uiStore.projectDialog.visible"
@@ -8,7 +8,7 @@
     @cancel="uiStore.closeProjectDialog"
   />
 
-  <!-- AI : Project Edit Form Dialog -->
+  <!-- Project Edit Form Dialog -->
   <Dialog
     v-if="projectEditForm.visible"
     v-model:visible="projectEditForm.visible"
@@ -27,7 +27,7 @@
     />
   </Dialog>
 
-  <!-- AI : Marker Placement Dialog -->
+  <!-- Marker Placement Dialog -->
   <MarkerPlacementBar
     ref="markerPlacementBar"
     v-model:visible="uiStore.markerPlacementBarVisible"
@@ -88,7 +88,7 @@ const { projects } = storeToRefs(projectStore);
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
 const { projectEditForm } = storeToRefs(uiStore);
 
-// AI : Helper to ensure city markers are properly set up for a project's city
+// Helper to ensure city markers are properly set up for a project's city
 async function ensureCityMarkersForProject(
   city: {
     id: number;
@@ -103,12 +103,12 @@ async function ensureCityMarkersForProject(
 
   if (!countryCode) return;
 
-  // AI : Check if we're switching to a different country
+  // Check if we're switching to a different country
   const isCountrySwitch = mapStore.selectedCountryCode !== countryCode;
 
   if (isCountrySwitch) {
-    // AI : Clear old map content only if we are actually switching from another country
-    // AI : If selectedCountryCode is null (neutral state), don't wipe potentially visible viewport content
+    // Clear old map content only if we are actually switching from another country
+    // If selectedCountryCode is null (neutral state), don't wipe potentially visible viewport content
     if (mapStore.selectedCountryCode) {
       clearAllMapContent();
     }
@@ -116,7 +116,7 @@ async function ensureCityMarkersForProject(
     await loadCitiesForCountry(countryCode);
   }
 
-  // AI : Set selectedCity if not already set (or if forced) to prevent overlay disappearance on zoom
+  // Set selectedCity if not already set (or if forced) to prevent overlay disappearance on zoom
   if (forceSetSelectedCity || !mapStore.selectedCity) {
     mapStore.setSelectedCity({
       id: city.id,
@@ -128,10 +128,10 @@ async function ensureCityMarkersForProject(
 
   mapStore.selectedCountryCode = countryCode;
 
-  // AI : If not a country switch, add the single city marker for immediate feedback
-  // AI : (prepareCountryContext already adds markers, so only do this if we didn't switch countries)
+  // If not a country switch, add the single city marker for immediate feedback
+  // (prepareCountryContext already adds markers, so only do this if we didn't switch countries)
   if (!isCountrySwitch) {
-    // AI : First add single marker immediately (fast feedback) - mark as unsaved
+    // First add single marker immediately (fast feedback) - mark as unsaved
     await addSingleCityMarker(
       {
         id: city.id,
@@ -144,7 +144,7 @@ async function ensureCityMarkersForProject(
       true,
     );
 
-    // AI : Then load all cities for the country (unsaved marker will be preserved)
+    // Then load all cities for the country (unsaved marker will be preserved)
     await loadCitiesForCountry(countryCode);
     const country = projectStore.countries.find((c) => c.code === countryCode);
 
@@ -154,7 +154,7 @@ async function ensureCityMarkersForProject(
       );
     }
   } else {
-    // AI : After country switch, add the unsaved city marker if it's not in the backend
+    // After country switch, add the unsaved city marker if it's not in the backend
     const country = projectStore.countries.find((c) => c.code === countryCode);
     const cityExistsInBackend = country?.cities.some((c) => c.id === city.id);
     if (!cityExistsInBackend) {
@@ -173,7 +173,7 @@ async function ensureCityMarkersForProject(
   }
 }
 
-// AI : Try to find project from replacement overlay
+// Try to find project from replacement overlay
 function findProjectFromReplacementOverlay(projectId: string): Project | null {
   if (!replacementOverlayId.value) return null;
 
@@ -189,14 +189,14 @@ function findProjectFromReplacementOverlay(projectId: string): Project | null {
   return null;
 }
 
-// AI : Try to find project from city projects list
+// Try to find project from city projects list
 function findProjectFromCityProjects(projectId: string): Project | null {
   const { projects: cityProjectsList } = getCityProjects();
   const cityProject = cityProjectsList.value.find((p: Project) => p.id === projectId);
   return cityProject ?? null;
 }
 
-// AI : Try to find project by fetching nearby projects
+// Try to find project by fetching nearby projects
 async function findProjectFromNearbyProjects(projectId: string): Promise<Project | null> {
   console.log("Fetching nearby projects to find project ID:", projectId);
   const center = map.value.getCenter();
@@ -210,17 +210,17 @@ function addProjectToStore(projectId: string, project: Project): void {
   projects.value[projectId] = project;
 }
 
-// AI : Process image after project selection
+// Process image after project selection
 async function onProjectSelected(projectId: string) {
   if (!projectId) {
     console.warn("No project ID available for overlay");
     return;
   }
 
-  // AI : Check if project exists in local store, if not, try to get it from available sources
+  // Check if project exists in local store, if not, try to get it from available sources
   if (!projects.value[projectId]) {
     try {
-      // AI : Try multiple sources in order of preference
+      // Try multiple sources in order of preference
       const projectToAdd =
         findProjectFromReplacementOverlay(projectId) ??
         findProjectFromCityProjects(projectId) ??
@@ -239,7 +239,7 @@ async function onProjectSelected(projectId: string) {
   await handleFileUpload(projectId, Boolean(replacementOverlayId.value));
 }
 
-// AI : Handle file upload by user
+// Handle file upload by user
 async function handleFileUpload(projectId: string, isReplacement = false) {
   if (!pendingImageFile.value) {
     console.warn("No image file to upload");
@@ -257,7 +257,7 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
     try {
       const { addOverlay } = await import("@/services/overlay/overlayEditing");
       if (isReplacement && replacementOverlayId.value) {
-        // AI : Create replacement overlay using the standard overlay creation process
+        // Create replacement overlay using the standard overlay creation process
         const overlayId = addOverlay(
           reader.result as string,
           projectId,
@@ -273,11 +273,11 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
           });
         }
       } else {
-        // AI : Regular overlay addition
+        // Regular overlay addition
         addOverlay(reader.result as string, projectId);
       }
 
-      // AI : Ensure city markers exist for this overlay's city
+      // Ensure city markers exist for this overlay's city
       const project = projectStore.projects[projectId];
       if (project?.city) {
         await ensureCityMarkersForProject(project.city);
@@ -291,41 +291,41 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
         life: 3000,
       });
     } finally {
-      // AI : Reset state
+      // Reset state
       overlayStore.resetReplacement();
     }
   });
   reader.readAsDataURL(pendingImageFile.value);
 }
 
-// AI : Handle marker coordinates selection from dialog
+// Handle marker coordinates selection from dialog
 function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
   if (tempMarker.value) {
     tempMarker.value.remove();
     tempMarker.value = null;
   }
 
-  // AI : Open project dialog with coordinates - user must fill form before marker is created
-  // AI : All projects now have center coordinates (no isStandalone field)
+  // Open project dialog with coordinates - user must fill form before marker is created
+  // All projects now have center coordinates (no isStandalone field)
   uiStore.openProjectDialog({
     lat: coordinates.lat,
     lng: coordinates.lng,
   });
 }
 
-// AI : Handle marker mode enabled - setup map click listener
+// Handle marker mode enabled - setup map click listener
 function onMarkerModeEnabled() {
-  // AI : Add temporary click listener for marker placement
+  // Add temporary click listener for marker placement
   function handleMapClick(e: L.LeafletMouseEvent) {
     const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
 
-    // AI : Remove previous temp marker if exists
+    // Remove previous temp marker if exists
     if (tempMarker.value) {
       tempMarker.value.remove();
       tempMarker.value = null;
     }
 
-    // AI : Create temporary marker using StandaloneProjectMarkerSVG in orange for visual feedback
+    // Create temporary marker using StandaloneProjectMarkerSVG in orange for visual feedback
     const markerIcon = createStandaloneProjectIcon("orange");
     const mapValue = map.value;
     if (!mapValue) return;
@@ -335,30 +335,28 @@ function onMarkerModeEnabled() {
       draggable: false,
     }).addTo(mapValue);
 
-    // AI : Pass coordinates back to marker placement bar
+    // Pass coordinates back to marker placement bar
     if (markerPlacementBar.value) {
       markerPlacementBar.value.setMarkerCoordinates(coordinates);
     }
-
-    // AI : Keep listener active to allow repositioning - will be removed when dialog closes
   }
 
   map.value.on("click", handleMapClick);
 
-  // AI : Store handler reference for cleanup
+  // Store handler reference for cleanup
   (map.value as any)._tempMarkerClickHandler = handleMapClick;
 }
 
-// AI : Handle dialog visibility changes to clean up temporary marker and listener on close
+// Handle dialog visibility changes to clean up temporary marker and listener on close
 function onDialogVisibilityChange(visible: boolean) {
   if (!visible) {
-    // AI : Remove temporary marker
+    // Remove temporary marker
     if (tempMarker.value) {
       tempMarker.value.remove();
       tempMarker.value = null;
     }
 
-    // AI : Remove click listener
+    // Remove click listener
     if ((map.value as any)._tempMarkerClickHandler) {
       map.value.off("click", (map.value as any)._tempMarkerClickHandler);
       (map.value as any)._tempMarkerClickHandler = null;
@@ -366,7 +364,7 @@ function onDialogVisibilityChange(visible: boolean) {
   }
 }
 
-// AI : Display project marker on map and open its info popup
+// Display project marker on map and open its info popup
 async function displayProjectMarkerAndPopup(
   projectId: string,
   city: {
@@ -379,14 +377,14 @@ async function displayProjectMarkerAndPopup(
 ) {
   await ensureCityMarkersForProject(city, true);
 
-  // AI : Load city data to mark it as active in loadedCityIds
-  // AI : This ensures the city's content persists when zooming out (active city preservation)
+  // Load city data to mark it as active in loadedCityIds
+  // This ensures the city's content persists when zooming out (active city preservation)
   await loadAndRenderCityData(city.id, true);
 
   let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
 
   if (!actualMarker) {
-    // AI : Fallback: If marker wasn't created by viewport refresh (e.g. no camera move), create it manually
+    // Fallback: If marker wasn't created by viewport refresh (e.g. no camera move), create it manually
     const project = projectStore.projects[projectId];
     if (project) {
       addStandaloneProjectMarkerForProject(project);
@@ -401,11 +399,11 @@ async function displayProjectMarkerAndPopup(
     }
     uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
 
-    // AI : Zoom to the marker position to show the newly created project
+    // Zoom to the marker position to show the newly created project
     const project = projectStore.projects[projectId];
     if (project?.lat && project?.lng) {
       const currentZoom = map.value.getZoom();
-      // AI : Zoom to 16 if current zoom is less, otherwise keep current zoom
+      // Zoom to 16 if current zoom is less, otherwise keep current zoom
       const targetZoom = Math.max(currentZoom, 16);
       map.value.setView([project.lat, project.lng], targetZoom, {
         animate: true,
@@ -415,15 +413,15 @@ async function displayProjectMarkerAndPopup(
   }
 }
 
-// AI : Handle new project creation
+// Handle new project creation
 async function handleNewProjectCreation(project: Partial<Project>): Promise<string> {
   const projectId = createProject({
     ...project,
     isModified: true,
   });
 
-  // AI : CRITICAL FIX: Add city to citiesWithProjects so viewport manager knows to load it
-  // AI : This ensures standalone markers reappear after zoom out/in cycle
+  // CRITICAL FIX: Add city to citiesWithProjects so viewport manager knows to load it
+  // This ensures standalone markers reappear after zoom out/in cycle
   if (project.city && project.cityId) {
     const cityExists = citiesWithProjects.value.some((c) => c.id === project.cityId);
 
@@ -457,7 +455,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   return projectId;
 }
 
-// AI : Handle existing project update
+// Handle existing project update
 function handleProjectUpdate(project: Partial<Project>): string {
   const projectId = project.id;
   if (!projectId) {
@@ -488,7 +486,7 @@ function handleProjectUpdate(project: Partial<Project>): string {
   return projectId;
 }
 
-// AI : Handle project creation/update from dialog
+// Handle project creation/update from dialog
 async function handleProjectSubmitted(project: Partial<Project>) {
   if (!project) return;
 
@@ -517,7 +515,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 </script>
 
 <style scoped>
-/* AI : Temporary marker styles */
+/* Temporary marker styles */
 :global(.temp-marker-icon) {
   background: transparent !important;
   border: none !important;
@@ -526,7 +524,7 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   justify-content: center !important;
 }
 
-/* AI : Standalone project styles */
+/* Standalone project styles */
 :global(.marker-project-icon) {
   background: transparent !important;
   border: none !important;

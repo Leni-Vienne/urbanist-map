@@ -1,9 +1,9 @@
-// AI : ============================================================================
-// AI : OVERLAY SELECTION - Selection and highlighting management for overlays
-// AI : ============================================================================
-// AI : This module handles overlay selection, deselection, and highlighting.
-// AI : Extracted from useOverlay.ts as the lowest-level module (no internal deps).
-// AI : ============================================================================
+// ============================================================================
+// OVERLAY SELECTION - Selection and highlighting management for overlays
+// ============================================================================
+// This module handles overlay selection, deselection, and highlighting.
+// Extracted from useOverlay.ts as the lowest-level module (no internal deps).
+// ============================================================================
 
 import type L from "leaflet";
 import { map } from "@/services/core/map";
@@ -17,11 +17,11 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
 
-// AI : Guard to prevent recursive selectOverlay calls when library fires select event
+// Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
 
 /**
- * AI : Clean up previously selected overlay
+ * Clean up previously selected overlay
  */
 function cleanupPreviousSelection(
   previouslySelected: OverlayObject,
@@ -32,12 +32,12 @@ function cleanupPreviousSelection(
 
   removeOverlayOutline(previouslySelected);
 
-  // AI : Remove project outlines (sister highlights) when deselecting
+  // Remove project outlines (sister highlights) when deselecting
   if (previouslySelected.projectId) {
     removeProjectOutlines(previouslySelected.projectId, true);
   }
 
-  // AI : Call deselect on the Leaflet overlay to remove toolbar and handles
+  // Call deselect on the Leaflet overlay to remove toolbar and handles
   const prevLayer = getLayer(previouslySelected.id);
   if (prevLayer) {
     prevLayer.deselect();
@@ -45,12 +45,12 @@ function cleanupPreviousSelection(
 }
 
 /**
- * AI : Setup newly selected overlay with proper state and highlighting
+ * Setup newly selected overlay with proper state and highlighting
  */
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
-  // AI : Set position state for dynamic button feedback when selecting overlay
-  // AI : If no explicit position state, default to showing approved position
-  // AI : UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
+  // Set position state for dynamic button feedback when selecting overlay
+  // If no explicit position state, default to showing approved position
+  // UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
   if (newlySelected.isViewingApprovedPosition === undefined) {
     if (newlySelected.hasPendingChanges) {
       newlySelected.isViewingApprovedPosition = false;
@@ -59,33 +59,33 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
     }
   }
 
-  // AI : Sync preview state for reactive button highlighting in change request UI
+  // Sync preview state for reactive button highlighting in change request UI
   syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
 
-  // AI : Call overlay.select() to show toolbar and handles (single source of truth)
+  // Call overlay.select() to show toolbar and handles (single source of truth)
   const newLayer = getLayer(newlySelected.id);
   if (newLayer) {
     selectOverlayInLeaflet(newLayer);
   }
 
-  // AI : Apply project highlights (sister overlays) when selecting
+  // Apply project highlights (sister overlays) when selecting
   if (newlySelected.projectId) {
     highlightProjectOverlaysOnHover(newlySelected.projectId);
   }
 
-  // AI : Apply selection outline after image loads
+  // Apply selection outline after image loads
   applyOutlineAfterImageLoad(newlySelected);
 }
 
 /**
- * AI : Select overlay in Leaflet, waiting for DOM if needed
+ * Select overlay in Leaflet, waiting for DOM if needed
  */
 function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
   const element = overlay.getElement();
   const isInDOM = element && document.body.contains(element);
 
   if (!isInDOM) {
-    // AI : Wait for element to be added to DOM before selecting
+    // Wait for element to be added to DOM before selecting
     requestAnimationFrame(() => {
       overlay.select();
     });
@@ -95,22 +95,22 @@ function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
 }
 
 /**
- * AI : Apply selection outline, waiting for image load if needed
+ * Apply selection outline, waiting for image load if needed
  */
 function applyOutlineAfterImageLoad(overlayObject: OverlayObject): void {
   const imgElement = getLayer(overlayObject.id)?.getElement();
 
   if (!(imgElement instanceof HTMLImageElement)) {
-    // AI : Fallback for non-image elements
+    // Fallback for non-image elements
     applySelectionOutline(overlayObject);
     return;
   }
 
   if (imgElement.complete && imgElement.naturalWidth > 0) {
-    // AI : Image is already loaded, apply outline immediately
+    // Image is already loaded, apply outline immediately
     applySelectionOutline(overlayObject);
   } else {
-    // AI : Image not loaded yet, wait for load event
+    // Image not loaded yet, wait for load event
     imgElement.addEventListener(
       "load",
       () => {
@@ -122,56 +122,56 @@ function applyOutlineAfterImageLoad(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Select an overlay with proper cleanup of previous selection
+ * Select an overlay with proper cleanup of previous selection
  * This ensures consistent selection behavior regardless of how selection is triggered
  */
 export function selectOverlay(overlayId: string | null): void {
-  // AI : Prevent recursive calls (library's select event → selectOverlay → overlay.select → select event)
+  // Prevent recursive calls (library's select event → selectOverlay → overlay.select → select event)
   if (isSelectingOverlay) return;
 
   const overlayStore = useOverlayStore();
 
-  // AI : Early exit if already selected
+  // Early exit if already selected
   if (overlayId === overlayStore.idSelectedOverlay) return;
 
   isSelectingOverlay = true;
   try {
-    // AI : Store previous selection info before updating
+    // Store previous selection info before updating
     const previouslySelectedId = overlayStore.idSelectedOverlay;
     const previouslySelected = previouslySelectedId
       ? overlayStore.overlays[previouslySelectedId]
       : null;
 
-    // AI : Update selected overlay ID
+    // Update selected overlay ID
     overlayStore.idSelectedOverlay = overlayId;
 
-    // AI : Clean up previous selection if different from new selection
+    // Clean up previous selection if different from new selection
     if (previouslySelected && previouslySelectedId) {
       cleanupPreviousSelection(previouslySelected, previouslySelectedId, overlayId);
     }
 
     if (!overlayId) return;
 
-    // AI : Close standalone project popup when selecting an overlay (mutual exclusivity)
+    // Close standalone project popup when selecting an overlay (mutual exclusivity)
     const uiStore = useUiStore();
     if (uiStore.projectInfoPopup.visible) {
       uiStore.closeProjectInfoPopup();
     }
 
-    // AI : Apply selection to new overlay
+    // Apply selection to new overlay
     const newlySelected = overlayStore.overlays[overlayId];
     if (!newlySelected) return;
 
-    // AI : Set selectedCity to enable panel auto-switch from Latest to Current Location
+    // Set selectedCity to enable panel auto-switch from Latest to Current Location
     const foundCityId = findCityIdForOverlay(overlayId, overlayStore.mode);
 
     if (foundCityId) {
       const mapStore = useMapStore();
-      // AI : Look up city info from citiesLookup map (no circular dependency)
+      // Look up city info from citiesLookup map (no circular dependency)
       const city = mapStore.citiesLookup.get(foundCityId);
 
       if (city) {
-        // AI : Set selectedCity when null/undefined OR when switching to a different city
+        // Set selectedCity when null/undefined OR when switching to a different city
         if (!mapStore.selectedCity || mapStore.selectedCity.id !== city.id) {
           mapStore.setSelectedCity(city);
         }
@@ -180,7 +180,7 @@ export function selectOverlay(overlayId: string | null): void {
 
     setupNewSelection(newlySelected, overlayId);
 
-    // AI : Request scroll to overlay in accordion panel when selecting from map
+    // Request scroll to overlay in accordion panel when selecting from map
     requestScrollTo("overlay", overlayId);
   } finally {
     isSelectingOverlay = false;
@@ -188,14 +188,14 @@ export function selectOverlay(overlayId: string | null): void {
 }
 
 /**
- * AI : Helper to find which city an overlay belongs to
+ * Helper to find which city an overlay belongs to
  * Searches cache first, then moderation store if applicable
  */
 function findCityIdForOverlay(overlayId: string, mode: string): number | null {
   const mapStore = useMapStore();
   let foundCityId: number | null = null;
 
-  // AI : Iterate through all cached cities to find which one contains this overlay
+  // Iterate through all cached cities to find which one contains this overlay
   for (const [cityId, modeCache] of mapStore.cityProjectsCache.entries()) {
     for (const overlays of modeCache.values()) {
       const overlay = overlays.find((o) => o.id === overlayId);
@@ -207,7 +207,7 @@ function findCityIdForOverlay(overlayId: string, mode: string): number | null {
     if (foundCityId) break;
   }
 
-  // AI : If not found in cache and in moderation mode, check moderation store
+  // If not found in cache and in moderation mode, check moderation store
   if (!foundCityId && mode === "moderation") {
     const moderationStore = useModerationStore();
     const modOverlay = moderationStore.overlays.find((o) => o.id === overlayId);
@@ -225,17 +225,17 @@ export function applySelectionOutline(overlayObject: OverlayObject): void {
 
   const element = selLayer.getElement();
   if (element) {
-    // AI : Calculate appropriate outline size based on overlay dimensions
+    // Calculate appropriate outline size based on overlay dimensions
     const outlineSize = calculateOutlineSize(element, 20);
 
-    // AI : Use box-shadow instead of outline to avoid scaling issues
+    // Use box-shadow instead of outline to avoid scaling issues
     element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
     element.style.outline = "none";
   }
 }
 
 /**
- * AI : Remove outline from a single overlay
+ * Remove outline from a single overlay
  */
 function removeOverlayOutline(overlayObject: OverlayObject): void {
   const removeLayer = getLayer(overlayObject.id);
@@ -249,16 +249,16 @@ function removeOverlayOutline(overlayObject: OverlayObject): void {
 }
 
 /**
- * AI : Highlight a single overlay by ID - used for hover from side menu
+ * Highlight a single overlay by ID - used for hover from side menu
  * Scales up the marker if it exists (visible even when zoomed out)
  */
 export function highlightOverlayById(overlayId: string): void {
-  // AI : Scale up the marker for visibility at any zoom level
+  // Scale up the marker for visibility at any zoom level
   const marker = getMarker(overlayId);
   if (marker) {
     const markerElement = marker.getElement();
     if (markerElement) {
-      // AI : Scale the SVG inside the marker to avoid interfering with Leaflet's translate3d positioning
+      // Scale the SVG inside the marker to avoid interfering with Leaflet's translate3d positioning
       const svg = markerElement.querySelector("svg");
       if (svg) {
         svg.style.transformOrigin = "center bottom";
@@ -271,10 +271,10 @@ export function highlightOverlayById(overlayId: string): void {
 }
 
 /**
- * AI : Remove highlight from a single overlay by ID - used for hover leave from side menu
+ * Remove highlight from a single overlay by ID - used for hover leave from side menu
  */
 export function removeOverlayHighlight(overlayId: string): void {
-  // AI : Reset marker scale
+  // Reset marker scale
   const marker = getMarker(overlayId);
   if (marker) {
     const markerElement = marker.getElement();
@@ -289,7 +289,7 @@ export function removeOverlayHighlight(overlayId: string): void {
 }
 
 /**
- * AI : Remove outlines from all overlays in a project
+ * Remove outlines from all overlays in a project
  * @param projectId - The project whose overlays should have outlines removed
  * @param force - If true, removes outlines even if an overlay in the project is selected
  */
@@ -298,7 +298,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 
   if (!projectId) return;
 
-  // AI : Don't remove outlines if an overlay in this project is selected (unless forced)
+  // Don't remove outlines if an overlay in this project is selected (unless forced)
   if (!force) {
     const selectedOverlay = overlayStore.idSelectedOverlay
       ? overlayStore.overlays[overlayStore.idSelectedOverlay]
@@ -306,7 +306,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
     if (selectedOverlay?.projectId === projectId) return;
   }
 
-  // AI : Remove all outlines from overlays in this project
+  // Remove all outlines from overlays in this project
   for (const overlayObject of Object.values(overlayStore.overlays)) {
     if (overlayObject.projectId === projectId) {
       const projLayer = getLayer(overlayObject.id);
@@ -322,7 +322,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 }
 
 /**
- * AI : Highlight all overlays from the same project on hover
+ * Highlight all overlays from the same project on hover
  */
 export function highlightProjectOverlaysOnHover(projectId: string): void {
   const overlayStore = useOverlayStore();
@@ -335,10 +335,10 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
       if (hoverLayer) {
         const element = hoverLayer.getElement();
         if (element) {
-          // AI : Calculate appropriate outline size based on overlay dimensions
+          // Calculate appropriate outline size based on overlay dimensions
           const outlineSize = calculateOutlineSize(element, 20);
 
-          // AI : Use box-shadow instead of outline to avoid scaling issues
+          // Use box-shadow instead of outline to avoid scaling issues
           element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
           element.style.outline = "none";
         }
@@ -348,7 +348,7 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
 }
 
 /**
- * AI : Setup hover event listeners for project highlighting in view mode
+ * Setup hover event listeners for project highlighting in view mode
  */
 export function setupProjectHoverEvents(
   overlay: L.DistortableImageOverlay,
@@ -373,7 +373,7 @@ export function setupProjectHoverEvents(
 }
 
 /**
- * AI : In moderation mode, sync the selected city from the overlay's project context.
+ * In moderation mode, sync the selected city from the overlay's project context.
  * Called when clicking an overlay marker or image so the side panel shows the right city.
  */
 export function syncModerationCityFromOverlay(overlayObject: OverlayObject): void {
@@ -393,12 +393,12 @@ export function syncModerationCityFromOverlay(overlayObject: OverlayObject): voi
 }
 
 /**
- * AI : Setup map click handler to deselect overlays when clicking the map background
+ * Setup map click handler to deselect overlays when clicking the map background
  */
 export function setupMapClickToDeselect(): void {
   map.value.on("click", () => {
     const overlayStore = useOverlayStore();
-    // AI : Deselect if currently selected - overlay click handlers will re-select if clicked
+    // Deselect if currently selected - overlay click handlers will re-select if clicked
     if (overlayStore.idSelectedOverlay) {
       selectOverlay(null);
     }
@@ -406,12 +406,12 @@ export function setupMapClickToDeselect(): void {
 }
 
 /**
- * AI : Calculate appropriate outline size based on overlay dimensions and aspect ratio
+ * Calculate appropriate outline size based on overlay dimensions and aspect ratio
  * This ensures consistent visual outline regardless of overlay shape & resolution
  */
 function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
   try {
-    // AI : Get the actual image element
+    // Get the actual image element
     const imgElement =
       overlayElement instanceof HTMLImageElement
         ? overlayElement
@@ -419,25 +419,25 @@ function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): nu
 
     if (!imgElement) return baseSize;
 
-    // AI : Get natural image dimensions
+    // Get natural image dimensions
     const naturalWidth = imgElement.naturalWidth;
     const naturalHeight = imgElement.naturalHeight;
 
     if (naturalWidth <= 0 || naturalHeight <= 0) return baseSize;
 
-    // AI : Calculate outline size based on image resolution
+    // Calculate outline size based on image resolution
     // Use the smaller dimension to get consistent visual thickness
     const naturalSmallerDimension = Math.min(naturalWidth, naturalHeight);
 
-    // AI : Scale the base outline size by the image resolution
+    // Scale the base outline size by the image resolution
     // Larger images need proportionally larger outlines to appear the same thickness
     const scaleFactor = naturalSmallerDimension / 500;
     const scaledOutline = baseSize * scaleFactor;
 
-    // AI : Clamp to reasonable bounds
+    // Clamp to reasonable bounds
     return Math.max(1, Math.min(50, Math.round(scaledOutline)));
   } catch {
-    // AI : Silently fall back to base size on error
+    // Silently fall back to base size on error
     return baseSize;
   }
 }

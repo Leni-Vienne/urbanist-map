@@ -15,19 +15,19 @@ import {
 import type * as schema from "./schema";
 import type { AppMode } from "@shared/types";
 
-// AI : ============================================================================
-// AI : DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
-// AI : ============================================================================
-// AI : Combines pagination, query builders, and visibility helpers to eliminate
-// AI : duplication and provide single source of truth for database operations
-// AI : ============================================================================
+// ============================================================================
+// DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
+// ============================================================================
+// Combines pagination, query builders, and visibility helpers to eliminate
+// duplication and provide single source of truth for database operations
+// ============================================================================
 
-// AI : ============================================================================
-// AI : PAGINATION HELPERS
-// AI : ============================================================================
+// ============================================================================
+// PAGINATION HELPERS
+// ============================================================================
 
 /**
- * AI : Standard pagination input filters used across multiple endpoints
+ * Standard pagination input filters used across multiple endpoints
  */
 interface PaginationFilters {
   cityId?: number;
@@ -36,8 +36,8 @@ interface PaginationFilters {
 }
 
 /**
- * AI : Build common filter conditions for pagination queries
- * AI : Adds cityId, countryCode, and cursor-based pagination conditions
+ * Build common filter conditions for pagination queries
+ * Adds cityId, countryCode, and cursor-based pagination conditions
  *
  * @param filters - Object containing optional cityId, countryCode, and cursor
  * @param sortColumn - The column used for sorting (determines cursor comparison)
@@ -57,7 +57,7 @@ export async function buildPaginationConditions(
     conditions.push(eq(cities.countryCode, filters.countryCode));
   }
 
-  // AI : Cursor-based pagination: fetch records after the cursor position
+  // Cursor-based pagination: fetch records after the cursor position
   if (filters.cursor) {
     const cursorProject = await db
       .select({ sortValue: sortColumn })
@@ -75,7 +75,7 @@ export async function buildPaginationConditions(
 }
 
 /**
- * AI : Build pagination response with nextCursor and hasMore flag
+ * Build pagination response with nextCursor and hasMore flag
  *
  * @param results - Array of query results
  * @param limit - The requested limit
@@ -101,13 +101,13 @@ export function buildPaginationResponse<T extends { id: string }>(
   };
 }
 
-// AI : ============================================================================
-// AI : QUERY BUILDERS
-// AI : ============================================================================
+// ============================================================================
+// QUERY BUILDERS
+// ============================================================================
 
 /**
- * AI : Select fields for overlay queries with full location hierarchy
- * AI : Extracts PostGIS geometry as JSON for corners and centroid
+ * Select fields for overlay queries with full location hierarchy
+ * Extracts PostGIS geometry as JSON for corners and centroid
  */
 const overlaySelectFields = {
   id: overlays.id,
@@ -119,13 +119,13 @@ const overlaySelectFields = {
   authorId: overlays.authorId,
   replacesOverlayId: overlays.replacesOverlayId,
   replacedByOverlayId: overlays.replacedByOverlayId,
-  // AI : Extract corners from polygon geometry as array of {lat, lng}
+  // Extract corners from polygon geometry as array of {lat, lng}
   corners: sql<{ lat: number; lng: number }[]>`
     (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
      FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
      WHERE path[2] <= 4)
   `,
-  // AI : Extract centroid as {lat, lng}
+  // Extract centroid as {lat, lng}
   centroid: sql<{ lat: number; lng: number }>`
     json_build_object('lat', ST_Y(${overlays.centroid}), 'lng', ST_X(${overlays.centroid}))
   `,
@@ -139,8 +139,8 @@ const overlaySelectFields = {
 };
 
 /**
- * AI : Build overlay query with full location joins (overlay -> project -> city -> country)
- * AI : Returns chainable query that can be extended with .where(), .orderBy(), .limit()
+ * Build overlay query with full location joins (overlay -> project -> city -> country)
+ * Returns chainable query that can be extended with .where(), .orderBy(), .limit()
  */
 export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
   return database
@@ -152,8 +152,8 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
 }
 
 /**
- * AI : Build project query with city and country location data
- * AI : Returns chainable query that can be extended with .where(), .orderBy(), .limit()
+ * Build project query with city and country location data
+ * Returns chainable query that can be extended with .where(), .orderBy(), .limit()
  */
 export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof schema>) {
   return database
@@ -187,8 +187,8 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
 }
 
 /**
- * AI : Build overlay query with minimal fields for moderation lists
- * AI : Includes location data but not full geometry extraction
+ * Build overlay query with minimal fields for moderation lists
+ * Includes location data but not full geometry extraction
  */
 export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof schema>) {
   return database
@@ -199,9 +199,9 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
       status: overlays.status,
       version: overlays.version,
       projectId: overlays.projectId,
-      authorId: overlays.authorId, // AI : For spam prevention filtering
-      authorUsername: users.username, // AI : Display friendly username in moderation UI
-      authorApprovedCount: users.approvedCount, // AI : User stats for spam detection
+      authorId: overlays.authorId, // For spam prevention filtering
+      authorUsername: users.username, // Display friendly username in moderation UI
+      authorApprovedCount: users.approvedCount, // User stats for spam detection
       authorRejectedCount: users.rejectedCount,
       replacesOverlayId: overlays.replacesOverlayId,
       replacedByOverlayId: overlays.replacedByOverlayId,
@@ -219,7 +219,7 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
 }
 
 /**
- * AI : Build project query with minimal fields for moderation lists
+ * Build project query with minimal fields for moderation lists
  */
 export function buildProjectModerationQuery(database: BunSQLDatabase<typeof schema>) {
   return database
@@ -241,9 +241,9 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
       lat: projects.lat,
       lng: projects.lng,
       cityId: projects.cityId,
-      ownerId: projects.ownerId, // AI : For spam prevention filtering
-      ownerUsername: users.username, // AI : Display friendly username in moderation UI
-      ownerApprovedCount: users.approvedCount, // AI : User stats for spam detection
+      ownerId: projects.ownerId, // For spam prevention filtering
+      ownerUsername: users.username, // Display friendly username in moderation UI
+      ownerApprovedCount: users.approvedCount, // User stats for spam detection
       ownerRejectedCount: users.rejectedCount,
       cityName: cities.name,
       countryCode: countries.code,
@@ -255,12 +255,12 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
 
-// AI : ============================================================================
-// AI : CHANGE REQUEST HELPERS
-// AI : ============================================================================
+// ============================================================================
+// CHANGE REQUEST HELPERS
+// ============================================================================
 
 /**
- * AI : Interface for objects that can have conflict detection applied
+ * Interface for objects that can have conflict detection applied
  */
 interface ConflictableChange {
   entityType: string;
@@ -269,8 +269,8 @@ interface ConflictableChange {
 }
 
 /**
- * AI : Adds hasConflict flag to change requests that have multiple pending requests for the same field
- * AI : A conflict occurs when 2+ pending changes target the same entity+field combination
+ * Adds hasConflict flag to change requests that have multiple pending requests for the same field
+ * A conflict occurs when 2+ pending changes target the same entity+field combination
  *
  * @param changes - Array of change requests with entityType, entityId, and fieldName
  * @returns Same array with hasConflict boolean added to each item
@@ -292,7 +292,7 @@ export function addConflictFlags<T extends ConflictableChange>(
 }
 
 /**
- * AI : Base interface for change requests that can be enriched with city names
+ * Base interface for change requests that can be enriched with city names
  */
 interface BaseChangeRequest {
   fieldName: string;
@@ -301,7 +301,7 @@ interface BaseChangeRequest {
 }
 
 /**
- * AI : Default empty enrichment object for non-cityId fields
+ * Default empty enrichment object for non-cityId fields
  */
 const EMPTY_CITY_ENRICHMENT = {
   oldCityName: null,
@@ -313,7 +313,7 @@ const EMPTY_CITY_ENRICHMENT = {
 } as const;
 
 /**
- * AI : Type for enriched change requests with city/country metadata
+ * Type for enriched change requests with city/country metadata
  */
 type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
   oldCityName: string | null;
@@ -325,8 +325,8 @@ type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
 };
 
 /**
- * AI : Convert JSONB value to string and validate it's a valid city ID
- * AI : Returns null for invalid values (null, undefined, or their string representations)
+ * Convert JSONB value to string and validate it's a valid city ID
+ * Returns null for invalid values (null, undefined, or their string representations)
  */
 function toValidCityId(value: unknown): number | null {
   if (!value) return null;
@@ -339,7 +339,7 @@ function toValidCityId(value: unknown): number | null {
 }
 
 /**
- * AI : Extract all unique city IDs from cityId field changes
+ * Extract all unique city IDs from cityId field changes
  */
 function extractCityIds(changes: BaseChangeRequest[]): Set<number> {
   const cityIds = new Set<number>();
@@ -358,9 +358,9 @@ function extractCityIds(changes: BaseChangeRequest[]): Set<number> {
 }
 
 /**
- * AI : Enrich change requests with city and country names for cityId field changes
- * AI : This helper queries the database to fetch city/country names and adds them to the change objects
- * AI : Used by both changes router and moderation router
+ * Enrich change requests with city and country names for cityId field changes
+ * This helper queries the database to fetch city/country names and adds them to the change objects
+ * Used by both changes router and moderation router
  *
  * @param changes - Array of change requests with fieldName, oldValue, newValue
  * @returns Same array enriched with city/country name fields
@@ -368,10 +368,10 @@ function extractCityIds(changes: BaseChangeRequest[]): Set<number> {
 export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
   changes: T[],
 ): Promise<EnrichedChangeRequest<T>[]> {
-  // AI : Extract all unique cityIds from change requests where fieldName is 'cityId'
+  // Extract all unique cityIds from change requests where fieldName is 'cityId'
   const cityIds = extractCityIds(changes);
 
-  // AI : If no city changes, return with empty enrichment
+  // If no city changes, return with empty enrichment
   if (cityIds.size === 0) {
     return changes.map((change) => ({
       ...change,
@@ -379,7 +379,7 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
     }));
   }
 
-  // AI : Fetch all cities with their country names in one query using a join
+  // Fetch all cities with their country names in one query using a join
   const cityData = await db
     .select({
       id: cities.id,
@@ -392,10 +392,10 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
     .leftJoin(countries, eq(cities.countryCode, countries.code))
     .where(inArray(cities.id, [...cityIds]));
 
-  // AI : Create a map for quick lookup
+  // Create a map for quick lookup
   const cityMap = new Map(cityData.map((c) => [c.id, c]));
 
-  // AI : Enrich change requests with city and country names
+  // Enrich change requests with city and country names
   return changes.map((change) => {
     if (change.fieldName !== "cityId") {
       return {
@@ -422,11 +422,11 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
   });
 }
 
-// AI : ============================================================================
-// AI : VISIBILITY HELPERS
-// AI : ============================================================================
+// ============================================================================
+// VISIBILITY HELPERS
+// ============================================================================
 
-// AI : Type for user context from tRPC (can be undefined or null)
+// Type for user context from tRPC (can be undefined or null)
 type UserContext =
   | {
       id: string;
@@ -435,7 +435,7 @@ type UserContext =
   | undefined
   | null;
 
-// AI : Fetch overlay IDs where user has pending change requests
+// Fetch overlay IDs where user has pending change requests
 export async function getUserOverlayChangeRequestIds(
   database: BunSQLDatabase<typeof schema>,
   userId: string,
@@ -448,32 +448,32 @@ export async function getUserOverlayChangeRequestIds(
   return changeRequestResults.map((r) => r.overlayId);
 }
 
-// AI : Build WHERE condition for project visibility based on user context and map mode
+// Build WHERE condition for project visibility based on user context and map mode
 export function buildProjectVisibilityCondition(
   user: UserContext,
   mode: AppMode,
   strictModeration = true,
 ): SQL {
   if (mode === "view") {
-    // AI : View mode: only show approved projects
+    // View mode: only show approved projects
     return eq(projects.status, "approved");
   }
 
   if (mode === "edit" && user) {
-    // AI : Edit mode: show approved projects OR user's own projects (any status)
+    // Edit mode: show approved projects OR user's own projects (any status)
     return sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${user.id})`;
   }
 
   if (mode === "moderation" && user) {
-    // AI : If strict moderation is disabled, show approved projects for context
-    // AI : This is useful for map views where moderators need to see surrounding approved content
+    // If strict moderation is disabled, show approved projects for context
+    // This is useful for map views where moderators need to see surrounding approved content
     if (!strictModeration) {
       return sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`;
     }
 
-    // AI : Moderation mode (strict): only show projects that need moderation
-    // AI : This includes: pending projects OR projects with pending overlays OR projects with pending change requests
-    // AI : Excludes: approved projects with only approved content and no pending changes
+    // Moderation mode (strict): only show projects that need moderation
+    // This includes: pending projects OR projects with pending overlays OR projects with pending change requests
+    // Excludes: approved projects with only approved content and no pending changes
     return sql`(
       ${projects.status} = 'pending'
       OR EXISTS (
@@ -497,31 +497,31 @@ export function buildProjectVisibilityCondition(
     )`;
   }
 
-  // AI : Default (anonymous or unrecognized mode): only show approved projects
+  // Default (anonymous or unrecognized mode): only show approved projects
   return eq(projects.status, "approved");
 }
 
-// AI : Build WHERE condition for overlay visibility based on user context and map mode
-// AI : Can also handle admin includeStatus filter (takes precedence over mode logic)
+// Build WHERE condition for overlay visibility based on user context and map mode
+// Can also handle admin includeStatus filter (takes precedence over mode logic)
 export function buildOverlayVisibilityCondition(
   user: UserContext,
   mode: AppMode,
   overlayChangeRequestIds?: string[],
   adminIncludeStatus?: ApprovalStatus[],
 ): SQL {
-  // AI : Admin status filter takes precedence
+  // Admin status filter takes precedence
   if (adminIncludeStatus && user?.role === "admin" && adminIncludeStatus.length > 0) {
     return inArray(overlays.status, adminIncludeStatus);
   }
 
   if (mode === "view") {
-    // AI : View mode: only show approved overlays
+    // View mode: only show approved overlays
     return eq(overlays.status, "approved");
   }
 
   if (mode === "edit" && user) {
-    // AI : Edit mode: show approved overlays OR user's own PENDING overlays OR overlays with user's change requests
-    // AI : Rejected and replaced overlays are NOT shown even if user owns them
+    // Edit mode: show approved overlays OR user's own PENDING overlays OR overlays with user's change requests
+    // Rejected and replaced overlays are NOT shown even if user owns them
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(",")}}`;
       return sql`(
@@ -535,24 +535,24 @@ export function buildOverlayVisibilityCondition(
   }
 
   if (mode === "moderation" && user) {
-    // AI : Moderation mode: show ALL overlays (approved + pending) for review
+    // Moderation mode: show ALL overlays (approved + pending) for review
     return sql`(${overlays.status} = 'approved' OR ${overlays.status} = 'pending')`;
   }
 
-  // AI : Default (anonymous or unrecognized mode): only show approved overlays
+  // Default (anonymous or unrecognized mode): only show approved overlays
   return eq(overlays.status, "approved");
 }
 
-// AI : Build condition to filter projects that have visible content (projects without images OR projects with visible overlays)
-// AI : This ensures all projects are shown whether they have images or not
-// AI : In edit mode, also show user's own projects even if they don't have overlays yet
+// Build condition to filter projects that have visible content (projects without images OR projects with visible overlays)
+// This ensures all projects are shown whether they have images or not
+// In edit mode, also show user's own projects even if they don't have overlays yet
 export function buildProjectHasVisibleContentCondition(
   user: UserContext,
   mode: AppMode,
   overlayChangeRequestIds?: string[],
 ): SQL {
   if (mode === "view") {
-    // AI : View mode: show if no approved overlays OR has approved overlays (all approved projects visible as either basic markers or with overlays)
+    // View mode: show if no approved overlays OR has approved overlays (all approved projects visible as either basic markers or with overlays)
     return sql`(
       NOT EXISTS (
         SELECT 1 FROM ${overlays}
@@ -568,8 +568,8 @@ export function buildProjectHasVisibleContentCondition(
   }
 
   if (mode === "edit" && user) {
-    // AI : Edit mode: show if no approved overlays OR has approved/user overlays OR is owned by user
-    // AI : Use same logic as view mode but also include user's pending overlays
+    // Edit mode: show if no approved overlays OR has approved/user overlays OR is owned by user
+    // Use same logic as view mode but also include user's pending overlays
     if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
       const idsArray = `{${overlayChangeRequestIds.join(",")}}`;
       return sql`(
@@ -607,9 +607,9 @@ export function buildProjectHasVisibleContentCondition(
   }
 
   if (mode === "moderation" && user) {
-    // AI : Moderation mode: only show projects that need moderation
-    // AI : This includes: pending projects OR projects with pending overlays OR projects with pending change requests
-    // AI : Excludes: approved projects with only approved content and no pending changes
+    // Moderation mode: only show projects that need moderation
+    // This includes: pending projects OR projects with pending overlays OR projects with pending change requests
+    // Excludes: approved projects with only approved content and no pending changes
     return sql`(
       ${projects.status} = 'pending'
       OR EXISTS (
@@ -633,7 +633,7 @@ export function buildProjectHasVisibleContentCondition(
     )`;
   }
 
-  // AI : Default: same as view mode (check for approved overlays, not any overlays)
+  // Default: same as view mode (check for approved overlays, not any overlays)
   return sql`(
     NOT EXISTS (
       SELECT 1 FROM ${overlays}
@@ -647,31 +647,31 @@ export function buildProjectHasVisibleContentCondition(
   )`;
 }
 
-// AI : ============================================================================
-// AI : SPAM PREVENTION HELPERS
-// AI : ============================================================================
+// ============================================================================
+// SPAM PREVENTION HELPERS
+// ============================================================================
 
 /**
- * AI : Check if a user is blocked from contributing content
- * AI : A user is blocked if they are banned OR have reached the report threshold (2+ moderator reports)
+ * Check if a user is blocked from contributing content
+ * A user is blocked if they are banned OR have reached the report threshold (2+ moderator reports)
  *
  * @param userId - The user ID to check
  * @returns Promise<boolean> - True if the user is blocked from contributing
  */
 export async function isUserBlocked(userId: string): Promise<boolean> {
   try {
-    // AI : Fetch user banned status
+    // Fetch user banned status
     const userResult = await db
       .select({ banned: users.banned })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
 
-    // AI : If user not found or banned, block them
+    // If user not found or banned, block them
     const user = userResult[0];
     if (!user || user.banned) return true;
 
-    // AI : Get report threshold from config (default to 2)
+    // Get report threshold from config (default to 2)
     const configResult = await db
       .select({ reportThreshold: sql<number>`coalesce(report_threshold, 2)` })
       .from(sql`config`)
@@ -679,7 +679,7 @@ export async function isUserBlocked(userId: string): Promise<boolean> {
 
     const threshold = configResult[0]?.reportThreshold ?? 2;
 
-    // AI : Count how many distinct moderators have reported this user
+    // Count how many distinct moderators have reported this user
     const reportCountResult = await db
       .select({ count: sql<number>`count(distinct ${userReports.reportedBy})::int` })
       .from(userReports)
@@ -688,11 +688,11 @@ export async function isUserBlocked(userId: string): Promise<boolean> {
 
     const reportCount = reportCountResult[0]?.count ?? 0;
 
-    // AI : Block if report count meets or exceeds threshold
+    // Block if report count meets or exceeds threshold
     return reportCount >= threshold;
   } catch (error) {
     console.error("Error checking if user is blocked:", error);
-    // AI : Default to blocking on error for safety
+    // Default to blocking on error for safety
     return true;
   }
 }

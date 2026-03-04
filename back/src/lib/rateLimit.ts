@@ -3,7 +3,7 @@ class RateLimiter {
   private readonly cleanupInterval: ReturnType<typeof setInterval>;
 
   constructor(private readonly checkIntervalMs = 60_000) {
-    // AI : Clean up expired entries periodically to prevent memory leaks
+    // Clean up expired entries periodically to prevent memory leaks
     this.cleanupInterval = setInterval(() => this.cleanup(), this.checkIntervalMs);
   }
 
@@ -22,7 +22,7 @@ class RateLimiter {
     const now = Date.now();
     const timestamps = this.hits.get(key) || [];
 
-    // AI : Filter out timestamps outside the current window
+    // Filter out timestamps outside the current window
     const validTimestamps = timestamps.filter((ts) => now - ts < windowMs);
 
     if (validTimestamps.length >= limit) {
@@ -47,7 +47,7 @@ class RateLimiter {
 
   private cleanup() {
     const now = Date.now();
-    // AI : Rate limiters usually have a max window of 1 hour, so we can safely remove anything older than that
+    // Rate limiters usually have a max window of 1 hour, so we can safely remove anything older than that
     // To be safe, let's say 24 hours (86400000 ms) as a global cleanup threshold or just check emptiness
     // Actually, we can just iterate and remove empty arrays or very old entries.
     // A simple heuristic: if the array is empty or all timestamps are notably old.
@@ -64,11 +64,11 @@ class RateLimiter {
     }
   }
 
-  // AI : Call this when shutting down the server to allow clean exit
+  // Call this when shutting down the server to allow clean exit
   stop() {
     clearInterval(this.cleanupInterval);
   }
 }
 
-// AI : Export a singleton or allow instantiation? Let's export the class so we can have different limiters.
+// Export a singleton or allow instantiation? Let's export the class so we can have different limiters.
 export const globalRateLimiter = new RateLimiter();

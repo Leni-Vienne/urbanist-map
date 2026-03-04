@@ -1,18 +1,18 @@
-// AI : Shared validation logic for overlays (used by both frontend and backend)
+// Shared validation logic for overlays (used by both frontend and backend)
 
 interface Corner {
   lat: number;
   lng: number;
 }
 
-// AI : Maximum dimensions in meters
+// Maximum dimensions in meters
 const MAX_WIDTH_METERS = 1000;
 const MAX_HEIGHT_METERS = 1000;
 const MAX_DIAGONAL_METERS = 1450;
 
-// AI : Calculate distance between two points using Haversine formula (same as PostGIS ST_Distance on geography)
+// Calculate distance between two points using Haversine formula (same as PostGIS ST_Distance on geography)
 function calculateDistance(point1: Corner, point2: Corner): number {
-  const R = 6_371_000; // AI : Earth's radius in meters
+  const R = 6_371_000; // Earth's radius in meters
   const lat1 = (point1.lat * Math.PI) / 180;
   const lat2 = (point2.lat * Math.PI) / 180;
   const deltaLat = ((point2.lat - point1.lat) * Math.PI) / 180;
@@ -30,7 +30,7 @@ interface OverlaySizeValidationResult {
   isValid: boolean;
 }
 
-// AI : Validate overlay size constraints
+// Validate overlay size constraints
 export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationResult {
   if (corners.length !== 4) {
     return { isValid: false };
@@ -38,17 +38,17 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
 
   const [topLeft, topRight, bottomRight, bottomLeft] = corners;
 
-  // AI : Calculate distances for all edges
+  // Calculate distances for all edges
   const topEdge = calculateDistance(topLeft!, topRight!);
   const bottomEdge = calculateDistance(bottomLeft!, bottomRight!);
   const leftEdge = calculateDistance(topLeft!, bottomLeft!);
   const rightEdge = calculateDistance(topRight!, bottomRight!);
 
-  // AI : Calculate diagonals
+  // Calculate diagonals
   const diagonalTLBR = calculateDistance(topLeft!, bottomRight!);
   const diagonalTRBL = calculateDistance(topRight!, bottomLeft!);
 
-  // AI : Check if any dimension exceeds limits
+  // Check if any dimension exceeds limits
   const isValid =
     topEdge <= MAX_WIDTH_METERS &&
     bottomEdge <= MAX_WIDTH_METERS &&
@@ -60,14 +60,14 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
   return { isValid };
 }
 
-// AI : Helper to convert Leaflet LatLng to Corner interface
+// Helper to convert Leaflet LatLng to Corner interface
 export function leafletCornersToCorners(leafletCorners: { lat: number; lng: number }[]): Corner[] {
   return leafletCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
 }
 
 /**
- * AI : Calculate centroid from 4 corner coordinates using average of all corners
- * AI : Used for consistent centroid calculation across frontend and backend
+ * Calculate centroid from 4 corner coordinates using average of all corners
+ * Used for consistent centroid calculation across frontend and backend
  */
 export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
   if (corners.length !== 4) {

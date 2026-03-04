@@ -12,42 +12,42 @@ import {
 } from "../db/helpers";
 
 const getCitiesNearLocationSchema = z.object({
-  lat: z.number().min(-90).max(90), // AI : Valid latitude range
-  lng: z.number().min(-180).max(180), // AI : Valid longitude range
-  limit: z.number().min(1).max(25).default(10), // AI : Limit results between 1-25, default 10
+  lat: z.number().min(-90).max(90), // Valid latitude range
+  lng: z.number().min(-180).max(180), // Valid longitude range
+  limit: z.number().min(1).max(25).default(10), // Limit results between 1-25, default 10
 });
 
 const searchCitiesNearLocationSchema = z.object({
-  lat: z.number().min(-90).max(90), // AI : Valid latitude range
-  lng: z.number().min(-180).max(180), // AI : Valid longitude range
-  search: z.string().min(1).max(100), // AI : Limit search string to 100 characters
-  limit: z.number().min(1).max(25).default(10), // AI : Limit results between 1-25, default 10
+  lat: z.number().min(-90).max(90), // Valid latitude range
+  lng: z.number().min(-180).max(180), // Valid longitude range
+  search: z.string().min(1).max(100), // Limit search string to 100 characters
+  limit: z.number().min(1).max(25).default(10), // Limit results between 1-25, default 10
 });
 
 const getCityOverlaysAndProjectsSchema = z.object({
   cityId: z.number(),
-  mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // AI : Map viewing mode
+  mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // Map viewing mode
 });
 
 export const citiesRouter = router({
-  // AI : Get cities closest to given coordinates ordered by distance
+  // Get cities closest to given coordinates ordered by distance
   getCitiesNearLocation: publicProcedure
     .input(getCitiesNearLocationSchema)
     .query(async ({ input }) => {
       try {
         const { lat, lng, limit } = input;
 
-        // AI : Use PostGIS ST_Distance to calculate distance and order by closest
+        // Use PostGIS ST_Distance to calculate distance and order by closest
         return await db
           .select({
             id: cities.id,
             name: cities.name,
             nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
-            // AI : Extract coordinates from PostGIS point
+            // Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
             lng: sql<number>`ST_X(${cities.coordinates})`,
-            // AI : Calculate distance in meters using spherical earth model
+            // Calculate distance in meters using spherical earth model
             distance: sql<number>`ST_Distance(
               ${cities.coordinates}, 
               ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
@@ -68,15 +68,15 @@ export const citiesRouter = router({
       }
     }),
 
-  // AI : Search cities near given coordinates with name filter
+  // Search cities near given coordinates with name filter
   searchCitiesNearLocation: publicProcedure
     .input(searchCitiesNearLocationSchema)
     .query(async ({ input }) => {
       try {
         const { lat, lng, search, limit } = input;
 
-        // AI : Use PostGIS ST_Distance to calculate distance, with smart ordering
-        // AI : Priority: exact match > starts with > contains, then by distance within each category
+        // Use PostGIS ST_Distance to calculate distance, with smart ordering
+        // Priority: exact match > starts with > contains, then by distance within each category
         const searchLower = search.trim().toLowerCase();
         const result = await db
           .select({
@@ -84,11 +84,11 @@ export const citiesRouter = router({
             name: cities.name,
             nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
-            // AI : Extract coordinates from PostGIS point
+            // Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
             lng: sql<number>`ST_X(${cities.coordinates})`,
             approvedProjectCount: cities.approvedProjectCount,
-            // AI : Calculate distance in meters using spherical earth model
+            // Calculate distance in meters using spherical earth model
             distance: sql<number>`ST_Distance(
               ${cities.coordinates}, 
               ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
@@ -99,13 +99,13 @@ export const citiesRouter = router({
             sql`(unaccent(${cities.name}) ILIKE unaccent(${`%${searchLower}%`}) OR unaccent(${cities.nameLocal}) ILIKE unaccent(${`%${searchLower}%`}))`,
           )
           .orderBy(
-            // AI : First priority: exact matches (case-insensitive, accent-insensitive)
+            // First priority: exact matches (case-insensitive, accent-insensitive)
             sql`CASE WHEN unaccent(LOWER(${cities.name})) = unaccent(${searchLower}) OR unaccent(LOWER(${cities.nameLocal})) = unaccent(${searchLower}) THEN 0 ELSE 1 END`,
-            // AI : Second priority: prefix matches (starts with search term)
+            // Second priority: prefix matches (starts with search term)
             sql`CASE WHEN unaccent(LOWER(${cities.name})) LIKE unaccent(${`${searchLower}%`}) OR unaccent(LOWER(${cities.nameLocal})) LIKE unaccent(${`${searchLower}%`}) THEN 0 ELSE 1 END`,
-            // AI : Third priority: cities with projects
+            // Third priority: cities with projects
             sql`CASE WHEN ${cities.approvedProjectCount} > 0 THEN 0 ELSE 1 END`,
-            // AI : Finally: order by distance within each category
+            // Finally: order by distance within each category
             sql`ST_Distance(
               ${cities.coordinates}, 
               ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
@@ -123,28 +123,28 @@ export const citiesRouter = router({
       }
     }),
 
-  // AI : Get all cities that have at least one approved project (or user's own pending contributions in edit mode)
+  // Get all cities that have at least one approved project (or user's own pending contributions in edit mode)
   getCitiesWithProjects: publicProcedure
     .input(
       z.object({
         countryCode: z.string().optional(),
-        mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // AI : Map viewing mode
+        mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // Map viewing mode
       }),
     )
     .query(async ({ input, ctx }) => {
       try {
-        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        // SECURITY: Reject moderation mode for unauthenticated users
         if (input.mode === "moderation" && !ctx.user) {
           throw new Error("Authentication required for moderation mode");
         }
 
-        // AI : Fetch user's overlay change request IDs if in edit mode
+        // Fetch user's overlay change request IDs if in edit mode
         const overlayChangeRequestIds =
           ctx.user && input.mode === "edit"
             ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
             : undefined;
 
-        // AI : Build visibility conditions using helper functions
+        // Build visibility conditions using helper functions
         const conditions = [
           isNotNull(projects.cityId),
           buildProjectVisibilityCondition(ctx.user, input.mode),
@@ -155,17 +155,17 @@ export const citiesRouter = router({
           conditions.push(eq(cities.countryCode, input.countryCode));
         }
 
-        // AI : Join cities with projects and return cities that have matching projects
+        // Join cities with projects and return cities that have matching projects
         return await db
           .selectDistinct({
             id: cities.id,
             name: cities.name,
             nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
-            // AI : Extract coordinates from PostGIS point
+            // Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
             lng: sql<number>`ST_X(${cities.coordinates})`,
-            // AI : Count number of matching projects in this city
+            // Count number of matching projects in this city
             projectCount: sql<number>`COUNT(${projects.id})`,
           })
           .from(cities)
@@ -181,37 +181,37 @@ export const citiesRouter = router({
         });
       }
     }),
-  // AI : Get all approved projects and overlays for a specific city
+  // Get all approved projects and overlays for a specific city
   getCityOverlaysAndProjects: publicProcedure
     .input(getCityOverlaysAndProjectsSchema)
     .query(async ({ input, ctx }) => {
       try {
         const { cityId, mode } = input;
 
-        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        // SECURITY: Reject moderation mode for unauthenticated users
         if (mode === "moderation" && !ctx.user) {
           throw new Error("Authentication required for moderation mode");
         }
 
-        // AI : Fetch user's overlay change request IDs if in edit mode
+        // Fetch user's overlay change request IDs if in edit mode
         const overlayChangeRequestIds =
           ctx.user && mode === "edit"
             ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
             : undefined;
 
-        // AI : Build visibility conditions using helper functions
+        // Build visibility conditions using helper functions
         const whereConditions = [
           eq(projects.cityId, cityId),
-          // AI : In moderation mode, disable strict filtering to show approved projects (context)
+          // In moderation mode, disable strict filtering to show approved projects (context)
           buildProjectVisibilityCondition(ctx.user, mode, false),
           buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
         ];
 
-        // AI : Single optimized query that extracts all data including corners as JSON
-        // AI : Uses Drizzle ORM for main data to preserve Date objects through superjson
+        // Single optimized query that extracts all data including corners as JSON
+        // Uses Drizzle ORM for main data to preserve Date objects through superjson
         const overlaysData = await db
           .select({
-            // AI : Select overlay fields individually to avoid geometry column issues
+            // Select overlay fields individually to avoid geometry column issues
             overlayId: overlays.id,
             overlayVersion: overlays.version,
             overlayFilename: overlays.filename,
@@ -223,18 +223,18 @@ export const citiesRouter = router({
             overlayReplacedByOverlayId: overlays.replacedByOverlayId,
             overlayCreatedAt: overlays.createdAt,
             overlayUpdatedAt: overlays.updatedAt,
-            // AI : Extract centroid and corners directly in the query
+            // Extract centroid and corners directly in the query
             centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
             centroidLng: sql<number>`ST_X(${overlays.centroid})`,
-            // AI : Extract corners as JSON array in a single query
+            // Extract corners as JSON array in a single query
             corners: sql<{ lat: number; lng: number }[]>`(
                 SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
                 FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
                 WHERE path[2] <= 4
               )`,
-            // AI : Select project fields (all are safe - no geometry columns)
+            // Select project fields (all are safe - no geometry columns)
             project: projects,
-            // AI : Select city fields individually, extract coordinates from geometry
+            // Select city fields individually, extract coordinates from geometry
             cityId: cities.id,
             city: cities,
           })
@@ -244,7 +244,7 @@ export const citiesRouter = router({
           .where(and(...whereConditions))
           .orderBy(overlays.createdAt);
 
-        // AI : Fetch change requests based on mode
+        // Fetch change requests based on mode
         let changeRequestsData: {
           id: string;
           entityType: string;
@@ -256,7 +256,7 @@ export const citiesRouter = router({
 
         if (ctx.user) {
           if (mode === "edit") {
-            // AI : In edit mode, fetch only user's own pending change requests
+            // In edit mode, fetch only user's own pending change requests
             changeRequestsData = await db
               .select({
                 id: changeRequests.id,
@@ -275,7 +275,7 @@ export const citiesRouter = router({
                 ),
               );
           } else if (mode === "moderation") {
-            // AI : In moderation mode, fetch ALL pending change requests to show suggested positions
+            // In moderation mode, fetch ALL pending change requests to show suggested positions
             changeRequestsData = await db
               .select({
                 id: changeRequests.id,
@@ -292,7 +292,7 @@ export const citiesRouter = router({
           }
         }
 
-        // AI : Group change requests by overlay ID for easy lookup
+        // Group change requests by overlay ID for easy lookup
         const changeRequestsByOverlay = new Map<string, typeof changeRequestsData>();
         for (const cr of changeRequestsData) {
           const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
@@ -300,7 +300,7 @@ export const citiesRouter = router({
           changeRequestsByOverlay.set(cr.entityId, existing);
         }
 
-        // AI : In moderation mode, count change requests per overlay
+        // In moderation mode, count change requests per overlay
         const allChangeRequestCounts = new Map<string, number>();
         if (mode === "moderation") {
           for (const [overlayId, requests] of changeRequestsByOverlay) {
@@ -312,10 +312,10 @@ export const citiesRouter = router({
           const approvedCorners = row.corners;
           const centroid = { lat: row.centroidLat, lng: row.centroidLng };
 
-          // AI : Get change requests for this overlay
+          // Get change requests for this overlay
           const overlayChangeRequests = changeRequestsByOverlay.get(row.overlayId) ?? [];
 
-          // AI : Check for pending corners change request
+          // Check for pending corners change request
           const cornersChangeRequest = overlayChangeRequests.find(
             (cr) => cr.fieldName === "corners",
           );
@@ -325,12 +325,12 @@ export const citiesRouter = router({
               ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
               : null;
 
-          // AI : ALWAYS use consistent field names - no more flipping!
+          // ALWAYS use consistent field names - no more flipping!
           // - corners = ALWAYS approved position (database value)
           // - suggestedCorners = pending changes if they exist
           // Frontend decides what to display based on mode + user state
 
-          // AI : Determine if user has their own pending changes
+          // Determine if user has their own pending changes
           const userHasPendingChanges =
             mode === "edit" && overlayChangeRequests.some((cr) => cr.requestedBy === ctx.user?.id);
 
@@ -347,16 +347,16 @@ export const citiesRouter = router({
             createdAt: row.overlayCreatedAt,
             updatedAt: row.overlayUpdatedAt,
             centroid,
-            corners: approvedCorners, // AI : ALWAYS approved position from database
-            suggestedCorners: suggestedCorners ?? undefined, // AI : Suggested position if pending changes exist
+            corners: approvedCorners, // ALWAYS approved position from database
+            suggestedCorners: suggestedCorners ?? undefined, // Suggested position if pending changes exist
             distance: 0,
             project: {
               ...row.project,
               city: row.city,
             },
-            // AI : Flag for user's own pending changes (edit mode) or any pending changes (moderation mode)
+            // Flag for user's own pending changes (edit mode) or any pending changes (moderation mode)
             hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
-            // AI : In moderation mode, add count of ALL pending change requests for this overlay
+            // In moderation mode, add count of ALL pending change requests for this overlay
             pendingChangeRequestsCount:
               mode === "moderation" ? (allChangeRequestCounts.get(row.overlayId) ?? 0) : undefined,
           };
@@ -372,21 +372,21 @@ export const citiesRouter = router({
       }
     }),
 
-  // AI : Search cities by name with project counts
-  // AI : Optimized for 48k cities with minimum character requirement and indexed ILIKE search
+  // Search cities by name with project counts
+  // Optimized for 48k cities with minimum character requirement and indexed ILIKE search
   searchCities: publicProcedure
     .input(
       z.object({
-        query: z.string().min(1).max(100), // AI : Minimum 1 character to support short city names (e.g., Chinese cities)
-        limit: z.number().min(1).max(50).default(25), // AI : Limit results, default 25
+        query: z.string().min(1).max(100), // Minimum 1 character to support short city names (e.g., Chinese cities)
+        limit: z.number().min(1).max(50).default(25), // Limit results, default 25
       }),
     )
     .query(async ({ input }) => {
       try {
         const { query, limit } = input;
 
-        // AI : Use unaccent() for accent-insensitive search (e.g., "Montreal" matches "Montréal")
-        // AI : Order by cities with projects first, then alphabetically
+        // Use unaccent() for accent-insensitive search (e.g., "Montreal" matches "Montréal")
+        // Order by cities with projects first, then alphabetically
         const searchPattern = `${query.trim()}%`;
         return await db
           .select({
@@ -394,7 +394,7 @@ export const citiesRouter = router({
             name: cities.name,
             nameLocal: cities.nameLocal,
             countryCode: cities.countryCode,
-            // AI : Extract coordinates from PostGIS point
+            // Extract coordinates from PostGIS point
             lat: sql<number>`ST_Y(${cities.coordinates})`,
             lng: sql<number>`ST_X(${cities.coordinates})`,
             approvedProjectCount: cities.approvedProjectCount,
@@ -402,10 +402,10 @@ export const citiesRouter = router({
           .from(cities)
           .where(
             sql`(unaccent(${cities.name}) ILIKE unaccent(${searchPattern}) OR unaccent(${cities.nameLocal}) ILIKE unaccent(${searchPattern}))`,
-          ) // AI : Match against both English and local names, accent-insensitive
+          ) // Match against both English and local names, accent-insensitive
           .orderBy(
-            sql`(${cities.approvedProjectCount} > 0) DESC`, // AI : Cities with projects first
-            cities.name, // AI : Then alphabetically by English name
+            sql`(${cities.approvedProjectCount} > 0) DESC`, // Cities with projects first
+            cities.name, // Then alphabetically by English name
           )
           .limit(limit);
       } catch (error) {

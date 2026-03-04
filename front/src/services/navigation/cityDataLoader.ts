@@ -1,5 +1,5 @@
-// AI : City data loading for navigation - pure data fetching only (no rendering)
-// AI : Rendering is handled by callers to avoid circular dependencies
+// City data loading for navigation - pure data fetching only (no rendering)
+// Rendering is handled by callers to avoid circular dependencies
 import { ref } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -9,14 +9,14 @@ import type { CityProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
 /**
- * AI : Module-level ref to track loaded cities across both viewport manager and direct navigation
- * AI : Shared state prevents duplicate loads and enables cache checking
- * AI : Wrapped in Vue ref for reactivity and compatibility with existing code
+ * Module-level ref to track loaded cities across both viewport manager and direct navigation
+ * Shared state prevents duplicate loads and enables cache checking
+ * Wrapped in Vue ref for reactivity and compatibility with existing code
  */
 export const loadedCityIds = ref<Set<number>>(new Set());
 
 /**
- * AI : Helper to fetch city overlays from cache or backend
+ * Helper to fetch city overlays from cache or backend
  */
 export async function fetchCityOverlaysOrCache(
   cityId: number,
@@ -36,8 +36,8 @@ export async function fetchCityOverlaysOrCache(
 }
 
 /**
- * AI : Helper to fetch standalone projects from cache or backend
- * AI : Exported for reuse across viewport manager and marker composables
+ * Helper to fetch standalone projects from cache or backend
+ * Exported for reuse across viewport manager and marker composables
  */
 export async function fetchCityStandaloneProjectsOrCache(
   cityId: number,
@@ -58,9 +58,9 @@ export async function fetchCityStandaloneProjectsOrCache(
 }
 
 /**
- * AI : Load city data (overlays + standalone projects) without rendering
- * AI : Callers are responsible for rendering the data
- * AI : Returns both overlays and standalone projects for the city
+ * Load city data (overlays + standalone projects) without rendering
+ * Callers are responsible for rendering the data
+ * Returns both overlays and standalone projects for the city
  */
 export async function loadCityData(
   cityId: number,
@@ -74,7 +74,7 @@ export async function loadCityData(
     fetchCityStandaloneProjectsOrCache(cityId, actualMode),
   ]);
 
-  // AI : Mark city as loaded
+  // Mark city as loaded
   loadedCityIds.value.add(cityId);
 
   return { overlays, projects };

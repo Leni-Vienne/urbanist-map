@@ -1,5 +1,5 @@
 /**
- * AI: Script to find and remove unused translation keys.
+ * Script to find and remove unused translation keys.
  *
  * Usage:
  *   bun run scripts/find-unused-translations.ts           # Report only
@@ -13,18 +13,18 @@ const LOCALES_DIR = join(import.meta.dir, "../front/src/locales/messages");
 const SEARCH_DIRS = [join(import.meta.dir, "../front/src")];
 const SEARCH_EXTENSIONS = new Set([".vue", ".ts", ".tsx", ".js", ".jsx"]);
 
-// AI: Keys that are dynamically built and should be ignored
+// Keys that are dynamically built and should be ignored
 // Add prefixes here for keys that are used via patterns like t(`status.${value}`)
 const IGNORED_PREFIXES: string[] = [
-  "status.", // AI: Used dynamically via t(`status.${status}`)
-  "fields.", // AI: Used dynamically for field names
-  "relativeTime.", // AI: Used dynamically for time formatting
-  "validation.", // AI: Used dynamically for validation messages
-  "auth.error.", // AI: Used dynamically for auth error codes
-  "moderation.rejectionReason.", // AI: Used dynamically for rejection reasons
+  "status.", // Used dynamically via t(`status.${status}`)
+  "fields.", // Used dynamically for field names
+  "relativeTime.", // Used dynamically for time formatting
+  "validation.", // Used dynamically for validation messages
+  "auth.error.", // Used dynamically for auth error codes
+  "moderation.rejectionReason.", // Used dynamically for rejection reasons
 ];
 
-// AI: Recursively extract all translation keys from a nested object
+// Recursively extract all translation keys from a nested object
 function extractKeys(obj: unknown, prefix = ""): string[] {
   const keys: string[] = [];
 
@@ -45,7 +45,7 @@ function extractKeys(obj: unknown, prefix = ""): string[] {
   return keys;
 }
 
-// AI: Recursively get all files with specified extensions
+// Recursively get all files with specified extensions
 function getFilesRecursively(dir: string): string[] {
   const files: string[] = [];
 
@@ -57,7 +57,7 @@ function getFilesRecursively(dir: string): string[] {
       const stat = statSync(fullPath);
 
       if (stat.isDirectory()) {
-        // AI: Skip node_modules and locales directories
+        // Skip node_modules and locales directories
         if (entry !== "node_modules" && entry !== "locales") {
           files.push(...getFilesRecursively(fullPath));
         }
@@ -72,11 +72,11 @@ function getFilesRecursively(dir: string): string[] {
   return files;
 }
 
-// AI: Find dynamic key prefixes used in the codebase
+// Find dynamic key prefixes used in the codebase
 function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
   const dynamicPrefixes = new Set<string>();
 
-  // AI: Regex to find patterns like t(`prefix.${...}`) or t('prefix.' + ...)
+  // Regex to find patterns like t(`prefix.${...}`) or t('prefix.' + ...)
   const templateLiteralRegex = /\$?t\(`([a-zA-Z_][a-zA-Z0-9_.]*)\.\$\{/g;
   const concatRegex = /\$?t\(['"]([a-zA-Z_][a-zA-Z0-9_.]*)\.['"]\s*\+/g;
 
@@ -95,9 +95,9 @@ function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
   return dynamicPrefixes;
 }
 
-// AI: Check if a key is used in any file
+// Check if a key is used in any file
 function isKeyUsed(key: string, files: string[], fileContents: Map<string, string>): boolean {
-  // AI: Build patterns to search for
+  // Build patterns to search for
   // Common patterns: t('key'), $t('key'), t("key"), $t("key"), i18n.t('key'), etc.
   // Also match bare string literals like `const k = "key"; t(k)` (variable-indirected usage)
   const patterns = [
@@ -125,7 +125,7 @@ function isKeyUsed(key: string, files: string[], fileContents: Map<string, strin
   return false;
 }
 
-// AI: Remove a nested key from an object
+// Remove a nested key from an object
 function removeKey(obj: Record<string, unknown>, keyPath: string): boolean {
   const parts = keyPath.split(".");
   let current: Record<string, unknown> = obj;
@@ -156,7 +156,7 @@ function removeKey(obj: Record<string, unknown>, keyPath: string): boolean {
   return false;
 }
 
-// AI: Clean up empty objects after removing keys
+// Clean up empty objects after removing keys
 function cleanEmptyObjects(obj: Record<string, unknown>): void {
   for (const key of Object.keys(obj)) {
     const value = obj[key];
@@ -174,7 +174,7 @@ async function main() {
 
   console.log("🔍 Finding unused translation keys...\n");
 
-  // AI: Get all source files
+  // Get all source files
   const sourceFiles: string[] = [];
   for (const dir of SEARCH_DIRS) {
     sourceFiles.push(...getFilesRecursively(dir));
@@ -182,7 +182,7 @@ async function main() {
 
   console.log(`📁 Found ${sourceFiles.length} source files to search\n`);
 
-  // AI: Pre-load all file contents for faster searching
+  // Pre-load all file contents for faster searching
   const fileContents = new Map<string, string>();
   for (const file of sourceFiles) {
     try {
@@ -192,7 +192,7 @@ async function main() {
     }
   }
 
-  // AI: Find dynamic prefixes used in the codebase
+  // Find dynamic prefixes used in the codebase
   const dynamicPrefixes = findDynamicPrefixes(fileContents);
   if (dynamicPrefixes.size > 0) {
     console.log("🔄 Detected dynamic key prefixes (will be ignored):");
@@ -202,10 +202,10 @@ async function main() {
     console.log();
   }
 
-  // AI: Combine detected dynamic prefixes with static ignored prefixes
+  // Combine detected dynamic prefixes with static ignored prefixes
   const allIgnoredPrefixes = new Set([...IGNORED_PREFIXES, ...dynamicPrefixes]);
 
-  // AI: Get all locale files
+  // Get all locale files
   const localeFiles = readdirSync(LOCALES_DIR).filter((f) => f.endsWith(".json"));
 
   for (const localeFile of localeFiles) {
@@ -223,7 +223,7 @@ async function main() {
       let ignoredCount = 0;
 
       for (const key of allKeys) {
-        // AI: Check if key matches any ignored prefix
+        // Check if key matches any ignored prefix
         const isIgnored = [...allIgnoredPrefixes].some((prefix) => key.startsWith(prefix));
 
         if (isIgnored) {

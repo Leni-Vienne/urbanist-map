@@ -1,5 +1,5 @@
-// AI : Viewport-based content manager - replaces city-based loading with spatial queries
-// AI : Single rendering path for all triggers (pan, zoom, mode switch, navigation)
+// Viewport-based content manager - replaces city-based loading with spatial queries
+// Single rendering path for all triggers (pan, zoom, mode switch, navigation)
 import { ref, watch } from "vue";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -29,49 +29,49 @@ import {
   renderFullOverlays,
   hydrateOverlayStoreObjects,
 } from "@/services/navigation/cityRenderingCore";
-import { filterByCompletionStatus } from "@/services/overlay/completionFilters";
+import { filterByStatus } from "@/services/overlay/statusFilters";
 import type { OverlayData } from "@/types/index";
 import { type StandaloneProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
 
-// AI : Module-level state shared across composable instances and standalone functions
-// AI : Track last zoom level to detect marker ↔ overlay transitions
+// Module-level state shared across composable instances and standalone functions
+// Track last zoom level to detect marker ↔ overlay transitions
 const lastZoomLevel = ref<number | null>(null);
 
 /**
- * AI : Main viewport content manager
- * AI : Handles all overlay and project rendering based on viewport bounds
+ * Main viewport content manager
+ * Handles all overlay and project rendering based on viewport bounds
  */
 export function useViewportTriggers() {
-  // AI : Initialize all stores at root level for better performance and cleaner code
+  // Initialize all stores at root level for better performance and cleaner code
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
   /**
-   * AI : Clear content for non-active cities while preserving active city markers
-   * AI : Always removes overlay images (too cluttered when zoomed out)
-   * AI : Keeps markers for active city to show locations
+   * Clear content for non-active cities while preserving active city markers
+   * Always removes overlay images (too cluttered when zoomed out)
+   * Keeps markers for active city to show locations
    */
   function clearContentExceptActiveCity(activeCityId: number, isEditMode: boolean) {
-    // AI : Clear overlay images for ALL, markers for non-active cities only
+    // Clear overlay images for ALL, markers for non-active cities only
     for (const [overlayId, overlay] of Object.entries(overlayStore.overlays)) {
       const belongsToActiveCity = overlay.project?.cityId === activeCityId;
       const isLocal = isEditMode && overlay.status === null;
 
-      // AI : Always remove overlay images when zoomed out
+      // Always remove overlay images when zoomed out
       registry.removeLayerFromMap(overlayId);
 
-      // AI : Remove markers only for non-active cities
+      // Remove markers only for non-active cities
       if (!belongsToActiveCity && !isLocal) {
         registry.removeMarkerFromMap(overlayId);
       }
     }
 
-    // AI : Clear standalone markers for non-active cities
+    // Clear standalone markers for non-active cities
     const markerMap = getStandaloneProjectMarkerMap();
 
     for (const [projectId, marker] of markerMap.entries()) {
@@ -82,7 +82,7 @@ export function useViewportTriggers() {
       }
     }
 
-    // AI : Remove non-active cities from loaded set
+    // Remove non-active cities from loaded set
     for (const cityId of loadedCityIds.value) {
       if (cityId !== activeCityId) {
         loadedCityIds.value.delete(cityId);
@@ -91,7 +91,7 @@ export function useViewportTriggers() {
   }
 
   /**
-   * AI : Get visible cities in current viewport
+   * Get visible cities in current viewport
    */
   function getVisibleCitiesInViewport(): typeof citiesWithProjects.value {
     const bounds = map.value.getBounds();
@@ -99,9 +99,9 @@ export function useViewportTriggers() {
       bounds.contains([city.lat, city.lng]),
     );
 
-    // AI : Fallback: when zoomed in far enough that no city marker is in the viewport
-    // AI : (e.g. viewing a contribution far from the city center, or loading a shared URL),
-    // AI : find the nearest city so its data still gets loaded.
+    // Fallback: when zoomed in far enough that no city marker is in the viewport
+    // (e.g. viewing a contribution far from the city center, or loading a shared URL),
+    // find the nearest city so its data still gets loaded.
     if (visible.length === 0 && citiesWithProjects.value.length > 0) {
       const center = map.value.getCenter();
       let nearest = citiesWithProjects.value[0]!;
@@ -122,29 +122,29 @@ export function useViewportTriggers() {
   }
 
   /**
-   * AI : Re-render all loaded cities (used for zoom threshold changes)
+   * Re-render all loaded cities (used for zoom threshold changes)
    */
   async function reRenderLoadedCities() {
     if (loadedCityIds.value.size === 0) return;
 
-    // AI : Ensure all cities have data loaded
+    // Ensure all cities have data loaded
     for (const cityId of loadedCityIds.value) {
-      // AI : OPTIMIZATION: Check if we have cached data for this city
+      // OPTIMIZATION: Check if we have cached data for this city
       const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
 
       if (!cachedData) {
         const city = citiesWithProjects.value.find((c) => c.id === cityId);
         if (city) {
-          // AI : Load data (this puts it in cache)
-          // AI : NOTE: loadCityData internally calls renderAllLoadedOverlays, so this might trigger multiple renders
-          // AI : But since we're awaiting, it's safer.
-          // AI : Ideally, loadCityData should have a 'noRender' flag, but for now this is fine.
+          // Load data (this puts it in cache)
+          // NOTE: loadCityData internally calls renderAllLoadedOverlays, so this might trigger multiple renders
+          // But since we're awaiting, it's safer.
+          // Ideally, loadCityData should have a 'noRender' flag, but for now this is fine.
           await loadCityData(cityId, city.name, city.nameLocal, city.countryCode);
         }
       }
     }
 
-    // AI : RENDER all cities together based on zoom level
+    // RENDER all cities together based on zoom level
     const zoom = map.value.getZoom();
     if (zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
       renderAllLoadedOverlays(true);
@@ -154,7 +154,7 @@ export function useViewportTriggers() {
   }
 
   /**
-   * AI : Load all data for a single city
+   * Load all data for a single city
    */
   async function loadCityData(
     cityId: number,
@@ -168,19 +168,19 @@ export function useViewportTriggers() {
     try {
       const overlaysData = await fetchCityOverlaysOrCache(cityId, mode);
 
-      // AI : CRITICAL: Always mark city as loaded, even if empty!
+      // CRITICAL: Always mark city as loaded, even if empty!
       loadedCityIds.value.add(cityId);
 
-      // AI : Add standalone project markers BEFORE checking if overlays exist
-      // AI : This ensures markers are created even for cities with ONLY standalone projects
+      // Add standalone project markers BEFORE checking if overlays exist
+      // This ensures markers are created even for cities with ONLY standalone projects
       await addStandaloneMarkersForCity(overlaysData ?? [], cityId, mode);
 
       if (!overlaysData || overlaysData.length === 0) {
         return;
       }
 
-      // AI : Guard against race condition: if mode changed while fetching, don't render stale data.
-      // AI : The new mode's fetch (triggered by watcher) will handle rendering.
+      // Guard against race condition: if mode changed while fetching, don't render stale data.
+      // The new mode's fetch (triggered by watcher) will handle rendering.
       if (overlayStore.mode !== mode) {
         return;
       }
@@ -188,28 +188,28 @@ export function useViewportTriggers() {
       if (shouldRender) {
         const zoom = map.value.getZoom();
 
-        // AI : RENDER based on zoom level
+        // RENDER based on zoom level
         if (zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
-          // AI : CRITICAL FIX: Render ALL loaded cities, not just the one we just fetched
-          // AI : This prevents "fighting" between nearby cities where loading one clears the other
+          // CRITICAL FIX: Render ALL loaded cities, not just the one we just fetched
+          // This prevents "fighting" between nearby cities where loading one clears the other
           renderAllLoadedOverlays();
         } else {
-          // AI : For markers, we also need to be careful, but markers are handled differently (additive)
-          // AI : However, renderMarkersOnly also clears everything first.
-          // AI : So we should also aggregate for markers.
+          // For markers, we also need to be careful, but markers are handled differently (additive)
+          // However, renderMarkersOnly also clears everything first.
+          // So we should also aggregate for markers.
           renderAllLoadedOverlays(false);
         }
       }
     } catch (error) {
       console.error(`Error loading city ${cityId}:`, error);
-      // AI : Even on error, mark as loaded to prevent infinite retries
+      // Even on error, mark as loaded to prevent infinite retries
       loadedCityIds.value.add(cityId);
     }
   }
 
   /**
-   * AI : Helper to gather all overlays from all currently loaded cities
-   * AI : and render them together. This ensures multi-city view works correctly.
+   * Helper to gather all overlays from all currently loaded cities
+   * and render them together. This ensures multi-city view works correctly.
    */
   function renderAllLoadedOverlays(fullRender = true) {
     const mode = overlayStore.mode;
@@ -231,8 +231,8 @@ export function useViewportTriggers() {
   }
 
   /**
-   * AI : Main viewport refresh - CITY-BASED loading
-   * AI : Only loads NEW cities that enter viewport
+   * Main viewport refresh - CITY-BASED loading
+   * Only loads NEW cities that enter viewport
    */
   async function refreshViewport(force = false) {
     try {
@@ -245,34 +245,34 @@ export function useViewportTriggers() {
       const loadThreshold = getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD);
       const overlayThreshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
-      // AI : Detect low→high threshold crossing before pruning.
-      // AI : When crossing this boundary, renderFullOverlays() will call runViewportRenderLoop()
-      // AI : after removing the dot markers (overlayMarkersLayer). Calling it here first
-      // AI : queues async store-managed marker creation before dot markers are removed,
-      // AI : causing a visual glitch where markers appear to re-appear during zoom.
+      // Detect low→high threshold crossing before pruning.
+      // When crossing this boundary, renderFullOverlays() will call runViewportRenderLoop()
+      // after removing the dot markers (overlayMarkersLayer). Calling it here first
+      // queues async store-managed marker creation before dot markers are removed,
+      // causing a visual glitch where markers appear to re-appear during zoom.
       const crossedLowToHigh =
         zoom >= loadThreshold &&
         previousZoom !== null &&
         previousZoom < overlayThreshold &&
         zoom >= overlayThreshold;
 
-      // AI : Prune entities (city markers, overlay visibility).
-      // AI : Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
+      // Prune entities (city markers, overlay visibility).
+      // Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
       if (!crossedLowToHigh) {
         runViewportRenderLoop();
       }
 
-      // AI : CRITICAL: Don't load data until zoomed in past threshold
+      // CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < loadThreshold) {
         const isEditMode = overlayStore.mode === "edit";
         const activeCityId = mapStore.selectedCity?.id;
 
-        // AI : Active city preservation: if a city is selected, keep its content loaded
-        // AI : This allows users to zoom out to see both remote projects and city content
+        // Active city preservation: if a city is selected, keep its content loaded
+        // This allows users to zoom out to see both remote projects and city content
         if (activeCityId && loadedCityIds.value.has(activeCityId)) {
           clearContentExceptActiveCity(activeCityId, isEditMode);
         } else {
-          // AI : No active city, clear everything as before
+          // No active city, clear everything as before
           clearAllOverlays(isEditMode);
           clearAllStandaloneProjectMarkers();
           loadedCityIds.value.clear();
@@ -282,7 +282,7 @@ export function useViewportTriggers() {
         return;
       }
 
-      // AI : Check if we crossed the marker ↔ overlay threshold
+      // Check if we crossed the marker ↔ overlay threshold
       const crossedThreshold =
         previousZoom !== null &&
         ((previousZoom < overlayThreshold && zoom >= overlayThreshold) ||
@@ -292,17 +292,17 @@ export function useViewportTriggers() {
 
       if (crossedThreshold) {
         await reRenderLoadedCities();
-        // AI : Continue execution to load new cities if needed
+        // Continue execution to load new cities if needed
       }
 
-      // AI : Get cities visible in viewport
+      // Get cities visible in viewport
       const visibleCities = getVisibleCitiesInViewport();
 
       if (visibleCities.length === 0) {
         return;
       }
 
-      // AI : Filter to only NEW cities we haven't loaded yet
+      // Filter to only NEW cities we haven't loaded yet
       const newCities = force
         ? visibleCities
         : visibleCities.filter((city) => !loadedCityIds.value.has(city.id));
@@ -313,14 +313,14 @@ export function useViewportTriggers() {
 
       isLoading.value = true;
 
-      // AI : Load each new city (entire city data, not just viewport slice)
-      // AI : Pass false for shouldRender to batch updates and avoid flickering
+      // Load each new city (entire city data, not just viewport slice)
+      // Pass false for shouldRender to batch updates and avoid flickering
       for (const city of newCities) {
         await loadCityData(city.id, city.name, city.nameLocal, city.countryCode, false);
       }
 
-      // AI : After loading all new cities, trigger a single render
-      // AI : This ensures we show all cities together without fighting/flickering
+      // After loading all new cities, trigger a single render
+      // This ensures we show all cities together without fighting/flickering
       const currentZoom = map.value.getZoom();
       if (currentZoom >= overlayThreshold) {
         renderAllLoadedOverlays(true);
@@ -340,13 +340,13 @@ export function useViewportTriggers() {
     mode: AppMode,
   ) {
     try {
-      // AI : Check cache first before querying backend
+      // Check cache first before querying backend
       const allProjects = await fetchCityStandaloneProjectsOrCache(cityId, mode);
 
-      // AI : Create a working copy to avoid mutating cache
+      // Create a working copy to avoid mutating cache
       const projectsToRender: StandaloneProject[] = allProjects ? [...allProjects] : [];
 
-      // AI : In edit mode, also include local (unsaved) pending projects from the store
+      // In edit mode, also include local (unsaved) pending projects from the store
       if (mode === "edit") {
         const localProjects = Object.values(projectStore.projects).filter(
           (p) => p.city.id === cityId && p.status === null,
@@ -359,38 +359,38 @@ export function useViewportTriggers() {
         }
       }
 
-      // AI : Delegate marker creation to the shared rendering core
+      // Delegate marker creation to the shared rendering core
       processStandaloneMarkers(projectsToRender, overlaysData);
     } catch (error) {
       console.error(`Error adding standalone markers for city ${cityId}:`, error);
     }
   }
 
-  // AI : renderFullOverlays is imported from cityRenderingCore and called directly
+  // renderFullOverlays is imported from cityRenderingCore and called directly
 
   /**
-   * AI : Render overlay markers only (low zoom)
+   * Render overlay markers only (low zoom)
    */
   function renderMarkersOnly(overlaysData: OverlayData[]) {
-    // AI : Always preserve store data when crossing to marker-only zoom.
-    // AI : This keeps allMarkers intact and markers on the Leaflet map so that:
-    // AI :  - pruneOverlays can show them at zoom 13 via showMarkers=true
-    // AI :  - createSingleMarker's allMarkers guard fires on zoom-in, skipping recreation
+    // Always preserve store data when crossing to marker-only zoom.
+    // This keeps allMarkers intact and markers on the Leaflet map so that:
+    //  - pruneOverlays can show them at zoom 13 via showMarkers=true
+    //  - createSingleMarker's allMarkers guard fires on zoom-in, skipping recreation
     const isEditMode = overlayStore.mode === "edit";
     clearAllOverlays(true);
 
-    // AI : Collect all overlays to render as markers
+    // Collect all overlays to render as markers
     const allOverlaysForMarkers = [...overlaysData];
 
-    // AI : In edit mode, also include preserved overlays from the store that aren't in overlaysData
-    // AI : This includes local-only overlays AND backend overlays from other cities that were preserved
+    // In edit mode, also include preserved overlays from the store that aren't in overlaysData
+    // This includes local-only overlays AND backend overlays from other cities that were preserved
     if (isEditMode) {
       const overlayDataIds = new Set(overlaysData.map((o) => o.id));
       for (const [id, existing] of Object.entries(overlayStore.overlays)) {
-        // AI : Skip if already in backend data
+        // Skip if already in backend data
         if (overlayDataIds.has(id)) continue;
 
-        // AI : In view mode we'd skip local overlays, but we're already in isEditMode check
+        // In view mode we'd skip local overlays, but we're already in isEditMode check
         allOverlaysForMarkers.push({
           id: existing.id,
           version: existing.version,
@@ -410,22 +410,22 @@ export function useViewportTriggers() {
       }
     }
 
-    // AI : Update the store with all required overlays for the markers
+    // Update the store with all required overlays for the markers
     overlayStore.setViewModeOverlays(allOverlaysForMarkers);
 
-    // AI : Sync batch updates for any fresh data
+    // Sync batch updates for any fresh data
     hydrateOverlayStoreObjects(allOverlaysForMarkers);
 
-    // AI : Filter using OverlayData (which carries project info) so that getOverlayMarkerColor
-    // AI : can compute the correct timeline-based color in view mode.
-    // AI : Filtering overlayStore.overlays (OverlayObject) would yield wrong colors
-    // AI : because OverlayObjects in the store don't carry the embedded project.
+    // Filter using OverlayData (which carries project info) so that getOverlayMarkerColor
+    // can compute the correct timeline-based color in view mode.
+    // Filtering overlayStore.overlays (OverlayObject) would yield wrong colors
+    // because OverlayObjects in the store don't carry the embedded project.
     const visibleOverlayIds = new Set(
-      filterByCompletionStatus(allOverlaysForMarkers, overlayStore.mode).map((o) => o.id),
+      filterByStatus(allOverlaysForMarkers, overlayStore.mode).map((o) => o.id),
     );
 
-    // AI : Render interactive markers only for completion-filter-passing overlays
-    // AI : createSingleMarker safely ignores markers that already exist
+    // Render interactive markers only for completion-filter-passing overlays
+    // createSingleMarker safely ignores markers that already exist
     for (const overlayObject of Object.values(overlayStore.overlays)) {
       if (visibleOverlayIds.has(overlayObject.id)) {
         createSingleMarker(overlayObject);
@@ -434,68 +434,68 @@ export function useViewportTriggers() {
   }
 
   /**
-   * AI : Debounced viewport change handler
-   * AI : 100ms is fast enough for good UX while still preventing duplicate calls during pan
+   * Debounced viewport change handler
+   * 100ms is fast enough for good UX while still preventing duplicate calls during pan
    */
   const debouncedRefreshViewport = debounce(refreshViewport, 100);
 
   function setupEventListeners() {
-    // AI : Use debounced handler for BOTH moveend and zoomend
-    // AI : This prevents duplicate calls when flyTo triggers both events
-    // AI : Wrap in arrow function to satisfy TypeScript event handler typing
+    // Use debounced handler for BOTH moveend and zoomend
+    // This prevents duplicate calls when flyTo triggers both events
+    // Wrap in arrow function to satisfy TypeScript event handler typing
     map.value.on("moveend", () => debouncedRefreshViewport());
     map.value.on("zoomend", () => debouncedRefreshViewport());
   }
 
   /**
-   * AI : Cleanup event listeners
+   * Cleanup event listeners
    */
   function cleanupEventListeners() {
-    // AI : Remove all moveend and zoomend listeners
+    // Remove all moveend and zoomend listeners
     map.value.off("moveend");
     map.value.off("zoomend");
   }
 
   /**
-   * AI : Setup mode change watcher
-   * AI : When mode changes, clear loaded cities cache and reload visible cities
+   * Setup mode change watcher
+   * When mode changes, clear loaded cities cache and reload visible cities
    */
   function setupModeWatcher() {
     watch(
       () => overlayStore.mode,
       async (newMode, oldMode) => {
-        // AI : Guard: only reload if mode actually changed
+        // Guard: only reload if mode actually changed
         if (newMode === oldMode) {
           return;
         }
 
-        // AI : Clear all standalone project markers on mode switch
-        // AI : They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
+        // Clear all standalone project markers on mode switch
+        // They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
         clearAllStandaloneProjectMarkers();
 
-        // AI : Single import for all overlayEditing symbols used in this watcher
-        // AI : Avoids two separate dynamic import() calls to the same module
+        // Single import for all overlayEditing symbols used in this watcher
+        // Avoids two separate dynamic import() calls to the same module
         const { saveAllOverlaysToCache, updateOverlayEditingState, setupKeyboardShortcuts } =
           await import("@/services/overlay/overlayEditing");
 
-        // AI : CRITICAL: Save any modified overlays before we potentially hide them
-        // AI : If we are leaving edit mode, we must save the current state to cache
-        // AI : This prevents data loss for user's pending overlays that disappear in View mode
+        // CRITICAL: Save any modified overlays before we potentially hide them
+        // If we are leaving edit mode, we must save the current state to cache
+        // This prevents data loss for user's pending overlays that disappear in View mode
         if (oldMode === "edit") {
           saveAllOverlaysToCache("edit");
         }
 
-        // AI : CRITICAL: Different modes return different data from backend
-        // AI : - View mode: Only approved content
-        // AI : - Edit mode: Approved + user's own pending
-        // AI : - Moderation mode: Approved + all users' pending
-        // AI : So we need to reload when switching between ANY modes to get correct data
+        // CRITICAL: Different modes return different data from backend
+        // - View mode: Only approved content
+        // - Edit mode: Approved + user's own pending
+        // - Moderation mode: Approved + all users' pending
+        // So we need to reload when switching between ANY modes to get correct data
         const isModerationTransition = oldMode === "moderation" || newMode === "moderation";
         const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
         const hasLoadedContent = loadedCityIds.value.size > 0;
 
-        // AI : CRITICAL: When switching modes, hide overlays that shouldn't be visible in the new mode
-        // AI : We unmount them (remove from map) but keep in store so they can reappear when switching modes
+        // CRITICAL: When switching modes, hide overlays that shouldn't be visible in the new mode
+        // We unmount them (remove from map) but keep in store so they can reappear when switching modes
         if (hasLoadedOverlays) {
           const currentUserId = authStore.user?.id;
 
@@ -503,42 +503,42 @@ export function useViewportTriggers() {
             const shouldHide = !isOverlayVisible(overlay, newMode, currentUserId);
 
             if (shouldHide) {
-              // AI : Remove layer and marker from map, clear from registry so they can
-              // AI : be recreated when switching back to a mode where they're visible.
+              // Remove layer and marker from map, clear from registry so they can
+              // be recreated when switching back to a mode where they're visible.
               registry.clearEntry(id);
             }
           }
         }
 
-        // AI : Always reload when involving moderation mode or when we have content loaded
+        // Always reload when involving moderation mode or when we have content loaded
         if (isModerationTransition || hasLoadedOverlays || hasLoadedContent) {
-          // AI : Don't clear overlays immediately - let them stay visible while loading
-          // AI : CRITICAL: Do NOT clear loadedCityIds here. Instead, reload all currently loaded cities.
-          // AI : This ensures that cities whose center is off-screen (but whose overlays are visible) are correctly updated.
-          // AI : If we just cleared cache and relied on refreshViewport, it would only load cities with visible centers.
+          // Don't clear overlays immediately - let them stay visible while loading
+          // CRITICAL: Do NOT clear loadedCityIds here. Instead, reload all currently loaded cities.
+          // This ensures that cities whose center is off-screen (but whose overlays are visible) are correctly updated.
+          // If we just cleared cache and relied on refreshViewport, it would only load cities with visible centers.
           const currentCityIds = [...loadedCityIds.value];
 
           await Promise.all(
             currentCityIds.map(async (id) => loadCityData(id, "reload", null, "reload")),
           );
 
-          // AI : Update existing overlays in-place with new toolbar actions and positions
-          // AI : MOVED HERE (after reload) to ensure we operate on fresh data
-          // AI : This preserves edit mode cache and updates marker colors after modifications
+          // Update existing overlays in-place with new toolbar actions and positions
+          // MOVED HERE (after reload) to ensure we operate on fresh data
+          // This preserves edit mode cache and updates marker colors after modifications
           await updateOverlayEditingState();
           setupKeyboardShortcuts();
 
-          // AI : CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
-          // AI : This ensures markers appear immediately without requiring user to click city or zoom
+          // CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
+          // This ensures markers appear immediately without requiring user to click city or zoom
           if (newMode === "edit") {
-            // AI : Include both local (unsaved) and user's pending projects
+            // Include both local (unsaved) and user's pending projects
             const userProjects = Object.values(projectStore.projects).filter((p) => {
               if (!p.lat || !p.lng) return false;
 
-              // AI : Local projects (not yet submitted)
+              // Local projects (not yet submitted)
               if (p.status === null) return true;
 
-              // AI : User's own pending projects (submitted but not approved)
+              // User's own pending projects (submitted but not approved)
               if (p.status === "pending" && p.ownerId === authStore.user?.id) return true;
 
               return false;
@@ -563,7 +563,6 @@ export function useViewportTriggers() {
   };
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

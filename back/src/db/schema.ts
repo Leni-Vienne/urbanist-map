@@ -32,39 +32,39 @@ export const changeRequestStatusEnum = pgEnum("change_request_status", [
 
 export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[number];
 
-// AI : Date precision values - used for flexible date display
-// AI : Using const array + text column (not enum) for easier modification
+// Date precision values - used for flexible date display
+// Using const array + text column (not enum) for easier modification
 export const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
 export type DatePrecision = (typeof DATE_PRECISION_VALUES)[number];
 
 export type EntityType = "project" | "overlay";
 
-// AI : Users table for custom authentication
+// Users table for custom authentication
 export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     email: text("email").unique().notNull(),
     username: text("username").unique(),
-    passwordHash: text("password_hash"), // AI : Now nullable for OAuth users
-    role: text("role").default("user"), // AI : Role can be 'user', 'admin', etc.
-    moderatedCountries: text("moderated_countries").array(), // AI : Array of ISO 3-letter country codes this moderator can moderate (null = admin with all countries)
+    passwordHash: text("password_hash"), // Now nullable for OAuth users
+    role: text("role").default("user"), // Role can be 'user', 'admin', etc.
+    moderatedCountries: text("moderated_countries").array(), // Array of ISO 3-letter country codes this moderator can moderate (null = admin with all countries)
     emailVerified: boolean("email_verified").default(false).notNull(),
     emailVerificationToken: text("email_verification_token"),
     passwordResetToken: text("password_reset_token"),
     passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true }),
-    // AI : OAuth provider IDs for secure authentication
-    googleId: text("google_id").unique(), // AI : Google's unique user ID (sub field)
-    // AI : Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
+    // OAuth provider IDs for secure authentication
+    googleId: text("google_id").unique(), // Google's unique user ID (sub field)
+    // Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
     approvedCount: integer("approved_count").default(0).notNull(),
     rejectedCount: integer("rejected_count").default(0).notNull(),
-    // AI : Soft ban fields for spam/abuse prevention
+    // Soft ban fields for spam/abuse prevention
     banned: boolean("banned").default(false).notNull(),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     bannedBy: uuid("banned_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
     banReason: text("ban_reason"),
-    // AI : Track when user last acknowledged approved contributions
-    // AI : Used to highlight new approvals in the UI without modifying content tables
+    // Track when user last acknowledged approved contributions
+    // Used to highlight new approvals in the UI without modifying content tables
     lastApprovalAcknowledgementAt: timestamp("last_approval_acknowledgement_at", {
       withTimezone: true,
     }),
@@ -79,7 +79,7 @@ export const users = pgTable(
     index("idx_users_email").on(users.email),
     index("idx_users_email_verification").on(users.emailVerificationToken),
     index("idx_users_password_reset").on(users.passwordResetToken),
-    index("idx_users_google_id").on(users.googleId), // AI : Index for Google OAuth lookups
+    index("idx_users_google_id").on(users.googleId), // Index for Google OAuth lookups
   ],
 );
 
@@ -88,12 +88,12 @@ export const usersRelations = relations(users, ({ many }) => ({
   overlays: many(overlays),
 }));
 
-// AI : Sessions table for database-backed session storage
+// Sessions table for database-backed session storage
 export const sessions = pgTable(
   "sessions",
   {
-    id: text("id").primaryKey(), // AI : Session ID from hono-sessions
-    data: jsonb("data").notNull(), // AI : Session data (user info, expiresAt, etc)
+    id: text("id").primaryKey(), // Session ID from hono-sessions
+    data: jsonb("data").notNull(), // Session data (user info, expiresAt, etc)
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -103,7 +103,7 @@ export const sessions = pgTable(
   },
   // eslint-disable-next-line eslint/no-shadow
   (sessions) => [
-    index("idx_sessions_expires_at").on(sessions.expiresAt), // AI : Index for cleanup queries
+    index("idx_sessions_expires_at").on(sessions.expiresAt), // Index for cleanup queries
   ],
 );
 
@@ -120,7 +120,7 @@ export const projects = pgTable(
     }),
     cityId: integer("city_id")
       .references(() => cities.id, { onDelete: "set null", onUpdate: "cascade" })
-      .notNull(), // AI : Reference to the city where the project is located
+      .notNull(), // Reference to the city where the project is located
     sourceUrl: text("source_url"),
     proposalDate: timestamp("proposal_date", { withTimezone: true }),
     proposalDatePrecision: text("proposal_date_precision").$type<DatePrecision | null>(),
@@ -129,12 +129,12 @@ export const projects = pgTable(
     endDate: timestamp("end_date", { withTimezone: true }),
     endDatePrecision: text("end_date_precision").$type<DatePrecision | null>(),
     latestUpdateOn: timestamp("latest_update_on", { withTimezone: true }),
-    // AI : Center coordinate for all projects - used as marker position when no images exist
+    // Center coordinate for all projects - used as marker position when no images exist
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
-    centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // AI : PostGIS point for spatial queries (computed from lat/lng)
-    version: integer("version").default(1).notNull(), // AI : Version for optimistic locking during moderation
-    rejectionReason: text("rejection_reason"), // AI : Moderator-selected reason when rejecting (NULL for approved/pending)
+    centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // PostGIS point for spatial queries (computed from lat/lng)
+    version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
+    rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -146,7 +146,7 @@ export const projects = pgTable(
     index("idx_projects_owner_id").on(table.ownerId),
     sql.raw(
       "CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
-    ), // AI : Spatial index for project center coordinates
+    ), // Spatial index for project center coordinates
   ],
 );
 
@@ -177,14 +177,14 @@ export const overlays = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }),
-    replacesOverlayId: uuid("replaces_overlay_id"), // AI : Reference to the overlay this replaces (set by user during upload)
-    replacedByOverlayId: uuid("replaced_by_overlay_id"), // AI : Reference to the overlay that replaced this one (set by moderator during approval)
+    replacesOverlayId: uuid("replaces_overlay_id"), // Reference to the overlay this replaces (set by user during upload)
+    replacedByOverlayId: uuid("replaced_by_overlay_id"), // Reference to the overlay that replaced this one (set by moderator during approval)
 
     corners: geometry("corners", { type: "polygon", mode: "xy", srid: 4326 }).notNull(),
     centroid: geometry("centroid", { type: "point", mode: "xy", srid: 4326 }).notNull(),
 
-    version: integer("version").default(1).notNull(), // AI : Version for optimistic locking during moderation
-    rejectionReason: text("rejection_reason"), // AI : Moderator-selected reason when rejecting (NULL for approved/pending)
+    version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
+    rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -220,12 +220,12 @@ export const overlaysRelations = relations(overlays, ({ one }) => ({
 export const cities = pgTable(
   "cities",
   {
-    id: integer("id").primaryKey(), // AI : GeoNames city ID (natural key from GeoNames database)
-    name: text("name").notNull(), // AI : English/ASCII name from GeoNames
-    nameLocal: text("name_local"), // AI : Local/native name in country's primary language (nullable - only if alternateNames available)
-    countryCode: char("country_code", { length: 3 }).notNull(), // AI : 3-letter country code (ISO 3166-1 alpha-3)
-    coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }).notNull(), // AI : Geographic coordinates as PostGIS point
-    approvedProjectCount: integer("approved_project_count").default(0).notNull(), // AI : Pre-computed count of approved projects for fast search
+    id: integer("id").primaryKey(), // GeoNames city ID (natural key from GeoNames database)
+    name: text("name").notNull(), // English/ASCII name from GeoNames
+    nameLocal: text("name_local"), // Local/native name in country's primary language (nullable - only if alternateNames available)
+    countryCode: char("country_code", { length: 3 }).notNull(), // 3-letter country code (ISO 3166-1 alpha-3)
+    coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }).notNull(), // Geographic coordinates as PostGIS point
+    approvedProjectCount: integer("approved_project_count").default(0).notNull(), // Pre-computed count of approved projects for fast search
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -235,8 +235,8 @@ export const cities = pgTable(
   // eslint-disable-next-line eslint/no-shadow
   (cities) => [
     index("idx_cities_country").on(cities.countryCode),
-    index("idx_cities_name").on(cities.name), // AI : Index for fast ILIKE searches on English name
-    index("idx_cities_name_local").on(cities.nameLocal), // AI : Index for fast ILIKE searches on local name
+    index("idx_cities_name").on(cities.name), // Index for fast ILIKE searches on English name
+    index("idx_cities_name_local").on(cities.nameLocal), // Index for fast ILIKE searches on local name
     sql.raw("CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)"),
   ],
 );
@@ -248,15 +248,15 @@ export const citiesRelations = relations(cities, ({ many }) => ({
 export const countries = pgTable(
   "countries",
   {
-    id: integer("id").primaryKey(), // AI : GeoNames country ID (natural key from GeoNames database)
-    code: char("code", { length: 3 }).notNull().unique(), // AI : ISO 3166-1 alpha-3 country code (e.g., "FRA", "USA", "JPN")
-    code2: char("code2", { length: 2 }).notNull().unique(), // AI : ISO 3166-1 alpha-2 country code for flags (e.g., "FR", "US", "JP")
-    name: text("name").notNull(), // AI : Country name in English
+    id: integer("id").primaryKey(), // GeoNames country ID (natural key from GeoNames database)
+    code: char("code", { length: 3 }).notNull().unique(), // ISO 3166-1 alpha-3 country code (e.g., "FRA", "USA", "JPN")
+    code2: char("code2", { length: 2 }).notNull().unique(), // ISO 3166-1 alpha-2 country code for flags (e.g., "FR", "US", "JP")
+    name: text("name").notNull(), // Country name in English
     centerCoordinates: geometry("center_coordinates", {
       type: "point",
       mode: "xy",
       srid: 4326,
-    }).notNull(), // AI : Geographic center of the country
+    }).notNull(), // Geographic center of the country
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -266,7 +266,7 @@ export const countries = pgTable(
   // eslint-disable-next-line eslint/no-shadow
   (countries) => [
     index("idx_countries_code").on(countries.code),
-    index("idx_countries_code2").on(countries.code2), // AI : Index for flag lookups
+    index("idx_countries_code2").on(countries.code2), // Index for flag lookups
     sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`),
   ],
 );
@@ -353,7 +353,7 @@ export const changeHistoryRelations = relations(changeHistory, ({ one }) => ({
   }),
 }));
 
-// AI : Scheduled deletions table for managing timed cleanup of replaced/rejected overlay images
+// Scheduled deletions table for managing timed cleanup of replaced/rejected overlay images
 export const scheduledDeletions = pgTable(
   "scheduled_deletions",
   {
@@ -364,7 +364,7 @@ export const scheduledDeletions = pgTable(
     }),
     filename: text("filename").notNull(),
     deletionDate: timestamp("deletion_date", { withTimezone: true }).notNull(),
-    deletionType: text("deletion_type").notNull(), // AI : 'full', 'thumbnail', or 'both'
+    deletionType: text("deletion_type").notNull(), // 'full', 'thumbnail', or 'both'
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -380,20 +380,20 @@ export const scheduledDeletionsRelations = relations(scheduledDeletions, ({ one 
   }),
 }));
 
-// AI : Config table for application-wide settings (single row with id=1)
+// Config table for application-wide settings (single row with id=1)
 export const config = pgTable("config", {
   id: integer("id").primaryKey().default(1),
-  infoMessage: text("info_message"), // AI : Optional info message to display at top of website
-  reportThreshold: integer("report_threshold").default(2).notNull(), // AI : Number of moderator reports before user is blocked
+  infoMessage: text("info_message"), // Optional info message to display at top of website
+  reportThreshold: integer("report_threshold").default(2).notNull(), // Number of moderator reports before user is blocked
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull()
     .$onUpdate(() => new Date()),
 });
 
-// AI : User reports table for spam prevention
-// AI : Tracks which moderators have reported which users
-// AI : Rules: 1 report = hide for that moderator, 2+ reports = warning for all, 3+ or admin = global hide
+// User reports table for spam prevention
+// Tracks which moderators have reported which users
+// Rules: 1 report = hide for that moderator, 2+ reports = warning for all, 3+ or admin = global hide
 export const userReports = pgTable(
   "user_reports",
   {
@@ -404,7 +404,7 @@ export const userReports = pgTable(
     reportedBy: uuid("reported_by")
       .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    reason: text("reason"), // AI : Optional reason for the report
+    reason: text("reason"), // Optional reason for the report
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -426,7 +426,7 @@ export const userReportsRelations = relations(userReports, ({ one }) => ({
   }),
 }));
 
-// AI : Export Drizzle-inferred types for frontend consumption
+// Export Drizzle-inferred types for frontend consumption
 export type DBCity = InferSelectModel<typeof cities>;
 export type DBProject = InferSelectModel<typeof projects>;
 export type DBOverlay = InferSelectModel<typeof overlays>;

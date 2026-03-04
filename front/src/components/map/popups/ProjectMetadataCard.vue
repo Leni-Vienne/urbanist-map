@@ -46,7 +46,7 @@
         :href="project.sourceUrl"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-[13px] text-[var(--p-primary-600)] no-underline hover:underline break-words"
+        class="text-[13px] text-primary-color no-underline hover:underline wrap-break-word"
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
     </div>
@@ -72,10 +72,10 @@ const emit = defineEmits<{ "field-click": [] }>();
 
 const cls = {
   row: "flex flex-col gap-0.5",
-  label: "text-[10px] font-medium uppercase tracking-[0.07em] text-[var(--p-text-muted-color)]",
-  value: "text-[13px] text-[var(--p-text-color)] break-words",
+  label: "text-2.5 font-medium uppercase tracking-[0.07em] text-muted-color",
+  value: "text-[13px] text-color wrap-break-word",
   addBtn:
-    "text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-700)] cursor-pointer bg-transparent border-none p-0 outline-none text-left",
+    "text-xs italic text-primary-400 hover:text-primary-700 cursor-pointer bg-transparent border-none p-0 outline-none text-left",
 };
 
 interface Props {

@@ -1,6 +1,6 @@
 <template>
   <span>
-    <!-- AI : City link (if available) -->
+    <!-- City link (if available) -->
     <span
       v-if="cityId && cityName"
       class="app-link"
@@ -9,7 +9,7 @@
       >{{ cityName }}, {{ countryName }}</span
     >
 
-    <!-- AI : Fallback if no location data -->
+    <!-- Fallback if no location data -->
     <span v-if="!cityName && !countryName">{{ $t("overlay.unknownLocation") }}</span>
   </span>
 </template>
@@ -19,7 +19,7 @@ import { navigateToCity } from "@/services/navigation/locationNavigation";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 
-// AI : Props interface for location data
+// Props interface for location data
 interface Props {
   cityId?: number | null;
   cityName?: string | null;
@@ -31,7 +31,7 @@ const props = defineProps<Props>();
 const toast = useToast();
 const { t } = useI18n();
 
-// AI : Handle city click - navigate to the city on the map
+// Handle city click - navigate to the city on the map
 async function handleCityClick() {
   if (!props.cityId || !props.cityName || !props.countryCode) {
     toast.add({

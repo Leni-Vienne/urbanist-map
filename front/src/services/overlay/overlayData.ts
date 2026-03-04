@@ -1,8 +1,8 @@
-// AI : ============================================================================
-// AI : OVERLAY DATA - Data enrichment and transformation
-// AI : ============================================================================
-// AI : Extracted from overlayMarkers.ts to handle data hydration and enrichment
-// AI : ============================================================================
+// ============================================================================
+// OVERLAY DATA - Data enrichment and transformation
+// ============================================================================
+// Extracted from overlayMarkers.ts to handle data hydration and enrichment
+// ============================================================================
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -11,8 +11,8 @@ import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 
 /**
- * AI : Enrich overlay with project data
- * AI : Pure function - only uses stores and factory utilities
+ * Enrich overlay with project data
+ * Pure function - only uses stores and factory utilities
  */
 export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
   const projectStore = useProjectStore();
@@ -22,29 +22,29 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   let project = savedOverlay.project;
 
   if (!project && savedOverlay.projectId) {
-    // AI : First check normal project store
+    // First check normal project store
     project = projectStore.projects[savedOverlay.projectId];
 
-    // AI : If not found and in moderation mode, check moderation store
+    // If not found and in moderation mode, check moderation store
     if (!project && overlayStore.mode === "moderation") {
       const modProject = moderationStore.projects.find((p) => p.id === savedOverlay.projectId);
       if (modProject) {
-        // AI : Cast moderation project to Project type (compatible enough for our needs)
+        // Cast moderation project to Project type (compatible enough for our needs)
         project = modProject as unknown as Project;
       }
     }
   }
 
-  // AI : Check edit mode cache to determine if overlay has been modified locally
+  // Check edit mode cache to determine if overlay has been modified locally
   const cachedModifications =
     overlayStore.mode === "edit" ? overlayStore.getFromEditModeCache(savedOverlay.id) : undefined;
 
-  // AI : Use factory function but preserve existing data
+  // Use factory function but preserve existing data
   return createOverlayObject({
     ...savedOverlay,
     project: project ? { ...project, city: project.city } : null,
     corners: savedOverlay.corners,
-    // AI : Set isModified flag based on edit mode cache for proper marker color
+    // Set isModified flag based on edit mode cache for proper marker color
     isModified: cachedModifications?.isModified ?? savedOverlay.isModified,
   });
 }

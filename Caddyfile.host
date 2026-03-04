@@ -1,7 +1,7 @@
-# AI : Host-level Caddyfile for routing both production and preview environments
-# AI : This file should be deployed to /etc/caddy/Caddyfile on the server
+# Host-level Caddyfile for routing both production and preview environments
+# This file should be deployed to /etc/caddy/Caddyfile on the server
 
-# AI : Production API
+# Production API
 api.urbanistmap.org {
     reverse_proxy localhost:3000 {
         health_uri /api/health
@@ -17,7 +17,7 @@ api.urbanistmap.org {
     }
 }
 
-# AI : Preview API
+# Preview API
 preview-api.urbanistmap.org {
     reverse_proxy localhost:3001 {
         health_uri /api/health

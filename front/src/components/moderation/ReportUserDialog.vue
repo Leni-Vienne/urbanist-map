@@ -1,5 +1,5 @@
-<template>
-  <!-- AI : Dialog for reporting a user for spam/harmful content -->
+﻿<template>
+  <!-- Dialog for reporting a user for spam/harmful content -->
   <Dialog
     v-model:visible="dialogVisible"
     :header="$t('moderation.reportUser.report')"
@@ -9,12 +9,12 @@
     :style="{ width: '400px', maxWidth: '90vw' }"
   >
     <div class="flex flex-col gap-4">
-      <p class="m-0 text-[var(--p-surface-600)] text-sm leading-relaxed">
+      <p class="m-0 text-(--p-text-color-secondary) text-sm leading-relaxed">
         {{ $t("moderation.reportUser.reportDescription") }}
       </p>
 
       <div class="flex flex-col gap-2">
-        <label for="report-reason" class="font-medium text-sm text-[var(--p-surface-700)]">{{
+        <label for="report-reason" class="font-medium text-sm text-color">{{
           $t("moderation.reportUser.reason")
         }}</label>
         <Textarea
@@ -51,7 +51,7 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 
-// AI : Props for the dialog
+// Props for the dialog
 const props = defineProps<{
   visible: boolean;
   userId: string | null;
@@ -65,17 +65,17 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 
-// AI : Dialog visibility computed property for v-model
+// Dialog visibility computed property for v-model
 const dialogVisible = computed({
   get: () => props.visible,
   set: (value) => emit("update:visible", value),
 });
 
-// AI : Form state
+// Form state
 const reason = ref("");
 const isLoading = ref(false);
 
-// AI : Handle report submission
+// Handle report submission
 async function handleReport() {
   if (!props.userId) return;
 
@@ -107,7 +107,7 @@ async function handleReport() {
   }
 }
 
-// AI : Handle cancel/close
+// Handle cancel/close
 function handleCancel() {
   reason.value = "";
   dialogVisible.value = false;

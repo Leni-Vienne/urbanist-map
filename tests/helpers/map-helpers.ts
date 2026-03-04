@@ -1,21 +1,21 @@
 import { Page } from "@playwright/test";
 
 /**
- * AI : Helper functions for testing map functionality
+ * Helper functions for testing map functionality
  */
 
 export class MapTestHelpers {
   constructor(private page: Page) {}
 
   /**
-   * AI : Wait for map to be fully initialized
+   * Wait for map to be fully initialized
    */
   async waitForMapReady() {
     console.log("Waiting for map to be ready...");
     await this.page.waitForSelector(".leaflet-container");
     await this.page.waitForSelector(".map-buttons");
 
-    // AI : Wait for city markers to load (they are displayed globally from the start)
+    // Wait for city markers to load (they are displayed globally from the start)
     console.log("Waiting for city markers to load...");
     await this.page.waitForFunction(
       () => {
@@ -29,13 +29,13 @@ export class MapTestHelpers {
     console.log("City markers detected, waiting for stabilization...");
     await this.page.waitForTimeout(1000); // Allow for stabilization
 
-    // AI : Log final count for debugging
+    // Log final count for debugging
     const finalCityCount = await this.getCityMarkerCount();
     console.log(`Map ready with ${finalCityCount} city markers`);
   }
 
   /**
-   * AI : Switch between view and edit modes (now uses ModeControls.vue switch button)
+   * Switch between view and edit modes (now uses ModeControls.vue switch button)
    */
   async toggleEditMode() {
     const modeSwitchButton = this.page.getByRole("button", { name: /switch/i });
@@ -45,12 +45,12 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get current map zoom level using Leaflet API
+   * Get current map zoom level using Leaflet API
    */
   async getCurrentZoom(): Promise<number | null> {
     return this.page.evaluate(() => {
       try {
-        // AI : Direct Leaflet container access (most reliable)
+        // Direct Leaflet container access (most reliable)
         const map = (document.querySelector(".leaflet-container") as any)._leaflet_map as L.Map;
         return map.getZoom();
       } catch (error) {
@@ -61,15 +61,15 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get current map center coordinates (simplified)
+   * Get current map center coordinates (simplified)
    */
   getMapCenter(): { lat: number; lng: number } | null {
-    // AI : Simplified for testing - just verify map is interactive
+    // Simplified for testing - just verify map is interactive
     return { lat: 49.0, lng: -1.0 }; // Mock center for testing
   }
 
   /**
-   * AI : Zoom to a specific level using zoom controls (not scroll wheel)
+   * Zoom to a specific level using zoom controls (not scroll wheel)
    */
   async zoomToLevel(targetZoom: number) {
     const maxAttempts = 20;
@@ -81,14 +81,14 @@ export class MapTestHelpers {
         break;
       }
 
-      // AI : Check if we've reached the target (with tolerance)
+      // Check if we've reached the target (with tolerance)
       if (Math.abs(currentZoom - targetZoom) <= 0.5) {
         break;
       }
 
       const zoomDiff = targetZoom - currentZoom;
 
-      // AI : Click zoom in or zoom out button
+      // Click zoom in or zoom out button
       if (zoomDiff > 0) {
         await this.page.getByRole("button", { name: "Zoom In" }).click();
       } else {
@@ -99,12 +99,12 @@ export class MapTestHelpers {
       attempts++;
     }
 
-    // AI : Final stabilization
+    // Final stabilization
     await this.page.waitForTimeout(500);
   }
 
   /**
-   * AI : Count visible markers by color (SVG-based markers)
+   * Count visible markers by color (SVG-based markers)
    */
   async countMarkersByColor(color: string): Promise<number> {
     try {
@@ -119,7 +119,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get all marker colors currently visible
+   * Get all marker colors currently visible
    */
   async getVisibleMarkerColors(): Promise<string[]> {
     const colors = ["green", "orange", "red", "blue", "purple", "grey"];
@@ -136,15 +136,15 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Toggle project status filter (now inside filter popover)
+   * Toggle project status filter (now inside filter popover)
    */
   async toggleProjectFilter(status: "proposed" | "planned" | "in progress" | "completed") {
-    // AI : First, open the filter popover if it's not already open
+    // First, open the filter popover if it's not already open
     const filterButton = this.page.getByRole("button", { name: "Toggle project filters" });
     await filterButton.click();
     await this.page.waitForTimeout(500);
 
-    // AI : Map status to actual translated aria-label text
+    // Map status to actual translated aria-label text
     const ariaLabelMap = {
       proposed: "Toggle proposed projects",
       planned: "Toggle planned projects",
@@ -152,17 +152,17 @@ export class MapTestHelpers {
       completed: "Toggle completed projects",
     };
 
-    // AI : Find the filter button inside the popover
+    // Find the filter button inside the popover
     const filterToggleButton = this.page.getByRole("button", { name: ariaLabelMap[status] });
 
-    // AI : Wait for button to be visible
+    // Wait for button to be visible
     await filterToggleButton.waitFor({ state: "visible", timeout: 3000 });
 
     console.log(`Clicking filter button for: ${status}`);
     await filterToggleButton.click();
     await this.page.waitForTimeout(500);
 
-    // AI : Close the popover by clicking the filter button again
+    // Close the popover by clicking the filter button again
     await filterButton.click();
     await this.page.waitForTimeout(300);
 
@@ -170,7 +170,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get total number of markers on map
+   * Get total number of markers on map
    */
   async getTotalMarkerCount(): Promise<number> {
     try {
@@ -183,11 +183,11 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get number of city markers
+   * Get number of city markers
    */
   async getCityMarkerCount(): Promise<number> {
     try {
-      // AI : Wait for potential city marker loading
+      // Wait for potential city marker loading
       await this.page.waitForTimeout(500);
       const markers = this.page.locator('[data-testid^="city-marker-"]');
       return await markers.count();
@@ -198,7 +198,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Get number of overlay markers on map (not sidebar)
+   * Get number of overlay markers on map (not sidebar)
    */
   async getOverlayMarkerCount(): Promise<number> {
     try {
@@ -212,7 +212,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Click on overlay marker on map by index (triggers flyTo animation)
+   * Click on overlay marker on map by index (triggers flyTo animation)
    */
   async clickOverlayMarker(index: number = 0) {
     try {
@@ -226,7 +226,7 @@ export class MapTestHelpers {
 
       const marker = markers.nth(index);
 
-      // AI : Get marker position for precise targeting
+      // Get marker position for precise targeting
       const markerBox = await marker.boundingBox();
       if (!markerBox) {
         console.log("Could not get overlay marker bounding box");
@@ -236,11 +236,11 @@ export class MapTestHelpers {
       const centerX = markerBox.x + markerBox.width / 2;
       const centerY = markerBox.y + markerBox.height / 2;
 
-      // AI : Click overlay marker
+      // Click overlay marker
       console.log(`Clicking overlay marker ${index}...`);
       await this.page.mouse.click(centerX, centerY);
 
-      // AI : Wait for flyTo animation to complete (1.5 seconds)
+      // Wait for flyTo animation to complete (1.5 seconds)
       await this.page.waitForTimeout(1500);
 
       console.log("Overlay marker click completed");
@@ -252,13 +252,13 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Click on a city marker to reveal overlay markers
+   * Click on a city marker to reveal overlay markers
    */
   async clickCityMarker(index: number = 0) {
     try {
       console.log(`Attempting to click city marker ${index}`);
 
-      // AI : Wait for city markers to appear after country click using data-testid
+      // Wait for city markers to appear after country click using data-testid
       await this.page.waitForFunction(
         () => {
           const markers = document.querySelectorAll('[data-testid^="city-marker-"]');
@@ -279,13 +279,13 @@ export class MapTestHelpers {
 
       const marker = markers.nth(index);
 
-      // AI : Log marker details for debugging
+      // Log marker details for debugging
       const testId = await marker.getAttribute("data-testid");
       const cityName = await marker.getAttribute("data-city-name");
       const countryCode = await marker.getAttribute("data-country-code");
       console.log(`Clicking city marker: ${testId} (${cityName}, ${countryCode})`);
 
-      // AI : Get marker position
+      // Get marker position
       const markerBox = await marker.boundingBox();
       if (!markerBox) {
         console.log("Could not get city marker bounding box");
@@ -295,11 +295,11 @@ export class MapTestHelpers {
       const centerX = markerBox.x + markerBox.width / 2;
       const centerY = markerBox.y + markerBox.height / 2;
 
-      // AI : Click the city marker (clicking a city marker reveals overlay markers within that city)
+      // Click the city marker (clicking a city marker reveals overlay markers within that city)
       console.log("Clicking city marker...");
       await this.page.mouse.click(centerX, centerY);
 
-      // AI : Wait for flyTo animation to complete (1.5 seconds) plus overlay loading
+      // Wait for flyTo animation to complete (1.5 seconds) plus overlay loading
       await this.page.waitForTimeout(1500);
 
       console.log("City marker click completed");
@@ -311,13 +311,13 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Navigate through map markers: city → overlays
+   * Navigate through map markers: city → overlays
    */
   async navigateToOverlays(cityIndex: number = 0) {
     try {
       console.log("Starting navigation to overlays...");
 
-      // AI : Check if we have city markers
+      // Check if we have city markers
       const initialCityMarkers = await this.getCityMarkerCount();
       console.log(`Initial city markers: ${initialCityMarkers}`);
 
@@ -326,7 +326,7 @@ export class MapTestHelpers {
         return false;
       }
 
-      // AI : Click city marker to reveal overlay markers
+      // Click city marker to reveal overlay markers
       console.log(`Attempting to click city marker ${cityIndex}`);
       const cityClicked = await this.clickCityMarker(cityIndex);
       if (!cityClicked) {
@@ -347,11 +347,11 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Check if edit mode is currently active (checks mode indicator class)
+   * Check if edit mode is currently active (checks mode indicator class)
    */
   async isEditModeActive(): Promise<boolean> {
     try {
-      // AI : First check if user is authenticated (edit mode only available for authenticated users)
+      // First check if user is authenticated (edit mode only available for authenticated users)
       const authHelper = await import("./auth-helpers");
       const authHelperInstance = new authHelper.AuthTestHelpers(this.page);
       const isAuthenticated = await authHelperInstance.isAuthenticated();
@@ -361,7 +361,7 @@ export class MapTestHelpers {
         return false;
       }
 
-      // AI : Check if mode indicator has edit-mode class
+      // Check if mode indicator has edit-mode class
       const modeIndicator = this.page.locator(".mode-indicator");
       await modeIndicator.waitFor({ timeout: 5000 });
       const hasEditClass = await modeIndicator.evaluate((el) => el.classList.contains("edit-mode"));
@@ -373,14 +373,14 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Count the number of visible overlays on the map
+   * Count the number of visible overlays on the map
    */
   async getOverlayCount(): Promise<number> {
     try {
-      // AI : Wait for overlays to be potentially loaded
+      // Wait for overlays to be potentially loaded
       await this.page.waitForTimeout(500);
 
-      // AI : Count visible overlay elements on the map
+      // Count visible overlay elements on the map
       const overlayCount = await this.page.locator(".leaflet-overlay-pane img").count();
       console.log(`Found ${overlayCount} overlays on the map`);
       return overlayCount;
@@ -391,7 +391,7 @@ export class MapTestHelpers {
   }
 
   /**
-   * AI : Dismiss any visible error alerts
+   * Dismiss any visible error alerts
    */
   async dismissErrorAlerts() {
     const alerts = this.page.locator('[role="alert"]');

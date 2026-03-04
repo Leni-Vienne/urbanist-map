@@ -1,26 +1,24 @@
-<template>
-  <!-- AI : Floating bar for marker placement, positioned inside map container -->
+﻿<template>
+  <!-- Floating bar for marker placement, positioned inside map container -->
   <Teleport to="#mapDiv">
-    <!-- AI : Semi-transparent backdrop to focus attention on map -->
+    <!-- Semi-transparent backdrop to focus attention on map -->
     <div
       v-if="markerPlacementMode && visible"
-      class="absolute inset-0 bg-black/30 z-[1998] pointer-events-none"
+      class="absolute inset-0 bg-black/30 z-1998 pointer-events-none"
     ></div>
 
     <div
       v-if="markerPlacementMode && visible"
-      class="absolute top-[10px] left-[10px] right-[10px] md:top-5 md:left-1/2 md:right-auto md:-translate-x-1/2 bg-[var(--p-surface-0)] border-2 border-[var(--p-primary-color)] rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.3)] flex items-center gap-4 px-[18px] py-[14px] md:px-6 md:py-4 md:max-w-[calc(100vw-40px)] md:min-w-[320px] z-[2000]"
+      class="absolute top-2.5 left-2.5 right-2.5 md:top-5 md:left-1/2 md:right-auto md:-translate-x-1/2 bg-content-background border-2 border-primary-color rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.3)] flex items-center gap-4 px-4.5 py-3.5 md:px-6 md:py-4 md:max-w-[calc(100vw-40px)] md:min-w-[320px] z-2000"
       @click.stop
     >
       <div class="flex items-center gap-2 flex-1">
-        <i class="pi pi-map-marker text-[var(--p-primary-color)] text-xl"></i>
+        <i class="pi pi-map-marker text-primary-color text-xl"></i>
         <div class="flex-1">
-          <span
-            v-if="!markerCoordinates"
-            class="text-[var(--p-text-color)] text-base font-semibold"
-            >{{ $t("project.clickMapToPlace") }}</span
-          >
-          <span v-else class="font-mono text-[15px] text-[var(--p-primary-color)] font-semibold"
+          <span v-if="!markerCoordinates" class="text-color text-base font-semibold">{{
+            $t("project.clickMapToPlace")
+          }}</span>
+          <span v-else class="font-mono text-[15px] text-primary-color font-semibold"
             >{{ markerCoordinates.lat.toFixed(5) }}, {{ markerCoordinates.lng.toFixed(5) }}</span
           >
         </div>
@@ -35,10 +33,10 @@
         <Button :label="$t('common.cancel')" severity="secondary" size="small" @click="onCancel" />
       </div>
     </div>
-    <!-- AI : Cursor-following marker icon — hidden on touch/mobile devices -->
+    <!-- Cursor-following marker icon — hidden on touch/mobile devices -->
     <div
       v-if="markerPlacementMode && visible && !markerCoordinates"
-      class="hidden md:block absolute pointer-events-none z-[1999] -translate-x-1/2 -translate-y-full"
+      class="hidden md:block absolute pointer-events-none z-1999 -translate-x-1/2 -translate-y-full"
       :style="{ left: cursorPosition.x + 'px', top: cursorPosition.y + 'px' }"
       v-html="cursorMarkerSvg"
     ></div>
@@ -51,7 +49,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { map } from "@/services/core/map";
 import { getMarkerSvg } from "@/services/map/markers";
 
-// AI : Component props and emits
+// Component props and emits
 interface Props {
   visible: boolean;
 }
@@ -65,13 +63,13 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-// AI : Component state
+// Component state
 const markerCoordinates = ref<{ lat: number; lng: number } | null>(null);
 const markerPlacementMode = ref(false);
 const cursorPosition = ref({ x: 0, y: 0 });
 const cursorMarkerSvg = getMarkerSvg("orange");
 
-// AI : Track mouse position over map for cursor-following marker
+// Track mouse position over map for cursor-following marker
 function onMouseMove(e: MouseEvent) {
   if (markerCoordinates.value) return;
   const mapContainer = map.value.getContainer();
@@ -82,7 +80,7 @@ function onMouseMove(e: MouseEvent) {
   };
 }
 
-// AI : Setup/cleanup mouse move listener
+// Setup/cleanup mouse move listener
 watch(
   () => props.visible,
   (newVisible) => {
@@ -99,13 +97,13 @@ onUnmounted(() => {
   document.removeEventListener("mousemove", onMouseMove);
 });
 
-// AI : Handle visibility changes
+// Handle visibility changes
 const visible = computed({
   get: () => props.visible,
   set: (value) => emit("update:visible", value),
 });
 
-// AI : Auto-enable marker placement when dialog opens
+// Auto-enable marker placement when dialog opens
 watch(
   () => props.visible,
   (newVisible) => {
@@ -119,17 +117,17 @@ watch(
   { immediate: true },
 );
 
-// AI : Handle marker coordinates from map click
+// Handle marker coordinates from map click
 function setMarkerCoordinates(coordinates: { lat: number; lng: number }) {
   markerCoordinates.value = coordinates;
 }
 
-// AI : Cancel marker placement
+// Cancel marker placement
 function onCancel() {
   emit("update:visible", false);
 }
 
-// AI : Continue with marker coordinates
+// Continue with marker coordinates
 function onContinue() {
   if (markerCoordinates.value) {
     emit("marker-coordinates", markerCoordinates.value);
@@ -138,13 +136,13 @@ function onContinue() {
   emit("update:visible", false);
 }
 
-// AI : Reset all state
+// Reset all state
 function resetState() {
   markerCoordinates.value = null;
   markerPlacementMode.value = false;
 }
 
-// AI : Close dialog when map mode changes (prevents mixed mode states)
+// Close dialog when map mode changes (prevents mixed mode states)
 const overlayStore = useOverlayStore();
 watch(
   () => overlayStore.mode,
@@ -155,7 +153,7 @@ watch(
   },
 );
 
-// AI : Expose functions to parent component
+// Expose functions to parent component
 defineExpose({
   setMarkerCoordinates,
 });

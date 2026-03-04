@@ -15,21 +15,21 @@ import {
 } from "../db/contributionHelpers";
 import { overlaySchema } from "@shared/validation/schemas";
 
-// AI : Use shared overlay schema for validation
+// Use shared overlay schema for validation
 const publishOverlaySchema = overlaySchema;
 
 const getOverlaySchema = z.object({
   id: z.uuid(),
   includeIntersecting: z.boolean().optional().default(false),
-  includeStatus: z.array(z.enum(["pending", "approved", "rejected"])).optional(), // AI : Optional status filter for admins
+  includeStatus: z.array(z.enum(["pending", "approved", "rejected"])).optional(), // Optional status filter for admins
 });
 
-// AI : Schema for getting latest contributions (overlays + standalone projects)
+// Schema for getting latest contributions (overlays + standalone projects)
 const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(20).optional().default(20),
 });
 
-// AI : Schema for updating overlay fields directly
+// Schema for updating overlay fields directly
 const updateOverlaySchema = z.object({
   id: z.uuid(),
   caption: z
@@ -37,24 +37,24 @@ const updateOverlaySchema = z.object({
     .max(500)
     .or(z.literal(""))
     .transform((val) => (val === "" ? undefined : val))
-    .optional(), // AI : Allow updating caption
+    .optional(), // Allow updating caption
 });
 
-// AI : Shared select fields and query builder moved to back/src/db/queryBuilders.ts to eliminate duplication
+// Shared select fields and query builder moved to back/src/db/queryBuilders.ts to eliminate duplication
 
-// AI : Find overlays that intersect with a given overlay using PostGIS spatial queries
+// Find overlays that intersect with a given overlay using PostGIS spatial queries
 async function findIntersectingOverlays(
   database: BunSQLDatabase<typeof schema>,
   excludeId: string,
   targetOverlay: { corners: { lat: number; lng: number }[] },
 ) {
   try {
-    // AI : Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
+    // Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
     const [topLeft, topRight, bottomRight, bottomLeft] = targetOverlay.corners;
     const targetPolygonWKT = `POLYGON((${topLeft!.lng} ${topLeft!.lat}, ${topRight!.lng} ${topRight!.lat}, ${bottomRight!.lng} ${bottomRight!.lat}, ${bottomLeft!.lng} ${bottomLeft!.lat}, ${topLeft!.lng} ${topLeft!.lat}))`;
 
-    // AI : Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
-    // AI : Only return approved overlays
+    // Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
+    // Only return approved overlays
     const intersectingOverlays = await buildOverlayQuery(database).where(sql`
         ${overlays.id} != ${excludeId} AND
         ${overlays.status} = 'approved' AND
@@ -75,18 +75,18 @@ async function findIntersectingOverlays(
 }
 
 export const overlayRouter = router({
-  // AI : Get latest contributions (overlays + standalone projects combined)
+  // Get latest contributions (overlays + standalone projects combined)
   getLatestContributions: publicProcedure
     .input(getLatestContributionsSchema)
     .query(async ({ input }) => {
       try {
-        // AI : Fetch overlays with their project and location info
+        // Fetch overlays with their project and location info
         const latestOverlays = await buildOverlayQuery(db)
           .where(and(eq(overlays.status, "approved"), eq(projects.status, "approved")))
           .orderBy(sql`${overlays.updatedAt} DESC`)
           .limit(input.limit);
 
-        // AI : Fetch projects without overlays (standalone projects) with location info
+        // Fetch projects without overlays (standalone projects) with location info
         const latestStandaloneProjects = await db
           .select({
             id: projects.id,
@@ -126,7 +126,7 @@ export const overlayRouter = router({
           .orderBy(sql`${projects.updatedAt} DESC`)
           .limit(input.limit);
 
-        // AI : Transform and combine results with discriminated union type
+        // Transform and combine results with discriminated union type
         const overlayContributions = latestOverlays.map((o) => ({
           type: "overlay" as const,
           id: o.id,
@@ -137,7 +137,7 @@ export const overlayRouter = router({
           cityName: o.cityName,
           countryCode: o.countryCode,
           countryName: o.countryName,
-          // AI : Include overlay-specific fields for navigation
+          // Include overlay-specific fields for navigation
           centroid: o.centroid,
           status: o.status,
         }));
@@ -152,13 +152,13 @@ export const overlayRouter = router({
           cityName: d.cityName,
           countryCode: d.countryCode,
           countryName: d.countryName,
-          // AI : Include standalone-project-specific fields for navigation
+          // Include standalone-project-specific fields for navigation
           lat: d.lat,
           lng: d.lng,
           status: d.status,
         }));
 
-        // AI : Combine and sort by updatedAt descending
+        // Combine and sort by updatedAt descending
         const combined = [...overlayContributions, ...standaloneProjectContributions]
           .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
           .slice(0, input.limit);
@@ -175,7 +175,7 @@ export const overlayRouter = router({
 
   getOverlay: publicProcedure.input(getOverlaySchema).query(async ({ input, ctx }) => {
     try {
-      // AI : Determine mode based on context - edit mode if logged in, view mode otherwise
+      // Determine mode based on context - edit mode if logged in, view mode otherwise
       const mode: AppMode = ctx.user ? "edit" : "view";
       const whereConditions = [
         eq(overlays.id, input.id),
@@ -187,7 +187,7 @@ export const overlayRouter = router({
         ),
       ];
 
-      // AI : Fetch the requested overlay
+      // Fetch the requested overlay
       const overlay = await buildOverlayQuery(db)
         .where(and(...whereConditions))
         .limit(1);
@@ -198,7 +198,7 @@ export const overlayRouter = router({
 
       let intersectingOverlays: Awaited<ReturnType<typeof findIntersectingOverlays>> = [];
 
-      // AI : If includeIntersecting is true, find overlays that intersect with the queried overlay
+      // If includeIntersecting is true, find overlays that intersect with the queried overlay
       if (input.includeIntersecting) {
         const queriedOverlay = overlay[0];
         if (!queriedOverlay)
@@ -221,7 +221,7 @@ export const overlayRouter = router({
 
   publishOverlay: loggedInProcedure.input(publishOverlaySchema).mutation(async ({ input, ctx }) => {
     try {
-      // AI : Spam prevention - block banned or heavily reported users
+      // Spam prevention - block banned or heavily reported users
       if (await isUserBlocked(ctx.user.id)) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -229,22 +229,22 @@ export const overlayRouter = router({
         });
       }
 
-      // AI : Check contribution limits
-      // AI : Only check total limit if it's a NEW overlay (updates/re-submissions handled by pending limit checks)
-      // AI : Note: upsert logic below handles ID existence, but for limit we conservatively check before DB op
+      // Check contribution limits
+      // Only check total limit if it's a NEW overlay (updates/re-submissions handled by pending limit checks)
+      // Note: upsert logic below handles ID existence, but for limit we conservatively check before DB op
       await checkTotalContributionLimit(ctx.user.id);
 
-      // AI : Check pending contribution limit for new overlays
+      // Check pending contribution limit for new overlays
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
-      // AI : Check if overlay already exists - approved overlays cannot be directly modified
+      // Check if overlay already exists - approved overlays cannot be directly modified
       const existingOverlay = await db
         .select({ status: overlays.status })
         .from(overlays)
         .where(eq(overlays.id, input.id))
         .limit(1);
 
-      // AI : Block any modification to approved overlays - must use change request system
+      // Block any modification to approved overlays - must use change request system
       if (existingOverlay[0]?.status === "approved") {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -254,10 +254,10 @@ export const overlayRouter = router({
         });
       }
 
-      // AI : Extract corner coordinates
+      // Extract corner coordinates
       const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
 
-      // AI : Calculate centroid using shared utility for consistency with frontend
+      // Calculate centroid using shared utility for consistency with frontend
       const centroid = calculateCentroidFromCorners(input.corners);
       if (!centroid) {
         throw new TRPCError({
@@ -266,10 +266,10 @@ export const overlayRouter = router({
         });
       }
 
-      // AI : Build polygon using parameterized PostGIS functions to prevent SQL injection
-      // AI : SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
-      // AI : ST_MakePolygon creates a polygon from a LineString (ring)
-      // AI : ST_MakeLine creates a LineString from individual points
+      // Build polygon using parameterized PostGIS functions to prevent SQL injection
+      // SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
+      // ST_MakePolygon creates a polygon from a LineString (ring)
+      // ST_MakeLine creates a LineString from individual points
       const corners = sql`ST_MakePolygon(
         ST_MakeLine(ARRAY[
           ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326),
@@ -280,7 +280,7 @@ export const overlayRouter = router({
         ])
       )`;
 
-      // AI : Prepare overlay data for insert/update
+      // Prepare overlay data for insert/update
       const overlayData = {
         id: input.id,
         filename: input.filename,
@@ -292,7 +292,7 @@ export const overlayRouter = router({
         centroid: sql`ST_SetSRID(ST_MakePoint(${centroid.lng}, ${centroid.lat}), 4326)`,
       };
 
-      // AI : Use upsert operation to avoid race conditions - atomic insert or update
+      // Use upsert operation to avoid race conditions - atomic insert or update
       const upsertedOverlayResult = await db
         .insert(overlays)
         .values(overlayData)
@@ -306,7 +306,7 @@ export const overlayRouter = router({
             replacesOverlayId: overlayData.replacesOverlayId,
             corners: overlayData.corners,
             centroid: overlayData.centroid,
-            version: sql`${overlays.version} + 1`, // AI : Increment version on update for optimistic locking
+            version: sql`${overlays.version} + 1`, // Increment version on update for optimistic locking
             updatedAt: sql`NOW()`,
           },
         })
@@ -327,26 +327,26 @@ export const overlayRouter = router({
         id: upsertedOverlay.id,
         status: upsertedOverlay.status,
         authorId: upsertedOverlay.authorId,
-        exists: upsertedOverlay.createdAt !== upsertedOverlay.updatedAt, // AI : Determine if it was update or insert
+        exists: upsertedOverlay.createdAt !== upsertedOverlay.updatedAt, // Determine if it was update or insert
       };
     } catch (error) {
-      // AI : Re-throw TRPCErrors as-is to preserve error codes and messages
+      // Re-throw TRPCErrors as-is to preserve error codes and messages
       if (error instanceof TRPCError) {
         throw error;
       }
-      // AI : Log and wrap unexpected errors
+      // Log and wrap unexpected errors
       console.error("Error publishing overlay:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to publish overlay",
       });
     }
-  }), // AI : Update overlay fields directly (for pending overlays)
+  }), // Update overlay fields directly (for pending overlays)
   updateOverlay: loggedInProcedure.input(updateOverlaySchema).mutation(async ({ input, ctx }) => {
     try {
       const userId = ctx.user.id;
 
-      // AI : Only allow owners to update their own overlays
+      // Only allow owners to update their own overlays
       const existingOverlay = await db
         .select({ authorId: overlays.authorId })
         .from(overlays)
@@ -366,7 +366,7 @@ export const overlayRouter = router({
         });
       }
 
-      // AI : Update only the provided fields
+      // Update only the provided fields
       const updateData: Partial<{ caption: string }> = {};
       if (input.caption !== undefined) {
         updateData.caption = input.caption;
@@ -374,7 +374,7 @@ export const overlayRouter = router({
 
       await db
         .update(overlays)
-        .set({ ...updateData, version: sql`${overlays.version} + 1`, updatedAt: new Date() }) // AI : Increment version on update for optimistic locking
+        .set({ ...updateData, version: sql`${overlays.version} + 1`, updatedAt: new Date() }) // Increment version on update for optimistic locking
         .where(eq(overlays.id, input.id));
 
       return { success: true };
@@ -384,14 +384,14 @@ export const overlayRouter = router({
     }
   }),
 
-  // AI : Delete overlay (only pending overlays can be deleted by their owner)
+  // Delete overlay (only pending overlays can be deleted by their owner)
   deleteOverlay: loggedInProcedure
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
       try {
         const userId = ctx.user.id;
 
-        // AI : Get overlay to check permissions and status
+        // Get overlay to check permissions and status
         const overlay = await db
           .select({
             id: overlays.id,
@@ -409,7 +409,7 @@ export const overlayRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         }
 
-        // AI : Only owner can delete their own overlay
+        // Only owner can delete their own overlay
         if (overlayToDelete.authorId !== userId) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -417,7 +417,7 @@ export const overlayRouter = router({
           });
         }
 
-        // AI : Only pending overlays can be deleted
+        // Only pending overlays can be deleted
         if (overlayToDelete.status !== "pending") {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -425,17 +425,17 @@ export const overlayRouter = router({
           });
         }
 
-        // AI : Delete images first (safer - if DB delete fails, we just have orphaned files)
+        // Delete images first (safer - if DB delete fails, we just have orphaned files)
         try {
           await deleteLocalImages(overlayToDelete.filename, "both");
           console.log(`Deleted local images for overlay ${input.id}`);
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
-          // AI : Log to orphaned files but don't fail the deletion
+          // Log to orphaned files but don't fail the deletion
           // The deleteLocalImages function handles logging internally
         }
 
-        // AI : Delete from database
+        // Delete from database
         await db.delete(overlays).where(eq(overlays.id, input.id));
 
         return { success: true };
@@ -446,12 +446,12 @@ export const overlayRouter = router({
       }
     }),
 
-  // AI : Get moderated contributions (rejected/replaced overlays AND standalone projects) for the current user
+  // Get moderated contributions (rejected/replaced overlays AND standalone projects) for the current user
   getModeratedContributions: loggedInProcedure.query(async ({ ctx }) => {
     try {
       const userId = ctx.user.id;
 
-      // AI : Get user's last acknowledgement time
+      // Get user's last acknowledgement time
       const currentUser = await db
         .select({ lastApprovalAcknowledgementAt: users.lastApprovalAcknowledgementAt })
         .from(users)
@@ -460,7 +460,7 @@ export const overlayRouter = router({
 
       const lastAck = currentUser[0]?.lastApprovalAcknowledgementAt ?? new Date(0);
 
-      // AI : Get rejected/replaced overlays OR new approved overlays
+      // Get rejected/replaced overlays OR new approved overlays
       const moderatedOverlays = await db
         .select({
           id: overlays.id,
@@ -468,7 +468,7 @@ export const overlayRouter = router({
           caption: overlays.caption,
           filename: overlays.filename,
           status: overlays.status,
-          rejectionReason: overlays.rejectionReason, // AI : Include rejection reason for display
+          rejectionReason: overlays.rejectionReason, // Include rejection reason for display
           updatedAt: overlays.updatedAt,
           projectId: overlays.projectId,
           replacedByOverlayId: overlays.replacedByOverlayId,
@@ -491,7 +491,7 @@ export const overlayRouter = router({
           ),
         );
 
-      // AI : Get rejected/replaced standalone projects OR new approved projects
+      // Get rejected/replaced standalone projects OR new approved projects
       const moderatedProjects = await db
         .select({
           id: projects.id,
@@ -522,7 +522,7 @@ export const overlayRouter = router({
           ),
         );
 
-      // AI : Combine and sort by updatedAt
+      // Combine and sort by updatedAt
       const combined = [...moderatedOverlays, ...moderatedProjects].toSorted(
         (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
       );
@@ -537,9 +537,9 @@ export const overlayRouter = router({
     }
   }),
 
-  // AI : Acknowledge/clear moderated contributions
-  // AI : For rejected/replaced items: deletes them
-  // AI : For approved items: updates user's lastApprovalAcknowledgementAt timestamp
+  // Acknowledge/clear moderated contributions
+  // For rejected/replaced items: deletes them
+  // For approved items: updates user's lastApprovalAcknowledgementAt timestamp
   acknowledgeModeratedContributions: loggedInProcedure
     .input(
       z.object({
@@ -552,7 +552,7 @@ export const overlayRouter = router({
 
         const ids = input.contributionIds;
 
-        // AI : Fetch overlays explicitly to separate approved vs rejected/replaced
+        // Fetch overlays explicitly to separate approved vs rejected/replaced
         const overlaysToCheck = await db
           .select({
             id: overlays.id,
@@ -568,7 +568,7 @@ export const overlayRouter = router({
             )})`,
           );
 
-        // AI : Fetch projects explicitly
+        // Fetch projects explicitly
         const projectsToCheck = await db
           .select({
             id: projects.id,
@@ -587,7 +587,7 @@ export const overlayRouter = router({
         const overlaysToDelete: typeof overlaysToCheck = [];
         const projectsToDelete: typeof projectsToCheck = [];
 
-        // AI : Process overlays
+        // Process overlays
         for (const overlay of overlaysToCheck) {
           if (overlay.authorId !== userId) continue; // Skip if not owner (or throw)
 
@@ -598,7 +598,7 @@ export const overlayRouter = router({
           }
         }
 
-        // AI : Process projects
+        // Process projects
         for (const project of projectsToCheck) {
           if (project.ownerId !== userId) continue;
 
@@ -609,8 +609,8 @@ export const overlayRouter = router({
           }
         }
 
-        // AI : If any approved items matched, update user's last check time
-        // AI : We acknowledge ALL approved items by updating the timestamp, which is simpler and expected
+        // If any approved items matched, update user's last check time
+        // We acknowledge ALL approved items by updating the timestamp, which is simpler and expected
         if (hasApprovedItems) {
           await db
             .update(users)
@@ -618,9 +618,9 @@ export const overlayRouter = router({
             .where(eq(users.id, userId));
         }
 
-        // AI : Delete rejected/replaced overlays
+        // Delete rejected/replaced overlays
         if (overlaysToDelete.length > 0) {
-          // AI : Delete images first
+          // Delete images first
           for (const overlay of overlaysToDelete) {
             try {
               await deleteLocalImages(overlay.filename, "thumbnail");
@@ -629,7 +629,7 @@ export const overlayRouter = router({
             }
           }
 
-          // AI : Delete DB records
+          // Delete DB records
           await db.delete(overlays).where(
             inArray(
               overlays.id,
@@ -638,7 +638,7 @@ export const overlayRouter = router({
           );
         }
 
-        // AI : Delete rejected projects
+        // Delete rejected projects
         if (projectsToDelete.length > 0) {
           await db.delete(projects).where(
             inArray(

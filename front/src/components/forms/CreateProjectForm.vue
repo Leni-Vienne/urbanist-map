@@ -95,7 +95,7 @@ function handleSubmit() {
     endDatePrecision: isProposed.value ? null : formData.endDatePrecision,
   };
 
-  // AI : Include city object if available
+  // Include city object if available
   const selectedCity = cities.find((c) => c.id === result.cityId);
   if (selectedCity) {
     result.city = {
@@ -104,7 +104,7 @@ function handleSubmit() {
       nameLocal: selectedCity.nameLocal,
       countryCode: selectedCity.countryCode,
       coordinates: { x: selectedCity.lng, y: selectedCity.lat },
-      approvedProjectCount: 0, // AI : Not available from form context, will be populated by backend
+      approvedProjectCount: 0, // Not available from form context, will be populated by backend
       createdAt: new Date(),
       updatedAt: new Date(),
     };

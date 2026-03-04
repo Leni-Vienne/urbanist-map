@@ -15,9 +15,9 @@ export type Context = {
  * Should be done only once per backend!
  */
 const t = initTRPC.context<Context>().create({
-  transformer: superjson, // AI : to send Date datatype
+  transformer: superjson, // to send Date datatype
   errorFormatter({ shape, error }) {
-    // AI : Handle Zod validation errors with custom messages
+    // Handle Zod validation errors with custom messages
     if (error.code === "BAD_REQUEST" && error.cause?.name === "ZodError") {
       const zodError = error.cause as any;
       const firstError = zodError.issues?.[0];
@@ -29,8 +29,8 @@ const t = initTRPC.context<Context>().create({
       }
     }
 
-    // AI : Strip stack traces and internal paths from client-facing errors
-    // AI : Only show clean error messages to users
+    // Strip stack traces and internal paths from client-facing errors
+    // Only show clean error messages to users
     return {
       ...shape,
       data: {
@@ -59,7 +59,7 @@ const isAuthedMiddleware = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-// AI : Middleware to check if user has admin role
+// Middleware to check if user has admin role
 const isAdminMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
@@ -74,13 +74,13 @@ const isAdminMiddleware = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-// AI : Middleware to check if user is admin or moderator (has moderatedCountries)
+// Middleware to check if user is admin or moderator (has moderatedCountries)
 const isModeratorOrAdminMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
 
-  // AI : Allow access if user is admin OR has moderatedCountries (is a moderator)
+  // Allow access if user is admin OR has moderatedCountries (is a moderator)
   const isAdmin = ctx.user.role === "admin";
   const isModerator = ctx.user.moderatedCountries !== null;
 

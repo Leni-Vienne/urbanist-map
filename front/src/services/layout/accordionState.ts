@@ -1,24 +1,24 @@
 import { ref } from "vue";
 import type { ProjectForModeration } from "@/types/index";
 
-// AI : ============================================================================
-// AI : ACCORDION STATE SERVICE - Singleton state for panel accordions
-// AI : ============================================================================
-// AI : Shared accordion state that persists across My Contributions and Moderation panels
-// AI : This allows users to maintain their expanded/collapsed state when switching between panels
-// AI : ============================================================================
+// ============================================================================
+// ACCORDION STATE SERVICE - Singleton state for panel accordions
+// ============================================================================
+// Shared accordion state that persists across My Contributions and Moderation panels
+// This allows users to maintain their expanded/collapsed state when switching between panels
+// ============================================================================
 
-// AI : ============================================================================
-// AI : STATE
-// AI : ============================================================================
+// ============================================================================
+// STATE
+// ============================================================================
 
 export const activeAccordionPanels = ref<string[]>([]);
 const expandedCountries = ref<Set<string>>(new Set());
 const expandedCities = ref<Set<string>>(new Set());
 
-// AI : ============================================================================
-// AI : SCROLL REQUESTS
-// AI : ============================================================================
+// ============================================================================
+// SCROLL REQUESTS
+// ============================================================================
 
 type ScrollRequestType = "city" | "project" | "overlay";
 
@@ -30,15 +30,15 @@ interface ScrollRequest {
 export const pendingScrollRequest = ref<ScrollRequest | null>(null);
 
 /**
- * AI : Request scrolling to a specific element in the panel
- * AI : This sets a pending request that the panel will consume when ready
+ * Request scrolling to a specific element in the panel
+ * This sets a pending request that the panel will consume when ready
  */
 export function requestScrollTo(type: ScrollRequestType, id: string | number) {
   pendingScrollRequest.value = { type, id };
 }
 
 /**
- * AI : Consume the current scroll request (retrieve and clear it)
+ * Consume the current scroll request (retrieve and clear it)
  */
 export function consumeScrollRequest(): ScrollRequest | null {
   const request = pendingScrollRequest.value;
@@ -46,9 +46,9 @@ export function consumeScrollRequest(): ScrollRequest | null {
   return request;
 }
 
-// AI : ============================================================================
-// AI : COUNTRY METHODS
-// AI : ============================================================================
+// ============================================================================
+// COUNTRY METHODS
+// ============================================================================
 
 export function toggleCountryExpanded(
   countryCode: string,
@@ -59,7 +59,7 @@ export function toggleCountryExpanded(
   } else {
     expandedCountries.value.add(countryCode);
 
-    // AI : When expanding a country, also expand all its cities
+    // When expanding a country, also expand all its cities
     if (countryGroup) {
       countryGroup.cities.forEach((city) => {
         expandedCities.value.add(city.key);
@@ -72,9 +72,9 @@ export function isCountryExpanded(countryCode: string): boolean {
   return expandedCountries.value.has(countryCode);
 }
 
-// AI : ============================================================================
-// AI : CITY METHODS
-// AI : ============================================================================
+// ============================================================================
+// CITY METHODS
+// ============================================================================
 
 export function toggleCityExpanded(cityKey: string) {
   if (expandedCities.value.has(cityKey)) {
@@ -88,9 +88,9 @@ export function isCityExpanded(cityKey: string): boolean {
   return expandedCities.value.has(cityKey);
 }
 
-// AI : ============================================================================
-// AI : PROJECT METHODS
-// AI : ============================================================================
+// ============================================================================
+// PROJECT METHODS
+// ============================================================================
 
 function expandProjectAccordion(projectId: string) {
   if (!activeAccordionPanels.value.includes(projectId)) {
@@ -98,44 +98,44 @@ function expandProjectAccordion(projectId: string) {
   }
 }
 
-// AI : ============================================================================
-// AI : AUTO-EXPAND METHODS
-// AI : ============================================================================
+// ============================================================================
+// AUTO-EXPAND METHODS
+// ============================================================================
 
 /**
- * AI : Auto-expand accordion hierarchy for a specific overlay
- * AI : Expands country -> city -> project to reveal the overlay
+ * Auto-expand accordion hierarchy for a specific overlay
+ * Expands country -> city -> project to reveal the overlay
  */
 export function expandAccordionForOverlay(
   overlayId: string,
   projects: ProjectForModeration[],
 ): boolean {
-  // AI : Find the project and overlay
+  // Find the project and overlay
   for (const project of projects) {
     const overlay = project.overlays.find((o) => o.id === overlayId);
     if (overlay) {
       let didExpand = false;
 
-      // AI : Expand country (only if not already expanded)
+      // Expand country (only if not already expanded)
       if (project.countryCode && !expandedCountries.value.has(project.countryCode)) {
         expandedCountries.value.add(project.countryCode);
         didExpand = true;
       }
 
-      // AI : Expand city (only if not already expanded)
+      // Expand city (only if not already expanded)
       const cityKey = `${project.countryCode}-${project.cityName}`;
       if (!expandedCities.value.has(cityKey)) {
         expandedCities.value.add(cityKey);
         didExpand = true;
       }
 
-      // AI : Expand project (only if not already expanded)
+      // Expand project (only if not already expanded)
       if (!activeAccordionPanels.value.includes(project.id)) {
         activeAccordionPanels.value.push(project.id);
         didExpand = true;
       }
 
-      // AI : Return true only if we actually expanded something
+      // Return true only if we actually expanded something
       return didExpand;
     }
   }
@@ -144,8 +144,8 @@ export function expandAccordionForOverlay(
 }
 
 /**
- * AI : Auto-expand accordion hierarchy for a specific project (standalone project)
- * AI : Expands country -> city -> project
+ * Auto-expand accordion hierarchy for a specific project (standalone project)
+ * Expands country -> city -> project
  */
 export function expandAccordionForProject(
   projectId: string,
@@ -154,22 +154,21 @@ export function expandAccordionForProject(
   const project = projects.find((p) => p.id === projectId);
   if (!project) return false;
 
-  // AI : Expand country
+  // Expand country
   if (project.countryCode) {
     expandedCountries.value.add(project.countryCode);
   }
 
-  // AI : Expand city
+  // Expand city
   const cityKey = `${project.countryCode}-${project.cityName}`;
   expandedCities.value.add(cityKey);
 
-  // AI : Expand project
+  // Expand project
   expandProjectAccordion(project.id);
 
   return true;
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

@@ -7,7 +7,7 @@ import * as path from "node:path";
 import { parseCSVLine } from "../utils/csv-parser";
 
 /**
- * AI : Import countries and cities from GeoNames data with local name support
+ * Import countries and cities from GeoNames data with local name support
  *
  * Required files:
  * - countries.csv: Country coordinates (included in project)
@@ -44,19 +44,19 @@ interface CityData {
   longitude: number;
 }
 
-// AI : Mapping from ISO alpha-2 to alpha-3
+// Mapping from ISO alpha-2 to alpha-3
 const alpha2ToAlpha3Map = new Map<string, string>();
-// AI : Country to main language mapping (for local names)
+// Country to main language mapping (for local names)
 const countryLanguageMap = new Map<string, string>();
-// AI : City ID to country code mapping (for local name filtering)
+// City ID to country code mapping (for local name filtering)
 const cityCountryMap = new Map<number, string>();
-// AI : City ID to ASCII name mapping (to skip duplicate alternate names)
+// City ID to ASCII name mapping (to skip duplicate alternate names)
 const cityNameMap = new Map<number, string>();
-// AI : Country coordinates from CSV
+// Country coordinates from CSV
 const countryCoordinates = new Map<string, { lat: number; lng: number }>();
 
 /**
- * AI : Load country coordinates from countries.csv
+ * Load country coordinates from countries.csv
  */
 async function loadCountryCoordinates(): Promise<void> {
   console.log("📍 Loading country coordinates from countries.csv...");
@@ -75,11 +75,11 @@ async function loadCountryCoordinates(): Promise<void> {
   for await (const line of rl) {
     lineNumber += 1;
 
-    // AI : Skip header line
+    // Skip header line
     if (lineNumber === 1) continue;
 
-    // AI : Parse CSV with proper handling of quoted fields
-    // AI : Country names can contain commas (e.g., "Korea, Republic of")
+    // Parse CSV with proper handling of quoted fields
+    // Country names can contain commas (e.g., "Korea, Republic of")
     const fields = parseCSVLine(line);
     if (fields.length >= 6) {
       const _alpha2 = fields[1]; // Alpha-2 code
@@ -97,8 +97,8 @@ async function loadCountryCoordinates(): Promise<void> {
 }
 
 /**
- * AI : Load country language mappings from countryInfo.txt
- * AI : This is needed to identify the main language for each country
+ * Load country language mappings from countryInfo.txt
+ * This is needed to identify the main language for each country
  */
 async function loadCountryLanguages(): Promise<void> {
   console.log("🗣️  Loading country languages from countryInfo.txt...");
@@ -116,19 +116,19 @@ async function loadCountryLanguages(): Promise<void> {
   });
 
   for await (const line of rl) {
-    // AI : Skip comments
+    // Skip comments
     if (line.startsWith("#") || line.trim() === "") continue;
 
     const fields = line.split("\t");
     if (fields.length > 15) {
       const iso2 = fields[0]!.trim();
       const iso3 = fields[1]!.trim();
-      // AI : Languages field contains comma-separated codes, take the first one
+      // Languages field contains comma-separated codes, take the first one
       const rawLang = fields[15]!.split(",")[0]!.split("-")[0]!.trim();
 
       if (iso2 && iso3 && rawLang) {
         alpha2ToAlpha3Map.set(iso2, iso3);
-        countryLanguageMap.set(iso3, rawLang); // AI : Use alpha-3 for consistency
+        countryLanguageMap.set(iso3, rawLang); // Use alpha-3 for consistency
       }
     }
   }
@@ -137,7 +137,7 @@ async function loadCountryLanguages(): Promise<void> {
 }
 
 /**
- * AI : Parse countryInfo.txt and import countries with actual coordinates
+ * Parse countryInfo.txt and import countries with actual coordinates
  */
 async function importCountries(): Promise<void> {
   console.log("\n📍 Importing countries from GeoNames...");
@@ -157,7 +157,7 @@ async function importCountries(): Promise<void> {
   let importedCount = 0;
 
   for await (const line of rl) {
-    // AI : Skip comments and empty lines
+    // Skip comments and empty lines
     if (line.startsWith("#") || line.trim() === "") continue;
 
     const fields = line.split("\t");
@@ -183,10 +183,10 @@ async function importCountries(): Promise<void> {
       geonameId, // 16: GeoNames ID
     ] = fields;
 
-    // AI : Skip entries without proper data
+    // Skip entries without proper data
     if (!iso2 || !iso3 || !geonameId || !countryName) continue;
 
-    // AI : Get coordinates from countries.csv
+    // Get coordinates from countries.csv
     const coords = countryCoordinates.get(iso3);
     if (!coords) {
       console.warn(`⚠️  No coordinates for ${countryName} (${iso3})`);
@@ -202,7 +202,7 @@ async function importCountries(): Promise<void> {
       longitude: coords.lng,
     });
 
-    // AI : Insert in batches
+    // Insert in batches
     if (countryBatch.length >= BATCH_SIZE) {
       await insertCountryBatch(countryBatch);
       importedCount += countryBatch.length;
@@ -211,7 +211,7 @@ async function importCountries(): Promise<void> {
     }
   }
 
-  // AI : Insert remaining countries
+  // Insert remaining countries
   if (countryBatch.length > 0) {
     await insertCountryBatch(countryBatch);
     importedCount += countryBatch.length;
@@ -221,7 +221,7 @@ async function importCountries(): Promise<void> {
 }
 
 /**
- * AI : Insert country batch into database
+ * Insert country batch into database
  */
 async function insertCountryBatch(batch: CountryData[]): Promise<void> {
   const values = batch.map((country) => ({
@@ -236,7 +236,7 @@ async function insertCountryBatch(batch: CountryData[]): Promise<void> {
 }
 
 /**
- * AI : Parse cities15000.txt and import cities (without local names initially)
+ * Parse cities15000.txt and import cities (without local names initially)
  */
 async function importCities(): Promise<void> {
   console.log("\n🏙️  Importing cities from GeoNames...");
@@ -279,11 +279,11 @@ async function importCities(): Promise<void> {
       continue;
     }
 
-    // AI : Only import actual cities (not streets, markets, historical places, etc.)
-    // AI : Allowed feature codes:
-    // AI :   PPL - populated place (city/town)
-    // AI :   PPLC - capital city
-    // AI :   PPLA, PPLA2, PPLA3, PPLA4 - administrative seats
+    // Only import actual cities (not streets, markets, historical places, etc.)
+    // Allowed feature codes:
+    //   PPL - populated place (city/town)
+    //   PPLC - capital city
+    //   PPLA, PPLA2, PPLA3, PPLA4 - administrative seats
     const allowedFeatureCodes = ["PPL", "PPLC", "PPLA", "PPLA2", "PPLA3", "PPLA4"];
     if (!featureCode) {
       skippedCount += 1;
@@ -294,7 +294,7 @@ async function importCities(): Promise<void> {
       continue;
     }
 
-    // AI : Convert country code from alpha-2 to alpha-3
+    // Convert country code from alpha-2 to alpha-3
     const countryCode3 = alpha2ToAlpha3Map.get(countryCode2);
     if (!countryCode3) {
       skippedCount += 1;
@@ -303,14 +303,14 @@ async function importCities(): Promise<void> {
 
     const cityId = Number.parseInt(geonameId, 10);
 
-    // AI : Store mapping for local name processing
+    // Store mapping for local name processing
     cityCountryMap.set(cityId, countryCode3);
     cityNameMap.set(cityId, asciiname);
 
     cityBatch.push({
       id: cityId,
       name: asciiname,
-      nameLocal: null, // AI : Will be updated by updateCityLocalNames()
+      nameLocal: null, // Will be updated by updateCityLocalNames()
       countryCode: countryCode3,
       latitude: Number.parseFloat(latitude),
       longitude: Number.parseFloat(longitude),
@@ -333,7 +333,7 @@ async function importCities(): Promise<void> {
 }
 
 /**
- * AI : Insert city batch into database
+ * Insert city batch into database
  */
 async function insertCityBatch(batch: CityData[]): Promise<void> {
   const values = batch.map((city) => ({
@@ -349,8 +349,8 @@ async function insertCityBatch(batch: CityData[]): Promise<void> {
 }
 
 /**
- * AI : Update city local names from alternateNamesV2.txt
- * AI : Logic inspired by alternateName.py - prioritizes native language names
+ * Update city local names from alternateNamesV2.txt
+ * Logic inspired by alternateName.py - prioritizes native language names
  */
 // eslint-disable-next-line @eslint/complexity
 async function updateCityLocalNames(): Promise<void> {
@@ -371,9 +371,9 @@ async function updateCityLocalNames(): Promise<void> {
     crlfDelay: Infinity,
   });
 
-  // AI : Map to store best local name for each city
+  // Map to store best local name for each city
   const cityLocalNames = new Map<number, { name: string; priority: number }>();
-  // AI : Map to store English alternate names (to prefer over romanized names)
+  // Map to store English alternate names (to prefer over romanized names)
   const cityEnglishNames = new Map<number, string>();
 
   let processedCount = 0;
@@ -394,25 +394,25 @@ async function updateCityLocalNames(): Promise<void> {
     const isColloquial = fields[6] === "1"; // Column 6: colloquial name flag
     const isHistoric = fields[7] === "1"; // Column 7: historic name flag
 
-    // AI : Skip colloquial, historical, and short name variants
-    // AI : Examples: "Ville-Lumière" (colloquial), "Lutetia" (historical), "NYC" (short)
-    // AI : We want actual proper names, not nicknames or old names
+    // Skip colloquial, historical, and short name variants
+    // Examples: "Ville-Lumière" (colloquial), "Lutetia" (historical), "NYC" (short)
+    // We want actual proper names, not nicknames or old names
     if (isColloquial || isHistoric || isShortName) {
       continue;
     }
 
-    // AI : Skip Wikipedia/Wikidata URLs and other non-name entries
-    // AI : GeoNames uses specific pseudo language codes for these:
-    // AI : - 'link': Wikipedia URLs
-    // AI : - 'wkdt': Wikidata URLs
-    // AI : - 'unlc': UN location codes
-    // AI : - 'iata', 'icao', 'faac', 'tcid': Airport codes
-    // AI : - 'abbr': Abbreviations
-    // AI : - 'post': Postal codes
-    // AI : - 'phon': Phonetics
-    // AI : - 'piny': Pinyin
-    // AI : - 'nuts': EU NUTS codes
-    // AI : - 'lauc': EU LAU codes
+    // Skip Wikipedia/Wikidata URLs and other non-name entries
+    // GeoNames uses specific pseudo language codes for these:
+    // - 'link': Wikipedia URLs
+    // - 'wkdt': Wikidata URLs
+    // - 'unlc': UN location codes
+    // - 'iata', 'icao', 'faac', 'tcid': Airport codes
+    // - 'abbr': Abbreviations
+    // - 'post': Postal codes
+    // - 'phon': Phonetics
+    // - 'piny': Pinyin
+    // - 'nuts': EU NUTS codes
+    // - 'lauc': EU LAU codes
     if (
       lang === "link" ||
       lang === "wkdt" ||
@@ -431,26 +431,26 @@ async function updateCityLocalNames(): Promise<void> {
       continue;
     }
 
-    // AI : Also skip if it looks like a URL (backup check)
+    // Also skip if it looks like a URL (backup check)
     if (alternateName.startsWith("http://") || alternateName.startsWith("https://")) {
       continue;
     }
 
-    // AI : Skip numeric-only values (postal codes, IDs, etc.)
+    // Skip numeric-only values (postal codes, IDs, etc.)
     if (/^\d+$/.test(alternateName.trim())) {
       continue;
     }
 
-    // AI : Only process cities we imported
+    // Only process cities we imported
     const countryCode = cityCountryMap.get(geonameId);
     if (!countryCode) continue;
 
-    // AI : Capture English alternate names to use as main city name
-    // AI : This gives us clean English names like "10th of Ramadan City"
-    // AI : instead of romanized names with diacritics like "Al 'Āshir min Ramaḑān"
+    // Capture English alternate names to use as main city name
+    // This gives us clean English names like "10th of Ramadan City"
+    // instead of romanized names with diacritics like "Al 'Āshir min Ramaḑān"
     if (lang === "en") {
       const cityName = cityNameMap.get(geonameId);
-      // AI : Only use if different from current name (avoid duplicates)
+      // Only use if different from current name (avoid duplicates)
       if (cityName && alternateName !== cityName) {
         cityEnglishNames.set(geonameId, alternateName);
       }
@@ -459,22 +459,22 @@ async function updateCityLocalNames(): Promise<void> {
 
     const targetLang = countryLanguageMap.get(countryCode);
 
-    // AI : Skip if the alternate name is identical to the main ASCII name
-    // AI : This prevents redundant local names (e.g., "Paris" vs "Paris")
+    // Skip if the alternate name is identical to the main ASCII name
+    // This prevents redundant local names (e.g., "Paris" vs "Paris")
     const cityName = cityNameMap.get(geonameId);
     if (cityName && alternateName === cityName) {
       continue;
     }
 
-    // AI : Skip local names for English-speaking countries entirely
-    // AI : For these countries, the ASCII name is already correct
-    // AI : This prevents other languages from being used since it's not needed for those countries
+    // Skip local names for English-speaking countries entirely
+    // For these countries, the ASCII name is already correct
+    // This prevents other languages from being used since it's not needed for those countries
     const englishSpeakingCountries = new Set(["USA", "GBR", "CAN", "AUS", "NZL", "IRL"]);
     if (englishSpeakingCountries.has(countryCode)) {
       continue;
     }
 
-    // AI : Priority system:
+    // Priority system:
     // If we know the target language:
     //   - Priority 100: Names matching target language (e.g., 'ja' for Japan)
     //   - Priority 50: Unlabeled names with non-ASCII (fallback)
@@ -486,7 +486,7 @@ async function updateCityLocalNames(): Promise<void> {
 
     let priority = 0;
     if (targetLang) {
-      // AI : We know the target language - be strict
+      // We know the target language - be strict
       if (lang === targetLang) {
         priority = 100; // Exact language match
       } else if (lang === "" && /[^ -~]/.test(alternateName)) {
@@ -495,7 +495,7 @@ async function updateCityLocalNames(): Promise<void> {
         continue; // Skip other languages to prevent cross-contamination
       }
     } else if (lang && lang !== "" && /[^ -~]/.test(alternateName)) {
-      // AI : We don't know the target language - accept any non-ASCII
+      // We don't know the target language - accept any non-ASCII
       priority = 75; // Any language with non-ASCII
     } else if (lang === "" && /[^ -~]/.test(alternateName)) {
       priority = 50; // Unlabeled with non-ASCII
@@ -503,7 +503,7 @@ async function updateCityLocalNames(): Promise<void> {
       continue; // Skip Latin-only names
     }
 
-    // AI : Only update if this is better than what we have
+    // Only update if this is better than what we have
     const existing = cityLocalNames.get(geonameId);
     if (!existing || priority > existing.priority) {
       cityLocalNames.set(geonameId, { name: alternateName, priority });
@@ -515,7 +515,7 @@ async function updateCityLocalNames(): Promise<void> {
     }
   }
 
-  // AI : Update cities in database using batch SQL for performance
+  // Update cities in database using batch SQL for performance
   console.log(`\n  💾 Updating ${cityLocalNames.size} cities with local names...`);
 
   const entries = [...cityLocalNames.entries()];
@@ -525,17 +525,17 @@ async function updateCityLocalNames(): Promise<void> {
   for (let i = 0; i < entries.length; i += batchSize) {
     const batch = entries.slice(i, i + batchSize);
 
-    // AI : Build a SQL CASE statement for batch update
-    // AI : UPDATE cities SET name_local = CASE
-    // AI :   WHEN id = 123 THEN 'Tokyo'
-    // AI :   WHEN id = 456 THEN 'Moscow'
-    // AI :   ...
-    // AI : END WHERE id IN (123, 456, ...)
+    // Build a SQL CASE statement for batch update
+    // UPDATE cities SET name_local = CASE
+    //   WHEN id = 123 THEN 'Tokyo'
+    //   WHEN id = 456 THEN 'Moscow'
+    //   ...
+    // END WHERE id IN (123, 456, ...)
 
     const cityIds = batch.map(([cityId]) => cityId);
     const caseStatements = batch
       .map(([cityId, { name }]) => {
-        // AI : Escape single quotes in SQL strings
+        // Escape single quotes in SQL strings
         const escapedName = name.replace(/'/g, "''");
         return `WHEN ${cityId} THEN '${escapedName}'`;
       })
@@ -557,7 +557,7 @@ async function updateCityLocalNames(): Promise<void> {
 
   console.log(`✅ Updated ${totalUpdated} cities with local names`);
 
-  // AI : Update cities with English alternate names (for main name field)
+  // Update cities with English alternate names (for main name field)
   console.log(`\n  💾 Updating ${cityEnglishNames.size} cities with English names...`);
 
   const englishEntries = [...cityEnglishNames.entries()];
@@ -592,14 +592,14 @@ async function updateCityLocalNames(): Promise<void> {
 }
 
 /**
- * AI : Main import function
+ * Main import function
  */
 async function main() {
   console.log("🌍 GeoNames Import Script");
   console.log("=".repeat(50));
 
   try {
-    // AI : Check required files
+    // Check required files
     if (!fs.existsSync(GEONAMES_DIR)) {
       console.error(`\n❌ GeoNames data directory not found: ${GEONAMES_DIR}`);
       console.log("\nPlease create the directory and download the following files:");
@@ -625,19 +625,19 @@ async function main() {
 
     const startTime = Date.now();
 
-    // AI : Step 1: Load country coordinates from CSV
+    // Step 1: Load country coordinates from CSV
     await loadCountryCoordinates();
 
-    // AI : Step 2: Load country languages (for local name filtering)
+    // Step 2: Load country languages (for local name filtering)
     await loadCountryLanguages();
 
-    // AI : Step 3: Import countries
+    // Step 3: Import countries
     await importCountries();
 
-    // AI : Step 4: Import cities
+    // Step 4: Import cities
     await importCities();
 
-    // AI : Step 5: Update local names (if alternateNames file exists)
+    // Step 5: Update local names (if alternateNames file exists)
     await updateCityLocalNames();
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -655,5 +655,5 @@ async function main() {
   }
 }
 
-// AI : Run the import
+// Run the import
 await main();

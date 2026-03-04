@@ -1,23 +1,25 @@
-<template>
+﻿<template>
   <div
-    class="flex justify-center items-center min-h-screen bg-gradient-to-br from-[var(--p-primary-50)] to-[var(--p-primary-100)] p-5"
+    class="flex justify-center items-center min-h-screen bg-linear-to-br from-primary-50 to-primary-100 p-5"
   >
     <div
-      class="bg-[var(--p-surface-0)] p-12 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] text-center max-w-[400px] w-full"
+      class="bg-content-background p-12 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] text-center max-w-100 w-full"
     >
       <div v-if="loading" class="flex flex-col items-center gap-6">
-        <i class="pi pi-spin pi-spinner text-[2rem] text-[var(--p-primary-color)]"></i>
-        <p class="m-0 text-[var(--p-text-muted-color)] leading-relaxed">
+        <i class="pi pi-spin pi-spinner text-[2rem] text-primary-color"></i>
+        <p class="m-0 text-muted-color leading-relaxed">
           {{ $t("common.loading") }}
         </p>
       </div>
 
       <div v-else-if="tokenValid" class="flex flex-col items-center gap-6">
-        <i class="pi pi-key text-[3rem] text-[var(--p-primary-color)]"></i>
-        <h2 class="m-0 text-2xl text-[var(--p-text-color)]">{{ $t("auth.resetPasswordTitle") }}</h2>
+        <i class="pi pi-key text-[3rem] text-primary-color"></i>
+        <h2 class="m-0 text-2xl text-color">
+          {{ $t("auth.resetPasswordTitle") }}
+        </h2>
         <form @submit.prevent="handleResetPassword" class="flex flex-col gap-4 w-full">
           <div class="flex flex-col gap-2 text-left">
-            <label for="password" class="font-medium text-[var(--p-text-color)]">{{
+            <label for="password" class="font-medium text-color">{{
               $t("auth.newPassword")
             }}</label>
             <Password
@@ -34,7 +36,7 @@
           </div>
 
           <div class="flex flex-col gap-2 text-left">
-            <label for="confirmPassword" class="font-medium text-[var(--p-text-color)]">{{
+            <label for="confirmPassword" class="font-medium text-color">{{
               $t("auth.confirmPassword")
             }}</label>
             <Password
@@ -61,9 +63,13 @@
       </div>
 
       <div v-else class="flex flex-col items-center gap-6">
-        <i class="pi pi-times-circle text-[3rem] text-[var(--p-red-500)]"></i>
-        <h2 class="m-0 text-2xl text-[var(--p-text-color)]">{{ $t("auth.invalidResetToken") }}</h2>
-        <p class="m-0 text-[var(--p-text-muted-color)] leading-relaxed">{{ errorMessage }}</p>
+        <i class="pi pi-times-circle text-[3rem] text-red-500"></i>
+        <h2 class="m-0 text-2xl text-color">
+          {{ $t("auth.invalidResetToken") }}
+        </h2>
+        <p class="m-0 text-muted-color leading-relaxed">
+          {{ errorMessage }}
+        </p>
         <Button @click="goToApp" :label="$t('auth.backToSignIn')" severity="secondary" />
       </div>
     </div>
@@ -143,7 +149,7 @@ async function handleResetPassword() {
     const result = await authStore.resetPassword(token, newPassword.value);
 
     if (result.success) {
-      // AI : Auto-login after successful password reset — failure is non-fatal
+      // Auto-login after successful password reset — failure is non-fatal
       if (result.email) {
         await authStore.signIn(result.email, newPassword.value).catch(() => {});
       }

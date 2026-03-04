@@ -3,16 +3,16 @@ import { cities, projects } from "../db/schema";
 import { sql, eq, count, isNotNull } from "drizzle-orm";
 
 /**
- * AI : One-time script to populate initial approved project counts for all cities
- * AI : Safe to re-run (idempotent) - recalculates from scratch
- * AI : Run this after adding the approvedProjectCount column to the schema
+ * One-time script to populate initial approved project counts for all cities
+ * Safe to re-run (idempotent) - recalculates from scratch
+ * Run this after adding the approvedProjectCount column to the schema
  */
 async function populateInitialCounts() {
   console.log("Starting to populate city project counts...");
 
   try {
-    // AI : Get all cities with their approved project counts using Drizzle
-    // AI : Create subquery for project counts per city
+    // Get all cities with their approved project counts using Drizzle
+    // Create subquery for project counts per city
     const projectCountsSubquery = db
       .select({
         cityId: projects.cityId,
@@ -23,7 +23,7 @@ async function populateInitialCounts() {
       .groupBy(projects.cityId)
       .as("project_counts");
 
-    // AI : Get city IDs with their counts from the subquery
+    // Get city IDs with their counts from the subquery
     const citiesWithCounts = await db
       .select({
         cityId: projectCountsSubquery.cityId,
@@ -32,7 +32,7 @@ async function populateInitialCounts() {
       .from(projectCountsSubquery)
       .where(isNotNull(projectCountsSubquery.cityId));
 
-    // AI : Update each city with its count
+    // Update each city with its count
     let updatedCount = 0;
     for (const { cityId, projectCount } of citiesWithCounts) {
       if (cityId) {
@@ -46,11 +46,11 @@ async function populateInitialCounts() {
 
     console.log(`✓ Updated ${updatedCount} cities with approved projects`);
 
-    // AI : Reset cities with no approved projects to 0
-    // AI : Get all city IDs that have projects
+    // Reset cities with no approved projects to 0
+    // Get all city IDs that have projects
     const cityIdsWithProjects = citiesWithCounts.map((c) => c.cityId);
 
-    // AI : Update all cities not in that list to have count 0
+    // Update all cities not in that list to have count 0
     if (cityIdsWithProjects.length > 0) {
       await db
         .update(cities)
@@ -60,7 +60,7 @@ async function populateInitialCounts() {
 
     console.log(`✓ Reset cities with no approved projects to 0`);
 
-    // AI : Verify results with proper Drizzle select
+    // Verify results with proper Drizzle select
     const stats = await db
       .select({
         citiesWithProjects: count(cities.id).as("cities_with_projects"),
@@ -96,5 +96,5 @@ async function populateInitialCounts() {
   }
 }
 
-// AI : Run the script
+// Run the script
 await populateInitialCounts();

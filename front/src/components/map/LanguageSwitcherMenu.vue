@@ -1,10 +1,10 @@
-<template>
+﻿<template>
   <div :class="{ 'w-full': displayMode === 'list-item' }">
-    <!-- AI : Language Menu Toggle Button -->
+    <!-- Language Menu Toggle Button -->
     <button
       v-if="displayMode === 'icon'"
       type="button"
-      class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-[var(--p-surface-0)] border border-[var(--p-surface-300)] cursor-pointer transition-all duration-200 text-[var(--p-surface-600)] hover:bg-[var(--p-surface-50)] hover:border-[var(--p-surface-400)] hover:text-[var(--p-primary-600)] hover:shadow-sm"
+      class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-content-background border border-surface cursor-pointer transition-all duration-200 text-(--p-text-color-secondary) hover:bg-content-hover-background hover:border-surface hover:text-primary-600 hover:shadow-sm"
       @click="toggleMenu"
       ref="languageMenuRef"
       :aria-label="$t('controls.language')"
@@ -15,7 +15,7 @@
     <button
       v-else
       type="button"
-      class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-[var(--p-surface-700)] transition-colors duration-200 text-[0.9rem] hover:bg-[var(--p-surface-100)]"
+      class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-content-hover-background"
       @click="toggleMenu"
       ref="languageMenuRef"
       :aria-label="$t('controls.language')"
@@ -23,12 +23,10 @@
     >
       <i class="pi pi-language text-base"></i>
       <span class="ml-2">{{ $t("controls.language") }}</span>
-      <span class="ml-auto text-sm text-[var(--p-surface-500)]">{{
-        currentLocale.toUpperCase()
-      }}</span>
+      <span class="ml-auto text-sm text-muted-color">{{ currentLocale.toUpperCase() }}</span>
     </button>
 
-    <!-- AI : Language selection popover -->
+    <!-- Language selection popover -->
     <Popover ref="languagePopover">
       <div class="flex flex-col w-40">
         <button
@@ -38,8 +36,8 @@
           class="appearance-none font-[inherit] border-0 text-left flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded w-full transition-colors duration-150 disabled:opacity-70 disabled:cursor-wait"
           :class="
             currentLocale === locale.code
-              ? 'bg-[var(--p-primary-50)] text-[var(--p-primary-700)]'
-              : 'bg-transparent hover:bg-[var(--p-surface-100)]'
+              ? 'bg-primary-50 text-primary-700'
+              : 'bg-transparent hover:bg-content-hover-background'
           "
           :disabled="isLoading"
           @click="changeLocale(locale.code)"
@@ -86,19 +84,19 @@ onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
 });
 
-// AI : Close menu on window resize
+// Close menu on window resize
 function handleResize() {
   if (languagePopover.value?.visible) {
     languagePopover.value.hide();
   }
 }
 
-// AI : Toggle language menu visibility using Popover
+// Toggle language menu visibility using Popover
 function toggleMenu(event: Event) {
   languagePopover.value.toggle(event);
 }
 
-// AI : Change language with async loading and persist preference
+// Change language with async loading and persist preference
 async function changeLocale(newLocale: Locale): Promise<void> {
   if (isLoading.value || newLocale === currentLocale.value) return;
 
@@ -106,7 +104,7 @@ async function changeLocale(newLocale: Locale): Promise<void> {
   loadingLocale.value = newLocale;
 
   try {
-    // AI : Load locale messages if not already loaded
+    // Load locale messages if not already loaded
     const loaded = await loadAndSetLocale(newLocale);
     if (!loaded) {
       console.error(`Failed to load locale: ${newLocale}`);
@@ -118,7 +116,7 @@ async function changeLocale(newLocale: Locale): Promise<void> {
     saveLocale(newLocale);
     languagePopover.value.hide();
 
-    // AI : Update HTML lang attribute and translation settings intelligently
+    // Update HTML lang attribute and translation settings intelligently
     updateTranslationSettings(newLocale);
   } finally {
     isLoading.value = false;

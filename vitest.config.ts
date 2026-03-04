@@ -11,7 +11,7 @@ export default defineConfig({
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
-      "**/back/**", // AI : Exclude backend tests - they use Bun test runner
+      "**/back/**", // Exclude backend tests - they use Bun test runner
       "**/*.disabled.ts",
     ],
   },
@@ -25,7 +25,7 @@ export default defineConfig({
     },
   },
   define: {
-    // AI : Define environment variables for tests
+    // Define environment variables for tests
     "import.meta.env.VITE_API_BASE_URL": JSON.stringify("http://localhost:3000"),
   },
 });

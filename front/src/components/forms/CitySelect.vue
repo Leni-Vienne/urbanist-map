@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Select
     :id="id"
     :modelValue="modelValue"
@@ -19,11 +19,11 @@
       <div class="flex items-center justify-between w-full">
         <span>
           {{ option.name }}
-          <span v-if="option.nameLocal" class="text-[var(--p-surface-600)]">
+          <span v-if="option.nameLocal" class="text-(--p-text-color-secondary)">
             ({{ option.nameLocal }})</span
           >
         </span>
-        <span class="text-xs text-[var(--p-surface-500)]">
+        <span class="text-xs text-muted-color">
           {{ option.countryCode }}
           <span v-if="option.distance > 0"> ({{ Math.round(option.distance) / 1000 }} km)</span>
         </span>
@@ -64,19 +64,19 @@ defineEmits<{
 
 const projectStore = useProjectStore();
 
-// AI : Cities data and state
+// Cities data and state
 const cities = ref<RouterOutput["cities"]["getCitiesNearLocation"]>(
   props.prefilledCity ? [convertDBCityToSelectFormat(props.prefilledCity)] : [],
 );
 const citiesLoading = ref(false);
 const citiesLoaded = ref(Boolean(props.prefilledCity));
 
-// AI : Cache the prefilled city if available
+// Cache the prefilled city if available
 if (props.prefilledCity) {
   projectStore.cacheCityName(props.prefilledCity.id, props.prefilledCity.name);
 }
 
-// AI : Computed property for cities with display names including local names
+// Computed property for cities with display names including local names
 const filteredCities = computed(() => {
   return cities.value.map((city) => ({
     ...city,
@@ -86,7 +86,7 @@ const filteredCities = computed(() => {
   }));
 });
 
-// AI : Helper function to convert DBCity to city select format
+// Helper function to convert DBCity to city select format
 function convertDBCityToSelectFormat(
   dbCity: Project["city"],
 ): RouterOutput["cities"]["getCitiesNearLocation"][number] {
@@ -102,12 +102,12 @@ function convertDBCityToSelectFormat(
   };
 }
 
-// AI : Get reference location for city search
+// Get reference location for city search
 function getReferenceLocation(): { lat: number; lng: number } | null {
   const overlayStore = useOverlayStore();
   const { idSelectedOverlay, overlays } = storeToRefs(overlayStore);
 
-  // AI : First priority: overlay center if one is selected
+  // First priority: overlay center if one is selected
   if (idSelectedOverlay.value && overlays.value[idSelectedOverlay.value]) {
     const overlayObject = overlays.value[idSelectedOverlay.value];
 
@@ -127,7 +127,7 @@ function getReferenceLocation(): { lat: number; lng: number } | null {
     }
   }
 
-  // AI : Second priority: camera center as fallback
+  // Second priority: camera center as fallback
   const cameraBounds = getCameraBounds();
   if (
     cameraBounds.value &&
@@ -145,7 +145,7 @@ function getReferenceLocation(): { lat: number; lng: number } | null {
   return null;
 }
 
-// AI : Load cities when dropdown opens
+// Load cities when dropdown opens
 async function loadCities() {
   if (citiesLoading.value) return;
 
@@ -162,12 +162,12 @@ async function loadCities() {
       limit: 20,
     });
 
-    // AI : Cache city names for all nearby cities
+    // Cache city names for all nearby cities
     for (const city of nearbyCities) {
       projectStore.cacheCityName(city.id, city.name);
     }
 
-    // AI : Merge with prefilled city if not in results
+    // Merge with prefilled city if not in results
     if (props.prefilledCity) {
       const cityAlreadyInResults = nearbyCities.some((c) => c.id === props.prefilledCity?.id);
       if (!cityAlreadyInResults) {
@@ -186,7 +186,7 @@ async function loadCities() {
   }
 }
 
-// AI : Get city name by ID
+// Get city name by ID
 function getCityName(cityId: number | undefined): string {
   if (!cityId) return "Not set";
   const city = cities.value.find((c) => c.id === cityId);

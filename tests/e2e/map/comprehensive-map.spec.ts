@@ -12,7 +12,7 @@ test.describe("Comprehensive Map Testing", () => {
   test("should demonstrate full map workflow: city → overlays → modes → filtering", async ({
     page,
   }) => {
-    // AI : 1. Verify initial state and reset to view mode if needed
+    // 1. Verify initial state and reset to view mode if needed
     await expect(page.locator(".leaflet-container")).toBeVisible();
 
     if (await mapHelpers.isEditModeActive()) {
@@ -24,46 +24,46 @@ test.describe("Comprehensive Map Testing", () => {
     console.log(`Initial city markers: ${initialCityMarkers}`);
     expect(initialCityMarkers).toBeGreaterThan(0);
 
-    // AI : 2. Navigate through markers: city → overlays
+    // 2. Navigate through markers: city → overlays
     const navigationSuccess = await mapHelpers.navigateToOverlays(0);
     expect(navigationSuccess).toBeTruthy();
 
-    // AI : 3. Click on overlay markers to test interaction
+    // 3. Click on overlay markers to test interaction
     const finalMarkerCount = await mapHelpers.getTotalMarkerCount();
     console.log(`Markers after navigation: ${finalMarkerCount}`);
     expect(finalMarkerCount).toBeGreaterThan(0);
 
-    // AI : Click on an overlay marker if available
+    // Click on an overlay marker if available
     if (finalMarkerCount > 0) {
       const overlayClicked = await mapHelpers.clickOverlayMarker(0);
       console.log(`Overlay marker clicked: ${overlayClicked}`);
     }
 
-    // AI : 4. Test marker colors in view mode (overlays visible in view mode)
+    // 4. Test marker colors in view mode (overlays visible in view mode)
     const viewModeColors = await mapHelpers.getVisibleMarkerColors();
     console.log(`View mode colors: ${viewModeColors.join(", ")}`);
     expect(viewModeColors.length).toBeGreaterThan(0);
   });
 
   test("should validate marker visibility and interaction", async () => {
-    // AI : Navigate through marker hierarchy
+    // Navigate through marker hierarchy
     const navigationSuccess = await mapHelpers.navigateToOverlays(0);
     if (!navigationSuccess) {
       console.log("No markers available for testing");
       return;
     }
 
-    // AI : Ensure we start in view mode
+    // Ensure we start in view mode
     if (await mapHelpers.isEditModeActive()) {
       await mapHelpers.toggleEditMode();
     }
 
-    // AI : Test marker colors in view mode (overlays are visible in view mode)
+    // Test marker colors in view mode (overlays are visible in view mode)
     const viewColors = await mapHelpers.getVisibleMarkerColors();
     console.log(`View mode marker colors: ${viewColors.join(", ")}`);
     expect(viewColors.length).toBeGreaterThan(0);
 
-    // AI : Click on a marker to test interaction
+    // Click on a marker to test interaction
     const markerCount = await mapHelpers.getTotalMarkerCount();
     if (markerCount > 0) {
       const clicked = await mapHelpers.clickOverlayMarker(0);
@@ -72,24 +72,24 @@ test.describe("Comprehensive Map Testing", () => {
   });
 
   test("should handle edge cases and error states", async ({ page }) => {
-    // AI : Test navigation workflow through markers
+    // Test navigation workflow through markers
     const navigationSuccess = await mapHelpers.navigateToOverlays(0);
 
-    // AI : Check for any error messages during navigation
+    // Check for any error messages during navigation
     const errorAlerts = page.locator('[role="alert"]');
     const errorCount = await errorAlerts.count();
 
     if (errorCount > 0) {
-      // AI : Verify error messages are user-friendly
+      // Verify error messages are user-friendly
       const errorText = await errorAlerts.first().textContent();
       expect(errorText).toBeTruthy();
       console.log(`Error message: ${errorText}`);
 
-      // AI : Dismiss errors
+      // Dismiss errors
       await mapHelpers.dismissErrorAlerts();
     }
 
-    // AI : Test marker interaction after navigation
+    // Test marker interaction after navigation
     if (navigationSuccess) {
       const markerCount = await mapHelpers.getTotalMarkerCount();
       if (markerCount > 0) {
@@ -98,7 +98,7 @@ test.describe("Comprehensive Map Testing", () => {
       }
     }
 
-    // AI : Map should remain functional
+    // Map should remain functional
     await expect(page.locator(".leaflet-container")).toBeVisible();
     console.log(`Navigation result: ${navigationSuccess}`);
   });

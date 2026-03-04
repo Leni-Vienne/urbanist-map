@@ -6,7 +6,7 @@ import superjson from "superjson";
 export type RouterInput = inferRouterInputs<AppRouter>;
 export type RouterOutput = inferRouterOutputs<AppRouter>;
 
-// AI : Get API URL based on environment
+// Get API URL based on environment
 export function getApiUrl() {
   return import.meta.env.VITE_API_BASE_URL;
 }
@@ -21,13 +21,13 @@ const trpc = createTRPCClient<AppRouter>({
       async fetch(url, options) {
         return fetch(url, {
           ...options,
-          credentials: "include", // AI : Include cookies in requests
+          credentials: "include", // Include cookies in requests
         });
       },
-      transformer: superjson, // AI : Send Date datatype
+      transformer: superjson, // Send Date datatype
     }),
   ],
 });
 
-// AI : Export as named export to prevent tree-shaking issues
+// Export as named export to prevent tree-shaking issues
 export { trpc };

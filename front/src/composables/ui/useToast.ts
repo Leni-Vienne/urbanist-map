@@ -1,4 +1,4 @@
-// @ts-expect-error AI : PrimeVue toasteventbus lacks type declarations
+// @ts-expect-error PrimeVue toasteventbus lacks type declarations
 import ToastEventBus from "primevue/toasteventbus";
 
 interface ToastMessage {

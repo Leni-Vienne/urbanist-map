@@ -8,29 +8,29 @@ export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});
   const idSelectedOverlay = ref<string | null>(null);
 
-  // AI : Map mode state (view, edit, or moderation)
+  // Map mode state (view, edit, or moderation)
   const mode = ref<AppMode>("view");
 
-  // AI : Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
+  // Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
   type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
   const editModeOverlayCache = ref<Map<string, EditModeCache>>(new Map());
 
-  // AI : Overlay data for different modes
+  // Overlay data for different modes
   const viewModeOverlays = ref<OverlayData[]>([]);
   const loadedEditOverlays = ref<Set<string>>(new Set());
 
-  // AI : Latest contributions cache (overlays + standalone projects) - simple loaded flag
+  // Latest contributions cache (overlays + standalone projects) - simple loaded flag
   const latestContributions = ref<LatestContribution[]>([]);
   const latestContributionsLoading = ref(false);
   const latestContributionsLoaded = ref(false);
 
-  // AI : UI state
+  // UI state
   const replacementOverlayId = ref<string | null>(null);
   const pendingImageFile = ref<File | null>(null);
   const showInfoPopup = ref(false);
   const infoPopupOverlayId = ref<string | null>(null);
 
-  // AI : Basic actions
+  // Basic actions
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
   }
@@ -39,7 +39,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     viewModeOverlays.value = [];
   }
 
-  // AI : Latest contributions actions
+  // Latest contributions actions
   function setLatestContributions(contributions: LatestContribution[]) {
     latestContributions.value = contributions;
     latestContributionsLoaded.value = true;
@@ -53,7 +53,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     mode.value = newMode;
   }
 
-  // AI : Edit mode cache management
+  // Edit mode cache management
   function saveToEditModeCache(overlayId: string, data: EditModeCache) {
     editModeOverlayCache.value.set(overlayId, data);
   }
@@ -113,40 +113,40 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   function closeAllUIElements() {
     hideInfoPopup();
-    // AI : Don't reset replacement (which clears pendingImageFile) if we have a pending file
-    // AI : This preserves the file during dialog navigation in overlay import flow
+    // Don't reset replacement (which clears pendingImageFile) if we have a pending file
+    // This preserves the file during dialog navigation in overlay import flow
     if (!pendingImageFile.value) {
       resetReplacement();
     }
   }
 
-  // AI : Clear user-specific state on logout/account switch
-  // AI : NOTE: We preserve public data (latestContributions, viewModeOverlays)
-  // AI : and only clear user-specific or edit-mode data
+  // Clear user-specific state on logout/account switch
+  // NOTE: We preserve public data (latestContributions, viewModeOverlays)
+  // and only clear user-specific or edit-mode data
   function clearAllState() {
-    // AI : Remove all Leaflet layers and markers from map via registry (replaces manual iteration)
+    // Remove all Leaflet layers and markers from map via registry (replaces manual iteration)
     clearAllLayers(false);
 
-    // AI : Clear overlay data (may contain unapproved user content)
+    // Clear overlay data (may contain unapproved user content)
     overlays.value = {};
     idSelectedOverlay.value = null;
 
-    // AI : Clear edit mode cache and state (user-specific)
+    // Clear edit mode cache and state (user-specific)
     editModeOverlayCache.value.clear();
     loadedEditOverlays.value.clear();
 
-    // AI : KEEP viewModeOverlays - these are approved overlays for current city
+    // KEEP viewModeOverlays - these are approved overlays for current city
 
-    // AI : KEEP latestContributions - these are public approved content
-    // AI : Only reset the loaded flag to allow refresh if needed
+    // KEEP latestContributions - these are public approved content
+    // Only reset the loaded flag to allow refresh if needed
     // latestContributions.value = [];
     latestContributionsLoading.value = false;
     latestContributionsLoaded.value = false;
 
-    // AI : Reset mode to view
+    // Reset mode to view
     mode.value = "view";
 
-    // AI : Clear all UI state
+    // Clear all UI state
     resetAllUIStates();
   }
 
@@ -186,7 +186,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   };
 });
 
-// AI : Enable HMR for this store
+// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useOverlayStore, import.meta.hot));

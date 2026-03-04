@@ -1,13 +1,13 @@
-<template>
-  <!-- AI : Tab navigation -->
-  <div class="flex bg-surface-0 border-b border-surface-100 shrink-0">
+﻿<template>
+  <!-- Tab navigation -->
+  <div class="flex bg-content-hover-background border-b border-surface shrink-0">
     <button
       :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
         variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
         activeTab === 'latest'
-          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
-          : 'text-surface-600 border-transparent hover:text-surface-700',
+          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
+          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
       ]"
       @click="$emit('update:activeTab', 'latest')"
     >
@@ -16,11 +16,11 @@
     <button
       v-if="mapStore.selectedCity || mapStore.selectedCountryCode"
       :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
         variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
         activeTab === 'currentLocation'
-          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
-          : 'text-surface-600 border-transparent hover:text-surface-700',
+          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
+          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
       ]"
       @click="$emit('update:activeTab', 'currentLocation')"
     >
@@ -28,11 +28,11 @@
     </button>
     <button
       :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
         variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
         activeTab === 'contribute'
-          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
-          : 'text-surface-600 border-transparent hover:text-surface-700',
+          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
+          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
       ]"
       @click="$emit('update:activeTab', 'contribute')"
     >
@@ -41,11 +41,11 @@
     <button
       v-if="authStore.isModerator"
       :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-surface-50',
+        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
         variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
         activeTab === 'moderation'
-          ? 'font-semibold text-primary-600 border-primary-600 hover:text-primary-700'
-          : 'text-surface-600 border-transparent hover:text-surface-700',
+          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
+          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
       ]"
       @click="$emit('update:activeTab', 'moderation')"
     >

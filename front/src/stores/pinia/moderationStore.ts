@@ -12,14 +12,14 @@ export const useModerationStore = defineStore("moderation", () => {
 
   const moderationLoaded = ref(false);
 
-  // AI : Country-scoped moderation - selected country code (null = not selected yet)
+  // Country-scoped moderation - selected country code (null = not selected yet)
   const selectedCountryCode = ref<string | null>(null);
 
-  // AI : Cache all countries to avoid fetching on every panel mount
+  // Cache all countries to avoid fetching on every panel mount
   const allCountries = ref<{ code: string; name: string }[]>([]);
   const countriesLoaded = ref(false);
 
-  // AI : Pending counts per country for dashboard indicators
+  // Pending counts per country for dashboard indicators
   const pendingCountsByCountry = ref<Map<string, number>>(new Map());
   const pendingCountsLoaded = ref(false);
 
@@ -39,7 +39,7 @@ export const useModerationStore = defineStore("moderation", () => {
     moderationLoaded.value = false;
   }
 
-  // AI : Remove change requests from local state after approval/rejection
+  // Remove change requests from local state after approval/rejection
   function removeChangeRequests(changeRequestIds: string[]) {
     changeRequests.value = changeRequests.value.filter((cr) => !changeRequestIds.includes(cr.id));
   }
@@ -62,7 +62,7 @@ export const useModerationStore = defineStore("moderation", () => {
     pendingCountsLoaded.value = false;
   }
 
-  // AI : Clear all state on logout/account switch
+  // Clear all state on logout/account switch
   function clearAllState() {
     overlays.value = [];
     projects.value = [];
@@ -96,7 +96,7 @@ export const useModerationStore = defineStore("moderation", () => {
   };
 });
 
-// AI : Enable HMR for this store
+// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useModerationStore, import.meta.hot));

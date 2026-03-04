@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- Teleport into the Leaflet marker icon — Leaflet owns pan/zoom positioning -->
   <Teleport :to="markerIconEl" v-if="markerIconEl">
     <div
@@ -10,7 +10,7 @@
       @touchstart.stop
     >
       <div
-        class="flex items-center gap-0.5 bg-white border border-gray-200 rounded-[10px] py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
+        class="flex items-center gap-0.5 bg-content-background border border-surface rounded-2.5 py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
       >
         <!-- Info toggle -->
         <button
@@ -21,7 +21,7 @@
           <i class="pi pi-ellipsis-v" />
         </button>
 
-        <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
+        <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
 
         <!-- Opacity slider -->
         <input
@@ -31,17 +31,17 @@
           :value="opacity"
           @input="onOpacityInput"
           :title="`Opacity: ${opacity}%`"
-          class="w-[72px] h-1 cursor-pointer accent-indigo-600"
+          class="w-18 h-1 cursor-pointer accent-indigo-600"
         />
-        <span class="text-[13px] text-gray-400 min-w-7 text-right">{{ opacity }}%</span>
+        <span class="text-[13px] text-muted-color min-w-7 text-right">{{ opacity }}%</span>
 
         <!-- Nav prev/next + index -->
         <template v-if="showNav">
-          <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
+          <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
           <button :title="t('toolbar.previousOverlay')" :class="btnCls()" @click="goToPrevious">
             <i class="pi pi-chevron-left" />
           </button>
-          <span v-if="overlayIndex" class="text-[13px] text-gray-400 min-w-7 text-center"
+          <span v-if="overlayIndex" class="text-[13px] text-muted-color min-w-7 text-center"
             >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
           >
           <button :title="t('toolbar.nextOverlay')" :class="btnCls()" @click="goToNext">
@@ -50,7 +50,7 @@
         </template>
 
         <template v-if="hasCollision">
-          <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
+          <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
           <button title="Bring to front" :class="btnCls()" @click="stackToFront">
             <i class="pi pi-arrow-up" />
           </button>
@@ -61,7 +61,7 @@
 
         <!-- Edit-only tools -->
         <template v-if="isEditMode">
-          <span class="w-px h-[18px] bg-gray-200 mx-0.5 shrink-0" />
+          <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
           <button :title="t('toolbar.undo')" :disabled="!canUndo" :class="btnCls()" @click="undo">
             <i class="pi pi-undo" />
           </button>
@@ -179,7 +179,11 @@ function createMarker(latlng: L.LatLng) {
     map.value.createPane("overlayToolbarPane").style.zIndex = "620";
   }
   anchorMarker = L.marker(latlng, {
-    icon: L.divIcon({ className: "overlay-toolbar-anchor", iconSize: [0, 0], iconAnchor: [0, 0] }),
+    icon: L.divIcon({
+      className: "overlay-toolbar-anchor",
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
     interactive: false,
     keyboard: false,
     pane: "overlayToolbarPane",
@@ -442,7 +446,7 @@ function redo() {
 const projectStore = useProjectStore();
 const { handleDeleteOverlay } = useProjectDeletion();
 
-// AI : Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
+// Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { prepareOverlaySubmission } = useSubmissionDialog();
 
 function onSave() {
@@ -494,7 +498,7 @@ function btnCls(opts?: { active?: boolean; danger?: boolean }): string {
     "min-w-[26px] h-[26px] border-0 rounded-md cursor-pointer flex items-center justify-center text-sm px-1 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-transparent";
   if (opts?.active) return `${base} bg-indigo-100 text-indigo-600 hover:bg-indigo-100`;
   if (opts?.danger) return `${base} bg-transparent text-red-600 hover:bg-red-100`;
-  return `${base} bg-transparent text-gray-500 hover:bg-gray-100`;
+  return `${base} bg-transparent text-muted-color hover:bg-content-hover-background`;
 }
 </script>
 

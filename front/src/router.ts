@@ -40,7 +40,7 @@ const routes = [
     component: async () => import("@/pages/AdminUserContributionsPage.vue"), // Lazy load
     meta: { requiresAuth: true, requiresAdmin: true },
   },
-  // AI : Catch-all route — redirect unknown paths to home
+  // Catch-all route — redirect unknown paths to home
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
@@ -49,18 +49,18 @@ export const router = createRouter({
   routes,
 });
 
-// AI : Router guard to check authentication and admin status
+// Router guard to check authentication and admin status
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
 
   if (to.meta.requiresAuth) {
-    // AI : Block navigation for protected routes until auth is resolved
+    // Block navigation for protected routes until auth is resolved
     await authStore.initialize();
 
     if (!authStore.isAuthenticated) return { name: "Home" };
     if (to.meta.requiresAdmin && authStore.user?.role !== "admin") return { name: "Home" };
   } else {
-    // AI : Fire auth check in background without blocking navigation for public routes
+    // Fire auth check in background without blocking navigation for public routes
     authStore.initialize();
   }
 });

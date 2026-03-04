@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="pointer-events-auto w-full" @mousedown.stop @touchstart.stop>
     <span class="p-input-icon-left w-full">
       <i class="pi pi-search" />
@@ -18,7 +18,7 @@
           <div class="flex items-center justify-between gap-2 w-full">
             <span class="flex-1 text-sm">
               {{ option.name
-              }}<span v-if="option.nameLocal" class="text-[var(--p-text-muted-color)]">
+              }}<span v-if="option.nameLocal" class="text-muted-color">
                 ({{ option.nameLocal }})</span
               >, {{ option.countryCode }}
             </span>
@@ -57,33 +57,33 @@ type CitySearchResult = {
   displayName?: string;
 };
 
-// AI : Search state
+// Search state
 const selectedCity = ref<CitySearchResult | null>(null);
 const suggestions = ref<CitySearchResult[]>([]);
 const isLoading = ref(false);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
-// AI : Debounced search function (300ms) with location-based ordering
+// Debounced search function (300ms) with location-based ordering
 async function onSearch(event: { query: string }) {
   const query = event.query?.trim();
 
-  // AI : Clear previous timeout
+  // Clear previous timeout
   if (searchTimeout) {
     clearTimeout(searchTimeout);
   }
 
-  // AI : Require minimum 1 character to support short city names (e.g., Chinese cities)
+  // Require minimum 1 character to support short city names (e.g., Chinese cities)
   if (!query || query.length < 1) {
     suggestions.value = [];
     return;
   }
 
-  // AI : Debounce search
+  // Debounce search
   searchTimeout = setTimeout(async () => {
     try {
       isLoading.value = true;
 
-      // AI : Get current map center for location-based ordering
+      // Get current map center for location-based ordering
       const center = map.value.getCenter();
       if (!center) {
         console.warn("Map center not available for city search");
@@ -91,8 +91,8 @@ async function onSearch(event: { query: string }) {
         return;
       }
 
-      // AI : Use location-based search to prioritize nearby cities
-      // AI : This prevents confusion like getting Paris, Texas when viewing France
+      // Use location-based search to prioritize nearby cities
+      // This prevents confusion like getting Paris, Texas when viewing France
       const results = await trpc.cities.searchCitiesNearLocation.query({
         lat: center.lat,
         lng: center.lng,
@@ -100,7 +100,7 @@ async function onSearch(event: { query: string }) {
         limit: 25,
       });
 
-      // AI : Add display name for AutoComplete with local name if available
+      // Add display name for AutoComplete with local name if available
       suggestions.value = results.map((city) =>
         Object.assign({}, city, {
           displayName: city.nameLocal
@@ -117,24 +117,29 @@ async function onSearch(event: { query: string }) {
   }, 300);
 }
 
-// AI : Handle city selection
+// Handle city selection
 function onSelect(event: { value: CitySearchResult }) {
   const city = event.value;
   if (city) {
-    // AI : Navigate to selected city (fly to it) - pass coordinates for cross-country navigation
-    navigateToCity(city.id, city.name, city.countryCode, { lat: city.lat, lng: city.lng });
+    // Navigate to selected city (fly to it) - pass coordinates for cross-country navigation
+    navigateToCity(city.id, city.name, city.countryCode, {
+      lat: city.lat,
+      lng: city.lng,
+    });
 
-    // AI : Show toast if city has no contributions yet
+    // Show toast if city has no contributions yet
     if (city.approvedProjectCount === 0) {
       toast.add({
         severity: "info",
         summary: t("search.noCityContributions"),
-        detail: t("search.noCityContributionsDetail", { cityName: city.name }),
+        detail: t("search.noCityContributionsDetail", {
+          cityName: city.name,
+        }),
         life: 5000,
       });
     }
 
-    // AI : Clear input after navigation
+    // Clear input after navigation
     selectedCity.value = null;
     suggestions.value = [];
   }
@@ -142,19 +147,19 @@ function onSelect(event: { value: CitySearchResult }) {
 </script>
 
 <style scoped>
-/* AI : Wrapper prevents map dragging when interacting with search */
+/* Wrapper prevents map dragging when interacting with search */
 
-/* AI : Override PrimeVue AutoComplete styles for compact design */
+/* Override PrimeVue AutoComplete styles for compact design */
 :deep(.p-autocomplete) {
   width: 100%;
 }
 
 :deep(.p-autocomplete-input) {
   padding: 0.5rem 0.75rem 0.5rem 2.5rem;
-  /* AI : Extra left padding for icon */
+  /* Extra left padding for icon */
   font-size: 0.875rem;
   border-radius: 0.375rem;
-  background: var(--p-surface-0);
+  background: var(--p-content-background);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   width: 100%;
   min-width: 0;
@@ -166,7 +171,7 @@ function onSelect(event: { value: CitySearchResult }) {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* AI : Position search icon */
+/* Position search icon */
 .p-input-icon-left {
   display: block;
   position: relative;

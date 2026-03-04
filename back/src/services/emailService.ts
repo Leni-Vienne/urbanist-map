@@ -1,7 +1,7 @@
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import nodemailer from "nodemailer";
 
-// AI : Email service configuration interface
+// Email service configuration interface
 interface EmailServiceConfig {
   host: string;
   port: number;
@@ -10,7 +10,7 @@ interface EmailServiceConfig {
   from: string;
 }
 
-// AI : Email service using Amazon SES or Mailpit for development
+// Email service using Amazon SES or Mailpit for development
 class EmailService {
   private config: EmailServiceConfig;
 
@@ -20,14 +20,14 @@ class EmailService {
 
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
-      // AI : Use nodemailer for SMTP connection
+      // Use nodemailer for SMTP connection
       const transportConfig: SMTPTransport.Options = {
         host: this.config.host,
         port: this.config.port,
         secure: process.env.SMTP_SECURE === "true", // Use TLS/SSL
       };
 
-      // AI : Only add auth if credentials are provided (not needed for Mailpit)
+      // Only add auth if credentials are provided (not needed for Mailpit)
       if (this.config.user && this.config.password) {
         transportConfig.auth = {
           user: this.config.user,
@@ -49,7 +49,7 @@ class EmailService {
     } catch (error) {
       console.error("Email sending error:", error);
 
-      // AI : In development, fallback to console logging
+      // In development, fallback to console logging
       if (process.env.NODE_ENV === "development") {
         console.log(`[DEV FALLBACK] Email to ${to}`);
         console.log(`Subject: ${subject}`);
@@ -66,10 +66,10 @@ class EmailService {
   }
 }
 
-// AI : Initialize email service with environment configuration
+// Initialize email service with environment configuration
 export function getEmailService(): EmailService {
   const config: EmailServiceConfig = {
-    // AI : Use Mailpit for development, AWS SES for production
+    // Use Mailpit for development, AWS SES for production
     host:
       process.env.SMTP_HOST ??
       (process.env.SES_REGION
@@ -81,13 +81,13 @@ export function getEmailService(): EmailService {
     from: process.env.FROM_EMAIL ?? "",
   };
 
-  // AI : For Mailpit (dev), credentials are optional
+  // For Mailpit (dev), credentials are optional
   if (process.env.NODE_ENV === "development" && config.host === "localhost") {
-    // AI : Mailpit doesn't need authentication
+    // Mailpit doesn't need authentication
     if (!config.from) {
       console.warn("FROM_EMAIL configuration missing");
     }
-    // AI : For production (AWS SES), credentials are required
+    // For production (AWS SES), credentials are required
   } else if (!config.user || !config.password || !config.from) {
     console.warn(
       "SMTP configuration incomplete. Required: SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL",
