@@ -2,7 +2,7 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject } from "@/types/index";
 
-// AI : Minimal overlay data needed to open the edit dialog (caption editor only)
+// Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
 import type { PanelTab } from "@/types";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -29,27 +29,27 @@ interface ImageUploadDialogState {
 }
 
 export const useUiStore = defineStore("ui", () => {
-  // AI : Dialog visibility states
+  // Dialog visibility states
   const authModalVisible = ref(false);
   const authModalInitialMode = ref<"login" | "signup">("login");
   const markerPlacementBarVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
 
-  // AI : Badge indicator — set by ModeratedContributionsWatcher so UserMenu never imports the composable
+  // Badge indicator — set by ModeratedContributionsWatcher so UserMenu never imports the composable
   const hasUnacknowledgedModeratedContributions = ref(false);
 
-  // AI : Project dialog state
+  // Project dialog state
   const projectDialog = ref<ProjectDialogState>({
     visible: false,
   });
 
-  // AI : Edit form states
+  // Edit form states
   const projectEditForm = ref<EditFormState>({
     visible: false,
   });
 
-  // AI : Shared overlay edit dialog state - can be opened from anywhere
-  // AI : Uses OverlayEditTarget (not full OverlayObject) - dialog only needs id + caption
+  // Shared overlay edit dialog state - can be opened from anywhere
+  // Uses OverlayEditTarget (not full OverlayObject) - dialog only needs id + caption
   const overlayEditDialog = ref<{
     visible: boolean;
     overlay: OverlayEditTarget | null;
@@ -58,29 +58,29 @@ export const useUiStore = defineStore("ui", () => {
     overlay: null,
   });
 
-  // AI : Unified active tab state (shared between desktop SideMenu and mobile MobileDrawer)
-  // AI : Single source of truth for panel tab navigation
+  // Unified active tab state (shared between desktop SideMenu and mobile MobileDrawer)
+  // Single source of truth for panel tab navigation
   const activeTab = ref<PanelTab>("latest");
-  const mobileDrawerVisible = ref(true); // AI : Open by default on mobile
-  const mobileDrawerHeightPercent = ref(40); // AI : Drawer height as percentage of viewport (10-90%)
+  const mobileDrawerVisible = ref(true); // Open by default on mobile
+  const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
 
-  // AI : Project info popup state (for standalone projects)
+  // Project info popup state (for standalone projects)
   const projectInfoPopup = ref<ProjectInfoPopupState>({
     visible: false,
     projectId: null,
     project: null,
   });
 
-  // AI : Image upload dialog state
+  // Image upload dialog state
   const imageUploadDialog = ref<ImageUploadDialogState>({
     visible: false,
     projectId: null,
   });
 
-  // AI : Post-login callback - stores action to execute after successful login
+  // Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
 
-  // AI : Project dialog actions
+  // Project dialog actions
   function openProjectDialog(project?: Partial<Project>) {
     projectDialog.value = {
       visible: true,
@@ -94,11 +94,11 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Project edit form actions
+  // Project edit form actions
   function openProjectEditForm(project: Project) {
-    // AI : Cache original project state for reset functionality
-    // AI : This is critical for projects loaded from nearbyProjects or allProjects
-    // AI : which bypass the normal caching in updateProject
+    // Cache original project state for reset functionality
+    // This is critical for projects loaded from nearbyProjects or allProjects
+    // which bypass the normal caching in updateProject
     const projectStore = useProjectStore();
     if (project.id && project.status !== null && !project.isModified) {
       projectStore.cacheProjectBackendState(project.id);
@@ -116,7 +116,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Shared overlay edit dialog actions - used by both sidemenu and info popup
+  // Shared overlay edit dialog actions - used by both sidemenu and info popup
   function openOverlayEditDialog(overlay: OverlayEditTarget) {
     overlayEditDialog.value = {
       visible: true,
@@ -131,7 +131,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Project info popup actions
+  // Project info popup actions
   function openProjectInfoPopup(projectId: string, project?: Project) {
     projectInfoPopup.value = {
       visible: true,
@@ -148,7 +148,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Image upload dialog actions
+  // Image upload dialog actions
   function openImageUploadDialog(projectId: string) {
     imageUploadDialog.value = {
       visible: true,
@@ -163,7 +163,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // AI : Post-login callback actions
+  // Post-login callback actions
   function setPostLoginCallback(callback: (() => void) | null) {
     postLoginCallback.value = callback;
   }
@@ -171,11 +171,11 @@ export const useUiStore = defineStore("ui", () => {
   function executePostLoginCallback() {
     if (postLoginCallback.value) {
       postLoginCallback.value();
-      postLoginCallback.value = null; // AI : Clear after execution
+      postLoginCallback.value = null; // Clear after execution
     }
   }
 
-  // AI : Close all UI elements (used for cleanup)
+  // Close all UI elements (used for cleanup)
   function closeAllDialogs() {
     authModalVisible.value = false;
     markerPlacementBarVisible.value = false;
@@ -188,7 +188,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   return {
-    // AI : State
+    // State
     authModalVisible,
     authModalInitialMode,
     markerPlacementBarVisible,
@@ -204,7 +204,7 @@ export const useUiStore = defineStore("ui", () => {
     imageUploadDialog,
     postLoginCallback,
 
-    // AI : Actions
+    // Actions
     openProjectDialog,
     closeProjectDialog,
     openProjectEditForm,
@@ -221,7 +221,7 @@ export const useUiStore = defineStore("ui", () => {
   };
 });
 
-// AI : Enable HMR for this store
+// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useUiStore, import.meta.hot));

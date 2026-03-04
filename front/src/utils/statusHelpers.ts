@@ -1,5 +1,5 @@
 /**
- * AI : Get badge severity based on status
+ * Get badge severity based on status
  * Shared utility for ProjectHeader and ProjectContent
  */
 export function getStatusSeverity(
@@ -21,7 +21,7 @@ export function getStatusSeverity(
     case null:
     case undefined: {
       return "info";
-    } // AI : Unsubmitted local projects
+    } // Unsubmitted local projects
     default: {
       return "info";
     }

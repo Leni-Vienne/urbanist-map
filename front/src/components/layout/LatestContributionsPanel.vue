@@ -1,18 +1,18 @@
-<template>
+﻿<template>
   <div class="h-full flex flex-col">
     <div class="flex-1 flex flex-col">
       <div v-if="contributions.length > 0" class="flex-1 flex flex-col px-4 py-3">
         <div
           v-for="contribution in contributions"
           :key="contribution.id"
-          class="group flex items-center gap-3 py-2 cursor-pointer transition-all duration-150 hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98]"
+          class="group flex items-center gap-3 py-2 cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:bg-content-hover-background active:scale-[0.98]"
           @click="handleContributionClick(contribution)"
           @mouseenter="handleContributionHover(contribution)"
           @mouseleave="handleContributionLeave(contribution)"
         >
           <!-- Contribution thumbnail image (overlay) or icon (standalone) -->
           <div
-            class="w-[50px] h-[50px] md:w-[60px] md:h-[60px] rounded-xl overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center relative"
+            class="w-13 h-13 md:w-15 md:h-15 rounded-xl overflow-hidden bg-content-hover-background border border-surface shrink-0 flex items-center justify-center relative"
           >
             <img
               v-if="contribution.type === 'overlay' && contribution.filename"
@@ -29,48 +29,50 @@
             />
             <i
               v-else-if="contribution.type === 'standalone'"
-              class="pi pi-building text-2xl text-primary-500"
+              class="pi pi-building text-2xl text-primary-color"
             ></i>
             <i
               v-else-if="imageErrors[contribution.id]"
-              class="pi pi-image text-2xl text-surface-400"
+              class="pi pi-image text-2xl text-muted-color"
             ></i>
           </div>
 
           <!-- Contribution info -->
           <div class="flex-1 min-w-0">
             <h2
-              class="text-[13px] md:text-sm font-semibold text-[#1f2937] truncate leading-tight mb-0.5"
+              class="text-[13px] md:text-sm font-semibold text-color truncate leading-tight mb-0.5"
             >
               {{ contribution.name }}
             </h2>
-            <div class="text-xs text-gray-500 truncate mb-0.5">
+            <div class="text-xs text-muted-color truncate mb-0.5">
               {{ getLocationDisplay(contribution) }}
             </div>
-            <div class="text-xs text-gray-400">
+            <div class="text-xs text-muted-color">
               {{ formatRelativeTime(contribution.updatedAt, t) }}
             </div>
           </div>
 
           <!-- Chevron indicator for clickability -->
           <i
-            class="pi pi-chevron-right text-sm text-gray-400 shrink-0 transition-colors duration-150 group-hover:text-gray-600"
+            class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150 group-hover:text-(--p-text-color-secondary)"
           ></i>
         </div>
       </div>
 
       <div
         v-else-if="!isLoading"
-        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+        class="flex flex-col items-center justify-center p-12 text-center text-(--p-text-color-secondary)"
       >
-        <i class="pi pi-image text-5xl text-surface-400 mb-4"></i>
-        <p class="text-base mb-2">{{ t("contribution.noContributionsFound") }}</p>
+        <i class="pi pi-image text-5xl text-muted-color mb-4"></i>
+        <p class="text-base mb-2">
+          {{ t("contribution.noContributionsFound") }}
+        </p>
         <p class="text-sm">{{ t("contribution.beFirstToAdd") }}</p>
       </div>
 
       <div
         v-if="isLoading"
-        class="flex flex-col items-center justify-center p-12 text-center text-surface-600"
+        class="flex flex-col items-center justify-center p-12 text-center text-(--p-text-color-secondary)"
       >
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
         <p>{{ t("contribution.loadingContributions") }}</p>
@@ -95,18 +97,18 @@ const { t } = useI18n();
 const overlayStore = useOverlayStore();
 const toast = useToast();
 
-// AI : Use cached composable for latest contributions
+// Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
 
-// AI : Use shared image error handling
+// Use shared image error handling
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
-// AI : Get contribution thumbnail URL using the utility function
+// Get contribution thumbnail URL using the utility function
 function getContributionImageUrl(filename: string): string {
   return buildThumbnailUrl(filename);
 }
 
-// AI : Get location display (city, country)
+// Get location display (city, country)
 function getLocationDisplay(contribution: LatestContribution): string {
   if (contribution.cityName && contribution.countryName) {
     return `${contribution.cityName}, ${contribution.countryName}`;
@@ -118,24 +120,24 @@ function getLocationDisplay(contribution: LatestContribution): string {
   return t("overlay.unknownLocation");
 }
 
-// AI : Handle contribution hover - highlight overlay on map if loaded
+// Handle contribution hover - highlight overlay on map if loaded
 function handleContributionHover(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
     highlightOverlayById(contribution.id);
   }
 }
 
-// AI : Handle contribution leave - remove overlay highlight
+// Handle contribution leave - remove overlay highlight
 function handleContributionLeave(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
     removeOverlayHighlight(contribution.id);
   }
 }
 
-// AI : Handle contribution click - navigate to overlay or standalone project
+// Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
-  // AI : In moderation mode, auto-select the country for the moderation panel
-  // AI : Block navigation if the moderator can't moderate this country
+  // In moderation mode, auto-select the country for the moderation panel
+  // Block navigation if the moderator can't moderate this country
   if (overlayStore.mode === "moderation" && contribution.countryCode) {
     const { canModerateCountry, syncModerationCountry } =
       await import("@/composables/overlay/useOverlayClickHandler");
@@ -156,7 +158,7 @@ async function handleContributionClick(contribution: LatestContribution) {
     const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(contribution, false, true);
   } else if (contribution.type === "standalone") {
-    // AI : Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
+    // Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
       const { navigateToStandaloneProject } =
         await import("@/services/navigation/projectNavigation");
@@ -172,7 +174,7 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 }
 
-// AI : Load initial data
+// Load initial data
 onMounted(() => {
   fetchLatestContributions();
 });

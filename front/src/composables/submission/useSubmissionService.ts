@@ -4,7 +4,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 import { buildProjectPayload } from "@/services/project/projectMutations";
-import { loadCityProjects } from "@/services/navigation/locationNavigation";
+import { selectCity } from "@/services/navigation/locationNavigation";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import type { Project, OverlayObject, RemovableChange, ProjectForModeration } from "@/types/index";
@@ -28,11 +28,11 @@ import {
   type PendingOverlayModification,
 } from "@/stores/pinia/pendingModificationsStore";
 
-// AI : Unified submission types for consolidated workflow
+// Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
 export type SubmissionEntityType = "project" | "overlay";
 
-// AI : Submission context interface
+// Submission context interface
 export type SubmissionContext =
   | {
       entityType: "project";
@@ -77,7 +77,7 @@ export interface SubmissionChange {
   oldValue: any;
   newValue: any;
   displayLabel: string;
-  // AI : Optional overlay identification for deletion and thumbnail display
+  // Optional overlay identification for deletion and thumbnail display
   overlayId?: string;
   thumbnailUrl?: string;
 }
@@ -96,7 +96,7 @@ interface ValidationResult {
   errors: string[];
 }
 
-// AI : Field display names for user-friendly labels in UI
+// Field display names for user-friendly labels in UI
 const FIELD_DISPLAY_NAMES: Record<string, string> = {
   name: "Project Name",
   description: "Description",
@@ -112,15 +112,15 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   endDatePrecision: "End Date Precision",
 };
 
-// AI : Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
+// Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
 function normalizeDate(val: any) {
   if (!val) return null;
-  if (val instanceof Date) return val.toISOString().split("T")[0]; // AI : Get yyyy-MM-dd part
-  if (typeof val === "string") return val.split("T")[0]; // AI : Handle ISO strings or yyyy-MM-dd
+  if (val instanceof Date) return val.toISOString().split("T")[0]; // Get yyyy-MM-dd part
+  if (typeof val === "string") return val.split("T")[0]; // Handle ISO strings or yyyy-MM-dd
   return null;
 }
 
-// AI : Determine submission change type based on entity status
+// Determine submission change type based on entity status
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
   if (!entity.id || entity.id.startsWith("temp-")) {
     return "create";
@@ -145,11 +145,11 @@ export function useSubmissionService() {
   const { publishOverlay } = useOverlayPublisher();
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
 
-  // AI : Build a combined city name cache from store cache + projects we've seen
+  // Build a combined city name cache from store cache + projects we've seen
   const cityNamesCache = computed(() => {
     const cache: Record<string, string> = { ...projectStore.cityNamesCache };
 
-    // AI : Extract from all projects (includes both loaded and original cached projects)
+    // Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.allProjects)) {
       if (project.city.id === project.cityId && !cache[project.cityId]) {
         cache[project.cityId] = project.city.name;
@@ -159,7 +159,7 @@ export function useSubmissionService() {
     return cache;
   });
 
-  // AI : Helper to create properly typed project submission context
+  // Helper to create properly typed project submission context
   function createProjectContext(
     project: Project,
     changeType?: SubmissionChangeType,
@@ -172,7 +172,7 @@ export function useSubmissionService() {
     };
   }
 
-  // AI : Helper to create properly typed overlay submission context
+  // Helper to create properly typed overlay submission context
   function createOverlayContext(
     overlay: OverlayObject,
     changeType?: SubmissionChangeType,
@@ -185,12 +185,12 @@ export function useSubmissionService() {
     };
   }
 
-  // AI : Calculate field differences between original and modified project
+  // Calculate field differences between original and modified project
   function detectProjectChanges(project: Project, customReason?: string): FieldChange[] {
     const changes: FieldChange[] = [];
     const originalProject = projectStore.getOriginalProject(project.id);
 
-    // AI : No original version found in cache - might be a new/pending project
+    // No original version found in cache - might be a new/pending project
     if (!originalProject) return changes;
 
     const fieldsToCheck: (keyof Project)[] = [
@@ -207,15 +207,15 @@ export function useSubmissionService() {
     ];
 
     for (const field of fieldsToCheck) {
-      // AI : Cast to any as originalProject can be Project or UserContribution, both have these fields
+      // Cast to any as originalProject can be Project or UserContribution, both have these fields
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
-      // AI : Special handling for date fields
+      // Special handling for date fields
       const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
 
-      // AI : For change requests, preserve empty strings (database requires non-null new_value)
-      // AI : Only normalize dates; for other fields, convert null/undefined to empty string to preserve actual values
+      // For change requests, preserve empty strings (database requires non-null new_value)
+      // Only normalize dates; for other fields, convert null/undefined to empty string to preserve actual values
       const normalizedOld = isDateField ? normalizeDate(oldValue) : (oldValue ?? "");
       const normalizedNew = isDateField ? normalizeDate(newValue) : (newValue ?? "");
 
@@ -232,20 +232,20 @@ export function useSubmissionService() {
     return changes;
   }
 
-  // AI : Format value for human-readable display
+  // Format value for human-readable display
   function formatValueForDisplay(value: any, fieldName?: string): string {
     if (value === null || value === undefined || value === "") {
       return "Not set";
     }
 
-    // AI : Special handling for cityId - show city name
+    // Special handling for cityId - show city name
     if (fieldName === "cityId" && typeof value === "string") {
-      // AI : Check the cache (built from all projects and loaded cities)
+      // Check the cache (built from all projects and loaded cities)
       const cachedName = cityNamesCache.value[value];
       if (cachedName) {
         return cachedName;
       }
-      return value; // AI : Fallback to ID if city name not found
+      return value; // Fallback to ID if city name not found
     }
 
     if (value instanceof Date) {
@@ -263,7 +263,7 @@ export function useSubmissionService() {
     return String(value);
   }
 
-  // AI : Build human-readable summary for confirmation dialog
+  // Build human-readable summary for confirmation dialog
   function buildSummary(context: SubmissionContext): SubmissionSummary {
     const changes =
       context.entityType === "project"
@@ -292,7 +292,7 @@ export function useSubmissionService() {
     }
 
     const formattedChanges: SubmissionChange[] = changes.map((change) => ({
-      field: change.fieldName as RemovableChange, // AI : Safe cast - we control field names in detectChanges
+      field: change.fieldName as RemovableChange, // Safe cast - we control field names in detectChanges
       oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
       newValue: formatValueForDisplay(change.newValue, change.fieldName),
       displayLabel: FIELD_DISPLAY_NAMES[change.fieldName] ?? change.fieldName,
@@ -308,11 +308,11 @@ export function useSubmissionService() {
     };
   }
 
-  // AI : Validate submission before proceeding using Zod schemas
+  // Validate submission before proceeding using Zod schemas
   function validate(context: SubmissionContext): ValidationResult {
     const errors: string[] = [];
 
-    // AI : Project-specific validation with Zod
+    // Project-specific validation with Zod
     if (context.entityType === "project") {
       const validationData = prepareProjectValidationData(context.entity, {
         lat: context.entity.lat,
@@ -329,7 +329,7 @@ export function useSubmissionService() {
       }
     }
 
-    // AI : Overlay-specific validation with Zod
+    // Overlay-specific validation with Zod
     if (context.entityType === "overlay") {
       const corners = getLayer(context.entity.id)?.getCorners() ?? context.entity.corners;
 
@@ -351,7 +351,7 @@ export function useSubmissionService() {
       }
     }
 
-    // AI : Check if there are any changes to submit (for updates)
+    // Check if there are any changes to submit (for updates)
     if (context.changeType !== "create") {
       const changes =
         context.entityType === "project"
@@ -368,7 +368,7 @@ export function useSubmissionService() {
     };
   }
 
-  // AI : Submit change request for approved project
+  // Submit change request for approved project
   async function submitProjectChangeRequest(
     project: Project,
     changes: FieldChange[],
@@ -390,7 +390,7 @@ export function useSubmissionService() {
     await refreshPendingChangeRequests(true);
   }
 
-  // AI : Publish pending or new project directly to backend
+  // Publish pending or new project directly to backend
   async function publishProjectDirect(
     project: Project,
     changeType: SubmissionChangeType,
@@ -412,23 +412,23 @@ export function useSubmissionService() {
     }
 
     if (mapStore.selectedCity) {
-      loadCityProjects(
+      selectCity(
         mapStore.selectedCity.id,
         mapStore.selectedCity.name,
         mapStore.selectedCity.nameLocal,
         mapStore.selectedCity.countryCode,
       );
     } else {
-      loadCityProjects(null, "", null);
+      selectCity(null, "", null);
     }
 
     if (changeType === "create") {
-      // AI : Optimistically add project to contributions (status is already "pending" from line 513)
+      // Optimistically add project to contributions (status is already "pending" from line 513)
       if (updatedProject) {
         projectStore.addProjectToUserContributions(updatedProject);
       }
     } else if (changeType === "update_pending") {
-      // AI : Optimistically update pending project in user contributions cache
+      // Optimistically update pending project in user contributions cache
       projectStore.updateProjectInUserContributions(project.id, {
         name: project.name,
         description: project.description,
@@ -438,7 +438,7 @@ export function useSubmissionService() {
     }
   }
 
-  // AI : Route project submission to appropriate handler
+  // Route project submission to appropriate handler
   async function submitProject(
     context: Extract<SubmissionContext, { entityType: "project" }>,
     changes: FieldChange[],
@@ -450,39 +450,39 @@ export function useSubmissionService() {
     }
   }
 
-  // AI : Submit overlay changes to backend
+  // Submit overlay changes to backend
   async function submitOverlay(
     context: Extract<SubmissionContext, { entityType: "overlay" }>,
     changes: FieldChange[],
   ): Promise<void> {
     if (context.changeType === "create") {
-      // AI : Create new overlay requires full image upload handling
+      // Create new overlay requires full image upload handling
       throw new Error("New overlay creation should use publishOverlay directly");
     }
 
     if (context.changeType === "update_approved") {
       if (changes.length === 0) throw new Error("No changes detected for approved overlay");
-      // AI : Submit change requests for approved overlays
+      // Submit change requests for approved overlays
       await trpc.changes.submitChangeRequest.mutate({
         entityType: "overlay",
         entityId: context.entity.id,
         changes,
       });
 
-      // AI : Reset modified flag and set pending changes flag after successfully submitting change request
+      // Reset modified flag and set pending changes flag after successfully submitting change request
       context.entity.isModified = false;
       context.entity.hasPendingChanges = true;
 
-      // AI : Save suggested corners from the change request so "view suggested position" button works immediately
+      // Save suggested corners from the change request so "view suggested position" button works immediately
       const cornersChange = changes.find((c) => c.fieldName === "corners");
       if (cornersChange?.newValue) {
         context.entity.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
-        // AI : User is currently viewing the suggested position (the position they just modified)
-        // AI : Set to false so marker shows yellow to indicate pending changes
+        // User is currently viewing the suggested position (the position they just modified)
+        // Set to false so marker shows yellow to indicate pending changes
         context.entity.isViewingApprovedPosition = false;
       }
 
-      // AI : CRITICAL: Also update the overlay in overlayStore so preview buttons work
+      // CRITICAL: Also update the overlay in overlayStore so preview buttons work
       const overlayInStore = overlayStore.overlays[context.entity.id];
       if (overlayInStore && cornersChange?.newValue) {
         overlayInStore.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
@@ -496,17 +496,17 @@ export function useSubmissionService() {
     }
 
     if (context.changeType === "update_pending") {
-      // AI : Direct update for pending overlays
+      // Direct update for pending overlays
       const hasCornersChange = changes.some((c) => c.fieldName === "corners");
 
       if (hasCornersChange) {
-        // AI : Corner changes require full republishing through the useOverlayPublisher
+        // Corner changes require full republishing through the useOverlayPublisher
         const { publishOverlay } = useOverlayPublisher();
 
-        // AI : Try multiple store locations for project lookup
-        // AI : 1. projects: Active map cache (visible on screen)
-        // AI : 2. allProjects: Includes nearby projects not in main city cache
-        // AI : 3. userContributions: Projects pending/saved but interacted with via sidebar
+        // Try multiple store locations for project lookup
+        // 1. projects: Active map cache (visible on screen)
+        // 2. allProjects: Includes nearby projects not in main city cache
+        // 3. userContributions: Projects pending/saved but interacted with via sidebar
         let project = null;
         if (context.entity.projectId) {
           project =
@@ -527,7 +527,7 @@ export function useSubmissionService() {
 
         await trpc.overlay.updateOverlay.mutate(overlayData);
 
-        // AI : Optimistically update pending overlay in user contributions
+        // Optimistically update pending overlay in user contributions
         if (overlayData.caption !== undefined) {
           projectStore.updateOverlayInUserContributions(context.entity.id, {
             name: overlayData.caption || "Unnamed",
@@ -536,7 +536,7 @@ export function useSubmissionService() {
       }
     }
 
-    // AI : Invalidate city caches uniformly for both paths
+    // Invalidate city caches uniformly for both paths
     const cityId = context.entity.project?.cityId;
     if (cityId) {
       mapStore.clearCityProjectsCache(cityId);
@@ -544,7 +544,7 @@ export function useSubmissionService() {
     }
   }
 
-  // AI : Unified submission handler - internal routing based on validated context
+  // Unified submission handler - internal routing based on validated context
   async function submitEntity(context: SubmissionContext, customReason?: string): Promise<void> {
     const validation = validate(context);
     if (!validation.isValid) throw new Error(validation.errors.join(", "));
@@ -567,7 +567,7 @@ export function useSubmissionService() {
     }
   }
 
-  // AI : Helper to submit a single overlay modification (shared by both allProjectModifications and pendingOverlayModifications paths)
+  // Helper to submit a single overlay modification (shared by both allProjectModifications and pendingOverlayModifications paths)
   async function submitOverlayModification(
     overlayId: string,
     mod: Pick<PendingOverlayModification, "caption" | "corners">,
@@ -607,7 +607,7 @@ export function useSubmissionService() {
     extCtx: SubmissionContextExtended,
     reason: string,
   ): Promise<void> {
-    // AI : Find the associated project to ensure we can publish overlays and use it for references
+    // Find the associated project to ensure we can publish overlays and use it for references
     let project: Project | null = null;
     if (extCtx.projectId) {
       project =
@@ -619,9 +619,9 @@ export function useSubmissionService() {
         null;
     }
 
-    // AI : 1. Submit existing overlay modifications first
+    // 1. Submit existing overlay modifications first
     if (extCtx.allProjectModifications && extCtx.allProjectModifications.length > 0) {
-      // AI : Get mods only for *existing* overlays
+      // Get mods only for *existing* overlays
       const existMods = extCtx.allProjectModifications.filter(
         (mod) => !extCtx.newOverlayIds?.includes(mod.overlayId),
       );
@@ -640,7 +640,7 @@ export function useSubmissionService() {
       }
     }
 
-    // AI : 2. Publish new overlays
+    // 2. Publish new overlays
     if (extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0) {
       for (const overlayId of extCtx.newOverlayIds) {
         const overlayObj = overlayStore.overlays[overlayId];
@@ -650,7 +650,7 @@ export function useSubmissionService() {
       }
     }
 
-    // AI : 3. Submit project metadata changes for existing projects
+    // 3. Submit project metadata changes for existing projects
     const isExistingProject = project && project.status !== null;
     if (extCtx.projectModified && extCtx.projectId && isExistingProject && project) {
       const projectContext = createProjectContext(project);
@@ -661,7 +661,7 @@ export function useSubmissionService() {
       }
     }
 
-    // AI : 4. Otherwise, if new project and there were no overlays, just publish the empty project
+    // 4. Otherwise, if new project and there were no overlays, just publish the empty project
     const hasNewOverlays = extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0;
     if (
       !hasNewOverlays &&
@@ -673,7 +673,7 @@ export function useSubmissionService() {
     }
   }
 
-  // AI : Submit single entity context directly
+  // Submit single entity context directly
   async function submitStandardContext(context: SubmissionContext, reason: string): Promise<void> {
     await submitEntity(context, reason);
     if (context.entityType === "project") {

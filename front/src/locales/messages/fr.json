@@ -770,5 +770,9 @@
       "failed": "Échec de la purge",
       "failedDetail": "Échec de l'exécution des suppressions d'images planifiées"
     }
+  },
+  "theme": {
+    "light": "Mode clair",
+    "dark": "Mode sombre"
   }
 }

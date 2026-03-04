@@ -1,6 +1,6 @@
-<template>
-  <div class="flex flex-col">
-    <!-- AI : Replacement Conflicts Dialog -->
+﻿<template>
+  <div class="h-full flex flex-col">
+    <!-- Replacement Conflicts Dialog -->
     <ReplacementConflictsDialog
       v-model:visible="showConflictsDialog"
       :conflicts="pendingConflicts"
@@ -9,14 +9,14 @@
       @cancel="handleCancelReplacement"
     />
 
-    <!-- AI : Report User Dialog -->
+    <!-- Report User Dialog -->
     <ReportUserDialog
       v-model:visible="showReportDialog"
       :user-id="userToReport"
       @reported="handleUserReported"
     />
 
-    <!-- AI : User Stats Dialog -->
+    <!-- User Stats Dialog -->
     <UserStatsDialog
       v-model:visible="showUserStatsDialog"
       :user-id="userStatsDialogData.userId"
@@ -27,7 +27,7 @@
       @report="openReportDialog"
     />
 
-    <!-- AI : Rejection Dialog with optional report user -->
+    <!-- Rejection Dialog with optional report user -->
     <RejectionDialog
       v-model:visible="showRejectConfirmDialog"
       :user-id="pendingRejection?.userId ?? null"
@@ -37,14 +37,14 @@
       @cancel="handleRejectionCancel"
     />
 
-    <!-- AI : Country Selector for Moderation -->
+    <!-- Country Selector for Moderation -->
     <div
       v-if="showCountrySelector"
-      class="flex items-center gap-3 px-3 py-2 bg-surface-50 border border-surface-200 rounded-md"
+      class="flex items-center gap-3 px-3 py-2 bg-content-hover-background border border-surface rounded-md"
     >
       <label
         for="country-select"
-        class="flex items-center gap-2 font-semibold text-surface-700 text-[0.9375rem] whitespace-nowrap"
+        class="flex items-center gap-2 font-semibold text-color text-[0.9375rem] whitespace-nowrap"
       >
         <i class="pi pi-globe text-primary"></i>
         {{ $t("moderation.selectCountry") }}:
@@ -59,7 +59,7 @@
         :filter="availableCountries.length > 10"
         :loading="countriesLoading"
         @change="handleCountryChange"
-        class="flex-1 min-w-[200px] max-w-[300px]"
+        class="flex-1 min-w-50 max-w-75"
       >
         <template #option="{ option }">
           <div class="flex items-center justify-between gap-2 w-full">
@@ -74,84 +74,87 @@
       </Select>
     </div>
 
-    <!-- AI : Message when moderator needs to select a country -->
+    <!-- Message when moderator needs to select a country -->
     <div
       v-if="showCountrySelector && !selectedCountryCode"
-      class="flex items-center gap-3 p-6 bg-blue-50 border border-blue-200 rounded-md text-blue-700"
+      class="flex items-center gap-3 p-6 bg-content-background border border-surface rounded-md text-color"
     >
-      <i class="pi pi-info-circle text-2xl text-blue-600"></i>
-      <p class="m-0 text-[0.9375rem] font-medium">{{ $t("moderation.pleaseSelectCountry") }}</p>
+      <i class="pi pi-info-circle text-2xl text-primary-color"></i>
+      <p class="m-0 text-[0.9375rem] font-medium">
+        {{ $t("moderation.pleaseSelectCountry") }}
+      </p>
     </div>
 
-    <!-- AI : Projects Section - pure approve/reject workflow for pending items -->
-    <ProjectAccordionPanel
-      v-else
-      :projects="filteredProjects"
-      :change-requests="filteredChangeRequests"
-      :is-loading="isLoading"
-      title="Pending Projects"
-      panel-class="moderation-panel"
-      empty-message="All projects reviewed!"
-      empty-sub-message="No pending projects to moderate."
-      :show-user-stats-link="true"
-      :disable-auto-mode-switch="true"
-      @show-user-stats="handleShowUserStats"
-      :on-overlay-click="handleViewOverlayPosition"
-    >
-      <template #header-actions>
-        <!-- AI : Header button slot - reserved for future actions -->
-      </template>
+    <!-- Projects Section - pure approve/reject workflow for pending items -->
+    <div v-else class="flex-1 min-h-0">
+      <ProjectAccordionPanel
+        :projects="filteredProjects"
+        :change-requests="filteredChangeRequests"
+        :is-loading="isLoading"
+        title="Pending Projects"
+        panel-class="moderation-panel"
+        empty-message="All projects reviewed!"
+        empty-sub-message="No pending projects to moderate."
+        :show-user-stats-link="true"
+        :disable-auto-mode-switch="true"
+        @show-user-stats="handleShowUserStats"
+        :on-overlay-click="handleViewOverlayPosition"
+      >
+        <template #header-actions>
+          <!-- Header button slot - reserved for future actions -->
+        </template>
 
-      <template #project-actions="{ project }">
-        <!-- AI : Show moderation buttons for pending projects -->
-        <ModerationActionButtons
-          v-if="project.status === 'pending'"
-          @approve="handleApproveProject(project.id)"
-          @reject="handleRejectProject(project.id, project.ownerId ?? null)"
-        />
-      </template>
+        <template #project-actions="{ project }">
+          <!-- Show moderation buttons for pending projects -->
+          <ModerationActionButtons
+            v-if="project.status === 'pending'"
+            @approve="handleApproveProject(project.id)"
+            @reject="handleRejectProject(project.id, project.ownerId ?? null)"
+          />
+        </template>
 
-      <template #overlay-actions="{ overlay, project }">
-        <!-- AI : Show approve/reject buttons only when project is NOT pending (approved/rejected) -->
-        <!-- AI : This allows moderators to approve overlays once project is approved, -->
-        <!-- AI : and reject overlays even if project is rejected -->
-        <ModerationActionButtons
-          v-if="overlay.status === 'pending' && project.status !== 'pending'"
-          :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
-          :disabled-tooltip="
-            overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)
-              ? $t('overlay.viewPositionRequired')
-              : ''
-          "
-          @approve="handleApproveOverlay(overlay.id)"
-          @reject="handleRejectOverlay(overlay.id, overlay.authorId)"
-        />
-        <!-- AI : Show locked button (padlock) when project is still pending -->
-        <!-- AI : This prevents approving overlays before their parent project is approved -->
-        <button
-          v-if="overlay.status === 'pending' && project.status === 'pending'"
-          class="w-8 h-8 border border-surface-200 rounded-md bg-surface-0 flex items-center justify-center text-surface-400 cursor-not-allowed opacity-60"
-          disabled
-          v-tooltip.top="$t('tooltips.approveProjectFirst')"
-        >
-          <i class="pi pi-lock"></i>
-        </button>
-      </template>
+        <template #overlay-actions="{ overlay, project }">
+          <!-- Show approve/reject buttons only when project is NOT pending (approved/rejected) -->
+          <!-- This allows moderators to approve overlays once project is approved, -->
+          <!-- and reject overlays even if project is rejected -->
+          <ModerationActionButtons
+            v-if="overlay.status === 'pending' && project.status !== 'pending'"
+            :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
+            :disabled-tooltip="
+              overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)
+                ? $t('overlay.viewPositionRequired')
+                : ''
+            "
+            @approve="handleApproveOverlay(overlay.id)"
+            @reject="handleRejectOverlay(overlay.id, overlay.authorId)"
+          />
+          <!-- Show locked button (padlock) when project is still pending -->
+          <!-- This prevents approving overlays before their parent project is approved -->
+          <button
+            v-if="overlay.status === 'pending' && project.status === 'pending'"
+            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center text-muted-color cursor-not-allowed opacity-60"
+            disabled
+            v-tooltip.top="$t('tooltips.approveProjectFirst')"
+          >
+            <i class="pi pi-lock"></i>
+          </button>
+        </template>
 
-      <template #change-actions="{ change }">
-        <!-- AI : Show moderation buttons for change requests -->
-        <ModerationActionButtons
-          :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
-          :disabled-tooltip="
-            isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)
-              ? $t('overlay.viewSuggestedPosition')
-              : ''
-          "
-          @approve="handleApproveChange(change.id)"
-          @reject="handleRejectChange(change.id, change.requestedBy)"
-        />
-      </template>
-    </ProjectAccordionPanel>
+        <template #change-actions="{ change }">
+          <!-- Show moderation buttons for change requests -->
+          <ModerationActionButtons
+            :disabled="isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)"
+            :disabled-tooltip="
+              isGeometryChange(change) && !hasViewedSuggestedPosition(change.id)
+                ? $t('overlay.viewSuggestedPosition')
+                : ''
+            "
+            @approve="handleApproveChange(change.id)"
+            @reject="handleRejectChange(change.id, change.requestedBy)"
+          />
+        </template>
+      </ProjectAccordionPanel>
+    </div>
   </div>
 </template>
 
@@ -182,98 +185,98 @@ import UserStatsDialog from "@/components/moderation/UserStatsDialog.vue";
 import ModerationActionButtons from "@/components/moderation/ModerationActionButtons.vue";
 import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 
-// AI : Use i18n for translations
+// Use i18n for translations
 const { t } = useI18n();
 
-// AI : Auth and moderation stores for country filtering
+// Auth and moderation stores for country filtering
 const authStore = useAuthStore();
 const moderationStore = useModerationStore();
 const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 
-// AI : Country selector state - use store's cached countries
+// Country selector state - use store's cached countries
 const countriesLoading = ref(false);
 const selectedCountryCode = ref<string | null>(moderationStore.selectedCountryCode);
 
-// AI : Computed: show country selector if user is not admin and has access to multiple countries
+// Computed: show country selector if user is not admin and has access to multiple countries
 const showCountrySelector = computed(() => {
   const user = authStore.user;
   if (!user) return false;
 
-  // AI : Admin role or null moderatedCountries = no country selector needed
+  // Admin role or null moderatedCountries = no country selector needed
   const isAdmin = user.role === "admin";
   if (isAdmin) return true;
 
-  // AI : Hide selector if moderator only has access to one country
+  // Hide selector if moderator only has access to one country
   return availableCountries.value.length > 1;
 });
 
-// AI : Computed: filter countries by user's moderatedCountries
+// Computed: filter countries by user's moderatedCountries
 const availableCountries = computed(() => {
   const userCountries = authStore.user?.moderatedCountries;
 
-  // AI : Admin (null or undefined) sees all countries
+  // Admin (null or undefined) sees all countries
   if (userCountries === null || userCountries === undefined) {
     return moderationStore.allCountries;
   }
 
-  // AI : Handle edge case where moderatedCountries might not be an array at runtime
+  // Handle edge case where moderatedCountries might not be an array at runtime
   if (!Array.isArray(userCountries)) {
     console.warn("moderatedCountries is not an array:", userCountries);
     return moderationStore.allCountries;
   }
 
-  // AI : Filter to only moderator's assigned countries
+  // Filter to only moderator's assigned countries
   return moderationStore.allCountries.filter((country) => userCountries.includes(country.code));
 });
 
-// AI : Fetch all countries on mount only if not already cached, and auto-select if only one available
+// Fetch all countries on mount only if not already cached, and auto-select if only one available
 onMounted(async () => {
   try {
-    // AI : Restore state from Store or Map logic BEFORE fetching countries
-    // AI : This ensures markers are loaded immediately if we are returning to the panel
+    // Restore state from Store or Map logic BEFORE fetching countries
+    // This ensures markers are loaded immediately if we are returning to the panel
     const initialCode = mapStore.selectedCountryCode ?? moderationStore.selectedCountryCode;
     if (initialCode) {
       const user = authStore.user;
       const canAccess = !user?.moderatedCountries || user.moderatedCountries.includes(initialCode);
       if (canAccess) {
-        // AI : Restore markers. useModeration hook (running after this) will see the store value and fetch the list.
-        // AI : Don't fly if we are already zoomed in on a city (selectedCity is set)
+        // Restore markers. useModeration hook (running after this) will see the store value and fetch the list.
+        // Don't fly if we are already zoomed in on a city (selectedCity is set)
         await loadCountryData(initialCode, !mapStore.selectedCity);
       }
     }
 
-    // AI : Only fetch if not already loaded in store
+    // Only fetch if not already loaded in store
     if (!moderationStore.countriesLoaded) {
       countriesLoading.value = true;
       const countries = await trpc.country.getAllCountries.query();
       moderationStore.setAllCountries(countries);
     }
 
-    // AI : Auto-select country if non-admin moderator has exactly one assigned country
+    // Auto-select country if non-admin moderator has exactly one assigned country
     const user = authStore.user;
     const isAdmin = user?.role === "admin";
-    // AI : Check if we DIDN'T restore a country already
+    // Check if we DIDN'T restore a country already
     if (!selectedCountryCode.value && !isAdmin && availableCountries.value.length === 1) {
       const country = availableCountries.value[0];
       if (!country) {
         throw new Error("No country found");
       }
-      // AI : Use shared loader
+      // Use shared loader
       await loadCountryData(country.code);
-      // AI : Explicitly fetch pending submissions because useModeration hook ran already (saw null)
+      // Explicitly fetch pending submissions because useModeration hook ran already (saw null)
       await fetchPendingSubmissions();
     }
 
-    // AI : Fetch pending counts for all countries only if not already loaded
+    // Fetch pending counts for all countries only if not already loaded
     if (!moderationStore.pendingCountsLoaded) {
       try {
         const counts = await trpc.moderation.getPendingCountsByCountry.query();
         moderationStore.setPendingCounts(counts);
       } catch (error) {
         console.error("Failed to load pending counts:", error);
-        // AI : Don't block UI if counts fail to load
+        // Don't block UI if counts fail to load
       }
     }
   } catch (error) {
@@ -289,16 +292,16 @@ onMounted(async () => {
   }
 });
 
-// AI : Handle country selection change
-// AI : Load data for a specific country (markers, pending submissions, etc.)
+// Handle country selection change
+// Load data for a specific country (markers, pending submissions, etc.)
 async function loadCountryData(countryCode: string | null, shouldFly = true) {
-  // AI : Sync local ref if needed (e.g. when called from watcher/mounted)
+  // Sync local ref if needed (e.g. when called from watcher/mounted)
   if (selectedCountryCode.value !== countryCode) {
     selectedCountryCode.value = countryCode;
   }
 
-  // AI : Update stores
-  // AI : Optim: Only invalidate moderation data if country changed (allows cache reuse)
+  // Update stores
+  // Optim: Only invalidate moderation data if country changed (allows cache reuse)
   const isDifferentCountry = moderationStore.selectedCountryCode !== countryCode;
   moderationStore.setSelectedCountryCode(countryCode);
 
@@ -306,27 +309,26 @@ async function loadCountryData(countryCode: string | null, shouldFly = true) {
     moderationStore.resetModerationLoaded();
   }
 
-  // AI : Load city markers for the selected country
+  // Load city markers for the selected country
   if (countryCode) {
     try {
-      // AI : Fetch cities for the selected country in moderation mode
+      // Fetch cities for the selected country in moderation mode
       const cities = await trpc.cities.getCitiesWithProjects.query({
         countryCode,
         mode: "moderation",
       });
 
-      // AI : Add city markers to the map
+      // Add city markers to the map
       addCityMarkersForCountry(cities, countryCode);
-      // AI : City markers loaded - viewport manager handles viewport-based loading
 
-      // AI : Update mapStore to keep state in sync
+      // Update mapStore to keep state in sync
       mapStore.selectedCountryCode = countryCode;
 
-      // AI : Fly to the country center if available AND requested
+      // Fly to the country center if available AND requested
       if (shouldFly) {
         const country = projectStore.countries.find((c) => c.code === countryCode);
         if (country) {
-          // AI : PostGIS geometry uses x for longitude and y for latitude
+          // PostGIS geometry uses x for longitude and y for latitude
           mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, {
             duration: 1.5,
           });
@@ -342,26 +344,23 @@ async function loadCountryData(countryCode: string | null, shouldFly = true) {
       });
     }
   }
-
-  // AI : fetchPendingSubmissions removed from here to avoid double fetch on mount
-  // AI : It must be called explicitly by callers (handler, watcher, or auto-select)
 }
 
-// AI : Handle country selection change
+// Handle country selection change
 async function handleCountryChange() {
   await loadCountryData(selectedCountryCode.value);
   await fetchPendingSubmissions();
 }
 
-// AI : Watch for external changes to moderationStore.selectedCountryCode (e.g., from city marker clicks)
-// AI : This ensures the moderation panel loads data when country is selected from the map
+// Watch for external changes to moderationStore.selectedCountryCode (e.g., from city marker clicks)
+// This ensures the moderation panel loads data when country is selected from the map
 watch(
   () => moderationStore.selectedCountryCode,
   (newCountryCode) => {
     if (newCountryCode !== selectedCountryCode.value) {
       selectedCountryCode.value = newCountryCode;
       if (newCountryCode) {
-        // AI : Use shared loader to ensure city markers are loaded too
+        // Use shared loader to ensure city markers are loaded too
         loadCountryData(newCountryCode);
         fetchPendingSubmissions();
       }
@@ -369,12 +368,12 @@ watch(
   },
 );
 
-// AI : Get pending count for a specific country
+// Get pending count for a specific country
 function getPendingCount(countryCode: string): number {
   return moderationStore.pendingCountsByCountry.get(countryCode) ?? 0;
 }
 
-// AI : Helper to refetch pending counts after operations
+// Helper to refetch pending counts after operations
 async function refetchPendingCounts() {
   try {
     moderationStore.resetPendingCounts();
@@ -385,10 +384,10 @@ async function refetchPendingCounts() {
   }
 }
 
-// AI : Use moderation composable
+// Use moderation composable
 const {
   projects,
-  overlays, // AI : Added overlays for filtering logic
+  overlays, // Added overlays for filtering logic
   changeRequests,
   approveProject,
   rejectProject,
@@ -397,44 +396,44 @@ const {
   fetchPendingSubmissions,
 } = useModeration();
 
-// AI : Use change requests composable
+// Use change requests composable
 const { approveChangeRequests, rejectChangeRequests } = useChangeRequests();
 
-// AI : Create isLoading ref
+// Create isLoading ref
 const isLoading = ref(false);
 const toast = useToast();
 
-// AI : Use change request preview composable to track when suggested positions are viewed
+// Use change request preview composable to track when suggested positions are viewed
 const { previewState } = useChangeRequestPreview();
 
-// AI : Track which overlay positions have been viewed by the moderator (using array for better reactivity)
+// Track which overlay positions have been viewed by the moderator (using array for better reactivity)
 const viewedOverlayIds = ref<string[]>([]);
 
-// AI : Track which change request suggested positions have been viewed
+// Track which change request suggested positions have been viewed
 const viewedChangeRequestIds = ref<string[]>([]);
 
-// AI : Replacement conflicts dialog state
+// Replacement conflicts dialog state
 const showConflictsDialog = ref(false);
 const pendingConflicts = ref<ReplacementConflicts | null>(null);
 const pendingOverlayId = ref<string | null>(null);
 const isProcessingConflicts = ref(false);
 
-// AI : Report user dialog state
+// Report user dialog state
 const showReportDialog = ref(false);
 const userToReport = ref<string | null>(null);
 
-// AI : Rejection confirmation dialog state
+// Rejection confirmation dialog state
 const showRejectConfirmDialog = ref(false);
 const isProcessingRejection = ref(false);
 
-// AI : Pending rejection state (stores type, id, and userId for report functionality)
+// Pending rejection state (stores type, id, and userId for report functionality)
 const pendingRejection = ref<{
   type: "project" | "overlay" | "change";
   id: string;
   userId: string | null;
 } | null>(null);
 
-// AI : Dialog state for user stats
+// Dialog state for user stats
 const showUserStatsDialog = ref(false);
 const userStatsDialogData = ref({
   userId: null as string | null,
@@ -444,7 +443,7 @@ const userStatsDialogData = ref({
   reportCount: 0,
 });
 
-// AI : Computed: Pending overlay count for current rejection (only for projects)
+// Computed: Pending overlay count for current rejection (only for projects)
 const pendingOverlayCount = computed(() => {
   if (pendingRejection.value?.type !== "project") return 0;
 
@@ -454,17 +453,17 @@ const pendingOverlayCount = computed(() => {
   return project.overlays?.filter((o) => o.status === "pending").length ?? 0;
 });
 
-// AI : Check if a change request is for a geometry field (corners or centroid)
+// Check if a change request is for a geometry field (corners or centroid)
 function isGeometryChange(change: any): boolean {
   return change.fieldName === "corners" || change.fieldName === "centroid";
 }
 
-// AI : Check if a geometry change request's suggested position has been viewed
+// Check if a geometry change request's suggested position has been viewed
 function hasViewedSuggestedPosition(changeId: string): boolean {
   return viewedChangeRequestIds.value.includes(changeId);
 }
 
-// AI : Watch preview state and mark change as viewed when suggested position is shown
+// Watch preview state and mark change as viewed when suggested position is shown
 watch(
   previewState,
   (state) => {
@@ -475,31 +474,31 @@ watch(
   { deep: true },
 );
 
-// AI : Filter projects based on selected city
+// Filter projects based on selected city
 const filteredProjects = computed(() => {
   if (!mapStore.selectedCity) return projects.value;
   return projects.value.filter((p) => p.cityId === mapStore.selectedCity?.id);
 });
 
-// AI : Filter change requests based on selected city
-// AI : Use mapStore cache to verify if entities belong to the selected city
-// AI : This works even for approved entities that aren't in the pending 'projects'/'overlays' lists
+// Filter change requests based on selected city
+// Use mapStore cache to verify if entities belong to the selected city
+// This works even for approved entities that aren't in the pending 'projects'/'overlays' lists
 const filteredChangeRequests = computed(() => {
   const selectedCity = mapStore.selectedCity;
   if (!selectedCity) return changeRequests.value;
 
   const cityId = selectedCity.id;
 
-  // AI : Get loaded data for this city in current mode
+  // Get loaded data for this city in current mode
   const currentMode = overlayStore.mode;
   const cityOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, currentMode) ?? [];
   const cityStandalone = mapStore.getCityStandaloneProjectsCache(cityId, currentMode) ?? [];
 
-  // AI : Build lookups for valid entities in this city
+  // Build lookups for valid entities in this city
   const validProjectIds = new Set<string>();
   const validOverlayIds = new Set<string>();
 
-  // AI : Add overlays and their projects
+  // Add overlays and their projects
   for (const overlay of cityOverlays) {
     validOverlayIds.add(overlay.id);
     if (overlay.projectId) {
@@ -507,12 +506,12 @@ const filteredChangeRequests = computed(() => {
     }
   }
 
-  // AI : Add standalone projects
+  // Add standalone projects
   for (const project of cityStandalone) {
     validProjectIds.add(project.id);
   }
 
-  // AI : Filter change requests that target entities in this city
+  // Filter change requests that target entities in this city
   return changeRequests.value.filter((cr) => {
     if (cr.entityType === "project") return validProjectIds.has(cr.entityId);
     if (cr.entityType === "overlay") return validOverlayIds.has(cr.entityId);
@@ -520,18 +519,18 @@ const filteredChangeRequests = computed(() => {
   });
 });
 
-// AI : Watch for city selection to auto-switch country if needed
+// Watch for city selection to auto-switch country if needed
 watch(
   () => mapStore.selectedCity,
   async (city) => {
     if (city && city.countryCode) {
-      // AI : Only switch if different (avoids reload loop)
+      // Only switch if different (avoids reload loop)
       if (selectedCountryCode.value !== city.countryCode) {
-        // AI : Skip country switch if moderator doesn't have access to this country
+        // Skip country switch if moderator doesn't have access to this country
         if (!canModerateCountry(city.countryCode)) return;
         selectedCountryCode.value = city.countryCode;
-        // AI : Handle the country change logic (fetch data)
-        // AI : Suppress fly because we are already centered on the city (or flying to it)
+        // Handle the country change logic (fetch data)
+        // Suppress fly because we are already centered on the city (or flying to it)
         await loadCountryData(city.countryCode, false);
         await fetchPendingSubmissions();
       }
@@ -539,14 +538,14 @@ watch(
   },
 );
 
-// AI : Clear pending rejection if report dialog is closed without reporting
+// Clear pending rejection if report dialog is closed without reporting
 watch(showReportDialog, (isOpen) => {
   if (!isOpen && pendingRejection.value) {
     pendingRejection.value = null;
   }
 });
 
-// AI : Handle overlay zoom and mark as viewed
+// Handle overlay zoom and mark as viewed
 async function handleViewOverlayPosition(overlay: OverlayForModeration, shouldFitBounds: boolean) {
   if (!viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
@@ -556,7 +555,7 @@ async function handleViewOverlayPosition(overlay: OverlayForModeration, shouldFi
   await handleOverlayClickNavigation(overlay, shouldFitBounds);
 }
 
-// AI : Helper to show success toast and refetch pending counts
+// Helper to show success toast and refetch pending counts
 function showSuccessToast(
   summaryKey: string,
   detailKey: string,
@@ -571,7 +570,7 @@ function showSuccessToast(
   });
 }
 
-// AI : Helper to show error toast with version conflict handling
+// Helper to show error toast with version conflict handling
 function showErrorToast(result: { error?: string; message?: string }, approvalFailedKey: string) {
   const severity = result.error === "version_conflict" ? "warn" : "error";
   const summary =
@@ -585,7 +584,7 @@ function showErrorToast(result: { error?: string; message?: string }, approvalFa
   });
 }
 
-// AI : Handle project approval with toast notifications
+// Handle project approval with toast notifications
 async function handleApproveProject(id: string) {
   const result = await approveProject(id);
 
@@ -596,13 +595,13 @@ async function handleApproveProject(id: string) {
   }
 }
 
-// AI : Handle project rejection - show confirmation dialog first
+// Handle project rejection - show confirmation dialog first
 function handleRejectProject(id: string, userId: string | null) {
   pendingRejection.value = { type: "project", id, userId };
   showRejectConfirmDialog.value = true;
 }
 
-// AI : Execute project rejection after confirmation
+// Execute project rejection after confirmation
 async function executeRejectProject(
   id: string,
   rejectionReason?: string,
@@ -617,30 +616,32 @@ async function executeRejectProject(
   }
 }
 
-// AI : Handle overlay approval with replacement conflict checking
+// Handle overlay approval with replacement conflict checking
 async function handleApproveOverlay(id: string) {
   try {
-    // AI : First check if this overlay is a replacement and if it has conflicts
+    // First check if this overlay is a replacement and if it has conflicts
     const overlay = projects.value.flatMap((p) => p.overlays).find((o) => o.id === id);
 
     if (overlay?.replacesOverlayId) {
-      // AI : Check for conflicts before approving
-      const conflicts = await trpc.moderation.checkReplacementConflicts.query({ overlayId: id });
+      // Check for conflicts before approving
+      const conflicts = await trpc.moderation.checkReplacementConflicts.query({
+        overlayId: id,
+      });
 
       if (conflicts.hasConflicts) {
-        // AI : Show confirmation dialog
+        // Show confirmation dialog
         pendingConflicts.value = conflicts;
         pendingOverlayId.value = id;
         showConflictsDialog.value = true;
         return; // Wait for user confirmation
       }
 
-      // AI : No conflicts but it IS a replacement - handle replacement workflow
+      // No conflicts but it IS a replacement - handle replacement workflow
       await proceedWithApproval(id, true);
       return;
     }
 
-    // AI : Not a replacement - proceed with normal approval
+    // Not a replacement - proceed with normal approval
     await proceedWithApproval(id, false);
   } catch (error) {
     console.error("Error checking replacement conflicts:", error);
@@ -653,7 +654,7 @@ async function handleApproveOverlay(id: string) {
   }
 }
 
-// AI : Proceed with overlay approval (called after confirmation or directly if no conflicts)
+// Proceed with overlay approval (called after confirmation or directly if no conflicts)
 async function proceedWithApproval(id: string, handleConflicts = false) {
   const result = await approveOverlay(id, handleConflicts);
 
@@ -664,7 +665,7 @@ async function proceedWithApproval(id: string, handleConflicts = false) {
   }
 }
 
-// AI : Handle confirmation from replacement conflicts dialog
+// Handle confirmation from replacement conflicts dialog
 async function handleConfirmReplacement() {
   if (!pendingOverlayId.value) return;
 
@@ -679,21 +680,21 @@ async function handleConfirmReplacement() {
   }
 }
 
-// AI : Handle cancellation from replacement conflicts dialog
+// Handle cancellation from replacement conflicts dialog
 function handleCancelReplacement() {
   showConflictsDialog.value = false;
   pendingOverlayId.value = null;
   pendingConflicts.value = null;
 }
 
-// AI : Open report user dialog
+// Open report user dialog
 function openReportDialog(userId: string | null) {
   if (!userId) return;
   userToReport.value = userId;
   showReportDialog.value = true;
 }
 
-// AI : Open user stats dialog
+// Open user stats dialog
 function handleShowUserStats(data: {
   userId: string;
   username?: string | null;
@@ -711,21 +712,21 @@ function handleShowUserStats(data: {
   showUserStatsDialog.value = true;
 }
 
-// AI : Handle when a user is reported from the old ReportUserDialog (legacy path)
-// AI : Note: This is now mostly unused since reporting is handled in the RejectionDialog
+// Handle when a user is reported from the old ReportUserDialog (legacy path)
+// Note: This is now mostly unused since reporting is handled in the RejectionDialog
 async function handleUserReported() {
-  // AI : Just refresh the moderation data
+  // Just refresh the moderation data
   moderationStore.resetModerationLoaded();
   await fetchPendingSubmissions();
 }
 
-// AI : Handle overlay rejection - show confirmation dialog first
+// Handle overlay rejection - show confirmation dialog first
 function handleRejectOverlay(id: string, userId: string | null) {
   pendingRejection.value = { type: "overlay", id, userId };
   showRejectConfirmDialog.value = true;
 }
 
-// AI : Execute overlay rejection after confirmation
+// Execute overlay rejection after confirmation
 async function executeRejectOverlay(id: string, rejectionReason?: string) {
   const result = await rejectOverlay(id, rejectionReason);
 
@@ -736,7 +737,7 @@ async function executeRejectOverlay(id: string, rejectionReason?: string) {
   }
 }
 
-// AI : Handle change request approval with toast notifications
+// Handle change request approval with toast notifications
 async function handleApproveChange(changeId: string) {
   const result = await approveChangeRequests([changeId]);
 
@@ -749,7 +750,7 @@ async function handleApproveChange(changeId: string) {
       life: 3000,
     });
 
-    // AI : Refetch pending submissions to update UI (removes approved change and competing conflicted changes)
+    // Refetch pending submissions to update UI (removes approved change and competing conflicted changes)
     await fetchPendingSubmissions();
   } else {
     toast.add({
@@ -761,7 +762,7 @@ async function handleApproveChange(changeId: string) {
   }
 }
 
-// AI : Handle rejection confirmation from dialog
+// Handle rejection confirmation from dialog
 async function handleRejectionConfirm(options: {
   rejectionReason: string;
   rejectAllOverlays: boolean;
@@ -774,7 +775,7 @@ async function handleRejectionConfirm(options: {
   const { type, id, userId } = pendingRejection.value;
 
   try {
-    // AI : Execute the rejection with rejection reason and optional overlay cascade
+    // Execute the rejection with rejection reason and optional overlay cascade
     if (type === "project") {
       await executeRejectProject(id, options.rejectionReason, options.rejectAllOverlays);
     } else if (type === "overlay") {
@@ -783,7 +784,7 @@ async function handleRejectionConfirm(options: {
       await executeRejectChange(id);
     }
 
-    // AI : If user checked "report user" and we have a userId, report them
+    // If user checked "report user" and we have a userId, report them
     if (options.reportUser && userId) {
       try {
         await trpc.moderation.reportUser.mutate({
@@ -812,18 +813,18 @@ async function handleRejectionConfirm(options: {
   }
 }
 
-// AI : Handle rejection cancellation from dialog
+// Handle rejection cancellation from dialog
 function handleRejectionCancel() {
   pendingRejection.value = null;
 }
 
-// AI : Handle change request rejection - show confirmation dialog first
+// Handle change request rejection - show confirmation dialog first
 function handleRejectChange(changeId: string, userId: string | null) {
   pendingRejection.value = { type: "change", id: changeId, userId };
   showRejectConfirmDialog.value = true;
 }
 
-// AI : Execute change request rejection after confirmation
+// Execute change request rejection after confirmation
 async function executeRejectChange(changeId: string) {
   const result = await rejectChangeRequests([changeId]);
 
@@ -836,7 +837,7 @@ async function executeRejectChange(changeId: string) {
       life: 3000,
     });
 
-    // AI : Refetch pending submissions to update UI
+    // Refetch pending submissions to update UI
     await fetchPendingSubmissions();
   } else {
     toast.add({

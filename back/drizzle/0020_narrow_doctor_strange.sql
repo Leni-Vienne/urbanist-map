@@ -1,7 +1,7 @@
--- AI : Add polygon column for storing 4 corner coordinates
+-- Add polygon column for storing 4 corner coordinates
 ALTER TABLE "overlays" ADD COLUMN "corners_new" geometry(polygon, 4326);
 
--- AI : Migrate existing data from flat columns to polygon geometry
+-- Migrate existing data from flat columns to polygon geometry
 UPDATE overlays
 SET corners_new = ST_GeomFromText(
   'POLYGON((' ||
@@ -14,8 +14,8 @@ SET corners_new = ST_GeomFromText(
 )
 WHERE corners_new IS NULL;
 
--- AI : Make corners_new NOT NULL after data migration
+-- Make corners_new NOT NULL after data migration
 ALTER TABLE "overlays" ALTER COLUMN "corners_new" SET NOT NULL;
 
--- AI : Add spatial index for efficient geometry queries
+-- Add spatial index for efficient geometry queries
 CREATE INDEX IF NOT EXISTS "idx_overlays_corners_new" ON "overlays" USING GIST ("corners_new");

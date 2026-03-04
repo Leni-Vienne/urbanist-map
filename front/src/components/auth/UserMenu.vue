@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <div
-    class="flex items-center gap-2 z-[1000] isolate pointer-events-auto max-md:flex-col-reverse max-md:items-end"
+    class="flex items-center gap-2 z-1000 isolate pointer-events-auto max-md:flex-col-reverse max-md:items-end"
   >
-    <!-- AI : Sign In Button for unauthenticated users -->
+    <!-- Sign In Button for unauthenticated users -->
     <template v-if="!authStore.isAuthenticated">
       <LanguageSwitcherMenu display-mode="icon" />
       <Button
@@ -18,51 +18,61 @@
       />
     </template>
 
-    <!-- AI : User Menu for authenticated users -->
+    <!-- User Menu for authenticated users -->
     <button
       v-else
       type="button"
-      class="appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-white border border-[var(--p-surface-300)] rounded-md cursor-pointer shadow transition-all duration-200 min-w-[110px] hover:shadow-md max-md:min-w-0 max-md:p-0 max-md:rounded-full max-md:w-8 max-md:h-8 max-md:justify-center max-md:gap-0"
+      class="appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-content-background border border-surface rounded-md cursor-pointer shadow transition-all duration-200 min-w-27 hover:shadow-md max-md:min-w-0 max-md:p-0 max-md:rounded-full max-md:w-8 max-md:h-8 max-md:justify-center max-md:gap-0"
       data-testid="user-menu"
       @click="toggleMenu"
       @dblclick.stop
       ref="userMenuRef"
     >
       <span
-        class="relative w-6 h-6 rounded-full bg-[var(--p-primary-100)] flex items-center justify-center text-[var(--p-primary-600)] text-xs max-md:bg-transparent max-md:text-[var(--p-surface-600)] max-md:text-base"
+        class="relative w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs max-md:bg-transparent max-md:text-(--p-text-color-secondary) max-md:text-base"
       >
         <i class="pi pi-user"></i>
-        <!-- AI : Red dot on avatar if there are unread notifications -->
+        <!-- Red dot on avatar if there are unread notifications -->
         <span
           v-if="uiStore.hasUnacknowledgedModeratedContributions"
-          class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[var(--p-red-500)] rounded-full border-2 border-white"
+          class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background"
         ></span>
       </span>
-      <span class="text-sm font-medium text-[var(--p-surface-800)] flex-1 max-md:hidden">{{
+      <span class="text-sm font-medium text-color flex-1 max-md:hidden">{{
         authStore.user?.username
       }}</span>
       <i
-        class="pi pi-chevron-down text-xs text-[var(--p-surface-500)] transition-transform duration-200 max-md:hidden"
+        class="pi pi-chevron-down text-xs text-muted-color transition-transform duration-200 max-md:hidden"
         :class="{ 'rotate-180': isMenuOpen }"
       ></i>
     </button>
 
-    <!-- AI : User menu popover -->
+    <!-- User menu popover -->
     <Popover ref="userPopover">
       <div class="flex flex-col w-48">
-        <div class="px-2 py-1.5 bg-surface-50 border-round mb-1">
+        <div class="px-2 py-1.5 bg-content-hover-background border-round mb-1">
           <div class="font-medium text-sm text-ellipsis overflow-hidden">
             {{ authStore.user?.email }}
           </div>
         </div>
 
-        <!-- AI : Language Switcher as list item -->
+        <!-- Language Switcher as list item -->
         <LanguageSwitcherMenu display-mode="list-item" />
 
-        <!-- AI : Moderation Results as list item -->
+        <!-- Dark mode toggle as list item -->
         <button
           type="button"
-          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-[var(--p-surface-700)] transition-colors duration-200 text-[0.9rem] hover:bg-[var(--p-surface-100)]"
+          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-content-hover-background"
+          @click="toggleTheme"
+        >
+          <i :class="theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+          <span>{{ theme === "dark" ? $t("theme.light") : $t("theme.dark") }}</span>
+        </button>
+
+        <!-- Moderation Results as list item -->
+        <button
+          type="button"
+          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-content-hover-background"
           @click="openModerationResults"
         >
           <div class="flex items-center gap-2">
@@ -77,11 +87,11 @@
           />
         </button>
 
-        <div class="h-px bg-[var(--p-surface-200)] my-1"></div>
+        <div class="h-px bg-content-border-color my-1"></div>
 
         <button
           type="button"
-          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-[var(--p-surface-700)] transition-colors duration-200 text-[0.9rem] hover:bg-[var(--p-surface-100)]"
+          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-content-hover-background"
           data-testid="sign-out-button"
           @click="handleSignOut"
         >
@@ -91,14 +101,14 @@
       </div>
     </Popover>
 
-    <!-- AI : Auth Modal — v-if prevents mounting (and async loading) until actually needed -->
+    <!-- Auth Modal — v-if prevents mounting (and async loading) until actually needed -->
     <AuthModal
       v-if="uiStore.authModalVisible"
       v-model:visible="uiStore.authModalVisible"
       :initial-mode="uiStore.authModalInitialMode"
     />
 
-    <!-- AI : Moderated Contributions Dialog — same pattern as AuthModal -->
+    <!-- Moderated Contributions Dialog — same pattern as AuthModal -->
     <ModeratedContributionsDialog
       v-if="uiStore.moderatedContributionsDialogVisible"
       v-model:visible="uiStore.moderatedContributionsDialogVisible"
@@ -114,13 +124,15 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
+import { useTheme } from "@/composables/core/useTheme";
 
-// AI : Lazy-load AuthModal for chunk splitting — avoids pulling primevue's password
+// Lazy-load AuthModal for chunk splitting — avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
 const ModeratedContributionsDialog = defineAsyncComponent(
   () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
 );
 
+const { theme, toggle: toggleTheme } = useTheme();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();
@@ -128,7 +140,7 @@ const { t } = useI18n();
 const isMenuOpen = ref(false);
 const userPopover = ref();
 
-// AI : Toggle menu visibility using Popover
+// Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
   userPopover.value.toggle(event);
   isMenuOpen.value = !isMenuOpen.value;
@@ -136,10 +148,10 @@ function toggleMenu(event: Event) {
 
 const { hasUnsavedChanges } = useUnsavedChanges();
 
-// AI : Handle sign out
+// Handle sign out
 async function handleSignOut() {
   if (hasUnsavedChanges()) {
-    // AI : Use a generic warning about unsaved data (reusing existing key)
+    // Use a generic warning about unsaved data (reusing existing key)
     if (!confirm(t("navigation.unsavedOverlaysWarning"))) {
       userPopover.value.hide();
       isMenuOpen.value = false;
@@ -164,14 +176,14 @@ async function handleSignOut() {
   isMenuOpen.value = false;
 }
 
-// AI : Handle opening moderation results (closes menu)
+// Handle opening moderation results (closes menu)
 function openModerationResults() {
   uiStore.moderatedContributionsDialogVisible = true;
   userPopover.value.hide();
   isMenuOpen.value = false;
 }
 
-// AI : Watch for popover visibility changes
+// Watch for popover visibility changes
 watch(
   () => userPopover.value?.visible,
   (visible) => {
@@ -179,7 +191,7 @@ watch(
   },
 );
 
-// AI : Close menu on window resize to prevent positioning issues
+// Close menu on window resize to prevent positioning issues
 function handleResize() {
   if (isMenuOpen.value && userPopover.value) {
     userPopover.value.hide();

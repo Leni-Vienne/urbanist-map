@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Dialog
     v-model:visible="isVisible"
     modal
@@ -8,7 +8,7 @@
   >
     <div v-if="summary" class="flex flex-col gap-4 py-2">
       <!-- Entity Information -->
-      <div class="flex items-center justify-between p-3 bg-[var(--p-surface-50)] rounded-md">
+      <div class="flex items-center justify-between p-3 bg-content-hover-background rounded-md">
         <strong>{{ summary.entityName }}</strong>
         <Tag
           :severity="summary.requiresModeration ? 'warn' : 'success'"
@@ -26,23 +26,23 @@
           <div
             v-for="(change, index) in summary.changes"
             :key="index"
-            class="flex flex-col gap-2 p-3 bg-[var(--p-surface-0)] border border-[var(--p-surface-200)] rounded"
+            class="flex flex-col gap-2 p-3 bg-content-background border border-surface rounded"
           >
-            <!-- AI : Header row with thumbnail (for overlays), label, and delete button -->
+            <!-- Header row with thumbnail (for overlays), label, and delete button -->
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-3 flex-1 min-w-0">
                 <img
                   v-if="change.thumbnailUrl"
                   :src="change.thumbnailUrl"
                   :alt="change.displayLabel"
-                  class="w-12 h-12 object-cover rounded border border-[var(--p-surface-200)] shrink-0"
+                  class="w-12 h-12 object-cover rounded border border-surface shrink-0"
                   @error="handleImageError"
                 />
-                <div class="font-medium text-sm text-[var(--p-text-color-secondary)]">
+                <div class="font-medium text-sm text-(--p-text-color-secondary)">
                   {{ change.displayLabel }}
                 </div>
               </div>
-              <!-- AI : Delete button for all changes -->
+              <!-- Delete button for all changes -->
               <Button
                 icon="pi pi-times"
                 severity="danger"
@@ -56,12 +56,12 @@
 
             <div class="flex items-center gap-3">
               <span
-                class="flex-1 p-2 rounded text-sm break-words bg-[var(--p-surface-100)] text-[var(--p-text-color-secondary)] line-through"
+                class="flex-1 p-2 rounded text-sm wrap-break-word bg-content-hover-background text-(--p-text-color-secondary) line-through"
                 >{{ change.oldValue }}</span
               >
-              <i class="pi pi-arrow-right text-[var(--p-surface-400)] text-sm shrink-0"></i>
+              <i class="pi pi-arrow-right text-muted-color text-sm shrink-0"></i>
               <span
-                class="flex-1 p-2 rounded text-sm break-words bg-[var(--p-primary-50)] text-[var(--p-text-color)] font-medium"
+                class="flex-1 p-2 rounded text-sm wrap-break-word bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] text-color font-medium"
                 >{{ change.newValue }}</span
               >
             </div>
@@ -69,9 +69,9 @@
         </div>
       </div>
 
-      <!-- AI : Reason for changes input (optional) -->
+      <!-- Reason for changes input (optional) -->
       <div v-if="summary?.requiresModeration" class="flex flex-col gap-2">
-        <label for="changeReason" class="font-medium text-sm text-[var(--p-text-color-secondary)]">
+        <label for="changeReason" class="font-medium text-sm text-(--p-text-color-secondary)">
           {{ $t("common.reasonForChanges") }}
           <span class="font-normal italic">({{ $t("project.optionalField") }})</span></label
         >
@@ -108,10 +108,10 @@ import { handleImageError } from "@/utils/imageErrorHandler";
 
 const { t: $t } = useI18n();
 
-// AI : Change reason input
+// Change reason input
 const changeReason = ref("");
 
-// AI : Props
+// Props
 interface Props {
   visible: boolean;
   summary: SubmissionSummary | null;
@@ -122,7 +122,7 @@ const props = withDefaults(defineProps<Props>(), {
   isSubmitting: false,
 });
 
-// AI : Emits
+// Emits
 const emit = defineEmits<{
   "update:visible": [value: boolean];
   confirm: [reason: string];
@@ -130,10 +130,10 @@ const emit = defineEmits<{
   "remove-change": [index: number, field: RemovableChange, overlayId?: string];
 }>();
 
-// AI : Local visibility state
+// Local visibility state
 const isVisible = ref(props.visible);
 
-// AI : Watch for external visibility changes
+// Watch for external visibility changes
 watch(
   () => props.visible,
   (newValue) => {
@@ -141,25 +141,25 @@ watch(
   },
 );
 
-// AI : Handle visibility change from dialog
+// Handle visibility change from dialog
 function handleVisibilityChange(value: boolean) {
   emit("update:visible", value);
 }
 
-// AI : Handle cancel button
+// Handle cancel button
 function handleCancel() {
   changeReason.value = "";
   emit("cancel");
   emit("update:visible", false);
 }
 
-// AI : Handle confirm button
+// Handle confirm button
 function handleConfirm() {
   emit("confirm", changeReason.value);
   changeReason.value = "";
 }
 
-// AI : Handle remove change button click
+// Handle remove change button click
 function handleRemoveChange(index: number, field: RemovableChange, overlayId?: string) {
   emit("remove-change", index, field, overlayId);
 }

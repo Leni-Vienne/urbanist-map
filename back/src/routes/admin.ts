@@ -7,22 +7,22 @@ import { TRPCError } from "@trpc/server";
 import { decrementCityProjectCount } from "../db/updateCityCounts";
 import * as z from "zod";
 
-// AI : Admin-only router for managing users and their content
-// AI : All endpoints require admin role
+// Admin-only router for managing users and their content
+// All endpoints require admin role
 
 export const adminRouter = router({
-  // AI : Get user info and their contributions grouped by city
-  // AI : Returns list of cities with project/overlay counts for lazy loading
+  // Get user info and their contributions grouped by city
+  // Returns list of cities with project/overlay counts for lazy loading
   adminGetUserContributions: adminProcedure
     .input(
       z.object({
         userId: z.string().uuid(),
-        cityId: z.number().int().optional(), // AI : If provided, load projects/overlays for this city
+        cityId: z.number().int().optional(), // If provided, load projects/overlays for this city
       }),
     )
     .query(async ({ input }) => {
       try {
-        // AI : Get user info
+        // Get user info
         const userInfo = await db
           .select({
             id: users.id,
@@ -42,7 +42,7 @@ export const adminRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
         }
 
-        // AI : Get cities with project/overlay counts for this user
+        // Get cities with project/overlay counts for this user
         const citySummary = await db
           .select({
             cityId: cities.id,
@@ -62,7 +62,7 @@ export const adminRouter = router({
 
         let cityDetails = null;
 
-        // AI : If cityId provided, load full project/overlay details for that city
+        // If cityId provided, load full project/overlay details for that city
         if (input.cityId) {
           const cityProjects = await db
             .select({
@@ -74,7 +74,7 @@ export const adminRouter = router({
             .from(projects)
             .where(and(eq(projects.cityId, input.cityId), eq(projects.ownerId, input.userId)));
 
-          // AI : Get overlays for these projects
+          // Get overlays for these projects
           const projectIds = cityProjects.map((p) => p.id);
 
           let cityOverlays: {
@@ -124,18 +124,18 @@ export const adminRouter = router({
       }
     }),
 
-  // AI : Admin-only endpoint to permanently delete a project and all its overlays
-  // AI : This removes database records AND cleans up images from R2/local storage
+  // Admin-only endpoint to permanently delete a project and all its overlays
+  // This removes database records AND cleans up images from R2/local storage
   deleteProject: adminProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
-        reason: z.string().max(500).optional(), // AI : Optional reason for audit
+        reason: z.string().max(500).optional(), // Optional reason for audit
       }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        // AI : Get project with its overlays for cleanup
+        // Get project with its overlays for cleanup
         const projectData = await db
           .select({
             id: projects.id,
@@ -154,7 +154,7 @@ export const adminRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
         }
 
-        // AI : Get all overlays for this project (for image cleanup)
+        // Get all overlays for this project (for image cleanup)
         const projectOverlays = await db
           .select({
             id: overlays.id,
@@ -164,31 +164,30 @@ export const adminRouter = router({
           .from(overlays)
           .where(eq(overlays.projectId, input.projectId));
 
-        // AI : Delete overlays first (foreign key constraint)
+        // Delete overlays first (foreign key constraint)
         if (projectOverlays.length > 0) {
           await db.delete(overlays).where(eq(overlays.projectId, input.projectId));
         }
 
-        // AI : Delete project
         await db.delete(projects).where(eq(projects.id, input.projectId));
 
-        // AI : Decrement city project count
+        // Decrement city project count
         if (project.status === "approved" && project.cityId) {
           await decrementCityProjectCount(project.cityId);
         }
 
-        // AI : Log deletion for audit trail
+        // Log deletion for audit trail
         console.log(
           `Admin ${ctx.user.id} deleted project ${input.projectId} "${project.name}" (${projectOverlays.length} overlays)${input.reason ? ` - Reason: ${input.reason}` : ""}`,
         );
 
-        // AI : Clean up overlay images
+        // Clean up overlay images
         for (const overlay of projectOverlays) {
           try {
             await deleteImages(overlay.filename, "both");
           } catch (error) {
             console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
-            // AI : Continue - don't fail if image cleanup fails
+            // Continue - don't fail if image cleanup fails
           }
         }
 
@@ -207,8 +206,8 @@ export const adminRouter = router({
       }
     }),
 
-  // AI : Manually trigger execution of all due scheduled image deletions
-  // AI : Replaces the cron-based cleanup-images.ts script with an on-demand admin action
+  // Manually trigger execution of all due scheduled image deletions
+  // Replaces the cron-based cleanup-images.ts script with an on-demand admin action
   pruneScheduledDeletions: adminProcedure.mutation(async () => {
     try {
       const result = await executePendingDeletions();

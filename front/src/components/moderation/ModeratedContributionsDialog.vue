@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Dialog
     v-model:visible="isVisible"
     modal
@@ -7,29 +7,31 @@
     :closable="true"
     @hide="emit('close')"
   >
-    <!-- AI : Loading state -->
+    <!-- Loading state -->
     <div v-if="isLoading" class="flex justify-center items-center py-8">
       <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
     </div>
 
-    <!-- AI : Empty state -->
+    <!-- Empty state -->
     <div v-else-if="moderatedContributions.length === 0" class="text-center py-8">
       <i class="pi pi-check-circle text-6xl text-green-500 mb-4"></i>
-      <p class="text-lg">{{ $t("moderation.moderatedContributions.noItems") }}</p>
+      <p class="text-lg">
+        {{ $t("moderation.moderatedContributions.noItems") }}
+      </p>
     </div>
 
-    <!-- AI : List of moderated contributions -->
+    <!-- List of moderated contributions -->
     <div v-else class="space-y-4">
-      <p class="text-sm text-surface-600 mb-4">
+      <p class="text-sm text-(--p-text-color-secondary) mb-4">
         {{ $t("moderation.moderatedContributions.description") }}
       </p>
 
       <div v-for="item in moderatedContributions" :key="item.id" class="flex gap-4">
-        <!-- AI : Thumbnail -->
+        <!-- Thumbnail -->
         <div
-          class="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-[var(--p-surface-100)] flex items-center justify-center"
+          class="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-content-hover-background flex items-center justify-center"
         >
-          <!-- AI : Overlay thumbnail -->
+          <!-- Overlay thumbnail -->
           <img
             v-if="item.type === 'overlay' && item.filename"
             :src="buildThumbnailUrl(item.filename, item.status === 'pending')"
@@ -37,14 +39,14 @@
             class="w-full h-full object-cover"
             @error="handleImageError"
           />
-          <!-- AI : Standalone project icon -->
+          <!-- Standalone project icon -->
           <i
             v-else-if="item.type === 'standalone'"
-            class="pi pi-building text-3xl text-primary-500"
+            class="pi pi-building text-3xl text-primary-color"
           ></i>
         </div>
 
-        <!-- AI : Content -->
+        <!-- Content -->
         <div class="flex-1 flex flex-col gap-1 min-w-0">
           <div class="flex items-center justify-between gap-2">
             <span
@@ -64,35 +66,35 @@
             />
           </div>
 
-          <!-- AI : Show location for all items -->
+          <!-- Show location for all items -->
           <p
             v-if="item.cityName"
-            class="flex items-center gap-1 text-xs text-[var(--p-surface-600)] m-0"
+            class="flex items-center gap-1 text-xs text-(--p-text-color-secondary) m-0"
           >
-            <i class="pi pi-map-marker text-[var(--p-surface-500)]" style="font-size: 0.625rem"></i>
+            <i class="pi pi-map-marker text-muted-color" style="font-size: 0.625rem"></i>
             {{ item.cityName }}{{ item.countryCode ? `, ${item.countryCode}` : "" }}
           </p>
 
-          <!-- AI : Display rejection reason if item was rejected -->
+          <!-- Display rejection reason if item was rejected -->
           <p
             v-if="item.status === 'rejected' && item.rejectionReason"
-            class="m-0 text-[0.8125rem] text-[var(--p-red-600)] bg-[var(--p-red-50)] p-2 rounded-md border border-[var(--p-red-200)] flex items-start gap-1.5 leading-snug"
+            class="m-0 text-[0.8125rem] text-red-600 bg-red-50 p-2 rounded-md border border-red-200 flex items-start gap-1.5 leading-snug dark:bg-red-900/30 dark:border-red-700 dark:text-red-400"
           >
-            <i class="pi pi-ban flex-shrink-0 mt-0.5"></i>
+            <i class="pi pi-ban shrink-0 mt-0.5"></i>
             <span
               ><strong>{{ $t("moderation.rejectionReason.label") }}:</strong>
               {{ $t(`moderation.rejectionReason.${item.rejectionReason}`) }}</span
             >
           </p>
 
-          <p class="m-0 text-xs text-[var(--p-surface-500)]">
+          <p class="m-0 text-xs text-muted-color">
             {{ formatRelativeTime(item.updatedAt, t) }}
           </p>
         </div>
       </div>
     </div>
 
-    <!-- AI : Footer actions -->
+    <!-- Footer actions -->
     <template #footer>
       <Button
         :label="$t('common.close')"
@@ -141,12 +143,12 @@ const { moderatedContributions, isLoading, fetchModeratedContributions, acknowle
 const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);
 
-// AI : Fetch on mount — dialog is always mounted with visible=true due to v-if in parent
+// Fetch on mount — dialog is always mounted with visible=true due to v-if in parent
 onMounted(() => {
   fetchModeratedContributions();
 });
 
-// AI : Sync visibility with prop (re-fetch if dialog is shown again without unmounting)
+// Sync visibility with prop (re-fetch if dialog is shown again without unmounting)
 watch(
   () => props.visible,
   (newVal) => {
@@ -157,7 +159,7 @@ watch(
   },
 );
 
-// AI : Update parent when visibility changes
+// Update parent when visibility changes
 watch(isVisible, (newVal) => {
   emit("update:visible", newVal);
   if (!newVal) {
@@ -165,7 +167,7 @@ watch(isVisible, (newVal) => {
   }
 });
 
-// AI : Handle acknowledge all button
+// Handle acknowledge all button
 async function handleAcknowledgeAll() {
   isAcknowledging.value = true;
   try {

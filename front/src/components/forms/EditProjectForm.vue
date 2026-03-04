@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="p-6 max-sm:p-4">
     <form @submit.prevent="form.submitChanges" class="flex flex-col gap-4">
       <ProjectFormFields
@@ -21,7 +21,7 @@
 
       <!-- Form actions -->
       <div
-        class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-[var(--p-surface-200)]"
+        class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-surface"
       >
         <Button
           v-if="form.hasChanges.value"
@@ -73,7 +73,7 @@ const isProposed = ref(
   Boolean(props.project.proposalDate && !props.project.startDate && !props.project.endDate),
 );
 
-// AI : Helper to ensure dates are Date objects
+// Helper to ensure dates are Date objects
 function toDateObject(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -81,13 +81,13 @@ function toDateObject(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-// AI : Get original backend project if available (for comparison baseline)
-// AI : Uses centralized helper that checks both originalBackendProjects and originalUserContributions
+// Get original backend project if available (for comparison baseline)
+// Uses centralized helper that checks both originalBackendProjects and originalUserContributions
 const originalProject = computed(() => {
   return projectStore.getOriginalProject(props.project.id) ?? props.project;
 });
 
-// AI : Use original backend values as the comparison baseline for "modified from X" indicators
+// Use original backend values as the comparison baseline for "modified from X" indicators
 const projectData = computed(() => ({
   name: originalProject.value.name,
   description: originalProject.value.description || "",
@@ -101,7 +101,7 @@ const projectData = computed(() => ({
   cityId: originalProject.value.cityId,
 }));
 
-// AI : Use current project values for the form's initial state (what user will see and edit)
+// Use current project values for the form's initial state (what user will see and edit)
 const currentProjectData = computed(() => ({
   name: props.project.name,
   description: props.project.description || "",
@@ -117,10 +117,10 @@ const currentProjectData = computed(() => ({
 
 const form = useEditableProjectForm({
   entityId: props.project.id,
-  initialData: projectData.value, // AI : Original backend values for comparison
-  currentData: currentProjectData.value, // AI : Current values to display in form
+  initialData: projectData.value, // Original backend values for comparison
+  currentData: currentProjectData.value, // Current values to display in form
   entityStatus: props.project.status,
-  localOnly: true, // AI : Save changes locally only, submit via dedicated "Submit Change Request" buttons
+  localOnly: true, // Save changes locally only, submit via dedicated "Submit Change Request" buttons
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),

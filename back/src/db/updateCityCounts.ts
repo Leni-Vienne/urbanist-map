@@ -3,8 +3,8 @@ import { cities } from "./schema";
 import { eq, sql } from "drizzle-orm";
 
 /**
- * AI : Increment a city's approved project count atomically
- * AI : Used when approving a project
+ * Increment a city's approved project count atomically
+ * Used when approving a project
  * @param cityId - The city ID to update
  */
 export async function incrementCityProjectCount(cityId: number): Promise<void> {
@@ -15,8 +15,8 @@ export async function incrementCityProjectCount(cityId: number): Promise<void> {
 }
 
 /**
- * AI : Decrement a city's approved project count atomically
- * AI : Used when rejecting an approved project
+ * Decrement a city's approved project count atomically
+ * Used when rejecting an approved project
  * @param cityId - The city ID to update
  */
 export async function decrementCityProjectCount(cityId: number): Promise<void> {

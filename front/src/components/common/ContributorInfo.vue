@@ -6,14 +6,14 @@
 
       <span
         v-if="clickable"
-        class="text-[var(--p-primary-700)] cursor-pointer underline decoration-solid hover:text-[var(--p-primary-500)]"
+        class="text-primary-700 cursor-pointer underline decoration-solid hover:text-primary-500"
         @click.stop="handleClick"
         >{{ contributorUsername }}</span
       >
       <span v-else>{{ contributorUsername }}</span>
       <i
         v-if="reportCount > 0"
-        class="pi pi-exclamation-triangle text-[var(--p-orange-500)] text-xs font-black ml-1"
+        class="pi pi-exclamation-triangle text-orange-500 text-xs font-black ml-1"
       ></i>
     </template>
   </span>

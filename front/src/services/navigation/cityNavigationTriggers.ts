@@ -1,6 +1,3 @@
-// AI : City data rendering for navigation flows (city marker clicks, country navigation).
-// AI : Thin orchestration layer: delegates data loading to cityDataLoader
-// AI : and all rendering to cityRenderingCore.
 import { map } from "@/services/core/map";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { loadCityData } from "@/services/navigation/cityDataLoader";
@@ -15,9 +12,9 @@ import type { OverlayData } from "@/types/index";
 import type { StandaloneProject } from "@/utils/typeFactories";
 
 /**
- * AI : Load and render city data for navigation flows.
- * AI : Called by city marker clicks, overlay navigation, and ProjectManager.
- * AI : forceFullOverlays = true skips the zoom check and always renders full images.
+ * Load and render city data for navigation flows.
+ * Called by city marker clicks, overlay navigation, and ProjectManager.
+ * forceFullOverlays = true skips the zoom check and always renders full images.
  */
 export async function loadAndRenderCityData(
   cityId: number,
@@ -25,8 +22,8 @@ export async function loadAndRenderCityData(
 ): Promise<{ overlays: OverlayData[]; projects: StandaloneProject[] }> {
   const { overlays, projects } = await loadCityData(cityId);
 
-  // AI : Always clear previous city's content before rendering the new city.
-  // AI : Without this, switching cities would leave old markers/images on the map.
+  // Always clear previous city's content before rendering the new city.
+  // Without this, switching cities would leave old markers/images on the map.
   clearAllOverlays();
   clearAllStandaloneProjectMarkers();
 
@@ -40,8 +37,8 @@ export async function loadAndRenderCityData(
       forceFullOverlays || zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
     if (shouldRenderFullOverlays) {
-      // AI : renderFullOverlays hydrates the store and handles image pruning
-      // AI : The async created markers will now be interactive natively
+      // renderFullOverlays hydrates the store and handles image pruning
+      // The async created markers will now be interactive natively
       renderFullOverlays(overlays);
     } else {
       renderMarkersOnly(overlays);

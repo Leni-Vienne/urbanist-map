@@ -1,10 +1,10 @@
 /**
- * AI : Simple date formatting utilities with no external dependencies.
- * AI : For project date ranges with flexible precision, use projectDateFormat.ts instead.
+ * Simple date formatting utilities with no external dependencies.
+ * For project date ranges with flexible precision, use projectDateFormat.ts instead.
  */
 
 /**
- * AI : Format a date as dd/mm/yyyy
+ * Format a date as dd/mm/yyyy
  * @param date - Date object, string, or null/undefined
  * @returns Formatted date string or empty string if invalid
  */
@@ -22,7 +22,7 @@ export function formatDate(date: Date | string | null | undefined): string {
 }
 
 /**
- * AI : Format a date as relative time using i18n translations
+ * Format a date as relative time using i18n translations
  * @param date - The date to format (Date object or ISO string)
  * @param t - The vue-i18n translation function
  * @returns A human-readable relative time string

@@ -2,7 +2,7 @@
   <AccordionHeader>
     <div class="flex items-center justify-between w-full gap-2">
       <span class="font-semibold">{{ name }}</span>
-      <!-- AI : Show normal status tag (handle null/undefined for unsubmitted projects) -->
+      <!-- Show normal status tag (handle null/undefined for unsubmitted projects) -->
       <Tag
         v-if="!hideStatusBadges"
         :value="$t(`status.${status ?? 'draft'}`)"
@@ -25,6 +25,6 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// AI : Import shared utility
+// Import shared utility
 import { getStatusSeverity } from "@/utils/statusHelpers";
 </script>

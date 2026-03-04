@@ -6,7 +6,7 @@ test.describe("Overlay Loading & Zoom-based Display", () => {
   let mapHelpers: MapTestHelpers;
 
   test.beforeEach(async ({ page }) => {
-    // AI : Disable help modal to prevent test interference
+    // Disable help modal to prevent test interference
     await disableHelpModal(page);
 
     mapHelpers = new MapTestHelpers(page);
@@ -17,62 +17,62 @@ test.describe("Overlay Loading & Zoom-based Display", () => {
   });
 
   test("should load overlays only when zooming in beyond threshold", async ({ page }) => {
-    // AI : Navigate to overlays using proper hierarchy: country → city
+    // Navigate to overlays using proper hierarchy: country → city
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
       console.log("No country/city markers available for testing");
       return;
     }
 
-    // AI : Now zoom out to low level where overlay images shouldn't load (only markers)
+    // Now zoom out to low level where overlay images shouldn't load (only markers)
     await mapHelpers.zoomToLevel(10);
     await page.waitForTimeout(500);
 
     const overlayImages = page.locator(".leaflet-image-layer");
     const lowZoomImageCount = await overlayImages.count();
 
-    // AI : Zoom back in to high level to trigger overlay image loading
+    // Zoom back in to high level to trigger overlay image loading
     await mapHelpers.zoomToLevel(15);
     await page.waitForTimeout(2000);
 
-    // AI : At high zoom, overlay images should be loaded
+    // At high zoom, overlay images should be loaded
     const highZoomImageCount = await overlayImages.count();
 
-    // AI : Verify zoom-based loading works
+    // Verify zoom-based loading works
     console.log(`Images at low zoom: ${lowZoomImageCount}, at high zoom: ${highZoomImageCount}`);
     expect(highZoomImageCount).toBeGreaterThanOrEqual(lowZoomImageCount);
   });
 
   test("should unload overlay images when zooming out", async ({ page }) => {
-    // AI : Navigate to overlays using proper hierarchy: country → city
+    // Navigate to overlays using proper hierarchy: country → city
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     if (!navigationSuccess) {
       console.log("No country/city markers available for testing");
       return;
     }
 
-    // AI : Zoom in to ensure overlays are loaded
+    // Zoom in to ensure overlays are loaded
     await mapHelpers.zoomToLevel(15);
     await page.waitForTimeout(1000);
 
-    // AI : Check for loaded overlay images at high zoom
+    // Check for loaded overlay images at high zoom
     const overlayImages = page.locator(".leaflet-image-layer");
     const highZoomImageCount = await overlayImages.count();
 
-    // AI : Zoom out to trigger unloading
+    // Zoom out to trigger unloading
     await mapHelpers.zoomToLevel(10);
     await page.waitForTimeout(1000);
 
-    // AI : Verify overlay images are unloaded
+    // Verify overlay images are unloaded
     const lowZoomImageCount = await overlayImages.count();
 
-    // AI : At low zoom, images should be unloaded
+    // At low zoom, images should be unloaded
     console.log(`Images at high zoom: ${highZoomImageCount}, at low zoom: ${lowZoomImageCount}`);
     expect(lowZoomImageCount).toBeLessThanOrEqual(highZoomImageCount);
   });
 
   test("should show loading states when fetching overlays", async ({ page }) => {
-    // AI : Monitor network requests for overlay loading
+    // Monitor network requests for overlay loading
     const overlayRequests = [];
 
     page.on("request", (request) => {
@@ -85,13 +85,13 @@ test.describe("Overlay Loading & Zoom-based Display", () => {
       }
     });
 
-    // AI : Navigate using proper hierarchy to trigger overlay loading
+    // Navigate using proper hierarchy to trigger overlay loading
     const navigationSuccess = await mapHelpers.navigateToOverlays();
 
-    // AI : Wait for potential loading
+    // Wait for potential loading
     await page.waitForTimeout(2000);
 
-    // AI : This test documents the loading behavior
+    // This test documents the loading behavior
     console.log(`Overlay requests made: ${overlayRequests.length}`);
     if (navigationSuccess) {
       expect(overlayRequests.length).toBeGreaterThan(0);
@@ -99,7 +99,7 @@ test.describe("Overlay Loading & Zoom-based Display", () => {
   });
 
   test("should handle overlay loading errors gracefully", async ({ page }) => {
-    // AI : Listen for console errors
+    // Listen for console errors
     const errors = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") {
@@ -107,17 +107,17 @@ test.describe("Overlay Loading & Zoom-based Display", () => {
       }
     });
 
-    // AI : Try to navigate using proper hierarchy (might cause errors if no data)
+    // Try to navigate using proper hierarchy (might cause errors if no data)
     const navigationSuccess = await mapHelpers.navigateToOverlays();
     await page.waitForTimeout(2000);
 
-    // AI : Check if error notifications appear
+    // Check if error notifications appear
     const errorAlert = page.locator('[role="alert"]');
     if ((await errorAlert.count()) > 0) {
-      // AI : Verify error message is user-friendly
+      // Verify error message is user-friendly
       await expect(errorAlert).toContainText(/failed|error/i);
 
-      // AI : Verify error can be dismissed
+      // Verify error can be dismissed
       const closeButton = errorAlert.getByRole("button", { name: "Close" });
       if ((await closeButton.count()) > 0) {
         await closeButton.click();

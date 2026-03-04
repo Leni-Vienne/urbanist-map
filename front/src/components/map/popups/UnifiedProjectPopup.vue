@@ -1,29 +1,29 @@
-<template>
+﻿<template>
   <div
     :class="['unified-popup', `popup-source-${props.source}`]"
-    class="w-[300px] min-h-[200px] bg-[var(--p-surface-0)] cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-[1000]"
+    class="w-75 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
     @click.stop
   >
-    <div v-if="loading" class="flex justify-center items-center h-[200px] p-4">
+    <div v-if="loading" class="flex justify-center items-center h-50 p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
     <div v-else>
       <!-- Project header: project name + action buttons -->
-      <div class="px-4 pt-3 pb-2 border-b border-[var(--p-surface-200)]">
+      <div class="px-4 pt-3 pb-2 border-b border-surface">
         <div :class="['flex gap-2', overlay ? 'items-start' : 'items-center']">
           <!-- Left: project name stacked above overlay subtitle -->
           <div class="flex-1 flex flex-col gap-0.5 min-w-0">
-            <span class="text-sm font-semibold text-[var(--p-text-color)] leading-snug">
+            <span class="text-sm font-semibold text-color leading-snug">
               {{ project?.name || "—" }}
             </span>
             <!-- Overlay subtitle: image name or untitled + text "modifier" link -->
             <div v-if="overlay" class="flex items-baseline gap-1.5">
-              <span class="text-xs italic text-[var(--p-text-muted-color)] leading-snug">
+              <span class="text-xs italic text-muted-color leading-snug">
                 {{ overlay.caption || $t("overlay.untitled") }}
               </span>
               <button
                 v-if="!viewMode && user"
-                class="text-xs italic text-[var(--p-primary-400)] hover:text-[var(--p-primary-700)] cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
+                class="text-xs italic text-primary-400 hover:text-primary-700 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
                 @click="emit('edit-overlay', overlay)"
               >
                 {{ $t("common.edit") }}
@@ -32,7 +32,7 @@
                 v-if="
                   !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
                 "
-                class="text-xs italic text-[var(--p-red-400)] hover:text-[var(--p-red-600)] cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
+                class="text-xs italic text-red-400 hover:text-red-600 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
                 @click="emit('delete-overlay', overlay)"
               >
                 {{ $t("common.delete") }}
@@ -41,7 +41,7 @@
           </div>
           <!-- Right: project action buttons -->
           <div class="flex gap-1 shrink-0">
-            <!-- AI : Edit button (owned = direct edit, non-owned = suggest changes) -->
+            <!-- Edit button (owned = direct edit, non-owned = suggest changes) -->
             <Button
               v-if="!viewMode && project && user"
               icon="pi pi-pencil"
@@ -51,7 +51,7 @@
                 project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
               "
             />
-            <!-- AI : Delete button (for unsubmitted projects or pending projects owned by user) -->
+            <!-- Delete button (for unsubmitted projects or pending projects owned by user) -->
             <Button
               v-if="canDeleteProject"
               icon="pi pi-trash"
@@ -59,7 +59,7 @@
               @click="emit('delete-project', project)"
               v-tooltip.top="$t('contribute.deleteProject')"
             />
-            <!-- AI : Close button (only for project-only view) -->
+            <!-- Close button (only for project-only view) -->
             <Button
               v-if="!overlay"
               icon="pi pi-times"
@@ -82,13 +82,13 @@
           @field-click="emit('edit-project', project)"
         />
 
-        <!-- AI : Show view original button for pending replacements -->
+        <!-- Show view original button for pending replacements -->
         <div
           v-if="overlay?.replacesOverlayId && overlay?.status === 'pending'"
-          class="mt-3 pt-3 border-t border-[var(--p-surface-200)]"
+          class="mt-3 pt-3 border-t border-surface"
         >
           <button
-            class="inline-flex items-center gap-2 font-medium text-sm text-[var(--p-purple-600)] bg-[var(--p-purple-50)] border border-[var(--p-purple-200)] rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-[var(--p-purple-100)] hover:border-[var(--p-purple-300)] hover:text-[var(--p-purple-700)]"
+            class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 bg-purple-50 border border-purple-200 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 hover:border-purple-300 hover:text-purple-700"
             @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
           >
             <i class="pi pi-arrow-left text-sm"></i>
@@ -99,10 +99,7 @@
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div
-      v-if="!viewMode"
-      class="px-4 pb-4 pt-3 flex gap-2 items-stretch border-t border-[var(--p-surface-200)]"
-    >
+    <div v-if="!viewMode" class="px-4 pb-4 pt-3 flex gap-2 items-stretch border-t border-surface">
       <Button
         class="flex-1"
         :label="$t('project.submitChangeRequest')"
@@ -160,7 +157,7 @@ interface Props {
   publishLoading?: boolean;
   loading?: boolean;
   availableCities?: { id: number; name: string; countryCode: string }[];
-  // AI : Source determines popup positioning - overlay toolbar vs project marker
+  // Source determines popup positioning - overlay toolbar vs project marker
   source?: "overlay" | "marker";
 }
 
@@ -188,11 +185,11 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
-// AI : Import pending modifications store for unified change detection
+// Import pending modifications store for unified change detection
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 const pendingModsStore = usePendingModificationsStore();
 
-// AI : Check if project/overlay is published to backend (null status means not yet submitted)
+// Check if project/overlay is published to backend (null status means not yet submitted)
 const isPublishedToBackend = computed(() => {
   if (props.overlay) {
     return props.overlay.status === "approved" || props.overlay.status === "pending";
@@ -203,24 +200,24 @@ const isPublishedToBackend = computed(() => {
   );
 });
 
-// AI : Check if overlay or project has changes that need to be published
-// AI : Unified check: uses BOTH prop-based isModified AND pendingModificationsStore
+// Check if overlay or project has changes that need to be published
+// Unified check: uses BOTH prop-based isModified AND pendingModificationsStore
 const hasChanges = computed(() => {
-  // AI : Check new unified store first (for caption/position changes)
+  // Check new unified store first (for caption/position changes)
   if (props.overlay && pendingModsStore.hasPendingModifications(props.overlay.id)) {
     return true;
   }
-  // AI : Check project's overlays in pending mods store
+  // Check project's overlays in pending mods store
   if (props.project && pendingModsStore.getModificationCountForProject(props.project.id) > 0) {
     return true;
   }
-  // AI : Fallback to old prop-based isModified flags
+  // Fallback to old prop-based isModified flags
   const overlayModified = props.overlay?.isModified ?? false;
   const projectModified = props.project?.isModified ?? false;
   return overlayModified || projectModified || !isPublishedToBackend.value;
 });
 
-// AI : Handle publish button click
+// Handle publish button click
 function handlePublishClick() {
   if (props.overlay) {
     emit("publish-overlay");
@@ -229,7 +226,7 @@ function handlePublishClick() {
   }
 }
 
-// AI : Computed property for delete button visibility
+// Computed property for delete button visibility
 const canDeleteProject = computed(() => {
   if (!props.project || !user.value || props.viewMode) return false;
   const isDeletable = props.project.status === null || props.project.status === "pending";
@@ -239,9 +236,7 @@ const canDeleteProject = computed(() => {
 </script>
 
 <style scoped>
-@import "../../../assets/info-card-shared.css";
-
-/* AI : Arrow pointing to the triggering element */
+/* Arrow pointing to the triggering element */
 .unified-popup::before {
   content: "";
   position: absolute;
@@ -250,10 +245,10 @@ const canDeleteProject = computed(() => {
   height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
-  border-bottom: 10px solid var(--p-surface-0);
+  border-bottom: 10px solid var(--p-content-background);
 }
 
-/* AI : Positioning for overlay toolbar source */
+/* Positioning for overlay toolbar source */
 .popup-source-overlay {
   transform: translateY(20px);
 }
@@ -262,7 +257,7 @@ const canDeleteProject = computed(() => {
   left: 10px;
 }
 
-/* AI : Positioning for project marker source */
+/* Positioning for project marker source */
 .popup-source-marker {
   transform: translateX(-50%) translateY(20px);
 }

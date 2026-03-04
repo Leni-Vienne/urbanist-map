@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="flex items-center justify-center h-full p-8">
-    <div class="text-center max-w-[300px] flex flex-col items-center gap-4">
-      <i class="pi pi-map text-5xl text-primary-400"></i>
+    <div class="text-center max-w-75 flex flex-col items-center gap-4">
+      <i class="pi pi-map text-5xl text-primary-color"></i>
       <div>
-        <h3 class="text-lg font-semibold mb-2 text-surface-800">
+        <h3 class="text-lg font-semibold mb-2 text-color">
           {{ $t("contribute.guest.title") }}
         </h3>
         <p class="text-muted-color text-sm leading-relaxed">

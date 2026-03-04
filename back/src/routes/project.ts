@@ -18,16 +18,16 @@ import {
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { projectSchema } from "@shared/validation/schemas";
 
-// AI : Nearby search radius configuration
+// Nearby search radius configuration
 const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
 
-// AI : Use shared project schema for validation
+// Use shared project schema for validation
 const publishProjectSchema = projectSchema;
 
 export const projectRouter = router({
   publishProject: loggedInProcedure.input(publishProjectSchema).mutation(async ({ input, ctx }) => {
     try {
-      // AI : Spam prevention - block banned or heavily reported users
+      // Spam prevention - block banned or heavily reported users
       if (await isUserBlocked(ctx.user.id)) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -35,7 +35,7 @@ export const projectRouter = router({
         });
       }
 
-      // AI : Validate city exists
+      // Validate city exists
       if (input.cityId) {
         const city = await db.select().from(cities).where(eq(cities.id, input.cityId)).limit(1);
         if (city.length === 0) {
@@ -43,16 +43,16 @@ export const projectRouter = router({
         }
       }
 
-      // AI : Check contribution limits
+      // Check contribution limits
       if (!input.id) {
         // Only check total limit for NEW projects (updates don't increase count)
         await checkTotalContributionLimit(ctx.user.id);
       }
 
-      // AI : Check pending contribution limit for new projects
+      // Check pending contribution limit for new projects
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
-      // AI : Build data object with proper null handling for dates and precision
+      // Build data object with proper null handling for dates and precision
       const data = {
         ...input,
         ownerId: ctx.user.id,
@@ -64,18 +64,18 @@ export const projectRouter = router({
         endDate: input.endDate ?? null,
         endDatePrecision: input.endDatePrecision ?? null,
         sourceUrl: input.sourceUrl,
-        // AI : Set center coordinate for all projects using PostGIS
+        // Set center coordinate for all projects using PostGIS
         centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,
       };
 
       if (input.id) {
-        // AI : Capture projectId in const for type narrowing inside transaction
+        // Capture projectId in const for type narrowing inside transaction
         const projectId = input.id;
 
-        // AI : Use transaction to prevent race conditions between validation and update
-        // AI : This ensures status/ownership checks remain valid when update executes
+        // Use transaction to prevent race conditions between validation and update
+        // This ensures status/ownership checks remain valid when update executes
         const publishTransaction = await db.transaction(async (tx) => {
-          // AI : Check if project exists and validate permissions
+          // Check if project exists and validate permissions
           const existingProject = await tx
             .select()
             .from(projects)
@@ -87,7 +87,7 @@ export const projectRouter = router({
             return null;
           }
 
-          // AI : Security check - only owner can modify their project
+          // Security check - only owner can modify their project
           if (project.ownerId !== ctx.user.id) {
             throw new TRPCError({
               code: "FORBIDDEN",
@@ -95,7 +95,7 @@ export const projectRouter = router({
             });
           }
 
-          // AI : Workflow check - approved projects must use change request system
+          // Workflow check - approved projects must use change request system
           if (project.status === "approved") {
             throw new TRPCError({
               code: "BAD_REQUEST",
@@ -104,7 +104,7 @@ export const projectRouter = router({
             });
           }
 
-          // AI : Allow updates only for pending/rejected projects owned by user
+          // Allow updates only for pending/rejected projects owned by user
           const updateResult = await tx
             .update(projects)
             .set({
@@ -138,7 +138,7 @@ export const projectRouter = router({
         }
       }
 
-      // AI : Insert new project (with provided ID or auto-generated UUID)
+      // Insert new project (with provided ID or auto-generated UUID)
       const result = await db
         .insert(projects)
         .values(input.id ? { ...data, id: input.id } : data)
@@ -157,11 +157,11 @@ export const projectRouter = router({
         exists: false,
       };
     } catch (error) {
-      // AI : Re-throw TRPCErrors as-is to preserve error codes and messages
+      // Re-throw TRPCErrors as-is to preserve error codes and messages
       if (error instanceof TRPCError) {
         throw error;
       }
-      // AI : Log and wrap unexpected errors
+      // Log and wrap unexpected errors
       console.error("Error publishing project:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
@@ -176,10 +176,10 @@ export const projectRouter = router({
       try {
         const userId = ctx.user.id;
 
-        // AI : Use transaction to ensure atomic deletion of project and overlays
-        // AI : This prevents partial deletes and race conditions
+        // Use transaction to ensure atomic deletion of project and overlays
+        // This prevents partial deletes and race conditions
         const projectOverlays = await db.transaction(async (tx) => {
-          // AI : Get project to check permissions and status
+          // Get project to check permissions and status
           const project = await tx
             .select({
               id: projects.id,
@@ -197,7 +197,7 @@ export const projectRouter = router({
             throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
           }
 
-          // AI : Only owner can delete their own project
+          // Only owner can delete their own project
           if (projectRecord.ownerId !== userId) {
             throw new TRPCError({
               code: "FORBIDDEN",
@@ -205,7 +205,7 @@ export const projectRouter = router({
             });
           }
 
-          // AI : Only pending projects can be deleted
+          // Only pending projects can be deleted
           if (projectRecord.status !== "pending") {
             throw new TRPCError({
               code: "BAD_REQUEST",
@@ -213,7 +213,7 @@ export const projectRouter = router({
             });
           }
 
-          // AI : Get all overlays for this project to delete their images later
+          // Get all overlays for this project to delete their images later
           const overlaysToDelete = await tx
             .select({
               id: overlays.id,
@@ -222,21 +222,21 @@ export const projectRouter = router({
             .from(overlays)
             .where(eq(overlays.projectId, input.id));
 
-          // AI : Delete all overlays from database first (foreign key constraint)
+          // Delete all overlays from database first (foreign key constraint)
           if (overlaysToDelete.length > 0) {
             await tx.delete(overlays).where(eq(overlays.projectId, input.id));
           }
 
-          // AI : Delete project from database
+          // Delete project from database
           await tx.delete(projects).where(eq(projects.id, input.id));
 
-          // AI : Return overlays to delete images after transaction commits
+          // Return overlays to delete images after transaction commits
           return overlaysToDelete;
         });
 
-        // AI : Delete all overlay images AFTER transaction commits
-        // AI : This prevents holding transaction open during slow I/O operations
-        // AI : If image deletion fails, DB is still consistent (orphaned images are less critical)
+        // Delete all overlay images AFTER transaction commits
+        // This prevents holding transaction open during slow I/O operations
+        // If image deletion fails, DB is still consistent (orphaned images are less critical)
         for (const overlay of projectOverlays) {
           try {
             await deleteLocalImages(overlay.filename, "both");
@@ -254,7 +254,7 @@ export const projectRouter = router({
       }
     }),
 
-  // AI : Get projects with overlays within 100km of camera center
+  // Get projects with overlays within 100km of camera center
   getProjectsNearLocation: loggedInProcedure
     .input(
       z.object({
@@ -267,7 +267,7 @@ export const projectRouter = router({
         const { lat, lng } = input;
         const userId = ctx.user.id;
 
-        // AI : Find projects within radius that are either approved OR pending and owned by user
+        // Find projects within radius that are either approved OR pending and owned by user
         const nearbyProjects = await db
           .select({
             id: projects.id,
@@ -333,18 +333,18 @@ export const projectRouter = router({
       }
     }),
 
-  // AI : Get projects by city
+  // Get projects by city
   getCityProjects: publicProcedure
     .input(
       z.object({
         cityId: z.number(),
         limit: z.number().min(1).max(100).optional().default(20),
-        mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // AI : Map viewing mode
+        mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // Map viewing mode
       }),
     )
     .query(async ({ input, ctx }) => {
       try {
-        // AI : SECURITY: Reject moderation mode for unauthenticated users
+        // SECURITY: Reject moderation mode for unauthenticated users
         if (input.mode === "moderation" && !ctx.user) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
@@ -352,24 +352,24 @@ export const projectRouter = router({
           });
         }
 
-        // AI : Build where conditions based on user authentication and mode
-        // AI : In edit mode, show approved OR user's own contributions (any status)
-        // AI : In moderation mode, show approved OR pending from all users
-        // AI : In view mode or anonymous, only show approved
+        // Build where conditions based on user authentication and mode
+        // In edit mode, show approved OR user's own contributions (any status)
+        // In moderation mode, show approved OR pending from all users
+        // In view mode or anonymous, only show approved
         const whereConditions = [eq(projects.cityId, input.cityId)];
 
         if (input.mode === "edit" && ctx.user) {
-          // AI : Edit mode + logged in: users can see approved projects OR their own contributions (any status)
+          // Edit mode + logged in: users can see approved projects OR their own contributions (any status)
           whereConditions.push(
             sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${ctx.user.id})`,
           );
         } else if (input.mode === "moderation" && ctx.user) {
-          // AI : Moderation mode + logged in: see approved OR pending projects (for review)
+          // Moderation mode + logged in: see approved OR pending projects (for review)
           whereConditions.push(
             sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`,
           );
         } else {
-          // AI : View mode or anonymous: only see approved projects
+          // View mode or anonymous: only see approved projects
           whereConditions.push(eq(projects.status, "approved"));
         }
 
@@ -378,7 +378,7 @@ export const projectRouter = router({
             id: projects.id,
             name: projects.name,
             description: projects.description,
-            status: projects.status, // AI : Include status to distinguish pending/approved/rejected
+            status: projects.status, // Include status to distinguish pending/approved/rejected
             ownerId: projects.ownerId,
             cityId: projects.cityId,
             lat: projects.lat,
@@ -392,7 +392,7 @@ export const projectRouter = router({
             sourceUrl: projects.sourceUrl,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
-            // AI : Count approved overlays OR user's own overlays (only in edit mode)
+            // Count approved overlays OR user's own overlays (only in edit mode)
             overlayCount:
               ctx.user && input.mode !== "view"
                 ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
@@ -407,7 +407,7 @@ export const projectRouter = router({
             projects.id,
             projects.name,
             projects.description,
-            projects.status, // AI : Include status in groupBy
+            projects.status, // Include status in groupBy
             projects.ownerId,
             projects.cityId,
             projects.lat,
@@ -439,7 +439,7 @@ export const projectRouter = router({
       }
     }),
 
-  // AI : Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
+  // Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
   getUsersContributions: loggedInProcedure
     .input(
       z.object({
@@ -448,14 +448,14 @@ export const projectRouter = router({
         sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("updatedAt"),
         cityId: z.number().optional(),
         countryCode: z.string().length(3).optional(),
-        includeCityProjects: z.boolean().optional(), // AI : When true + cityId provided, return ALL city projects
+        includeCityProjects: z.boolean().optional(), // When true + cityId provided, return ALL city projects
       }),
     )
     .query(async ({ input, ctx }) => {
       try {
-        // AI : NEW: If includeCityProjects + cityId provided, return ALL city projects in UserContribution format
+        // NEW: If includeCityProjects + cityId provided, return ALL city projects in UserContribution format
         if (input.includeCityProjects && input.cityId) {
-          // AI : Query ALL projects in the city (approved OR user's pending)
+          // Query ALL projects in the city (approved OR user's pending)
           const cityProjects = await buildProjectWithLocationQuery(db)
             .where(
               and(
@@ -473,7 +473,7 @@ export const projectRouter = router({
           let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
 
           if (projectIds.length > 0) {
-            // AI : Get overlays for these projects (approved OR user's own)
+            // Get overlays for these projects (approved OR user's own)
             projectOverlays = await buildOverlayModerationQuery(db)
               .where(
                 and(
@@ -496,14 +496,14 @@ export const projectRouter = router({
 
           return {
             projects: projectsWithOverlays,
-            pagination: { hasMore: false, nextCursor: null }, // AI : No pagination for city projects
+            pagination: { hasMore: false, nextCursor: null }, // No pagination for city projects
           };
         }
 
-        // AI : EXISTING: Return user's own contributions
+        // EXISTING: Return user's own contributions
         const sortColumn = input.sortBy === "createdAt" ? projects.createdAt : projects.updatedAt;
 
-        // AI : Build pagination conditions using shared helper
+        // Build pagination conditions using shared helper
         const paginationConditions = await buildPaginationConditions(
           { cityId: input.cityId, countryCode: input.countryCode, cursor: input.cursor },
           sortColumn,
@@ -516,7 +516,7 @@ export const projectRouter = router({
           .orderBy(sql`${sortColumn} DESC`)
           .limit(input.limit + 1);
 
-        // AI : Get project IDs where user has authored overlays (but doesn't own the project)
+        // Get project IDs where user has authored overlays (but doesn't own the project)
         const contributedProjectIdsFromOverlays = await db
           .selectDistinct({ projectId: overlays.projectId })
           .from(overlays)
@@ -524,12 +524,12 @@ export const projectRouter = router({
           .where(
             and(
               eq(overlays.authorId, ctx.user.id),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // AI : Exclude projects already owned by user
+              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
             ),
           )
           .limit(input.limit);
 
-        // AI : Get project IDs where user has submitted change requests for overlays (but doesn't own the project)
+        // Get project IDs where user has submitted change requests for overlays (but doesn't own the project)
         const contributedProjectIdsFromOverlayChangeRequests = await db
           .selectDistinct({
             projectId: sql<string>`${overlays.projectId}`.as("projectId"),
@@ -541,12 +541,12 @@ export const projectRouter = router({
             and(
               eq(changeRequests.requestedBy, ctx.user.id),
               eq(changeRequests.entityType, "overlay"),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // AI : Exclude projects already owned by user
+              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
             ),
           )
           .limit(input.limit);
 
-        // AI : Get project IDs where user has submitted change requests directly to projects (but doesn't own the project)
+        // Get project IDs where user has submitted change requests directly to projects (but doesn't own the project)
         const contributedProjectIdsFromProjectChangeRequests = await db
           .selectDistinct({
             projectId: changeRequests.entityId,
@@ -557,12 +557,12 @@ export const projectRouter = router({
             and(
               eq(changeRequests.requestedBy, ctx.user.id),
               eq(changeRequests.entityType, "project"),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // AI : Exclude projects already owned by user
+              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
             ),
           )
           .limit(input.limit);
 
-        // AI : Combine and deduplicate project IDs from all sources
+        // Combine and deduplicate project IDs from all sources
         const allContributedProjectIds = [
           ...contributedProjectIdsFromOverlays.map((p) => p.projectId),
           ...contributedProjectIdsFromOverlayChangeRequests.map((p) => p.projectId),
@@ -570,7 +570,7 @@ export const projectRouter = router({
         ];
         const contributedProjectIds = [...new Set(allContributedProjectIds)].filter(
           (id) => id !== null,
-        ); // AI : Filter out nulls and assert non-null type
+        ); // Filter out nulls and assert non-null type
 
         const contributedProjects =
           contributedProjectIds.length > 0
@@ -590,11 +590,11 @@ export const projectRouter = router({
         let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
 
         if (projectIds.length > 0) {
-          // AI : For projects owned by user, get all overlays
-          // AI : For contributed projects, get user's overlays OR overlays with user's change requests
+          // For projects owned by user, get all overlays
+          // For contributed projects, get user's overlays OR overlays with user's change requests
           const ownedProjectIds = ownedProjects.map((project) => project.id);
 
-          // AI : Get overlay IDs where user has submitted change requests
+          // Get overlay IDs where user has submitted change requests
           const overlayIdsWithChangeRequests =
             contributedProjectIds.length > 0
               ? await db
@@ -613,13 +613,13 @@ export const projectRouter = router({
           );
 
           if (ownedProjectIds.length > 0 && contributedProjectIds.length > 0) {
-            // AI : Both owned and contributed projects exist
+            // Both owned and contributed projects exist
             projectOverlays = await buildOverlayModerationQuery(db)
               .where(
                 or(
-                  // AI : All overlays for user's own projects
+                  // All overlays for user's own projects
                   inArray(overlays.projectId, ownedProjectIds),
-                  // AI : For contributed projects: user's overlays OR overlays with user's change requests
+                  // For contributed projects: user's overlays OR overlays with user's change requests
                   and(
                     inArray(overlays.projectId, contributedProjectIds),
                     or(
@@ -633,12 +633,12 @@ export const projectRouter = router({
               )
               .orderBy(overlays.updatedAt);
           } else if (ownedProjectIds.length > 0) {
-            // AI : Only owned projects exist
+            // Only owned projects exist
             projectOverlays = await buildOverlayModerationQuery(db)
               .where(inArray(overlays.projectId, ownedProjectIds))
               .orderBy(overlays.updatedAt);
           } else if (contributedProjectIds.length > 0) {
-            // AI : Only contributed projects exist
+            // Only contributed projects exist
             projectOverlays = await buildOverlayModerationQuery(db)
               .where(
                 and(
@@ -665,7 +665,7 @@ export const projectRouter = router({
           });
         });
 
-        // AI : Build pagination response using shared helper (only for owned projects, as contributed are not paginated)
+        // Build pagination response using shared helper (only for owned projects, as contributed are not paginated)
         const paginationResponse = buildPaginationResponse(ownedProjects, input.limit);
 
         return {

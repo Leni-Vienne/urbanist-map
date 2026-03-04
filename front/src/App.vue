@@ -7,14 +7,16 @@
 </template>
 
 <script setup lang="ts">
-// AI : Leaflet CSS now loaded from CDN in index.html
+// Leaflet CSS now loaded from CDN in index.html
 import "leaflet-distortableimage/dist/leaflet.distortableimage.css";
+import { useTheme } from "./composables/core/useTheme";
+useTheme(); // Initialize theme on app startup (applies saved preference)
 import "./assets/style.css"; // Must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
 import "primeicons/primeicons.css";
 import MapSvgDefs from "@/components/map/MapSvgDefs.vue";
 
 if (import.meta.env.VITE_DEBUG) {
-  // AI : Log all JS chunks downloaded during the initial page load
+  // Log all JS chunks downloaded during the initial page load
   function onLoad() {
     setTimeout(() => {
       const scripts = performance
@@ -40,7 +42,7 @@ if (import.meta.env.VITE_DEBUG) {
     window.addEventListener("load", onLoad);
   }
 
-  // AI : Describe the nearest meaningful DOM ancestor of a click target for logging
+  // Describe the nearest meaningful DOM ancestor of a click target for logging
   function describeClickTarget(target: EventTarget | null): string {
     if (!(target instanceof Element)) return "unknown";
     const el = target.closest("button, a, [role=button], [role=menuitem], li") ?? target;
@@ -54,7 +56,7 @@ if (import.meta.env.VITE_DEBUG) {
     return `<${tag}${id}${cls}>${text ? ` "${text}"` : ""}`;
   }
 
-  // AI : Batch lazy chunks that arrive close together and print them grouped by trigger
+  // Batch lazy chunks that arrive close together and print them grouped by trigger
   const pageLoadCutoff = performance.now() + 1500;
   let batchTrigger = "spontaneously loaded";
   let batchLines: string[] = [];
@@ -75,11 +77,11 @@ if (import.meta.env.VITE_DEBUG) {
     true,
   );
 
-  // AI : Observe new resource entries in real-time and group lazy chunks under their trigger
+  // Observe new resource entries in real-time and group lazy chunks under their trigger
   const lazyObserver = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       if (!entry.name.endsWith(".js")) continue;
-      if (entry.startTime < pageLoadCutoff) continue; // AI : skip initial load window
+      if (entry.startTime < pageLoadCutoff) continue; // skip initial load window
 
       const name = entry.name.split("/").pop();
       const size = ((entry as PerformanceResourceTiming).transferSize / 1024).toFixed(2);

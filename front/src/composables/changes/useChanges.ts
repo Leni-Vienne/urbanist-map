@@ -1,6 +1,6 @@
-// AI : ============================================================================
-// AI : Combines change request handling and field-specific change utilities
-// AI : ============================================================================
+// ============================================================================
+// Combines change request handling and field-specific change utilities
+// ============================================================================
 import { ref, computed } from "vue";
 import { trpc, type RouterOutput, type RouterInput } from "@/client";
 import type { FieldChange } from "@shared/validation/schemas";
@@ -14,11 +14,11 @@ import L from "leaflet";
 import { type OverlayObject } from "@/types";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
-// AI : ============================================================================
-// AI : CHANGE REQUESTS
-// AI : ============================================================================
+// ============================================================================
+// CHANGE REQUESTS
+// ============================================================================
 
-// AI : Use the actual tRPC output type for change requests
+// Use the actual tRPC output type for change requests
 type ChangeHistoryEntry = RouterOutput["changes"]["getChangeHistory"][number];
 type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][number];
 type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
@@ -26,7 +26,7 @@ const pendingChangeRequests = ref<ChangeRequest[]>([]);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
 const isLoading = ref(false);
 
-// AI : Simple loaded flag for change requests
+// Simple loaded flag for change requests
 const changeRequestsLoaded = ref(false);
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
@@ -45,7 +45,7 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        // AI : Reset loaded flag to allow refresh, then fetch updated pending changes
+        // Reset loaded flag to allow refresh, then fetch updated pending changes
         resetChangeRequestsLoaded();
         await refreshPendingChangeRequests();
       }
@@ -57,7 +57,7 @@ export function useChangeRequests() {
   }
 
   async function refreshPendingChangeRequests(forceUserOnly = false) {
-    // AI : Skip if already loaded
+    // Skip if already loaded
     if (changeRequestsLoaded.value) {
       return;
     }
@@ -66,8 +66,8 @@ export function useChangeRequests() {
     try {
       const { isModerator } = useAuthStore();
 
-      // AI : Use moderation route for moderation panel, user route for My Contributions
-      // AI : forceUserOnly ensures My Contributions always shows only user's own changes
+      // Use moderation route for moderation panel, user route for My Contributions
+      // forceUserOnly ensures My Contributions always shows only user's own changes
       const result = await withErrorHandling(
         async () =>
           isModerator && !forceUserOnly
@@ -98,13 +98,13 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        // AI : Reset and refetch all moderation data (same pattern as overlay/project approval)
-        // AI : This ensures competing change requests marked as 'conflicted' by backend are removed from UI
-        // AI : Backend marks ALL competing changes for the same field as 'conflicted' when one is approved
+        // Reset and refetch all moderation data (same pattern as overlay/project approval)
+        // This ensures competing change requests marked as 'conflicted' by backend are removed from UI
+        // Backend marks ALL competing changes for the same field as 'conflicted' when one is approved
         const moderationStore = useModerationStore();
         moderationStore.resetModerationLoaded();
 
-        // AI : Reset local loaded flag as well for My Contributions panel
+        // Reset local loaded flag as well for My Contributions panel
         resetChangeRequestsLoaded();
       }
 
@@ -123,12 +123,12 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        // AI : Remove rejected change requests from local state instead of refetching
+        // Remove rejected change requests from local state instead of refetching
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
           (cr) => !changeRequestIds.includes(cr.id),
         );
 
-        // AI : Also remove from moderation store if available
+        // Also remove from moderation store if available
         const moderationStore = useModerationStore();
         moderationStore.removeChangeRequests(changeRequestIds);
       }
@@ -139,9 +139,9 @@ export function useChangeRequests() {
     }
   }
 
-  // AI : ============================================================================
-  // AI : HELPER FUNCTIONS - Internal utilities for change request deletion
-  // AI : ============================================================================
+  // ============================================================================
+  // HELPER FUNCTIONS - Internal utilities for change request deletion
+  // ============================================================================
 
   function removeChangeRequestFromLocalState(changeRequestId: string) {
     pendingChangeRequests.value = pendingChangeRequests.value.filter(
@@ -159,11 +159,11 @@ export function useChangeRequests() {
     const overlayStore = useOverlayStore();
     const pendingModsStore = usePendingModificationsStore();
 
-    // AI : Clear from both old cache and new unified store to reset position to approved
+    // Clear from both old cache and new unified store to reset position to approved
     overlayStore.removeFromEditModeCache(overlayId);
     pendingModsStore.clearModification(overlayId);
 
-    // AI : Reset overlay position to approved corners
+    // Reset overlay position to approved corners
     overlayObject.isModified = false;
     const layer = getLayer(overlayId);
     if (layer && overlayObject.corners.length === 4) {
@@ -187,27 +187,27 @@ export function useChangeRequests() {
       return;
     }
 
-    // AI : Check if there are any other pending change requests for this overlay
+    // Check if there are any other pending change requests for this overlay
     if (hasOtherPendingChangeRequestsForOverlay(changeRequest.entityId)) {
       return;
     }
 
-    // AI : No other pending change requests exist, reset the overlay state
+    // No other pending change requests exist, reset the overlay state
     clearOverlayChangeRequestState(overlayObject);
 
-    // AI : If this was a position change request, clear edit mode cache and reset position
+    // If this was a position change request, clear edit mode cache and reset position
     if (changeRequest.fieldName === "corners") {
       resetOverlayPositionToApproved(overlayObject, changeRequest.entityId);
     }
 
-    // AI : Update marker color and tooltip to reflect new state
+    // Update marker color and tooltip to reflect new state
     updateMarkerTooltip(overlayObject);
   }
 
   async function deleteChangeRequest(changeRequestId: string) {
     isLoading.value = true;
     try {
-      // AI : Find the change request before deleting to get entity info
+      // Find the change request before deleting to get entity info
       const changeRequest = pendingChangeRequests.value.find((cr) => cr.id === changeRequestId);
 
       const result = await withErrorHandling(
@@ -216,10 +216,10 @@ export function useChangeRequests() {
       );
 
       if (result && changeRequest) {
-        // AI : Remove deleted change request from local state
+        // Remove deleted change request from local state
         removeChangeRequestFromLocalState(changeRequestId);
 
-        // AI : Handle overlay-specific state updates
+        // Handle overlay-specific state updates
         handleOverlayStateAfterDeletion(changeRequest);
       }
 
@@ -251,9 +251,9 @@ export function useChangeRequests() {
 
   const hasConflicts = computed(() => conflictingChanges.value.size > 0);
 
-  // AI : ============================================================================
-  // AI : FIELD CHANGES
-  // AI : ============================================================================
+  // ============================================================================
+  // FIELD CHANGES
+  // ============================================================================
 
   async function submitMultipleFieldChanges(
     entityType: "project" | "overlay",
@@ -272,7 +272,7 @@ export function useChangeRequests() {
   }
 
   return {
-    // AI : Change requests
+    // Change requests
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
     changeHistory: computed(() => changeHistory.value),
     conflictingChanges,
@@ -286,7 +286,7 @@ export function useChangeRequests() {
     deleteChangeRequest,
     resetChangeRequestsLoaded,
 
-    // AI : Field changes
+    // Field changes
     submitMultipleFieldChanges,
   };
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="flex h-screen">
-    <!-- AI : Desktop SideMenu -->
+    <!-- Desktop SideMenu -->
     <SideMenu
       v-if="!isMobile"
       :is-open="desktopSideMenuOpen"
@@ -8,28 +8,28 @@
       @close="() => (desktopSideMenuOpen = false)"
     />
 
-    <!-- AI : Mobile Bottom Drawer -->
+    <!-- Mobile Bottom Drawer -->
     <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
 
     <div class="grow flex flex-col relative">
-      <!-- AI : Info message banner (displayed at top when config.infoMessage is set) -->
+      <!-- Info message banner (displayed at top when config.infoMessage is set) -->
       <Message
         v-if="authStore.infoMessage && !infoBannerDismissed"
         severity="info"
         :closable="true"
         @close="infoBannerDismissed = true"
-        class="shrink-0 m-0 !rounded-none"
+        class="shrink-0 m-0 rounded-none!"
         icon="pi pi-info-circle"
       >
         {{ authStore.infoMessage }}
       </Message>
 
-      <!-- AI : Map container that fills remaining space -->
+      <!-- Map container that fills remaining space -->
       <div class="flex-1 relative overflow-hidden">
         <MapView />
       </div>
 
-      <!-- AI : Popup container handles both overlay and project popups, AND the shared overlay edit dialog -->
+      <!-- Popup container handles both overlay and project popups, AND the shared overlay edit dialog -->
       <PopupContainer
         v-if="
           overlayStore.showInfoPopup ||
@@ -39,7 +39,7 @@
       />
     </div>
 
-    <!-- AI : Project Management Dialogs -->
+    <!-- Project Management Dialogs -->
     <ProjectManager
       v-if="
         uiStore.projectDialog.visible ||
@@ -48,10 +48,10 @@
       "
     />
 
-    <!-- AI : Image Upload Dialog - always rendered so it's available from any part of the app -->
+    <!-- Image Upload Dialog - always rendered so it's available from any part of the app -->
     <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
 
-    <!-- AI : Submission Confirmation Dialog - loads lazily when first submission is triggered -->
+    <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
     <SubmissionDialogWrapper v-if="showSubmissionDialog" />
   </div>
 </template>
@@ -71,7 +71,7 @@ import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
 
-// AI : Split PopupContainer into separate chunk - loads when first popup is shown
+// Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));
 const ProjectManager = defineAsyncComponent(
   () => import("@/components/project/ProjectManager.vue"),
@@ -79,13 +79,13 @@ const ProjectManager = defineAsyncComponent(
 const ImageUploadDialog = defineAsyncComponent(
   () => import("@/components/common/ImageUploadDialog.vue"),
 );
-// AI : Loads lazily the first time a submission is triggered (not on page load)
+// Loads lazily the first time a submission is triggered (not on page load)
 const SubmissionDialogWrapper = defineAsyncComponent(
   () => import("@/components/submission/SubmissionDialogWrapper.vue"),
 );
 
-// AI : Create refs to track app state
-const desktopSideMenuOpen = ref(true); // AI : Open by default on desktop
+// Create refs to track app state
+const desktopSideMenuOpen = ref(true); // Open by default on desktop
 const infoBannerDismissed = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
@@ -94,7 +94,7 @@ const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
 
-// AI : Use mobile drawer state from UI store
+// Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
   get: () => uiStore.mobileDrawerVisible,
   set: (value) => {
@@ -102,15 +102,15 @@ const mobileSideMenuOpen = computed({
   },
 });
 
-// AI : Mobile detection for responsive drawer behavior
+// Mobile detection for responsive drawer behavior
 const windowWidth = ref(typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024);
 const isMobile = computed(() => windowWidth.value <= 768);
 
-// AI : Update window width on resize
+// Update window width on resize
 function updateWindowWidth() {
   windowWidth.value = globalThis.innerWidth;
 
-  // AI : Update mobile overflow constraints when window size changes
+  // Update mobile overflow constraints when window size changes
   if (isMobile.value) {
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
@@ -124,13 +124,13 @@ function updateWindowWidth() {
 }
 
 onMounted(async () => {
-  // AI : Add window resize listener for mobile detection
+  // Add window resize listener for mobile detection
   globalThis.addEventListener("resize", updateWindowWidth);
 
   // Preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
   //import("@/components/map/PopupContainer.vue");
 
-  // AI : Prevent page scrolling on mobile to avoid viewport issues
+  // Prevent page scrolling on mobile to avoid viewport issues
   if (isMobile.value) {
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
@@ -138,13 +138,13 @@ onMounted(async () => {
     document.body.style.height = "100dvh"; // Use dynamic viewport where supported
   }
 
-  // AI : Update overlayStore to use the new UI store for dialog control
+  // Update overlayStore to use the new UI store for dialog control
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
 
   try {
     await authStore.initialize();
 
-    // AI : Handle auth query parameters from URL
+    // Handle auth query parameters from URL
     if (route.query.auth === "success") {
       toast.add({
         severity: "success",
@@ -166,7 +166,7 @@ onMounted(async () => {
   }
 });
 
-// AI : Get user-friendly error messages
+// Get user-friendly error messages
 function getErrorMessage(error: string): string {
   switch (error) {
     case "auth_failed":
@@ -183,7 +183,7 @@ function getErrorMessage(error: string): string {
 onUnmounted(() => {
   globalThis.removeEventListener("resize", updateWindowWidth);
 
-  // AI : Restore normal overflow behavior when component unmounts
+  // Restore normal overflow behavior when component unmounts
   document.documentElement.style.overflow = "";
   document.body.style.overflow = "";
   document.body.style.height = "";

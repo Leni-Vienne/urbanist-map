@@ -20,37 +20,37 @@ import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 import { requestScrollTo } from "@/services/layout/accordionState";
 
-// AI : Type aliases using RouterOutput from tRPC
+// Type aliases using RouterOutput from tRPC
 export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][number];
 
-// AI : Cities with projects data
+// Cities with projects data
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
 
 /**
- * AI : Build the list of cities to display for the current mode
- * AI : View mode is always the base (approved content); edit/moderation modes add their own cities on top
+ * Build the list of cities to display for the current mode
+ * View mode is always the base (approved content); edit/moderation modes add their own cities on top
  */
 async function buildCitiesForCurrentMode(): Promise<CityWithProjects[]> {
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
   const projectStore = useProjectStore();
 
-  // AI : View cities are always fetched first — they are the base set (approved content, visible to everyone)
+  // View cities are always fetched first — they are the base set (approved content, visible to everyone)
   const viewCities = await projectStore.fetchCitiesWithProjects("view");
-  // AI : Unauthenticated users always see view mode regardless of store state
+  // Unauthenticated users always see view mode regardless of store state
   const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
 
   if (currentMode === "view") {
     return viewCities;
   }
 
-  // AI : Edit/moderation modes are additive: start from approved cities, then union in mode-specific ones
+  // Edit/moderation modes are additive: start from approved cities, then union in mode-specific ones
   const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
   const viewCityIds = new Set(viewCities.map((c) => c.id));
   const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
   let mergedCities = [...viewCities, ...additionalCities];
 
-  // AI : In edit mode, also surface cities from locally created projects not yet submitted to the backend
+  // In edit mode, also surface cities from locally created projects not yet submitted to the backend
   if (currentMode === "edit") {
     mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
   }
@@ -59,7 +59,7 @@ async function buildCitiesForCurrentMode(): Promise<CityWithProjects[]> {
 }
 
 /**
- * AI : Initialize mode change watcher (called lazily on first use)
+ * Initialize mode change watcher (called lazily on first use)
  * This handles both switchMode() and direct setMode() calls (like from side menu)
  */
 function initializeModeWatcher() {
@@ -71,13 +71,13 @@ function initializeModeWatcher() {
   watch(
     () => overlayStore.mode,
     async (newMode, oldMode) => {
-      // AI : Defensive guard — Vue shouldn't fire with equal values but the watcher is async
+      // Defensive guard — Vue shouldn't fire with equal values but the watcher is async
       if (newMode === oldMode) return;
 
       try {
         const cities = await buildCitiesForCurrentMode();
         citiesWithProjects.value = cities;
-        // AI : Always render all cities on mode change, never filter by country here
+        // Always render all cities on mode change, never filter by country here
         await addCityMarkersToMapInternal(cities);
       } catch (error) {
         console.error("Error reloading city markers on mode change:", error);
@@ -89,7 +89,7 @@ function initializeModeWatcher() {
 }
 
 /**
- * AI : Initialize selectedCity watcher to update city marker opacity
+ * Initialize selectedCity watcher to update city marker opacity
  * This makes the selected city marker opaque when navigating from panels
  */
 function initializeCityMarkerWatcher() {
@@ -108,7 +108,7 @@ function initializeCityMarkerWatcher() {
 }
 
 /**
- * AI : Update city marker opacities based on selected city
+ * Update city marker opacities based on selected city
  */
 function updateCityMarkerOpacities(selectedCityId: number | null): void {
   const cityMarkersStore = useCityMarkersStore();
@@ -132,14 +132,14 @@ function updateCityMarkerOpacities(selectedCityId: number | null): void {
 }
 
 /**
- * AI : Remove city markers from the map
- * AI : NOTE: This does NOT remove standalone project markers - they are managed separately
- * AI : Standalone project markers persist across city marker reloads and are only cleared when changing cities
+ * Remove city markers from the map
+ * NOTE: This does NOT remove standalone project markers - they are managed separately
+ * Standalone project markers persist across city marker reloads and are only cleared when changing cities
  */
 export function removeCityMarkers(): void {
   const cityMarkersStore = useCityMarkersStore();
 
-  // AI : Explicitly remove all markers from map
+  // Explicitly remove all markers from map
   for (const marker of cityMarkersStore.cityMarkerMap.values()) {
     if (map.value.hasLayer(marker)) {
       marker.remove();
@@ -147,12 +147,12 @@ export function removeCityMarkers(): void {
   }
 
   cityMarkersStore.cityMarkerMap.clear();
-  // AI : Don't clear unsaved city markers - they should persist across country switches
-  // AI : and will be filtered by country when displayed via addCityMarkersToMapInternal
+  // Don't clear unsaved city markers - they should persist across country switches
+  // and will be filtered by country when displayed via addCityMarkersToMapInternal
 }
 
 /**
- * AI : Smart zoom logic: Fit bounds of all content (center + projects + overlays)
+ * Smart zoom logic: Fit bounds of all content (center + projects + overlays)
  */
 export function smartZoomToCity(
   city: { lat: number; lng: number },
@@ -163,8 +163,8 @@ export function smartZoomToCity(
 ) {
   const { overlays, projects } = data;
 
-  // AI : Collect all content locations for bounds calculation
-  // AI : Projects have nullable lat/lng (standalone projects may lack coordinates)
+  // Collect all content locations for bounds calculation
+  // Projects have nullable lat/lng (standalone projects may lack coordinates)
   const locations: { lat: number; lng: number }[] = [
     { lat: city.lat, lng: city.lng },
     ...projects
@@ -176,7 +176,7 @@ export function smartZoomToCity(
   const hasContent = projects.length > 0 || overlays.length > 0;
 
   if (hasContent) {
-    // AI : Fit to bounds of all content
+    // Fit to bounds of all content
     const bounds = calculateBoundsFromLocations(locations);
     mobileAwareFlyToBounds(bounds!, {
       animate: true,
@@ -185,24 +185,24 @@ export function smartZoomToCity(
       padding: [50, 50],
     });
   } else if (map.value.getZoom() < 14) {
-    // AI : Empty city below threshold: zoom in to a readable level
+    // Empty city below threshold: zoom in to a readable level
     mobileAwareFlyTo([city.lat, city.lng], 14, { duration: 1.5 });
   } else {
-    // AI : Empty city already zoomed in: pan only
+    // Empty city already zoomed in: pan only
     mobileAwareFlyTo([city.lat, city.lng], map.value.getZoom(), { duration: 0.5 });
   }
 }
 
 /**
- * AI : Activate a city (select, load data, and smart zoom)
- * AI : Extracted to be used by both marker clicks and HelpButton
+ * Activate a city (select, load data, and smart zoom)
+ * Extracted to be used by both marker clicks and HelpButton
  */
 export async function activateCity(city: CityWithProjects) {
   const mapStore = useMapStore();
 
-  // AI : Update selected city in store
-  // AI : Note: We can't easily reset opacities here without access to the private layer
-  // AI : But updateCityMarkerOpacities will be triggered by the watcher on mapStore.selectedCity
+  // Update selected city in store
+  // Note: We can't easily reset opacities here without access to the private layer
+  // But updateCityMarkerOpacities will be triggered by the watcher on mapStore.selectedCity
   mapStore.setSelectedCity({
     id: city.id,
     name: city.name,
@@ -210,24 +210,24 @@ export async function activateCity(city: CityWithProjects) {
     countryCode: city.countryCode,
   });
 
-  // AI : Request scroll to city in adjacent panels
+  // Request scroll to city in adjacent panels
   requestScrollTo("city", city.id);
 
-  // AI : Load city data before flight animation
-  // AI : Leaflet event handlers have no composable layer above them, so errors must be caught here
+  // Load city data before flight animation
+  // Leaflet event handlers have no composable layer above them, so errors must be caught here
   try {
     const result = await loadAndRenderCityData(city.id, true);
     smartZoomToCity(city, result);
   } catch (error) {
     console.error(`Failed to load data for city ${city.id}:`, error);
-    // AI : Still zoom to city center so the map stays usable even if data loading failed
+    // Still zoom to city center so the map stays usable even if data loading failed
     smartZoomToCity(city, { overlays: [], projects: [] });
   }
 }
 
 /**
- * AI : Create a layer group with city markers
- * AI : Handles all city-specific marker creation, event handling, and state management
+ * Create a layer group with city markers
+ * Handles all city-specific marker creation, event handling, and state management
  */
 async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
   const layer = L.layerGroup();
@@ -237,17 +237,17 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
   const hoverOpacity = MARKER_OPACITY.city.hover;
 
   for (const city of cities) {
-    // AI : Create marker with blue icon
+    // Create marker with blue icon
     const marker = L.marker([city.lat, city.lng], {
       icon: createColorIcon("blue"),
       opacity: defaultOpacity,
     });
 
-    // AI : Bind tooltip
+    // Bind tooltip
     const tooltipText = city.nameLocal ? `${city.name} (${city.nameLocal})` : city.name;
     marker.bindTooltip(tooltipText, { permanent: false });
 
-    // AI : Set up data attributes after marker is added to DOM
+    // Set up data attributes after marker is added to DOM
     marker.on("add", () => {
       const markerElement = marker.getElement();
       if (markerElement) {
@@ -261,35 +261,35 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
       }
     });
 
-    // AI : Prevent double-click zoom on markers
+    // Prevent double-click zoom on markers
     marker.on("dblclick", (e) => {
       L.DomEvent.stopPropagation(e);
     });
 
-    // AI : Hover event - increase opacity (respects selected state)
+    // Hover event - increase opacity (respects selected state)
     marker.on("mouseover", () => {
       marker.setOpacity(hoverOpacity);
     });
 
-    // AI : Mouse out event - reset to default, let watcher handle selected state
+    // Mouse out event - reset to default, let watcher handle selected state
     marker.on("mouseout", () => {
       const mapStore = useMapStore();
       const isSelected = mapStore.selectedCity?.id === city.id;
 
-      // AI : Only reset if this is NOT the currently selected city
-      // AI : The watcher will keep selected city at hover opacity
+      // Only reset if this is NOT the currently selected city
+      // The watcher will keep selected city at hover opacity
       if (!isSelected) {
         marker.setOpacity(defaultOpacity);
       }
     });
 
-    // AI : Click event - load city data
+    // Click event - load city data
     marker.on("click", async (e) => {
       L.DomEvent.stopPropagation(e);
       await activateCity(city);
     });
 
-    // AI : Store marker and add to layer
+    // Store marker and add to layer
     markers.set(String(city.id), marker);
     marker.addTo(layer);
   }
@@ -298,7 +298,7 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
 }
 
 /**
- * AI : Add a single city marker without replacing existing ones
+ * Add a single city marker without replacing existing ones
  */
 export async function addSingleCityMarker(
   city: {
@@ -313,26 +313,26 @@ export async function addSingleCityMarker(
 ) {
   const cityMarkersStore = useCityMarkersStore();
 
-  // AI : Don't add if marker already exists
+  // Don't add if marker already exists
   if (cityMarkersStore.cityMarkerMap.get(String(city.id))) return;
 
-  // AI : Initialize layer if needed
+  // Initialize layer if needed
   if (!cityMarkersStore.cityMarkersLayer) {
     cityMarkersStore.cityMarkersLayer = L.layerGroup().addTo(map.value);
     initializeCityMarkerWatcher();
   }
 
-  // AI : Create marker using createCitiesMarkerLayer
+  // Create marker using createCitiesMarkerLayer
   const cityData: CityWithProjects = { ...city, projectCount: 0 };
   const result = await createCitiesMarkerLayer([cityData]);
 
-  // AI : Add marker to existing layer
+  // Add marker to existing layer
   for (const [cityId, marker] of result.markers) {
     cityMarkersStore.cityMarkersLayer.addLayer(marker);
     cityMarkersStore.cityMarkerMap.set(cityId, marker);
   }
 
-  // AI : Track if this is an unsaved city marker
+  // Track if this is an unsaved city marker
   if (isUnsaved) {
     cityMarkersStore.unsavedCityMarkers.set(city.id, {
       name: city.name,
@@ -345,29 +345,29 @@ export async function addSingleCityMarker(
 }
 
 /**
- * AI : Entry point for the city marker system: fetches cities for the current mode,
- * AI : renders them on the map, and arms the mode watcher for subsequent mode changes.
+ * Entry point for the city marker system: fetches cities for the current mode,
+ * renders them on the map, and arms the mode watcher for subsequent mode changes.
  */
 export async function loadAllCityMarkersGlobally(): Promise<CityWithProjects[]> {
   const citiesData = await buildCitiesForCurrentMode();
 
   citiesWithProjects.value = citiesData;
   await addCityMarkersToMapInternal(citiesData);
-  // AI : Initialize mode watcher after initial load so cities re-fetch when mode changes
+  // Initialize mode watcher after initial load so cities re-fetch when mode changes
   initializeModeWatcher();
 
   return citiesData;
 }
 
 /**
- * AI : Add city markers for a specific country
+ * Add city markers for a specific country
  */
 export async function addCityMarkersForCountry(cities: CityWithProjects[], countryCode?: string) {
   await addCityMarkersToMapInternal(cities, countryCode);
 }
 
 /**
- * AI : Internal function to add city markers to map
+ * Internal function to add city markers to map
  */
 async function addCityMarkersToMapInternal(
   cities: CityWithProjects[],
@@ -375,22 +375,22 @@ async function addCityMarkersToMapInternal(
 ) {
   const cityMarkersStore = useCityMarkersStore();
 
-  // AI : Determine country code from explicit parameter or derive from cities
+  // Determine country code from explicit parameter or derive from cities
   const countryCode = explicitCountryCode ?? cities[0]?.countryCode;
 
-  // AI : Merge backend cities with unsaved city markers for THIS country only
+  // Merge backend cities with unsaved city markers for THIS country only
   const unsavedCities: CityWithProjects[] = [...cityMarkersStore.unsavedCityMarkers.entries()]
     .filter(([cityId, cityData]) => {
-      // AI : Only include unsaved markers for the current country
+      // Only include unsaved markers for the current country
       if (countryCode && cityData.countryCode !== countryCode) return false;
-      // AI : Don't include if city already exists in backend data
+      // Don't include if city already exists in backend data
       return !cities.some((c) => c.id === cityId);
     })
     .map(([cityId, cityData]) => Object.assign({ id: cityId, projectCount: 0 }, cityData));
 
   const allCities = [...cities, ...unsavedCities];
 
-  // AI : Filter cities for moderation mode if user is restricted
+  // Filter cities for moderation mode if user is restricted
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
   let citiesToRender = allCities;
@@ -405,43 +405,42 @@ async function addCityMarkersToMapInternal(
     citiesToRender = citiesToRender.filter((city) => moderatedCountries.includes(city.countryCode));
   }
 
-  // AI : Generate markers using existing logic
-  // AI : createCitiesMarkerLayer returns a LayerGroup and a Map of markers
+  // Generate markers using existing logic
+  // createCitiesMarkerLayer returns a LayerGroup and a Map of markers
   const result = await createCitiesMarkerLayer(citiesToRender);
 
-  // AI : Clear store first to remove stale cities (that might have been deleted/filtered out)
-  // AI : CRITICAL: We need to remove the old layer from the map if it exists!
+  // Clear store first to remove stale cities (that might have been deleted/filtered out)
+  // CRITICAL: We need to remove the old layer from the map if it exists!
   if (cityMarkersStore.cityMarkersLayer && map.value.hasLayer(cityMarkersStore.cityMarkersLayer)) {
     cityMarkersStore.cityMarkersLayer.remove();
   }
 
-  // AI : Clear the marker map
+  // Clear the marker map
   cityMarkersStore.cityMarkerMap.clear();
 
-  // AI : Store the new layer in the store (CRITICAL - this was missing!)
+  // Store the new layer in the store (CRITICAL - this was missing!)
   cityMarkersStore.cityMarkersLayer = result.layer;
 
-  // AI : Add the layer to the map
+  // Add the layer to the map
   result.layer.addTo(map.value);
 
-  // AI : Store individual marker references for easy access
+  // Store individual marker references for easy access
   for (const [cityId, marker] of result.markers) {
     cityMarkersStore.cityMarkerMap.set(cityId, marker);
   }
 
-  // AI : Initialize watcher
+  // Initialize watcher
   initializeCityMarkerWatcher();
 
   runViewportRenderLoop();
 
-  // AI : Update opacities for selected city
+  // Update opacities for selected city
   const mapStore = useMapStore();
   if (mapStore.selectedCity) {
     updateCityMarkerOpacities(mapStore.selectedCity.id);
   }
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

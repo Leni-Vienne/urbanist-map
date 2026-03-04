@@ -1,4 +1,4 @@
-// AI : Shared composable for submission dialog state and handlers
+// Shared composable for submission dialog state and handlers
 import {
   showSubmissionDialog,
   submissionSummary,
@@ -37,7 +37,7 @@ import type {
   ModifiableField,
 } from "@/types/index";
 
-// AI : Build human-readable changes from pending modifications
+// Build human-readable changes from pending modifications
 function buildOverlayModificationChanges(
   mods: PendingOverlayModification[],
   overlays: Record<string, OverlayObject | OverlayForModeration>,
@@ -74,15 +74,15 @@ function buildOverlayModificationChanges(
   return changes;
 }
 
-// AI : Build changes for NEW overlays (status is null, never submitted to backend)
+// Build changes for NEW overlays (status is null, never submitted to backend)
 function buildNewOverlayChanges(
   newOverlayIds: string[],
   overlays: Record<string, OverlayObject | OverlayForModeration>,
 ): SubmissionChange[] {
   const changes: SubmissionChange[] = [];
 
-  // AI : Helper to get image URL for new overlays
-  // AI : OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
+  // Helper to get image URL for new overlays
+  // OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
   function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
     if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
     if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
@@ -108,7 +108,7 @@ function buildNewOverlayChanges(
   return changes;
 }
 
-// AI : Build overlay info map for both modified and new overlays
+// Build overlay info map for both modified and new overlays
 function buildOverlayInfoMap(
   pendingMods: PendingOverlayModification[],
   newOverlayIds: string[],
@@ -139,7 +139,7 @@ function buildOverlayInfoMap(
   return overlayInfoMap;
 }
 
-// AI : Build consolidated changes list for project with overlays submission
+// Build consolidated changes list for project with overlays submission
 function buildProjectWithOverlaysChanges(
   pendingMods: PendingOverlayModification[],
   newOverlayIds: string[],
@@ -229,14 +229,14 @@ function resetOverlayFieldModification(
   return hasRemainingMods;
 }
 
-// AI : Determine if submission requires moderation based on approval status
+// Determine if submission requires moderation based on approval status
 function checkRequiresModeration(
   overlayMods: PendingOverlayModification[],
   projectStatus: string | null,
   overlayStatus?: string | null,
   newOverlayIds?: string[],
 ): boolean {
-  // AI : New overlays always require moderation
+  // New overlays always require moderation
   if (newOverlayIds && newOverlayIds.length > 0) {
     return true;
   }
@@ -247,7 +247,7 @@ function checkRequiresModeration(
   );
 }
 
-// AI : Determine change type based on submission context
+// Determine change type based on submission context
 function determineChangeType(
   projectIsNew: boolean,
   newOverlayIds: string[],
@@ -267,14 +267,14 @@ export function useSubmissionDialog() {
   const pendingModsStore = usePendingModificationsStore();
   const submissionService = useSubmissionService();
 
-  // AI : Get all new/unpublished overlays for a project from the overlay store
+  // Get all new/unpublished overlays for a project from the overlay store
   function getNewOverlaysForProject(projectId: string): OverlayObject[] {
     return Object.values(overlayStore.overlays).filter(
       (overlay) => overlay.projectId === projectId && overlay.status === null,
     );
   }
 
-  // AI : Determine submission action label based on project and overlay states
+  // Determine submission action label based on project and overlay states
   function determineSubmissionAction(
     projectIsNew: boolean,
     requiresModeration: boolean,
@@ -288,8 +288,8 @@ export function useSubmissionDialog() {
     return t("submission.updateOverlays");
   }
 
-  // AI : Prepare combined project+overlay submission (for save project button)
-  // AI : UNIFIED function used by both ContributePanel and InfoPopup for consistent behavior
+  // Prepare combined project+overlay submission (for save project button)
+  // UNIFIED function used by both ContributePanel and InfoPopup for consistent behavior
   function prepareProjectWithOverlaysSubmission(
     project: Project | ProjectForModeration,
     projectHasChanges: boolean,
@@ -298,11 +298,11 @@ export function useSubmissionDialog() {
       const pendingMods = pendingModsStore.getModificationsForProject(project.id);
       const modifiedOverlayIds = pendingMods.map((mod) => mod.overlayId);
 
-      // AI : Get new overlays (status is null, never submitted to backend)
+      // Get new overlays (status is null, never submitted to backend)
       const newOverlays = getNewOverlaysForProject(project.id);
       const newOverlayIds = newOverlays.map((o) => o.id);
 
-      // AI : Build overlay info map for thumbnails
+      // Build overlay info map for thumbnails
       const overlayInfoMap = buildOverlayInfoMap(
         pendingMods,
         newOverlayIds,
@@ -310,7 +310,7 @@ export function useSubmissionDialog() {
         overlayStore.overlays,
       );
 
-      // AI : Calculate project changes if project has modifications
+      // Calculate project changes if project has modifications
       const projectChanges: SubmissionChange[] = [];
       if (projectHasChanges) {
         const fullProject = projectStore.projects[project.id];
@@ -321,7 +321,7 @@ export function useSubmissionDialog() {
         }
       }
 
-      // AI : Build consolidated changes list
+      // Build consolidated changes list
       const changes = buildProjectWithOverlaysChanges(
         pendingMods,
         newOverlayIds,
@@ -329,7 +329,7 @@ export function useSubmissionDialog() {
         projectChanges,
       );
 
-      // AI : Determine submission metadata
+      // Determine submission metadata
       const requiresModeration = checkRequiresModeration(
         pendingMods,
         project.status,
@@ -380,21 +380,21 @@ export function useSubmissionDialog() {
     }
   }
 
-  // AI : Prepare overlay submission (for map popup publish button)
-  // AI : This now delegates to prepareProjectWithOverlaysSubmission for UNIFIED behavior
+  // Prepare overlay submission (for map popup publish button)
+  // This now delegates to prepareProjectWithOverlaysSubmission for UNIFIED behavior
   function prepareOverlaySubmission(overlay: OverlayObject, project?: Project): void {
-    // AI : If we have a project, use the unified function for consistent behavior
-    // AI : This ensures InfoPopup and ContributePanel buttons behave identically
+    // If we have a project, use the unified function for consistent behavior
+    // This ensures InfoPopup and ContributePanel buttons behave identically
     if (project) {
       const projectModified = project.isModified ?? false;
       prepareProjectWithOverlaysSubmission(project, projectModified);
       return;
     }
 
-    // AI : Fallback for overlays without a project (should be rare)
+    // Fallback for overlays without a project (should be rare)
     const projectId = overlay.projectId;
     const allProjectMods = projectId ? pendingModsStore.getModificationsForProject(projectId) : [];
-    // AI : Check if overlay is new (status null, never submitted)
+    // Check if overlay is new (status null, never submitted)
     const overlayIsNew = overlay.status === null;
 
     const hasAnyOverlayMods =
@@ -407,19 +407,19 @@ export function useSubmissionDialog() {
       return;
     }
 
-    // AI : Build combined changes list from ALL overlays
+    // Build combined changes list from ALL overlays
     const changes = buildOverlayModificationChanges(allProjectMods, overlayStore.overlays);
 
-    // AI : Add change for new overlay if applicable
+    // Add change for new overlay if applicable
     if (overlayIsNew && !allProjectMods.some((mod) => mod.overlayId === overlay.id)) {
       const newOverlayChanges = buildNewOverlayChanges([overlay.id], overlayStore.overlays);
       changes.push(...newOverlayChanges);
     }
 
-    // AI : Determine if this requires moderation
+    // Determine if this requires moderation
     const requiresModeration = overlayIsNew || overlay.status === "approved";
 
-    // AI : Determine action label
+    // Determine action label
     let action = "";
     if (overlayIsNew) {
       action = t("overlay.publishOverlay");
@@ -429,7 +429,7 @@ export function useSubmissionDialog() {
       action = t("submission.updateOverlays");
     }
 
-    // AI : Determine changeType using common helper
+    // Determine changeType using common helper
     const changeType = determineChangeType(
       overlayIsNew,
       overlayIsNew ? [overlay.id] : [],
@@ -461,14 +461,14 @@ export function useSubmissionDialog() {
     showSubmissionDialog.value = true;
   }
 
-  // AI : Helper function to get success message based on change type
+  // Helper function to get success message based on change type
   function getSuccessMessage(changeType: string): string {
     if (changeType === "update_approved") return t("submission.changeRequestSubmitted");
     if (changeType === "update_pending") return t("submission.changesSaved");
     return t("submission.submissionSuccessful");
   }
 
-  // AI : Helper function to handle submission success
+  // Helper function to handle submission success
   function handleSubmissionSuccess(context: SubmissionContext | SubmissionContextExtended): void {
     const message = getSuccessMessage(context.changeType);
 
@@ -479,13 +479,13 @@ export function useSubmissionDialog() {
       life: 3000,
     });
 
-    // AI : Close dialog and reset state
+    // Close dialog and reset state
     showSubmissionDialog.value = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }
 
-  // AI : Confirm submission after user approves in dialog
+  // Confirm submission after user approves in dialog
   async function confirmSubmission(reason: string): Promise<void> {
     if (!pendingSubmissionContext.value) return;
 
@@ -493,12 +493,12 @@ export function useSubmissionDialog() {
       isSubmitting.value = true;
       const context = pendingSubmissionContext.value;
 
-      // AI : Check if this is an extended context (combined overlay+project submission)
+      // Check if this is an extended context (combined overlay+project submission)
       if (isSubmissionContextExtended(context)) {
         await submissionService.submitExtendedContext(context, reason);
         overlayStore.hideInfoPopup();
       } else {
-        // AI : Standard single-entity submission
+        // Standard single-entity submission
         await submissionService.submitStandardContext(context as SubmissionContext, reason);
       }
 
@@ -516,14 +516,14 @@ export function useSubmissionDialog() {
     }
   }
 
-  // AI : Cancel submission dialog
+  // Cancel submission dialog
   function cancelSubmission(): void {
     showSubmissionDialog.value = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }
 
-  // AI : Helper function to update extended context after overlay change removal
+  // Helper function to update extended context after overlay change removal
   function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
     if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
       const extCtx = pendingSubmissionContext.value;
@@ -540,19 +540,19 @@ export function useSubmissionDialog() {
     }
   }
 
-  // AI : Helper function to handle removing an overlay change
+  // Helper function to handle removing an overlay change
   async function handleRemoveOverlayChange(
     overlayId: string,
     field: RemovableChange,
   ): Promise<void> {
     const overlayObject = overlayStore.overlays[overlayId];
 
-    // AI : Handle removing a NEW overlay completely
+    // Handle removing a NEW overlay completely
     if (field === "new_overlay") {
       if (overlayObject?.status === null) {
         await deleteOverlayDirect(overlayId);
 
-        // AI : Update the extended context to remove from newOverlayIds
+        // Update the extended context to remove from newOverlayIds
         if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
           const extCtx = pendingSubmissionContext.value;
           if (extCtx.newOverlayIds) {
@@ -563,7 +563,7 @@ export function useSubmissionDialog() {
       return;
     }
 
-    // AI : Handle resetting a field modification
+    // Handle resetting a field modification
     if (overlayObject) {
       const hasRemainingMods = resetOverlayFieldModification(overlayId, field, overlayObject);
       if (!hasRemainingMods) {
@@ -572,9 +572,9 @@ export function useSubmissionDialog() {
     }
   }
 
-  // AI : Helper function to handle removing a project change
+  // Helper function to handle removing a project change
   function handleRemoveProjectChange(field: string): void {
-    // AI : For project changes (no overlayId), reset the project field to its original value
+    // For project changes (no overlayId), reset the project field to its original value
     if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
       const extCtx = pendingSubmissionContext.value;
       if (extCtx.projectId) {
@@ -584,11 +584,11 @@ export function useSubmissionDialog() {
       projectStore.resetProjectField(pendingSubmissionContext.value.entityId, field);
     }
 
-    // AI : Close project edit form to force fresh data on reopen
+    // Close project edit form to force fresh data on reopen
     uiStore.closeProjectEditForm();
   }
 
-  // AI : Handle removing a single change from the submission dialog
+  // Handle removing a single change from the submission dialog
   async function handleRemoveChange(
     index: number,
     field: RemovableChange,
@@ -596,7 +596,7 @@ export function useSubmissionDialog() {
   ): Promise<void> {
     if (!submissionSummary.value) return;
 
-    // AI : Remove the change at the specified index from the summary
+    // Remove the change at the specified index from the summary
     submissionSummary.value.changes.splice(index, 1);
 
     if (overlayId) {
@@ -605,7 +605,7 @@ export function useSubmissionDialog() {
       handleRemoveProjectChange(field);
     }
 
-    // AI : If no more changes, close the dialog
+    // If no more changes, close the dialog
     if (submissionSummary.value.changes.length === 0) {
       cancelSubmission();
       toast.add({
@@ -618,16 +618,16 @@ export function useSubmissionDialog() {
   }
 
   return {
-    // AI : State
+    // State
     showSubmissionDialog,
     submissionSummary,
     isSubmitting,
 
-    // AI : Prepare submission methods
+    // Prepare submission methods
     prepareProjectWithOverlaysSubmission,
     prepareOverlaySubmission,
 
-    // AI : Dialog actions
+    // Dialog actions
     confirmSubmission,
     cancelSubmission,
     handleRemoveChange,

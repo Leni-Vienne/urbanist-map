@@ -1,12 +1,12 @@
-// AI : Centralized registry for all Leaflet layer references (image overlays + markers).
-// AI : This is the single source of truth for "is this overlay rendered on the map?".
-// AI : Replaces: overlaysBeingCreated Set, overlayStore.allMarkers, overlay.overlay field,
-// AI :           and overlay.marker field on OverlayObject.
-// AI :
-// AI : Design principles:
-// AI :   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
-// AI :   - All creation goes through beginCreation() — atomically prevents duplicate layers
-// AI :   - clearAll() is the single cleanup path, replacing map.eachLayer() eachLayer sweeps
+// Centralized registry for all Leaflet layer references (image overlays + markers).
+// This is the single source of truth for "is this overlay rendered on the map?".
+// Replaces: overlaysBeingCreated Set, overlayStore.allMarkers, overlay.overlay field,
+//           and overlay.marker field on OverlayObject.
+//
+// Design principles:
+//   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
+//   - All creation goes through beginCreation() — atomically prevents duplicate layers
+//   - clearAll() is the single cleanup path, replacing map.eachLayer() eachLayer sweeps
 import type * as L from "leaflet";
 import { map } from "@/services/core/map";
 
@@ -16,14 +16,14 @@ interface RegistryEntry {
 }
 
 const entries = new Map<string, RegistryEntry>();
-// AI : Tracks IDs currently being created — replaces the exported overlaysBeingCreated Set.
-// AI : Internal to this module; callers use beginCreation/cancelCreation API.
+// Tracks IDs currently being created — replaces the exported overlaysBeingCreated Set.
+// Internal to this module; callers use beginCreation/cancelCreation API.
 const creating = new Set<string>();
 
 // ─── Creation mutex ───────────────────────────────────────────────────────────
 
 /**
- * AI : Atomically begin creation for an overlay.
+ * Atomically begin creation for an overlay.
  * Returns true if creation can proceed, false if:
  *   - Already being created (prevents duplicate async callbacks)
  *   - Already has a ready layer (prevents re-creation)
@@ -65,7 +65,7 @@ export function hasReadyLayer(id: string): boolean {
 }
 
 /**
- * AI : Null the layer reference without touching the marker.
+ * Null the layer reference without touching the marker.
  * Used after the Leaflet layer has already been removed from the map (zoom threshold).
  */
 export function clearLayer(id: string): void {
@@ -93,7 +93,7 @@ export function getMarker(id: string): L.Marker | null {
 // ─── Full entry lifecycle ─────────────────────────────────────────────────────
 
 /**
- * AI : Remove a single overlay's layer and marker from the Leaflet map and clear the entry.
+ * Remove a single overlay's layer and marker from the Leaflet map and clear the entry.
  * Used for targeted cleanup (e.g. overlay deletion, viewport exit).
  */
 export function clearEntry(id: string): void {
@@ -112,7 +112,7 @@ export function clearEntry(id: string): void {
 }
 
 /**
- * AI : Clear all entries from the registry.
+ * Clear all entries from the registry.
  * @param preserveMarkers - If true (zoom threshold crossing), only remove image layers
  *                          and keep marker refs + markers on map.
  *                          If false (default, full reset), remove both layers and markers.
@@ -126,8 +126,8 @@ export function clearAll(preserveMarkers = false): void {
     }
 
     if (preserveMarkers) {
-      // AI : Zoom threshold: null the image layer but keep the marker alive on the map.
-      // AI : This prevents marker flicker when crossing the zoom 13/14 boundary.
+      // Zoom threshold: null the image layer but keep the marker alive on the map.
+      // This prevents marker flicker when crossing the zoom 13/14 boundary.
       entry.layer = null;
     } else {
       if (entry.marker && map.value.hasLayer(entry.marker)) {
@@ -139,7 +139,7 @@ export function clearAll(preserveMarkers = false): void {
 }
 
 /**
- * AI : Rename an entry (used when a local overlay gets a backend ID after submission).
+ * Rename an entry (used when a local overlay gets a backend ID after submission).
  * The Leaflet layer and marker stay on the map — only the registry key changes.
  */
 export function renameEntry(oldId: string, newId: string): void {
@@ -154,7 +154,7 @@ export function renameEntry(oldId: string, newId: string): void {
 }
 
 /**
- * AI : Remove a single overlay's layer from the map without touching the marker.
+ * Remove a single overlay's layer from the map without touching the marker.
  * Used by clearContentExceptActiveCity (zoom out while city is still active).
  */
 export function removeLayerFromMap(id: string): void {
@@ -167,7 +167,7 @@ export function removeLayerFromMap(id: string): void {
 }
 
 /**
- * AI : Remove a single overlay's marker from the map and clear it from the registry.
+ * Remove a single overlay's marker from the map and clear it from the registry.
  * Used by clearContentExceptActiveCity for non-active cities.
  */
 export function removeMarkerFromMap(id: string): void {
@@ -187,7 +187,6 @@ export function getAllLayers(): Array<[string, L.DistortableImageOverlay]> {
   return result;
 }
 
-// AI : Accept HMR updates for this module
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

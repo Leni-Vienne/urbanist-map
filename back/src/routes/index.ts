@@ -8,7 +8,7 @@ import { changesRouter } from "./changes";
 import { authRouter } from "./auth";
 import { adminRouter } from "./admin";
 
-// AI : Main router that combines all sub-routers
+// Main router that combines all sub-routers
 export const appRouter = router({
   auth: authRouter,
   project: projectRouter,
@@ -20,5 +20,5 @@ export const appRouter = router({
   admin: adminRouter,
 });
 
-// AI : Export types
+// Export types
 export type AppRouter = typeof appRouter;

@@ -2,15 +2,15 @@ import { chromium } from "@playwright/test";
 import * as dotenv from "dotenv";
 
 /**
- * AI : Global setup for Playwright tests
+ * Global setup for Playwright tests
  * Handles authentication and state persistence
  */
 async function globalSetup() {
   try {
-    // AI : Load test environment variables
+    // Load test environment variables
     dotenv.config({ path: ".env" });
 
-    // AI : Skip auth setup if no credentials provided
+    // Skip auth setup if no credentials provided
     const email = process.env.TEST_USER_EMAIL;
     const password = process.env.TEST_USER_PASSWORD;
 
@@ -21,24 +21,24 @@ async function globalSetup() {
 
     console.log("Setting up authenticated state for tests...");
 
-    // AI : Setup authenticated browser state
+    // Setup authenticated browser state
     const browser = await chromium.launch();
     const page = await browser.newPage();
 
     try {
-      // AI : Navigate to the app
+      // Navigate to the app
       const baseURL = process.env.TEST_BASE_URL ?? "http://localhost:5173";
       await page.goto(baseURL);
       await page.waitForLoadState("networkidle");
 
-      // AI : Look for sign in button in header (not in modal)
+      // Look for sign in button in header (not in modal)
       const headerSignInButton = page.locator("#mapDiv").getByRole("button", { name: "Sign In" });
 
       if ((await headerSignInButton.count()) > 0) {
         await headerSignInButton.click();
         await page.waitForTimeout(1000);
 
-        // AI : Fill login form in modal
+        // Fill login form in modal
         const emailInput = page.locator('input[type="email"]');
         const passwordInput = page.locator('input[type="password"]');
         const loginButton = page.getByRole("dialog").getByLabel("Sign In");
@@ -48,10 +48,10 @@ async function globalSetup() {
           await passwordInput.fill(password);
           await loginButton.click();
 
-          // AI : Wait for login to complete
+          // Wait for login to complete
           await page.waitForTimeout(3000);
 
-          // AI : Save authenticated state
+          // Save authenticated state
           await page.context().storageState({ path: "tests/auth-state.json" });
           console.log("✅ Authentication state saved successfully");
         }

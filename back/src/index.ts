@@ -6,7 +6,7 @@ import { sessionMiddleware, type Session } from "hono-sessions";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
-import { LocalFileStorage, getThumbnailFilename, compressImage } from "./lib/storage";
+import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config as appConfig } from "./config";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
@@ -24,27 +24,25 @@ import { verifyGoogleToken } from "./utils/googleAuth";
 import { startCleanupJob } from "./services/cleanupService";
 import { startR2MigrationService } from "./services/r2MigrationService";
 
-// AI : Session data type
 type SessionData = {
   user?: {
     id: string;
     email: string;
     username: string | null;
     role: string | null;
-    moderatedCountries: string[] | null; // AI : Array of country codes for moderators
+    moderatedCountries: string[] | null;
     emailVerified: boolean;
   };
   expiresAt?: string;
 };
 
-// AI : Main application setup
 const app = new Hono<{
   Variables: {
     session: Session<SessionData>;
   };
 }>();
 
-// AI : Always use local storage for initial uploads - images migrate to R2 on approval
+// Always use local storage for initial uploads - images migrate to R2 on approval
 const storage = new LocalFileStorage();
 
 const allowedDomains = (process.env.CORS_ORIGIN ?? "")
@@ -73,24 +71,24 @@ app.use(
   }),
 );
 
-// AI : Secure headers (Helmet equivalent)
-// AI : Adds CSP, HSTS, X-Frame-Options, etc.
-// AI : Exclude /uploads/* path from secureHeaders to allow cross-origin resource loading
+// Secure headers (Helmet equivalent)
+// Adds CSP, HSTS, X-Frame-Options, etc.
+// Exclude /uploads/* path from secureHeaders to allow cross-origin resource loading
 app.use("*", async (c, next) => {
   if (c.req.path.startsWith("/uploads/")) {
-    // AI : Skip secureHeaders for uploads to allow custom CORS/CORP headers
+    // Skip secureHeaders for uploads to allow custom CORS/CORP headers
     return next();
   }
   return secureHeaders()(c, next);
 });
 
-// AI : CRITICAL: Health check endpoint MUST be before session middleware
-// AI : Caddy polls this every 30 seconds - we don't want to create sessions for health checks!
+// CRITICAL: Health check endpoint MUST be before session middleware
+// Caddy polls this every 30 seconds - we don't want to create sessions for health checks!
 app.get("/api/health", (c) => {
   const timestamp = new Date().toISOString();
 
-  // AI : Log health check at info level for Grafana heartbeat monitoring
-  // AI : Caddy polls every 30s - these logs are used to detect service downtime
+  // Log health check at info level for Grafana heartbeat monitoring
+  // Caddy polls every 30s - these logs are used to detect service downtime
   logger.info(
     {
       method: "GET",
@@ -104,12 +102,11 @@ app.get("/api/health", (c) => {
   return c.json({ status: "ok", timestamp });
 });
 
-// AI : Database-backed session store using Drizzle ORM for persistence across server restarts
-const store = new DrizzleSessionStore();
+// Session duration constants
+const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
+const SESSION_DURATION_LONG = 30 * 24 * 60 * 60; // 30 days for "Remember Me"
 
-// AI : Session duration constants
-const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // AI : 7 days for regular login
-const SESSION_DURATION_LONG = 30 * 24 * 60 * 60; // AI : 30 days for "Remember Me"
+const store = new DrizzleSessionStore();
 
 app.use(
   "*",
@@ -117,22 +114,22 @@ app.use(
     store,
     sessionCookieName: "session",
     encryptionKey: process.env.JWT_SECRET ?? "fallback-secret-key-for-dev-at-least-32-chars",
-    expireAfterSeconds: SESSION_DURATION_LONG, // AI : Max duration, actual duration set per login
+    expireAfterSeconds: SESSION_DURATION_LONG, // Max duration, actual duration set per login
     cookieOptions: {
       httpOnly: true,
-      // AI : secure must be true when sameSite is 'None' for cross-site cookies
+      // secure must be true when sameSite is 'None' for cross-site cookies
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-      // AI : No domain restriction to allow the cookie to work with the backend domain
+      // No domain restriction to allow the cookie to work with the backend domain
       path: "/",
     },
   }),
 );
 
-// AI : Request logging middleware (after session middleware)
+// Request logging middleware (after session middleware)
 app.use("*", requestLogger);
 
-// AI : tRPC routes
+// tRPC routes
 app.use(
   "/trpc/*",
   trpcServer({
@@ -148,22 +145,13 @@ app.use(
   }),
 );
 
-// AI : Helper function to enforce minimum execution time
-async function enforceMinExecutionTime(startTime: number) {
-  const MIN_EXEC_TIME = 200; // 200ms target duration
-  const elapsed = Date.now() - startTime;
-  if (elapsed < MIN_EXEC_TIME) {
-    await Bun.sleep(MIN_EXEC_TIME - elapsed);
-  }
-}
-
-// AI : Auth routes using Hono (for session management)
+// Auth routes using Hono (for session management)
 app.post("/api/login", async (c) => {
-  // AI : Measure start time to enforce constant time response
+  // Measure start time to enforce constant time response
   const startTime = Date.now();
 
   try {
-    // AI : Rate limit: 10 attempts per IP per minute
+    // Rate limit: 10 attempts per IP per minute
     const ip = getClientIp(c);
     if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" }, 429);
@@ -171,7 +159,7 @@ app.post("/api/login", async (c) => {
 
     const body = await c.req.json();
 
-    // AI : Validate request body with Zod
+    // Validate request body with Zod
     const validationResult = loginSchema.safeParse(body);
     if (!validationResult.success) {
       const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
@@ -180,45 +168,45 @@ app.post("/api/login", async (c) => {
 
     const { email, password, rememberMe } = validationResult.data;
 
-    // AI : Find user (same logic as tRPC route)
+    // Find user (same logic as tRPC route)
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
-    // AI : SECURITY: Mitigate timing attack
+    // SECURITY: Mitigate timing attack
     // Always perform password verification even if user doesn't exist
     // This ensures consistent response time (~80ms) for both valid and invalid emails
     const dummyHash =
       "$argon2id$v=19$m=65536,t=2,p=1$WzgfyslW80m4IOmzoEo0MiRnRnyqnFVzaFLp/S1kQIQ$RO1WV3KLiIMekWVluRf8a2oDncmEoVmUPD9MCN1wMd4";
     const targetHash = user?.passwordHash ?? dummyHash;
 
-    // AI : Verify password (always executed)
+    // Verify password (always executed)
     const isValidPassword = await Bun.password.verify(password, targetHash);
 
-    // AI : Now check user existence and validity
+    // Now check user existence and validity
     if (!user?.passwordHash || !isValidPassword) {
-      // AI : Check if it was an OAuth account (only if user exists, but we return generic error anyway)
+      // Check if it was an OAuth account (only if user exists, but we return generic error anyway)
       if (user && !user.passwordHash) {
-        // AI : Still wait for min time before returning
+        // Still wait for min time before returning
         await enforceMinExecutionTime(startTime);
         return c.json({ error: "auth.error.accountUsesGoogleSignIn" }, 401);
       }
 
-      // AI : Still wait for min time before returning
+      // Still wait for min time before returning
       await enforceMinExecutionTime(startTime);
       return c.json({ error: "auth.error.invalidCredentials" }, 401);
     }
 
-    // AI : Check if email is verified
+    // Check if email is verified
     if (!user.emailVerified) {
-      // AI : Still wait for min time before returning
+      // Still wait for min time before returning
       await enforceMinExecutionTime(startTime);
       return c.json({ error: "auth.error.emailNotVerified" }, 403);
     }
 
-    // AI : Set session with full user data
+    // Set session with full user data
     setUserSession(c, user, rememberMe);
 
-    // AI : Constant time mitigation: Ensure request takes at least MIN_EXEC_TIME ms
-    // AI : This masks the difference between DB lookup times (found vs not found)
+    // Constant time mitigation: Ensure request takes at least MIN_EXEC_TIME ms
+    // This masks the difference between DB lookup times (found vs not found)
     await enforceMinExecutionTime(startTime);
 
     return c.json({
@@ -236,14 +224,14 @@ app.post("/api/login", async (c) => {
   } catch (error) {
     console.error("Login error:", error);
 
-    // AI : Even on error, try to maintain timing if possible
+    // Even on error, try to maintain timing if possible
     await enforceMinExecutionTime(startTime);
 
     return c.json({ error: "auth.error.loginFailed" }, 500);
   }
 });
 
-// AI : Helper function to validate Google login request
+// Helper function to validate Google login request
 async function validateGoogleLoginRequest(body: unknown) {
   const googleLoginSchema = z.object({
     token: z.string().min(1, "Google token is required"),
@@ -259,7 +247,7 @@ async function validateGoogleLoginRequest(body: unknown) {
   return validationResult.data;
 }
 
-// AI : Helper function to update existing user's email if changed on Google's side
+// Helper function to update existing user's email if changed on Google's side
 async function updateExistingUserEmail(existingUser: any, newEmail: string) {
   if (existingUser.email !== newEmail) {
     try {
@@ -272,7 +260,7 @@ async function updateExistingUserEmail(existingUser: any, newEmail: string) {
         })
         .where(eq(users.id, existingUser.id));
 
-      // AI : Refetch updated user
+      // Refetch updated user
       const [updatedUser] = await db
         .select()
         .from(users)
@@ -280,7 +268,7 @@ async function updateExistingUserEmail(existingUser: any, newEmail: string) {
         .limit(1);
       return updatedUser;
     } catch (error: any) {
-      // AI : Check for unique constraint violation (email taken)
+      // Check for unique constraint violation (email taken)
       if (
         error.code === "23505" ||
         error.message?.includes("unique constraint") ||
@@ -297,7 +285,7 @@ async function updateExistingUserEmail(existingUser: any, newEmail: string) {
   return existingUser;
 }
 
-// AI : Helper function to link Google account to existing password-based account
+// Helper function to link Google account to existing password-based account
 async function linkGoogleToPasswordAccount(emailUser: any, googleId: string) {
   await db
     .update(users)
@@ -315,9 +303,9 @@ async function linkGoogleToPasswordAccount(emailUser: any, googleId: string) {
   };
 }
 
-// AI : Helper function to create new Google OAuth user.
-// AI : Uses insert-and-retry on username unique constraint violation to avoid
-// AI : the TOCTOU race condition of the previous check-then-insert approach.
+// Helper function to create new Google OAuth user.
+// Uses insert-and-retry on username unique constraint violation to avoid
+// the TOCTOU race condition of the previous check-then-insert approach.
 async function createGoogleUser(googleUser: { email: string; name: string; googleId: string }) {
   const baseUsername = googleUser.name;
   let username = baseUsername;
@@ -338,7 +326,7 @@ async function createGoogleUser(googleUser: { email: string; name: string; googl
         .returning();
       return newUser;
     } catch (error: any) {
-      // AI : Retry only on username uniqueness conflict (constraint name from Drizzle: users_username_unique)
+      // Retry only on username uniqueness conflict (constraint name from Drizzle: users_username_unique)
       if (error.code === "23505" && error.constraint === "users_username_unique") {
         username = `${baseUsername}${counter}`;
         counter += 1;
@@ -349,13 +337,13 @@ async function createGoogleUser(googleUser: { email: string; name: string; googl
   }
 }
 
-// AI : Helper function to find or create user from Google authentication
+// Helper function to find or create user from Google authentication
 async function findOrCreateGoogleUser(googleUser: {
   email: string;
   name: string;
   googleId: string;
 }) {
-  // AI : SECURE: First check by googleId (not email!)
+  // SECURE: First check by googleId (not email!)
   const [existingUser] = await db
     .select()
     .from(users)
@@ -363,11 +351,11 @@ async function findOrCreateGoogleUser(googleUser: {
     .limit(1);
 
   if (existingUser) {
-    // AI : User found by Google ID - update email if changed on Google's side
+    // User found by Google ID - update email if changed on Google's side
     return await updateExistingUserEmail(existingUser, googleUser.email);
   }
 
-  // AI : No user found by Google ID - check if email exists with different auth method
+  // No user found by Google ID - check if email exists with different auth method
   const [emailUser] = await db
     .select()
     .from(users)
@@ -376,22 +364,22 @@ async function findOrCreateGoogleUser(googleUser: {
 
   if (emailUser) {
     if (emailUser.googleId) {
-      // AI : SECURITY: Email already linked to a different Google account
+      // SECURITY: Email already linked to a different Google account
       throw Object.assign(new Error("auth.error.emailLinkedToDifferentGoogle"), {
         statusCode: 409,
         action: "account_conflict",
       });
     }
 
-    // AI : SECURE AUTO-LINKING: Link Google account to existing password account
+    // SECURE AUTO-LINKING: Link Google account to existing password account
     return await linkGoogleToPasswordAccount(emailUser, googleUser.googleId);
   }
 
-  // AI : Create new Google OAuth user
+  // Create new Google OAuth user
   return await createGoogleUser(googleUser);
 }
 
-// AI : Helper function to set user session
+// Helper function to set user session
 function setUserSession(c: Context, user: any, rememberMe: boolean) {
   const session = c.get("session");
 
@@ -410,10 +398,10 @@ function setUserSession(c: Context, user: any, rememberMe: boolean) {
   session.set("expiresAt", expiresAt.toISOString());
 }
 
-// AI : Google OAuth login endpoint
+// Google OAuth login endpoint
 app.post("/api/google-login", async (c) => {
   try {
-    // AI : Rate limit: 20 attempts per IP per minute (slightly higher for OAuth)
+    // Rate limit: 20 attempts per IP per minute (slightly higher for OAuth)
     const ip = getClientIp(c);
     if (!globalRateLimiter.check(ip, 20, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" }, 429);
@@ -422,17 +410,17 @@ app.post("/api/google-login", async (c) => {
     const body = await c.req.json();
     const { token, rememberMe } = await validateGoogleLoginRequest(body);
 
-    // AI : Verify Google token
+    // Verify Google token
     const googleUser = await verifyGoogleToken(token);
 
     if (!googleUser) {
       return c.json({ error: "auth.error.invalidGoogleToken" }, 401);
     }
 
-    // AI : Find existing user or create new one
+    // Find existing user or create new one
     const user = await findOrCreateGoogleUser(googleUser);
 
-    // AI : Set session
+    // Set session
     setUserSession(c, user, rememberMe);
 
     return c.json({
@@ -450,7 +438,7 @@ app.post("/api/google-login", async (c) => {
   } catch (error: any) {
     console.error("Google login error:", error);
 
-    // AI : Handle account conflict error or validation error with explicit status code
+    // Handle account conflict error or validation error with explicit status code
     if (error.statusCode) {
       return c.json(
         {
@@ -461,7 +449,7 @@ app.post("/api/google-login", async (c) => {
       );
     }
 
-    // AI : Handle unexpected errors securely (don't leak raw error message)
+    // Handle unexpected errors securely (don't leak raw error message)
     return c.json({ error: "auth.error.googleAuthFailed" }, 500);
   }
 });
@@ -482,7 +470,7 @@ app.get("/api/check-session", async (c) => {
     const session = c.get("session");
     const sessionUser = session.get("user");
 
-    // AI : Fetch config for info message (if exists)
+    // Fetch config for info message (if exists)
     const [dbConfig] = await db.select().from(config).where(eq(config.id, 1)).limit(1);
 
     return c.json({
@@ -493,7 +481,7 @@ app.get("/api/check-session", async (c) => {
     });
   } catch (error) {
     console.error("Error fetching session:", error);
-    // AI : Return session info even if config fetch fails
+    // Return session info even if config fetch fails
     const session = c.get("session");
     const sessionUser = session.get("user");
     return c.json({
@@ -505,17 +493,17 @@ app.get("/api/check-session", async (c) => {
   }
 });
 
-// AI : File upload endpoint
+// File upload endpoint
 app.post("/api/upload-image", async (c) => {
   try {
-    // AI : Rate limit: 10 uploads per IP per minute
+    // Rate limit: 10 uploads per IP per minute
     const ip = getClientIp(c);
     if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" } as FileUploadError, 429);
     }
 
-    // AI : Require authentication
-    // AI : Uploads are only allowed for logged-in users to prevent anonymous spam
+    // Require authentication
+    // Uploads are only allowed for logged-in users to prevent anonymous spam
     const session = c.get("session");
     const user = session.get("user");
     if (!user) {
@@ -530,7 +518,7 @@ app.post("/api/upload-image", async (c) => {
       return c.json({ error: "No file provided" } as FileUploadError, 400);
     }
 
-    // AI : Validate file with Zod
+    // Validate file with Zod
     const validationResult = imageFileSchema.safeParse({
       size: file.size,
       type: file.type,
@@ -546,14 +534,14 @@ app.post("/api/upload-image", async (c) => {
       return c.json({ error: errorMessage } as FileUploadError, 400);
     }
 
-    // AI : Extract file extension for filename generation
+    // Extract file extension for filename generation
     const lastDot = file.name.lastIndexOf(".");
     const fileExtension =
       lastDot !== -1 && lastDot !== file.name.length - 1
         ? file.name.slice(lastDot + 1).toLowerCase()
         : null;
 
-    // AI : Ensure we have a valid extension (this should not fail due to Zod validation)
+    // Ensure we have a valid extension (this should not fail due to Zod validation)
     if (!fileExtension) {
       logger.warn({ fileName: file.name }, "Upload failed: Invalid file extension");
       return c.json({ error: "Invalid file extension" } as FileUploadError, 400);
@@ -561,15 +549,15 @@ app.post("/api/upload-image", async (c) => {
 
     const originalBuffer = await file.arrayBuffer();
 
-    // AI : Smart compression: convert to WebP at quality 90, but keep original if it's smaller
-    // AI : This prevents double-compression artifacts on already-optimized images
-    const compressionResult = await compressImage(originalBuffer, fileExtension);
+    // Smart compression: convert to WebP at quality 90, but keep original if it's smaller
+    // This prevents double-compression artifacts on already-optimized images
+    const compressionResult = await compressImageIfNeeded(originalBuffer, fileExtension);
 
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const filename = `${timestamp}-${randomString}.${compressionResult.extension}`;
 
-    // AI : Log compression results for monitoring (structured logging for Grafana)
+    // Log compression results for monitoring (structured logging for Grafana)
     const savings = compressionResult.originalSize - compressionResult.finalSize;
     const savingsPercent =
       compressionResult.originalSize > 0
@@ -593,11 +581,11 @@ app.post("/api/upload-image", async (c) => {
         : `Image kept original: ${file.name} (${compressionResult.extension}), compressed version was not smaller`,
     );
 
-    // AI : Save to local storage - images are not uploaded to R2 until moderator approval
-    // AI : LocalFileStorage.put also automatically generates 120x120 thumbnail
+    // Save to local storage - images are not uploaded to R2 until moderator approval
+    // LocalFileStorage.put also automatically generates 120x120 thumbnail
     await storage.put(filename, compressionResult.buffer);
 
-    // AI : Always return local URL - images stay in local storage until approved
+    // Always return local URL - images stay in local storage until approved
     const imageUrl = `/uploads/${filename}`;
     const thumbnailUrl = `/uploads/${getThumbnailFilename(filename)}`;
 
@@ -613,14 +601,14 @@ app.post("/api/upload-image", async (c) => {
   }
 });
 
-// AI : Serve uploaded files with authorization
-// AI : Pending images are only accessible to: author, country moderators, and admins
-// AI : Approved images are public (legacy support for approved images still in local storage)
+// Serve uploaded files with authorization
+// Pending images are only accessible to: author, country moderators, and admins
+// Approved images are public (legacy support for approved images still in local storage)
 app.get("/uploads/*", async (c) => {
   try {
     const filename = c.req.path.replace("/uploads/", "");
 
-    // AI : Validate filename parameter with Zod
+    // Validate filename parameter with Zod
     const validationResult = filenameParamSchema.safeParse({ filename });
     if (!validationResult.success) {
       const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
@@ -629,12 +617,12 @@ app.get("/uploads/*", async (c) => {
 
     const validatedFilename = validationResult.data.filename;
 
-    // AI : Extract actual filename (strip thumbnails/ prefix if present)
+    // Extract actual filename (strip thumbnails/ prefix if present)
     const actualFilename = validatedFilename.startsWith("thumbnails/")
       ? validatedFilename.replace("thumbnails/", "")
       : validatedFilename;
 
-    // AI : Query overlay info for authorization check
+    // Query overlay info for authorization check
     const overlayInfo = await db
       .select({
         authorId: overlays.authorId,
@@ -647,7 +635,7 @@ app.get("/uploads/*", async (c) => {
       .where(eq(overlays.filename, actualFilename))
       .limit(1);
 
-    // AI : If overlay doesn't exist in DB, file not found
+    // If overlay doesn't exist in DB, file not found
     if (overlayInfo.length === 0) {
       return c.json({ error: "File not found" }, 404);
     }
@@ -658,12 +646,12 @@ app.get("/uploads/*", async (c) => {
       return c.json({ error: "File not found" }, 404);
     }
 
-    // AI : Authorization logic
-    // AI : Approved images are public (legacy support)
+    // Authorization logic
+    // Approved images are public (legacy support)
     if (overlay.status === "approved") {
-      // AI : Allow access - approved images are public
+      // Allow access - approved images are public
     } else {
-      // AI : Pending/rejected images require authentication
+      // Pending/rejected images require authentication
       const session = c.get("session");
       const user = session.get("user");
 
@@ -671,7 +659,7 @@ app.get("/uploads/*", async (c) => {
         return c.json({ error: "Authentication required" }, 401);
       }
 
-      // AI : Check authorization for pending/rejected images
+      // Check authorization for pending/rejected images
       const isAuthor = user.id === overlay.authorId;
       const isAdmin = user.role === "admin" || user.moderatedCountries === null;
       const isCountryModerator = user.moderatedCountries?.includes(overlay.countryCode);
@@ -681,11 +669,11 @@ app.get("/uploads/*", async (c) => {
       }
     }
 
-    // AI : User is authorized, serve the file
+    // User is authorized, serve the file
     const file = await storage.get(validatedFilename);
 
     if (file) {
-      // AI : Get origin from request for CORS (must match exact origin to allow credentials)
+      // Get origin from request for CORS (must match exact origin to allow credentials)
       const origin = c.req.header("Origin");
       const allowedOrigin = origin ?? "*"; // Fallback to * if no origin header
 
@@ -694,12 +682,12 @@ app.get("/uploads/*", async (c) => {
           "Content-Type": file.contentType ?? "application/octet-stream",
           "Cache-Control": "public, max-age=31536000, must-revalidate",
           ETag: `"${filename}-${Date.now()}"`,
-          // AI : CRITICAL: Must use specific origin (not *) to allow credentials (session cookies)
+          // CRITICAL: Must use specific origin (not *) to allow credentials (session cookies)
           "Access-Control-Allow-Origin": allowedOrigin,
           "Access-Control-Allow-Credentials": "true",
           "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
-          // AI : Allow cross-origin resource loading (overrides secureHeaders middleware)
+          // Allow cross-origin resource loading (overrides secureHeaders middleware)
           "Cross-Origin-Resource-Policy": "cross-origin",
         },
       });
@@ -712,12 +700,12 @@ app.get("/uploads/*", async (c) => {
   }
 });
 
-// AI : Only serve frontend files in development mode
+// Only serve frontend files in development mode
 if (process.env.NODE_ENV === "development") {
-  // AI : Static file serving for frontend
+  // Static file serving for frontend
   app.use("*", serveStatic({ root: "./front/dist" }));
 
-  // AI : SPA fallback - serve index.html for client-side routing
+  // SPA fallback - serve index.html for client-side routing
   app.notFound(async (c) => {
     try {
       const indexFile = Bun.file("./front/dist/index.html");
@@ -730,7 +718,16 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-// AI : Zod validation schemas
+// Helper function to enforce minimum execution time to mitigate timing attacks
+async function enforceMinExecutionTime(startTime: number) {
+  const MIN_EXEC_TIME = 200; // 200ms target duration
+  const elapsed = Date.now() - startTime;
+  if (elapsed < MIN_EXEC_TIME) {
+    await Bun.sleep(MIN_EXEC_TIME - elapsed);
+  }
+}
+
+// Zod validation schemas
 const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(1, "Password is required"),
@@ -753,13 +750,13 @@ const imageFileSchema = z.object({
   name: z.string().optional(),
 });
 
-// AI : Generate missing thumbnails on startup
+// Generate missing thumbnails on startup
 // This runs asynchronously and doesn't block server startup
 generateMissingThumbnails().catch((error) => {
   console.error("Failed to generate missing thumbnails:", error);
 });
 
-// AI : Start error alerting service
+// Start error alerting service
 errorAlerter.start();
 startCleanupJob();
 startR2MigrationService();
