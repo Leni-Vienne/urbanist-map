@@ -116,11 +116,11 @@
         "
       >
         <div
-          class="group flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer transition-all duration-150 active:scale-[0.98]"
+          class="group flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer transition-all duration-150 active:scale-[0.98] rounded-xl"
           :class="
             getOverlayChangeRequestsForOverlay(overlay.id).length > 0
               ? 'pending-overlay-hover'
-              : 'hover:bg-content-hover-background active:bg-content-hover-background'
+              : 'hover:bg-white dark:hover:bg-white/10 active:bg-white dark:active:bg-white/10'
           "
           @click="handleOverlayCardClick(overlay, true)"
           @mouseenter="$emit('highlight-overlay', overlay.id)"
