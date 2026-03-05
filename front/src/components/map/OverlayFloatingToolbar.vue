@@ -10,7 +10,7 @@
       @touchstart.stop
     >
       <div
-        class="flex items-center gap-0.5 bg-content-background border border-surface rounded-2.5 py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
+        class="flex items-center gap-0.5 bg-content-background border border-surface rounded-lg py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
       >
         <!-- Info toggle -->
         <button

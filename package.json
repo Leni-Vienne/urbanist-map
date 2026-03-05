@@ -37,14 +37,14 @@
     "@hono/trpc-server": "^0.4.2",
     "@primeuix/themes": "^2.0.3",
     "@tailwindcss/vite": "^4.2.1",
-    "@trpc/client": "^11.10.0",
-    "@trpc/server": "^11.10.0",
+    "@trpc/client": "^11.11.0",
+    "@trpc/server": "^11.11.0",
     "drizzle-orm": "^0.45.1",
     "google-auth-library": "^10.6.1",
-    "hono": "^4.12.3",
+    "hono": "^4.12.5",
     "hono-sessions": "^0.8.1",
     "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
-    "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar",
+    "leaflet-toolbar": "git+https://github.com/Leni-Vienne/Leaflet.toolbar.git",
     "nodemailer": "^8.0.1",
     "pinia": "^3.0.4",
     "pino": "^10.3.1",
@@ -64,10 +64,10 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260305.0",
+    "@cloudflare/workers-types": "^4.20260305.1",
     "@playwright/test": "^1.58.2",
     "@primevue/auto-import-resolver": "^4.5.4",
-    "@types/bun": "^1.3.9",
+    "@types/bun": "^1.3.10",
     "@types/cors": "^2.8.19",
     "@types/geojson": "^7946.0.16",
     "@types/leaflet": "^1.9.21",
@@ -81,18 +81,18 @@
     "husky": "^9.1.7",
     "jscpd": "^4.0.8",
     "jsdom": "^28.1.0",
-    "lint-staged": "^16.2.7",
+    "lint-staged": "^16.3.2",
     "madge": "^8.0.0",
-    "oxfmt": "^0.35.0",
-    "oxlint": "^1.50.0",
-    "oxlint-tsgolint": "^0.15.0",
-    "rollup-plugin-visualizer": "^7.0.0",
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
+    "oxlint-tsgolint": "^0.16.0",
+    "rollup-plugin-visualizer": "^7.0.1",
     "unplugin-vue-components": "^31.0.0",
-    "vite-plugin-vue-devtools": "^8.0.6",
+    "vite-plugin-vue-devtools": "^8.0.7",
     "vitest": "^4.0.18"
   },
   "overrides": {
-    "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar"
+    "leaflet-toolbar": "github:Leni-vienne/Leaflet.toolbar"
   },
   "lint-staged": {
     "*": "bunx oxfmt --no-error-on-unmatched-pattern"

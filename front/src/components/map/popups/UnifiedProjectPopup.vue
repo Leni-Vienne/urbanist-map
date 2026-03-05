@@ -23,7 +23,7 @@
               </span>
               <button
                 v-if="!viewMode && user"
-                class="text-xs italic text-primary-400 hover:text-primary-700 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
+                class="text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
                 @click="emit('edit-overlay', overlay)"
               >
                 {{ $t("common.edit") }}
@@ -32,7 +32,7 @@
                 v-if="
                   !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
                 "
-                class="text-xs italic text-red-400 hover:text-red-600 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
+                class="text-xs italic text-red-400 hover:text-red-600 dark:hover:text-red-300 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
                 @click="emit('delete-overlay', overlay)"
               >
                 {{ $t("common.delete") }}
@@ -42,31 +42,34 @@
           <!-- Right: project action buttons -->
           <div class="flex gap-1 shrink-0">
             <!-- Edit button (owned = direct edit, non-owned = suggest changes) -->
-            <Button
+            <button
               v-if="!viewMode && project && user"
-              icon="pi pi-pencil"
-              :class="['p-button-sm', 'p-button-text']"
+              class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
               @click="emit('edit-project', project)"
               v-tooltip.top="
                 project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
               "
-            />
+            >
+              <i class="pi pi-pencil"></i>
+            </button>
             <!-- Delete button (for unsubmitted projects or pending projects owned by user) -->
-            <Button
+            <button
               v-if="canDeleteProject"
-              icon="pi pi-trash"
-              :class="['p-button-sm', 'p-button-text', 'p-button-danger']"
+              class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
               @click="emit('delete-project', project)"
               v-tooltip.top="$t('contribute.deleteProject')"
-            />
+            >
+              <i class="pi pi-trash"></i>
+            </button>
             <!-- Close button (only for project-only view) -->
-            <Button
+            <button
               v-if="!overlay"
-              icon="pi pi-times"
-              class="p-button-sm p-button-text p-button-secondary"
+              class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color hover:text-color hover:bg-content-hover-background"
               @click="emit('close-popup')"
               v-tooltip.top="$t('common.close')"
-            />
+            >
+              <i class="pi pi-times"></i>
+            </button>
           </div>
         </div>
       </div>
