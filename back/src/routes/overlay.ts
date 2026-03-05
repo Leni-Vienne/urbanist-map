@@ -130,7 +130,7 @@ export const overlayRouter = router({
         const overlayContributions = latestOverlays.map((o) => ({
           type: "overlay" as const,
           id: o.id,
-          name: o.caption || o.projectName, // fallback to project name if caption is missing
+          name: o.caption ?? o.projectName, // fallback to project name if caption is missing
           filename: o.filename,
           updatedAt: o.updatedAt,
           cityId: o.cityId,
@@ -192,7 +192,7 @@ export const overlayRouter = router({
         .where(and(...whereConditions))
         .limit(1);
 
-      if (!overlay.length) {
+      if (overlay.length === 0) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
       }
 

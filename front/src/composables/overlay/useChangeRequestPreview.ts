@@ -108,7 +108,12 @@ export function useChangeRequestPreview() {
     const needsEditMode = overlayStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
       switchMode("edit");
-      await new Promise<void>((resolve) => void setTimeout(() => resolve(), 100));
+      await new Promise<void>(
+        (resolve) =>
+          void setTimeout(() => {
+            resolve();
+          }, 100),
+      );
     }
 
     // Step 3: Clear map and load cities for the country
@@ -134,7 +139,12 @@ export function useChangeRequestPreview() {
     );
 
     // Wait for overlays to render
-    await new Promise<void>((resolve) => void setTimeout(() => resolve(), 400));
+    await new Promise<void>(
+      (resolve) =>
+        void setTimeout(() => {
+          resolve();
+        }, 400),
+    );
 
     // Check if overlay loaded successfully
     overlayObject = overlayStore.overlays[overlayForModeration.id];
@@ -154,7 +164,12 @@ export function useChangeRequestPreview() {
         (o) => o.id === overlayForModeration.id,
       );
       if (overlayInMapStore) {
-        await new Promise<void>((resolve) => void setTimeout(() => resolve(), 500));
+        await new Promise<void>(
+          (resolve) =>
+            void setTimeout(() => {
+              resolve();
+            }, 500),
+        );
         overlayObject = overlayStore.overlays[overlayForModeration.id];
       }
     }
@@ -207,13 +222,12 @@ export function useChangeRequestPreview() {
       return overlayObject.suggestedCorners.map((c: { lat: number; lng: number }) =>
         L.latLng(c.lat, c.lng),
       );
-    } else {
-      // Show approved position (always in corners field)
-      if (overlayObject.corners.length !== 4) {
-        return null;
-      }
-      return overlayObject.corners.map((c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng));
     }
+    // Show approved position (always in corners field)
+    if (overlayObject.corners.length !== 4) {
+      return null;
+    }
+    return overlayObject.corners.map((c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng));
   }
 
   // Apply position preview to loaded overlay

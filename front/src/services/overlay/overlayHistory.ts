@@ -135,7 +135,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   // Check if current state is different from last saved state
   if (overlayObject.history.length > 0) {
-    const lastState = overlayObject.history[overlayObject.history.length - 1];
+    const lastState = overlayObject.history.at(-1);
     const currentStateStr = JSON.stringify(currentState);
     const lastStateStr = JSON.stringify(lastState);
 

@@ -352,7 +352,7 @@ async function findOrCreateGoogleUser(googleUser: {
 
   if (existingUser) {
     // User found by Google ID - update email if changed on Google's side
-    return await updateExistingUserEmail(existingUser, googleUser.email);
+    return updateExistingUserEmail(existingUser, googleUser.email);
   }
 
   // No user found by Google ID - check if email exists with different auth method
@@ -372,11 +372,11 @@ async function findOrCreateGoogleUser(googleUser: {
     }
 
     // SECURE AUTO-LINKING: Link Google account to existing password account
-    return await linkGoogleToPasswordAccount(emailUser, googleUser.googleId);
+    return linkGoogleToPasswordAccount(emailUser, googleUser.googleId);
   }
 
   // Create new Google OAuth user
-  return await createGoogleUser(googleUser);
+  return createGoogleUser(googleUser);
 }
 
 // Helper function to set user session
@@ -554,7 +554,7 @@ app.post("/api/upload-image", async (c) => {
     const compressionResult = await compressImageIfNeeded(originalBuffer, fileExtension);
 
     const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 15);
+    const randomString = Math.random().toString(36).slice(2, 15);
     const filename = `${timestamp}-${randomString}.${compressionResult.extension}`;
 
     // Log compression results for monitoring (structured logging for Grafana)

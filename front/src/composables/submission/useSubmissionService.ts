@@ -500,9 +500,6 @@ export function useSubmissionService() {
       const hasCornersChange = changes.some((c) => c.fieldName === "corners");
 
       if (hasCornersChange) {
-        // Corner changes require full republishing through the useOverlayPublisher
-        const { publishOverlay } = useOverlayPublisher();
-
         // Try multiple store locations for project lookup
         // 1. projects: Active map cache (visible on screen)
         // 2. allProjects: Includes nearby projects not in main city cache
@@ -551,19 +548,13 @@ export function useSubmissionService() {
 
     const changes =
       context.entityType === "project"
-        ? detectProjectChanges(context.entity as Project, customReason)
+        ? detectProjectChanges(context.entity, customReason)
         : (context.changedFields ?? []);
 
     if (context.entityType === "project") {
-      await submitProject(
-        context as Extract<SubmissionContext, { entityType: "project" }>,
-        changes,
-      );
+      await submitProject(context, changes);
     } else {
-      await submitOverlay(
-        context as Extract<SubmissionContext, { entityType: "overlay" }>,
-        changes,
-      );
+      await submitOverlay(context, changes);
     }
   }
 
@@ -654,7 +645,7 @@ export function useSubmissionService() {
     const isExistingProject = project && project.status !== null;
     if (extCtx.projectModified && extCtx.projectId && isExistingProject && project) {
       const projectContext = createProjectContext(project);
-      const projectChanges = detectProjectChanges(projectContext.entity as Project);
+      const projectChanges = detectProjectChanges(projectContext.entity);
       if (projectChanges.length > 0) {
         await submitEntity(projectContext, reason);
         projectStore.updateProject(project.id, { isModified: false });

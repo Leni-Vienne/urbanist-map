@@ -28,7 +28,7 @@ if (import.meta.env.VITE_DEBUG) {
           name: res.name.split("/").pop(),
           size: res.transferSize,
         }))
-        .sort((a, b) => b.size - a.size)
+        .toSorted((a, b) => b.size - a.size)
         .map(({ name, size }) => `${name} | ${(size / 1024).toFixed(2)} kB`)
         .join("\n");
 

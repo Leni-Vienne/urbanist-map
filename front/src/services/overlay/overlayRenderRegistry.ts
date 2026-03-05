@@ -179,8 +179,8 @@ export function removeMarkerFromMap(id: string): void {
   entry.marker = null;
 }
 
-export function getAllLayers(): Array<[string, L.DistortableImageOverlay]> {
-  const result: Array<[string, L.DistortableImageOverlay]> = [];
+export function getAllLayers(): [string, L.DistortableImageOverlay][] {
+  const result: [string, L.DistortableImageOverlay][] = [];
   for (const [id, entry] of entries) {
     if (entry.layer != null) result.push([id, entry.layer]);
   }

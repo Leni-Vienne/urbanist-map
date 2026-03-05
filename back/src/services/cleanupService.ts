@@ -11,11 +11,15 @@ const REJECTED_RETENTION_DAYS = 90;
 
 export function startCleanupJob() {
   // Run immediately on startup
-  runCleanup().catch((error) => logger.error({ error }, "Initial cleanup failed"));
+  runCleanup().catch((error) => {
+    logger.error({ error }, "Initial cleanup failed");
+  });
 
   // Schedule periodic cleanup
   setInterval(() => {
-    runCleanup().catch((error) => logger.error({ error }, "Scheduled cleanup failed"));
+    runCleanup().catch((error) => {
+      logger.error({ error }, "Scheduled cleanup failed");
+    });
   }, CLEANUP_INTERVAL_MS);
 }
 

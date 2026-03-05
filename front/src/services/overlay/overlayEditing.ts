@@ -313,7 +313,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     if (!currentState) return;
 
     redoStack.push(currentState);
-    const previousState = history[history.length - 1];
+    const previousState = history.at(-1);
     if (!previousState) return;
 
     layer.setCorners(previousState);

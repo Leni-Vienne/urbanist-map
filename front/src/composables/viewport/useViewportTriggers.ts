@@ -31,7 +31,7 @@ import {
 } from "@/services/navigation/cityRenderingCore";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import type { OverlayData } from "@/types/index";
-import { type StandaloneProject } from "@/utils/typeFactories";
+import type { StandaloneProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
 
 const isLoading = ref(false);
@@ -353,7 +353,7 @@ export function useViewportTriggers() {
         );
 
         for (const localP of localProjects) {
-          if (!projectsToRender.find((p) => p.id === localP.id)) {
+          if (!projectsToRender.some((p) => p.id === localP.id)) {
             projectsToRender.push(localP);
           }
         }
@@ -443,8 +443,12 @@ export function useViewportTriggers() {
     // Use debounced handler for BOTH moveend and zoomend
     // This prevents duplicate calls when flyTo triggers both events
     // Wrap in arrow function to satisfy TypeScript event handler typing
-    map.value.on("moveend", () => debouncedRefreshViewport());
-    map.value.on("zoomend", () => debouncedRefreshViewport());
+    map.value.on("moveend", () => {
+      debouncedRefreshViewport();
+    });
+    map.value.on("zoomend", () => {
+      debouncedRefreshViewport();
+    });
   }
 
   /**

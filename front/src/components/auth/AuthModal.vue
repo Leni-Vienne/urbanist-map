@@ -392,7 +392,7 @@ async function renderTurnstile() {
   await loadTurnstileScript();
 
   // Check if globalThis.turnstile is available and widget container exists
-  if (globalThis.turnstile && document.getElementById("turnstile-widget")) {
+  if (globalThis.turnstile && document.querySelector("#turnstile-widget")) {
     // Reset if already rendered to avoid duplicates
     if (turnstileWidgetId.value) {
       globalThis.turnstile.remove(turnstileWidgetId.value);
