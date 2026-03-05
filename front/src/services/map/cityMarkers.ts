@@ -35,27 +35,25 @@ async function buildCitiesForCurrentMode(): Promise<CityWithProjects[]> {
   const authStore = useAuthStore();
   const projectStore = useProjectStore();
 
-  // View cities are always fetched first — they are the base set (approved content, visible to everyone)
-  const viewCities = await projectStore.fetchCitiesWithProjects("view");
   // Unauthenticated users always see view mode regardless of store state
   const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
 
   if (currentMode === "view") {
-    return viewCities;
+    return projectStore.fetchCitiesWithProjects("view");
   }
 
-  // Edit/moderation modes are additive: start from approved cities, then union in mode-specific ones
-  const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
+  if (currentMode === "moderation") {
+    // Moderation mode: only show cities that have pending items — no approved-only cities
+    return projectStore.fetchCitiesWithProjects("moderation");
+  }
+
+  // Edit mode: additive — approved cities + user's own pending cities
+  const viewCities = await projectStore.fetchCitiesWithProjects("view");
+  const editCities = await projectStore.fetchCitiesWithProjects("edit");
   const viewCityIds = new Set(viewCities.map((c) => c.id));
-  const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-  let mergedCities = [...viewCities, ...additionalCities];
-
-  // In edit mode, also surface cities from locally created projects not yet submitted to the backend
-  if (currentMode === "edit") {
-    mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
-  }
-
-  return mergedCities;
+  const additionalCities = editCities.filter((c) => !viewCityIds.has(c.id));
+  const mergedCities = [...viewCities, ...additionalCities];
+  return projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
 }
 
 /**
