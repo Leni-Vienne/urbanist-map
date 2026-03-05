@@ -119,7 +119,7 @@
           <!-- and reject overlays even if project is rejected -->
           <ModerationActionButtons
             v-if="overlay.status === 'pending' && project.status !== 'pending'"
-            :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
+            :disabled="Boolean(overlay.replacesOverlayId) && !viewedOverlayIds.includes(overlay.id)"
             :disabled-tooltip="
               overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)
                 ? $t('overlay.viewPositionRequired')
