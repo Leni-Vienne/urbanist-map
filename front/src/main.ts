@@ -17,6 +17,17 @@ import {
 
 // importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement
 const UrbanistmapPreset = definePreset(Aura, {
+  components: {
+    accordion: {
+      header: {
+        // Aura defaults to {text.muted.color} which is low-contrast; use full text color
+        color: "{text.color}",
+        toggleIcon: {
+          color: "{text.color}",
+        },
+      },
+    },
+  },
   semantic: {
     primary: {
       50: "{indigo.50}",

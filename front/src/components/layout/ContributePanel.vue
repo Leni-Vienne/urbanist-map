@@ -6,6 +6,7 @@
     :change-requests="pendingChangeRequests"
     :show-edit-buttons="true"
     :should-switch-to-edit-mode="false"
+    :disable-grouping="showingCityProjects"
     title=""
     panel-class="my-contributions-panel"
     :empty-message="
