@@ -461,6 +461,19 @@ export function useViewportTriggers() {
    * When mode changes, clear loaded cities cache and reload visible cities
    */
   function setupModeWatcher() {
+    // When the cityMarkers mode watcher updates citiesWithProjects with edit/moderation-mode cities
+    // (including cities that have ONLY pending content and were not in view-mode citiesWithProjects),
+    // trigger a viewport refresh so those new cities get loaded without requiring camera movement.
+    // This is the primary fix for: pending overlay/standalone marker invisible after page refresh + tab switch.
+    watch(citiesWithProjects, async () => {
+      // Only needed in non-view modes — view mode's initial refreshViewport handles it.
+      if (overlayStore.mode === "view") return;
+      // force=true: bypass the isLoading guard so it doesn't silently drop if a concurrent
+      // refreshViewport is running. getCityOverlaysAndProjectsCache returns cached data for
+      // already-loaded cities so this doesn't cause redundant network requests.
+      await refreshViewport(true);
+    });
+
     watch(
       () => overlayStore.mode,
       async (newMode, oldMode) => {
@@ -548,6 +561,18 @@ export function useViewportTriggers() {
               addStandaloneProjectMarkerForProject(project);
             }
           }
+        } else {
+          // Race condition: mode switched while the initial page-load fetch was still in-flight.
+          // loadedCityIds is empty because loadCityData hasn't finished yet (it adds the city
+          // only after the async fetch completes). The in-flight fetch will hit the race-condition
+          // guard (overlayStore.mode !== captured mode) and return without rendering.
+          // Force a fresh viewport refresh in the new mode so the correct content appears
+          // without requiring the user to pan or zoom.
+          await refreshViewport(true);
+
+          // Still apply editing state and shortcuts even when no prior content was loaded
+          await updateOverlayEditingState();
+          setupKeyboardShortcuts();
         }
       },
     );
