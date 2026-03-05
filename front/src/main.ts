@@ -103,7 +103,7 @@ window.addEventListener("beforeunload", (event) => {
 app.use(router);
 app.use(i18n);
 
-// @ts-ignore PrimeVue configuration type issue
+// @ts-expect-error PrimeVue configuration type issue
 app.use(PrimeVue, {
   ripple: true,
   inputVariant: "filled",
@@ -121,8 +121,6 @@ app.use(ToastService);
 
 // Load only the active locale before mounting — the other locale chunk is
 // fetched on demand when the user switches language.
-(async function initApp() {
-  const messages = await loadLocaleMessages(currentLocale);
-  i18n.global.setLocaleMessage(currentLocale, messages);
-  app.mount("#app");
-})();
+const messages = await loadLocaleMessages(currentLocale);
+i18n.global.setLocaleMessage(currentLocale, messages);
+app.mount("#app");

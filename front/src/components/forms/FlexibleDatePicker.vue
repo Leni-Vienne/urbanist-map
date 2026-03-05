@@ -129,7 +129,7 @@ const emit = defineEmits<{
   (e: "blur"): void;
 }>();
 
-const groupName = props.uniqueId || `precision-group-${Math.random().toString(36).substring(7)}`;
+const groupName = props.uniqueId || `precision-group-${Math.random().toString(36).slice(7)}`;
 
 // Track if user has interacted with the field to avoid premature validation errors
 const isTouched = ref(false);

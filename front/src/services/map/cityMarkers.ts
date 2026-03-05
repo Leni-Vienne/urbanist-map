@@ -118,7 +118,7 @@ function updateCityMarkerOpacities(selectedCityId: number | null): void {
   cityMarkersStore.cityMarkersLayer.eachLayer((layer) => {
     if (layer instanceof L.Marker) {
       const markerElement = layer.getElement();
-      const cityId = markerElement?.getAttribute("data-city-id");
+      const cityId = markerElement?.dataset.cityId;
 
       if (selectedCityId && Number(cityId) === selectedCityId) {
         layer.setOpacity(MARKER_OPACITY.city.hover);
@@ -249,13 +249,13 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
     marker.on("add", () => {
       const markerElement = marker.getElement();
       if (markerElement) {
-        markerElement.setAttribute("data-testid", `city-marker-${city.id}`);
-        markerElement.setAttribute("data-city-id", String(city.id));
-        markerElement.setAttribute("data-city-name", city.name);
-        markerElement.setAttribute("data-city-name-local", city.nameLocal ?? "");
-        markerElement.setAttribute("data-country-code", city.countryCode);
-        markerElement.setAttribute("data-lat", city.lat.toString());
-        markerElement.setAttribute("data-lng", city.lng.toString());
+        markerElement.dataset.testid = `city-marker-${city.id}`;
+        markerElement.dataset.cityId = String(city.id);
+        markerElement.dataset.cityName = city.name;
+        markerElement.dataset.cityNameLocal = city.nameLocal ?? "";
+        markerElement.dataset.countryCode = city.countryCode;
+        markerElement.dataset.lat = city.lat.toString();
+        markerElement.dataset.lng = city.lng.toString();
       }
     });
 

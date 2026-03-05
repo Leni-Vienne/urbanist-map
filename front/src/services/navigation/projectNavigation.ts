@@ -189,7 +189,11 @@ function zoomToOverlayAndSelect(
           [overlayObj],
           true,
           false,
-          autoSelect ? () => selectOverlay(overlayId) : undefined,
+          autoSelect
+            ? () => {
+                selectOverlay(overlayId);
+              }
+            : undefined,
         );
         if (ourRenderStarted) {
           // Our render is in flight with onReady wired — do NOT poll.
@@ -338,7 +342,12 @@ export async function navigateToStandaloneProject(
     // CRITICAL FIX: Load city data to populate mapStore cache
     await loadAndRenderCityData(cityId, true);
 
-    await new Promise<void>((resolve) => void setTimeout(() => resolve(), 200));
+    await new Promise<void>(
+      (resolve) =>
+        void setTimeout(() => {
+          resolve();
+        }, 200),
+    );
 
     // Request scroll to project in adjacent panels IMMEDIATELY after data is loaded
     if (projectId) {

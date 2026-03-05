@@ -108,7 +108,12 @@ export function useOverlayClickHandler() {
         }
 
         // Wait for edit mode transition to complete and overlays to re-render
-        await new Promise<void>((resolve) => void setTimeout(() => resolve(), 100));
+        await new Promise<void>(
+          (resolve) =>
+            void setTimeout(() => {
+              resolve();
+            }, 100),
+        );
       }
 
       // If overlay has city info, navigate via city (loads city markers and overlays first)

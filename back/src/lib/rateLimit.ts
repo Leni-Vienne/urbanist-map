@@ -4,7 +4,9 @@ class RateLimiter {
 
   constructor(private readonly checkIntervalMs = 60_000) {
     // Clean up expired entries periodically to prevent memory leaks
-    this.cleanupInterval = setInterval(() => this.cleanup(), this.checkIntervalMs);
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup();
+    }, this.checkIntervalMs);
   }
 
   /**
@@ -20,7 +22,7 @@ class RateLimiter {
   check(ip: string, limit: number, windowMs: number, action = "default"): boolean {
     const key = `${ip}:${action}`;
     const now = Date.now();
-    const timestamps = this.hits.get(key) || [];
+    const timestamps = this.hits.get(key) ?? [];
 
     // Filter out timestamps outside the current window
     const validTimestamps = timestamps.filter((ts) => now - ts < windowMs);
@@ -40,7 +42,7 @@ class RateLimiter {
   getRemaining(ip: string, limit: number, windowMs: number, action = "default"): number {
     const key = `${ip}:${action}`;
     const now = Date.now();
-    const timestamps = this.hits.get(key) || [];
+    const timestamps = this.hits.get(key) ?? [];
     const validTimestamps = timestamps.filter((ts) => now - ts < windowMs);
     return Math.max(0, limit - validTimestamps.length);
   }

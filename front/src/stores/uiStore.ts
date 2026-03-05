@@ -136,7 +136,7 @@ export const useUiStore = defineStore("ui", () => {
     projectInfoPopup.value = {
       visible: true,
       projectId,
-      project: project || null,
+      project: project ?? null,
     };
   }
 

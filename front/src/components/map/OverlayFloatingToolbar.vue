@@ -112,7 +112,7 @@ import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
-import { type OverlayObject } from "@/types";
+import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
 import { getLayer, getAllLayers } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
@@ -348,7 +348,7 @@ function readOpacity(): number {
   const layer = getLayer(selectedId.value ?? "");
   const el = layer ? ((layer as any).getElement?.() as HTMLElement | null) : null;
   const attr = el?.getAttribute("opacity");
-  return attr ? Math.round(parseFloat(attr) * 100) : 100;
+  return attr ? Math.round(Number.parseFloat(attr) * 100) : 100;
 }
 
 // Wire info slot as teleport target for PopupContainer's UnifiedProjectPopup
@@ -409,7 +409,7 @@ function toggleInfoPopup() {
 }
 
 function onOpacityInput(e: Event) {
-  const val = parseInt((e.target as HTMLInputElement).value, 10);
+  const val = Number.parseInt((e.target as HTMLInputElement).value, 10);
   opacity.value = val;
   const layer = getLayer(selectedId.value ?? "");
   if (layer) (layer as any).editing._setOpacities(val / 100);

@@ -147,6 +147,8 @@ export function startR2MigrationService(): void {
 
   // Process queue periodically
   setInterval(() => {
-    processQueue().catch((error) => logger.error({ error }, "Error in R2 migration worker"));
+    processQueue().catch((error) => {
+      logger.error({ error }, "Error in R2 migration worker");
+    });
   }, POLL_INTERVAL_MS);
 }
