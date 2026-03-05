@@ -19,7 +19,7 @@
                 :contributor-id="project.ownerId"
                 :contributor-username="project.ownerUsername"
                 :report-count="project.ownerReportCount ?? 0"
-                :clickable="showUserStatsLink && !!project.ownerId"
+                :clickable="showUserStatsLink && Boolean(project.ownerId)"
                 @click-contributor="handleProjectContributorClick"
               />
             </div>
@@ -170,7 +170,7 @@
                 :contributor-id="overlay.authorId"
                 :contributor-username="overlay.authorUsername"
                 :report-count="overlay.authorReportCount ?? 0"
-                :clickable="showUserStatsLink && !!overlay.authorId"
+                :clickable="showUserStatsLink && Boolean(overlay.authorId)"
                 @click-contributor="handleOverlayContributorClick(overlay, $event)"
               />
             </div>

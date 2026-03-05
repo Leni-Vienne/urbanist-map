@@ -4,21 +4,15 @@
   "terminal.integrated.suggest.enabled": true,
   "oxc.fmt.configPath": ".oxfmtrc.json",
   "[typescript]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode", // "oxc.oxc-vscode" to enable, but messes with chatbots
+    "editor.defaultFormatter": "oxc.oxc-vscode", // "oxc.oxc-vscode" to enable
     "editor.formatOnSave": true
   },
   "[vue]": {
-    "editor.defaultFormatter": "Vue.volar", // Vue.volar
+    "editor.defaultFormatter": "oxc.oxc-vscode", // replaces Vue.volar
     "editor.formatOnSave": true
   },
-  // TypeScript behavior for better team feedback
   "typescript.experimental.useTsgo": false,
   "typescript.validate.enable": true,
   "typescript.tsserver.experimental.enableProjectDiagnostics": true,
-  // Cleaner diffs across the team
   "diffEditor.ignoreTrimWhitespace": true
-  /* "CSSNavigation.enableDefinitionCodeLens": true,
-    "CSSNavigation.enableReferenceCodeLens": true,
-    "CSSNavigation.enableClassNameReferenceDiagnostic": true,
-    "CSSNavigation.enableClassNameDefinitionDiagnostic": true,*/
 }

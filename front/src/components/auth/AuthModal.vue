@@ -126,7 +126,7 @@
             v-model="form.email"
             type="email"
             required
-            :invalid="!!emailError"
+            :invalid="Boolean(emailError)"
             :placeholder="$t('auth.enterEmailAddress')"
             autocomplete="email"
             class="w-full"
@@ -173,7 +173,7 @@
             :feedback="!isLoginMode"
             toggleMask
             required
-            :invalid="!!passwordError"
+            :invalid="Boolean(passwordError)"
             :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
             :inputProps="{
               autocomplete: isLoginMode ? 'current-password' : 'new-password',
