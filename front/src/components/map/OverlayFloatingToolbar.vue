@@ -6,11 +6,10 @@
       @click.stop
       @mousedown.stop
       @dblclick.stop
-      @wheel.stop
       @touchstart.stop
     >
       <div
-        class="flex items-center gap-0.5 bg-content-background border border-surface rounded-2.5 py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
+        class="flex items-center gap-0.5 bg-content-background border border-surface rounded-lg py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
       >
         <!-- Info toggle -->
         <button
@@ -111,8 +110,9 @@ import L from "leaflet";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { type OverlayObject } from "@/types";
+import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
 import { getLayer, getAllLayers } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
@@ -127,8 +127,9 @@ const { t } = useI18n();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 const pendingModsStore = usePendingModificationsStore();
-
-const { idSelectedOverlay, mode } = storeToRefs(overlayStore);
+const mapStore = useMapStore();
+const { idSelectedOverlay } = storeToRefs(overlayStore);
+const { mode } = storeToRefs(mapStore);
 const selectedId = idSelectedOverlay;
 const isEditMode = computed(() => mode.value === "edit");
 
@@ -348,7 +349,7 @@ function readOpacity(): number {
   const layer = getLayer(selectedId.value ?? "");
   const el = layer ? ((layer as any).getElement?.() as HTMLElement | null) : null;
   const attr = el?.getAttribute("opacity");
-  return attr ? Math.round(parseFloat(attr) * 100) : 100;
+  return attr ? Math.round(Number.parseFloat(attr) * 100) : 100;
 }
 
 // Wire info slot as teleport target for PopupContainer's UnifiedProjectPopup
@@ -409,7 +410,7 @@ function toggleInfoPopup() {
 }
 
 function onOpacityInput(e: Event) {
-  const val = parseInt((e.target as HTMLInputElement).value, 10);
+  const val = Number.parseInt((e.target as HTMLInputElement).value, 10);
   opacity.value = val;
   const layer = getLayer(selectedId.value ?? "");
   if (layer) (layer as any).editing._setOpacities(val / 100);

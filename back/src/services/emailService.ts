@@ -12,7 +12,7 @@ interface EmailServiceConfig {
 
 // Email service using Amazon SES or Mailpit for development
 class EmailService {
-  private config: EmailServiceConfig;
+  private readonly config: EmailServiceConfig;
 
   constructor(config: EmailServiceConfig) {
     this.config = config;

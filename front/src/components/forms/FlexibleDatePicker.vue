@@ -50,7 +50,7 @@
             view="year"
             dateFormat="yy"
             class="w-full"
-            :class="{ 'p-invalid': isTouched && !!error }"
+            :class="{ 'p-invalid': isTouched && Boolean(error) }"
             :maxDate="maxDate"
             :minDate="minDate"
             showIcon
@@ -70,7 +70,7 @@
               view="month"
               dateFormat="mm/yy"
               class="w-full"
-              :class="{ 'p-invalid': isTouched && !!error }"
+              :class="{ 'p-invalid': isTouched && Boolean(error) }"
               :maxDate="maxDate"
               :minDate="minDate"
               @update:modelValue="handleMonthDateChange"
@@ -91,7 +91,7 @@
             v-model="fullDateValue"
             dateFormat="dd/mm/yy"
             class="w-full"
-            :class="{ 'p-invalid': isTouched && !!error }"
+            :class="{ 'p-invalid': isTouched && Boolean(error) }"
             :maxDate="maxDate"
             :minDate="minDate"
             @update:modelValue="handleFullDateChange"
@@ -129,7 +129,7 @@ const emit = defineEmits<{
   (e: "blur"): void;
 }>();
 
-const groupName = props.uniqueId || `precision-group-${Math.random().toString(36).substring(7)}`;
+const groupName = props.uniqueId || `precision-group-${Math.random().toString(36).slice(7)}`;
 
 // Track if user has interacted with the field to avoid premature validation errors
 const isTouched = ref(false);

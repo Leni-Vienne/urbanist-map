@@ -9,9 +9,9 @@
       type="button"
       class="group appearance-none font-[inherit] flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-3xl font-semibold text-[0.9rem] border-2 transition-all duration-200 pointer-events-auto cursor-pointer select-none hover:scale-105 active:scale-[0.98]"
       :class="[
-        overlayStore.mode === 'edit'
+        mapStore.mode === 'edit'
           ? 'bg-amber-500/95 border-amber-600 text-white shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:shadow-[0_6px_16px_rgba(245,158,11,0.5)]'
-          : overlayStore.mode === 'moderation'
+          : mapStore.mode === 'moderation'
             ? 'bg-blue-500/95 border-blue-600 text-white shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_16px_rgba(59,130,246,0.5)]'
             : 'bg-content-background/95 border-surface text-color shadow-[0_2px_8px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.25)]',
       ]"
@@ -28,10 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
-import { switchMode } from "@/services/overlay/modeSwitching";
 import { useI18n } from "vue-i18n";
 import type { AppMode } from "@shared/types";
 
@@ -39,7 +38,7 @@ defineProps<{
   isMobile?: boolean;
 }>();
 
-const overlayStore = useOverlayStore();
+const mapStore = useMapStore();
 const authStore = useAuthStore();
 const toast = useToast();
 const { t } = useI18n();
@@ -53,7 +52,7 @@ let isSwitchingMode = false;
 
 // Get mode display info
 function getModeIcon(): string {
-  switch (overlayStore.mode) {
+  switch (mapStore.mode) {
     case "view":
       return "pi-eye";
     case "edit":
@@ -66,7 +65,7 @@ function getModeIcon(): string {
 }
 
 function getModeLabel(): string {
-  switch (overlayStore.mode) {
+  switch (mapStore.mode) {
     case "view":
       return t("map.viewMode");
     case "edit":
@@ -79,7 +78,7 @@ function getModeLabel(): string {
 }
 
 function getModeTooltip(): string {
-  switch (overlayStore.mode) {
+  switch (mapStore.mode) {
     case "view":
       return t("map.viewModeTooltip");
     case "edit":
@@ -101,7 +100,7 @@ function handleModeSwitch() {
 
   try {
     isSwitchingMode = true;
-    const currentMode = overlayStore.mode;
+    const currentMode = mapStore.mode;
 
     let newMode: AppMode;
 
@@ -133,7 +132,7 @@ function handleModeSwitch() {
 
     // Use unified switchMode for all mode transitions (view/edit/moderation)
     // This ensures consistent behavior and proper data reloading
-    switchMode(newMode);
+    mapStore.setMode(newMode);
 
     // Only show toast if enough time has passed since last one
     const now = Date.now();

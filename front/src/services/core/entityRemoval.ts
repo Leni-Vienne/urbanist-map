@@ -107,8 +107,7 @@ function removeOverlay(
   }
 
   if (options.clearCityCaches) {
-    mapStore.clearCityProjectsCache();
-    mapStore.clearCityStandaloneProjectsCache();
+    mapStore.clearCityCaches();
   }
 
   // Also remove standalone marker for this specific overlay ID (legacy/edge case support)
@@ -154,8 +153,7 @@ export function removeProject(
   }
 
   // 5. Force cache clear to prevent ghost data
-  mapStore.clearCityProjectsCache();
-  mapStore.clearCityStandaloneProjectsCache();
+  mapStore.clearCityCaches();
 }
 
 /**

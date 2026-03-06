@@ -29,7 +29,7 @@ export function useProjectFormValidation() {
       return false;
     }
 
-    if (cities.length > 0 && !cities.find((c) => c.id === formData.cityId)) {
+    if (cities.length > 0 && !cities.some((c) => c.id === formData.cityId)) {
       showError(t("project.locationRequired"));
       return false;
     }

@@ -39,7 +39,7 @@ export function prepareOverlayValidationData(overlay: {
     filename: overlay.filename ?? "temp.png",
     caption: overlay.caption ?? undefined,
     projectId: overlay.projectId ?? DUMMY_UUID,
-    corners: overlay.corners || [
+    corners: overlay.corners ?? [
       { lat: 0, lng: 0 },
       { lat: 0, lng: 0 },
       { lat: 0, lng: 0 },

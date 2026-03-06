@@ -1,23 +1,25 @@
 // Composable for managing latest contributions (overlays + standalone projects) with caching
-import { computed } from "vue";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { computed, ref } from "vue";
 import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
+import type { LatestContribution } from "@/types/index";
+
+const latestContributions = ref<LatestContribution[]>([]);
+const latestContributionsLoading = ref(false);
+const latestContributionsLoaded = ref(false);
 
 export function useLatestContributions() {
-  const overlayStore = useOverlayStore();
-
-  const isLoading = computed(() => overlayStore.latestContributionsLoading);
-  const contributions = computed(() => overlayStore.latestContributions);
+  const isLoading = computed(() => latestContributionsLoading.value);
+  const contributions = computed(() => latestContributions.value);
 
   // Fetch latest contributions - load once
   async function fetchLatestContributions() {
     // Skip if already loaded
-    if (overlayStore.latestContributionsLoaded) {
+    if (latestContributionsLoaded.value) {
       return;
     }
 
-    overlayStore.setLatestContributionsLoading(true);
+    latestContributionsLoading.value = true;
     try {
       const result = await withErrorHandling(
         async () => trpc.overlay.getLatestContributions.query({ limit: 20 }),
@@ -25,10 +27,11 @@ export function useLatestContributions() {
       );
 
       if (result) {
-        overlayStore.setLatestContributions(result);
+        latestContributions.value = result;
+        latestContributionsLoaded.value = true;
       }
     } finally {
-      overlayStore.setLatestContributionsLoading(false);
+      latestContributionsLoading.value = false;
     }
   }
 

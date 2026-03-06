@@ -20,6 +20,7 @@ if (map.value && !L.DomUtil.hasClass(map.value.getContainer(), "ldi")) {
 }
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
@@ -45,6 +46,7 @@ import {
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
@@ -56,7 +58,7 @@ export function createLeafletOverlay(
   overlayObject?: OverlayObject,
   onAddedToMap?: () => void,
 ) {
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   if (!overlayObject) return null;
 
@@ -70,7 +72,7 @@ export function createLeafletOverlay(
     const leafletCorners = corners
       ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
       : undefined;
-    const isEditMode = overlayStore.mode === "edit";
+    const isEditMode = mapStore.mode === "edit";
 
     // Suppress the built-in leaflet-toolbar popup — OverlayFloatingToolbar.vue handles the UI.
     // Keep mode actions so editing handles (resize/distort) still work in edit mode.
@@ -112,7 +114,7 @@ export function createLeafletOverlay(
         // CRITICAL FIX: Re-verify visibility before adding (async race condition protection)
         // The mode might have changed while waiting for zoom animation (View -> Edit -> View)
         const authStore = useAuthStore();
-        if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
+        if (!isOverlayVisible(overlayObject, mapStore.mode, authStore.user?.id)) {
           // Abort: clear the layer we registered above and release the creation mutex
           registry.clearLayer(overlayObject.id);
           registry.cancelCreation(overlayObject.id);
@@ -282,6 +284,7 @@ function setupOverlayLoadHandler(
  */
 function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): void {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const layer = registry.getLayer(overlayObject.id);
   if (!layer) return;
 
@@ -292,7 +295,7 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   updateMarkerTooltip(overlayObject);
 
   // Check size validation for overlays in edit mode
-  if (overlayStore.mode === "edit") {
+  if (mapStore.mode === "edit") {
     checkOverlaySizeAndWarn(layer, overlayObject);
   }
 
@@ -304,12 +307,20 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   // returns null until the overlay is added to the map and the image loads
   setupOverlayMovementTracking(layer, overlayObject);
 
-  // Ensure new overlays start with no outline unless they're selected
+  // Ensure new overlays start with the correct ring state
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = layer.getElement();
     if (element) {
-      element.style.boxShadow = "";
-      element.style.outline = "none";
+      // Apply project highlight ring if this overlay belongs to the same project as the
+      // currently selected overlay (e.g. switching to edit mode reveals sister overlays)
+      const selectedOverlay = overlayStore.idSelectedOverlay
+        ? overlayStore.overlays[overlayStore.idSelectedOverlay]
+        : null;
+      if (selectedOverlay?.projectId && selectedOverlay.projectId === overlayObject.projectId) {
+        applySelectionRing(element);
+      } else {
+        clearSelectionRing(element);
+      }
     }
   } else {
     // Overlay finished loading while already selected (out-of-viewport navigation):
@@ -396,6 +407,7 @@ function setupOverlayMovementTracking(
     // Stop tracking handler - behaves like 'mouseup'/'touchend'
     function stopTracking() {
       const overlayStore = useOverlayStore();
+      const mapStore = useMapStore();
 
       if (!isManipulating) return;
       isManipulating = false;
@@ -414,7 +426,7 @@ function setupOverlayMovementTracking(
 
       if (hasActuallyMoved) {
         updateMarkerPosition(overlayObject);
-        updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode, overlayObject.id);
+        updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode, overlayObject.id);
       }
     }
 
@@ -513,6 +525,7 @@ function renderSingleOverlay(
   onReady?: () => void,
 ): boolean {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // Skip replaced overlays - their images are deleted and would cause 404 errors
   if (cdnOverlay.status === "replaced") {
@@ -524,7 +537,7 @@ function renderSingleOverlay(
   // but executes after a mode switch (e.g. pending overlay queued during edit mode,
   // but mode switched to view before the async callback fires).
   const authStore = useAuthStore();
-  if (!isOverlayVisible(cdnOverlay, overlayStore.mode, authStore.user?.id)) {
+  if (!isOverlayVisible(cdnOverlay, mapStore.mode, authStore.user?.id)) {
     return false;
   }
 
@@ -574,12 +587,7 @@ function renderSingleOverlay(
     // CRITICAL: Check if overlay should still be visible in the current mode.
     // The mode may have changed during async image loading (e.g. Edit → View switch
     // while a pending overlay's image was still loading).
-    const authStore = useAuthStore();
-    const visible = isOverlayVisible(
-      overlayObjectWithMethods,
-      overlayStore.mode,
-      authStore.user?.id,
-    );
+    const visible = isOverlayVisible(overlayObjectWithMethods, mapStore.mode, authStore.user?.id);
     if (!visible) {
       const layer = registry.getLayer(cdnOverlay.id);
       if (layer && map.value.hasLayer(layer)) layer.remove();

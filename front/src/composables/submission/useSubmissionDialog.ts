@@ -5,7 +5,6 @@ import {
   pendingSubmissionContext,
   isSubmitting,
 } from "./submissionDialogState";
-import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -86,7 +85,6 @@ function buildNewOverlayChanges(
   function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
     if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
     if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
-    return undefined;
   }
 
   for (const overlayId of newOverlayIds) {
@@ -188,10 +186,8 @@ function resetOverlayField(
     }
 
     updateMarkerPosition(overlayObject);
-  } else if (field === "caption") {
-    if (capturedOriginalCaption !== undefined) {
-      overlayStore.updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });
-    }
+  } else if (field === "caption" && capturedOriginalCaption !== undefined) {
+    overlayStore.updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });
   }
 }
 
@@ -259,7 +255,6 @@ function determineChangeType(
 }
 
 export function useSubmissionDialog() {
-  const { t } = useI18n();
   const toast = useToast();
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
@@ -369,6 +364,7 @@ export function useSubmissionDialog() {
 
       pendingSubmissionContext.value = extendedContext;
       showSubmissionDialog.value = true;
+      uiStore.submissionDialogVisible = true;
     } catch (error: unknown) {
       console.error("Error preparing submission:", error);
       toast.add({
@@ -459,6 +455,7 @@ export function useSubmissionDialog() {
 
     pendingSubmissionContext.value = extendedContext;
     showSubmissionDialog.value = true;
+    uiStore.submissionDialogVisible = true;
   }
 
   // Helper function to get success message based on change type
@@ -481,6 +478,7 @@ export function useSubmissionDialog() {
 
     // Close dialog and reset state
     showSubmissionDialog.value = false;
+    uiStore.submissionDialogVisible = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }
@@ -519,6 +517,7 @@ export function useSubmissionDialog() {
   // Cancel submission dialog
   function cancelSubmission(): void {
     showSubmissionDialog.value = false;
+    uiStore.submissionDialogVisible = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }

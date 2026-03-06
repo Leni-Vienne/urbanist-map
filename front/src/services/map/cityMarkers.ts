@@ -11,7 +11,6 @@ import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
@@ -31,31 +30,29 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
  * View mode is always the base (approved content); edit/moderation modes add their own cities on top
  */
 async function buildCitiesForCurrentMode(): Promise<CityWithProjects[]> {
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const authStore = useAuthStore();
   const projectStore = useProjectStore();
 
-  // View cities are always fetched first — they are the base set (approved content, visible to everyone)
-  const viewCities = await projectStore.fetchCitiesWithProjects("view");
   // Unauthenticated users always see view mode regardless of store state
-  const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+  const currentMode = authStore.isAuthenticated ? mapStore.mode : "view";
 
   if (currentMode === "view") {
-    return viewCities;
+    return projectStore.fetchCitiesWithProjects("view");
   }
 
-  // Edit/moderation modes are additive: start from approved cities, then union in mode-specific ones
-  const modeCities = await projectStore.fetchCitiesWithProjects(currentMode);
+  if (currentMode === "moderation") {
+    // Moderation mode: only show cities that have pending items — no approved-only cities
+    return projectStore.fetchCitiesWithProjects("moderation");
+  }
+
+  // Edit mode: additive — approved cities + user's own pending cities
+  const viewCities = await projectStore.fetchCitiesWithProjects("view");
+  const editCities = await projectStore.fetchCitiesWithProjects("edit");
   const viewCityIds = new Set(viewCities.map((c) => c.id));
-  const additionalCities = modeCities.filter((c) => !viewCityIds.has(c.id));
-  let mergedCities = [...viewCities, ...additionalCities];
-
-  // In edit mode, also surface cities from locally created projects not yet submitted to the backend
-  if (currentMode === "edit") {
-    mergedCities = projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
-  }
-
-  return mergedCities;
+  const additionalCities = editCities.filter((c) => !viewCityIds.has(c.id));
+  const mergedCities = [...viewCities, ...additionalCities];
+  return projectStore.getMergedCities(mergedCities, authStore.user?.id ?? null);
 }
 
 /**
@@ -66,10 +63,10 @@ function initializeModeWatcher() {
   const cityMarkersStore = useCityMarkersStore();
   if (cityMarkersStore.modeWatcherInitialized) return;
 
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   watch(
-    () => overlayStore.mode,
+    () => mapStore.mode,
     async (newMode, oldMode) => {
       // Defensive guard — Vue shouldn't fire with equal values but the watcher is async
       if (newMode === oldMode) return;
@@ -120,7 +117,7 @@ function updateCityMarkerOpacities(selectedCityId: number | null): void {
   cityMarkersStore.cityMarkersLayer.eachLayer((layer) => {
     if (layer instanceof L.Marker) {
       const markerElement = layer.getElement();
-      const cityId = markerElement?.getAttribute("data-city-id");
+      const cityId = markerElement?.dataset.cityId;
 
       if (selectedCityId && Number(cityId) === selectedCityId) {
         layer.setOpacity(MARKER_OPACITY.city.hover);
@@ -251,13 +248,13 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
     marker.on("add", () => {
       const markerElement = marker.getElement();
       if (markerElement) {
-        markerElement.setAttribute("data-testid", `city-marker-${city.id}`);
-        markerElement.setAttribute("data-city-id", String(city.id));
-        markerElement.setAttribute("data-city-name", city.name);
-        markerElement.setAttribute("data-city-name-local", city.nameLocal ?? "");
-        markerElement.setAttribute("data-country-code", city.countryCode);
-        markerElement.setAttribute("data-lat", city.lat.toString());
-        markerElement.setAttribute("data-lng", city.lng.toString());
+        markerElement.dataset.testid = `city-marker-${city.id}`;
+        markerElement.dataset.cityId = String(city.id);
+        markerElement.dataset.cityName = city.name;
+        markerElement.dataset.cityNameLocal = city.nameLocal ?? "";
+        markerElement.dataset.countryCode = city.countryCode;
+        markerElement.dataset.lat = city.lat.toString();
+        markerElement.dataset.lng = city.lng.toString();
       }
     });
 
@@ -374,6 +371,8 @@ async function addCityMarkersToMapInternal(
   explicitCountryCode?: string,
 ) {
   const cityMarkersStore = useCityMarkersStore();
+  const mapStore = useMapStore();
+  const authStore = useAuthStore();
 
   // Determine country code from explicit parameter or derive from cities
   const countryCode = explicitCountryCode ?? cities[0]?.countryCode;
@@ -391,12 +390,11 @@ async function addCityMarkersToMapInternal(
   const allCities = [...cities, ...unsavedCities];
 
   // Filter cities for moderation mode if user is restricted
-  const overlayStore = useOverlayStore();
-  const authStore = useAuthStore();
+
   let citiesToRender = allCities;
 
   if (
-    overlayStore.mode === "moderation" &&
+    mapStore.mode === "moderation" &&
     authStore.user &&
     authStore.user.role !== "admin" &&
     authStore.user.moderatedCountries
@@ -435,7 +433,6 @@ async function addCityMarkersToMapInternal(
   runViewportRenderLoop();
 
   // Update opacities for selected city
-  const mapStore = useMapStore();
   if (mapStore.selectedCity) {
     updateCityMarkerOpacities(mapStore.selectedCity.id);
   }

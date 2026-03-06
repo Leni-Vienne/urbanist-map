@@ -17,7 +17,7 @@ const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
 const COOLDOWN_PERIOD = 30 * 60 * 1000; // 30 minutes - don't send duplicate alerts
 
 class ErrorAlerter {
-  private errors: ErrorEntry[] = [];
+  private readonly errors: ErrorEntry[] = [];
   private lastAlertTime = 0;
   private intervalId?: NodeJS.Timeout;
 

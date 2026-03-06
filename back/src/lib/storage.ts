@@ -174,7 +174,7 @@ export class LocalFileStorage implements StorageInterface {
 // Cloudflare R2 storage implementation using Bun's built-in S3 client
 // Used for production when backend runs on dedicated server
 export class R2StorageS3 implements StorageInterface {
-  private client: S3Client;
+  private readonly client: S3Client;
 
   constructor(config: {
     endpoint: string;

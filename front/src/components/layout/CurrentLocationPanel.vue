@@ -322,10 +322,8 @@ function handleBreadcrumbCityClick() {
     map.value.once("zoomstart", zoomStartHandler);
   });
 
-  const overlays =
-    mapStore.getCityOverlaysAndProjectsCache(selectedCity.id, overlayStore.mode) ?? [];
-  const projects =
-    mapStore.getCityStandaloneProjectsCache(selectedCity.id, overlayStore.mode) ?? [];
+  const overlays = mapStore.getCityOverlaysAndProjectsCache(selectedCity.id, mapStore.mode) ?? [];
+  const projects = mapStore.getCityStandaloneProjectsCache(selectedCity.id, mapStore.mode) ?? [];
   smartZoomToCity(city, { overlays, projects });
 }
 
@@ -345,7 +343,7 @@ const projectsWithOverlays = computed(() => {
   // Get overlays from mode-aware cache (same pattern as standalone projects)
   // This ensures view mode only shows approved overlays, edit mode shows approved + user's own
   const overlaysForMode =
-    mapStore.getCityOverlaysAndProjectsCache(mapStore.selectedCity.id, overlayStore.mode) ?? [];
+    mapStore.getCityOverlaysAndProjectsCache(mapStore.selectedCity.id, mapStore.mode) ?? [];
 
   // Group overlays by project
   const projectsMap = new Map<string, ProjectForModeration>();
@@ -374,8 +372,7 @@ const projectsWithOverlays = computed(() => {
 
   // Add standalone projects from cache (projects without overlays)
   const standaloneProjects =
-    mapStore.cityStandaloneProjectsCache.get(mapStore.selectedCity.id)?.get(overlayStore.mode) ??
-    [];
+    mapStore.cityStandaloneProjectsCache.get(mapStore.selectedCity.id)?.get(mapStore.mode) ?? [];
 
   for (const standaloneSummary of standaloneProjects) {
     // Only add if not already in map (from overlays) and if it truly has no overlays

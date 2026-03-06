@@ -62,7 +62,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
 
   // If project is not in memory, or overlayIds not yet populated (only set on popup open),
   // derive siblings from already-loaded overlays instead.
-  if (!project || !project.overlayIds.length) {
+  if (!project?.overlayIds.length) {
     projectOverlayIds = Object.values(overlayStore.overlays)
       .filter((overlay) => overlay.projectId === currentOverlay.projectId)
       .map((overlay) => overlay.id);
@@ -93,7 +93,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
 function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
   const projectStore = useProjectStore();
   const projectIds = Object.keys(projectStore.projects);
-  if (!projectIds.length) {
+  if (projectIds.length === 0) {
     throw new Error("No projects: Please create a project first");
   }
 

@@ -88,13 +88,13 @@ import { useLatestContributions } from "@/composables/overlay/useLatestContribut
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 
 const { t } = useI18n();
-const overlayStore = useOverlayStore();
+const mapStore = useMapStore();
 const toast = useToast();
 
 // Use cached composable for latest contributions
@@ -138,7 +138,7 @@ function handleContributionLeave(contribution: LatestContribution) {
 async function handleContributionClick(contribution: LatestContribution) {
   // In moderation mode, auto-select the country for the moderation panel
   // Block navigation if the moderator can't moderate this country
-  if (overlayStore.mode === "moderation" && contribution.countryCode) {
+  if (mapStore.mode === "moderation" && contribution.countryCode) {
     const { canModerateCountry, syncModerationCountry } =
       await import("@/composables/overlay/useOverlayClickHandler");
     if (!canModerateCountry(contribution.countryCode)) {

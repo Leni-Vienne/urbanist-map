@@ -17,6 +17,17 @@ import {
 
 // importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement
 const UrbanistmapPreset = definePreset(Aura, {
+  components: {
+    accordion: {
+      header: {
+        // Aura defaults to {text.muted.color} which is low-contrast; use full text color
+        color: "{text.color}",
+        toggleIcon: {
+          color: "{text.color}",
+        },
+      },
+    },
+  },
   semantic: {
     primary: {
       50: "{indigo.50}",
@@ -92,7 +103,7 @@ window.addEventListener("beforeunload", (event) => {
 app.use(router);
 app.use(i18n);
 
-// @ts-ignore PrimeVue configuration type issue
+// @ts-expect-error PrimeVue configuration type issue
 app.use(PrimeVue, {
   ripple: true,
   inputVariant: "filled",
@@ -108,8 +119,9 @@ app.use(PrimeVue, {
 
 app.use(ToastService);
 
-// Load only the active locale before mounting — the other locale chunk is
+// Load only the active locale before mounting, the other locale chunk is
 // fetched on demand when the user switches language.
+// IIFE to reduce splitting from 15 chunks down to 6 versus top level await
 (async function initApp() {
   const messages = await loadLocaleMessages(currentLocale);
   i18n.global.setLocaleMessage(currentLocale, messages);

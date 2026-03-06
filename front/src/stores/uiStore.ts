@@ -34,6 +34,7 @@ export const useUiStore = defineStore("ui", () => {
   const authModalInitialMode = ref<"login" | "signup">("login");
   const markerPlacementBarVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
+  const submissionDialogVisible = ref(false);
 
   // Badge indicator — set by ModeratedContributionsWatcher so UserMenu never imports the composable
   const hasUnacknowledgedModeratedContributions = ref(false);
@@ -136,7 +137,7 @@ export const useUiStore = defineStore("ui", () => {
     projectInfoPopup.value = {
       visible: true,
       projectId,
-      project: project || null,
+      project: project ?? null,
     };
   }
 
@@ -185,6 +186,7 @@ export const useUiStore = defineStore("ui", () => {
     projectInfoPopup.value.visible = false;
     moderatedContributionsDialogVisible.value = false;
     imageUploadDialog.value.visible = false;
+    submissionDialogVisible.value = false;
   }
 
   return {
@@ -193,6 +195,7 @@ export const useUiStore = defineStore("ui", () => {
     authModalInitialMode,
     markerPlacementBarVisible,
     moderatedContributionsDialogVisible,
+    submissionDialogVisible,
     hasUnacknowledgedModeratedContributions,
     projectDialog,
     projectEditForm,
