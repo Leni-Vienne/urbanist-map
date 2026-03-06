@@ -21,5 +21,5 @@
       "leaflet": ["./node_modules/@types/leaflet"]
     }
   },
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "junk", "scripts"]
 }

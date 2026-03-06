@@ -207,7 +207,7 @@ import {
 } from "@/services/layout/accordionState";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 
 // Props interface
 interface Props {
@@ -785,9 +785,9 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
       });
       return;
     }
-    const overlayStore = useOverlayStore();
-    if (!props.disableAutoModeSwitch && overlayStore.mode !== "edit") {
-      overlayStore.setMode("edit");
+    const mapStore = useMapStore();
+    if (!props.disableAutoModeSwitch && mapStore.mode !== "edit") {
+      mapStore.setMode("edit");
     }
     const { navigateToStandaloneProject } = await import("@/services/navigation/projectNavigation");
     await navigateToStandaloneProject(

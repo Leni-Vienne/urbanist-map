@@ -13,7 +13,6 @@ import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { selectCity } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
-import { switchMode } from "@/services/overlay/modeSwitching";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
@@ -86,6 +85,8 @@ export function useChangeRequestPreview() {
     overlayForModeration: OverlayForModeration,
     targetCorners: LatLng[],
   ): Promise<boolean> {
+    const mapStore = useMapStore();
+
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     // Already loaded, nothing to do
@@ -105,9 +106,9 @@ export function useChangeRequestPreview() {
     }
 
     // Step 1: Switch to edit mode if needed (pending overlays only visible in edit mode)
-    const needsEditMode = overlayStore.mode === "view" && overlayForModeration.status === "pending";
+    const needsEditMode = mapStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
-      switchMode("edit");
+      mapStore.setMode("edit");
       await new Promise<void>(
         (resolve) =>
           void setTimeout(() => {
@@ -118,7 +119,6 @@ export function useChangeRequestPreview() {
 
     // Step 3: Clear map and load cities for the country
     clearAllMapContent();
-    const mapStore = useMapStore();
     mapStore.selectedCountryCode = overlayForModeration.countryCode;
     await loadCitiesForCountry(overlayForModeration.countryCode);
 
@@ -155,7 +155,7 @@ export function useChangeRequestPreview() {
         overlayId: overlayForModeration.id,
         availableOverlays: Object.keys(overlayStore.overlays),
         cityOverlays: mapStore.currentCityOverlays.map((o) => ({ id: o.id, status: o.status })),
-        mode: overlayStore.mode,
+        mode: mapStore.mode,
         status: overlayForModeration.status,
       });
 

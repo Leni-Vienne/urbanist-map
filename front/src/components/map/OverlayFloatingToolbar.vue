@@ -110,6 +110,7 @@ import L from "leaflet";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
@@ -126,8 +127,9 @@ const { t } = useI18n();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 const pendingModsStore = usePendingModificationsStore();
-
-const { idSelectedOverlay, mode } = storeToRefs(overlayStore);
+const mapStore = useMapStore();
+const { idSelectedOverlay } = storeToRefs(overlayStore);
+const { mode } = storeToRefs(mapStore);
 const selectedId = idSelectedOverlay;
 const isEditMode = computed(() => mode.value === "edit");
 

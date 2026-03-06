@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from "vue";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
 import { getMarkerSvg } from "@/services/map/markers";
 
@@ -143,9 +143,9 @@ function resetState() {
 }
 
 // Close dialog when map mode changes (prevents mixed mode states)
-const overlayStore = useOverlayStore();
+const mapStore = useMapStore();
 watch(
-  () => overlayStore.mode,
+  () => mapStore.mode,
   () => {
     if (markerPlacementMode.value) {
       onCancel();

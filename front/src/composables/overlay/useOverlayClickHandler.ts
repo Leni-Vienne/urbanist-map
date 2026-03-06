@@ -4,8 +4,8 @@ import {
 } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/overlayActions";
-import { switchMode } from "@/services/overlay/modeSwitching";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
@@ -68,6 +68,7 @@ export function useOverlayClickHandler() {
   ): Promise<void> {
     try {
       const overlayStore = useOverlayStore();
+      const mapStore = useMapStore();
 
       // For rejected or replaced overlays, navigate to overlay's centroid if available
       // Otherwise fall back to project center
@@ -78,7 +79,7 @@ export function useOverlayClickHandler() {
 
       // In moderation mode, auto-select the contribution's country for the moderation panel
       // If moderator doesn't have access to this country, block navigation with a toast
-      if (overlayStore.mode === "moderation" && overlay.countryCode) {
+      if (mapStore.mode === "moderation" && overlay.countryCode) {
         if (!canModerateCountry(overlay.countryCode)) {
           toast.add({
             severity: "warn",
@@ -94,8 +95,8 @@ export function useOverlayClickHandler() {
 
       // Only switch to edit mode if currently in view mode
       // In moderation mode, pending overlays are already visible, so don't switch
-      if (overlayStore.mode === "view" && shouldToggleEditMode) {
-        switchMode("edit");
+      if (mapStore.mode === "view" && shouldToggleEditMode) {
+        mapStore.setMode("edit");
 
         // Only show toast for pending overlays (for approved ones it's less critical)
         if (overlay.status === "pending") {

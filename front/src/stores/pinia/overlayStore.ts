@@ -1,15 +1,11 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { OverlayObject, OverlayData, LatestContribution } from "@/types/index";
+import type { OverlayObject, OverlayData } from "@/types/index";
 import { clearAll as clearAllLayers } from "@/services/overlay/overlayRenderRegistry";
-import type { AppMode } from "@shared/types";
 
 export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});
   const idSelectedOverlay = ref<string | null>(null);
-
-  // Map mode state (view, edit, or moderation)
-  const mode = ref<AppMode>("view");
 
   // Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
   type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
@@ -18,11 +14,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   // Overlay data for different modes
   const viewModeOverlays = ref<OverlayData[]>([]);
   const loadedEditOverlays = ref<Set<string>>(new Set());
-
-  // Latest contributions cache (overlays + standalone projects) - simple loaded flag
-  const latestContributions = ref<LatestContribution[]>([]);
-  const latestContributionsLoading = ref(false);
-  const latestContributionsLoaded = ref(false);
 
   // UI state
   const replacementOverlayId = ref<string | null>(null);
@@ -37,20 +28,6 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   function clearViewModeOverlays() {
     viewModeOverlays.value = [];
-  }
-
-  // Latest contributions actions
-  function setLatestContributions(contributions: LatestContribution[]) {
-    latestContributions.value = contributions;
-    latestContributionsLoaded.value = true;
-  }
-
-  function setLatestContributionsLoading(loading: boolean) {
-    latestContributionsLoading.value = loading;
-  }
-
-  function setMode(newMode: AppMode) {
-    mode.value = newMode;
   }
 
   // Edit mode cache management
@@ -121,8 +98,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   // Clear user-specific state on logout/account switch
-  // NOTE: We preserve public data (latestContributions, viewModeOverlays)
-  // and only clear user-specific or edit-mode data
+  // NOTE: We preserve public data (viewModeOverlays) and only clear user-specific or edit-mode data
   function clearAllState() {
     // Remove all Leaflet layers and markers from map via registry (replaces manual iteration)
     clearAllLayers(false);
@@ -137,15 +113,6 @@ export const useOverlayStore = defineStore("overlay", () => {
 
     // KEEP viewModeOverlays - these are approved overlays for current city
 
-    // KEEP latestContributions - these are public approved content
-    // Only reset the loaded flag to allow refresh if needed
-    // latestContributions.value = [];
-    latestContributionsLoading.value = false;
-    latestContributionsLoaded.value = false;
-
-    // Reset mode to view
-    mode.value = "view";
-
     // Clear all UI state
     resetAllUIStates();
   }
@@ -154,12 +121,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     // State
     overlays,
     idSelectedOverlay,
-    mode,
     viewModeOverlays,
     loadedEditOverlays,
-    latestContributions,
-    latestContributionsLoading,
-    latestContributionsLoaded,
     replacementOverlayId,
     pendingImageFile,
     showInfoPopup,
@@ -168,9 +131,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     // Actions
     setViewModeOverlays,
     clearViewModeOverlays,
-    setLatestContributions,
-    setLatestContributionsLoading,
-    setMode,
     saveToEditModeCache,
     getFromEditModeCache,
     removeFromEditModeCache,

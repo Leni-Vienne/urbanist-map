@@ -14,7 +14,7 @@ export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: n
   const overlayData = convertOverlayToData(overlayObject);
 
   // Get current city cache for current mode or create empty array
-  const currentCache = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode) ?? [];
+  const currentCache = mapStore.getCityOverlaysAndProjectsCache(cityId, mapStore.mode) ?? [];
 
   // Add new overlay to cache (avoid duplicates)
   const existingIndex = currentCache.findIndex((item) => item.id === overlayObject.id);
@@ -24,5 +24,5 @@ export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: n
     currentCache.push(overlayData);
   }
 
-  mapStore.setCityProjectsCache(cityId, overlayStore.mode, currentCache);
+  mapStore.setCityProjectsCache(cityId, mapStore.mode, currentCache);
 }

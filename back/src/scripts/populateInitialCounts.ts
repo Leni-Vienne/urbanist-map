@@ -82,7 +82,7 @@ async function populateInitialCounts() {
     console.log("\n=== Summary ===");
     console.log(`Cities with projects: ${updatedCount}`);
     console.log(
-      `Total cities: ${stats.length > 1 ? Number(stats[0].totalCities) + Number(stats[1].totalCities) : stats[0].totalCities}`,
+      `Total cities: ${stats.length > 1 ? Number(stats[0]!.totalCities) + Number(stats[1]!.totalCities) : stats[0]!.totalCities}`,
     );
     console.log(
       `Total approved projects: ${citiesWithCounts.reduce((sum, c) => sum + Number(c.projectCount), 0)}`,

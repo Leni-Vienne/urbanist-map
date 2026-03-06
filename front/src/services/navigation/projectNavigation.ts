@@ -52,7 +52,7 @@ function resolveOverlayCorners(overlayId: string): { lat: number; lng: number }[
 
   // Priority 3: Mode-aware cache (backend data for current mode)
   // Need to search through all cached cities to find this overlay
-  const currentMode = overlayStore.mode;
+  const currentMode = mapStore.mode;
   for (const modeCache of mapStore.cityProjectsCache.values()) {
     const cachedData = modeCache.get(currentMode);
     if (cachedData) {
@@ -130,6 +130,7 @@ function zoomToOverlayAndSelect(
   });
 
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // Wait for element to exist, then wait for image to load before selecting
   // This fixes the bug where first click adds blue outline but doesn't open toolbar
@@ -225,7 +226,7 @@ function zoomToOverlayAndSelect(
       // This prevents adding a pending overlay back to the map when in view mode
       if (currentZoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
         const authStore = useAuthStore();
-        if (overlayObj && isOverlayVisible(overlayObj, overlayStore.mode, authStore.user?.id)) {
+        if (overlayObj && isOverlayVisible(overlayObj, mapStore.mode, authStore.user?.id)) {
           overlayLayer.addTo(map.value);
         }
       }

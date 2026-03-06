@@ -2,8 +2,6 @@ import { ref } from "vue";
 import type { PendingChangeRequest } from "@/types/index";
 
 // State machine for position preview
-// Extracted to separate file to avoid circular dependency between
-// useChangeRequestPreview.ts <-> useOverlayModes.ts
 type PreviewState =
   | { type: "none" }
   | { type: "current"; changeId: string; overlayId: string }

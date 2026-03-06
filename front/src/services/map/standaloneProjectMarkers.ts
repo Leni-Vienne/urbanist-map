@@ -64,9 +64,10 @@ function initializePopupWatcher() {
 
       // Sync overlay marker visibility to the current completion filter
       const overlayStore = useOverlayStore();
+      const mapStore = useMapStore();
       const mapInstance = map.value;
       const filteredIds = new Set(
-        filterByStatus(overlayStore.viewModeOverlays, overlayStore.mode).map((o) => o.id),
+        filterByStatus(overlayStore.viewModeOverlays, mapStore.mode).map((o) => o.id),
       );
       for (const id of Object.keys(overlayStore.overlays)) {
         const marker = registry.getMarker(id);
@@ -145,7 +146,7 @@ export function clearAllStandaloneProjectMarkers(): void {
 function refreshAllStandaloneMarkers(): void {
   if (!standaloneProjectsLayer) return;
 
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const projectStore = useProjectStore();
 
   // Iterate through all existing markers
@@ -154,7 +155,7 @@ function refreshAllStandaloneMarkers(): void {
     if (!project) continue;
 
     // Get marker color for this project
-    const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+    const markerColor = getProjectMarkerColor(project, mapStore.mode);
 
     // Check if this marker should be visible
     const shouldBeVisible = visibleStates.value[markerColor];
@@ -281,7 +282,8 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   // Get marker color and check if it should be visible based on current filter
   const overlayStore = useOverlayStore();
-  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+  const mapStore = useMapStore();
+  const markerColor = getProjectMarkerColor(project, mapStore.mode);
   const shouldBeVisible = visibleStates.value[markerColor];
 
   // Ensure standalone project layer exists
@@ -336,16 +338,16 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   });
 
   // Add tooltip to show project status in edit/moderation modes
-  updateStandaloneProjectMarkerTooltip(marker, project, overlayStore.mode);
+  updateStandaloneProjectMarkerTooltip(marker, project, mapStore.mode);
 
   marker.on("click", (e) => {
     void (async () => {
       L.DomEvent.stopPropagation(e);
       const uiStore = useUiStore();
+      const mapStore = useMapStore();
 
       // In moderation mode, clicking a contribution should load the city context
-      if (overlayStore.mode === "moderation") {
-        const mapStore = useMapStore();
+      if (mapStore.mode === "moderation") {
         if (mapStore.selectedCity?.id !== project.city.id) {
           mapStore.setSelectedCity({
             id: project.city.id,
@@ -367,8 +369,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       uiStore.openProjectInfoPopup(project.id, project);
       // Ensure city context and data are loaded for the panel
 
-      const mapStore = useMapStore();
-      const mode = overlayStore.mode;
+      const mode = mapStore.mode;
 
       // Set city if not already selected (required for currentLocation panel to show data)
       if (mapStore.selectedCity?.id !== project.city.id) {
@@ -427,8 +428,8 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   const marker = getStandaloneProjectMarkerByProjectId(projectId);
   if (!marker) return;
 
-  const overlayStore = useOverlayStore();
-  const markerColor = getProjectMarkerColor(project, overlayStore.mode);
+  const mapStore = useMapStore();
+  const markerColor = getProjectMarkerColor(project, mapStore.mode);
   const markerIcon = createStandaloneProjectIcon(markerColor);
   marker.setIcon(markerIcon);
 }

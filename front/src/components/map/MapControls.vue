@@ -36,18 +36,18 @@
 import { storeToRefs } from "pinia";
 import L from "leaflet";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 import FilterControl from "@/components/map/FilterControl.vue";
 import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
 
-const overlayStore = useOverlayStore();
+const mapStore = useMapStore();
 const uiStore = useUiStore();
 const { isMobile } = useIsMobile();
 
-const { mode } = storeToRefs(overlayStore);
+const { mode } = storeToRefs(mapStore);
 
 // Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{

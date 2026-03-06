@@ -38,13 +38,13 @@ export function getCountryName(
  * This loads country data for breadcrumbs and navigation (no markers rendered)
  */
 export async function loadCountriesWithProjects(force = false): Promise<void> {
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const projectStore = useProjectStore();
 
   // Check if we have cached countries for this mode
-  if (!force && projectStore.hasCachedCountries(overlayStore.mode)) {
+  if (!force && projectStore.hasCachedCountries(mapStore.mode)) {
     // Use cached countries and update the active countries ref
-    const cachedCountries = projectStore.getCachedCountries(overlayStore.mode);
+    const cachedCountries = projectStore.getCachedCountries(mapStore.mode);
     if (cachedCountries) {
       projectStore.countries = cachedCountries;
       return;
@@ -53,7 +53,7 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
 
   // For unauthenticated users, ensure we always use 'view' mode
   const authStore = useAuthStore();
-  const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+  const queryMode = authStore.isAuthenticated ? mapStore.mode : "view";
 
   const countriesData = await withErrorHandling(
     async () => trpc.country.getCountriesWithProjects.query({ mode: queryMode }),
@@ -76,7 +76,7 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
 
     // Update both the active countries ref and cache
     projectStore.countries = mappedCountries;
-    projectStore.setCachedCountries(overlayStore.mode, mappedCountries);
+    projectStore.setCachedCountries(mapStore.mode, mappedCountries);
   }
 }
 
@@ -89,9 +89,9 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 
   if (!country) return;
 
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const authStore = useAuthStore();
-  const queryMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+  const queryMode = authStore.isAuthenticated ? mapStore.mode : "view";
 
   // Check per-country cache first
   if (projectStore.hasCachedCities(countryCode, queryMode)) {

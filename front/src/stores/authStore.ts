@@ -349,6 +349,7 @@ export const useAuthStore = defineStore("auth", () => {
       const moderationStore = useModerationStore();
 
       // Clear map state
+      mapStore.resetMode();
       mapStore.clearCityProjectsCache();
       mapStore.clearCityStandaloneProjectsCache();
       mapStore.clearSelectedCity();

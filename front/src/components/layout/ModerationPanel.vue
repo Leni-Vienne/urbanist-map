@@ -468,7 +468,7 @@ const filteredChangeRequests = computed(() => {
   const cityId = selectedCity.id;
 
   // Get loaded data for this city in current mode
-  const currentMode = overlayStore.mode;
+  const currentMode = mapStore.mode;
   const cityOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, currentMode) ?? [];
   const cityStandalone = mapStore.getCityStandaloneProjectsCache(cityId, currentMode) ?? [];
 
