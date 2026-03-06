@@ -75,9 +75,10 @@ import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extr
 const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),
 );
-const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
-const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));
-const CitySearch = defineAsyncComponent(() => import("@/components/map/CitySearch.vue"));
+const mapUIBundle = import("@/components/map/mapUIBundle");
+const MapControls = defineAsyncComponent(() => mapUIBundle.then((m) => m.MapControls));
+const UserMenu = defineAsyncComponent(() => mapUIBundle.then((m) => m.UserMenu));
+const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySearch));
 
 // Get stores
 const mapStore = useMapStore();

@@ -52,7 +52,7 @@
     <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
-    <SubmissionDialogWrapper v-if="showSubmissionDialog" />
+    <SubmissionDialogWrapper v-if="uiStore.submissionDialogVisible" />
   </div>
 </template>
 
@@ -65,7 +65,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";

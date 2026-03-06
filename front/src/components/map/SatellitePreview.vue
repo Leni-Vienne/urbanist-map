@@ -45,13 +45,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { currentTileLayer, switchTileLayer, type TileLayerType } from "@/services/map/tileLayers";
-import { useI18n } from "vue-i18n";
 
 const props = defineProps<{
   inDrawer?: boolean;
 }>();
-
-const { t } = useI18n();
 
 const lastSatelliteLayer = ref<TileLayerType>("esri");
 
