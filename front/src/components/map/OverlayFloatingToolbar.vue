@@ -6,7 +6,6 @@
       @click.stop
       @mousedown.stop
       @dblclick.stop
-      @wheel.stop
       @touchstart.stop
     >
       <div

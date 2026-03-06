@@ -143,14 +143,14 @@ export default defineConfig(({ mode }) => ({
             {
               name: "primevue-extras",
               test: (id: string) =>
-                /node_modules\/primevue\/(virtualscroller|tooltip|checkbox|focustrap|inputtext|tag|progressspinner|overlayeventbus|dialog|utils|toasteventbus)\//.test(
+                /node_modules\/primevue\/(virtualscroller|tooltip|button|checkbox|focustrap|inputtext|tag|progressspinner|overlayeventbus|utils|toasteventbus)\//.test(
                   id,
                 ) ||
-                /node_modules\/@primeuix\/styles\/dist\/(virtualscroller|tooltip|checkbox|inputtext|tag|progressspinner|dialog|popover)\//.test(
+                /node_modules\/@primeuix\/styles\/dist\/(virtualscroller|tooltip|button|checkbox|inputtext|tag|progressspinner|popover)\//.test(
                   id,
                 ) ||
                 id.includes("node_modules\/primevue\/popover\/") ||
-                /node_modules\/@primevue\/icons\/(chevrondown|chevronleft|chevronright|chevronup|minus|windowmaximize|windowminimize)\//.test(
+                /node_modules\/@primevue\/icons\/(chevrondown|times|chevronleft|chevronright|chevronup|minus|windowmaximize|windowminimize)\//.test(
                   id,
                 ) ||
                 /node_modules\/@primevue\/core\/(utils|baseinput|baseeditableholder)\//.test(id) ||

@@ -364,6 +364,7 @@ export function useSubmissionDialog() {
 
       pendingSubmissionContext.value = extendedContext;
       showSubmissionDialog.value = true;
+      uiStore.submissionDialogVisible = true;
     } catch (error: unknown) {
       console.error("Error preparing submission:", error);
       toast.add({
@@ -454,6 +455,7 @@ export function useSubmissionDialog() {
 
     pendingSubmissionContext.value = extendedContext;
     showSubmissionDialog.value = true;
+    uiStore.submissionDialogVisible = true;
   }
 
   // Helper function to get success message based on change type
@@ -476,6 +478,7 @@ export function useSubmissionDialog() {
 
     // Close dialog and reset state
     showSubmissionDialog.value = false;
+    uiStore.submissionDialogVisible = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }
@@ -514,6 +517,7 @@ export function useSubmissionDialog() {
   // Cancel submission dialog
   function cancelSubmission(): void {
     showSubmissionDialog.value = false;
+    uiStore.submissionDialogVisible = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }
