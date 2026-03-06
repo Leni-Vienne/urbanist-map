@@ -60,27 +60,27 @@ export const useMapStore = defineStore("map", () => {
   }
 
   // City cache management - mode-aware
-  function getCityOverlaysAndProjectsCache(cityId: number, mode: AppMode): OverlayData[] | null {
+  function getCityOverlaysAndProjectsCache(cityId: number, forMode: AppMode): OverlayData[] | null {
     const cityCache = cityProjectsCache.value.get(cityId);
     if (!cityCache) return null;
-    return cityCache.get(mode) ?? null;
+    return cityCache.get(forMode) ?? null;
   }
 
-  function setCityProjectsCache(cityId: number, mode: AppMode, data: OverlayData[]) {
+  function setCityProjectsCache(cityId: number, forMode: AppMode, data: OverlayData[]) {
     let cityCache = cityProjectsCache.value.get(cityId);
     if (!cityCache) {
       cityCache = new Map();
       cityProjectsCache.value.set(cityId, cityCache);
     }
-    cityCache.set(mode, data);
+    cityCache.set(forMode, data);
   }
 
-  function clearCityProjectsCache(cityId?: number, mode?: AppMode) {
-    if (cityId && mode) {
+  function clearCityProjectsCache(cityId?: number, forMode?: AppMode) {
+    if (cityId && forMode) {
       // Clear specific mode cache for a city
       const cityCache = cityProjectsCache.value.get(cityId);
       if (cityCache) {
-        cityCache.delete(mode);
+        cityCache.delete(forMode);
       }
     } else if (cityId) {
       // Clear all mode caches for a city
@@ -94,16 +94,16 @@ export const useMapStore = defineStore("map", () => {
   // Standalone projects cache management - mode-aware
   function getCityStandaloneProjectsCache(
     cityId: number,
-    mode: AppMode,
+    forMode: AppMode,
   ): RouterOutput["project"]["getCityProjects"] | null {
     const cityCache = cityStandaloneProjectsCache.value.get(cityId);
     if (!cityCache) return null;
-    return cityCache.get(mode) ?? null;
+    return cityCache.get(forMode) ?? null;
   }
 
   function setCityStandaloneProjectsCache(
     cityId: number,
-    mode: AppMode,
+    forMode: AppMode,
     data: RouterOutput["project"]["getCityProjects"],
   ) {
     let cityCache = cityStandaloneProjectsCache.value.get(cityId);
@@ -111,15 +111,15 @@ export const useMapStore = defineStore("map", () => {
       cityCache = new Map();
       cityStandaloneProjectsCache.value.set(cityId, cityCache);
     }
-    cityCache.set(mode, data);
+    cityCache.set(forMode, data);
   }
 
-  function clearCityStandaloneProjectsCache(cityId?: number, mode?: AppMode) {
-    if (cityId && mode) {
+  function clearCityStandaloneProjectsCache(cityId?: number, forMode?: AppMode) {
+    if (cityId && forMode) {
       // Clear specific mode cache for a city
       const cityCache = cityStandaloneProjectsCache.value.get(cityId);
       if (cityCache) {
-        cityCache.delete(mode);
+        cityCache.delete(forMode);
       }
     } else if (cityId) {
       // Clear all mode caches for a city
@@ -128,6 +128,11 @@ export const useMapStore = defineStore("map", () => {
       // Clear entire cache
       cityStandaloneProjectsCache.value.clear();
     }
+  }
+
+  function clearCityCaches(cityId?: number, forMode?: AppMode) {
+    clearCityProjectsCache(cityId, forMode);
+    clearCityStandaloneProjectsCache(cityId, forMode);
   }
 
   return {
@@ -147,10 +152,10 @@ export const useMapStore = defineStore("map", () => {
     clearSelectedCity,
     getCityOverlaysAndProjectsCache,
     setCityProjectsCache,
-    clearCityProjectsCache,
     getCityStandaloneProjectsCache,
     setCityStandaloneProjectsCache,
     clearCityStandaloneProjectsCache,
+    clearCityCaches,
   };
 });
 

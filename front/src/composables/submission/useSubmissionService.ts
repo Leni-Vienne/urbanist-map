@@ -382,8 +382,7 @@ export function useSubmissionService() {
     projectStore.updateProject(project.id, { isModified: false });
 
     if (project.cityId) {
-      mapStore.clearCityProjectsCache(project.cityId);
-      mapStore.clearCityStandaloneProjectsCache(project.cityId);
+      mapStore.clearCityCaches(project.cityId);
     }
 
     resetChangeRequestsLoaded();
@@ -407,8 +406,7 @@ export function useSubmissionService() {
     }
 
     if (project.cityId) {
-      mapStore.clearCityProjectsCache(project.cityId);
-      mapStore.clearCityStandaloneProjectsCache(project.cityId);
+      mapStore.clearCityCaches(project.cityId);
     }
 
     if (mapStore.selectedCity) {
@@ -536,8 +534,7 @@ export function useSubmissionService() {
     // Invalidate city caches uniformly for both paths
     const cityId = context.entity.project?.cityId;
     if (cityId) {
-      mapStore.clearCityProjectsCache(cityId);
-      mapStore.clearCityStandaloneProjectsCache(cityId);
+      mapStore.clearCityCaches(cityId);
     }
   }
 

@@ -578,7 +578,6 @@ function renderSingleOverlay(
     // CRITICAL: Check if overlay should still be visible in the current mode.
     // The mode may have changed during async image loading (e.g. Edit → View switch
     // while a pending overlay's image was still loading).
-    const authStore = useAuthStore();
     const visible = isOverlayVisible(overlayObjectWithMethods, mapStore.mode, authStore.user?.id);
     if (!visible) {
       const layer = registry.getLayer(cdnOverlay.id);
