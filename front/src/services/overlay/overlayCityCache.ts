@@ -1,5 +1,4 @@
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { convertOverlayToData } from "@/utils/typeFactories";
 import type { OverlayObject } from "@/types/index";
 
@@ -8,7 +7,6 @@ import type { OverlayObject } from "@/types/index";
  */
 export function addNewOverlayToCityCache(overlayObject: OverlayObject, cityId: number): void {
   const mapStore = useMapStore();
-  const overlayStore = useOverlayStore();
 
   // Convert overlay to data format for caching
   const overlayData = convertOverlayToData(overlayObject);
