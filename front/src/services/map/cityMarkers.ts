@@ -11,7 +11,6 @@ import type { RouterOutput } from "@/client";
 
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
@@ -31,12 +30,12 @@ export const citiesWithProjects = ref<CityWithProjects[]>([]);
  * View mode is always the base (approved content); edit/moderation modes add their own cities on top
  */
 async function buildCitiesForCurrentMode(): Promise<CityWithProjects[]> {
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const authStore = useAuthStore();
   const projectStore = useProjectStore();
 
   // Unauthenticated users always see view mode regardless of store state
-  const currentMode = authStore.isAuthenticated ? overlayStore.mode : "view";
+  const currentMode = authStore.isAuthenticated ? mapStore.mode : "view";
 
   if (currentMode === "view") {
     return projectStore.fetchCitiesWithProjects("view");
@@ -64,10 +63,10 @@ function initializeModeWatcher() {
   const cityMarkersStore = useCityMarkersStore();
   if (cityMarkersStore.modeWatcherInitialized) return;
 
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   watch(
-    () => overlayStore.mode,
+    () => mapStore.mode,
     async (newMode, oldMode) => {
       // Defensive guard — Vue shouldn't fire with equal values but the watcher is async
       if (newMode === oldMode) return;
@@ -372,6 +371,8 @@ async function addCityMarkersToMapInternal(
   explicitCountryCode?: string,
 ) {
   const cityMarkersStore = useCityMarkersStore();
+  const mapStore = useMapStore();
+  const authStore = useAuthStore();
 
   // Determine country code from explicit parameter or derive from cities
   const countryCode = explicitCountryCode ?? cities[0]?.countryCode;
@@ -389,12 +390,11 @@ async function addCityMarkersToMapInternal(
   const allCities = [...cities, ...unsavedCities];
 
   // Filter cities for moderation mode if user is restricted
-  const overlayStore = useOverlayStore();
-  const authStore = useAuthStore();
+
   let citiesToRender = allCities;
 
   if (
-    overlayStore.mode === "moderation" &&
+    mapStore.mode === "moderation" &&
     authStore.user &&
     authStore.user.role !== "admin" &&
     authStore.user.moderatedCountries
@@ -433,7 +433,6 @@ async function addCityMarkersToMapInternal(
   runViewportRenderLoop();
 
   // Update opacities for selected city
-  const mapStore = useMapStore();
   if (mapStore.selectedCity) {
     updateCityMarkerOpacities(mapStore.selectedCity.id);
   }

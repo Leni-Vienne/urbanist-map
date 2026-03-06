@@ -3,7 +3,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { switchMode } from "@/services/overlay/modeSwitching";
 import type { AppMode } from "@shared/types";
 import type { PanelTab } from "@/types";
 
@@ -72,9 +71,7 @@ export function usePanelTabs() {
     // Skip edit-mode switch for unauthenticated users — they see ContributeGuestPanel
     // which doesn't use edit mode, and switching would eagerly load overlay editing chunks.
     if (targetMode === "edit" && !authStore.isAuthenticated) return;
-    if (overlayStore.mode !== targetMode) {
-      switchMode(targetMode);
-    }
+    mapStore.setMode(targetMode);
   }
 
   /**
@@ -113,7 +110,7 @@ export function usePanelTabs() {
    * This ensures Tabs update even if mode is changed via map buttons
    */
   watch(
-    () => overlayStore.mode,
+    () => mapStore.mode,
     (newMode) => {
       // We still need to react to external mode changes,
       // but we use the smart logic in setAppMode to avoid overwriting "Current City"
@@ -154,7 +151,7 @@ export function usePanelTabs() {
   watch(
     () => overlayStore.idSelectedOverlay,
     (overlayId) => {
-      if (overlayId && mapStore.selectedCity && overlayStore.mode === "view") {
+      if (overlayId && mapStore.selectedCity && mapStore.mode === "view") {
         // Explicitly switch to Current City tab
         // No need to call setActiveTab (which triggers switchMode) because we are already in view mode
         // But for consistency we can use uiStore directly or our action
@@ -177,7 +174,7 @@ export function usePanelTabs() {
       // and we're in view mode on a tab that should switch (latest)
       if (
         selectedCity &&
-        overlayStore.mode === "view" &&
+        mapStore.mode === "view" &&
         uiStore.activeTab === "latest" &&
         selectedCity.id !== previousCity?.id
       ) {

@@ -130,7 +130,7 @@ export function useViewportTriggers() {
     // Ensure all cities have data loaded
     for (const cityId of loadedCityIds.value) {
       // OPTIMIZATION: Check if we have cached data for this city
-      const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId, overlayStore.mode);
+      const cachedData = mapStore.getCityOverlaysAndProjectsCache(cityId, mapStore.mode);
 
       if (!cachedData) {
         const city = citiesWithProjects.value.find((c) => c.id === cityId);
@@ -163,7 +163,7 @@ export function useViewportTriggers() {
     _countryCode: string,
     shouldRender = true,
   ) {
-    const mode = overlayStore.mode;
+    const mode = mapStore.mode;
 
     try {
       const overlaysData = await fetchCityOverlaysOrCache(cityId, mode);
@@ -181,7 +181,7 @@ export function useViewportTriggers() {
 
       // Guard against race condition: if mode changed while fetching, don't render stale data.
       // The new mode's fetch (triggered by watcher) will handle rendering.
-      if (overlayStore.mode !== mode) {
+      if (mapStore.mode !== mode) {
         return;
       }
 
@@ -212,7 +212,7 @@ export function useViewportTriggers() {
    * and render them together. This ensures multi-city view works correctly.
    */
   function renderAllLoadedOverlays(fullRender = true) {
-    const mode = overlayStore.mode;
+    const mode = mapStore.mode;
 
     const allOverlays: OverlayData[] = [];
 
@@ -264,7 +264,7 @@ export function useViewportTriggers() {
 
       // CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < loadThreshold) {
-        const isEditMode = overlayStore.mode === "edit";
+        const isEditMode = mapStore.mode === "edit";
         const activeCityId = mapStore.selectedCity?.id;
 
         // Active city preservation: if a city is selected, keep its content loaded
@@ -376,7 +376,7 @@ export function useViewportTriggers() {
     // This keeps allMarkers intact and markers on the Leaflet map so that:
     //  - pruneOverlays can show them at zoom 13 via showMarkers=true
     //  - createSingleMarker's allMarkers guard fires on zoom-in, skipping recreation
-    const isEditMode = overlayStore.mode === "edit";
+    const isEditMode = mapStore.mode === "edit";
     clearAllOverlays(true);
 
     // Collect all overlays to render as markers
@@ -421,7 +421,7 @@ export function useViewportTriggers() {
     // Filtering overlayStore.overlays (OverlayObject) would yield wrong colors
     // because OverlayObjects in the store don't carry the embedded project.
     const visibleOverlayIds = new Set(
-      filterByStatus(allOverlaysForMarkers, overlayStore.mode).map((o) => o.id),
+      filterByStatus(allOverlaysForMarkers, mapStore.mode).map((o) => o.id),
     );
 
     // Render interactive markers only for completion-filter-passing overlays
@@ -471,7 +471,7 @@ export function useViewportTriggers() {
     // This is the primary fix for: pending overlay/standalone marker invisible after page refresh + tab switch.
     watch(citiesWithProjects, async () => {
       // Only needed in non-view modes — view mode's initial refreshViewport handles it.
-      if (overlayStore.mode === "view") return;
+      if (mapStore.mode === "view") return;
       // force=true: bypass the isLoading guard so it doesn't silently drop if a concurrent
       // refreshViewport is running. getCityOverlaysAndProjectsCache returns cached data for
       // already-loaded cities so this doesn't cause redundant network requests.
@@ -479,7 +479,7 @@ export function useViewportTriggers() {
     });
 
     watch(
-      () => overlayStore.mode,
+      () => mapStore.mode,
       async (newMode, oldMode) => {
         // Guard: only reload if mode actually changed
         if (newMode === oldMode) {
@@ -569,7 +569,7 @@ export function useViewportTriggers() {
           // Race condition: mode switched while the initial page-load fetch was still in-flight.
           // loadedCityIds is empty because loadCityData hasn't finished yet (it adds the city
           // only after the async fetch completes). The in-flight fetch will hit the race-condition
-          // guard (overlayStore.mode !== captured mode) and return without rendering.
+          // guard (mapStore.mode !== captured mode) and return without rendering.
           // Force a fresh viewport refresh in the new mode so the correct content appears
           // without requiring the user to pan or zoom.
           await refreshViewport(true);

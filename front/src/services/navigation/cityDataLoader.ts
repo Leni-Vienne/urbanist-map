@@ -1,7 +1,6 @@
 // City data loading for navigation - pure data fetching only (no rendering)
 // Rendering is handled by callers to avoid circular dependencies
 import { ref } from "vue";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { trpc } from "@/client";
 import type { OverlayData } from "@/types/index";
@@ -66,8 +65,8 @@ export async function loadCityData(
   cityId: number,
   mode?: AppMode,
 ): Promise<{ overlays: OverlayData[] | null; projects: CityProject[] | null }> {
-  const overlayStore = useOverlayStore();
-  const actualMode = mode ?? overlayStore.mode;
+  const mapStore = useMapStore();
+  const actualMode = mode ?? mapStore.mode;
 
   const [overlays, projects] = await Promise.all([
     fetchCityOverlaysOrCache(cityId, actualMode),

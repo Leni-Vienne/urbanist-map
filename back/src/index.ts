@@ -111,6 +111,7 @@ const store = new DrizzleSessionStore();
 app.use(
   "*",
   sessionMiddleware({
+    // @ts-ignore hono doesn't like DrizzleSessionStore's type for some reason
     store,
     sessionCookieName: "session",
     encryptionKey: process.env.JWT_SECRET ?? "fallback-secret-key-for-dev-at-least-32-chars",

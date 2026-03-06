@@ -2,6 +2,7 @@ import type * as L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
 // Dynamic import for chunk splitting - overlayRendering pulls in leaflet-distortableimage
 // which is only needed when the user zooms in far enough to see overlay images
@@ -149,7 +150,8 @@ function pruneBackendOverlays(
   showMarkers: boolean,
 ) {
   const overlayStore = useOverlayStore();
-  const filteredOverlays = filterByStatus(overlayStore.viewModeOverlays, overlayStore.mode);
+  const mapStore = useMapStore();
+  const filteredOverlays = filterByStatus(overlayStore.viewModeOverlays, mapStore.mode);
   const overlaysToRender: OverlayData[] = [];
 
   for (const data of filteredOverlays) {
@@ -187,12 +189,9 @@ function pruneBackendOverlays(
       } else {
         syncLayerToMap(marker, showMarkers, mapInstance);
       }
-    } else {
+    } else if (layer || registry.getMarker(data.id)) {
       // Not visible → queue for cleanup
-      const marker = registry.getMarker(data.id);
-      if (layer || marker) {
-        queueForDestruction(data.id);
-      }
+      queueForDestruction(data.id);
     }
   }
 
@@ -231,6 +230,7 @@ function pruneLocalOverlays(
 ) {
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
+  const mapStore = useMapStore();
   const editOverlaysToRecreate: OverlayObject[] = [];
 
   for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
@@ -240,8 +240,8 @@ function pruneLocalOverlays(
 
     if (overlay.corners.length !== 4) continue;
 
-    const isAllowedByMode = isOverlayVisible(overlay, overlayStore.mode, authStore.user?.id);
-    const passesCompletionFilter = filterByStatus([overlay], overlayStore.mode).length > 0;
+    const isAllowedByMode = isOverlayVisible(overlay, mapStore.mode, authStore.user?.id);
+    const passesCompletionFilter = filterByStatus([overlay], mapStore.mode).length > 0;
 
     const layer = registry.getLayer(id);
 

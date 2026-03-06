@@ -149,12 +149,12 @@ export default defineConfig(({ mode }) => ({
                 /node_modules\/@primeuix\/styles\/dist\/(virtualscroller|tooltip|button|checkbox|inputtext|tag|progressspinner|popover)\//.test(
                   id,
                 ) ||
-                id.includes("node_modules\/primevue\/popover\/") ||
+                id.includes("node_modules/primevue/popover/") ||
                 /node_modules\/@primevue\/icons\/(chevrondown|times|chevronleft|chevronright|chevronup|minus|windowmaximize|windowminimize)\//.test(
                   id,
                 ) ||
                 /node_modules\/@primevue\/core\/(utils|baseinput|baseeditableholder)\//.test(id) ||
-                id.includes("node_modules\/@primeuix\/utils\/dist\/eventbus"),
+                id.includes("node_modules/@primeuix/utils/dist/eventbus"),
             },
             // Consolidate the ~12 tiny own-code chunks that Rolldown extracts because
             // they are shared between multiple lazy-loaded components. All confirmed page-loaded.
@@ -166,7 +166,7 @@ export default defineConfig(({ mode }) => ({
                   id,
                 ) ||
                 /\/front\/src\/utils\/(imageUrl|imageErrorHandler)/.test(id) ||
-                id.includes("\/front\/src\/constants\/mapConstants") ||
+                id.includes("/front/src/constants/mapConstants") ||
                 /\/front\/src\/composables\/(ui\/useToast)/.test(id) ||
                 /\/front\/src\/services\/(core\/errorHandling|overlay\/(overlayLifecycle|completionFilters|modeSwitching)|navigation\/locationNavigation|project\/projectSelection)/.test(
                   id,
@@ -186,7 +186,7 @@ export default defineConfig(({ mode }) => ({
                 // The async entry files load overlay-services as a dep chunk automatically.
                 /\/front\/src\/services\/overlay\/(overlay|overlayCityCache|overlayPositionResolver)\.ts/.test(
                   id,
-                ) || id.includes("\/front\/src\/services\/project\/projects\.ts"),
+                ) || id.includes("/front/src/services/project/projects.ts"),
             },
             // Consolidate the 9-chunk cascade triggered when CurrentLocationPanel first mounts
             // (applies to both zoom→click-on-overlay and LatestContributionsPanel click flows).
@@ -204,7 +204,7 @@ export default defineConfig(({ mode }) => ({
                 /\/front\/src\/composables\/overlay\/(useNewProject|useChangeRequestPreview)\.ts/.test(
                   id,
                 ) ||
-                id.includes("\/front\/src\/utils\/statusHelpers\.ts") ||
+                id.includes("/front/src/utils/statusHelpers.ts") ||
                 /node_modules\/primevue\/(accordion|accordioncontent|accordionheader|accordionpanel|card)\//.test(
                   id,
                 ) ||

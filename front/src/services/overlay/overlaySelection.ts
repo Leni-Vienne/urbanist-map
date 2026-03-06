@@ -130,6 +130,7 @@ export function selectOverlay(overlayId: string | null): void {
   if (isSelectingOverlay) return;
 
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // Early exit if already selected
   if (overlayId === overlayStore.idSelectedOverlay) return;
@@ -163,10 +164,9 @@ export function selectOverlay(overlayId: string | null): void {
     if (!newlySelected) return;
 
     // Set selectedCity to enable panel auto-switch from Latest to Current Location
-    const foundCityId = findCityIdForOverlay(overlayId, overlayStore.mode);
+    const foundCityId = findCityIdForOverlay(overlayId, mapStore.mode);
 
     if (foundCityId) {
-      const mapStore = useMapStore();
       // Look up city info from citiesLookup map (no circular dependency)
       const city = mapStore.citiesLookup.get(foundCityId);
 
@@ -377,10 +377,9 @@ export function setupProjectHoverEvents(
  * Called when clicking an overlay marker or image so the side panel shows the right city.
  */
 export function syncModerationCityFromOverlay(overlayObject: OverlayObject): void {
-  const overlayStore = useOverlayStore();
-  if (overlayStore.mode !== "moderation" || !overlayObject.project?.city) return;
-
   const mapStore = useMapStore();
+  if (mapStore.mode !== "moderation" || !overlayObject.project?.city) return;
+
   const city = overlayObject.project.city;
   if (mapStore.selectedCity?.id !== city.id) {
     mapStore.setSelectedCity({

@@ -262,7 +262,7 @@ const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest
 // - Edit mode + city selected: ALL projects in that city (so users can contribute to any project)
 // - Otherwise: User's own contributions from anywhere
 watch(
-  () => ({ cityId: mapStore.selectedCity?.id, mode: overlayStore.mode }),
+  () => ({ cityId: mapStore.selectedCity?.id, mode: mapStore.mode }),
   ({ cityId, mode }) => {
     const isEditMode = mode === "edit";
 
@@ -291,7 +291,7 @@ const lastSelectedCity = ref<{
 
 // Update state based on city selection and mode
 watch(
-  () => ({ city: mapStore.selectedCity, mode: overlayStore.mode }),
+  () => ({ city: mapStore.selectedCity, mode: mapStore.mode }),
   ({ city, mode }) => {
     if (mode === "edit" && city) {
       // Remember this city and mark as showing city projects

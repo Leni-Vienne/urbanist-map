@@ -13,6 +13,18 @@ interface SelectedCity {
 }
 
 export const useMapStore = defineStore("map", () => {
+  // App mode (view, edit, moderation) — lives here alongside the mode-keyed city caches
+  const mode = ref<AppMode>("view");
+
+  function setMode(newMode: AppMode) {
+    if (mode.value === newMode) return;
+    mode.value = newMode;
+  }
+
+  function resetMode() {
+    mode.value = "view";
+  }
+
   // Currently selected city state (replaces the old latestClickedCity module variable)
   const selectedCity = ref<SelectedCity | null>(null);
 
@@ -120,6 +132,7 @@ export const useMapStore = defineStore("map", () => {
 
   return {
     // State
+    mode,
     selectedCity,
     selectedCountryCode,
     currentCityOverlays,
@@ -128,6 +141,8 @@ export const useMapStore = defineStore("map", () => {
     cityStandaloneProjectsCache,
 
     // Actions
+    setMode,
+    resetMode,
     setSelectedCity,
     clearSelectedCity,
     getCityOverlaysAndProjectsCache,
