@@ -61,15 +61,14 @@ function handleFilterOverlays(status: viewModeMarkerColor) {
 
 // Helper to zoom with mobile offset - keeps focus on upper visible area
 function zoomWithMobileOffset(zoomDelta: number) {
-  const isMobile = globalThis.innerWidth <= 768;
-  const shouldOffset = isMobile && uiStore.mobileDrawerVisible;
+  const shouldOffset = isMobile.value && uiStore.mobileDrawerVisible;
 
   if (!shouldOffset) {
     // Desktop or drawer closed - use normal zoom with larger delta on mobile
     if (zoomDelta > 0) {
-      map.value.zoomIn(isMobile ? 1 : undefined);
+      map.value.zoomIn(isMobile.value ? 1 : undefined);
     } else {
-      map.value.zoomOut(isMobile ? 1 : undefined);
+      map.value.zoomOut(isMobile.value ? 1 : undefined);
     }
     return;
   }

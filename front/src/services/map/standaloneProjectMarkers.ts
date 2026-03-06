@@ -344,7 +344,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     void (async () => {
       L.DomEvent.stopPropagation(e);
       const uiStore = useUiStore();
-      const mapStore = useMapStore();
 
       // In moderation mode, clicking a contribution should load the city context
       if (mapStore.mode === "moderation") {
