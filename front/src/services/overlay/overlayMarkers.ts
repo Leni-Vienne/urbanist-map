@@ -15,6 +15,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { applyWarningRing, clearWarningRing } from "@/services/overlay/overlayStyle";
 import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
@@ -369,7 +370,7 @@ export function checkOverlaySizeAndWarn(
   if (!validation.isValid) {
     // Add red border to indicate size problem
     element.style.border = "4px solid #ef4444";
-    element.style.boxShadow = "0 0 0 2px rgba(239, 68, 68, 0.3)";
+    applyWarningRing(element);
 
     // Update marker color if not already marked
     if (!overlayObject.isTooBig) {
@@ -389,7 +390,7 @@ export function checkOverlaySizeAndWarn(
   } else {
     // Remove warning styling
     element.style.border = "";
-    element.style.boxShadow = "";
+    clearWarningRing(element);
 
     // Clear size issue flag and update marker color
     if (overlayObject.isTooBig) {

@@ -46,6 +46,7 @@ import {
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
@@ -306,12 +307,20 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   // returns null until the overlay is added to the map and the image loads
   setupOverlayMovementTracking(layer, overlayObject);
 
-  // Ensure new overlays start with no outline unless they're selected
+  // Ensure new overlays start with the correct ring state
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = layer.getElement();
     if (element) {
-      element.style.boxShadow = "";
-      element.style.outline = "none";
+      // Apply project highlight ring if this overlay belongs to the same project as the
+      // currently selected overlay (e.g. switching to edit mode reveals sister overlays)
+      const selectedOverlay = overlayStore.idSelectedOverlay
+        ? overlayStore.overlays[overlayStore.idSelectedOverlay]
+        : null;
+      if (selectedOverlay?.projectId && selectedOverlay.projectId === overlayObject.projectId) {
+        applySelectionRing(element);
+      } else {
+        clearSelectionRing(element);
+      }
     }
   } else {
     // Overlay finished loading while already selected (out-of-viewport navigation):

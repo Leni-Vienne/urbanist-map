@@ -12,7 +12,7 @@ import { getMarker, getLayer } from "@/services/overlay/overlayRenderRegistry";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { OVERLAY_OUTLINE_COLOR } from "@/services/map/markers";
+import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
@@ -225,12 +225,7 @@ export function applySelectionOutline(overlayObject: OverlayObject): void {
 
   const element = selLayer.getElement();
   if (element) {
-    // Calculate appropriate outline size based on overlay dimensions
-    const outlineSize = calculateOutlineSize(element, 20);
-
-    // Use box-shadow instead of outline to avoid scaling issues
-    element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
-    element.style.outline = "none";
+    applySelectionRing(element);
   }
 }
 
@@ -243,8 +238,7 @@ function removeOverlayOutline(overlayObject: OverlayObject): void {
 
   const element = removeLayer.getElement();
   if (element) {
-    element.style.boxShadow = "";
-    element.style.outline = "none";
+    clearSelectionRing(element);
   }
 }
 
@@ -309,14 +303,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
   // Remove all outlines from overlays in this project
   for (const overlayObject of Object.values(overlayStore.overlays)) {
     if (overlayObject.projectId === projectId) {
-      const projLayer = getLayer(overlayObject.id);
-      if (projLayer) {
-        const element = projLayer.getElement();
-        if (element) {
-          element.style.boxShadow = "";
-          element.style.outline = "none";
-        }
-      }
+      removeOverlayOutline(overlayObject);
     }
   }
 }
@@ -335,12 +322,7 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
       if (hoverLayer) {
         const element = hoverLayer.getElement();
         if (element) {
-          // Calculate appropriate outline size based on overlay dimensions
-          const outlineSize = calculateOutlineSize(element, 20);
-
-          // Use box-shadow instead of outline to avoid scaling issues
-          element.style.boxShadow = `0 0 0 ${outlineSize}px ${OVERLAY_OUTLINE_COLOR}`;
-          element.style.outline = "none";
+          applySelectionRing(element);
         }
       }
     }
@@ -402,41 +384,4 @@ export function setupMapClickToDeselect(): void {
       selectOverlay(null);
     }
   });
-}
-
-/**
- * Calculate appropriate outline size based on overlay dimensions and aspect ratio
- * This ensures consistent visual outline regardless of overlay shape & resolution
- */
-function calculateOutlineSize(overlayElement: HTMLElement, baseSize: number): number {
-  try {
-    // Get the actual image element
-    const imgElement =
-      overlayElement instanceof HTMLImageElement
-        ? overlayElement
-        : overlayElement.querySelector("img");
-
-    if (!imgElement) return baseSize;
-
-    // Get natural image dimensions
-    const naturalWidth = imgElement.naturalWidth;
-    const naturalHeight = imgElement.naturalHeight;
-
-    if (naturalWidth <= 0 || naturalHeight <= 0) return baseSize;
-
-    // Calculate outline size based on image resolution
-    // Use the smaller dimension to get consistent visual thickness
-    const naturalSmallerDimension = Math.min(naturalWidth, naturalHeight);
-
-    // Scale the base outline size by the image resolution
-    // Larger images need proportionally larger outlines to appear the same thickness
-    const scaleFactor = naturalSmallerDimension / 500;
-    const scaledOutline = baseSize * scaleFactor;
-
-    // Clamp to reasonable bounds
-    return Math.max(1, Math.min(50, Math.round(scaledOutline)));
-  } catch {
-    // Silently fall back to base size on error
-    return baseSize;
-  }
 }

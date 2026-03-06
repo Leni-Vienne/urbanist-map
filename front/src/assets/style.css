@@ -34,6 +34,16 @@ body {
   font-family: inherit;
 }
 
+.ldi {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ldi .leaflet-pane .leaflet-overlay-pane img {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .leaflet-control-attribution a {
   color: #005a7d !important;
   /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */

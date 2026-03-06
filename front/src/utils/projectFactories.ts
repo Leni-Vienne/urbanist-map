@@ -9,8 +9,6 @@ import type {
   UserContributionOverlay,
 } from "@/types/index";
 
-import type { ApprovalStatus } from "@shared/types";
-
 import { getCountryName, type CountryInfo } from "@/services/map/countryData";
 
 interface SelectedCity {
