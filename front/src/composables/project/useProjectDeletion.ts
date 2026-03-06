@@ -40,7 +40,12 @@ export function useProjectDeletion() {
       const updatedProject =
         projectStore.projects[project.id] ?? projectStore.allProjects[project.id] ?? project;
 
-      await new Promise<void>((resolve) => void setTimeout(() => resolve(), 150));
+      await new Promise<void>(
+        (resolve) =>
+          void setTimeout(() => {
+            resolve();
+          }, 150),
+      );
       addStandaloneProjectMarkerForProject(updatedProject as unknown as Project);
     }
 

@@ -9,8 +9,6 @@ import type {
   UserContributionOverlay,
 } from "@/types/index";
 
-import type { ApprovalStatus } from "@shared/types";
-
 import { getCountryName, type CountryInfo } from "@/services/map/countryData";
 
 interface SelectedCity {
@@ -35,7 +33,7 @@ export function createProjectFromOverlayData(
     id: overlayData.projectId ?? "",
     name: projectInfo?.name ?? overlayData.projectId ?? "",
     description: projectInfo?.description ?? null,
-    status: (projectInfo?.status ?? "approved") as ApprovalStatus,
+    status: projectInfo?.status ?? "approved",
     ownerId: projectInfo?.ownerId ?? overlayData.authorId,
     cityId: projectInfo?.cityId ?? selectedCity.id,
     lat: projectInfo?.lat ?? overlayData.centroid.lat,

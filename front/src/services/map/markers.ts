@@ -143,7 +143,7 @@ const _overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
 // Create overlay marker icon with picture frame (for overlay markers specifically)
 export function createOverlayIcon(color: MarkerColor): L.DivIcon {
   if (_overlayIconCache[color]) {
-    return _overlayIconCache[color]!;
+    return _overlayIconCache[color];
   }
   const svgString = createOverlayMarkerSVG(color);
   const icon = L.divIcon({

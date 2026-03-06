@@ -6,7 +6,7 @@ export function formatSourceUrl(url: string): string {
     const isPdf = urlObj.pathname.toLowerCase().endsWith(".pdf");
     return `${urlObj.hostname} (${isPdf ? "pdf" : "website"})`;
   } catch {
-    const truncated = url.length > 30 ? `${url.substring(0, 30)}...` : url;
+    const truncated = url.length > 30 ? `${url.slice(0, 30)}...` : url;
     const isPdf = url.toLowerCase().endsWith(".pdf");
     return `${truncated} (${isPdf ? "pdf" : "website"})`;
   }

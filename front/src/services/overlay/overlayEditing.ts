@@ -7,6 +7,7 @@ import { map, currentZoomLevel } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
@@ -33,6 +34,7 @@ import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
  */
 export async function updateOverlayEditingState(): Promise<void> {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // No popup save/restore needed: OverlayFloatingToolbar.vue is reactive and persists
   // across mode switches without any leaflet-toolbar DOM rebuild.
@@ -45,7 +47,7 @@ export async function updateOverlayEditingState(): Promise<void> {
 
     if (!map.value.hasLayer(layer)) return;
 
-    const isEditMode = overlayStore.mode === "edit";
+    const isEditMode = mapStore.mode === "edit";
     // Only pass mode actions — toolbar UI is handled by OverlayFloatingToolbar.vue.
     // Cast to any[]: L.ResizeRotateAction/DistortAction are registered by leaflet-distortableimage
     // at runtime but absent from TS types.
@@ -162,9 +164,10 @@ export function addOverlay(
   replacesOverlayId?: string,
 ): string | undefined {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // Only allow adding overlays in edit mode
-  if (overlayStore.mode !== "edit") {
+  if (mapStore.mode !== "edit") {
     return undefined;
   }
 
@@ -313,7 +316,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     if (!currentState) return;
 
     redoStack.push(currentState);
-    const previousState = history[history.length - 1];
+    const previousState = history.at(-1);
     if (!previousState) return;
 
     layer.setCorners(previousState);

@@ -3,12 +3,12 @@
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
-    "suspicious": "off", // mostly type assertion stuff that I don't see how to fix
+    "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
     "correctness": "warn",
     "perf": "warn",
     "nursery": "warn",
     "style": "warn",
-    "restriction": "off",
+    "restriction": "warn",
     "pedantic": "off"
   },
   "rules": {
@@ -46,6 +46,7 @@
     "no-inferrable-types": "off",
     "no-use-before-define": "off",
     "prefer-ternary": "off",
+    "max-lines-per-function": "off", // seems irrelevant with vue composables since they are large
     "no-explicit-any": "off", // temp maybe
     "max-statements": "off", // temp maybe
     "no-undefined": "off", // temp maybe

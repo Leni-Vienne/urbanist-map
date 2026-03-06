@@ -130,7 +130,7 @@ export const useAuthStore = defineStore("auth", () => {
   let initPromise: Promise<void> | null = null;
 
   // Initialize auth state — idempotent, subsequent calls return the same promise
-  function initialize(): Promise<void> {
+  async function initialize(): Promise<void> {
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
@@ -349,8 +349,8 @@ export const useAuthStore = defineStore("auth", () => {
       const moderationStore = useModerationStore();
 
       // Clear map state
-      mapStore.clearCityProjectsCache();
-      mapStore.clearCityStandaloneProjectsCache();
+      mapStore.resetMode();
+      mapStore.clearCityCaches();
       mapStore.clearSelectedCity();
 
       // Clear all project and overlay state

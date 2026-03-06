@@ -119,7 +119,7 @@
           <!-- and reject overlays even if project is rejected -->
           <ModerationActionButtons
             v-if="overlay.status === 'pending' && project.status !== 'pending'"
-            :disabled="!!overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)"
+            :disabled="Boolean(overlay.replacesOverlayId) && !viewedOverlayIds.includes(overlay.id)"
             :disabled-tooltip="
               overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)
                 ? $t('overlay.viewPositionRequired')
@@ -159,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, defineAsyncComponent } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useModeration } from "@/composables/moderation/useModeration";
 import { useChangeRequests } from "@/composables/changes/useChanges";
@@ -172,7 +172,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
-import { addCityMarkersForCountry } from "@/services/map/cityMarkers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { canModerateCountry } from "@/composables/overlay/useOverlayClickHandler";
 
@@ -243,7 +242,7 @@ onMounted(async () => {
       if (canAccess) {
         // Restore markers. useModeration hook (running after this) will see the store value and fetch the list.
         // Don't fly if we are already zoomed in on a city (selectedCity is set)
-        await loadCountryData(initialCode, !mapStore.selectedCity);
+        loadCountryData(initialCode, !mapStore.selectedCity);
       }
     }
 
@@ -264,7 +263,7 @@ onMounted(async () => {
         throw new Error("No country found");
       }
       // Use shared loader
-      await loadCountryData(country.code);
+      loadCountryData(country.code);
       // Explicitly fetch pending submissions because useModeration hook ran already (saw null)
       await fetchPendingSubmissions();
     }
@@ -292,63 +291,42 @@ onMounted(async () => {
   }
 });
 
-// Handle country selection change
-// Load data for a specific country (markers, pending submissions, etc.)
-async function loadCountryData(countryCode: string | null, shouldFly = true) {
+// Load data for a specific country (stores, fly-to)
+// City markers are managed globally by the mode watcher — no need to reload per country
+function loadCountryData(countryCode: string | null, shouldFly = true) {
   // Sync local ref if needed (e.g. when called from watcher/mounted)
   if (selectedCountryCode.value !== countryCode) {
     selectedCountryCode.value = countryCode;
   }
 
-  // Update stores
-  // Optim: Only invalidate moderation data if country changed (allows cache reuse)
+  // Only invalidate moderation data if country changed (allows cache reuse)
   const isDifferentCountry = moderationStore.selectedCountryCode !== countryCode;
   moderationStore.setSelectedCountryCode(countryCode);
-
   if (isDifferentCountry) {
     moderationStore.resetModerationLoaded();
   }
 
-  // Load city markers for the selected country
   if (countryCode) {
-    try {
-      // Fetch cities for the selected country in moderation mode
-      const cities = await trpc.cities.getCitiesWithProjects.query({
-        countryCode,
-        mode: "moderation",
-      });
+    mapStore.selectedCountryCode = countryCode;
 
-      // Add city markers to the map
-      addCityMarkersForCountry(cities, countryCode);
-
-      // Update mapStore to keep state in sync
-      mapStore.selectedCountryCode = countryCode;
-
-      // Fly to the country center if available AND requested
-      if (shouldFly) {
-        const country = projectStore.countries.find((c) => c.code === countryCode);
-        if (country) {
-          // PostGIS geometry uses x for longitude and y for latitude
-          mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, {
-            duration: 1.5,
-          });
-        }
+    if (shouldFly) {
+      const country = projectStore.countries.find((c) => c.code === countryCode);
+      if (country) {
+        mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, {
+          duration: 1.5,
+        });
       }
-    } catch (error) {
-      console.error("Failed to load city markers for country:", error);
-      toast.add({
-        severity: "error",
-        summary: t("common.error"),
-        detail: t("moderation.failedToLoadCityMarkers"),
-        life: 3000,
-      });
     }
   }
 }
 
 // Handle country selection change
 async function handleCountryChange() {
-  await loadCountryData(selectedCountryCode.value);
+  // Clear city if it belongs to a different country (e.g., stale city from edit mode)
+  if (mapStore.selectedCity?.countryCode !== selectedCountryCode.value) {
+    mapStore.clearSelectedCity();
+  }
+  loadCountryData(selectedCountryCode.value);
   await fetchPendingSubmissions();
 }
 
@@ -387,7 +365,6 @@ async function refetchPendingCounts() {
 // Use moderation composable
 const {
   projects,
-  overlays, // Added overlays for filtering logic
   changeRequests,
   approveProject,
   rejectProject,
@@ -396,11 +373,12 @@ const {
   fetchPendingSubmissions,
 } = useModeration();
 
-// Use change requests composable
 const { approveChangeRequests, rejectChangeRequests } = useChangeRequests();
 
-// Create isLoading ref
-const isLoading = ref(false);
+// Show loading state when a country is selected but data hasn't been fetched yet
+const isLoading = computed(
+  () => Boolean(selectedCountryCode.value) && !moderationStore.moderationLoaded,
+);
 const toast = useToast();
 
 // Use change request preview composable to track when suggested positions are viewed
@@ -490,7 +468,7 @@ const filteredChangeRequests = computed(() => {
   const cityId = selectedCity.id;
 
   // Get loaded data for this city in current mode
-  const currentMode = overlayStore.mode;
+  const currentMode = mapStore.mode;
   const cityOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, currentMode) ?? [];
   const cityStandalone = mapStore.getCityStandaloneProjectsCache(cityId, currentMode) ?? [];
 
@@ -531,7 +509,7 @@ watch(
         selectedCountryCode.value = city.countryCode;
         // Handle the country change logic (fetch data)
         // Suppress fly because we are already centered on the city (or flying to it)
-        await loadCountryData(city.countryCode, false);
+        loadCountryData(city.countryCode, false);
         await fetchPendingSubmissions();
       }
     }

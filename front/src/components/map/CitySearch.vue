@@ -73,7 +73,7 @@ async function onSearch(event: { query: string }) {
   }
 
   // Require minimum 1 character to support short city names (e.g., Chinese cities)
-  if (!query || query.length < 1) {
+  if (!query || query.length === 0) {
     suggestions.value = [];
     return;
   }

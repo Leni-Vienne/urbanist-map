@@ -10,10 +10,12 @@ import { map } from "@/services/core/map";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { applyWarningRing, clearWarningRing } from "@/services/overlay/overlayStyle";
 import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
@@ -60,12 +62,12 @@ export function updateMarkerTooltip(
   overlayObject: OverlayObject,
   cachedMarkerColor?: MarkerColor,
 ): void {
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
   const marker = registry.getMarker(overlayObject.id);
 
   if (!marker) return;
 
-  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, overlayStore.mode);
+  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, mapStore.mode);
 
   // Skip setIcon() if color hasn't changed — setIcon() detaches and rebuilds the marker's
   // DOM element even when the icon is visually identical, causing unnecessary layout cost.
@@ -79,7 +81,7 @@ export function updateMarkerTooltip(
 
   // View mode: ensure no tooltip is bound
   // Edit & Moderation modes: show tooltips
-  if (overlayStore.mode === "view") {
+  if (mapStore.mode === "view") {
     if (marker.getTooltip()) {
       marker.unbindTooltip();
     }
@@ -146,6 +148,7 @@ export function updateMarkerTooltip(
  */
 export function createSingleMarker(savedOverlay: OverlayObject): void {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // Skip replaced overlays - the replacement is at the same location, marker would be confusing
   if (savedOverlay.status === "replaced") {
@@ -159,14 +162,14 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   // CRITICAL: Safety check for visibility
   // This prevents markers from being created for filtered-out overlays during race conditions
   const authStore = useAuthStore();
-  if (!isOverlayVisible(savedOverlay, overlayStore.mode, authStore.user?.id)) {
+  if (!isOverlayVisible(savedOverlay, mapStore.mode, authStore.user?.id)) {
     return;
   }
 
   // Calculate centroid from corners using shared utility to match backend calculation
   // Check edit cache first to prevent flicker when zooming back in on modified overlays
   let corners = savedOverlay.corners;
-  if (overlayStore.mode === "edit") {
+  if (mapStore.mode === "edit") {
     const cached = overlayStore.getFromEditModeCache(savedOverlay.id);
     if (cached?.corners.length === 4) {
       corners = cached.corners;
@@ -185,7 +188,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 
   // Enrich overlay with project data for proper marker color calculation
   const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
-  const markerColor = getOverlayMarkerColor(tempOverlayObject, overlayStore.mode);
+  const markerColor = getOverlayMarkerColor(tempOverlayObject, mapStore.mode);
   const colorIcon = createOverlayIcon(markerColor);
 
   const marker = L.marker(center, {
@@ -258,11 +261,11 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
  * Create a marker for new/replacement overlays (for edit mode)
  */
 export function createMarker(overlayObject: OverlayObject): void {
-  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // CRITICAL: Safety check for visibility
   const authStore = useAuthStore();
-  if (!isOverlayVisible(overlayObject, overlayStore.mode, authStore.user?.id)) {
+  if (!isOverlayVisible(overlayObject, mapStore.mode, authStore.user?.id)) {
     return;
   }
 
@@ -306,6 +309,7 @@ export function createMarker(overlayObject: OverlayObject): void {
  */
 export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
   const layer = registry.getLayer(overlay.id);
@@ -318,7 +322,7 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   }
 
   // Priority 1: Check edit mode cache if in edit mode for the most current position
-  if (overlayStore.mode === "edit") {
+  if (mapStore.mode === "edit") {
     const cachedModifications = overlayStore.getFromEditModeCache(overlay.id);
     if (cachedModifications?.corners.length === 4) {
       const corners = cachedModifications.corners.map((corner) => L.latLng(corner.lat, corner.lng));
@@ -366,7 +370,7 @@ export function checkOverlaySizeAndWarn(
   if (!validation.isValid) {
     // Add red border to indicate size problem
     element.style.border = "4px solid #ef4444";
-    element.style.boxShadow = "0 0 0 2px rgba(239, 68, 68, 0.3)";
+    applyWarningRing(element);
 
     // Update marker color if not already marked
     if (!overlayObject.isTooBig) {
@@ -386,7 +390,7 @@ export function checkOverlaySizeAndWarn(
   } else {
     // Remove warning styling
     element.style.border = "";
-    element.style.boxShadow = "";
+    clearWarningRing(element);
 
     // Clear size issue flag and update marker color
     if (overlayObject.isTooBig) {

@@ -36,18 +36,18 @@
 import { storeToRefs } from "pinia";
 import L from "leaflet";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import type { viewModeMarkerColor } from "@/types/index";
 import FilterControl from "@/components/map/FilterControl.vue";
 import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
 
-const overlayStore = useOverlayStore();
+const mapStore = useMapStore();
 const uiStore = useUiStore();
 const { isMobile } = useIsMobile();
 
-const { mode } = storeToRefs(overlayStore);
+const { mode } = storeToRefs(mapStore);
 
 // Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{
@@ -61,15 +61,14 @@ function handleFilterOverlays(status: viewModeMarkerColor) {
 
 // Helper to zoom with mobile offset - keeps focus on upper visible area
 function zoomWithMobileOffset(zoomDelta: number) {
-  const isMobile = globalThis.innerWidth <= 768;
-  const shouldOffset = isMobile && uiStore.mobileDrawerVisible;
+  const shouldOffset = isMobile.value && uiStore.mobileDrawerVisible;
 
   if (!shouldOffset) {
     // Desktop or drawer closed - use normal zoom with larger delta on mobile
     if (zoomDelta > 0) {
-      map.value.zoomIn(isMobile ? 1 : undefined);
+      map.value.zoomIn(isMobile.value ? 1 : undefined);
     } else {
-      map.value.zoomOut(isMobile ? 1 : undefined);
+      map.value.zoomOut(isMobile.value ? 1 : undefined);
     }
     return;
   }

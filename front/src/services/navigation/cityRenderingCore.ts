@@ -94,7 +94,7 @@ function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
 
   hydrateOverlayStoreObjects(overlaysData);
 
-  updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
+  updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
 }
 
 /**
@@ -126,7 +126,8 @@ export function renderMarkersOnly(overlaysData: OverlayData[]): void {
   hydrateStoreWithOverlays(overlaysData);
 
   const overlayStore = useOverlayStore();
-  const mode = overlayStore.mode;
+  const mapStore = useMapStore();
+  const mode = mapStore.mode;
   // Filter on OverlayData (has project field) so getOverlayMarkerColor can compute
   // the correct timeline-based color in view mode.
   const visibleIds = new Set(filterByStatus(overlaysData, mode).map((o) => o.id));

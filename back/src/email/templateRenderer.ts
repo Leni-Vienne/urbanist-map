@@ -21,11 +21,11 @@ const translations: Record<Locale, Translations> = {
  */
 function escapeHtml(unsafe: string) {
   return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replaceAll(/&/g, "&amp;")
+    .replaceAll(/</g, "&lt;")
+    .replaceAll(/>/g, "&gt;")
+    .replaceAll(/"/g, "&quot;")
+    .replaceAll(/'/g, "&#039;");
 }
 
 /**
@@ -36,7 +36,7 @@ function escapeHtml(unsafe: string) {
  * @returns Rendered HTML string
  */
 function renderTemplate(template: string, data: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+  return template.replaceAll(/\{\{(\w+)\}\}/g, (_, key) => {
     const value = data[key] ?? "";
     return escapeHtml(value);
   });
@@ -62,7 +62,7 @@ export async function renderEmailTemplate(
     }
 
     // Convert camelCase template name to kebab-case for file lookup
-    const kebabCaseName = templateName.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+    const kebabCaseName = templateName.replaceAll(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 
     // Load HTML template file
     // In production (Docker), templates are mounted at /app/email

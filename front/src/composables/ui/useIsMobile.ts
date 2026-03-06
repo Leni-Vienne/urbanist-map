@@ -9,8 +9,12 @@ export function useIsMobile() {
     isMobile.value = globalThis.innerWidth <= MOBILE_BREAKPOINT;
   }
 
-  onMounted(() => globalThis.addEventListener("resize", update));
-  onUnmounted(() => globalThis.removeEventListener("resize", update));
+  onMounted(() => {
+    globalThis.addEventListener("resize", update);
+  });
+  onUnmounted(() => {
+    globalThis.removeEventListener("resize", update);
+  });
 
   return { isMobile };
 }

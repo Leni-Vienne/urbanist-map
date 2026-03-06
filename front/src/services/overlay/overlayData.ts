@@ -7,6 +7,7 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 
@@ -18,6 +19,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const moderationStore = useModerationStore();
+  const mapStore = useMapStore();
 
   let project = savedOverlay.project;
 
@@ -26,7 +28,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
     project = projectStore.projects[savedOverlay.projectId];
 
     // If not found and in moderation mode, check moderation store
-    if (!project && overlayStore.mode === "moderation") {
+    if (!project && mapStore.mode === "moderation") {
       const modProject = moderationStore.projects.find((p) => p.id === savedOverlay.projectId);
       if (modProject) {
         // Cast moderation project to Project type (compatible enough for our needs)
@@ -37,7 +39,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
 
   // Check edit mode cache to determine if overlay has been modified locally
   const cachedModifications =
-    overlayStore.mode === "edit" ? overlayStore.getFromEditModeCache(savedOverlay.id) : undefined;
+    mapStore.mode === "edit" ? overlayStore.getFromEditModeCache(savedOverlay.id) : undefined;
 
   // Use factory function but preserve existing data
   return createOverlayObject({

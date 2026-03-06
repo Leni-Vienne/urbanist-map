@@ -8,6 +8,7 @@
 
 import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
@@ -73,10 +74,11 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
  */
 export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
 
   // Check edit mode cache only if in edit mode
   // This ensures view mode always uses backend positions, not stale cached positions
-  if (overlayStore.mode === "edit") {
+  if (mapStore.mode === "edit") {
     const cachedModifications = overlayStore.getFromEditModeCache(overlayObject.id);
     if (cachedModifications?.corners.length === 4) {
       // Update object history with cached modifications
@@ -100,9 +102,10 @@ export function saveOverlayModificationsToCache(
 ): void {
   const overlayStore = useOverlayStore();
   const pendingModsStore = usePendingModificationsStore();
+  const mapStore = useMapStore();
 
   const layer = getLayer(overlayObject.id);
-  if ((overlayStore.mode !== "edit" && forceMode !== "edit") || !layer) return;
+  if ((mapStore.mode !== "edit" && forceMode !== "edit") || !layer) return;
   const corners = layer.getCorners();
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
@@ -135,7 +138,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   // Check if current state is different from last saved state
   if (overlayObject.history.length > 0) {
-    const lastState = overlayObject.history[overlayObject.history.length - 1];
+    const lastState = overlayObject.history.at(-1);
     const currentStateStr = JSON.stringify(currentState);
     const lastStateStr = JSON.stringify(lastState);
 

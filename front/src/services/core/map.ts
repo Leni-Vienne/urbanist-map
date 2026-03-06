@@ -6,7 +6,7 @@ import { ref, customRef } from "vue";
 function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
   const hash = globalThis.location?.hash;
   if (!hash) return null;
-  const match = hash.match(/^#map=([0-9.]+)\/([-0-9.]+)\/([-0-9.]+)$/);
+  const match = /^#map=([0-9.]+)\/([-0-9.]+)\/([-0-9.]+)$/.exec(hash);
   if (!match) return null;
   const zoom = Number(match[1]);
   const lat = Number(match[2]);

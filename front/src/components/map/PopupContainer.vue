@@ -7,7 +7,7 @@
     <UnifiedProjectPopup
       :project="activeProject"
       :overlay="overlayObject"
-      :viewMode="mode !== 'edit'"
+      :viewMode="mapStore.mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
       :availableCities="availableCities"
@@ -27,7 +27,7 @@
   <Teleport :to="projectPopupTarget" v-if="showProjectPopup && activeProject && projectPopupTarget">
     <UnifiedProjectPopup
       :project="activeProject"
-      :viewMode="mode !== 'edit'"
+      :viewMode="mapStore.mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
       :availableCities="availableCities"
@@ -42,7 +42,7 @@
 
   <!-- Overlay Editor Dialog - only in edit mode, renders when local overlay exists OR store has overlay -->
   <OverlayEditor
-    v-if="mode === 'edit' && (overlayObject || uiStore.overlayEditDialog.overlay)"
+    v-if="mapStore.mode === 'edit' && (overlayObject || uiStore.overlayEditDialog.overlay)"
     ref="overlayEditorRef"
     :overlayObject="overlayObject"
     @update="handleOverlayUpdate"
@@ -78,7 +78,7 @@ const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const mapStore = useMapStore();
 const uiStore = useUiStore();
-const { overlays, showInfoPopup, infoPopupOverlayId, mode } = storeToRefs(overlayStore);
+const { overlays, showInfoPopup, infoPopupOverlayId } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);

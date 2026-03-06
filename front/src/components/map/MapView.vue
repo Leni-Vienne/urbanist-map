@@ -2,10 +2,10 @@
   <div class="absolute inset-0 overflow-hidden">
     <!-- Mode border overlay - separate from map container to avoid Leaflet rendering issues -->
     <div
-      v-if="overlayStore.mode !== 'view'"
+      v-if="mapStore.mode !== 'view'"
       :class="[
         'absolute inset-0 border-4 pointer-events-none z-900 animate-[borderFadeIn_0.3s_ease-in-out]',
-        overlayStore.mode === 'edit' ? 'border-amber-500' : 'border-blue-500',
+        mapStore.mode === 'edit' ? 'border-amber-500' : 'border-blue-500',
       ]"
     ></div>
 
@@ -75,9 +75,10 @@ import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extr
 const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),
 );
-const MapControls = defineAsyncComponent(() => import("@/components/map/MapControls.vue"));
-const UserMenu = defineAsyncComponent(() => import("@/components/auth/UserMenu.vue"));
-const CitySearch = defineAsyncComponent(() => import("@/components/map/CitySearch.vue"));
+const mapUIBundle = import("@/components/map/mapUIBundle");
+const MapControls = defineAsyncComponent(() => mapUIBundle.then((m) => m.MapControls));
+const UserMenu = defineAsyncComponent(() => mapUIBundle.then((m) => m.UserMenu));
+const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySearch));
 
 // Get stores
 const mapStore = useMapStore();
@@ -96,7 +97,7 @@ watch(
   (newUser) => {
     if (!newUser) {
       clearAllStandaloneProjectMarkers();
-      overlayStore.setMode("view");
+      mapStore.setMode("view");
       mapStore.clearSelectedCity();
     }
   },

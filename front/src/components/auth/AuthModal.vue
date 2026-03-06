@@ -126,7 +126,7 @@
             v-model="form.email"
             type="email"
             required
-            :invalid="!!emailError"
+            :invalid="Boolean(emailError)"
             :placeholder="$t('auth.enterEmailAddress')"
             autocomplete="email"
             class="w-full"
@@ -173,7 +173,7 @@
             :feedback="!isLoginMode"
             toggleMask
             required
-            :invalid="!!passwordError"
+            :invalid="Boolean(passwordError)"
             :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
             :inputProps="{
               autocomplete: isLoginMode ? 'current-password' : 'new-password',
@@ -392,7 +392,7 @@ async function renderTurnstile() {
   await loadTurnstileScript();
 
   // Check if globalThis.turnstile is available and widget container exists
-  if (globalThis.turnstile && document.getElementById("turnstile-widget")) {
+  if (globalThis.turnstile && document.querySelector("#turnstile-widget")) {
     // Reset if already rendered to avoid duplicates
     if (turnstileWidgetId.value) {
       globalThis.turnstile.remove(turnstileWidgetId.value);

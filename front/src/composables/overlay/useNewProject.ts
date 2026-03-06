@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { switchMode } from "@/services/overlay/modeSwitching";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { storeToRefs } from "pinia";
 
 // Composable for handling new project button click logic (opens marker placement bar)
@@ -9,7 +9,8 @@ export function useNewProject() {
   const authStore = useAuthStore();
   const uiStore = useUiStore();
   const overlayStore = useOverlayStore();
-  const { mode } = storeToRefs(overlayStore);
+  const mapStore = useMapStore();
+  const { mode } = storeToRefs(mapStore);
 
   async function handleNewProjectClick() {
     if (!authStore.isAuthenticated) {
@@ -24,7 +25,7 @@ export function useNewProject() {
     // Always switch to edit mode when contributing
     if (mode.value !== "edit") {
       try {
-        switchMode("edit");
+        mapStore.setMode("edit");
         uiStore.markerPlacementBarVisible = true;
         return { success: true, action: "edit_mode_and_dialog_opened" };
       } catch (error) {

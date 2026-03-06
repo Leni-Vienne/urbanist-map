@@ -157,6 +157,7 @@ export function useModeration() {
     rejectionReason?: string, // New parameter for rejection feedback
   ): Promise<ApprovalResult> {
     const overlayStore = useOverlayStore();
+    const mapStore = useMapStore();
 
     // Get the overlay's replacesOverlayId before approval (for cleanup after)
     const overlay = overlays.value.find((o) => o.id === id);
@@ -184,7 +185,7 @@ export function useModeration() {
         updateMarkerTooltip(overlayObject);
 
         // Update all marker colors to reflect status changes
-        updateOverlayMarkersColors(overlayStore.overlays, overlayStore.mode);
+        updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
       }
 
       // If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
@@ -255,6 +256,8 @@ export function useModeration() {
     rejectionReason?: string, // New parameter for rejection feedback
     rejectAllOverlays?: boolean, // New parameter for cascading rejection
   ): Promise<ApprovalResult> {
+    const mapStore = useMapStore();
+
     // Get project data BEFORE approval (it will be removed from pending list after)
     const projectBeforeApproval = projects.value.find((p) => p.id === id);
 
@@ -282,16 +285,13 @@ export function useModeration() {
       // Update marker tooltip to reflect new status
       const marker = getStandaloneProjectMarkerByProjectId(id);
       if (marker) {
-        const overlayStore = useOverlayStore();
-        updateStandaloneProjectMarkerTooltip(marker, projectWithNewStatus, overlayStore.mode);
+        updateStandaloneProjectMarkerTooltip(marker, projectWithNewStatus, mapStore.mode);
       }
 
       // Invalidate city cache to prevent stale data when reloading the city
       // This ensures the next city load fetches fresh data from backend with updated status
       if (projectBeforeApproval.cityId) {
-        const mapStore = useMapStore();
-        const overlayStore = useOverlayStore();
-        mapStore.clearCityStandaloneProjectsCache(projectBeforeApproval.cityId, overlayStore.mode);
+        mapStore.clearCityStandaloneProjectsCache(projectBeforeApproval.cityId, mapStore.mode);
       }
     }
 
