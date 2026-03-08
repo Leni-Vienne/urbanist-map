@@ -172,8 +172,10 @@ let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 const tileLayerConfigs = {
   osm: {
     label: "Plan",
-    //url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    url: `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.webp?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
+    url:
+      import.meta.env.VITE_DEBUG === "true"
+        ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        : `https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}.webp?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
     options: {
       minZoom: 0,
       maxZoom: 22,
@@ -267,18 +269,19 @@ let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
 export async function switchTileLayer(layerType: TileLayerType) {
   // Optimization: If switching to satellite, check if we should directly go to a country layer
   // This prevents loading ESRI first then immediately switching (avoiding "flash" and wasted requests)
+  let resolvedLayerType = layerType;
   if (layerType === "esri") {
     const currentZoom = map.value.getZoom();
     if (currentZoom > MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
       const center = map.value.getCenter();
       const detectedCountry = await detectCountryFromCoordinates(center.lat, center.lng);
       if (detectedCountry && isTileLayerType(detectedCountry)) {
-        layerType = detectedCountry;
+        resolvedLayerType = detectedCountry;
       }
     }
   }
 
-  if (currentTileLayer.value === layerType) {
+  if (currentTileLayer.value === resolvedLayerType) {
     return;
   }
 
@@ -287,11 +290,11 @@ export async function switchTileLayer(layerType: TileLayerType) {
     fallbackRemovalTimer = null;
   }
 
-  const newLayer = createTileLayer(layerType);
+  const newLayer = createTileLayer(resolvedLayerType);
   newLayer.addTo(map.value);
 
   activeTileLayer = newLayer;
-  currentTileLayer.value = layerType;
+  currentTileLayer.value = resolvedLayerType;
 
   // Robust Cleanup Strategy (Last Write Wins)
   // Iterate through all layers and remove any TileLayer that is NOT the active one.
@@ -311,7 +314,7 @@ export async function switchTileLayer(layerType: TileLayerType) {
   newLayer.once("load", cleanupLayers);
   fallbackRemovalTimer = setTimeout(cleanupLayers, 2000);
 
-  if (layerType === "esri") {
+  if (resolvedLayerType === "esri") {
     await checkEsriMaxZoom();
   }
 }
