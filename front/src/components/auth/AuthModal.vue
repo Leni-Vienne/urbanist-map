@@ -29,7 +29,6 @@
             v-model="forgotPasswordEmail"
             type="email"
             required
-            :placeholder="$t('auth.enterEmailAddress')"
             autocomplete="email"
             class="w-full"
             data-testid="forgot-email-input"
@@ -127,7 +126,6 @@
             type="email"
             required
             :invalid="Boolean(emailError)"
-            :placeholder="$t('auth.enterEmailAddress')"
             autocomplete="email"
             class="w-full"
             :class="{
@@ -149,6 +147,23 @@
             {{ $t("auth.lastUsed") }}
           </span>
           <small v-if="emailError" class="p-error">{{ emailError }}</small>
+        </div>
+
+        <div v-if="!isLoginMode">
+          <label for="auth-username" class="block text-sm font-medium mb-2">
+            {{ $t("auth.username") }}
+          </label>
+          <InputText
+            id="auth-username"
+            v-model="form.username"
+            autocomplete="nickname"
+            class="w-full"
+            required
+            :invalid="Boolean(usernameError)"
+            data-testid="auth-username-input"
+          />
+          <small v-if="usernameError" class="p-error">{{ usernameError }}</small>
+          <small v-else class="text-muted-color text-xs">{{ $t("auth.displayName") }}</small>
         </div>
 
         <div>
@@ -173,30 +188,14 @@
             :feedback="!isLoginMode"
             toggleMask
             required
+            fluid
             :invalid="Boolean(passwordError)"
-            :placeholder="isLoginMode ? $t('auth.enterPassword') : $t('auth.chooseStrongPassword')"
             :inputProps="{
               autocomplete: isLoginMode ? 'current-password' : 'new-password',
             }"
             data-testid="auth-password-input"
           />
           <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
-        </div>
-
-        <div v-if="!isLoginMode">
-          <label for="auth-username" class="block text-sm font-medium mb-2">
-            {{ $t("auth.username") }}
-          </label>
-          <InputText
-            id="auth-username"
-            v-model="form.username"
-            :placeholder="$t('auth.chooseUsername')"
-            autocomplete="nickname"
-            class="w-full"
-            required
-            data-testid="auth-username-input"
-          />
-          <small class="text-muted-color text-xs">{{ $t("auth.displayName") }}</small>
         </div>
 
         <!-- Remember Me Checkbox (only in login mode) -->
@@ -296,6 +295,7 @@ const oauthLoading = ref(false);
 const errorMessage = ref("");
 const emailError = ref("");
 const passwordError = ref("");
+const usernameError = ref("");
 const forgotPasswordEmail = ref("");
 const resetLinkSent = ref(false);
 const registrationSuccess = ref(false);
@@ -449,6 +449,7 @@ function resetForm() {
   errorMessage.value = "";
   emailError.value = "";
   passwordError.value = "";
+  usernameError.value = "";
   forgotPasswordEmail.value = "";
   resetLinkSent.value = false;
   registrationSuccess.value = false;
@@ -460,6 +461,7 @@ function toggleMode() {
   errorMessage.value = "";
   emailError.value = "";
   passwordError.value = "";
+  usernameError.value = "";
   registrationSuccess.value = false;
 }
 
@@ -475,6 +477,7 @@ async function handleSubmit() {
   errorMessage.value = "";
   emailError.value = "";
   passwordError.value = "";
+  usernameError.value = "";
 
   try {
     if (isLoginMode.value) {
@@ -511,7 +514,13 @@ async function handleSubmit() {
         });
         // Do not close modal or reset form to show verification message
       } else {
-        errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
+        if (result.error === "auth.error.usernameTaken") {
+          usernameError.value = $t("auth.error.usernameTaken");
+        } else if (result.error === "auth.error.emailAlreadyExists") {
+          emailError.value = $t("auth.error.emailAlreadyExists");
+        } else {
+          errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
+        }
         // Reset captcha on failure
         if (globalThis.turnstile && turnstileWidgetId.value) {
           globalThis.turnstile.reset(turnstileWidgetId.value);
@@ -594,9 +603,7 @@ async function handleForgotPassword() {
 .auth-modal-overflow :deep(.p-dialog-header) {
   overflow: visible !important;
 }
-</style>
 
-<style scoped>
 /* Highlight last used login method with border color using PrimeVue tokens */
 .last-used-method {
   border: 1px solid var(--p-primary-color) !important;

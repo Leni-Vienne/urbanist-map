@@ -106,6 +106,21 @@ export const authRouter = router({
         }
       }
 
+      // Check username uniqueness first so it always surfaces before email obscuring
+      if (username) {
+        const existingUsername = await db
+          .select()
+          .from(users)
+          .where(eq(users.username, username))
+          .limit(1);
+        if (existingUsername.length > 0) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "auth.error.usernameTaken",
+          });
+        }
+      }
+
       // Check if user already exists
       const existingUserResult = await db
         .select()
@@ -129,22 +144,7 @@ export const authRouter = router({
 
           throw new TRPCError({
             code: "CONFLICT",
-            message: "auth.error.registrationFailed", // Obscure existing email (security best practice)
-          });
-        }
-      }
-
-      // Check username uniqueness if provided
-      if (username) {
-        const existingUsername = await db
-          .select()
-          .from(users)
-          .where(eq(users.username, username))
-          .limit(1);
-        if (existingUsername.length > 0) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "auth.error.usernameTaken",
+            message: "auth.error.emailAlreadyExists",
           });
         }
       }
