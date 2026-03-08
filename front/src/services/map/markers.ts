@@ -52,6 +52,8 @@ function createOverlayMarkerSVG(color: MarkerColor): string {
   const width = 32;
   const height = 40;
 
+  // References globally defined gradients in MapSvgDefs.vue
+  // IDs format: g-[color] and shadow-grad-[color]
   return `
         <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
       <!-- Cast shadow (skewed ellipse to the right) -->
@@ -85,6 +87,8 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   const width = markerSize;
   const height = Math.round(markerSize * 1.6);
 
+  // References globally defined gradients in MapSvgDefs.vue
+  // IDs format: g-[color] and shadow-grad-[color]
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Project marker">
       <!-- Cast shadow (skewed ellipse to the right) -->
