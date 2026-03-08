@@ -477,6 +477,7 @@ async function handleSubmit() {
   errorMessage.value = "";
   emailError.value = "";
   passwordError.value = "";
+  usernameError.value = "";
 
   try {
     if (isLoginMode.value) {
