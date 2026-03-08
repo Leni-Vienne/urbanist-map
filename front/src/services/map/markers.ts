@@ -34,33 +34,17 @@ export const markerColors: Record<MarkerColor, string> = {
 // NOTE: Global SVGs in MapSvgDefs.vue use these colors but compute them locally.
 // We keep markerColors export for consistency/reuse.
 
-// Simple marker creation - one base color, generate everything else
-// Used for city markers (generic map markers)
-// References global defs in MapSvgDefs.vue
-function createMarkerSVG(color: MarkerColor): string {
-  const width = markerSize;
-  const height = Math.round(markerSize * 1.6);
-
-  // References globally defined gradients in MapSvgDefs.vue
-  // IDs format: g-[color] and shadow-grad-[color]
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
-      <!-- Cast shadow (skewed ellipse to the right) -->
-      <ellipse cx="38" cy="80" rx="18" ry="6"
-               fill="url(#shadow-grad-${color})" transform="rotate(-8 38 80)"/>
-
-      <!-- Pin body with darker contrasting edge -->
-      <path d="M25 1
-               C38.807 1 50 12.193 50 26
-               C50 45 25 81 25 81
-               S0 45 0 26
-               C0 12.193 11.193 1 25 1Z"
-            fill="url(#g-${color})" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
-
-      <!-- Inner white circle - simple and clean -->
-      <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
-    </svg>
-  `;
+// City marker: circle badge showing project count
+function createCityBadgeSVG(projectCount: number): string {
+  const size = 28;
+  const r = 12;
+  let fontSize = 12;
+  if (projectCount >= 100) fontSize = 8;
+  else if (projectCount >= 10) fontSize = 10;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="City">
+    <circle cx="14" cy="14" r="${r}" style="fill:var(--p-button-primary-background)" stroke="white" stroke-width="2.5"/>
+    <text x="14" y="14" text-anchor="middle" dominant-baseline="central" fill="white" font-size="${fontSize}" font-weight="bold" font-family="sans-serif">${projectCount}</text>
+  </svg>`;
 }
 
 // Overlay marker with picture frame icon to indicate images/overlays
@@ -121,16 +105,15 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// Create simple SVG icon for Leaflet (city markers)
-export function createColorIcon(color: MarkerColor): L.DivIcon {
-  const svgString = createMarkerSVG(color);
-
+// Create count badge icon for Leaflet (city markers)
+export function createColorIcon(projectCount: number): L.DivIcon {
+  const size = 28;
   return L.divIcon({
-    html: svgString,
-    className: "custom-svg-marker",
-    iconSize: [markerSize, markerHeight],
-    iconAnchor: [markerSize / 2, markerHeight], // Anchor at bottom center (pin tip)
-    popupAnchor: [0, -markerHeight],
+    html: createCityBadgeSVG(projectCount),
+    className: "custom-svg-marker city-marker",
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2) - 4],
   });
 }
 
