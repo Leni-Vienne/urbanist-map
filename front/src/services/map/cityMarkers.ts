@@ -14,7 +14,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
-import { createColorIcon } from "@/services/map/markers";
+import { createProjectCountIcon } from "@/services/map/markers";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 import { requestScrollTo } from "@/services/layout/accordionState";
@@ -236,7 +236,7 @@ async function createCitiesMarkerLayer(cities: CityWithProjects[]) {
   for (const city of cities) {
     // Create marker with blue icon
     const marker = L.marker([city.lat, city.lng], {
-      icon: createColorIcon(city.projectCount),
+      icon: createProjectCountIcon(city.projectCount),
       opacity: defaultOpacity,
     });
 

@@ -110,7 +110,7 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
 }
 
 // Create count badge icon for Leaflet (city markers)
-export function createColorIcon(projectCount: number): L.DivIcon {
+export function createProjectCountIcon(projectCount: number): L.DivIcon {
   const size = 28;
   return L.divIcon({
     html: createCityBadgeSVG(projectCount),

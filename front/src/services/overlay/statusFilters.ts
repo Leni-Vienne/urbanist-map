@@ -6,10 +6,10 @@ import type { AppMode } from "@shared/types";
 // Includes all colors that can be returned by getOverlayMarkerColor for any mode
 export const visibleStates = ref({
   yellow: true, // Proposed (view mode) / Pending approval & submitted change requests (edit mode) / Approved with changes (moderation mode)
-  green: true, // Planned (view mode) / Approved without pending changes (edit/moderation mode)
+  green: true, // Completed (view mode) / Approved without pending changes (edit/moderation mode)
   orange: true, // In progress (view mode) / Modified locally (edit mode)
-  grey: true, // Completed (view mode)
-  blue: true, // Pending (moderation mode)
+  grey: true, // Unused in view mode
+  blue: true, // Upcoming/planned (view mode) / Pending (moderation mode)
   red: true, // Rejected or new overlay (edit mode)
   purple: true, // Local replacement overlays before submission (edit mode)
 });
