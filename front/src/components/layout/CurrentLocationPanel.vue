@@ -92,10 +92,8 @@
             </span>
             <i class="pi pi-angle-right text-muted-color text-sm mx-0.5 shrink-0"></i>
             <span
-              class="text-primary-color cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0 hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)]"
-              :class="{
-                'text-color': cityLinkClicked,
-              }"
+              class="cursor-pointer transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0 hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)]"
+              :class="cityLinkClicked ? 'text-color' : 'text-primary-color'"
               @click="handleBreadcrumbCityClick"
               >{{ cityHeader.cityName }}</span
             >

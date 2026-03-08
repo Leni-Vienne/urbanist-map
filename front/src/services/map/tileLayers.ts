@@ -168,23 +168,20 @@ export const currentTileLayer = ref<TileLayerType>("osm");
 // Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
-// To prevent requesting the tileLayer server for tiles outside the valid range
-const tileLayerBounds = L.latLngBounds([-85, -180], [85, 180]);
-
 // Tile layer configurations with UI labels
 const tileLayerConfigs = {
   osm: {
     label: "Plan",
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    //url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    url: `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.webp?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
     options: {
       minZoom: 0,
       maxZoom: 22,
       maxNativeZoom: 19,
       tileSize: 256,
-      attribution: "© OpenStreetMap contributors",
-      noWrap: true,
-      subdomains: "abc",
-      bounds: tileLayerBounds,
+      //attribution: "© OpenStreetMap contributors",
+      attribution:
+        '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
     },
   },
   esri: {
@@ -196,8 +193,6 @@ const tileLayerConfigs = {
       maxNativeZoom: BASELINE_ESRI_MAX_ZOOM,
       tileSize: 256,
       attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
-      noWrap: true,
-      bounds: tileLayerBounds,
     },
   },
   FRA: {
@@ -209,8 +204,6 @@ const tileLayerConfigs = {
       maxNativeZoom: 19,
       tileSize: 256,
       attribution: "IGN-F/Géoportail",
-      noWrap: true,
-      bounds: tileLayerBounds,
     },
   },
   CHE: {
@@ -222,8 +215,6 @@ const tileLayerConfigs = {
       maxNativeZoom: 20,
       tileSize: 256,
       attribution: "© swisstopo",
-      noWrap: true,
-      bounds: tileLayerBounds,
     },
   },
 };
@@ -241,7 +232,7 @@ export function addTileLayer(): void {
   initEsriMetadataListener(); // Start listening for potential high-res availability
   initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
-
+//import { MaptilerLayer } from "@maptiler/leaflet-maptilersdk";
 /**
  * Initialize all tile layers without layer control (using custom control instead)
  */
@@ -249,6 +240,7 @@ function addTileLayersToMap(): void {
   try {
     // Create and add OSM layer as default (has built-in labels)
     activeTileLayer = createTileLayer("osm");
+    //activeTileLayer = new MaptilerLayer({ apiKey: import.meta.env.VITE_MAPTILER_API_KEY }).addTo(map.value);
     activeTileLayer.addTo(map.value);
   } catch (error) {
     console.error("Failed to initialize tile layers:", error);

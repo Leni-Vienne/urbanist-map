@@ -8,7 +8,7 @@ export type RemovableChange = ModifiableField | "new_overlay";
 
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
-export type viewModeMarkerColor = "yellow" | "orange" | "grey" | "green";
+export type viewModeMarkerColor = "yellow" | "orange" | "blue" | "green";
 
 // Interface for camera bounds used in view mode
 export interface CameraBounds {

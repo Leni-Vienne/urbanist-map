@@ -74,8 +74,8 @@ export function getTimelineBasedColor(
   const start = new Date(startDate);
   const end = endDate ? new Date(endDate) : null;
 
-  if (start > now) return "green"; // Upcoming
-  if (end && end <= now) return "grey"; // Completed
+  if (start > now) return "blue"; // Upcoming/planned
+  if (end && end <= now) return "green"; // Completed
   return "orange"; // Ongoing
 }
 

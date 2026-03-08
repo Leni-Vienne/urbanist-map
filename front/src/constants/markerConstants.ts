@@ -4,7 +4,7 @@
 export const MARKER_OPACITY = {
   // City marker opacity values
   city: {
-    default: 0.6,
+    default: 1,
     hover: 1,
   },
 
