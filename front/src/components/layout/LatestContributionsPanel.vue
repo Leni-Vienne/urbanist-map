@@ -5,7 +5,7 @@
         <div
           v-for="contribution in contributions"
           :key="contribution.id"
-          class="group flex items-center gap-3 py-2 cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:bg-content-hover-background active:scale-[0.98]"
+          class="group flex items-center gap-3 py-2 rounded-lg cursor-pointer transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10 active:scale-[0.98]"
           @click="handleContributionClick(contribution)"
           @mouseenter="handleContributionHover(contribution)"
           @mouseleave="handleContributionLeave(contribution)"

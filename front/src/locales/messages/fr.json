@@ -774,5 +774,9 @@
   "theme": {
     "light": "Mode clair",
     "dark": "Mode sombre"
+  },
+  "settings": {
+    "vectorTilesEnable": "Activer la carte vectorielle",
+    "vectorTilesDisable": "Désactiver la carte vectorielle"
   }
 }

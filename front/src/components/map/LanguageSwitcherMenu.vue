@@ -4,7 +4,7 @@
     <button
       v-if="displayMode === 'icon'"
       type="button"
-      class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-content-background border border-surface cursor-pointer transition-all duration-200 text-(--p-text-color-secondary) hover:bg-content-hover-background hover:border-surface hover:text-primary-600 hover:shadow-sm"
+      class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-content-background border border-surface cursor-pointer transition-all duration-200 text-(--p-text-color-secondary) hover:bg-black/5 dark:hover:bg-white/10 hover:border-surface hover:text-primary-600 hover:shadow-sm"
       @click="toggleMenu"
       ref="languageMenuRef"
       :aria-label="$t('controls.language')"
@@ -15,7 +15,7 @@
     <button
       v-else
       type="button"
-      class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-content-hover-background"
+      class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
       @click="toggleMenu"
       ref="languageMenuRef"
       :aria-label="$t('controls.language')"
@@ -37,7 +37,7 @@
           :class="
             currentLocale === locale.code
               ? 'bg-primary-50 text-primary-700'
-              : 'bg-transparent hover:bg-content-hover-background'
+              : 'bg-transparent hover:bg-black/5 dark:hover:bg-white/10'
           "
           :disabled="isLoading"
           @click="changeLocale(locale.code)"

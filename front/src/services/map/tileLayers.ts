@@ -165,6 +165,14 @@ export type TileLayerType = "FRA" | "esri" | "CHE" | "osm";
 // Current active tile layer (OSM as default for built-in labels)
 export const currentTileLayer = ref<TileLayerType>("osm");
 
+// Vector tiles toggle — persisted in localStorage
+const VECTOR_TILES_KEY = "useVectorTiles";
+export const useVectorTiles = ref<boolean>(localStorage.getItem(VECTOR_TILES_KEY) === "true");
+export function setVectorTiles(enabled: boolean) {
+  useVectorTiles.value = enabled;
+  localStorage.setItem(VECTOR_TILES_KEY, String(enabled));
+}
+
 // Reference to the currently active tile layer instance
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
 
@@ -240,10 +248,16 @@ export function addTileLayer(): void {
  */
 function addTileLayersToMap(): void {
   try {
-    // Create and add OSM layer as default (has built-in labels)
-    activeTileLayer = createTileLayer("osm");
-    //activeTileLayer = new MaptilerLayer({ apiKey: import.meta.env.VITE_MAPTILER_API_KEY }).addTo(map.value);
-    activeTileLayer.addTo(map.value);
+    if (useVectorTiles.value) {
+      activeTileLayer = (L as any)
+        .maplibreGL({
+          style: "https://tiles.openfreemap.org/styles/liberty",
+        })
+        .addTo(map.value);
+    } else {
+      activeTileLayer = createTileLayer("osm");
+      activeTileLayer.addTo(map.value);
+    }
   } catch (error) {
     console.error("Failed to initialize tile layers:", error);
     const fallbackLayer = createTileLayer("osm");

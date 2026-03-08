@@ -772,5 +772,9 @@
   "theme": {
     "light": "Light mode",
     "dark": "Dark mode"
+  },
+  "settings": {
+    "vectorTilesEnable": "Enable vector map",
+    "vectorTilesDisable": "Disable vector map"
   }
 }
