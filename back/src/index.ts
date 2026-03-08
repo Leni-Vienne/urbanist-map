@@ -114,7 +114,7 @@ app.use(
     // @ts-ignore hono doesn't like DrizzleSessionStore's type for some reason
     store,
     sessionCookieName: "session",
-    encryptionKey: process.env.JWT_SECRET ?? "fallback-secret-key-for-dev-at-least-32-chars",
+    encryptionKey: process.env.COOKIE_SECRET ?? "fallback-secret-key-for-dev-at-least-32-chars",
     expireAfterSeconds: SESSION_DURATION_LONG, // Max duration, actual duration set per login
     cookieOptions: {
       httpOnly: true,

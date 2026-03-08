@@ -80,9 +80,11 @@ export function initializeMap() {
     zoom: hashCoords ? Math.max(hashCoords.zoom, minZoom) : minZoom,
     minZoom,
     maxZoom: 22,
+    zoomSnap: 1,
+    worldCopyJump: true, // to keep markers in sync when crossing the antimeridian
     zoomControl: false, // Because we have our own zoom control
-    maxBounds: L.latLngBounds([-85, -180], [85, 180]),
-    maxBoundsViscosity: 0.8, // Gently bounce back
+    maxBounds: L.latLngBounds([-85, Infinity], [85, -Infinity]), // Constrain vertical panning to prevent black borders
+    maxBoundsViscosity: 0.8, // Gently bounce back when panning all the way up/down
     touchZoom: true, // True otherwise the website is zoomed instead of the map on mobile,
     keyboard: false,
     fadeAnimation: true,

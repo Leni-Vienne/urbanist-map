@@ -21,113 +21,31 @@
         {{ $t("map.controls.filterByStatus") }}
       </h3>
       <div class="flex flex-col gap-2">
-        <button
-          @click.stop="toggleCompletionFilter('yellow')"
+        <ToggleButton
+          v-for="{ color, labelKey, ariaKey } in filters"
+          :key="color"
+          :modelValue="visibleStates[color]"
+          @update:modelValue="toggleCompletionFilter(color)"
+          @click.stop
           @dblclick.stop
-          class="appearance-none font-[inherit] flex items-center gap-2.5 w-full px-3 py-[0.65rem] border-2 rounded-xl cursor-pointer transition-all duration-150 text-[0.9rem] font-medium text-left hover:translate-x-0.5 active:scale-[0.98] focus:outline-none"
-          :class="
-            visibleStates.yellow
-              ? 'bg-primary-color border-primary-color text-primary-contrast-color shadow-sm hover:bg-primary-hover-color hover:border-primary-hover-color'
-              : 'bg-content-hover-background border-surface text-color opacity-60 hover:opacity-80 hover:border-surface'
-          "
-          :aria-label="$t('map.controls.toggleProposed')"
-          :aria-pressed="visibleStates.yellow"
-          type="button"
+          :aria-label="$t(ariaKey)"
+          class="w-full justify-start"
         >
-          <div
-            class="marker-icon flex items-center justify-center shrink-0 w-6 h-6"
-            v-html="createButtonSVG('yellow')"
-          ></div>
-          <span class="flex-1">{{ $t("map.controls.proposed") }}</span>
-          <i
-            :class="[
-              'pi',
-              visibleStates.yellow ? 'pi-check' : 'pi-times',
-              'shrink-0 text-base ml-auto transition-all duration-150',
-            ]"
-          ></i>
-        </button>
-
-        <button
-          @click.stop="toggleCompletionFilter('green')"
-          @dblclick.stop
-          class="appearance-none font-[inherit] flex items-center gap-2.5 w-full px-3 py-[0.65rem] border-2 rounded-xl cursor-pointer transition-all duration-150 text-[0.9rem] font-medium text-left hover:translate-x-0.5 active:scale-[0.98] focus:outline-none"
-          :class="
-            visibleStates.green
-              ? 'bg-primary-color border-primary-color text-primary-contrast-color shadow-sm hover:bg-primary-hover-color hover:border-primary-hover-color'
-              : 'bg-content-hover-background border-surface text-color opacity-60 hover:opacity-80 hover:border-surface'
-          "
-          :aria-label="$t('map.controls.togglePlanned')"
-          :aria-pressed="visibleStates.green"
-          type="button"
-        >
-          <div
-            class="marker-icon flex items-center justify-center shrink-0 w-6 h-6"
-            v-html="createButtonSVG('green')"
-          ></div>
-          <span class="flex-1">{{ $t("map.controls.planned") }}</span>
-          <i
-            :class="[
-              'pi',
-              visibleStates.green ? 'pi-check' : 'pi-times',
-              'shrink-0 text-base ml-auto transition-all duration-150',
-            ]"
-          ></i>
-        </button>
-
-        <button
-          @click.stop="toggleCompletionFilter('orange')"
-          @dblclick.stop
-          class="appearance-none font-[inherit] flex items-center gap-2.5 w-full px-3 py-[0.65rem] border-2 rounded-xl cursor-pointer transition-all duration-150 text-[0.9rem] font-medium text-left hover:translate-x-0.5 active:scale-[0.98] focus:outline-none"
-          :class="
-            visibleStates.orange
-              ? 'bg-primary-color border-primary-color text-primary-contrast-color shadow-sm hover:bg-primary-hover-color hover:border-primary-hover-color'
-              : 'bg-content-hover-background border-surface text-color opacity-60 hover:opacity-80 hover:border-surface'
-          "
-          :aria-label="$t('map.controls.toggleInProgress')"
-          :aria-pressed="visibleStates.orange"
-          type="button"
-        >
-          <div
-            class="marker-icon flex items-center justify-center shrink-0 w-6 h-6"
-            v-html="createButtonSVG('orange')"
-          ></div>
-          <span class="flex-1">{{ $t("map.controls.inProgress") }}</span>
-          <i
-            :class="[
-              'pi',
-              visibleStates.orange ? 'pi-check' : 'pi-times',
-              'shrink-0 text-base ml-auto transition-all duration-150',
-            ]"
-          ></i>
-        </button>
-
-        <button
-          @click.stop="toggleCompletionFilter('grey')"
-          @dblclick.stop
-          class="appearance-none font-[inherit] flex items-center gap-2.5 w-full px-3 py-[0.65rem] border-2 rounded-xl cursor-pointer transition-all duration-150 text-[0.9rem] font-medium text-left hover:translate-x-0.5 active:scale-[0.98] focus:outline-none"
-          :class="
-            visibleStates.grey
-              ? 'bg-primary-color border-primary-color text-primary-contrast-color shadow-sm hover:bg-primary-hover-color hover:border-primary-hover-color'
-              : 'bg-content-hover-background border-surface text-color opacity-60 hover:opacity-80 hover:border-surface'
-          "
-          :aria-label="$t('map.controls.toggleCompleted')"
-          :aria-pressed="visibleStates.grey"
-          type="button"
-        >
-          <div
-            class="marker-icon flex items-center justify-center shrink-0 w-6 h-6"
-            v-html="createButtonSVG('grey')"
-          ></div>
-          <span class="flex-1">{{ $t("status.completed") }}</span>
-          <i
-            :class="[
-              'pi',
-              visibleStates.grey ? 'pi-check' : 'pi-times',
-              'shrink-0 text-base ml-auto transition-all duration-150',
-            ]"
-          ></i>
-        </button>
+          <template #default>
+            <div
+              class="marker-icon flex items-center justify-center shrink-0 w-6 h-6"
+              v-html="createButtonSVG(color)"
+            ></div>
+            <span class="flex-1 text-left">{{ $t(labelKey) }}</span>
+            <i
+              :class="[
+                'pi',
+                visibleStates[color] ? 'pi-check' : 'pi-times',
+                'shrink-0 text-base ml-auto',
+              ]"
+            ></i>
+          </template>
+        </ToggleButton>
       </div>
     </div>
   </Popover>
@@ -139,6 +57,17 @@ import { visibleStates, toggleFilter } from "@/services/overlay/statusFilters";
 import { createButtonSVG } from "@/services/map/markers";
 import type { viewModeMarkerColor } from "@/types/index";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
+
+const filters: { color: viewModeMarkerColor; labelKey: string; ariaKey: string }[] = [
+  { color: "yellow", labelKey: "map.controls.proposed", ariaKey: "map.controls.toggleProposed" },
+  { color: "blue", labelKey: "map.controls.planned", ariaKey: "map.controls.togglePlanned" },
+  {
+    color: "orange",
+    labelKey: "map.controls.inProgress",
+    ariaKey: "map.controls.toggleInProgress",
+  },
+  { color: "green", labelKey: "status.completed", ariaKey: "map.controls.toggleCompleted" },
+];
 
 const { isMobile } = useIsMobile();
 

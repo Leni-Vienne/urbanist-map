@@ -306,23 +306,27 @@ function pruneLocalOverlays(
 }
 
 /**
- * Manage city marker visibility
+ * Manage city marker visibility.
+ * City markers are hidden when zoomed in past the contribution marker threshold —
+ * contribution markers take over at that zoom level, so city markers are redundant.
+ * Below the threshold, individual markers are shown/hidden based on viewport bounds.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, _zoom: number) {
+function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
   const cityMarkersStore = useCityMarkersStore();
   const allCityMarkers = cityMarkersStore.cityMarkerMap;
+  const shouldShow = zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD);
 
   for (const [_cityId, cityMarker] of allCityMarkers) {
-    const latLng = cityMarker.getLatLng();
-    const isInBounds = bounds.contains(latLng);
     const isOnMap = mapInstance.hasLayer(cityMarker);
 
-    if (isInBounds && !isOnMap) {
-      cityMarker.addTo(mapInstance);
-    } else if (!isInBounds && isOnMap) {
-      cityMarker.remove();
+    if (!shouldShow) {
+      if (isOnMap) cityMarker.remove();
+      continue;
     }
+
+    const isInBounds = bounds.contains(cityMarker.getLatLng());
+    if (isInBounds && !isOnMap) cityMarker.addTo(mapInstance);
+    else if (!isInBounds && isOnMap) cityMarker.remove();
   }
 }
 
