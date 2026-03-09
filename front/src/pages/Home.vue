@@ -79,6 +79,7 @@ import { useI18n } from "vue-i18n";
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
+import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 
 // Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));
@@ -138,18 +139,37 @@ function updateWindowWidth() {
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditor.project;
+  const reopenAt = uiStore.shapeEditor.reopenAt;
   if (!project) return;
+  // Ensure the project is in the store before the targeted update — it may only exist in
+  // popup state (e.g. approved-shape projects opened via shape click, never stored locally).
+  // Without this, updateProject falls back to createProjectObject which defaults status to null.
+  if (!projectStore.projects[project.id]) {
+    projectStore.projects = { ...projectStore.projects, [project.id]: project };
+  }
   projectStore.updateProject(project.id, { geometry, isModified: true });
   const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
   destroyShapeEditor(map.value);
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
+  if (reopenAt) {
+    uiStore.openProjectInfoPopup(project.id, project);
+    const L = (await import("leaflet")).default;
+    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
+  }
 }
 
 async function handleShapesCancel() {
+  const project = uiStore.shapeEditor.project;
+  const reopenAt = uiStore.shapeEditor.reopenAt;
   const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
   destroyShapeEditor(map.value);
   uiStore.closeShapeEditor();
+  if (reopenAt && project) {
+    uiStore.openProjectInfoPopup(project.id, project);
+    const L = (await import("leaflet")).default;
+    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
+  }
 }
 
 onMounted(async () => {

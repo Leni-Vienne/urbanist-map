@@ -49,6 +49,11 @@ body {
   /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
 }
 
+/* Push Geoman draw toolbar down so it doesn't overlap the top UI chrome */
+.leaflet-pm-toolbar {
+  margin-top: 180px !important;
+}
+
 /* Ensure overlay markers don't appear above the info popup */
 .leaflet-marker-icon {
   z-index: 0 !important;

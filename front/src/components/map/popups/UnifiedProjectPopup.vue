@@ -113,9 +113,49 @@
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div v-if="!viewMode" class="px-4 pb-4 pt-3 flex gap-2 items-stretch border-t border-surface">
+    <div v-if="!viewMode" class="px-4 pb-4 pt-3 flex flex-col gap-2 border-t border-surface">
+      <div class="flex gap-2">
+        <Button
+          v-if="project?.status !== null"
+          class="flex-1"
+          type="button"
+          :label="$t('shapes.drawShapes')"
+          icon="pi pi-pencil"
+          severity="secondary"
+          outlined
+          @click="emit('draw-shapes', project)"
+        />
+        <Button
+          class="flex-1"
+          type="button"
+          :label="$t('project.addImages')"
+          severity="secondary"
+          outlined
+          @click="emit('add-images')"
+        >
+          <template #icon>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="1em"
+              height="1em"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M16 5h6" />
+              <path d="M19 2v6" />
+              <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+              <circle cx="9" cy="9" r="2" />
+            </svg>
+          </template>
+        </Button>
+      </div>
       <Button
-        class="flex-1"
+        class="w-full"
         type="button"
         :label="$t('project.submitChangeRequest')"
         icon="pi pi-send"
@@ -124,44 +164,6 @@
         :disabled="!hasChanges"
         @click="handlePublishClick"
       />
-      <Button
-        v-if="project?.status !== null"
-        class="flex-1"
-        type="button"
-        :label="$t('shapes.drawShapes')"
-        icon="pi pi-pencil"
-        severity="secondary"
-        outlined
-        @click="emit('draw-shapes', project)"
-      />
-      <Button
-        class="flex-1"
-        type="button"
-        :label="$t('project.addImages')"
-        severity="secondary"
-        outlined
-        @click="emit('add-images')"
-      >
-        <template #icon>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="1em"
-            height="1em"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M16 5h6" />
-            <path d="M19 2v6" />
-            <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            <circle cx="9" cy="9" r="2" />
-          </svg>
-        </template>
-      </Button>
     </div>
   </div>
 </template>

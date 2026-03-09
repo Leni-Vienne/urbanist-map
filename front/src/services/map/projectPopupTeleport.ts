@@ -124,6 +124,16 @@ export function createProjectInfoTeleportTargetAtLatLng(latlng: L.LatLng) {
 }
 
 /**
+ * Return the current popup anchor position (marker latlng or shape click latlng).
+ * Must be called before cleanupProjectInfoTeleportTarget() clears the state.
+ */
+export function getPopupLatLng(): { lat: number; lng: number } | null {
+  const latlng = currentMarkerForPopup?.getLatLng() ?? currentLatLngForPopup;
+  if (!latlng) return null;
+  return { lat: latlng.lat, lng: latlng.lng };
+}
+
+/**
  * Clean up teleport target and event listeners
  */
 export function cleanupProjectInfoTeleportTarget() {

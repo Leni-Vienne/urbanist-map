@@ -67,6 +67,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { getPopupLatLng } from "@/services/map/projectPopupTeleport";
 import type { OverlayObject, Project } from "@/types/index";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import type { DBProject, DBCity } from "../../../../back/src/db/schema";
@@ -303,7 +304,9 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
 
 // Handle draw-shapes button — open the shape editor for a project
 async function handleDrawShapes(project: Project) {
-  uiStore.openShapeEditor(project);
+  // Capture popup anchor before it's cleaned up — only for project/shape popups (not overlay).
+  const reopenAt = showProjectPopup.value ? getPopupLatLng() : null;
+  uiStore.openShapeEditor(project, reopenAt ?? undefined);
   // Close whichever popup is open
   if (showOverlayPopup.value) overlayStore.hideInfoPopup();
   else closeProjectInfoPopup();
