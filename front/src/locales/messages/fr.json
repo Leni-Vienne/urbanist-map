@@ -787,6 +787,7 @@
     "saveShapes": "Enregistrer les formes",
     "cancel": "Annuler",
     "savedSuccess": "Formes soumises pour révision",
-    "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre"
+    "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre",
+    "geometrySummary": "{count} forme(s)"
   }
 }

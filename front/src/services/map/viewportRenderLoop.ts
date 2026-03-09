@@ -12,6 +12,7 @@ import { filterByStatus } from "@/services/overlay/statusFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
+import { handleShapeProjectClick } from "@/services/map/standaloneProjectMarkers";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -327,7 +328,11 @@ function renderOverlayProjectShapes(mapInstance: L.Map) {
     const project = overlay.project;
     if (!project?.geometry) continue;
 
-    renderProjectShapes(project as Parameters<typeof renderProjectShapes>[0], mapInstance);
+    renderProjectShapes(
+      project as Parameters<typeof renderProjectShapes>[0],
+      mapInstance,
+      handleShapeProjectClick,
+    );
   }
 }
 

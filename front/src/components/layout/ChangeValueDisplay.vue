@@ -53,6 +53,21 @@
     </span>
   </div>
 
+  <!-- Geometry (shapes) field -->
+  <div
+    v-else-if="change.fieldName === 'geometry'"
+    class="flex items-start gap-2 my-1 text-xs flex-wrap"
+  >
+    <span
+      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm"
+      >{{ formatGeometrySummary(change.oldValue) }}</span
+    >
+    <i class="pi pi-arrow-right self-center"></i>
+    <span class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm">{{
+      formatGeometrySummary(change.newValue)
+    }}</span>
+  </div>
+
   <!-- Regular field with formatted values -->
   <div v-else class="flex items-start gap-2 my-1 text-xs flex-wrap">
     <span
@@ -120,6 +135,14 @@ const { t } = useI18n();
 
 function isGeometryField(fieldName: string): boolean {
   return fieldName === "corners" || fieldName === "centroid";
+}
+
+function formatGeometrySummary(value: unknown): string {
+  if (!value || typeof value !== "object") return t("overlay.notSet");
+  const geo = value as { geometries?: unknown[] };
+  const count = geo.geometries?.length ?? 0;
+  if (count === 0) return t("overlay.notSet");
+  return t("shapes.geometrySummary", { count });
 }
 
 function formatValue(value: unknown, fieldName: string, change?: PendingChangeRequest): string {

@@ -5,22 +5,22 @@ import { useUiStore } from "@/stores/uiStore";
 import { setProjectPopupTarget } from "@/services/map/popupState";
 
 let currentMarkerForPopup: L.Marker | null = null;
+let currentLatLngForPopup: L.LatLng | null = null;
 let mapClickHandler: (() => void) | null = null;
 
 /**
- * Update teleport target position based on current marker
+ * Update teleport target position based on current marker or latlng
  */
 function updateTeleportTargetPosition() {
-  if (!currentMarkerForPopup) return;
-
   const teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
   if (!teleportTarget) return;
 
-  const markerLatLng = currentMarkerForPopup.getLatLng();
-  const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
+  const latlng = currentMarkerForPopup?.getLatLng() ?? currentLatLngForPopup;
+  if (!latlng) return;
 
-  teleportTarget.style.left = `${markerPoint.x}px`;
-  teleportTarget.style.top = `${markerPoint.y}px`;
+  const point = map.value.latLngToContainerPoint(latlng);
+  teleportTarget.style.left = `${point.x}px`;
+  teleportTarget.style.top = `${point.y}px`;
 }
 
 /**
@@ -78,6 +78,52 @@ export function createProjectInfoTeleportTarget(marker: L.Marker) {
 }
 
 /**
+ * Create teleport target for project info popup at a map position (e.g. shape click)
+ */
+export function createProjectInfoTeleportTargetAtLatLng(latlng: L.LatLng) {
+  currentLatLngForPopup = latlng;
+  currentMarkerForPopup = null;
+
+  const point = map.value.latLngToContainerPoint(latlng);
+
+  let teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
+  if (teleportTarget) {
+    teleportTarget.style.left = `${point.x}px`;
+    teleportTarget.style.top = `${point.y}px`;
+    return;
+  }
+
+  teleportTarget = document.createElement("div");
+  teleportTarget.id = "project-info-popup-teleport-target";
+  teleportTarget.style.cssText = `
+    pointer-events: none;
+    position: absolute;
+    left: ${point.x}px;
+    top: ${point.y}px;
+    width: 0;
+    height: 0;
+    overflow: visible;
+  `;
+
+  const mapContainer = map.value.getContainer();
+  mapContainer.appendChild(teleportTarget);
+  setProjectPopupTarget(teleportTarget);
+
+  map.value.on("move", updateTeleportTargetPosition);
+  map.value.on("zoom", updateTeleportTargetPosition);
+  map.value.on("resize", updateTeleportTargetPosition);
+
+  mapClickHandler = () => {
+    const uiStore = useUiStore();
+    if (uiStore.projectInfoPopup.visible) {
+      uiStore.closeProjectInfoPopup();
+      cleanupProjectInfoTeleportTarget();
+    }
+  };
+  map.value.on("click", mapClickHandler);
+}
+
+/**
  * Clean up teleport target and event listeners
  */
 export function cleanupProjectInfoTeleportTarget() {
@@ -99,4 +145,5 @@ export function cleanupProjectInfoTeleportTarget() {
   setProjectPopupTarget(null);
 
   currentMarkerForPopup = null;
+  currentLatLngForPopup = null;
 }

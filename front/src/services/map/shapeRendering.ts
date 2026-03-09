@@ -11,41 +11,65 @@ const shapeLayerMap = new Map<string, L.LayerGroup>();
  * Render a project's GeometryCollection as Leaflet layers on the map.
  * Lines become L.polyline, polygons become L.polygon (with fill).
  * Idempotent — if already rendered, does nothing.
+ * onProjectClick: called when the user clicks any shape layer.
  */
-export function renderProjectShapes(project: Project, mapInstance: L.Map): void {
+export function renderProjectShapes(
+  project: Project,
+  mapInstance: L.Map,
+  onProjectClick?: (project: Project, latlng: L.LatLng) => void,
+): void {
   if (!project.geometry?.geometries?.length) return;
   if (shapeLayerMap.has(project.id)) return;
 
   const mapStore = useMapStore();
   const color = markerColors[getProjectMarkerColor(project, mapStore.mode)];
 
-  const layers: L.Layer[] = [];
+  const baseStyle = { color, weight: 3, opacity: 0.85 };
+  const hoverStyle = { weight: 5, opacity: 1 };
+
+  const layers: L.Path[] = [];
 
   for (const geom of project.geometry.geometries) {
     if (geom.type === "LineString") {
       const coords = (geom.coordinates as [number, number][]).map(
         ([lng, lat]) => [lat, lng] as L.LatLngTuple,
       );
-      layers.push(L.polyline(coords, { color, weight: 3 }));
+      layers.push(L.polyline(coords, baseStyle));
     } else if (geom.type === "MultiLineString") {
       const latlngs = (geom.coordinates as [number, number][][]).map((line) =>
         line.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
       );
-      layers.push(L.polyline(latlngs, { color, weight: 3 }));
+      layers.push(L.polyline(latlngs, baseStyle));
     } else if (geom.type === "Polygon") {
       const rings = (geom.coordinates as [number, number][][]).map((ring) =>
         ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
       );
-      layers.push(L.polygon(rings, { color, weight: 3, fillOpacity: 0.15 }));
+      layers.push(L.polygon(rings, { ...baseStyle, fillOpacity: 0.15 }));
     } else if (geom.type === "MultiPolygon") {
       const polys = (geom.coordinates as [number, number][][][]).map((poly) =>
         poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple)),
       );
-      layers.push(L.polygon(polys, { color, weight: 3, fillOpacity: 0.15 }));
+      layers.push(L.polygon(polys, { ...baseStyle, fillOpacity: 0.15 }));
     }
   }
 
   if (layers.length === 0) return;
+
+  for (const layer of layers) {
+    layer.on("mouseover", () => {
+      layer.setStyle(hoverStyle);
+      layer.getElement()?.style.setProperty("cursor", "pointer");
+    });
+    layer.on("mouseout", () => {
+      layer.setStyle(baseStyle);
+    });
+    if (onProjectClick) {
+      layer.on("click", (e: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(e);
+        onProjectClick(project, e.latlng);
+      });
+    }
+  }
 
   const group = L.layerGroup(layers);
   group.addTo(mapInstance);

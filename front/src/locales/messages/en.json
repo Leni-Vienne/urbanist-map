@@ -785,6 +785,7 @@
     "saveShapes": "Save shapes",
     "cancel": "Cancel",
     "savedSuccess": "Shapes submitted for review",
-    "savedLocally": "Shapes saved — click Publish to submit"
+    "savedLocally": "Shapes saved — click Publish to submit",
+    "geometrySummary": "{count} shape(s)"
   }
 }

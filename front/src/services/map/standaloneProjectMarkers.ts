@@ -13,6 +13,7 @@ import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import {
   createProjectInfoTeleportTarget,
+  createProjectInfoTeleportTargetAtLatLng,
   cleanupProjectInfoTeleportTarget,
 } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
@@ -270,6 +271,46 @@ export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker 
 }
 
 /**
+ * Handle a click on a project shape layer — opens the project info popup.
+ * Passed as a callback to renderProjectShapes so shapeRendering stays dependency-free.
+ */
+export function handleShapeProjectClick(project: Project, latlng: L.LatLng): void {
+  const uiStore = useUiStore();
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+
+  if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
+    uiStore.closeProjectInfoPopup();
+    cleanupProjectInfoTeleportTarget();
+    return;
+  }
+
+  uiStore.openProjectInfoPopup(project.id, project);
+
+  if (mapStore.selectedCity?.id !== project.city.id) {
+    mapStore.setSelectedCity({
+      id: project.city.id,
+      name: project.city.name,
+      nameLocal: project.city.nameLocal,
+      countryCode: project.city.countryCode,
+    });
+  }
+
+  Promise.all([
+    fetchCityOverlaysOrCache(project.city.id, mapStore.mode),
+    fetchCityStandaloneProjectsOrCache(project.city.id, mapStore.mode),
+  ]).catch(console.error);
+
+  if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
+  requestScrollTo("project", project.id);
+
+  if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
+  if (overlayStore.idSelectedOverlay) selectOverlay(null);
+
+  createProjectInfoTeleportTargetAtLatLng(latlng);
+}
+
+/**
  * Add standalone project marker for a specific project
  * This is called when the last overlay is deleted from a project
  */
@@ -281,7 +322,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   // Approved projects with geometry render as shapes instead of a point marker
   if (project.geometry && project.status === "approved") {
-    renderProjectShapes(project, map.value);
+    renderProjectShapes(project, map.value, handleShapeProjectClick);
     return;
   }
 
