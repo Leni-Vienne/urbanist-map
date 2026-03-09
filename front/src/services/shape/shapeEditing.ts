@@ -4,6 +4,11 @@ import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import L from "leaflet";
 
+// Track layers added from existing geometry (not tracked by Geoman as "drawn" layers).
+let geometryLayers: L.Layer[] = [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let pmCreateHandler: ((e: any) => void) | null = null;
+
 /**
  * Activate the Geoman toolbar on the map with relevant draw tools only.
  * If existingGeometry is provided, the layers are added to the map.
@@ -28,6 +33,13 @@ export function initShapeEditor(
     rotateMode: false,
   });
 
+  // Enable edit mode on newly drawn layers so nodes are draggable immediately.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pmCreateHandler = ({ layer }: { layer: any }) => {
+    layer.pm?.enable?.();
+  };
+  mapInstance.on("pm:create", pmCreateHandler);
+
   if (existingGeometry) {
     addLayersFromGeometry(mapInstance, existingGeometry);
   }
@@ -37,7 +49,18 @@ export function initShapeEditor(
  * Remove all geoman-drawn layers and the controls toolbar.
  */
 export function destroyShapeEditor(mapInstance: L.Map): void {
-  mapInstance.pm.getGeomanDrawLayers().forEach((layer) => layer.remove());
+  if (pmCreateHandler) {
+    mapInstance.off("pm:create", pmCreateHandler);
+    pmCreateHandler = null;
+  }
+  // Disable any active global modes before removing controls — otherwise layers that
+  // were touched by Geoman's toolbar (e.g. rendered project shapes) stay editable.
+  if (mapInstance.pm.globalEditModeEnabled()) mapInstance.pm.disableGlobalEditMode();
+  if (mapInstance.pm.globalDragModeEnabled()) mapInstance.pm.disableGlobalDragMode();
+  for (const layer of mapInstance.pm.getGeomanDrawLayers()) layer.remove();
+  // Also remove layers loaded from existing geometry — Geoman doesn't track these.
+  for (const layer of geometryLayers) layer.remove();
+  geometryLayers = [];
   mapInstance.pm.removeControls();
 }
 
@@ -49,7 +72,9 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
     .getGeomanDrawLayers()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((layer) => (layer as any).toGeoJSON?.() as GeoJSON.Feature | undefined)
-    .filter((f): f is GeoJSON.Feature => !!f && f.type === "Feature" && f.geometry !== null)
+    .filter(
+      (f): f is GeoJSON.Feature => f !== undefined && f.type === "Feature" && f.geometry !== null,
+    )
     .map((f) => f.geometry);
 
   return { type: "GeometryCollection", geometries };
@@ -64,6 +89,7 @@ export function addLayersFromGeometry(
 ): void {
   L.geoJSON(geometry).eachLayer((layer) => {
     layer.addTo(mapInstance);
+    geometryLayers.push(layer);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (layer as any).pm?.enable?.();
   });
