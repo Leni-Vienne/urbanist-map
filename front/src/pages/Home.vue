@@ -148,8 +148,19 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
     projectStore.projects = { ...projectStore.projects, [project.id]: project };
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
-  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
+  const [{ destroyShapeEditor }, { clearProjectShapes, renderProjectShapes }] = await Promise.all([
+    import("@/services/shape/shapeEditing"),
+    import("@/services/map/shapeRendering"),
+  ]);
   destroyShapeEditor(map.value);
+  // Re-render updated shapes immediately. Geoman layers were just removed by destroyShapeEditor,
+  // and the viewport loop only covers backend overlays — pending/local shapes need explicit rendering.
+  clearProjectShapes(project.id);
+  if (geometry.geometries.length > 0) {
+    const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
+    const { handleShapeProjectClick } = await import("@/services/map/standaloneProjectMarkers");
+    renderProjectShapes(updatedProject, map.value, handleShapeProjectClick);
+  }
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
   if (reopenAt) {

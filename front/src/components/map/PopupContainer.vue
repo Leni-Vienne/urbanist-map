@@ -170,18 +170,26 @@ function convertAndCacheBackendProject(
   return convertedProject;
 }
 
+// In view mode, a locally-modified project should show its original approved data, not the
+// unsaved edits. This prevents name edits and other pending changes from leaking into view mode.
+function getEffectiveProject(projectId: string): Project | undefined {
+  const localProject = projects.value[projectId] ?? projectStore.allProjects[projectId];
+  if (!localProject) return undefined;
+  if (mapStore.mode !== "edit" && localProject.isModified) {
+    const original = projectStore.getOriginalProject(projectId);
+    if (original) return original as Project;
+  }
+  return localProject;
+}
+
 // Unified computed property for currently active project (from either overlay or project popup)
 const activeProject = computed(() => {
   // Priority 1: Check if viewing an overlay popup - get project from overlay
   const overlay = overlayObject.value;
   if (overlay?.projectId) {
-    // Try local projects store first
-    const localProject = projects.value[overlay.projectId];
+    // Try local projects store first (respects view-mode modification guard)
+    const localProject = getEffectiveProject(overlay.projectId);
     if (localProject) return localProject;
-
-    // Try allProjects (includes nearbyProjects)
-    const allProjectsData = projectStore.allProjects;
-    if (allProjectsData[overlay.projectId]) return allProjectsData[overlay.projectId];
 
     // Try to find backend project data from overlay or city overlays
     const backendProject =
@@ -196,8 +204,8 @@ const activeProject = computed(() => {
 
   // Priority 2: Check if viewing a project popup - get project from project popup state
   if (projectInfoPopup.value.projectId) {
-    // Try local projects store first
-    const localProject = projects.value[projectInfoPopup.value.projectId];
+    // Try local projects store first (respects view-mode modification guard)
+    const localProject = getEffectiveProject(projectInfoPopup.value.projectId);
     if (localProject) return localProject;
 
     // Try project from popup state (for backend projects)
@@ -304,15 +312,22 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
 
 // Handle draw-shapes button — open the shape editor for a project
 async function handleDrawShapes(project: Project) {
+  // Capture geometry from popup context BEFORE closing popups (refs become null after).
+  // project.geometry may be null if the project was populated from getCityProjects which does
+  // not return a geometry column. The overlay/popup project objects carry the full backend data.
+  const fallbackGeometry =
+    overlayObject.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
+  const existingGeometry = project.geometry ?? fallbackGeometry;
+
   // Capture popup anchor before it's cleaned up — only for project/shape popups (not overlay).
   const reopenAt = showProjectPopup.value ? getPopupLatLng() : null;
   uiStore.openShapeEditor(project, reopenAt ?? undefined);
   // Close whichever popup is open
   if (showOverlayPopup.value) overlayStore.hideInfoPopup();
   else closeProjectInfoPopup();
-  // Lazy-load geoman and init the toolbar
+  // Lazy-load geoman and init the toolbar with the best available geometry
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  initShapeEditor(map.value, project.geometry ?? undefined);
+  initShapeEditor(map.value, existingGeometry ?? undefined);
 }
 
 // Handle project deletion

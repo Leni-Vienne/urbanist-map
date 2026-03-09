@@ -77,6 +77,18 @@ export function renderProjectShapes(
 }
 
 /**
+ * Remove rendered shape layers for a single project.
+ * Allows re-rendering after geometry changes (e.g. after saving in shape editor).
+ */
+export function clearProjectShapes(projectId: string): void {
+  const group = shapeLayerMap.get(projectId);
+  if (group) {
+    group.remove();
+    shapeLayerMap.delete(projectId);
+  }
+}
+
+/**
  * Remove all rendered shape layers.
  */
 export function clearAllProjectShapes(): void {

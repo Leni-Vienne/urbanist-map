@@ -320,8 +320,9 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // Don't add if marker already exists
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
-  // Approved projects with geometry render as shapes instead of a point marker
-  if (project.geometry && project.status === "approved") {
+  // Projects with geometry render as shapes instead of a point marker.
+  // Includes pending/local projects so shapes are visible in edit and moderation mode.
+  if (project.geometry?.geometries?.length) {
     renderProjectShapes(project, map.value, handleShapeProjectClick);
     return;
   }

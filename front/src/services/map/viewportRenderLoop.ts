@@ -13,6 +13,7 @@ import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
 import { handleShapeProjectClick } from "@/services/map/standaloneProjectMarkers";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -313,9 +314,15 @@ function pruneLocalOverlays(
 /**
  * Render shapes for projects that have overlays AND have geometry set.
  * Uses hasProjectShapes guard to avoid duplicate rendering.
+ * In edit/moderation mode: prefers locally-modified geometry from projectStore so unsaved
+ * shape changes are visible while the user is editing.
+ * In view mode: always uses backend-approved geometry so unsaved edits do not leak into view mode.
  */
 function renderOverlayProjectShapes(mapInstance: L.Map) {
   const overlayStore = useOverlayStore();
+  const projectStore = useProjectStore();
+  const mapStore = useMapStore();
+  const isEditMode = mapStore.mode === "edit";
   const seenProjectIds = new Set<string>();
 
   for (const overlay of overlayStore.viewModeOverlays) {
@@ -325,11 +332,16 @@ function renderOverlayProjectShapes(mapInstance: L.Map) {
 
     if (hasProjectShapes(projectId)) continue;
 
-    const project = overlay.project;
-    if (!project?.geometry) continue;
+    const storedProject = projectStore.projects[projectId];
+    // Only in edit mode should locally-modified geometry be visible (the user is actively editing).
+    // In view and moderation modes, always use backend-approved geometry so unsaved edits don't leak.
+    const geometry = (isEditMode ? storedProject?.geometry : null) ?? overlay.project?.geometry;
+    if (!geometry?.geometries?.length) continue;
 
+    // Same logic for project fields (name, etc.) — only use locally-modified data in edit mode.
+    const project = (isEditMode ? storedProject : null) ?? overlay.project;
     renderProjectShapes(
-      project as Parameters<typeof renderProjectShapes>[0],
+      { ...project, geometry } as Parameters<typeof renderProjectShapes>[0],
       mapInstance,
       handleShapeProjectClick,
     );

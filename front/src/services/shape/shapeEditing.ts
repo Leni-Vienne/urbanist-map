@@ -66,10 +66,16 @@ export function destroyShapeEditor(mapInstance: L.Map): void {
 
 /**
  * Extract all geoman-drawn layers as a GeoJSON GeometryCollection.
+ * Includes both layers drawn in this session AND layers loaded from existing geometry,
+ * so that saving always produces the full set of shapes (not just newly added ones).
  */
 export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection {
-  const geometries = mapInstance.pm
-    .getGeomanDrawLayers()
+  // Combine geoman-tracked draw layers with layers loaded from existing geometry.
+  // Geoman's getGeomanDrawLayers() only returns layers it created itself — layers added
+  // via addLayersFromGeometry (existing shapes) are tracked separately in geometryLayers.
+  const allLayers = [...mapInstance.pm.getGeomanDrawLayers(), ...geometryLayers];
+
+  const geometries = allLayers
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((layer) => (layer as any).toGeoJSON?.() as GeoJSON.Feature | undefined)
     .filter(
@@ -87,12 +93,20 @@ export function addLayersFromGeometry(
   mapInstance: L.Map,
   geometry: GeoJSON.GeometryCollection,
 ): void {
-  L.geoJSON(geometry).eachLayer((layer) => {
+  // Process each geometry individually by wrapping it in a Feature.
+  // Using L.geoJSON(geometryCollection) produces a single FeatureGroup (not individual layers),
+  // whose toGeoJSON() returns a FeatureCollection that fails the Feature type check in getDrawnGeometry.
+  // Wrapping each geometry separately guarantees one Leaflet layer per geometry,
+  // each with a toGeoJSON() that returns a proper Feature.
+  for (const geom of geometry.geometries) {
+    const feature: GeoJSON.Feature = { type: "Feature", geometry: geom, properties: {} };
+    const layer = L.geoJSON(feature).getLayers()[0];
+    if (!layer) continue;
     layer.addTo(mapInstance);
     geometryLayers.push(layer);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (layer as any).pm?.enable?.();
-  });
+  }
 }
 
 /**
