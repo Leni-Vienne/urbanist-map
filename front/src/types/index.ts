@@ -4,7 +4,7 @@ import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back
 
 // Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
-export type RemovableChange = ModifiableField | "new_overlay";
+export type RemovableChange = ModifiableField | "new_overlay" | "geometry";
 
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
@@ -111,6 +111,8 @@ export interface Project extends Omit<DBProject, "status"> {
   name: string; // Computed from project name field
   // Center coordinates for all projects (used as marker when no overlays exist)
   mapCoordinates?: { lat: number; lng: number } | null;
+  // Geometry for project shapes (lines + polygons drawn via geoman)
+  geometry: GeoJSON.GeometryCollection | null;
   // UI state for tracking local modifications
   isModified?: boolean;
 }

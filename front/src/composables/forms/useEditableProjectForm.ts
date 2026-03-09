@@ -282,6 +282,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
           y: userContributionProject.lat ?? 0,
         },
         version: userContributionProject.version,
+        geometry: null,
       };
 
       // Add to projects store (updateProject handles creating new entries)

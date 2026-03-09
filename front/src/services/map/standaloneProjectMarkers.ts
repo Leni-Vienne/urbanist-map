@@ -17,6 +17,7 @@ import {
 } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
+import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   fetchCityStandaloneProjectsOrCache,
   fetchCityOverlaysOrCache,
@@ -137,6 +138,7 @@ export function clearAllStandaloneProjectMarkers(): void {
 
   standaloneProjectMarkerMap.clear();
   selectedStandaloneProjectMarker = null;
+  clearAllProjectShapes();
 }
 
 /**
@@ -276,6 +278,12 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   // Don't add if marker already exists
   if (standaloneProjectMarkerMap.has(project.id)) return;
+
+  // Approved projects with geometry render as shapes instead of a point marker
+  if (project.geometry && project.status === "approved") {
+    renderProjectShapes(project, map.value);
+    return;
+  }
 
   // Initialize popup watcher on first marker addition (lazy initialization)
   initializePopupWatcher();

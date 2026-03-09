@@ -183,6 +183,7 @@ function findProjectFromReplacementOverlay(projectId: string): Project | null {
       ...originalOverlay.project,
       description: originalOverlay.project.description ?? null,
       overlayIds: [],
+      geometry: originalOverlay.project.geometry ?? null,
     });
   }
 

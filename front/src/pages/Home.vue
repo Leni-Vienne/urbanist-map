@@ -53,6 +53,14 @@
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
     <SubmissionDialogWrapper v-if="uiStore.submissionDialogVisible" />
+
+    <!-- Shape Editor Panel - lives outside PopupContainer so closing a popup doesn't destroy it -->
+    <ShapeEditorPanel
+      v-if="uiStore.shapeEditor.project"
+      :project-id="uiStore.shapeEditor.project.id"
+      @done="handleShapesDone"
+      @cancel="handleShapesCancel"
+    />
   </div>
 </template>
 
@@ -62,6 +70,8 @@ import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from "vue
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -72,6 +82,9 @@ import MobileDrawer from "@/components/layout/MobileDrawer.vue";
 
 // Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));
+const ShapeEditorPanel = defineAsyncComponent(
+  () => import("@/components/map/ShapeEditorPanel.vue"),
+);
 const ProjectManager = defineAsyncComponent(
   () => import("@/components/project/ProjectManager.vue"),
 );
@@ -89,6 +102,7 @@ const infoBannerDismissed = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const projectStore = useProjectStore();
 const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
@@ -120,6 +134,22 @@ function updateWindowWidth() {
     document.body.style.overflow = "";
     document.body.style.height = "";
   }
+}
+
+async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
+  const project = uiStore.shapeEditor.project;
+  if (!project) return;
+  projectStore.updateProject(project.id, { geometry, isModified: true });
+  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
+  destroyShapeEditor(map.value);
+  uiStore.closeShapeEditor();
+  toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
+}
+
+async function handleShapesCancel() {
+  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
+  destroyShapeEditor(map.value);
+  uiStore.closeShapeEditor();
 }
 
 onMounted(async () => {

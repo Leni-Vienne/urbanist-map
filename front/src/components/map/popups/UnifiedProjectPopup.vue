@@ -125,6 +125,16 @@
         @click="handlePublishClick"
       />
       <Button
+        v-if="project?.status !== null"
+        class="flex-1"
+        type="button"
+        :label="$t('shapes.drawShapes')"
+        icon="pi pi-pencil"
+        severity="secondary"
+        outlined
+        @click="emit('draw-shapes', project)"
+      />
+      <Button
         class="flex-1"
         type="button"
         :label="$t('project.addImages')"
@@ -193,6 +203,7 @@ const emit = defineEmits<{
   "publish-project": [];
   "close-popup": [];
   "add-images": [];
+  "draw-shapes": [project: Project];
   "view-original-overlay": [overlayId: string];
   "delete-project": [project: Project];
   "delete-overlay": [overlay: OverlayObject];

@@ -260,6 +260,13 @@
       "when": 1768502015680,
       "tag": "0036_flimsy_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1773053587349,
+      "tag": "0037_flippant_sugar_man",
+      "breakpoints": true
     }
   ]
 }

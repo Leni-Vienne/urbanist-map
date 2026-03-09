@@ -99,6 +99,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
       updatedAt: new Date(),
     },
     overlayIds: data.overlayIds ?? [],
+    geometry: data.geometry ?? null,
     // Map coordinates for display (computed from lat/lng)
     mapCoordinates: data.mapCoordinates ?? null,
     // Legacy DB field kept for migration reasons, not used in frontend

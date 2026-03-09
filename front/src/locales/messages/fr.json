@@ -778,5 +778,15 @@
   "settings": {
     "vectorTilesEnable": "Activer la carte vectorielle",
     "vectorTilesDisable": "Désactiver la carte vectorielle"
+  },
+  "shapes": {
+    "drawShapes": "Dessiner des formes",
+    "editorInstructions": "Utilisez les outils à gauche pour dessiner des lignes et des polygones. Vous pouvez aussi importer un fichier GeoJSON.",
+    "importGeoJSON": "Importer GeoJSON",
+    "clearAll": "Tout effacer",
+    "saveShapes": "Enregistrer les formes",
+    "cancel": "Annuler",
+    "savedSuccess": "Formes soumises pour révision",
+    "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre"
   }
 }

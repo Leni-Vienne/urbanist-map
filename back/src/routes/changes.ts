@@ -86,6 +86,11 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
     return { centerCoordinate: convertCoordinateToGeometry(change.newValue) };
   }
 
+  const isProjectGeometryField = change.entityType === "project" && change.fieldName === "geometry";
+  if (isProjectGeometryField) {
+    return { geometry: change.newValue as GeoJSON.GeometryCollection | null };
+  }
+
   // For non-geometry fields, use the value directly
   return { [change.fieldName]: change.newValue };
 }

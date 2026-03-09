@@ -20,6 +20,7 @@
       @view-original-overlay="handleViewOriginalOverlay"
       @delete-project="handleDeleteProject"
       @delete-overlay="handleDeleteOverlay"
+      @draw-shapes="handleDrawShapes"
     />
   </Teleport>
 
@@ -37,6 +38,7 @@
       @close-popup="closeProjectInfoPopup"
       @add-images="handleAddImages"
       @delete-project="handleDeleteProject"
+      @draw-shapes="handleDrawShapes"
     />
   </Teleport>
 
@@ -58,6 +60,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
+import { map } from "@/services/core/map";
 
 import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlayActions";
 import { useToast } from "@/composables/ui/useToast";
@@ -146,6 +149,7 @@ function convertAndCacheBackendProject(
     name: backendProject.name,
     city: backendProject.city,
     overlayIds: overlaysForProject, // Use actual loaded overlays, not empty array!
+    geometry: backendProject.geometry ?? null,
   };
 
   // Add to store for future use (or update if already exists)
@@ -295,6 +299,17 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
   await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.caption, () => {
     overlayStore.hideInfoPopup();
   });
+}
+
+// Handle draw-shapes button — open the shape editor for a project
+async function handleDrawShapes(project: Project) {
+  uiStore.openShapeEditor(project);
+  // Close whichever popup is open
+  if (showOverlayPopup.value) overlayStore.hideInfoPopup();
+  else closeProjectInfoPopup();
+  // Lazy-load geoman and init the toolbar
+  const { initShapeEditor } = await import("@/services/shape/shapeEditing");
+  initShapeEditor(map.value, project.geometry ?? undefined);
 }
 
 // Handle project deletion

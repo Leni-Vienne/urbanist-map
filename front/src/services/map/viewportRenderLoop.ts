@@ -11,6 +11,7 @@ import type { OverlayObject, OverlayData } from "@/types/index";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -136,6 +137,9 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 
   pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
   pruneLocalOverlays(mapInstance, bounds, showImages, showMarkers);
+
+  // Render shapes for overlay-bearing projects that have geometry set
+  renderOverlayProjectShapes(mapInstance);
 }
 
 /**
@@ -302,6 +306,28 @@ function pruneLocalOverlays(
         }
       }
     });
+  }
+}
+
+/**
+ * Render shapes for projects that have overlays AND have geometry set.
+ * Uses hasProjectShapes guard to avoid duplicate rendering.
+ */
+function renderOverlayProjectShapes(mapInstance: L.Map) {
+  const overlayStore = useOverlayStore();
+  const seenProjectIds = new Set<string>();
+
+  for (const overlay of overlayStore.viewModeOverlays) {
+    const projectId = overlay.projectId;
+    if (!projectId || seenProjectIds.has(projectId)) continue;
+    seenProjectIds.add(projectId);
+
+    if (hasProjectShapes(projectId)) continue;
+
+    const project = overlay.project;
+    if (!project?.geometry) continue;
+
+    renderProjectShapes(project as Parameters<typeof renderProjectShapes>[0], mapInstance);
   }
 }
 

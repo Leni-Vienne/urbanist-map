@@ -4,8 +4,8 @@ import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import tailwindcss from "@tailwindcss/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
-import path from "node:path";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { visualizer } from "rollup-plugin-visualizer";
 import { qrcode } from "vite-plugin-qrcode";
 
@@ -66,24 +66,22 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       // Redirect leaflet imports to our CDN shim
-      leaflet: path.resolve(__dirname, "./src/lib/leaflet-umd-shim.ts"),
+      leaflet: fileURLToPath(new URL("src/lib/leaflet-umd-shim.ts", import.meta.url)),
       // Use vue-i18n runtime-only build (no message compiler, uses JIT compilation)
       "vue-i18n": "vue-i18n/dist/vue-i18n.runtime.esm-bundler.js",
-      "@/tables": path.resolve(__dirname, "./back/src/db/schema"),
+      "@/tables": fileURLToPath(new URL("../back/src/db/schema", import.meta.url)),
       "@": "/src",
-      "@shared": path.resolve(__dirname, "../shared"),
+      "@shared": fileURLToPath(new URL("../shared", import.meta.url)),
 
       // Temporary alias for testing local library changes
-      /*"leaflet-distortableimage": path.resolve(
-        __dirname,
-        "../../Leaflet.DistortableImage",
-      ),
-      "leaflet-toolbar": path.resolve(__dirname, "../../Leaflet.toolbar"),*/
+      //"leaflet-distortableimage": fileURLToPath(new URL("../../Leaflet.DistortableImage", import.meta.url)),
+      //"leaflet-toolbar": fileURLToPath(new URL("../../Leaflet.toolbar", import.meta.url)),
     },
   },
   // To prevent annoying automatic reloads in devmode
   optimizeDeps: {
     include: [
+      "@geoman-io/leaflet-geoman-free",
       "primevue/autocomplete",
       "primevue/badge",
       "primevue/button",

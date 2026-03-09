@@ -133,6 +133,7 @@ export const projects = pgTable(
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
     centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // PostGIS point for spatial queries (computed from lat/lng)
+    geometry: jsonb("geometry").$type<GeoJSON.GeometryCollection | null>(), // GeoJSON GeometryCollection for project shapes (lines + polygons)
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

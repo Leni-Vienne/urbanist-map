@@ -110,6 +110,7 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   proposalDatePrecision: "Proposal Date Precision",
   startDatePrecision: "Start Date Precision",
   endDatePrecision: "End Date Precision",
+  geometry: "Shapes",
 };
 
 // Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
@@ -204,6 +205,7 @@ export function useSubmissionService() {
       "cityId",
       "proposalDatePrecision",
       "startDatePrecision",
+      "geometry",
     ];
 
     for (const field of fieldsToCheck) {
@@ -213,17 +215,28 @@ export function useSubmissionService() {
 
       // Special handling for date fields
       const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
+      const isGeometryField = String(field) === "geometry";
 
-      // For change requests, preserve empty strings (database requires non-null new_value)
-      // Only normalize dates; for other fields, convert null/undefined to empty string to preserve actual values
-      const normalizedOld = isDateField ? normalizeDate(oldValue) : (oldValue ?? "");
-      const normalizedNew = isDateField ? normalizeDate(newValue) : (newValue ?? "");
+      // Geometry uses JSON stringification for comparison; dates use normalization; others use raw value
+      let normalizedOld: unknown = null;
+      let normalizedNew: unknown = null;
+      if (isDateField) {
+        normalizedOld = normalizeDate(oldValue);
+        normalizedNew = normalizeDate(newValue);
+      } else if (isGeometryField) {
+        normalizedOld = oldValue ? JSON.stringify(oldValue) : null;
+        normalizedNew = newValue ? JSON.stringify(newValue) : null;
+      } else {
+        normalizedOld = oldValue ?? "";
+        normalizedNew = newValue ?? "";
+      }
 
       if (normalizedOld !== normalizedNew) {
         changes.push({
           fieldName: String(field),
-          oldValue: normalizedOld,
-          newValue: normalizedNew,
+          // Store raw objects for geometry so the backend receives proper JSON, not a string
+          oldValue: isGeometryField ? (oldValue ?? null) : normalizedOld,
+          newValue: isGeometryField ? (newValue ?? null) : normalizedNew,
           changeReason: customReason ?? undefined,
         });
       }
@@ -236,6 +249,12 @@ export function useSubmissionService() {
   function formatValueForDisplay(value: any, fieldName?: string): string {
     if (value === null || value === undefined || value === "") {
       return "Not set";
+    }
+
+    // Special handling for geometry - show shape count
+    if (fieldName === "geometry" && typeof value === "object") {
+      const count = (value as GeoJSON.GeometryCollection).geometries?.length ?? 0;
+      return `${count} shape${count !== 1 ? "s" : ""}`;
     }
 
     // Special handling for cityId - show city name
@@ -444,7 +463,15 @@ export function useSubmissionService() {
     if (context.changeType === "update_approved") {
       await submitProjectChangeRequest(context.entity, changes);
     } else {
-      await publishProjectDirect(context.entity, context.changeType);
+      // For pending projects: metadata goes through publishProject, geometry through change request
+      const geometryChanges = changes.filter((c) => c.fieldName === "geometry");
+      const metadataChanges = changes.filter((c) => c.fieldName !== "geometry");
+      if (metadataChanges.length > 0) {
+        await publishProjectDirect(context.entity, context.changeType);
+      }
+      if (geometryChanges.length > 0) {
+        await submitProjectChangeRequest(context.entity, geometryChanges);
+      }
     }
   }
 
