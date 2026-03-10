@@ -113,6 +113,16 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   geometry: "Shapes",
 };
 
+// Check if a geometry value contains at least one shape
+function hasShapes(v: unknown): boolean {
+  return (
+    v !== null &&
+    v !== undefined &&
+    typeof v === "object" &&
+    ((v as GeoJSON.GeometryCollection).geometries?.length ?? 0) > 0
+  );
+}
+
 // Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
 function normalizeDate(val: any) {
   if (!val) return null;
@@ -220,22 +230,39 @@ export function useSubmissionService() {
       // Geometry uses JSON stringification for comparison; dates use normalization; others use raw value
       let normalizedOld: unknown = null;
       let normalizedNew: unknown = null;
+      let effectiveOldValue: unknown = oldValue;
       if (isDateField) {
         normalizedOld = normalizeDate(oldValue);
         normalizedNew = normalizeDate(newValue);
       } else if (isGeometryField) {
-        normalizedOld = oldValue ? JSON.stringify(oldValue) : null;
-        normalizedNew = newValue ? JSON.stringify(newValue) : null;
+        // If original project lacks geometry (e.g. cached from UserContribution type which
+        // doesn't include the geometry column), fall back to the backend geometry from loaded
+        // overlay data — so we show "N shapes → M shapes" instead of "Not set → M shapes".
+        if (!hasShapes(effectiveOldValue)) {
+          const backendOverlay = mapStore.currentCityOverlays.find(
+            (o) => o.project?.id === project.id && hasShapes(o.project?.geometry),
+          );
+          if (backendOverlay?.project?.geometry) {
+            effectiveOldValue = backendOverlay.project.geometry;
+          }
+        }
+        normalizedOld = hasShapes(effectiveOldValue) ? JSON.stringify(effectiveOldValue) : null;
+        normalizedNew = hasShapes(newValue) ? JSON.stringify(newValue) : null;
       } else {
         normalizedOld = oldValue ?? "";
         normalizedNew = newValue ?? "";
       }
 
       if (normalizedOld !== normalizedNew) {
+        let storedOldValue: unknown = normalizedOld;
+        if (isGeometryField) {
+          storedOldValue = normalizedOld !== null ? effectiveOldValue : null;
+        }
         changes.push({
           fieldName: String(field),
           // Store raw objects for geometry so the backend receives proper JSON, not a string
-          oldValue: isGeometryField ? (oldValue ?? null) : normalizedOld,
+          // Use effectiveOldValue (falls back to backend geometry if original cache lacked it)
+          oldValue: storedOldValue,
           newValue: isGeometryField ? (newValue ?? null) : normalizedNew,
           changeReason: customReason ?? undefined,
         });
