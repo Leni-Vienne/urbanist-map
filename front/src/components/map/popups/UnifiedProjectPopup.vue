@@ -3,6 +3,7 @@
     :class="['unified-popup', `popup-source-${props.source}`]"
     class="w-75 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
     @click.stop
+    @mousedown.stop
   >
     <div v-if="loading" class="flex justify-center items-center h-50 p-4">
       <i class="pi pi-spin pi-spinner"></i>
