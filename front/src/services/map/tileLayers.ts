@@ -23,10 +23,12 @@ type CountryCode = "FRA" | "CHE";
 // Helper to convert bbox array to BoundingBox object
 function toBoundingBox(bbox: number[]): BoundingBox {
   return {
+    /* oxlint-disable no-non-null-assertion */
     minLng: bbox[0]!,
     minLat: bbox[1]!,
     maxLng: bbox[2]!,
     maxLat: bbox[3]!,
+    /* oxlint-enable no-non-null-assertion */
   };
 }
 
@@ -72,7 +74,7 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
   let inside = false;
   const x = lng;
   const y = lat;
-
+  /* oxlint-disable no-non-null-assertion */
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
     const [xi, yi] = ring[i]!;
     const [xj, yj] = ring[j]!;
@@ -80,6 +82,7 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
     const intersect = yi! > y !== yj! > y && x < ((xj! - xi!) * (y - yi!)) / (yj! - yi!) + xi!;
     if (intersect) inside = !inside;
   }
+  /* oxlint-enable no-non-null-assertion */
 
   return inside;
 }
@@ -236,19 +239,53 @@ const tileLayerConfigs = {
 export function addTileLayer(): void {
   // Check if tile layers were lost during hot reload
   if (!activeTileLayer) {
-    addTileLayersToMap();
+    void addTileLayersToMap();
   }
 
   initEsriMetadataListener(); // Start listening for potential high-res availability
   initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
-//import { MaptilerLayer } from "@maptiler/leaflet-maptilersdk";
+
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Skip if already injected (e.g. called twice before first load completes isn't guarded here,
+    // but ensureMaplibreLoaded checks globalThis.maplibregl so this is a safety net)
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.addEventListener("load", () => resolve());
+    script.addEventListener("error", reject);
+    document.head.appendChild(script);
+  });
+}
+
+function loadStylesheet(href: string): void {
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+async function ensureMaplibreLoaded(): Promise<void> {
+  if ((globalThis as any).maplibregl) return;
+  // CSS can load in parallel with JS — no dependency
+  loadStylesheet("https://unpkg.com/maplibre-gl/dist/maplibre-gl.css");
+  // leaflet-maplibre-gl depends on maplibregl being defined, so load sequentially
+  await loadScript("https://unpkg.com/maplibre-gl/dist/maplibre-gl.js");
+  await loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js");
+}
+
 /**
  * Initialize all tile layers without layer control (using custom control instead)
  */
-function addTileLayersToMap(): void {
+async function addTileLayersToMap(): Promise<void> {
   try {
     if (useVectorTiles.value) {
+      await ensureMaplibreLoaded();
       activeTileLayer = (L as any)
         .maplibreGL({
           style: "https://tiles.openfreemap.org/styles/liberty",
