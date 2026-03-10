@@ -25,12 +25,15 @@ export function initShapeEditor(
   }
 
   mapInstance.pm.addControls({
+    drawRectangle: false,
     drawMarker: false,
     drawCircle: false,
     drawCircleMarker: false,
     drawText: false,
     cutPolygon: false,
     rotateMode: false,
+    removalMode: false,
+    editControls: false,
   });
 
   // Enable edit mode on newly drawn layers so nodes are draggable immediately.
@@ -104,6 +107,11 @@ export function addLayersFromGeometry(
     if (!layer) continue;
     layer.addTo(mapInstance);
     geometryLayers.push(layer);
+    // Reinitialize Geoman on this externally-created layer so vertex handles appear.
+    // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline,
+    // so reInitLayer re-applies the PM mixin before enabling edit mode.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (L as any).PM?.reInitLayer?.(layer);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (layer as any).pm?.enable?.();
   }

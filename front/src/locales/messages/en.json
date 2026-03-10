@@ -780,7 +780,7 @@
   },
   "shapes": {
     "drawShapes": "Draw shapes",
-    "editorInstructions": "Use the tools on the left to draw lines and polygons. You can also import a GeoJSON file.",
+    "editorInstructions": "Use the tools on the left to draw lines and polygons. Use the right clic to delete points",
     "importGeoJSON": "Import GeoJSON",
     "clearAll": "Clear all",
     "saveShapes": "Save shapes",

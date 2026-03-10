@@ -2,7 +2,7 @@
   <div
     class="shape-editor-panel fixed bottom-6 left-1/2 -translate-x-1/2 z-1100 bg-content-background rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto px-4 py-3 flex flex-col gap-3"
   >
-    <p class="text-sm text-muted-color max-w-xs text-center">
+    <p class="text-sm text-muted-color max-w-xl">
       {{ $t("shapes.editorInstructions") }}
     </p>
     <div class="flex gap-2 items-center justify-center">
