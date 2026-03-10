@@ -7,6 +7,14 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 // Registry: projectId → LayerGroup of rendered shapes
 const shapeLayerMap = new Map<string, L.LayerGroup>();
 
+// Ephemeral preview layer for change request previews (not in shapeLayerMap)
+let previewLayerGroup: L.LayerGroup | null = null;
+
+const PREVIEW_COLORS = {
+  current: "#22c55e", // green-500 — matches "success" severity button
+  suggested: "#f59e0b", // amber-500 — matches "warn" severity button
+} as const;
+
 /**
  * Render a project's GeometryCollection as Leaflet layers on the map.
  * Lines become L.polyline, polygons become L.polygon (with fill).
@@ -89,13 +97,14 @@ export function clearProjectShapes(projectId: string): void {
 }
 
 /**
- * Remove all rendered shape layers.
+ * Remove all rendered shape layers (and any active preview).
  */
 export function clearAllProjectShapes(): void {
   for (const group of shapeLayerMap.values()) {
     group.remove();
   }
   shapeLayerMap.clear();
+  clearPreviewShapes();
 }
 
 /**
@@ -103,6 +112,60 @@ export function clearAllProjectShapes(): void {
  */
 export function hasProjectShapes(projectId: string): boolean {
   return shapeLayerMap.has(projectId);
+}
+
+/**
+ * Render a GeometryCollection as a temporary preview layer (dashed, colored by variant).
+ * Not registered in shapeLayerMap — call clearPreviewShapes() to remove.
+ */
+export function renderPreviewShapes(
+  geometry: GeoJSON.GeometryCollection,
+  mapInstance: L.Map,
+  variant: "current" | "suggested",
+): void {
+  clearPreviewShapes();
+
+  const color = PREVIEW_COLORS[variant];
+  const baseStyle = { color, weight: 4, opacity: 1, dashArray: "8 5" };
+  const layers: L.Path[] = [];
+
+  // Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
+  for (const geom of geometry.geometries) {
+    if (geom.type === "LineString") {
+      const coords = (geom.coordinates as [number, number][]).map(
+        ([lng, lat]) => [lat, lng] as L.LatLngTuple,
+      );
+      layers.push(L.polyline(coords, baseStyle));
+    } else if (geom.type === "MultiLineString") {
+      const latlngs = (geom.coordinates as [number, number][][]).map((line) =>
+        line.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
+      );
+      layers.push(L.polyline(latlngs, baseStyle));
+    } else if (geom.type === "Polygon") {
+      const rings = (geom.coordinates as [number, number][][]).map((ring) =>
+        ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
+      );
+      layers.push(L.polygon(rings, { ...baseStyle, fillOpacity: 0.2 }));
+    } else if (geom.type === "MultiPolygon") {
+      const polys = (geom.coordinates as [number, number][][][]).map((poly) =>
+        poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple)),
+      );
+      layers.push(L.polygon(polys, { ...baseStyle, fillOpacity: 0.2 }));
+    }
+  }
+
+  if (layers.length === 0) return;
+
+  previewLayerGroup = L.layerGroup(layers);
+  previewLayerGroup.addTo(mapInstance);
+}
+
+/**
+ * Remove the current preview layer group from the map.
+ */
+export function clearPreviewShapes(): void {
+  previewLayerGroup?.remove();
+  previewLayerGroup = null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

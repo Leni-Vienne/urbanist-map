@@ -786,6 +786,9 @@
     "cancel": "Cancel",
     "savedSuccess": "Shapes submitted for review",
     "savedLocally": "Shapes saved — click Publish to submit",
-    "geometrySummary": "{count} shape(s)"
+    "geometrySummary": "{count} shape(s)",
+    "viewCurrentShapes": "View Current Shapes",
+    "viewSuggestedShapes": "View Suggested Shapes",
+    "noShapesToPreview": "No shapes available to preview"
   }
 }

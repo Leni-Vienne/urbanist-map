@@ -10,7 +10,9 @@ type PreviewState =
       changeId: string;
       overlayId: string;
       corners: { lat: number; lng: number }[];
-    };
+    }
+  | { type: "project-current"; changeId: string; projectId: string }
+  | { type: "project-suggested"; changeId: string; projectId: string };
 
 export const previewState = ref<PreviewState>({ type: "none" });
 

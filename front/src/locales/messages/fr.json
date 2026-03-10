@@ -788,6 +788,9 @@
     "cancel": "Annuler",
     "savedSuccess": "Formes soumises pour révision",
     "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre",
-    "geometrySummary": "{count} forme(s)"
+    "geometrySummary": "{count} forme(s)",
+    "viewCurrentShapes": "Voir les formes actuelles",
+    "viewSuggestedShapes": "Voir les formes suggérées",
+    "noShapesToPreview": "Aucune forme disponible pour la prévisualisation"
   }
 }

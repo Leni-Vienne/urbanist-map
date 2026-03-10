@@ -53,19 +53,36 @@
     </span>
   </div>
 
-  <!-- Geometry (shapes) field -->
-  <div
-    v-else-if="change.fieldName === 'geometry'"
-    class="flex items-start gap-2 my-1 text-xs flex-wrap"
-  >
-    <span
-      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm"
-      >{{ formatGeometrySummary(change.oldValue) }}</span
-    >
-    <i class="pi pi-arrow-right self-center"></i>
-    <span class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm">{{
-      formatGeometrySummary(change.newValue)
-    }}</span>
+  <!-- Geometry (shapes) field with preview buttons -->
+  <div v-else-if="change.fieldName === 'geometry'" class="my-2">
+    <div class="flex gap-2 flex-wrap">
+      <Button
+        icon="pi pi-map-marker"
+        :label="$t('shapes.viewCurrentShapes')"
+        @click.stop="$emit('preview-geometry', change.oldValue, 'old', change.id)"
+        severity="success"
+        :outlined="!isPreviewActive(change.id, 'old')"
+        size="small"
+      />
+      <Button
+        icon="pi pi-map-marker"
+        :label="$t('shapes.viewSuggestedShapes')"
+        @click.stop="$emit('preview-geometry', change.newValue, 'new', change.id)"
+        severity="warn"
+        :outlined="!isPreviewActive(change.id, 'new')"
+        size="small"
+      />
+    </div>
+    <div class="flex items-start gap-2 mt-1 text-xs flex-wrap">
+      <span
+        class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm"
+        >{{ formatGeometrySummary(change.oldValue) }}</span
+      >
+      <i class="pi pi-arrow-right self-center"></i>
+      <span class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm">{{
+        formatGeometrySummary(change.newValue)
+      }}</span>
+    </div>
   </div>
 
   <!-- Regular field with formatted values -->
