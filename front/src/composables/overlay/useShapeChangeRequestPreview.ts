@@ -2,12 +2,15 @@ import L from "leaflet";
 import { nextTick } from "vue";
 import { map } from "@/services/core/map";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { selectCity } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes } from "@/services/map/shapeRendering";
+import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
+import { requestScrollTo } from "@/services/layout/accordionState";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
 
@@ -87,8 +90,35 @@ export function useShapeChangeRequestPreview() {
       await nextTick();
     }
 
+    const uiStore = useUiStore();
+
+    // Construct a Project-compatible object from ProjectForModeration for the popup
+    const projectForPopup = {
+      ...project,
+      city: project.city ?? {
+        id: project.cityId ?? 0,
+        name: project.cityName ?? "",
+        nameLocal: null,
+        countryCode: project.countryCode ?? "",
+      },
+      overlayIds: [],
+      geometry: null,
+    };
+
     // Replace previous preview layer with the new geometry
-    renderPreviewShapes(geometry, map.value, type === "new" ? "suggested" : "current");
+    // Also pass projectId so regular shapes are hidden during preview
+    renderPreviewShapes(
+      geometry,
+      map.value,
+      type === "new" ? "suggested" : "current",
+      project.id,
+      (latlng) => {
+        createProjectInfoTeleportTargetAtLatLng(latlng);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        uiStore.openProjectInfoPopup(project.id, projectForPopup as any);
+        requestScrollTo("project", project.id);
+      },
+    );
 
     mobileAwareFlyToBounds(bounds, {
       padding: [50, 50] as [number, number],

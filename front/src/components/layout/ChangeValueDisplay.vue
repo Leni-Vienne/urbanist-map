@@ -27,7 +27,7 @@
     class="flex items-start gap-2 my-1 text-xs flex-wrap"
   >
     <span
-      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
+      class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
     >
       <ClickableLocation
         v-if="change.oldValue"
@@ -74,10 +74,9 @@
       />
     </div>
     <div class="flex items-start gap-2 mt-1 text-xs flex-wrap">
-      <span
-        class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm"
-        >{{ formatGeometrySummary(change.oldValue) }}</span
-      >
+      <span class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm">{{
+        formatGeometrySummary(change.oldValue)
+      }}</span>
       <i class="pi pi-arrow-right self-center"></i>
       <span class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm">{{
         formatGeometrySummary(change.newValue)
@@ -88,7 +87,7 @@
   <!-- Regular field with formatted values -->
   <div v-else class="flex items-start gap-2 my-1 text-xs flex-wrap">
     <span
-      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
+      class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
       >{{ formatValue(change.oldValue, change.fieldName, change) }}</span
     >
     <i class="pi pi-arrow-right self-center"></i>

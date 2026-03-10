@@ -87,21 +87,23 @@
         </div>
       </div>
 
-      <ChangeRequestSection
-        v-if="projectChanges.length > 0"
-        :changes="projectChanges"
-        :all-change-requests="allChangeRequests"
-        :projects="projectsContext"
-        :is-my-contributions="isContributePanel"
-        :on-navigate-to-overlay="onNavigateToOverlay"
-        :show-user-stats-link="showUserStatsLink"
-        @show-user-stats="(data) => $emit('show-user-stats', data)"
-        container-class="project-change-requests"
-      >
-        <template #change-actions="{ change }">
-          <slot name="change-actions" :change="change"></slot>
-        </template>
-      </ChangeRequestSection>
+      <div @click.stop>
+        <ChangeRequestSection
+          v-if="projectChanges.length > 0"
+          :changes="projectChanges"
+          :all-change-requests="allChangeRequests"
+          :projects="projectsContext"
+          :is-my-contributions="isContributePanel"
+          :on-navigate-to-overlay="onNavigateToOverlay"
+          :show-user-stats-link="showUserStatsLink"
+          @show-user-stats="(data) => $emit('show-user-stats', data)"
+          container-class="project-change-requests"
+        >
+          <template #change-actions="{ change }">
+            <slot name="change-actions" :change="change"></slot>
+          </template>
+        </ChangeRequestSection>
+      </div>
     </div>
 
     <!-- Project overlays -->
@@ -212,23 +214,25 @@
           ></i>
         </div>
 
-        <ChangeRequestSection
-          v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
-          :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
-          :all-change-requests="allChangeRequests"
-          :projects="projectsContext"
-          :is-my-contributions="isContributePanel"
-          :is-overlay-changes="true"
-          :entity-name="overlay.name || $t('overlay.untitled')"
-          :on-navigate-to-overlay="onNavigateToOverlay"
-          :show-user-stats-link="showUserStatsLink"
-          @show-user-stats="(data) => $emit('show-user-stats', data)"
-          container-class="overlay-change-requests"
-        >
-          <template #change-actions="{ change }">
-            <slot name="change-actions" :change="change"></slot>
-          </template>
-        </ChangeRequestSection>
+        <div @click.stop>
+          <ChangeRequestSection
+            v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
+            :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
+            :all-change-requests="allChangeRequests"
+            :projects="projectsContext"
+            :is-my-contributions="isContributePanel"
+            :is-overlay-changes="true"
+            :entity-name="overlay.name || $t('overlay.untitled')"
+            :on-navigate-to-overlay="onNavigateToOverlay"
+            :show-user-stats-link="showUserStatsLink"
+            @show-user-stats="(data) => $emit('show-user-stats', data)"
+            container-class="overlay-change-requests"
+          >
+            <template #change-actions="{ change }">
+              <slot name="change-actions" :change="change"></slot>
+            </template>
+          </ChangeRequestSection>
+        </div>
       </div>
     </div>
   </AccordionContent>

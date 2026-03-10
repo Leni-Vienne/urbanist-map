@@ -60,7 +60,8 @@
     "sourceUrl": "URL source",
     "caption": "Nom",
     "lat": "Latitude",
-    "lng": "Longitude"
+    "lng": "Longitude",
+    "geometry": "Formes"
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",

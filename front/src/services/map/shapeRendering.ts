@@ -9,11 +9,52 @@ const shapeLayerMap = new Map<string, L.LayerGroup>();
 
 // Ephemeral preview layer for change request previews (not in shapeLayerMap)
 let previewLayerGroup: L.LayerGroup | null = null;
+// The project whose regular shapes are temporarily hidden during preview
+let previewHiddenProjectId: string | null = null;
+let previewMapInstance: L.Map | null = null;
 
 const PREVIEW_COLORS = {
   current: "#22c55e", // green-500 — matches "success" severity button
   suggested: "#f59e0b", // amber-500 — matches "warn" severity button
 } as const;
+
+/**
+ * Build Leaflet path layers from a GeometryCollection.
+ * Lines use `style` directly; polygons add `fillOpacity`.
+ * Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
+ */
+function buildShapeLayers(
+  geometries: GeoJSON.Geometry[],
+  style: L.PathOptions,
+  fillOpacity: number,
+): L.Path[] {
+  const layers: L.Path[] = [];
+  const polygonStyle = { ...style, fillOpacity };
+  for (const geom of geometries) {
+    if (geom.type === "LineString") {
+      const coords = (geom.coordinates as [number, number][]).map(
+        ([lng, lat]) => [lat, lng] as L.LatLngTuple,
+      );
+      layers.push(L.polyline(coords, style));
+    } else if (geom.type === "MultiLineString") {
+      const latlngs = (geom.coordinates as [number, number][][]).map((line) =>
+        line.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
+      );
+      layers.push(L.polyline(latlngs, style));
+    } else if (geom.type === "Polygon") {
+      const rings = (geom.coordinates as [number, number][][]).map((ring) =>
+        ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
+      );
+      layers.push(L.polygon(rings, polygonStyle));
+    } else if (geom.type === "MultiPolygon") {
+      const polys = (geom.coordinates as [number, number][][][]).map((poly) =>
+        poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple)),
+      );
+      layers.push(L.polygon(polys, polygonStyle));
+    }
+  }
+  return layers;
+}
 
 /**
  * Render a project's GeometryCollection as Leaflet layers on the map.
@@ -35,41 +76,18 @@ export function renderProjectShapes(
   const baseStyle = { color, weight: 3, opacity: 0.85 };
   const hoverStyle = { weight: 5, opacity: 1 };
 
-  const layers: L.Path[] = [];
-
-  for (const geom of project.geometry.geometries) {
-    if (geom.type === "LineString") {
-      const coords = (geom.coordinates as [number, number][]).map(
-        ([lng, lat]) => [lat, lng] as L.LatLngTuple,
-      );
-      layers.push(L.polyline(coords, baseStyle));
-    } else if (geom.type === "MultiLineString") {
-      const latlngs = (geom.coordinates as [number, number][][]).map((line) =>
-        line.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
-      );
-      layers.push(L.polyline(latlngs, baseStyle));
-    } else if (geom.type === "Polygon") {
-      const rings = (geom.coordinates as [number, number][][]).map((ring) =>
-        ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
-      );
-      layers.push(L.polygon(rings, { ...baseStyle, fillOpacity: 0.15 }));
-    } else if (geom.type === "MultiPolygon") {
-      const polys = (geom.coordinates as [number, number][][][]).map((poly) =>
-        poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple)),
-      );
-      layers.push(L.polygon(polys, { ...baseStyle, fillOpacity: 0.15 }));
-    }
-  }
+  const layers = buildShapeLayers(project.geometry.geometries, baseStyle, 0.15);
 
   if (layers.length === 0) return;
 
   for (const layer of layers) {
     layer.on("mouseover", () => {
       layer.setStyle(hoverStyle);
-      layer.getElement()?.style.setProperty("cursor", "pointer");
+      (layer.getElement() as HTMLElement | undefined)?.style.setProperty("cursor", "pointer");
     });
     layer.on("mouseout", () => {
       layer.setStyle(baseStyle);
+      (layer.getElement() as HTMLElement | undefined)?.style.removeProperty("cursor");
     });
     if (onProjectClick) {
       layer.on("click", (e: L.LeafletMouseEvent) => {
@@ -122,39 +140,45 @@ export function renderPreviewShapes(
   geometry: GeoJSON.GeometryCollection,
   mapInstance: L.Map,
   variant: "current" | "suggested",
+  projectId?: string,
+  onShapeClick?: (latlng: L.LatLng) => void,
 ): void {
   clearPreviewShapes();
 
-  const color = PREVIEW_COLORS[variant];
-  const baseStyle = { color, weight: 4, opacity: 1, dashArray: "8 5" };
-  const layers: L.Path[] = [];
-
-  // Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
-  for (const geom of geometry.geometries) {
-    if (geom.type === "LineString") {
-      const coords = (geom.coordinates as [number, number][]).map(
-        ([lng, lat]) => [lat, lng] as L.LatLngTuple,
-      );
-      layers.push(L.polyline(coords, baseStyle));
-    } else if (geom.type === "MultiLineString") {
-      const latlngs = (geom.coordinates as [number, number][][]).map((line) =>
-        line.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
-      );
-      layers.push(L.polyline(latlngs, baseStyle));
-    } else if (geom.type === "Polygon") {
-      const rings = (geom.coordinates as [number, number][][]).map((ring) =>
-        ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
-      );
-      layers.push(L.polygon(rings, { ...baseStyle, fillOpacity: 0.2 }));
-    } else if (geom.type === "MultiPolygon") {
-      const polys = (geom.coordinates as [number, number][][][]).map((poly) =>
-        poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple)),
-      );
-      layers.push(L.polygon(polys, { ...baseStyle, fillOpacity: 0.2 }));
+  // Temporarily hide this project's regular shapes so they don't overlap the preview
+  previewMapInstance = mapInstance;
+  if (projectId) {
+    const existingGroup = shapeLayerMap.get(projectId);
+    if (existingGroup) {
+      existingGroup.remove();
     }
+    previewHiddenProjectId = projectId;
   }
 
+  const color = PREVIEW_COLORS[variant];
+  const baseStyle = { color, weight: 4, opacity: 1, dashArray: "8 5" };
+  const hoverStyle = { weight: 6, opacity: 1 };
+
+  const layers = buildShapeLayers(geometry.geometries, baseStyle, 0.2);
+
   if (layers.length === 0) return;
+
+  if (onShapeClick) {
+    for (const layer of layers) {
+      layer.on("mouseover", () => {
+        layer.setStyle(hoverStyle);
+        (layer.getElement() as HTMLElement | undefined)?.style.setProperty("cursor", "pointer");
+      });
+      layer.on("mouseout", () => {
+        layer.setStyle(baseStyle);
+        (layer.getElement() as HTMLElement | undefined)?.style.removeProperty("cursor");
+      });
+      layer.on("click", (e: L.LeafletMouseEvent) => {
+        L.DomEvent.stopPropagation(e);
+        onShapeClick(e.latlng);
+      });
+    }
+  }
 
   previewLayerGroup = L.layerGroup(layers);
   previewLayerGroup.addTo(mapInstance);
@@ -166,6 +190,15 @@ export function renderPreviewShapes(
 export function clearPreviewShapes(): void {
   previewLayerGroup?.remove();
   previewLayerGroup = null;
+
+  // Restore the regular shapes that were hidden during preview
+  if (previewHiddenProjectId && previewMapInstance) {
+    const group = shapeLayerMap.get(previewHiddenProjectId);
+    if (group) {
+      group.addTo(previewMapInstance);
+    }
+    previewHiddenProjectId = null;
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
