@@ -20,7 +20,7 @@ export const previewState = ref<PreviewState>({ type: "none" });
 let allChangeRequestsRef: PendingChangeRequest[] = [];
 
 /**
- * Set change requests reference for preview state syncing
+ * Set change requests reference for preview state syncing.
  */
 export function setChangeRequestsForPreview(changeRequests: PendingChangeRequest[]): void {
   allChangeRequestsRef = changeRequests;
@@ -28,7 +28,7 @@ export function setChangeRequestsForPreview(changeRequests: PendingChangeRequest
 
 /**
  * Sync preview state when navigating to an overlay.
- * Finds geometry change requests for the overlay and updates preview state accordingly
+ * Finds geometry change requests for the overlay and updates preview state accordingly.
  */
 export function syncPreviewStateOnNavigation(overlayId: string, isViewingApproved: boolean): void {
   // Find geometry change request for this overlay
@@ -40,12 +40,10 @@ export function syncPreviewStateOnNavigation(overlayId: string, isViewingApprove
   );
 
   if (!geometryChange) {
-    // No geometry change request found, clear preview state
     previewState.value = { type: "none" };
     return;
   }
 
-  // Update preview state based on which position is being viewed
   if (isViewingApproved) {
     previewState.value = {
       type: "current",
@@ -53,7 +51,6 @@ export function syncPreviewStateOnNavigation(overlayId: string, isViewingApprove
       overlayId,
     };
   } else {
-    // For suggested position, we need the corners from the change request
     const corners = geometryChange.newValue as { lat: number; lng: number }[] | null;
     if (corners && Array.isArray(corners)) {
       previewState.value = {
@@ -63,6 +60,26 @@ export function syncPreviewStateOnNavigation(overlayId: string, isViewingApprove
         corners,
       };
     }
+  }
+}
+
+/**
+ * Sync preview state for project shape changes (geometry field).
+ * Sets the "view current shapes" button as active by default.
+ * Only call this when no overlay is selected (caller's responsibility).
+ */
+export function syncProjectShapePreviewState(changeRequests: PendingChangeRequest[]): void {
+  const shapesChange = changeRequests.find(
+    (cr) => cr.entityType === "project" && cr.fieldName === "geometry",
+  );
+  if (shapesChange) {
+    previewState.value = {
+      type: "project-current",
+      changeId: shapesChange.id,
+      projectId: shapesChange.entityId,
+    };
+  } else {
+    previewState.value = { type: "none" };
   }
 }
 

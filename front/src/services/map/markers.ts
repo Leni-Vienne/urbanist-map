@@ -213,19 +213,13 @@ export function getOverlayMarkerColor(
   // Local replacement overlay (before submission) - show purple
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";
 
-  // Viewing suggested position of overlay with pending changes - show yellow
-  // Default to yellow if pending changes exist and we haven't explicitly selected the approved view
-  if (
-    (hasPendingChanges || status === "approved") &&
-    (isViewingApprovedPosition === false ||
-      (isViewingApprovedPosition === undefined && hasPendingChanges))
-  ) {
+  // Viewing suggested (pending) position - show yellow only when explicitly toggled
+  if (hasPendingChanges && isViewingApprovedPosition === false) {
     return "yellow";
   }
 
-  // Pending change requests with approved status - use green (viewing approved position)
-  // ONLY when explicitly viewing approved (isViewingApprovedPosition === true)
-  if (hasPendingChanges && status === "approved" && isViewingApprovedPosition === true) {
+  // Approved overlay with pending changes, viewing approved position (default or explicit)
+  if (hasPendingChanges && status === "approved") {
     return "green";
   }
 

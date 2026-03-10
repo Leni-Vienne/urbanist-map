@@ -110,7 +110,12 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useShapeChangeRequestPreview } from "@/composables/overlay/useShapeChangeRequestPreview";
-import { setChangeRequestsForPreview } from "@/services/overlay/changeRequestPreviewState";
+import {
+  setChangeRequestsForPreview,
+  syncPreviewStateOnNavigation,
+  syncProjectShapePreviewState,
+} from "@/services/overlay/changeRequestPreviewState";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type {
   ProjectForModeration,
   OverlayForModeration,
@@ -154,6 +159,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
+const overlayStore = useOverlayStore();
 const {
   isPreviewingChange,
   getPreviewType,
@@ -161,9 +167,24 @@ const {
 } = useChangeRequestPreview();
 const { previewShapes } = useShapeChangeRequestPreview();
 
-// Sync change requests for preview state tracking when navigating via markers
+// Sync change requests and preview button state reactively.
+// watchEffect tracks all reactive reads inside (allChangeRequests prop + idSelectedOverlay store),
+// so this re-runs when either changes.
+// IMPORTANT: do NOT read previewState inside this effect — it would create a read→write cycle.
 watchEffect(() => {
   setChangeRequestsForPreview(props.allChangeRequests);
+
+  const selectedId = overlayStore.idSelectedOverlay;
+  if (selectedId) {
+    // Sync "view approved position" button for the currently selected overlay
+    const sel = overlayStore.overlays[selectedId];
+    if (sel) {
+      syncPreviewStateOnNavigation(selectedId, sel.isViewingApprovedPosition ?? true);
+    }
+  } else {
+    // No overlay selected: sync "view current shapes" button for project geometry changes
+    syncProjectShapePreviewState(props.allChangeRequests);
+  }
 });
 
 // Computed property to check if a specific preview is active

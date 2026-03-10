@@ -17,20 +17,29 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject, Project } from "@/types/index";
 import { getProjectMarkerColor } from "@/utils/markerColors";
-import { markerColors, OVERLAY_OUTLINE_COLOR } from "@/services/map/markers";
+import {
+  markerColors,
+  OVERLAY_OUTLINE_COLOR,
+  getOverlayMarkerColor,
+  createOverlayIcon,
+} from "@/services/map/markers";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
 
 /**
- * Resolve the timeline hex color for an overlay's project.
- * Falls back to the default blue if project data is unavailable.
+ * Resolve the hex color for an overlay's selection outline.
+ * In edit mode, uses the overlay's own state color for consistency with the marker.
+ * In other modes, uses the project's timeline color to identify project membership.
  */
 function resolveProjectHexColor(overlayObject: OverlayObject): string {
+  const mode = useMapStore().mode;
+  if (mode === "edit") {
+    return markerColors[getOverlayMarkerColor(overlayObject, mode)];
+  }
   const proj = overlayObject.project;
   if (!proj) return OVERLAY_OUTLINE_COLOR;
-  const mode = useMapStore().mode;
   const colorKey = getProjectMarkerColor(proj as unknown as Project, mode);
   return markerColors[colorKey];
 }
@@ -64,14 +73,16 @@ function cleanupPreviousSelection(
  */
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
   // Set position state for dynamic button feedback when selecting overlay
-  // If no explicit position state, default to showing approved position
-  // UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
+  // Default to viewing the approved position on first selection
   if (newlySelected.isViewingApprovedPosition === undefined) {
-    if (newlySelected.hasPendingChanges) {
-      newlySelected.isViewingApprovedPosition = false;
-    } else {
-      newlySelected.isViewingApprovedPosition = true;
-    }
+    newlySelected.isViewingApprovedPosition = true;
+  }
+
+  // Update marker icon to reflect isViewingApprovedPosition (may have just changed from undefined)
+  const marker = getMarker(overlayId);
+  if (marker) {
+    const mode = useMapStore().mode;
+    marker.setIcon(createOverlayIcon(getOverlayMarkerColor(newlySelected, mode)));
   }
 
   // Sync preview state for reactive button highlighting in change request UI

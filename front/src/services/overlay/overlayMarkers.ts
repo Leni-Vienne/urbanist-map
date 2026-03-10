@@ -204,14 +204,9 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     if (!overlayObject) return;
 
     // Set position state for dynamic button feedback
-    // If no explicit position state, default to showing approved position
-    // UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
+    // Default to viewing the approved position on first click
     if (overlayObject.isViewingApprovedPosition === undefined) {
-      if (overlayObject.hasPendingChanges) {
-        overlayObject.isViewingApprovedPosition = false;
-      } else {
-        overlayObject.isViewingApprovedPosition = true;
-      }
+      overlayObject.isViewingApprovedPosition = true;
     }
 
     // Sync preview state for reactive button highlighting in change request UI
