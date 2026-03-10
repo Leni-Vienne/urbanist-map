@@ -121,6 +121,7 @@ export const projectRouter = router({
               endDate: data.endDate,
               endDatePrecision: data.endDatePrecision,
               sourceUrl: data.sourceUrl,
+              geometry: data.geometry ?? null,
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),
             })
@@ -383,6 +384,7 @@ export const projectRouter = router({
             cityId: projects.cityId,
             lat: projects.lat,
             lng: projects.lng,
+            geometry: projects.geometry,
             proposalDate: projects.proposalDate,
             proposalDatePrecision: projects.proposalDatePrecision,
             startDate: projects.startDate,
@@ -412,6 +414,7 @@ export const projectRouter = router({
             projects.cityId,
             projects.lat,
             projects.lng,
+            projects.geometry,
             projects.proposalDate,
             projects.proposalDatePrecision,
             projects.startDate,

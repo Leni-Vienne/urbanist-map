@@ -490,15 +490,8 @@ export function useSubmissionService() {
     if (context.changeType === "update_approved") {
       await submitProjectChangeRequest(context.entity, changes);
     } else {
-      // For pending projects: metadata goes through publishProject, geometry through change request
-      const geometryChanges = changes.filter((c) => c.fieldName === "geometry");
-      const metadataChanges = changes.filter((c) => c.fieldName !== "geometry");
-      if (metadataChanges.length > 0) {
-        await publishProjectDirect(context.entity, context.changeType);
-      }
-      if (geometryChanges.length > 0) {
-        await submitProjectChangeRequest(context.entity, geometryChanges);
-      }
+      // For pending/new projects: all changes (including geometry) go directly through publishProject
+      await publishProjectDirect(context.entity, context.changeType);
     }
   }
 

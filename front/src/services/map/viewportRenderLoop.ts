@@ -340,7 +340,9 @@ function renderOverlayProjectShapes(mapInstance: L.Map) {
     // Only in edit mode should locally-modified geometry be visible (the user is actively editing).
     // In view and moderation modes, always use backend-approved geometry so unsaved edits don't leak.
     const geometry = (isEditMode ? storedProject?.geometry : null) ?? overlay.project?.geometry;
-    if (!geometry?.geometries?.length) continue;
+    if (!geometry?.geometries?.length) {
+      continue;
+    }
 
     // Same logic for project fields (name, etc.) — only use locally-modified data in edit mode.
     const project = (isEditMode ? storedProject : null) ?? overlay.project;

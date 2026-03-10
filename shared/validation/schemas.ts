@@ -34,6 +34,7 @@ export const projectSchema = z
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
       .optional(),
+    geometry: z.custom<GeoJSON.GeometryCollection>().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     // Validate proposal date is not in the future

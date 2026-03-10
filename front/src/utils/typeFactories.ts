@@ -56,6 +56,10 @@ export function toProjectPartial(project: StandaloneProject): Partial<Project> {
     partial.city = project.city;
   }
 
+  if ("geometry" in project) {
+    partial.geometry = (project as { geometry: GeoJSON.GeometryCollection | null }).geometry;
+  }
+
   return partial;
 }
 

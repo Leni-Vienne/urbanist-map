@@ -310,6 +310,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       startDate: formData.startDate,
       endDate: formData.endDate,
       sourceUrl: formData.sourceUrl,
+      geometry: project.geometry ?? null,
     };
 
     await trpc.project.publishProject.mutate(buildProjectPayload(projectData));

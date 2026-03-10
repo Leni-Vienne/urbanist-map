@@ -252,7 +252,7 @@ export function renderPreviewShapes(
 /**
  * Remove the current preview layer group from the map.
  */
-export function clearPreviewShapes(): void {
+function clearPreviewShapes(): void {
   previewLayerGroup?.remove();
   previewLayerGroup = null;
 
