@@ -15,10 +15,25 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayObject, Project } from "@/types/index";
+import { getProjectMarkerColor } from "@/utils/markerColors";
+import { markerColors, OVERLAY_OUTLINE_COLOR } from "@/services/map/markers";
+import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
+
+/**
+ * Resolve the timeline hex color for an overlay's project.
+ * Falls back to the default blue if project data is unavailable.
+ */
+function resolveProjectHexColor(overlayObject: OverlayObject): string {
+  const proj = overlayObject.project;
+  if (!proj) return OVERLAY_OUTLINE_COLOR;
+  const mode = useMapStore().mode;
+  const colorKey = getProjectMarkerColor(proj as unknown as Project, mode);
+  return markerColors[colorKey];
+}
 
 /**
  * Clean up previously selected overlay
@@ -225,7 +240,7 @@ export function applySelectionOutline(overlayObject: OverlayObject): void {
 
   const element = selLayer.getElement();
   if (element) {
-    applySelectionRing(element);
+    applySelectionRing(element, resolveProjectHexColor(overlayObject));
   }
 }
 
@@ -292,12 +307,16 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 
   if (!projectId) return;
 
-  // Don't remove outlines if an overlay in this project is selected (unless forced)
+  // Don't remove outlines if an overlay in this project is selected or the project popup is open (unless forced)
   if (!force) {
     const selectedOverlay = overlayStore.idSelectedOverlay
       ? overlayStore.overlays[overlayStore.idSelectedOverlay]
       : null;
     if (selectedOverlay?.projectId === projectId) return;
+
+    const uiStore = useUiStore();
+    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId)
+      return;
   }
 
   // Remove all outlines from overlays in this project
@@ -306,15 +325,28 @@ export function removeProjectOutlines(projectId: string, force = false): void {
       removeOverlayOutline(overlayObject);
     }
   }
+
+  // Unhighlight project shapes alongside the overlays
+  unhighlightProjectShapes(projectId);
 }
 
 /**
- * Highlight all overlays from the same project on hover
+ * Highlight all overlays (and shapes) from the same project on hover/select.
+ * Uses the project's timeline color instead of the default blue.
  */
 export function highlightProjectOverlaysOnHover(projectId: string): void {
   const overlayStore = useOverlayStore();
 
   if (!projectId) return;
+
+  // Resolve the project color from any overlay that carries project data
+  let hexColor = OVERLAY_OUTLINE_COLOR;
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
+    if (overlayObject.projectId === projectId && overlayObject.project) {
+      hexColor = resolveProjectHexColor(overlayObject);
+      break;
+    }
+  }
 
   for (const overlayObject of Object.values(overlayStore.overlays)) {
     if (overlayObject.projectId === projectId) {
@@ -322,10 +354,41 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
       if (hoverLayer) {
         const element = hoverLayer.getElement();
         if (element) {
-          applySelectionRing(element);
+          applySelectionRing(element, hexColor);
         }
       }
     }
+  }
+
+  // Highlight project shapes alongside the overlays
+  highlightProjectShapes(projectId);
+}
+
+/**
+ * Returns the projectId that is currently "highlighted" — either because an overlay of
+ * that project is selected, or because the project info popup (shape click) is open.
+ */
+export function getCurrentHighlightedProjectId(): string | null {
+  const overlayStore = useOverlayStore();
+  const uiStore = useUiStore();
+
+  const selected = overlayStore.idSelectedOverlay
+    ? overlayStore.overlays[overlayStore.idSelectedOverlay]
+    : null;
+  return (
+    selected?.projectId ??
+    (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null)
+  );
+}
+
+/**
+ * Re-apply the highlight (overlays + shapes) for the currently highlighted project.
+ * Call after mode switches so that persisting overlay elements get the correct new-mode color.
+ */
+export function refreshSelectionHighlight(): void {
+  const projectId = getCurrentHighlightedProjectId();
+  if (projectId) {
+    highlightProjectOverlaysOnHover(projectId);
   }
 }
 

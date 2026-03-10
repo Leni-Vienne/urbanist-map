@@ -1,8 +1,9 @@
 <template>
   <div
-    class="shape-editor-panel fixed bottom-6 left-1/2 -translate-x-1/2 z-1100 bg-content-background rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto px-4 py-3 flex flex-col gap-3"
+    class="fixed bottom-6 left-1/2 -translate-x-1/2 z-1100 bg-content-background rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto px-4 py-3 flex flex-col gap-3 w-fit"
   >
-    <p class="text-sm text-muted-color max-w-xl">
+    <!-- w-0 min-w-full: makes the paragraph match the container width without causing it to overflow -->
+    <p class="text-sm text-muted-color w-0 min-w-full text-center">
       {{ $t("shapes.editorInstructions") }}
     </p>
     <div class="flex gap-2 items-center justify-center">
@@ -21,16 +22,6 @@
         accept=".json,.geojson"
         class="hidden"
         @change="handleFileImport"
-      />
-
-      <!-- Clear all -->
-      <Button
-        :label="$t('shapes.clearAll')"
-        icon="pi pi-trash"
-        severity="secondary"
-        outlined
-        size="small"
-        @click="handleClearAll"
       />
 
       <!-- Cancel -->
@@ -80,12 +71,6 @@ async function handleFileImport(event: Event) {
   addLayersFromGeometry(map.value, geometry);
   // Reset input so the same file can be re-imported
   if (fileInputRef.value) fileInputRef.value.value = "";
-}
-
-async function handleClearAll() {
-  const { destroyShapeEditor, initShapeEditor } = await import("@/services/shape/shapeEditing");
-  destroyShapeEditor(map.value);
-  initShapeEditor(map.value);
 }
 
 async function handleSave() {

@@ -492,8 +492,13 @@ export function useViewportTriggers() {
 
         // Single import for all overlayEditing symbols used in this watcher
         // Avoids two separate dynamic import() calls to the same module
-        const { saveAllOverlaysToCache, updateOverlayEditingState, setupKeyboardShortcuts } =
-          await import("@/services/overlay/overlayEditing");
+        const [
+          { saveAllOverlaysToCache, updateOverlayEditingState, setupKeyboardShortcuts },
+          { refreshSelectionHighlight },
+        ] = await Promise.all([
+          import("@/services/overlay/overlayEditing"),
+          import("@/services/overlay/overlaySelection"),
+        ]);
 
         // CRITICAL: Save any modified overlays before we potentially hide them
         // If we are leaving edit mode, we must save the current state to cache
@@ -545,6 +550,11 @@ export function useViewportTriggers() {
           await updateOverlayEditingState();
           setupKeyboardShortcuts();
 
+          // Re-apply highlight with the new mode's color for the currently selected/popup project.
+          // Persisting overlay elements (not re-created on mode switch) keep their old ring color
+          // unless explicitly refreshed here.
+          refreshSelectionHighlight();
+
           // CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // This ensures markers appear immediately without requiring user to click city or zoom
           if (newMode === "edit") {
@@ -577,6 +587,7 @@ export function useViewportTriggers() {
           // Still apply editing state and shortcuts even when no prior content was loaded
           await updateOverlayEditingState();
           setupKeyboardShortcuts();
+          refreshSelectionHighlight();
         }
       },
     );

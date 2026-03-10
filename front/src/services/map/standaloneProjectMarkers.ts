@@ -9,7 +9,11 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
+import {
+  selectOverlay,
+  highlightProjectOverlaysOnHover,
+  removeProjectOutlines,
+} from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import {
   createProjectInfoTeleportTarget,
@@ -323,7 +327,13 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // Projects with geometry render as shapes instead of a point marker.
   // Includes pending/local projects so shapes are visible in edit and moderation mode.
   if (project.geometry?.geometries?.length) {
-    renderProjectShapes(project, map.value, handleShapeProjectClick);
+    renderProjectShapes(
+      project,
+      map.value,
+      handleShapeProjectClick,
+      highlightProjectOverlaysOnHover,
+      removeProjectOutlines,
+    );
     return;
   }
 

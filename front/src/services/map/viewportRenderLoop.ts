@@ -13,6 +13,10 @@ import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
 import { handleShapeProjectClick } from "@/services/map/standaloneProjectMarkers";
+import {
+  highlightProjectOverlaysOnHover,
+  removeProjectOutlines,
+} from "@/services/overlay/overlaySelection";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -344,6 +348,8 @@ function renderOverlayProjectShapes(mapInstance: L.Map) {
       { ...project, geometry } as Parameters<typeof renderProjectShapes>[0],
       mapInstance,
       handleShapeProjectClick,
+      highlightProjectOverlaysOnHover,
+      removeProjectOutlines,
     );
   }
 }

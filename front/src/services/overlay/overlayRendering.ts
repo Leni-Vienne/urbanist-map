@@ -32,6 +32,8 @@ import {
   setupProjectHoverEvents,
   syncModerationCityFromOverlay,
   applySelectionOutline,
+  highlightProjectOverlaysOnHover,
+  getCurrentHighlightedProjectId,
 } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
@@ -311,13 +313,11 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = layer.getElement();
     if (element) {
-      // Apply project highlight ring if this overlay belongs to the same project as the
-      // currently selected overlay (e.g. switching to edit mode reveals sister overlays)
-      const selectedOverlay = overlayStore.idSelectedOverlay
-        ? overlayStore.overlays[overlayStore.idSelectedOverlay]
-        : null;
-      if (selectedOverlay?.projectId && selectedOverlay.projectId === overlayObject.projectId) {
-        applySelectionRing(element);
+      // Highlight if this overlay belongs to the currently highlighted project —
+      // either via overlay selection or project info popup (shape click).
+      const highlightedProjectId = getCurrentHighlightedProjectId();
+      if (highlightedProjectId && highlightedProjectId === overlayObject.projectId) {
+        highlightProjectOverlaysOnHover(highlightedProjectId);
       } else {
         clearSelectionRing(element);
       }

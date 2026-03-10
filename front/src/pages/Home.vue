@@ -148,9 +148,14 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
     projectStore.projects = { ...projectStore.projects, [project.id]: project };
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
-  const [{ destroyShapeEditor }, { clearProjectShapes, renderProjectShapes }] = await Promise.all([
+  const [
+    { destroyShapeEditor },
+    { clearProjectShapes, renderProjectShapes },
+    { highlightProjectOverlaysOnHover, removeProjectOutlines },
+  ] = await Promise.all([
     import("@/services/shape/shapeEditing"),
     import("@/services/map/shapeRendering"),
+    import("@/services/overlay/overlaySelection"),
   ]);
   destroyShapeEditor(map.value);
   // Re-render updated shapes immediately. Geoman layers were just removed by destroyShapeEditor,
@@ -159,7 +164,13 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
     const { handleShapeProjectClick } = await import("@/services/map/standaloneProjectMarkers");
-    renderProjectShapes(updatedProject, map.value, handleShapeProjectClick);
+    renderProjectShapes(
+      updatedProject,
+      map.value,
+      handleShapeProjectClick,
+      highlightProjectOverlaysOnHover,
+      removeProjectOutlines,
+    );
   }
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
