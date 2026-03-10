@@ -3,6 +3,7 @@ import type L from "leaflet";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { setProjectPopupTarget } from "@/services/map/popupState";
+import { unhighlightProjectShapes } from "@/services/map/shapeRendering";
 
 let currentMarkerForPopup: L.Marker | null = null;
 let currentLatLngForPopup: L.LatLng | null = null;
@@ -70,8 +71,10 @@ export function createProjectInfoTeleportTarget(marker: L.Marker) {
   mapClickHandler = () => {
     const uiStore = useUiStore();
     if (uiStore.projectInfoPopup.visible) {
+      const projectId = uiStore.projectInfoPopup.projectId;
       uiStore.closeProjectInfoPopup();
       cleanupProjectInfoTeleportTarget();
+      if (projectId) unhighlightProjectShapes(projectId);
     }
   };
   map.value.on("click", mapClickHandler);
@@ -116,8 +119,10 @@ export function createProjectInfoTeleportTargetAtLatLng(latlng: L.LatLng) {
   mapClickHandler = () => {
     const uiStore = useUiStore();
     if (uiStore.projectInfoPopup.visible) {
+      const projectId = uiStore.projectInfoPopup.projectId;
       uiStore.closeProjectInfoPopup();
       cleanupProjectInfoTeleportTarget();
+      if (projectId) unhighlightProjectShapes(projectId);
     }
   };
   map.value.on("click", mapClickHandler);

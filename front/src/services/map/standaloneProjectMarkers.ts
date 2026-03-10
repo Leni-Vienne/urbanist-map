@@ -22,7 +22,12 @@ import {
 } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
-import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
+import {
+  renderProjectShapes,
+  clearAllProjectShapes,
+  highlightProjectShapes,
+  unhighlightProjectShapes,
+} from "@/services/map/shapeRendering";
 import {
   fetchCityStandaloneProjectsOrCache,
   fetchCityOverlaysOrCache,
@@ -286,6 +291,7 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
   if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
     uiStore.closeProjectInfoPopup();
     cleanupProjectInfoTeleportTarget();
+    unhighlightProjectShapes(project.id);
     return;
   }
 
@@ -324,8 +330,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // Don't add if marker already exists
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
-  // Projects with geometry render as shapes instead of a point marker.
-  // Includes pending/local projects so shapes are visible in edit and moderation mode.
+  // Projects with geometry also render shapes (in addition to the point marker below).
   if (project.geometry?.geometries?.length) {
     renderProjectShapes(
       project,
@@ -334,7 +339,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       highlightProjectOverlaysOnHover,
       removeProjectOutlines,
     );
-    return;
   }
 
   // Initialize popup watcher on first marker addition (lazy initialization)
@@ -383,17 +387,24 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     L.DomEvent.stopPropagation(e);
   });
 
-  // Add mouseover event to increase marker opacity
+  // Add mouseover event to increase marker opacity and highlight shapes
   marker.on("mouseover", () => {
     marker.setOpacity(MARKER_OPACITY.standalone.hover);
+    highlightProjectShapes(project.id);
   });
 
-  // Add mouseout event to reset marker opacity (unless it's the selected marker)
+  // Add mouseout event to reset marker opacity and unhighlight shapes (unless persistently highlighted)
   marker.on("mouseout", () => {
     if (selectedStandaloneProjectMarker === marker) {
       marker.setOpacity(MARKER_OPACITY.standalone.hover);
     } else {
       marker.setOpacity(MARKER_OPACITY.standalone.default);
+    }
+    const uiStore = useUiStore();
+    const isPersistentlyHighlighted =
+      uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id;
+    if (!isPersistentlyHighlighted) {
+      unhighlightProjectShapes(project.id);
     }
   });
 
