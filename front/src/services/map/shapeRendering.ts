@@ -78,12 +78,13 @@ export function renderProjectShapes(
   onProjectClick?: (project: Project, latlng: L.LatLng) => void,
   onProjectHover?: (projectId: string) => void,
   onProjectLeave?: (projectId: string) => void,
+  colorKeyOverride?: keyof typeof markerColors,
 ): void {
   if (!project.geometry?.geometries?.length) return;
   if (shapeLayerMap.has(project.id)) return;
 
   const mapStore = useMapStore();
-  const color = markerColors[getProjectMarkerColor(project, mapStore.mode)];
+  const color = markerColors[colorKeyOverride ?? getProjectMarkerColor(project, mapStore.mode)];
 
   const baseStyle: L.PathOptions = { color, weight: 3, opacity: 0.85 };
   const hoverStyle: L.PathOptions = { color, weight: 5, opacity: 1 };

@@ -14,6 +14,9 @@ import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
+import { pendingChangeRequestsRef } from "@/composables/changes/useChanges";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
@@ -477,6 +480,30 @@ export function useViewportTriggers() {
       // already-loaded cities so this doesn't cause redundant network requests.
       await refreshViewport(true);
     });
+
+    // When pending change requests finish loading, re-render project shapes so that
+    // approved projects with a pending shape show it immediately without requiring
+    // the user to move the camera (timing fix: render loop ran before the fetch completed).
+    watch(pendingChangeRequestsRef, () => {
+      if (mapStore.mode === "view") return;
+      clearAllProjectShapes();
+      runViewportRenderLoop();
+    });
+
+    // In moderation mode, re-render project shapes once moderation data is ready.
+    // Covers two cases:
+    //   - Initial load: render loop ran before fetchPendingSubmissions() completed
+    //   - Post-approval: moderationLoaded is reset to false then back to true after refetch
+    // Rejection is handled by the pendingChangeRequestsRef watcher above (side-effect of
+    // rejectChangeRequests() reassigning pendingChangeRequests.value).
+    watch(
+      () => useModerationStore().moderationLoaded,
+      (loaded) => {
+        if (!loaded || mapStore.mode !== "moderation") return;
+        clearAllProjectShapes();
+        runViewportRenderLoop();
+      },
+    );
 
     watch(
       () => mapStore.mode,

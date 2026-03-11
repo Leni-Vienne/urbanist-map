@@ -48,7 +48,7 @@ import {
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
+import { clearSelectionRing } from "@/services/overlay/overlayStyle";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**

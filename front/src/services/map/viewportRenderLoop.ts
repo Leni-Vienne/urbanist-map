@@ -18,6 +18,8 @@ import {
   removeProjectOutlines,
 } from "@/services/overlay/overlaySelection";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { getPendingChangeRequests } from "@/composables/changes/useChanges";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -31,12 +33,13 @@ function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstan
 
 // Compute bounding box from 4 overlay corners (raw math to avoid Leaflet object allocation / GC pressure)
 function computeCornersBBox(corners: { lat: number; lng: number }[]) {
+  /* oxlint-disable no-non-null-assertion */
   let minLat = corners[0]!.lat;
   let maxLat = corners[0]!.lat;
   let minLng = corners[0]!.lng;
   let maxLng = corners[0]!.lng;
 
-  for (let i = 1; i < 4; i++) {
+  for (let i = 1; i < 4; i += 1) {
     const c = corners[i]!;
     if (c.lat < minLat) minLat = c.lat;
     if (c.lat > maxLat) maxLat = c.lat;
@@ -45,6 +48,7 @@ function computeCornersBBox(corners: { lat: number; lng: number }[]) {
   }
 
   return { minLat, maxLat, minLng, maxLng };
+  /* oxlint-enable no-non-null-assertion */
 }
 
 // Check if a bounding box intersects with viewport bounds
@@ -322,11 +326,39 @@ function pruneLocalOverlays(
  * shape changes are visible while the user is editing.
  * In view mode: always uses backend-approved geometry so unsaved edits do not leak into view mode.
  */
+function getPendingGeometry(
+  projectId: string,
+  isModeration: boolean,
+): GeoJSON.GeometryCollection | null {
+  const crList = isModeration ? useModerationStore().changeRequests : getPendingChangeRequests();
+  const cr = crList.find(
+    (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
+  );
+  const geom = cr?.newValue as GeoJSON.GeometryCollection | undefined;
+  return geom?.geometries?.length ? geom : null;
+}
+
+type ResolvedGeometry = { geometry: GeoJSON.GeometryCollection; isPending: boolean } | null;
+
+function resolveProjectGeometry(
+  overlay: (typeof useOverlayStore)["prototype"]["viewModeOverlays"][number],
+  storedGeometry: GeoJSON.GeometryCollection | null | undefined,
+  isEditMode: boolean,
+  isModeration: boolean,
+): ResolvedGeometry {
+  const approved = (isEditMode ? storedGeometry : null) ?? overlay.project?.geometry;
+  if (approved?.geometries?.length) return { geometry: approved, isPending: false };
+  if (!isEditMode && !isModeration) return null;
+  const pending = getPendingGeometry(overlay.projectId ?? "", isModeration);
+  return pending ? { geometry: pending, isPending: true } : null;
+}
+
 function renderOverlayProjectShapes(mapInstance: L.Map) {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
   const mapStore = useMapStore();
   const isEditMode = mapStore.mode === "edit";
+  const isModeration = mapStore.mode === "moderation";
   const seenProjectIds = new Set<string>();
 
   for (const overlay of overlayStore.viewModeOverlays) {
@@ -337,21 +369,23 @@ function renderOverlayProjectShapes(mapInstance: L.Map) {
     if (hasProjectShapes(projectId)) continue;
 
     const storedProject = projectStore.projects[projectId];
-    // Only in edit mode should locally-modified geometry be visible (the user is actively editing).
-    // In view and moderation modes, always use backend-approved geometry so unsaved edits don't leak.
-    const geometry = (isEditMode ? storedProject?.geometry : null) ?? overlay.project?.geometry;
-    if (!geometry?.geometries?.length) {
-      continue;
-    }
+    const resolved = resolveProjectGeometry(
+      overlay,
+      storedProject?.geometry,
+      isEditMode,
+      isModeration,
+    );
+    if (!resolved) continue;
 
     // Same logic for project fields (name, etc.) — only use locally-modified data in edit mode.
     const project = (isEditMode ? storedProject : null) ?? overlay.project;
     renderProjectShapes(
-      { ...project, geometry } as Parameters<typeof renderProjectShapes>[0],
+      { ...project, geometry: resolved.geometry } as Parameters<typeof renderProjectShapes>[0],
       mapInstance,
       handleShapeProjectClick,
       highlightProjectOverlaysOnHover,
       removeProjectOutlines,
+      resolved.isPending ? "yellow" : undefined,
     );
   }
 }
