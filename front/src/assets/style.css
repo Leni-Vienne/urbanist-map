@@ -12,6 +12,10 @@
   --color-tag-success-background: var(--p-tag-success-background);
 }
 
+/* Class-based dark mode for Tailwind utilities (mirrors PrimeVue's .dark-mode selector) */
+/* without it, styles that uses "dark:xxxx" break */
+@custom-variant dark (&:where(.dark-mode, .dark-mode *));
+
 /* Prevent scrollbars on map page */
 html,
 body {

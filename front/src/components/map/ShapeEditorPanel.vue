@@ -46,11 +46,12 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
 
-defineProps<{
-  projectId: string;
-}>();
+const { t } = useI18n();
+const toast = useToast();
 
 const emit = defineEmits<{
   done: [geometry: GeoJSON.GeometryCollection];
@@ -66,11 +67,21 @@ function triggerFileInput() {
 async function handleFileImport(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  const { loadGeoJSONFile, addLayersFromGeometry } = await import("@/services/shape/shapeEditing");
-  const geometry = await loadGeoJSONFile(file);
-  addLayersFromGeometry(map.value, geometry);
-  // Reset input so the same file can be re-imported
+  // Reset input so the same file can be re-imported regardless of outcome
   if (fileInputRef.value) fileInputRef.value.value = "";
+  try {
+    const { loadGeoJSONFile, addLayersFromGeometry } =
+      await import("@/services/shape/shapeEditing");
+    const geometry = await loadGeoJSONFile(file);
+    addLayersFromGeometry(map.value, geometry);
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("shapes.importError"),
+      detail: error instanceof Error ? error.message : String(error),
+      life: 6000,
+    });
+  }
 }
 
 async function handleSave() {

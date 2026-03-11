@@ -37,6 +37,12 @@ export function initShapeEditor(
   });
 
   // Enable edit mode on newly drawn layers so nodes are draggable immediately.
+  // Guard against double-init: remove any previously registered handler before reassigning,
+  // so that calling initShapeEditor twice without destroyShapeEditor in between doesn't
+  // accumulate listeners that can never be cleaned up.
+  if (pmCreateHandler) {
+    mapInstance.off("pm:create", pmCreateHandler);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pmCreateHandler = ({ layer }: { layer: any }) => {
     layer.pm?.enable?.();
@@ -124,10 +130,17 @@ export function addLayersFromGeometry(
 /**
  * Read a .geojson / .json file and return a GeometryCollection.
  * Handles both FeatureCollection and GeometryCollection inputs.
+ * Throws a descriptive Error if the file is not valid JSON or not a recognised GeoJSON type.
  */
 export async function loadGeoJSONFile(file: File): Promise<GeoJSON.GeometryCollection> {
   const text = await file.text();
-  const parsed = JSON.parse(text) as GeoJSON.GeoJSON;
+  const parsed = (() => {
+    try {
+      return JSON.parse(text) as GeoJSON.GeoJSON;
+    } catch {
+      throw new Error(`Invalid JSON in file "${file.name}"`);
+    }
+  })();
 
   if (parsed.type === "FeatureCollection") {
     const geometries = parsed.features
@@ -145,6 +158,20 @@ export async function loadGeoJSONFile(file: File): Promise<GeoJSON.GeometryColle
     return { type: "GeometryCollection", geometries: [parsed.geometry] };
   }
 
-  // Treat as a raw geometry
-  return { type: "GeometryCollection", geometries: [parsed as GeoJSON.Geometry] };
+  // Raw geometry types (Point, LineString, Polygon, Multi*, …)
+  const rawGeometryTypes = [
+    "Point",
+    "MultiPoint",
+    "LineString",
+    "MultiLineString",
+    "Polygon",
+    "MultiPolygon",
+  ];
+  if (rawGeometryTypes.includes(parsed.type)) {
+    return { type: "GeometryCollection", geometries: [parsed as GeoJSON.Geometry] };
+  }
+
+  throw new Error(
+    `Unrecognised GeoJSON type "${(parsed as { type: string }).type}" in file "${file.name}"`,
+  );
 }

@@ -32,8 +32,8 @@ import {
   setupProjectHoverEvents,
   syncModerationCityFromOverlay,
   applySelectionOutline,
-  highlightProjectOverlaysOnHover,
   getCurrentHighlightedProjectId,
+  applyProjectHighlightToElement,
 } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
@@ -317,7 +317,7 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
       // either via overlay selection or project info popup (shape click).
       const highlightedProjectId = getCurrentHighlightedProjectId();
       if (highlightedProjectId && highlightedProjectId === overlayObject.projectId) {
-        highlightProjectOverlaysOnHover(highlightedProjectId);
+        applyProjectHighlightToElement(element, overlayObject);
       } else {
         clearSelectionRing(element);
       }

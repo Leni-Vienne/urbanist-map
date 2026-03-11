@@ -269,6 +269,11 @@ function loadScript(src: string): Promise<void> {
     }
     const script = document.createElement("script");
     script.src = src;
+    // crossorigin="anonymous" enables proper error reporting for cross-origin scripts
+    // and is required for SRI integrity checks. Integrity hashes should be added here
+    // (sha384-<hash>) once computed for each pinned version, or the assets should be
+    // bundled via Vite to eliminate the CDN dependency entirely.
+    script.crossOrigin = "anonymous";
     script.addEventListener("load", () => resolve());
     script.addEventListener("error", reject);
     document.head.appendChild(script);

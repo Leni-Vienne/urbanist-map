@@ -57,7 +57,6 @@
     <!-- Shape Editor Panel - lives outside PopupContainer so closing a popup doesn't destroy it -->
     <ShapeEditorPanel
       v-if="uiStore.shapeEditor.project"
-      :project-id="uiStore.shapeEditor.project.id"
       @done="handleShapesDone"
       @cancel="handleShapesCancel"
     />

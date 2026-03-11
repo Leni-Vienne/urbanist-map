@@ -342,6 +342,19 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 }
 
 /**
+ * Apply the project highlight ring to a single overlay element.
+ * Use this when only one overlay needs styling (e.g. on load) to avoid the O(N)
+ * store loop inside highlightProjectOverlaysOnHover.
+ * Shapes are intentionally NOT restyles here — they are already highlighted.
+ */
+export function applyProjectHighlightToElement(
+  element: HTMLElement,
+  overlayObject: OverlayObject,
+): void {
+  applySelectionRing(element, resolveProjectHexColor(overlayObject));
+}
+
+/**
  * Highlight all overlays (and shapes) from the same project on hover/select.
  * Uses the project's timeline color instead of the default blue.
  */
