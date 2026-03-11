@@ -178,7 +178,7 @@ function convertAndCacheBackendProject(
 // In view mode, a locally-modified project should show its original approved data, not the
 // unsaved edits. This prevents name edits and other pending changes from leaking into view mode.
 function getEffectiveProject(projectId: string): Project | undefined {
-  const localProject = projects.value[projectId] ?? projectStore.allProjects[projectId];
+  const localProject = projects.value[projectId];
   if (!localProject) return undefined;
   if (mapStore.mode !== "edit" && localProject.isModified) {
     const original = projectStore.getOriginalProject(projectId);

@@ -84,7 +84,7 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
 
   const geometries = allLayers
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((layer) => (layer as L.Polyline | L.Polygon).toGeoJSON?.() as GeoJSON.Feature | undefined)
+    .map((layer) => (layer as L.Polyline | L.Polygon).toGeoJSON() as GeoJSON.Feature | undefined)
     .filter(
       (f): f is GeoJSON.Feature => f !== undefined && f.type === "Feature" && f.geometry !== null,
     )

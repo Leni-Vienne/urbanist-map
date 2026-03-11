@@ -453,10 +453,7 @@ const { prepareOverlaySubmission } = useSubmissionDialog();
 function onSave() {
   const overlay = selectedOverlay.value;
   if (!overlay) return;
-  const project =
-    projectStore.projects[overlay.projectId ?? ""] ??
-    projectStore.allProjects[overlay.projectId ?? ""] ??
-    null;
+  const project = projectStore.projects[overlay.projectId ?? ""] ?? null;
   prepareOverlaySubmission(overlay, project ?? undefined);
 }
 
@@ -474,11 +471,7 @@ async function onDelete() {
   if (!id) return;
   const overlay = overlayStore.overlays[id];
   if (!overlay) return;
-  const project = overlay.projectId
-    ? (projectStore.projects[overlay.projectId] ??
-      projectStore.allProjects[overlay.projectId] ??
-      null)
-    : null;
+  const project = overlay.projectId ? (projectStore.projects[overlay.projectId] ?? null) : null;
   const overlayCount = overlay.projectId
     ? Object.values(overlayStore.overlays).filter((o) => o.projectId === overlay.projectId).length
     : 0;

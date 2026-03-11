@@ -235,7 +235,14 @@ onMounted(async () => {
   try {
     // Restore state from Store or Map logic BEFORE fetching countries
     // This ensures markers are loaded immediately if we are returning to the panel
-    const initialCode = mapStore.selectedCountryCode ?? moderationStore.selectedCountryCode;
+    const initialCode =
+      mapStore.selectedCountryCode ??
+      moderationStore.selectedCountryCode ??
+      // Only fall back to selectedCity when no prior moderation data exists yet.
+      // If moderationLoaded is true, the user has an existing session context (e.g. an admin
+      // in global view with selectedCountryCode = null) that should not be overridden by
+      // whatever city they last clicked on the map.
+      (moderationStore.moderationLoaded ? null : mapStore.selectedCity?.countryCode);
     if (initialCode) {
       const user = authStore.user;
       const canAccess = !user?.moderatedCountries || user.moderatedCountries.includes(initialCode);
@@ -501,6 +508,7 @@ const filteredChangeRequests = computed(() => {
 watch(
   () => mapStore.selectedCity,
   async (city) => {
+    if (mapStore.mode !== "moderation") return;
     if (city && city.countryCode) {
       // Only switch if different (avoids reload loop)
       if (selectedCountryCode.value !== city.countryCode) {

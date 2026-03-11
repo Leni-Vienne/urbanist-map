@@ -472,12 +472,15 @@ export function useViewportTriggers() {
     // (including cities that have ONLY pending content and were not in view-mode citiesWithProjects),
     // trigger a viewport refresh so those new cities get loaded without requiring camera movement.
     // This is the primary fix for: pending overlay/standalone marker invisible after page refresh + tab switch.
-    watch(citiesWithProjects, async () => {
+    watch(citiesWithProjects, async (newCities, oldCities) => {
       // Only needed in non-view modes — view mode's initial refreshViewport handles it.
       if (mapStore.mode === "view") return;
-      // force=true: bypass the isLoading guard so it doesn't silently drop if a concurrent
-      // refreshViewport is running. getCityOverlaysAndProjectsCache returns cached data for
-      // already-loaded cities so this doesn't cause redundant network requests.
+      // An empty→populated transition means initial page load in a non-view mode.
+      // A populated→repopulated transition means a mode switch: the mapStore.mode watcher
+      // in this same setupModeWatcher() handles reloading existing cities via loadCityData,
+      // so we must not also call refreshViewport here (it would trigger the nearest-city
+      // fallback for cities with no pending content, causing a spurious far-away city load).
+      if (oldCities.length > 0) return;
       await refreshViewport(true);
     });
 
