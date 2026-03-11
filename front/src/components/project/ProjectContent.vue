@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <AccordionContent>
     <div
       class="rounded-lg border border-surface p-3 cursor-pointer transition-all duration-150 hover:border-(--p-text-muted-color) hover:bg-content-background active:bg-content-background active:scale-[0.98]"
@@ -70,7 +70,7 @@
         </div>
 
         <!-- Actions column - either slot actions, edit button, or chevron -->
-        <div class="flex flex-col gap-2 shrink-0 self-center" @click.stop>
+        <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
           <slot v-if="$slots['project-actions']" name="project-actions" :project="project"></slot>
           <button
             v-else-if="showEditButtons"

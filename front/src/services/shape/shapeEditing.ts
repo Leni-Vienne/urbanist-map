@@ -46,6 +46,9 @@ export function initShapeEditor(
   if (existingGeometry) {
     addLayersFromGeometry(mapInstance, existingGeometry);
   }
+
+  // Pre-select the Line tool by default when the shape editor opens
+  mapInstance.pm.enableDraw("Line");
 }
 
 /**
@@ -58,6 +61,7 @@ export function destroyShapeEditor(mapInstance: L.Map): void {
   }
   // Disable any active global modes before removing controls — otherwise layers that
   // were touched by Geoman's toolbar (e.g. rendered project shapes) stay editable.
+  mapInstance.pm.disableDraw();
   if (mapInstance.pm.globalEditModeEnabled()) mapInstance.pm.disableGlobalEditMode();
   if (mapInstance.pm.globalDragModeEnabled()) mapInstance.pm.disableGlobalDragMode();
   for (const layer of mapInstance.pm.getGeomanDrawLayers()) layer.remove();
