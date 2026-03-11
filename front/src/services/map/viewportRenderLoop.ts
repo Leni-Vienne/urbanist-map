@@ -7,12 +7,15 @@ import { map } from "@/services/core/map";
 // Dynamic import for chunk splitting - overlayRendering pulls in leaflet-distortableimage
 // which is only needed when the user zooms in far enough to see overlay images
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayObject, OverlayData, Project } from "@/types/index";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
-import { handleShapeProjectClick } from "@/services/map/standaloneProjectMarkers";
+import {
+  handleShapeProjectClick,
+  getStandaloneProjectMarkerMap,
+} from "@/services/map/standaloneProjectMarkers";
 import {
   highlightProjectOverlaysOnHover,
   removeProjectOutlines,
@@ -20,6 +23,7 @@ import {
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { getPendingChangeRequests } from "@/composables/changes/useChanges";
+import { createProjectObject } from "@/utils/typeFactories";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -148,8 +152,8 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
   pruneLocalOverlays(mapInstance, bounds, showImages, showMarkers);
 
-  // Render shapes for overlay-bearing projects that have geometry set
-  renderOverlayProjectShapes(mapInstance);
+  // Render shapes for all visible projects (both overlay-bearing and standalone)
+  renderAllProjectShapes(mapInstance);
 }
 
 /**
@@ -335,58 +339,133 @@ function getPendingGeometry(
     (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
   );
   const geom = cr?.newValue as GeoJSON.GeometryCollection | undefined;
-  return geom?.geometries?.length ? geom : null;
+  return geom?.geometries.length ? geom : null;
 }
 
 type ResolvedGeometry = { geometry: GeoJSON.GeometryCollection; isPending: boolean } | null;
 
 function resolveProjectGeometry(
-  overlay: (typeof useOverlayStore)["prototype"]["viewModeOverlays"][number],
+  projectId: string,
+  approvedGeometry: GeoJSON.GeometryCollection | null | undefined,
   storedGeometry: GeoJSON.GeometryCollection | null | undefined,
   isEditMode: boolean,
   isModeration: boolean,
 ): ResolvedGeometry {
-  const approved = (isEditMode ? storedGeometry : null) ?? overlay.project?.geometry;
-  if (approved?.geometries?.length) return { geometry: approved, isPending: false };
+  const approved = (isEditMode ? storedGeometry : null) ?? approvedGeometry;
+  if (approved?.geometries.length) return { geometry: approved, isPending: false };
   if (!isEditMode && !isModeration) return null;
-  const pending = getPendingGeometry(overlay.projectId ?? "", isModeration);
+  const pending = getPendingGeometry(projectId, isModeration);
   return pending ? { geometry: pending, isPending: true } : null;
 }
 
-function renderOverlayProjectShapes(mapInstance: L.Map) {
+function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): Project {
+  return createProjectObject({
+    ...project,
+    overlayIds: [],
+    geometry: project.geometry ?? null,
+  });
+}
+
+/**
+ * Render shapes for all visible projects (both overlay-bearing and standalone).
+ * Projects with geometry set will have their shapes rendered.
+ * In edit/moderation mode: preferring locally-modified geometry from projectStore.
+ * In view mode: always uses backend-approved geometry.
+ */
+function getVisibleProjectsToRender() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
+
+  const projectsToRender = new Map<string, Project>();
+
+  // Collect projects with overlays
+  for (const overlay of overlayStore.viewModeOverlays) {
+    if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
+      const storedProject =
+        projectStore.projects[overlay.projectId] ?? projectStore.allProjects[overlay.projectId];
+      projectsToRender.set(
+        overlay.projectId,
+        storedProject ?? normalizeOverlayProject(overlay.project),
+      );
+    }
+  }
+
+  // Collect standalone projects
+  for (const projectId of getStandaloneProjectMarkerMap().keys()) {
+    if (!projectsToRender.has(projectId)) {
+      const p = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+      if (p) {
+        projectsToRender.set(projectId, p);
+      }
+    }
+  }
+
+  return projectsToRender;
+}
+
+function processAndRenderProjectShape(
+  projectId: string,
+  projectData: Project,
+  mapInstance: L.Map,
+  isEditMode: boolean,
+  isModeration: boolean,
+) {
+  if (hasProjectShapes(projectId)) return;
+
+  const projectStore = useProjectStore();
+  const storedProject = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+  const resolved = resolveProjectGeometry(
+    projectId,
+    projectData.geometry,
+    storedProject?.geometry,
+    isEditMode,
+    isModeration,
+  );
+
+  let finalGeometry = resolved?.geometry;
+  let isPending = resolved?.isPending;
+
+  // Fallback: if it's a new local project, it might not have an approved geometry yet.
+  // In edit mode, we still want to render its local geometry.
+  if (
+    !finalGeometry &&
+    isEditMode &&
+    storedProject?.status === null &&
+    storedProject.geometry?.geometries.length
+  ) {
+    finalGeometry = storedProject.geometry;
+    isPending = false;
+  }
+
+  if (!finalGeometry) return;
+
+  const projectToRender = (isEditMode ? storedProject : null) ?? projectData;
+
+  renderProjectShapes(
+    { ...projectToRender, geometry: finalGeometry },
+    mapInstance,
+    handleShapeProjectClick,
+    highlightProjectOverlaysOnHover,
+    removeProjectOutlines,
+    isPending ? "yellow" : undefined,
+  );
+}
+
+/**
+ * Render shapes for all visible projects (both overlay-bearing and standalone).
+ * Projects with geometry set will have their shapes rendered.
+ * In edit/moderation mode: preferring locally-modified geometry from projectStore.
+ * In view mode: always uses backend-approved geometry.
+ */
+function renderAllProjectShapes(mapInstance: L.Map) {
   const mapStore = useMapStore();
   const isEditMode = mapStore.mode === "edit";
   const isModeration = mapStore.mode === "moderation";
-  const seenProjectIds = new Set<string>();
 
-  for (const overlay of overlayStore.viewModeOverlays) {
-    const projectId = overlay.projectId;
-    if (!projectId || seenProjectIds.has(projectId)) continue;
-    seenProjectIds.add(projectId);
+  const projectsToRender = getVisibleProjectsToRender();
 
-    if (hasProjectShapes(projectId)) continue;
-
-    const storedProject = projectStore.projects[projectId];
-    const resolved = resolveProjectGeometry(
-      overlay,
-      storedProject?.geometry,
-      isEditMode,
-      isModeration,
-    );
-    if (!resolved) continue;
-
-    // Same logic for project fields (name, etc.) — only use locally-modified data in edit mode.
-    const project = (isEditMode ? storedProject : null) ?? overlay.project;
-    renderProjectShapes(
-      { ...project, geometry: resolved.geometry } as Parameters<typeof renderProjectShapes>[0],
-      mapInstance,
-      handleShapeProjectClick,
-      highlightProjectOverlaysOnHover,
-      removeProjectOutlines,
-      resolved.isPending ? "yellow" : undefined,
-    );
+  for (const [projectId, projectData] of projectsToRender.entries()) {
+    processAndRenderProjectShape(projectId, projectData, mapInstance, isEditMode, isModeration);
   }
 }
 
