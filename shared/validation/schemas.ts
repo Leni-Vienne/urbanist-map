@@ -1,5 +1,6 @@
 // Shared Zod validation schemas for frontend and backend
 import * as z from "zod";
+import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import { validateOverlaySize } from "../overlayValidation";
 
 // Project validation schema
@@ -34,7 +35,7 @@ export const projectSchema = z
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
       .optional(),
-    geometry: z.custom<GeoJSON.GeometryCollection>().nullable().optional(),
+    geometry: GeoJSONGeometryCollectionSchema.nullable().optional(),
   })
   .superRefine((data, ctx) => {
     // Validate proposal date is not in the future

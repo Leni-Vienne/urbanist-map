@@ -170,10 +170,23 @@ export const currentTileLayer = ref<TileLayerType>("osm");
 
 // Vector tiles toggle — persisted in localStorage
 const VECTOR_TILES_KEY = "useVectorTiles";
-export const useVectorTiles = ref<boolean>(localStorage.getItem(VECTOR_TILES_KEY) === "true");
+
+function getInitialVectorTiles(): boolean {
+  try {
+    return localStorage.getItem(VECTOR_TILES_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export const useVectorTiles = ref<boolean>(getInitialVectorTiles());
 export function setVectorTiles(enabled: boolean) {
   useVectorTiles.value = enabled;
-  localStorage.setItem(VECTOR_TILES_KEY, String(enabled));
+  try {
+    localStorage.setItem(VECTOR_TILES_KEY, String(enabled));
+  } catch {
+    // Storage unavailable (privacy mode, quota exceeded) — preference not persisted
+  }
 }
 
 // Reference to the currently active tile layer instance
@@ -273,10 +286,10 @@ function loadStylesheet(href: string): void {
 async function ensureMaplibreLoaded(): Promise<void> {
   if ((globalThis as any).maplibregl) return;
   // CSS can load in parallel with JS — no dependency
-  loadStylesheet("https://unpkg.com/maplibre-gl/dist/maplibre-gl.css");
+  loadStylesheet("https://unpkg.com/maplibre-gl@5.20.0/dist/maplibre-gl.css");
   // leaflet-maplibre-gl depends on maplibregl being defined, so load sequentially
-  await loadScript("https://unpkg.com/maplibre-gl/dist/maplibre-gl.js");
-  await loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js");
+  await loadScript("https://unpkg.com/maplibre-gl@5.20.0/dist/maplibre-gl.js");
+  await loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js");
 }
 
 /**

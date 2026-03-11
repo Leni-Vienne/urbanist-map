@@ -1,5 +1,6 @@
 import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
+import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import {
   projects,
   overlays,
@@ -88,7 +89,18 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
   const isProjectGeometryField = change.entityType === "project" && change.fieldName === "geometry";
   if (isProjectGeometryField) {
-    return { geometry: change.newValue as GeoJSON.GeometryCollection | null };
+    // Validate the geometry payload rather than blindly casting - null means clearing the geometry
+    if (change.newValue === null || change.newValue === undefined) {
+      return { geometry: null };
+    }
+    const parsed = GeoJSONGeometryCollectionSchema.safeParse(change.newValue);
+    if (!parsed.success) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Invalid geometry: must be a valid GeoJSON GeometryCollection",
+      });
+    }
+    return { geometry: parsed.data };
   }
 
   // For non-geometry fields, use the value directly

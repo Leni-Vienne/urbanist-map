@@ -85,6 +85,7 @@ export default defineConfig(({ mode }) => ({
       "primevue/autocomplete",
       "primevue/badge",
       "primevue/button",
+      "primevue/togglebutton",
       "primevue/floatlabel",
       "primevue/datepicker",
       "primevue/textarea",

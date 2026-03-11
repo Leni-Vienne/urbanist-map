@@ -33,6 +33,7 @@
         "vue-i18n": "^11.3.0",
         "vue-router": "^5.0.3",
         "zod": "^4.3.6",
+        "zod-geojson": "^1.6.3",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20260310.1",
@@ -1605,6 +1606,8 @@
     "yargs-parser": ["yargs-parser@22.0.0", "", {}, "sha512-rwu/ClNdSMpkSrUb+d6BRsSkLUq1fmfsY6TOpYzTwvwkg1/NRG85KBy3kq++A8LKQwX6lsu+aWad+2khvuXrqw=="],
 
     "zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
+
+    "zod-geojson": ["zod-geojson@1.6.3", "", { "peerDependencies": { "zod": ">=3.25.0" } }, "sha512-GMeryDrJbei+V/tWUHwUr9C28nyuAdQFvM9f4ogDfc1LgDzWfW82DphwrSEooS6EbIFSCFsKgqoQAFg/hZqG4w=="],
 
     "@babel/code-frame/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.27.1", "", {}, "sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow=="],
 

@@ -110,8 +110,6 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     },
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
-    // Legacy DB field kept for migration reasons, not used in frontend
-    latestUpdateOn: data.latestUpdateOn ?? null,
   };
 }
 
@@ -152,7 +150,6 @@ export function createProjectFromUserContribution(contribution: UserContribution
     },
     version: contribution.version,
     geometry: contribution.geometry ?? null,
-    latestUpdateOn: null,
   });
 }
 
