@@ -159,7 +159,7 @@
     "noProjects": "Aucun projet pour cette ville",
     "noProjectsDetail": "N'hésitez pas à en ajouter un !",
     "clickToZoomCountry": "Cliquez pour zoomer sur le pays",
-    "noCitiesInCountry": "Aucune ville dans ce pays",
+    "noContributionsInCountry": "Aucune contribution dans ce pays",
     "projectsCount": "{count} projet(s)",
     "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
   },

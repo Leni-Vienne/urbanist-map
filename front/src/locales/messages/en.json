@@ -159,7 +159,7 @@
     "noProjects": "No projects for this city",
     "noProjectsDetail": "Feel free to add one!",
     "clickToZoomCountry": "Click to zoom to country view",
-    "noCitiesInCountry": "No cities in this country",
+    "noContributionsInCountry": "No contributions in this country",
     "projectsCount": "{count} project(s)",
     "selectCityToExplore": "Select a city to explore its projects"
   },

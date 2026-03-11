@@ -25,7 +25,7 @@
     <PanelEmptyState
       v-if="citiesInCountry.length === 0"
       icon="map"
-      :message="$t('currentLocation.noCitiesInCountry')"
+      :message="$t('currentLocation.noContributionsInCountry')"
     />
 
     <!-- City list -->

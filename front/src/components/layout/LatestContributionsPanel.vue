@@ -1,7 +1,13 @@
 ﻿<template>
   <div class="h-full flex flex-col">
-    <div class="flex-1 flex flex-col">
-      <div v-if="contributions.length > 0" class="flex-1 flex flex-col px-4 py-3">
+    <div
+      ref="scrollAreaRef"
+      :class="[
+        'flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        { 'scroll-area': isScrollable },
+      ]"
+    >
+      <div v-if="contributions.length > 0" ref="contentRef" class="flex flex-col px-4 py-3">
         <div
           v-for="contribution in contributions"
           :key="contribution.id"
@@ -82,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { ref, watch, onMounted, onActivated, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
@@ -174,8 +180,42 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 }
 
-// Load initial data
+// Scroll-area fade logic (same pattern as ProjectAccordionPanel)
+const scrollAreaRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
+const isScrollable = ref(false);
+
+function updateScrollable() {
+  const el = scrollAreaRef.value;
+  if (el) isScrollable.value = el.scrollHeight > el.clientHeight;
+}
+
+const scrollObserver = new ResizeObserver(updateScrollable);
+
 onMounted(() => {
+  if (scrollAreaRef.value) scrollObserver.observe(scrollAreaRef.value);
   fetchLatestContributions();
+  updateScrollable();
+});
+
+onActivated(updateScrollable);
+
+onBeforeUnmount(() => scrollObserver.disconnect());
+
+watch(contentRef, (el, oldEl) => {
+  if (oldEl) scrollObserver.unobserve(oldEl);
+  if (el) {
+    scrollObserver.observe(el);
+    updateScrollable();
+  } else {
+    isScrollable.value = false;
+  }
 });
 </script>
+
+<style scoped>
+.scroll-area {
+  mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+}
+</style>

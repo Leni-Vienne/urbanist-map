@@ -18,12 +18,12 @@
         { 'scroll-area': isScrollable },
       ]"
     >
-      <div v-if="projects.length > 0" ref="contentRef" class="flex flex-col gap-2 pb-2">
+      <div v-if="projects.length > 0" ref="contentRef" class="flex flex-col gap-2 pb-2 pr-3">
         <template v-for="countryGroup in groupedByCountry" :key="countryGroup.countryCode">
           <!-- Country header (hide if grouping disabled) -->
           <div
             v-if="!disableGrouping"
-            class="py-3.5 px-4 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b-2 border-primary-200 cursor-pointer transition-colors duration-150 select-none hover:bg-[color-mix(in_srgb,var(--p-primary-color)_14%,var(--p-content-background))]"
+            class="-mr-3 py-3.5 px-4 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b-2 border-primary-200 cursor-pointer transition-colors duration-150 select-none hover:bg-[color-mix(in_srgb,var(--p-primary-color)_14%,var(--p-content-background))]"
             @click="handleToggleCountryExpanded(countryGroup.countryCode)"
           >
             <div class="flex items-center gap-3">
