@@ -400,7 +400,6 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
 
 /* Pending change row — orange accent strip */
 .pending-overlay-row {
-  border-left: 3px solid #fb923c;
   /* orange-400 */
   background: #fff7ed;
   /* orange-50 */

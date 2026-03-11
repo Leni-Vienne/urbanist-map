@@ -356,21 +356,13 @@ export function applyProjectHighlightToElement(
 
 /**
  * Highlight all overlays (and shapes) from the same project on hover/select.
- * Uses the project's timeline color instead of the default blue.
+ * Each overlay uses its own state color so pending overlays keep their yellow
+ * outline while approved overlays show green — even when hovered together.
  */
 export function highlightProjectOverlaysOnHover(projectId: string): void {
   const overlayStore = useOverlayStore();
 
   if (!projectId) return;
-
-  // Resolve the project color from any overlay that carries project data
-  let hexColor = OVERLAY_OUTLINE_COLOR;
-  for (const overlayObject of Object.values(overlayStore.overlays)) {
-    if (overlayObject.projectId === projectId && overlayObject.project) {
-      hexColor = resolveProjectHexColor(overlayObject);
-      break;
-    }
-  }
 
   for (const overlayObject of Object.values(overlayStore.overlays)) {
     if (overlayObject.projectId === projectId) {
@@ -378,7 +370,7 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
       if (hoverLayer) {
         const element = hoverLayer.getElement();
         if (element) {
-          applySelectionRing(element, hexColor);
+          applySelectionRing(element, resolveProjectHexColor(overlayObject));
         }
       }
     }
