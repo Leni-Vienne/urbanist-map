@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- Teleport into the Leaflet marker icon — Leaflet owns pan/zoom positioning -->
   <Teleport :to="markerIconEl" v-if="markerIconEl">
     <div
@@ -151,7 +151,7 @@ function getAnchorLatLng(): L.LatLng | null {
   const layer = getLayer(id);
   if (!layer) return null;
   try {
-    const corners: L.LatLng[] = (layer as any).getCorners();
+    const corners = layer.getCorners();
     if (!corners?.length) return null;
     const maxLat = Math.max(...corners.map((c) => c.lat));
     const center = L.latLngBounds(corners).getCenter();
@@ -266,11 +266,11 @@ function checkCollision() {
     return;
   }
   try {
-    const corners = (layer as any).getCorners() as L.LatLng[];
+    const corners = layer.getCorners();
     hasCollision.value = getAllLayers().some(([otherId, other]) => {
       if (otherId === id) return false;
       try {
-        return quadsOverlap(corners, (other as any).getCorners() as L.LatLng[]);
+        return quadsOverlap(corners, other.getCorners());
       } catch {
         return false;
       }
@@ -285,12 +285,12 @@ function attachCollisionLayer(id: string) {
   if (!layer || layer === collisionLayer) return;
   detachCollisionLayer();
   collisionLayer = layer;
-  (layer as any).on("edit dragend", checkCollision);
+  layer.on("edit dragend", checkCollision);
 }
 
 function detachCollisionLayer() {
   if (collisionLayer) {
-    (collisionLayer as any).off("edit dragend", checkCollision);
+    collisionLayer.off("edit dragend", checkCollision);
     collisionLayer = null;
   }
 }
@@ -347,7 +347,7 @@ onUnmounted(() => {
 
 function readOpacity(): number {
   const layer = getLayer(selectedId.value ?? "");
-  const el = layer ? ((layer as any).getElement?.() as HTMLElement | null) : null;
+  const el = layer ? layer.getElement() : null;
   const attr = el?.getAttribute("opacity");
   return attr ? Math.round(Number.parseFloat(attr) * 100) : 100;
 }
@@ -426,14 +426,14 @@ function goToNext() {
 function stackToFront() {
   const layer = getLayer(selectedId.value ?? "");
   if (!layer) return;
-  (layer as any).bringToFront();
+  layer.bringToFront();
   (layer as any).editing._toggledImage = false;
 }
 
 function stackToBack() {
   const layer = getLayer(selectedId.value ?? "");
   if (!layer) return;
-  (layer as any).bringToBack();
+  layer.bringToBack();
   (layer as any).editing._toggledImage = true;
 }
 

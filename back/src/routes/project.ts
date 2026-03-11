@@ -21,6 +21,17 @@ import { projectSchema } from "@shared/validation/schemas";
 // Nearby search radius configuration
 const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
 
+function normalizePrecisionForStorage(
+  date: Date | null | undefined,
+  precision: "year" | "month" | "day" | null | undefined,
+) {
+  if (!date) {
+    return null;
+  }
+
+  return precision ?? "day";
+}
+
 // Use shared project schema for validation
 const publishProjectSchema = projectSchema;
 
@@ -58,11 +69,14 @@ export const projectRouter = router({
         ownerId: ctx.user.id,
         cityId: input.cityId,
         proposalDate: input.proposalDate ?? null,
-        proposalDatePrecision: input.proposalDatePrecision ?? null,
+        proposalDatePrecision: normalizePrecisionForStorage(
+          input.proposalDate,
+          input.proposalDatePrecision,
+        ),
         startDate: input.startDate ?? null,
-        startDatePrecision: input.startDatePrecision ?? null,
+        startDatePrecision: normalizePrecisionForStorage(input.startDate, input.startDatePrecision),
         endDate: input.endDate ?? null,
-        endDatePrecision: input.endDatePrecision ?? null,
+        endDatePrecision: normalizePrecisionForStorage(input.endDate, input.endDatePrecision),
         sourceUrl: input.sourceUrl,
         // Set center coordinate for all projects using PostGIS
         centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,

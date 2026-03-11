@@ -1,5 +1,11 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData, NearbyProject } from "@/types/index";
+import type {
+  Project,
+  OverlayObject,
+  OverlayData,
+  NearbyProject,
+  UserContribution,
+} from "@/types/index";
 import type { RouterOutput } from "@/client";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
@@ -104,11 +110,50 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     },
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
-    // Map coordinates for display (computed from lat/lng)
-    mapCoordinates: data.mapCoordinates ?? null,
     // Legacy DB field kept for migration reasons, not used in frontend
     latestUpdateOn: data.latestUpdateOn ?? null,
   };
+}
+
+export function createProjectFromUserContribution(contribution: UserContribution): Project {
+  return createProjectObject({
+    id: contribution.id,
+    name: contribution.name,
+    description: contribution.description ?? null,
+    proposalDate: contribution.proposalDate ?? null,
+    proposalDatePrecision: contribution.proposalDatePrecision ?? null,
+    startDate: contribution.startDate ?? null,
+    startDatePrecision: contribution.startDatePrecision ?? null,
+    endDate: contribution.endDate ?? null,
+    endDatePrecision: contribution.endDatePrecision ?? null,
+    sourceUrl: contribution.sourceUrl ?? null,
+    lat: contribution.lat,
+    lng: contribution.lng,
+    cityId: contribution.cityId,
+    city: {
+      id: contribution.cityId,
+      name: contribution.cityName ?? contribution.city.name,
+      nameLocal: contribution.city.nameLocal ?? null,
+      countryCode: contribution.countryCode ?? contribution.city.countryCode ?? "XX",
+      coordinates: { x: contribution.lng ?? 0, y: contribution.lat ?? 0 },
+      approvedProjectCount: 0,
+      createdAt: contribution.city.createdAt,
+      updatedAt: contribution.city.updatedAt,
+    },
+    status: contribution.status,
+    rejectionReason: null,
+    overlayIds: contribution.overlays.map((overlay) => overlay.id),
+    createdAt: contribution.createdAt,
+    updatedAt: contribution.updatedAt,
+    ownerId: contribution.ownerId ?? null,
+    centerCoordinate: {
+      x: contribution.lng ?? 0,
+      y: contribution.lat ?? 0,
+    },
+    version: contribution.version,
+    geometry: contribution.geometry ?? null,
+    latestUpdateOn: null,
+  });
 }
 
 /**

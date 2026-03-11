@@ -10,7 +10,11 @@ import type {
 } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
-import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
+import {
+  createProjectObjectFromAPI,
+  createProjectObject,
+  createProjectFromUserContribution,
+} from "@/utils/typeFactories";
 
 // Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -404,6 +408,16 @@ export const useProjectStore = defineStore("project", () => {
       current = allProjectsData[projectId];
     }
 
+    // Pending projects may only exist in user contributions until the user edits them locally.
+    if (!current) {
+      const contributionProject = userContributions.value.find(
+        (project) => project.id === projectId,
+      );
+      if (contributionProject) {
+        current = createProjectFromUserContribution(contributionProject);
+      }
+    }
+
     // Save original version before first modification (for change detection)
     // This applies to all backend projects (approved, pending, or rejected)
     // Cache original before first modification for reset functionality
@@ -718,7 +732,6 @@ export const useProjectStore = defineStore("project", () => {
     resetProjectField,
     cacheCityName,
     getOriginalProject,
-
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,

@@ -131,6 +131,37 @@ function normalizeDate(val: any) {
   return null;
 }
 
+function getPrecisionDateField(field: keyof Project): keyof Project | null {
+  switch (field) {
+    case "proposalDatePrecision":
+      return "proposalDate";
+    case "startDatePrecision":
+      return "startDate";
+    case "endDatePrecision":
+      return "endDate";
+    default:
+      return null;
+  }
+}
+
+function normalizeDatePrecision(
+  field: keyof Project,
+  precisionValue: unknown,
+  projectValueSource: Partial<Project>,
+): unknown {
+  const dateField = getPrecisionDateField(field);
+  if (!dateField) {
+    return precisionValue ?? null;
+  }
+
+  const dateValue = projectValueSource[dateField];
+  if (!dateValue) {
+    return precisionValue ?? null;
+  }
+
+  return precisionValue === null || precisionValue === undefined ? "day" : precisionValue;
+}
+
 // Determine submission change type based on entity status
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
   if (!entity.id || entity.id.startsWith("temp-")) {
@@ -226,6 +257,7 @@ export function useSubmissionService() {
       // Special handling for date fields
       const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
       const isGeometryField = String(field) === "geometry";
+      const isDatePrecisionField = getPrecisionDateField(field) !== null;
 
       // Geometry uses JSON stringification for comparison; dates use normalization; others use raw value
       let normalizedOld: unknown = null;
@@ -248,6 +280,13 @@ export function useSubmissionService() {
         }
         normalizedOld = hasShapes(effectiveOldValue) ? JSON.stringify(effectiveOldValue) : null;
         normalizedNew = hasShapes(newValue) ? JSON.stringify(newValue) : null;
+      } else if (isDatePrecisionField) {
+        normalizedOld = normalizeDatePrecision(
+          field,
+          oldValue,
+          originalProject as Partial<Project>,
+        );
+        normalizedNew = normalizeDatePrecision(field, newValue, project);
       } else {
         normalizedOld = oldValue ?? "";
         normalizedNew = newValue ?? "";

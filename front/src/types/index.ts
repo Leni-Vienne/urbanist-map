@@ -48,8 +48,8 @@ declare module "leaflet" {
       addTool: (tool: InstanceType<DistortableAction>) => void;
       removeTool: (tool: InstanceType<DistortableAction>) => void;
     };
-    getCorners: () => { lat: number; lng: number }[];
-    setCorners: (corners: { lat: number; lng: number }[]) => void;
+    getCorners: () => L.LatLng[];
+    setCorners: (corners: L.LatLng[] | { lat: number; lng: number }[]) => void;
     setOptions: (options: Partial<DistortableImageOverlayOptions>) => void;
     bindTooltip: (content: string, options?: L.TooltipOptions) => this;
     openTooltip: () => this;
@@ -109,8 +109,6 @@ export interface Project extends Omit<DBProject, "status"> {
   city: DBCity;
   overlayIds: string[];
   name: string; // Computed from project name field
-  // Center coordinates for all projects (used as marker when no overlays exist)
-  mapCoordinates?: { lat: number; lng: number } | null;
   // Geometry for project shapes (lines + polygons drawn via geoman)
   geometry: GeoJSON.GeometryCollection | null;
   // UI state for tracking local modifications
