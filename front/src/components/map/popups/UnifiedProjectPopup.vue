@@ -117,7 +117,6 @@
     <div v-if="!viewMode" class="px-4 pb-4 pt-3 flex flex-col gap-2 border-t border-surface">
       <div class="flex gap-2">
         <Button
-          v-if="project?.status !== null"
           class="flex-1"
           type="button"
           :label="$t('shapes.drawShapes')"

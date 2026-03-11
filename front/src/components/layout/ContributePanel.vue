@@ -57,7 +57,6 @@
         </button>
         <!-- Draw button - same logic as UnifiedProjectPopup / PopupContainer -->
         <button
-          v-if="project.status !== null"
           class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
           @click.stop="handleDrawShapesClick(project)"
           v-tooltip.top="$t('shapes.drawShapes')"
