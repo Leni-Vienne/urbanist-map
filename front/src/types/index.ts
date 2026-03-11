@@ -99,7 +99,6 @@ export type PendingChangeRequest =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
 
 export type LatestContribution = RouterOutput["overlay"]["getLatestContributions"][number];
-export type NearbyProject = RouterOutput["project"]["getProjectsNearLocation"]["projects"][0];
 
 // Base runtime project type - extends DB schema with computed fields
 export interface Project extends Omit<DBProject, "status"> {

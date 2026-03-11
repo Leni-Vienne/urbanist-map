@@ -189,8 +189,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
   // Handle local-only project updates (no backend submission)
   function handleLocalOnlyUpdate() {
-    const currentProject =
-      projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
+    const currentProject = projectStore.projects[options.entityId];
 
     // Check if project exists in userContributions (for projects opened from ContributePanel)
     const userContributionProject = projectStore.userContributions.find(
@@ -308,8 +307,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   // Validate all form data using Zod schema
   function validateFormData(): boolean {
     // Get current project for lat/lng
-    const currentProject =
-      projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
+    const currentProject = projectStore.projects[options.entityId];
 
     const validationData = prepareProjectValidationData(formData, {
       lat: currentProject?.lat,

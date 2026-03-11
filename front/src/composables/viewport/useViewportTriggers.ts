@@ -78,7 +78,7 @@ export function useViewportTriggers() {
     const markerMap = getStandaloneProjectMarkerMap();
 
     for (const [projectId, marker] of markerMap.entries()) {
-      const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+      const project = projectStore.projects[projectId];
       if (project && project.cityId !== activeCityId) {
         marker.remove();
         markerMap.delete(projectId);

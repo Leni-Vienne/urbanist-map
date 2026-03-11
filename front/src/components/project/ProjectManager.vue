@@ -58,9 +58,9 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { createProject } from "@/services/project/projectMutations";
 import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
-import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
+import { createProjectObject } from "@/utils/typeFactories";
 import { getCityProjects } from "@/services/project/projectSelection";
-import type { Project, NearbyProject } from "@/types/index";
+import type { Project } from "@/types/index";
 import {
   addSingleCityMarker,
   addCityMarkersForCountry,
@@ -197,16 +197,6 @@ function findProjectFromCityProjects(projectId: string): Project | null {
   return cityProject ?? null;
 }
 
-// Try to find project by fetching nearby projects
-async function findProjectFromNearbyProjects(projectId: string): Promise<Project | null> {
-  console.log("Fetching nearby projects to find project ID:", projectId);
-  const center = map.value.getCenter();
-  const nearbyProjects = await projectStore.fetchNearbyProjects(center.lat, center.lng);
-  const nearbyProject = nearbyProjects.find((p: NearbyProject) => p.id === projectId);
-
-  return nearbyProject ? createProjectObjectFromAPI(nearbyProject) : null;
-}
-
 function addProjectToStore(projectId: string, project: Project): void {
   projects.value[projectId] = project;
 }
@@ -223,9 +213,7 @@ async function onProjectSelected(projectId: string) {
     try {
       // Try multiple sources in order of preference
       const projectToAdd =
-        findProjectFromReplacementOverlay(projectId) ??
-        findProjectFromCityProjects(projectId) ??
-        (await findProjectFromNearbyProjects(projectId));
+        findProjectFromReplacementOverlay(projectId) ?? findProjectFromCityProjects(projectId);
 
       if (projectToAdd) {
         addProjectToStore(projectId, projectToAdd);

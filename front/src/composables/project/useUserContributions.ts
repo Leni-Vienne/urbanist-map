@@ -205,7 +205,7 @@ export function useUserContributions() {
   async function deleteProject(projectId: string): Promise<boolean> {
     try {
       // Get project to check if it's local-only (not submitted to backend)
-      const project = projectStore.allProjects[projectId];
+      const project = projectStore.projects[projectId];
       const isLocalOnly = project?.status === null;
 
       // For local-only projects, skip backend call and just remove from local state

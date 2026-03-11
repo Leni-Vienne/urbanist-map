@@ -77,7 +77,7 @@ function removeOverlay(
   const authStore = useAuthStore();
 
   // 1. Find parent project to update its overlay list
-  const allProjectsData = projectStore.allProjects;
+  const allProjectsData = projectStore.projects;
   // Find project by overlayIds array (most reliable source)
   const projectWithOverlay = Object.values(allProjectsData).find((p) =>
     p.overlayIds.includes(overlayId),
@@ -127,7 +127,7 @@ export function removeProject(
   const projectStore = useProjectStore();
   const mapStore = useMapStore();
 
-  const project = projectStore.allProjects[projectId];
+  const project = projectStore.projects[projectId];
 
   // 1. Clean up standalone project marker
   const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0;

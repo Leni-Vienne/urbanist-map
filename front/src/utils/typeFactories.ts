@@ -1,11 +1,5 @@
 // Factory functions for creating type instances to reduce duplication
-import type {
-  Project,
-  OverlayObject,
-  OverlayData,
-  NearbyProject,
-  UserContribution,
-} from "@/types/index";
+import type { Project, OverlayObject, OverlayData, UserContribution } from "@/types/index";
 import type { RouterOutput } from "@/client";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
@@ -150,29 +144,6 @@ export function createProjectFromUserContribution(contribution: UserContribution
     },
     version: contribution.version,
     geometry: contribution.geometry ?? null,
-  });
-}
-
-/**
- * Convert NearbyProject API data to local Project format
- */
-export function createProjectObjectFromAPI(nearbyProject: NearbyProject): Project {
-  return createProjectObject({
-    id: nearbyProject.id,
-    version: nearbyProject.version,
-    name: nearbyProject.name,
-    description: nearbyProject.description,
-    sourceUrl: nearbyProject.sourceUrl ?? null,
-    proposalDate: nearbyProject.proposalDate ?? null,
-    startDate: nearbyProject.startDate ?? null,
-    endDate: nearbyProject.endDate ?? null,
-    createdAt: nearbyProject.createdAt,
-    updatedAt: nearbyProject.updatedAt,
-    ownerId: nearbyProject.ownerId,
-    cityId: nearbyProject.cityId,
-    status: nearbyProject.status,
-    city: nearbyProject.city,
-    overlayIds: [],
   });
 }
 

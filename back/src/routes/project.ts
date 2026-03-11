@@ -18,9 +18,6 @@ import {
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { projectSchema } from "@shared/validation/schemas";
 
-// Nearby search radius configuration
-const NEARBY_SEARCH_RADIUS_METERS = 10 * 1000; // 10km
-
 function normalizePrecisionForStorage(
   date: Date | null | undefined,
   precision: "year" | "month" | "day" | null | undefined,
@@ -266,85 +263,6 @@ export const projectRouter = router({
         console.error("Error deleting project:", error);
         if (error instanceof TRPCError) throw error;
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to delete project" });
-      }
-    }),
-
-  // Get projects with overlays within 100km of camera center
-  getProjectsNearLocation: loggedInProcedure
-    .input(
-      z.object({
-        lat: z.number(),
-        lng: z.number(),
-      }),
-    )
-    .query(async ({ input, ctx }) => {
-      try {
-        const { lat, lng } = input;
-        const userId = ctx.user.id;
-
-        // Find projects within radius that are either approved OR pending and owned by user
-        const nearbyProjects = await db
-          .select({
-            id: projects.id,
-            name: projects.name,
-            version: projects.version,
-            description: projects.description,
-            status: projects.status,
-            ownerId: projects.ownerId,
-            cityId: projects.cityId,
-            proposalDate: projects.proposalDate,
-            startDate: projects.startDate,
-            endDate: projects.endDate,
-            sourceUrl: projects.sourceUrl,
-            createdAt: projects.createdAt,
-            updatedAt: projects.updatedAt,
-            overlayCount: sql<number>`COUNT(${overlays.id})::int`,
-            city: cities,
-          })
-          .from(projects)
-          .innerJoin(cities, eq(projects.cityId, cities.id))
-          .innerJoin(overlays, eq(overlays.projectId, projects.id))
-          .where(
-            and(
-              or(
-                and(eq(projects.status, "approved"), eq(overlays.status, "approved")),
-                and(eq(projects.status, "pending"), eq(projects.ownerId, userId)),
-              ),
-              sql`${overlays.centroid} IS NOT NULL`,
-              sql`ST_DWithin(
-              ${overlays.centroid},
-              ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-              ${NEARBY_SEARCH_RADIUS_METERS}
-            )`,
-            ),
-          )
-          .groupBy(
-            projects.id,
-            projects.name,
-            projects.version,
-            projects.status,
-            projects.description,
-            projects.ownerId,
-            projects.cityId,
-            projects.proposalDate,
-            projects.startDate,
-            projects.endDate,
-            projects.sourceUrl,
-            projects.createdAt,
-            projects.updatedAt,
-            cities.id,
-            cities.name,
-            cities.countryCode,
-            cities.coordinates,
-          );
-
-        return { projects: nearbyProjects };
-      } catch (error) {
-        console.error("Error fetching nearby projects:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch nearby projects",
-        });
       }
     }),
 

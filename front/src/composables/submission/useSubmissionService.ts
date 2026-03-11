@@ -192,7 +192,7 @@ export function useSubmissionService() {
     const cache: Record<string, string> = { ...projectStore.cityNamesCache };
 
     // Extract from all projects (includes both loaded and original cached projects)
-    for (const project of Object.values(projectStore.allProjects)) {
+    for (const project of Object.values(projectStore.projects)) {
       if (project.city.id === project.cityId && !cache[project.cityId]) {
         cache[project.cityId] = project.city.name;
       }
@@ -586,13 +586,11 @@ export function useSubmissionService() {
       if (hasCornersChange) {
         // Try multiple store locations for project lookup
         // 1. projects: Active map cache (visible on screen)
-        // 2. allProjects: Includes nearby projects not in main city cache
-        // 3. userContributions: Projects pending/saved but interacted with via sidebar
+        // 2. userContributions: Projects pending/saved but interacted with via sidebar
         let project = null;
         if (context.entity.projectId) {
           project =
             projectStore.projects[context.entity.projectId] ??
-            projectStore.allProjects[context.entity.projectId] ??
             (projectStore.userContributions.find(
               (p) => p.id === context.entity.projectId,
             ) as unknown as Project) ??
@@ -686,7 +684,6 @@ export function useSubmissionService() {
     if (extCtx.projectId) {
       project =
         projectStore.projects[extCtx.projectId] ??
-        projectStore.allProjects[extCtx.projectId] ??
         (projectStore.userContributions.find(
           (p) => p.id === extCtx.projectId,
         ) as unknown as Project) ??

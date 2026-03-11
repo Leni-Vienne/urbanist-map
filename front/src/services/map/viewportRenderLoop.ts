@@ -381,8 +381,7 @@ function getVisibleProjectsToRender() {
   // Collect projects with overlays
   for (const overlay of overlayStore.viewModeOverlays) {
     if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
-      const storedProject =
-        projectStore.projects[overlay.projectId] ?? projectStore.allProjects[overlay.projectId];
+      const storedProject = projectStore.projects[overlay.projectId];
       projectsToRender.set(
         overlay.projectId,
         storedProject ?? normalizeOverlayProject(overlay.project),
@@ -393,7 +392,7 @@ function getVisibleProjectsToRender() {
   // Collect standalone projects
   for (const projectId of getStandaloneProjectMarkerMap().keys()) {
     if (!projectsToRender.has(projectId)) {
-      const p = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+      const p = projectStore.projects[projectId];
       if (p) {
         projectsToRender.set(projectId, p);
       }
@@ -413,7 +412,7 @@ function processAndRenderProjectShape(
   if (hasProjectShapes(projectId)) return;
 
   const projectStore = useProjectStore();
-  const storedProject = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+  const storedProject = projectStore.projects[projectId];
   const resolved = resolveProjectGeometry(
     projectId,
     projectData.geometry,
