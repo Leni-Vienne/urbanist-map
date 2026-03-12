@@ -53,18 +53,35 @@
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
     <SubmissionDialogWrapper v-if="uiStore.submissionDialogVisible" />
+
+    <!-- Shape Editor Panel - lives outside PopupContainer so closing a popup doesn't destroy it -->
+    <ShapeEditorPanel
+      v-if="uiStore.shapeEditor.project"
+      @done="handleShapesDone"
+      @cancel="handleShapesCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from "vue";
+import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { handleShapeProjectClick } from "@/services/map/standaloneProjectMarkers";
+import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
+import { clearProjectShapes, renderProjectShapes } from "@/services/map/shapeRendering";
+import {
+  highlightProjectOverlaysOnHover,
+  removeProjectOutlines,
+} from "@/services/overlay/overlaySelection";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -72,6 +89,9 @@ import MobileDrawer from "@/components/layout/MobileDrawer.vue";
 
 // Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));
+const ShapeEditorPanel = defineAsyncComponent(
+  () => import("@/components/map/ShapeEditorPanel.vue"),
+);
 const ProjectManager = defineAsyncComponent(
   () => import("@/components/project/ProjectManager.vue"),
 );
@@ -89,9 +109,25 @@ const infoBannerDismissed = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const mapStore = useMapStore();
+const projectStore = useProjectStore();
 const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
+
+// Discard in-progress shape edits when leaving edit mode (e.g. switching to view mode).
+// The mode watcher in useViewportTriggers handles overlay cleanup but has no access to
+// the lazy shapeEditing chunk — so we handle it here where the other shape callbacks live.
+watch(
+  () => mapStore.mode,
+  async (newMode, oldMode) => {
+    if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditor.project) {
+      const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
+      destroyShapeEditor(map.value);
+      uiStore.closeShapeEditor();
+    }
+  },
+);
 
 // Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
@@ -119,6 +155,56 @@ function updateWindowWidth() {
     document.documentElement.style.overflow = "";
     document.body.style.overflow = "";
     document.body.style.height = "";
+  }
+}
+
+async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
+  const project = uiStore.shapeEditor.project;
+  const reopenAt = uiStore.shapeEditor.reopenAt;
+  if (!project) return;
+  // Ensure the project is in the store before the targeted update — it may only exist in
+  // popup state (e.g. approved-shape projects opened via shape click, never stored locally).
+  // Without this, updateProject falls back to createProjectObject which defaults status to null.
+  if (!projectStore.projects[project.id]) {
+    projectStore.projects = { ...projectStore.projects, [project.id]: project };
+  }
+  projectStore.updateProject(project.id, { geometry, isModified: true });
+  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
+  destroyShapeEditor(map.value);
+  // Re-render updated shapes immediately. Geoman layers were just removed by destroyShapeEditor,
+  // and the viewport loop only covers backend overlays — pending/local shapes need explicit rendering.
+  clearProjectShapes(project.id);
+  if (geometry.geometries.length > 0) {
+    const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
+    renderProjectShapes(
+      updatedProject,
+      map.value,
+      handleShapeProjectClick,
+      highlightProjectOverlaysOnHover,
+      removeProjectOutlines,
+    );
+  }
+  uiStore.closeShapeEditor();
+  toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
+  if (reopenAt) {
+    uiStore.openProjectInfoPopup(project.id, project);
+    const leafletModule = await import("leaflet");
+    const L = leafletModule.default;
+    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
+  }
+}
+
+async function handleShapesCancel() {
+  const project = uiStore.shapeEditor.project;
+  const reopenAt = uiStore.shapeEditor.reopenAt;
+  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
+  destroyShapeEditor(map.value);
+  uiStore.closeShapeEditor();
+  if (reopenAt && project) {
+    uiStore.openProjectInfoPopup(project.id, project);
+    const leafletModule = await import("leaflet");
+    const L = leafletModule.default;
+    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
   }
 }
 

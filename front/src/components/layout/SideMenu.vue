@@ -33,7 +33,7 @@
     <!-- Scrollable content area -->
     <PanelContent
       :active-tab="activeTab"
-      content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0 [scrollbar-gutter:stable]"
+      content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0"
     />
 
     <!-- Footer with legal links -->

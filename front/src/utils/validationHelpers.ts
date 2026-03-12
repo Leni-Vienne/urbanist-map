@@ -32,7 +32,7 @@ export function prepareOverlayValidationData(overlay: {
   filename?: string | null;
   caption?: string | null;
   projectId?: string | null;
-  corners?: Array<{ lat: number; lng: number }> | null;
+  corners?: { lat: number; lng: number }[] | null;
 }) {
   return {
     id: overlay.id,

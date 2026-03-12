@@ -1,16 +1,15 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import type {
   Project,
   Country,
   OverlayObject,
-  NearbyProject,
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
-import { createProjectObjectFromAPI, createProjectObject } from "@/utils/typeFactories";
+import { createProjectObject, createProjectFromUserContribution } from "@/utils/typeFactories";
 
 // Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -55,10 +54,6 @@ export const useProjectStore = defineStore("project", () => {
 
   // Cache countries separately per mode
   const countriesCache = ref<Map<AppMode, Country[]>>(new Map());
-
-  // Centralized nearby projects data management
-  const nearbyProjects = ref<NearbyProject[]>([]);
-  const nearbyProjectsLastFetch = ref<{ lat: number; lng: number; timestamp: number } | null>(null);
 
   // User contributions cache - Map-based cache for different parameter combinations
   const userContributions = ref<UserContribution[]>([]);
@@ -125,18 +120,6 @@ export const useProjectStore = defineStore("project", () => {
       ...extractCityMetadata(project),
     };
   }
-
-  // Computed property for combined projects (local + nearby)
-  const allProjects = computed(() => {
-    const combined = { ...projects.value };
-
-    // Add nearby projects that aren't already in local projects
-    for (const nearbyProject of nearbyProjects.value) {
-      combined[nearbyProject.id] ??= createProjectObjectFromAPI(nearbyProject);
-    }
-
-    return combined;
-  });
 
   // User contributions actions
   function setUserContributions(contributions: UserContribution[], cacheKey: string) {
@@ -398,10 +381,14 @@ export const useProjectStore = defineStore("project", () => {
   function updateProject(projectId: string, updates: Partial<Project>) {
     let current = projects.value[projectId];
 
-    // If project doesn't exist in local store, check allProjects (includes nearby)
+    // Pending projects may only exist in user contributions until the user edits them locally.
     if (!current) {
-      const allProjectsData = allProjects.value;
-      current = allProjectsData[projectId];
+      const contributionProject = userContributions.value.find(
+        (project) => project.id === projectId,
+      );
+      if (contributionProject) {
+        current = createProjectFromUserContribution(contributionProject);
+      }
     }
 
     // Save original version before first modification (for change detection)
@@ -430,9 +417,7 @@ export const useProjectStore = defineStore("project", () => {
   // Cache project backend state for change detection
   // Called after successful submission to store baseline for future modifications
   function cacheProjectBackendState(projectId: string) {
-    // Check projects.value first, then allProjects (includes nearbyProjects)
-    let project = projects.value[projectId];
-    project ??= allProjects.value[projectId];
+    const project = projects.value[projectId];
 
     if (project && !originalProjects.value[projectId]) {
       originalProjects.value = {
@@ -486,62 +471,6 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     return didReset;
-  }
-
-  // Fetch nearby projects with smart caching to avoid redundant API calls
-  // Cache is valid for 5 minutes and invalidated if map moves >11km from cached position
-  // Accepts coordinates as parameters to avoid circular dependency with useMap composable
-  async function fetchNearbyProjects(
-    lat: number,
-    lng: number,
-    force = false,
-  ): Promise<NearbyProject[]> {
-    try {
-      const now = Date.now();
-
-      // Check if we have cached data and don't need to refetch
-      if (!force && nearbyProjectsLastFetch.value) {
-        const { lat: cachedLat, lng: cachedLng, timestamp } = nearbyProjectsLastFetch.value;
-        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-        const LOCATION_THRESHOLD = 0.1; // ~11km at equator
-
-        // Calculate distance from cached location
-        const latDiff = Math.abs(lat - cachedLat);
-        const lngDiff = Math.abs(lng - cachedLng);
-
-        // If location hasn't changed much and cache is fresh, return cached data
-        if (
-          latDiff < LOCATION_THRESHOLD &&
-          lngDiff < LOCATION_THRESHOLD &&
-          now - timestamp < CACHE_DURATION
-        ) {
-          return nearbyProjects.value;
-        }
-      }
-
-      // Call the TRPC endpoint to fetch nearby projects
-      const response = await trpc.project.getProjectsNearLocation.query({
-        lat,
-        lng,
-      });
-
-      nearbyProjects.value = response.projects;
-      nearbyProjectsLastFetch.value = {
-        lat,
-        lng,
-        timestamp: now,
-      };
-
-      return response.projects;
-    } catch (error) {
-      console.error("Error fetching nearby projects:", error);
-      return [];
-    }
-  }
-
-  function clearNearbyProjects(): void {
-    nearbyProjects.value = [];
-    nearbyProjectsLastFetch.value = null;
   }
 
   function getCachedCities(countryCode: string, mode: AppMode) {
@@ -599,9 +528,6 @@ export const useProjectStore = defineStore("project", () => {
     userContributions.value = [];
     userContributionsLoading.value = false;
     userContributionsCache.value.clear();
-
-    // Clear nearby projects (context-specific)
-    clearNearbyProjects();
 
     // Clear original state cache (user-specific)
     originalProjects.value = {};
@@ -703,14 +629,10 @@ export const useProjectStore = defineStore("project", () => {
     projects,
     selectedProjectId,
     countries,
-    nearbyProjects,
     userContributions,
     userContributionsLoading,
     userContributionsCache,
     cityNamesCache,
-
-    // Computed properties
-    allProjects,
 
     // Local project actions
     updateProject,
@@ -718,7 +640,6 @@ export const useProjectStore = defineStore("project", () => {
     resetProjectField,
     cacheCityName,
     getOriginalProject,
-
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,
@@ -729,9 +650,6 @@ export const useProjectStore = defineStore("project", () => {
     updateProjectInUserContributions,
     removeOverlayFromUserContributions,
     removeProjectFromUserContributions,
-
-    // Nearby projects actions
-    fetchNearbyProjects,
 
     // Cities cache actions
     getCachedCities,

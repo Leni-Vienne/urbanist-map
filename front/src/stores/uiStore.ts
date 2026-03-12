@@ -28,6 +28,11 @@ interface ImageUploadDialogState {
   projectId: string | null;
 }
 
+interface ShapeEditorState {
+  project: Project | null;
+  reopenAt: { lat: number; lng: number } | null;
+}
+
 export const useUiStore = defineStore("ui", () => {
   // Dialog visibility states
   const authModalVisible = ref(false);
@@ -77,6 +82,9 @@ export const useUiStore = defineStore("ui", () => {
     visible: false,
     projectId: null,
   });
+
+  // Shape editor state
+  const shapeEditor = ref<ShapeEditorState>({ project: null, reopenAt: null });
 
   // Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
@@ -164,6 +172,15 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
+  // Shape editor actions
+  function openShapeEditor(project: Project, reopenAt?: { lat: number; lng: number }) {
+    shapeEditor.value = { project, reopenAt: reopenAt ?? null };
+  }
+
+  function closeShapeEditor() {
+    shapeEditor.value = { project: null, reopenAt: null };
+  }
+
   // Post-login callback actions
   function setPostLoginCallback(callback: (() => void) | null) {
     postLoginCallback.value = callback;
@@ -205,6 +222,7 @@ export const useUiStore = defineStore("ui", () => {
     mobileDrawerHeightPercent,
     projectInfoPopup,
     imageUploadDialog,
+    shapeEditor,
     postLoginCallback,
 
     // Actions
@@ -218,6 +236,8 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectInfoPopup,
     openImageUploadDialog,
     closeImageUploadDialog,
+    openShapeEditor,
+    closeShapeEditor,
     setPostLoginCallback,
     executePostLoginCallback,
     closeAllDialogs,

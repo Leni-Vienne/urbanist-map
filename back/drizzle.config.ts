@@ -1,3 +1,4 @@
+// used by scripts in package.json, not imported by any code
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({

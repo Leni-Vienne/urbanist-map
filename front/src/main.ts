@@ -122,6 +122,7 @@ app.use(ToastService);
 // Load only the active locale before mounting, the other locale chunk is
 // fetched on demand when the user switches language.
 // IIFE to reduce splitting from 15 chunks down to 6 versus top level await
+/* oxlint-disable no-floating-promises */
 (async function initApp() {
   const messages = await loadLocaleMessages(currentLocale);
   i18n.global.setLocaleMessage(currentLocale, messages);

@@ -50,8 +50,15 @@
           </div>
 
           <!-- Content -->
-          <div class="flex-1 overflow-y-auto overflow-x-hidden bg-content-background">
+          <div
+            class="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-content-background"
+          >
             <slot></slot>
+          </div>
+
+          <!-- Footer (outside scroll area so it's always opaque and visible) -->
+          <div v-if="$slots.footer" class="shrink-0">
+            <slot name="footer"></slot>
           </div>
         </div>
       </div>

@@ -52,7 +52,7 @@ export function useChangeRequestPreview() {
   function getPreviewType(changeId: string): "current" | "suggested" | null {
     const state = previewState.value;
     if (state.type === "none" || state.changeId !== changeId) return null;
-    return state.type === "current" ? "current" : "suggested";
+    return state.type === "current" || state.type === "project-current" ? "current" : "suggested";
   }
 
   // Type guard for coordinate array

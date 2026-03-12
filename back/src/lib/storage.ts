@@ -1,7 +1,7 @@
 import type { StorageInterface } from "./types";
 import { S3Client } from "bun";
 import sharp from "sharp";
-import { mkdir } from "node:fs/promises";
+import { mkdir, unlink } from "node:fs/promises";
 
 // Helper function to read ReadableStream into Uint8Array buffer
 // Used when migrating files between storage backends or processing streams
@@ -162,7 +162,6 @@ export class LocalFileStorage implements StorageInterface {
   // Callers are responsible for deciding what files to delete (see deleteLocalImages in imageCleanup.ts)
   async delete(filename: string): Promise<void> {
     try {
-      const { unlink } = await import("node:fs/promises");
       await unlink(`./uploads/${filename}`);
     } catch (error) {
       // Log but don't throw - file might already be deleted

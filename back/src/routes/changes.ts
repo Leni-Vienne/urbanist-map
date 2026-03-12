@@ -1,5 +1,6 @@
 import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
+import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import {
   projects,
   overlays,
@@ -24,6 +25,18 @@ const approveChangeRequestSchema = z.object({
 const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });
+
+// Helper to validate and parse a GeoJSON GeometryCollection, throwing on invalid input
+function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection {
+  const parsed = GeoJSONGeometryCollectionSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid geometry: must be a valid GeoJSON GeometryCollection",
+    });
+  }
+  return parsed.data;
+}
 
 // Helper to check if entity type is supported
 function isSupportedEntityType(type: string): type is EntityType {
@@ -84,6 +97,14 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
   if (isProjectCenterCoordinateField) {
     return { centerCoordinate: convertCoordinateToGeometry(change.newValue) };
+  }
+
+  const isProjectGeometryField = change.entityType === "project" && change.fieldName === "geometry";
+  if (isProjectGeometryField) {
+    if (change.newValue === null || change.newValue === undefined) {
+      return { geometry: null };
+    }
+    return { geometry: parseGeometryCollection(change.newValue) };
   }
 
   // For non-geometry fields, use the value directly
@@ -206,6 +227,15 @@ export const changesRouter = router({
             code: "TOO_MANY_REQUESTS",
             message: "Too many change requests. Please try again later.",
           });
+        }
+
+        // Validate field values before writing to the DB
+        for (const change of input.changes) {
+          if (input.entityType === "project" && change.fieldName === "geometry") {
+            if (change.newValue !== null && change.newValue !== undefined) {
+              parseGeometryCollection(change.newValue);
+            }
+          }
         }
 
         // Process each change request - replace existing ones for the same field from the same user

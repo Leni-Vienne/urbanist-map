@@ -52,25 +52,27 @@
     <!-- Scrollable content area -->
     <PanelContent
       :active-tab="activeTab"
-      content-container-class="flex-1 overflow-y-auto bg-content-hover-background pb-12"
+      content-container-class="flex-1 flex flex-col min-h-0 bg-content-hover-background"
     />
 
-    <!-- Footer with legal links -->
-    <div
-      class="absolute bottom-0 left-0 right-0 py-[0.2rem] px-4 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
-    >
-      <a
-        href="/legal"
-        class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-        >{{ $t("footer.legal") }}</a
+    <!-- Footer with legal links (rendered outside the scroll area via slot) -->
+    <template #footer>
+      <div
+        class="py-[0.2rem] px-4 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
       >
-      <span class="text-muted-color text-[0.65rem]">•</span>
-      <a
-        href="/contact"
-        class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-        >{{ $t("common.contact") }}</a
-      >
-    </div>
+        <a
+          href="/legal"
+          class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
+          >{{ $t("footer.legal") }}</a
+        >
+        <span class="text-muted-color text-[0.65rem]">•</span>
+        <a
+          href="/contact"
+          class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
+          >{{ $t("common.contact") }}</a
+        >
+      </div>
+    </template>
   </DraggableDrawer>
 </template>
 

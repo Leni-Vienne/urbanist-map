@@ -109,7 +109,13 @@ import { computed, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
-import { setChangeRequestsForPreview } from "@/services/overlay/changeRequestPreviewState";
+import { useShapeChangeRequestPreview } from "@/composables/overlay/useShapeChangeRequestPreview";
+import {
+  setChangeRequestsForPreview,
+  syncPreviewStateOnNavigation,
+  syncProjectShapePreviewState,
+} from "@/services/overlay/changeRequestPreviewState";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type {
   ProjectForModeration,
   OverlayForModeration,
@@ -153,15 +159,32 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
+const overlayStore = useOverlayStore();
 const {
   isPreviewingChange,
   getPreviewType,
   previewGeometry: previewGeometryComposable,
 } = useChangeRequestPreview();
+const { previewShapes } = useShapeChangeRequestPreview();
 
-// Sync change requests for preview state tracking when navigating via markers
+// Sync change requests and preview button state reactively.
+// watchEffect tracks all reactive reads inside (allChangeRequests prop + idSelectedOverlay store),
+// so this re-runs when either changes.
+// IMPORTANT: do NOT read previewState inside this effect — it would create a read→write cycle.
 watchEffect(() => {
   setChangeRequestsForPreview(props.allChangeRequests);
+
+  const selectedId = overlayStore.idSelectedOverlay;
+  if (selectedId) {
+    // Sync "view approved position" button for the currently selected overlay
+    const sel = overlayStore.overlays[selectedId];
+    if (sel) {
+      syncPreviewStateOnNavigation(selectedId, sel.isViewingApprovedPosition ?? true);
+    }
+  } else {
+    // No overlay selected: sync "view current shapes" button for project geometry changes
+    syncProjectShapePreviewState(props.allChangeRequests);
+  }
 });
 
 // Computed property to check if a specific preview is active
@@ -270,37 +293,46 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
     return;
   }
 
-  // Only handle overlay changes
-  if (change.entityType !== "overlay") {
-    return;
-  }
-
-  // Find the overlay data
-  let overlayForModeration: OverlayForModeration | null = null;
-  for (const project of props.projects) {
-    if (project.overlays) {
-      overlayForModeration =
-        project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
-      if (overlayForModeration) break;
+  if (change.entityType === "overlay") {
+    // Find the overlay data
+    let overlayForModeration: OverlayForModeration | null = null;
+    for (const project of props.projects) {
+      if (project.overlays) {
+        overlayForModeration =
+          project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
+        if (overlayForModeration) break;
+      }
     }
-  }
 
-  if (!overlayForModeration) {
-    toast.add({
-      severity: "error",
-      summary: t("overlay.overlayNotFound"),
-      detail: t("overlay.couldNotFindOverlay"),
-      life: 3000,
+    if (!overlayForModeration) {
+      toast.add({
+        severity: "error",
+        summary: t("overlay.overlayNotFound"),
+        detail: t("overlay.couldNotFindOverlay"),
+        life: 3000,
+      });
+      return;
+    }
+
+    await previewGeometryComposable({
+      change,
+      overlayForModeration,
+      geometryValue,
+      type,
     });
-    return;
-  }
+  } else if (change.entityType === "project") {
+    const project = props.projects.find((p) => p.id === change.entityId);
+    if (!project) {
+      toast.add({
+        severity: "error",
+        summary: t("overlay.changeNotFound"),
+        detail: t("overlay.couldNotFindChange"),
+        life: 3000,
+      });
+      return;
+    }
 
-  // Delegate to composable
-  await previewGeometryComposable({
-    change,
-    overlayForModeration,
-    geometryValue,
-    type,
-  });
+    await previewShapes({ change, project, geometryValue, type });
+  }
 }
 </script>

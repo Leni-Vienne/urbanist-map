@@ -1,0 +1,136 @@
+import L from "leaflet";
+import { nextTick } from "vue";
+import { map } from "@/services/core/map";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useToast } from "@/composables/ui/useToast";
+import { t } from "@/locales";
+import { selectCity } from "@/services/navigation/locationNavigation";
+import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { renderPreviewShapes } from "@/services/map/shapeRendering";
+import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
+import { requestScrollTo } from "@/services/layout/accordionState";
+import { previewState } from "@/services/overlay/changeRequestPreviewState";
+import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
+
+interface PreviewShapesOptions {
+  change: PendingChangeRequest;
+  project: ProjectForModeration;
+  geometryValue: unknown;
+  type: "old" | "new";
+}
+
+function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | null {
+  if (!value || typeof value !== "object") return null;
+  const gc = value as { type?: string; geometries?: unknown[] };
+  if (
+    gc.type !== "GeometryCollection" ||
+    !Array.isArray(gc.geometries) ||
+    gc.geometries.length === 0
+  )
+    return null;
+  return gc as GeoJSON.GeometryCollection;
+}
+
+// Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
+function collectLatLngs(geom: GeoJSON.Geometry, out: L.LatLng[]): void {
+  const add = (lng: number, lat: number) => out.push(L.latLng(lat, lng));
+  if (geom.type === "LineString") {
+    for (const [lng, lat] of geom.coordinates as [number, number][]) add(lng, lat);
+  } else if (geom.type === "MultiLineString") {
+    for (const line of geom.coordinates as [number, number][][])
+      for (const [lng, lat] of line) add(lng, lat);
+  } else if (geom.type === "Polygon") {
+    for (const ring of geom.coordinates as [number, number][][])
+      for (const [lng, lat] of ring) add(lng, lat);
+  } else if (geom.type === "MultiPolygon") {
+    for (const poly of geom.coordinates as [number, number][][][])
+      for (const ring of poly) for (const [lng, lat] of ring) add(lng, lat);
+  }
+}
+
+function computeBounds(geometry: GeoJSON.GeometryCollection): L.LatLngBounds | null {
+  const latLngs: L.LatLng[] = [];
+  for (const geom of geometry.geometries) {
+    collectLatLngs(geom, latLngs);
+  }
+  if (latLngs.length === 0) return null;
+  return L.latLngBounds(latLngs);
+}
+
+export function useShapeChangeRequestPreview() {
+  const toast = useToast();
+  const mapStore = useMapStore();
+
+  async function previewShapes(options: PreviewShapesOptions): Promise<void> {
+    const { change, project, geometryValue, type } = options;
+
+    const geometry = parseGeometryCollection(geometryValue);
+    if (!geometry) {
+      toast.add({
+        severity: "warn",
+        summary: t("shapes.noShapesToPreview"),
+        life: 3000,
+      });
+      return;
+    }
+
+    const bounds = computeBounds(geometry);
+    if (!bounds) return;
+
+    // Navigate to the correct city if not already there
+    const alreadyOnCity = mapStore.selectedCity?.id === project.cityId;
+    if (!alreadyOnCity && project.countryCode && project.cityId) {
+      clearAllMapContent();
+      mapStore.selectedCountryCode = project.countryCode;
+      await loadCitiesForCountry(project.countryCode);
+      selectCity(project.cityId, project.cityName ?? t("fields.cityId"), null, project.countryCode);
+      // Wait for Vue to flush reactive effects from selectCity before rendering shapes on top.
+      await nextTick();
+    }
+
+    const uiStore = useUiStore();
+
+    // Construct a Project-compatible object from ProjectForModeration for the popup
+    const projectForPopup = {
+      ...project,
+      city: project.city ?? {
+        id: project.cityId ?? 0,
+        name: project.cityName ?? "",
+        nameLocal: null,
+        countryCode: project.countryCode ?? "",
+      },
+      overlayIds: [],
+      geometry: null,
+    };
+
+    // Replace previous preview layer with the new geometry
+    // Also pass projectId so regular shapes are hidden during preview
+    renderPreviewShapes(
+      geometry,
+      map.value,
+      type === "new" ? "suggested" : "current",
+      project.id,
+      (latlng) => {
+        createProjectInfoTeleportTargetAtLatLng(latlng);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        uiStore.openProjectInfoPopup(project.id, projectForPopup as any);
+        requestScrollTo("project", project.id);
+      },
+    );
+
+    mobileAwareFlyToBounds(bounds, {
+      padding: [50, 50] as [number, number],
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+
+    previewState.value =
+      type === "new"
+        ? { type: "project-suggested", changeId: change.id, projectId: project.id }
+        : { type: "project-current", changeId: change.id, projectId: project.id };
+  }
+
+  return { previewShapes };
+}
