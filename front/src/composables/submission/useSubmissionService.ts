@@ -110,7 +110,18 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   proposalDatePrecision: "Proposal Date Precision",
   startDatePrecision: "Start Date Precision",
   endDatePrecision: "End Date Precision",
+  geometry: "Shapes",
 };
+
+// Check if a geometry value contains at least one shape
+function hasShapes(v: unknown): boolean {
+  return (
+    v !== null &&
+    v !== undefined &&
+    typeof v === "object" &&
+    ((v as GeoJSON.GeometryCollection).geometries?.length ?? 0) > 0
+  );
+}
 
 // Normalize dates for comparison (handle Date objects vs yyyy-MM-dd strings)
 function normalizeDate(val: any) {
@@ -118,6 +129,37 @@ function normalizeDate(val: any) {
   if (val instanceof Date) return val.toISOString().split("T")[0]; // Get yyyy-MM-dd part
   if (typeof val === "string") return val.split("T")[0]; // Handle ISO strings or yyyy-MM-dd
   return null;
+}
+
+function getPrecisionDateField(field: keyof Project): keyof Project | null {
+  switch (field) {
+    case "proposalDatePrecision":
+      return "proposalDate";
+    case "startDatePrecision":
+      return "startDate";
+    case "endDatePrecision":
+      return "endDate";
+    default:
+      return null;
+  }
+}
+
+function normalizeDatePrecision(
+  field: keyof Project,
+  precisionValue: unknown,
+  projectValueSource: Partial<Project>,
+): unknown {
+  const dateField = getPrecisionDateField(field);
+  if (!dateField) {
+    return precisionValue ?? null;
+  }
+
+  const dateValue = projectValueSource[dateField];
+  if (!dateValue) {
+    return precisionValue ?? null;
+  }
+
+  return precisionValue === null || precisionValue === undefined ? "day" : precisionValue;
 }
 
 // Determine submission change type based on entity status
@@ -150,7 +192,7 @@ export function useSubmissionService() {
     const cache: Record<string, string> = { ...projectStore.cityNamesCache };
 
     // Extract from all projects (includes both loaded and original cached projects)
-    for (const project of Object.values(projectStore.allProjects)) {
+    for (const project of Object.values(projectStore.projects)) {
       if (project.city.id === project.cityId && !cache[project.cityId]) {
         cache[project.cityId] = project.city.name;
       }
@@ -204,6 +246,7 @@ export function useSubmissionService() {
       "cityId",
       "proposalDatePrecision",
       "startDatePrecision",
+      "geometry",
     ];
 
     for (const field of fieldsToCheck) {
@@ -213,17 +256,37 @@ export function useSubmissionService() {
 
       // Special handling for date fields
       const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
+      const isGeometryField = String(field) === "geometry";
+      const isDatePrecisionField = getPrecisionDateField(field) !== null;
 
-      // For change requests, preserve empty strings (database requires non-null new_value)
-      // Only normalize dates; for other fields, convert null/undefined to empty string to preserve actual values
-      const normalizedOld = isDateField ? normalizeDate(oldValue) : (oldValue ?? "");
-      const normalizedNew = isDateField ? normalizeDate(newValue) : (newValue ?? "");
+      // Geometry uses JSON stringification for comparison; dates use normalization; others use raw value
+      let normalizedOld: unknown = null;
+      let normalizedNew: unknown = null;
+      if (isDateField) {
+        normalizedOld = normalizeDate(oldValue);
+        normalizedNew = normalizeDate(newValue);
+      } else if (isGeometryField) {
+        normalizedOld = hasShapes(oldValue) ? JSON.stringify(oldValue) : null;
+        normalizedNew = hasShapes(newValue) ? JSON.stringify(newValue) : null;
+      } else if (isDatePrecisionField) {
+        normalizedOld = normalizeDatePrecision(
+          field,
+          oldValue,
+          originalProject as Partial<Project>,
+        );
+        normalizedNew = normalizeDatePrecision(field, newValue, project);
+      } else {
+        normalizedOld = oldValue ?? "";
+        normalizedNew = newValue ?? "";
+      }
 
       if (normalizedOld !== normalizedNew) {
+        // Store raw objects for geometry so the backend receives proper JSON, not a string
+        const storedOldValue = isGeometryField && normalizedOld !== null ? oldValue : normalizedOld;
         changes.push({
           fieldName: String(field),
-          oldValue: normalizedOld,
-          newValue: normalizedNew,
+          oldValue: storedOldValue,
+          newValue: isGeometryField ? (newValue ?? null) : normalizedNew,
           changeReason: customReason ?? undefined,
         });
       }
@@ -236,6 +299,12 @@ export function useSubmissionService() {
   function formatValueForDisplay(value: any, fieldName?: string): string {
     if (value === null || value === undefined || value === "") {
       return "Not set";
+    }
+
+    // Special handling for geometry - show shape count
+    if (fieldName === "geometry" && typeof value === "object") {
+      const count = (value as GeoJSON.GeometryCollection).geometries?.length ?? 0;
+      return `${count} shape${count !== 1 ? "s" : ""}`;
     }
 
     // Special handling for cityId - show city name
@@ -444,6 +513,7 @@ export function useSubmissionService() {
     if (context.changeType === "update_approved") {
       await submitProjectChangeRequest(context.entity, changes);
     } else {
+      // For pending/new projects: all changes (including geometry) go directly through publishProject
       await publishProjectDirect(context.entity, context.changeType);
     }
   }
@@ -500,13 +570,11 @@ export function useSubmissionService() {
       if (hasCornersChange) {
         // Try multiple store locations for project lookup
         // 1. projects: Active map cache (visible on screen)
-        // 2. allProjects: Includes nearby projects not in main city cache
-        // 3. userContributions: Projects pending/saved but interacted with via sidebar
+        // 2. userContributions: Projects pending/saved but interacted with via sidebar
         let project = null;
         if (context.entity.projectId) {
           project =
             projectStore.projects[context.entity.projectId] ??
-            projectStore.allProjects[context.entity.projectId] ??
             (projectStore.userContributions.find(
               (p) => p.id === context.entity.projectId,
             ) as unknown as Project) ??
@@ -600,7 +668,6 @@ export function useSubmissionService() {
     if (extCtx.projectId) {
       project =
         projectStore.projects[extCtx.projectId] ??
-        projectStore.allProjects[extCtx.projectId] ??
         (projectStore.userContributions.find(
           (p) => p.id === extCtx.projectId,
         ) as unknown as Project) ??

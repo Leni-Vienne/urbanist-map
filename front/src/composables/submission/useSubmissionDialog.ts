@@ -562,9 +562,13 @@ export function useSubmissionDialog() {
       return;
     }
 
-    // Handle resetting a field modification
+    // Handle resetting a field modification (geometry is never an overlay field)
     if (overlayObject) {
-      const hasRemainingMods = resetOverlayFieldModification(overlayId, field, overlayObject);
+      const hasRemainingMods = resetOverlayFieldModification(
+        overlayId,
+        field as ModifiableField,
+        overlayObject,
+      );
       if (!hasRemainingMods) {
         updateExtendedContextAfterOverlayRemoval(overlayId);
       }

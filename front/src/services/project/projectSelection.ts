@@ -3,12 +3,11 @@ import { computed } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type { Project } from "@/types/index";
-import { createProjectObject, createProjectObjectFromAPI } from "@/utils/typeFactories";
+import { createProjectObject } from "@/utils/typeFactories";
 
 /**
  * Get all accessible projects including:
  * - Projects from current city overlays
- * - Nearby projects from other cities (lazy loaded)
  * - Local unsaved projects
  */
 export function getCityProjects() {
@@ -30,16 +29,9 @@ export function getCityProjects() {
           ...overlay.project,
           description: overlay.project.description ?? null,
           overlayIds: [],
+          geometry: overlay.project.geometry ?? null,
         });
         projectMap.set(overlay.project.id, frontendProject);
-      }
-    }
-
-    // 3. Include nearby projects from other cities (only if not already added)
-    for (const nearbyProject of projectStore.nearbyProjects) {
-      if (!projectMap.has(nearbyProject.id)) {
-        const frontendProject = createProjectObjectFromAPI(nearbyProject);
-        projectMap.set(nearbyProject.id, frontendProject);
       }
     }
 
@@ -53,20 +45,10 @@ export function getCityProjects() {
     }));
   });
 
-  // Get overlay count, checking both current city and nearby project data
+  // Get overlay count from current city overlays
   function getOverlayCountForProject(projectId: string): number {
-    // Count from current city overlays
-    const cityCount = mapStore.currentCityOverlays.filter(
-      (overlay) => overlay.project?.id === projectId,
-    ).length;
-
-    // If no overlays in current city, use count from nearby project data
-    if (cityCount === 0) {
-      const nearbyProject = projectStore.nearbyProjects.find((p) => p.id === projectId);
-      return nearbyProject?.overlayCount ?? 0;
-    }
-
-    return cityCount;
+    return mapStore.currentCityOverlays.filter((overlay) => overlay.project?.id === projectId)
+      .length;
   }
 
   // Group projects by city for visual organization

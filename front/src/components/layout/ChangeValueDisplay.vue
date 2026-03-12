@@ -27,7 +27,7 @@
     class="flex items-start gap-2 my-1 text-xs flex-wrap"
   >
     <span
-      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
+      class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
     >
       <ClickableLocation
         v-if="change.oldValue"
@@ -53,10 +53,43 @@
     </span>
   </div>
 
+  <!-- Geometry (shapes) field with preview buttons -->
+  <div v-else-if="change.fieldName === 'geometry'" class="my-2">
+    <div class="flex gap-2 flex-wrap">
+      <Button
+        v-if="hasGeometry(change.oldValue)"
+        icon="pi pi-map-marker"
+        :label="$t('shapes.viewCurrentShapes')"
+        @click.stop="$emit('preview-geometry', change.oldValue, 'old', change.id)"
+        severity="success"
+        :outlined="!isPreviewActive(change.id, 'old')"
+        size="small"
+      />
+      <Button
+        v-if="hasGeometry(change.newValue)"
+        icon="pi pi-map-marker"
+        :label="$t('shapes.viewSuggestedShapes')"
+        @click.stop="$emit('preview-geometry', change.newValue, 'new', change.id)"
+        severity="warn"
+        :outlined="!isPreviewActive(change.id, 'new')"
+        size="small"
+      />
+    </div>
+    <div class="flex items-start gap-2 mt-1 text-xs flex-wrap">
+      <span class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm">{{
+        formatGeometrySummary(change.oldValue)
+      }}</span>
+      <i class="pi pi-arrow-right self-center"></i>
+      <span class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm">{{
+        formatGeometrySummary(change.newValue)
+      }}</span>
+    </div>
+  </div>
+
   <!-- Regular field with formatted values -->
   <div v-else class="flex items-start gap-2 my-1 text-xs flex-wrap">
     <span
-      class="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
+      class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
       >{{ formatValue(change.oldValue, change.fieldName, change) }}</span
     >
     <i class="pi pi-arrow-right self-center"></i>
@@ -120,6 +153,20 @@ const { t } = useI18n();
 
 function isGeometryField(fieldName: string): boolean {
   return fieldName === "corners" || fieldName === "centroid";
+}
+
+function hasGeometry(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const geo = value as { geometries?: unknown[] };
+  return (geo.geometries?.length ?? 0) > 0;
+}
+
+function formatGeometrySummary(value: unknown): string {
+  if (!value || typeof value !== "object") return t("overlay.notSet");
+  const geo = value as { geometries?: unknown[] };
+  const count = geo.geometries?.length ?? 0;
+  if (count === 0) return t("overlay.notSet");
+  return t("shapes.geometrySummary", { count });
 }
 
 function formatValue(value: unknown, fieldName: string, change?: PendingChangeRequest): string {

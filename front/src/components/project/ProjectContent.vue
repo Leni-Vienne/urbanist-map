@@ -1,8 +1,10 @@
-﻿<template>
+<template>
   <AccordionContent>
     <div
       class="rounded-lg border border-surface p-3 cursor-pointer transition-all duration-150 hover:border-(--p-text-muted-color) hover:bg-content-background active:bg-content-background active:scale-[0.98]"
       @click="handleCardClick"
+      @mouseenter="$emit('highlight-project', project)"
+      @mouseleave="$emit('remove-project-highlight', project)"
     >
       <div class="flex flex-row items-start gap-3">
         <div class="flex-1 min-w-0">
@@ -70,7 +72,7 @@
         </div>
 
         <!-- Actions column - either slot actions, edit button, or chevron -->
-        <div class="flex flex-col gap-2 shrink-0 self-center" @click.stop>
+        <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
           <slot v-if="$slots['project-actions']" name="project-actions" :project="project"></slot>
           <button
             v-else-if="showEditButtons"
@@ -87,21 +89,23 @@
         </div>
       </div>
 
-      <ChangeRequestSection
-        v-if="projectChanges.length > 0"
-        :changes="projectChanges"
-        :all-change-requests="allChangeRequests"
-        :projects="projectsContext"
-        :is-my-contributions="isContributePanel"
-        :on-navigate-to-overlay="onNavigateToOverlay"
-        :show-user-stats-link="showUserStatsLink"
-        @show-user-stats="(data) => $emit('show-user-stats', data)"
-        container-class="project-change-requests"
-      >
-        <template #change-actions="{ change }">
-          <slot name="change-actions" :change="change"></slot>
-        </template>
-      </ChangeRequestSection>
+      <div @click.stop>
+        <ChangeRequestSection
+          v-if="projectChanges.length > 0"
+          :changes="projectChanges"
+          :all-change-requests="allChangeRequests"
+          :projects="projectsContext"
+          :is-my-contributions="isContributePanel"
+          :on-navigate-to-overlay="onNavigateToOverlay"
+          :show-user-stats-link="showUserStatsLink"
+          @show-user-stats="(data) => $emit('show-user-stats', data)"
+          container-class="project-change-requests"
+        >
+          <template #change-actions="{ change }">
+            <slot name="change-actions" :change="change"></slot>
+          </template>
+        </ChangeRequestSection>
+      </div>
     </div>
 
     <!-- Project overlays -->
@@ -212,23 +216,25 @@
           ></i>
         </div>
 
-        <ChangeRequestSection
-          v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
-          :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
-          :all-change-requests="allChangeRequests"
-          :projects="projectsContext"
-          :is-my-contributions="isContributePanel"
-          :is-overlay-changes="true"
-          :entity-name="overlay.name || $t('overlay.untitled')"
-          :on-navigate-to-overlay="onNavigateToOverlay"
-          :show-user-stats-link="showUserStatsLink"
-          @show-user-stats="(data) => $emit('show-user-stats', data)"
-          container-class="overlay-change-requests"
-        >
-          <template #change-actions="{ change }">
-            <slot name="change-actions" :change="change"></slot>
-          </template>
-        </ChangeRequestSection>
+        <div @click.stop>
+          <ChangeRequestSection
+            v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
+            :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
+            :all-change-requests="allChangeRequests"
+            :projects="projectsContext"
+            :is-my-contributions="isContributePanel"
+            :is-overlay-changes="true"
+            :entity-name="overlay.name || $t('overlay.untitled')"
+            :on-navigate-to-overlay="onNavigateToOverlay"
+            :show-user-stats-link="showUserStatsLink"
+            @show-user-stats="(data) => $emit('show-user-stats', data)"
+            container-class="overlay-change-requests"
+          >
+            <template #change-actions="{ change }">
+              <slot name="change-actions" :change="change"></slot>
+            </template>
+          </ChangeRequestSection>
+        </div>
       </div>
     </div>
   </AccordionContent>
@@ -237,6 +243,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { AccordionContent, Tag } from "primevue";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
@@ -250,6 +257,8 @@ import { getStatusSeverity } from "@/utils/statusHelpers";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
 import { formatProjectDateRange } from "@/utils/projectDateFormat";
+
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 interface Props {
   project: ProjectForModeration;
@@ -280,6 +289,8 @@ const emit = defineEmits<{
   ];
   "edit-project": [project: ProjectForModeration];
   "project-click": [project: ProjectForModeration];
+  "highlight-project": [project: ProjectForModeration];
+  "remove-project-highlight": [project: ProjectForModeration];
   "highlight-overlay": [overlayId: string];
   "remove-highlight": [overlayId: string];
 }>();
@@ -333,8 +344,6 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, shouldFitBounds);
   } else {
-    const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
-    const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(overlay, shouldFitBounds);
   }
 }
@@ -396,7 +405,6 @@ function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
 
 /* Pending change row — orange accent strip */
 .pending-overlay-row {
-  border-left: 3px solid #fb923c;
   /* orange-400 */
   background: #fff7ed;
   /* orange-50 */

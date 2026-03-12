@@ -37,8 +37,7 @@ export function useProjectDeletion() {
     // (entityRemoval.removeOverlay also does this for backend projects; this is a safety net for local-only projects)
     if (isLastOverlay && project?.id && project.lat && project.lng) {
       // Get updated project from store, or use the passed project
-      const updatedProject =
-        projectStore.projects[project.id] ?? projectStore.allProjects[project.id] ?? project;
+      const updatedProject = projectStore.projects[project.id] ?? project;
 
       await new Promise<void>(
         (resolve) =>

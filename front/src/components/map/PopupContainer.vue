@@ -20,6 +20,7 @@
       @view-original-overlay="handleViewOriginalOverlay"
       @delete-project="handleDeleteProject"
       @delete-overlay="handleDeleteOverlay"
+      @draw-shapes="handleDrawShapes"
     />
   </Teleport>
 
@@ -37,6 +38,7 @@
       @close-popup="closeProjectInfoPopup"
       @add-images="handleAddImages"
       @delete-project="handleDeleteProject"
+      @draw-shapes="handleDrawShapes"
     />
   </Teleport>
 
@@ -58,14 +60,18 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
+import { map } from "@/services/core/map";
 
 import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlayActions";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { getPopupLatLng } from "@/services/map/projectPopupTeleport";
 import type { OverlayObject, Project } from "@/types/index";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
+import { useChangeRequests } from "@/composables/changes/useChanges";
+import { useAuthStore } from "@/stores/authStore";
 import type { DBProject, DBCity } from "../../../../back/src/db/schema";
 import type { ApprovalStatus } from "@shared/types";
 
@@ -92,6 +98,9 @@ const {
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { isSubmitting, prepareOverlaySubmission, prepareProjectWithOverlaysSubmission } =
   useSubmissionDialog();
+
+const { pendingChangeRequests, refreshPendingChangeRequests } = useChangeRequests();
+const authStore = useAuthStore();
 
 // Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
@@ -146,6 +155,7 @@ function convertAndCacheBackendProject(
     name: backendProject.name,
     city: backendProject.city,
     overlayIds: overlaysForProject, // Use actual loaded overlays, not empty array!
+    geometry: backendProject.geometry ?? null,
   };
 
   // Add to store for future use (or update if already exists)
@@ -165,18 +175,26 @@ function convertAndCacheBackendProject(
   return convertedProject;
 }
 
+// In view mode, a locally-modified project should show its original approved data, not the
+// unsaved edits. This prevents name edits and other pending changes from leaking into view mode.
+function getEffectiveProject(projectId: string): Project | undefined {
+  const localProject = projects.value[projectId];
+  if (!localProject) return undefined;
+  if (mapStore.mode !== "edit" && localProject.isModified) {
+    const original = projectStore.getOriginalProject(projectId);
+    if (original) return original as Project;
+  }
+  return localProject;
+}
+
 // Unified computed property for currently active project (from either overlay or project popup)
 const activeProject = computed(() => {
   // Priority 1: Check if viewing an overlay popup - get project from overlay
   const overlay = overlayObject.value;
   if (overlay?.projectId) {
-    // Try local projects store first
-    const localProject = projects.value[overlay.projectId];
+    // Try local projects store first (respects view-mode modification guard)
+    const localProject = getEffectiveProject(overlay.projectId);
     if (localProject) return localProject;
-
-    // Try allProjects (includes nearbyProjects)
-    const allProjectsData = projectStore.allProjects;
-    if (allProjectsData[overlay.projectId]) return allProjectsData[overlay.projectId];
 
     // Try to find backend project data from overlay or city overlays
     const backendProject =
@@ -191,8 +209,8 @@ const activeProject = computed(() => {
 
   // Priority 2: Check if viewing a project popup - get project from project popup state
   if (projectInfoPopup.value.projectId) {
-    // Try local projects store first
-    const localProject = projects.value[projectInfoPopup.value.projectId];
+    // Try local projects store first (respects view-mode modification guard)
+    const localProject = getEffectiveProject(projectInfoPopup.value.projectId);
     if (localProject) return localProject;
 
     // Try project from popup state (for backend projects)
@@ -295,6 +313,49 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
   await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.caption, () => {
     overlayStore.hideInfoPopup();
   });
+}
+
+// Handle draw-shapes button — open the shape editor for a project
+async function handleDrawShapes(project: Project) {
+  // Capture geometry from popup context BEFORE closing popups (refs become null after).
+  // project.geometry may be null if the project was populated from getCityProjects which does
+  // not return a geometry column. The overlay/popup project objects carry the full backend data.
+  const fallbackGeometry =
+    overlayObject.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
+
+  // Ensure pending change requests are loaded (no-op if already loaded).
+  // Needed after page reload so we can use the user's submitted pending geometry as the base.
+  await refreshPendingChangeRequests(true);
+
+  // Priority order for the starting geometry:
+  // 1. Local store geometry — reflects same-session edits (saved but not yet submitted,
+  //    or submitted with isModified reset but geometry still in store).
+  // 2. Pending change request geometry — the user's last submitted value, used when the
+  //    project is not in the local store (e.g. after a page reload).
+  // 3. Fallback: approved geometry from the backend popup data.
+  const localStoredGeometry = projectStore.projects[project.id]?.geometry ?? null;
+  const pendingGeometryChange = pendingChangeRequests.value.find(
+    (cr) =>
+      cr.requestedBy === authStore.user?.id &&
+      cr.entityType === "project" &&
+      cr.entityId === project.id &&
+      cr.fieldName === "geometry" &&
+      cr.status === "pending",
+  );
+  const pendingGeometry = pendingGeometryChange
+    ? (pendingGeometryChange.newValue as GeoJSON.GeometryCollection)
+    : null;
+  const existingGeometry = localStoredGeometry ?? pendingGeometry ?? fallbackGeometry;
+
+  // Capture popup anchor before it's cleaned up — only for project/shape popups (not overlay).
+  const reopenAt = showProjectPopup.value ? getPopupLatLng() : null;
+  uiStore.openShapeEditor(project, reopenAt ?? undefined);
+  // Close whichever popup is open
+  if (showOverlayPopup.value) overlayStore.hideInfoPopup();
+  else closeProjectInfoPopup();
+  // Lazy-load geoman and init the toolbar with the best available geometry
+  const { initShapeEditor } = await import("@/services/shape/shapeEditing");
+  initShapeEditor(map.value, existingGeometry ?? undefined);
 }
 
 // Handle project deletion
