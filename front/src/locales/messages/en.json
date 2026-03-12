@@ -792,6 +792,7 @@
     "geometrySummary": "{count} shape(s)",
     "viewCurrentShapes": "View Current Shapes",
     "viewSuggestedShapes": "View Suggested Shapes",
-    "noShapesToPreview": "No shapes available to preview"
+    "noShapesToPreview": "No shapes available to preview",
+    "desktopOnly": "This feature is only available on desktop"
   }
 }

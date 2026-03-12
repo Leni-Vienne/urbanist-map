@@ -262,23 +262,11 @@ export function useSubmissionService() {
       // Geometry uses JSON stringification for comparison; dates use normalization; others use raw value
       let normalizedOld: unknown = null;
       let normalizedNew: unknown = null;
-      let effectiveOldValue: unknown = oldValue;
       if (isDateField) {
         normalizedOld = normalizeDate(oldValue);
         normalizedNew = normalizeDate(newValue);
       } else if (isGeometryField) {
-        // If original project lacks geometry (e.g. cached from UserContribution type which
-        // doesn't include the geometry column), fall back to the backend geometry from loaded
-        // overlay data — so we show "N shapes → M shapes" instead of "Not set → M shapes".
-        if (!hasShapes(effectiveOldValue)) {
-          const backendOverlay = mapStore.currentCityOverlays.find(
-            (o) => o.project?.id === project.id && hasShapes(o.project?.geometry),
-          );
-          if (backendOverlay?.project?.geometry) {
-            effectiveOldValue = backendOverlay.project.geometry;
-          }
-        }
-        normalizedOld = hasShapes(effectiveOldValue) ? JSON.stringify(effectiveOldValue) : null;
+        normalizedOld = hasShapes(oldValue) ? JSON.stringify(oldValue) : null;
         normalizedNew = hasShapes(newValue) ? JSON.stringify(newValue) : null;
       } else if (isDatePrecisionField) {
         normalizedOld = normalizeDatePrecision(
@@ -293,14 +281,10 @@ export function useSubmissionService() {
       }
 
       if (normalizedOld !== normalizedNew) {
-        let storedOldValue: unknown = normalizedOld;
-        if (isGeometryField) {
-          storedOldValue = normalizedOld !== null ? effectiveOldValue : null;
-        }
+        // Store raw objects for geometry so the backend receives proper JSON, not a string
+        const storedOldValue = isGeometryField && normalizedOld !== null ? oldValue : normalizedOld;
         changes.push({
           fieldName: String(field),
-          // Store raw objects for geometry so the backend receives proper JSON, not a string
-          // Use effectiveOldValue (falls back to backend geometry if original cache lacked it)
           oldValue: storedOldValue,
           newValue: isGeometryField ? (newValue ?? null) : normalizedNew,
           changeReason: customReason ?? undefined,

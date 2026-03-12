@@ -7,7 +7,7 @@ import L from "leaflet";
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 const supportedImportGeometryTypes = new Set([...drawableGeometryTypes, "Point", "MultiPoint"]);
 
-export type LoadedGeoJSON = {
+type LoadedGeoJSON = {
   geometry: GeoJSON.GeometryCollection;
   skippedGeometryTypes: string[];
 };

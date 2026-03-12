@@ -794,6 +794,7 @@
     "geometrySummary": "{count} forme(s)",
     "viewCurrentShapes": "Voir les formes actuelles",
     "viewSuggestedShapes": "Voir les formes suggérées",
-    "noShapesToPreview": "Aucune forme disponible pour la prévisualisation"
+    "noShapesToPreview": "Aucune forme disponible pour la prévisualisation",
+    "desktopOnly": "Cette fonctionnalité n'est disponible que sur ordinateur"
   }
 }

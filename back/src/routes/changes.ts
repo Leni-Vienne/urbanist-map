@@ -26,6 +26,18 @@ const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });
 
+// Helper to validate and parse a GeoJSON GeometryCollection, throwing on invalid input
+function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection {
+  const parsed = GeoJSONGeometryCollectionSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid geometry: must be a valid GeoJSON GeometryCollection",
+    });
+  }
+  return parsed.data;
+}
+
 // Helper to check if entity type is supported
 function isSupportedEntityType(type: string): type is EntityType {
   return type === "project" || type === "overlay";
@@ -89,18 +101,10 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
   const isProjectGeometryField = change.entityType === "project" && change.fieldName === "geometry";
   if (isProjectGeometryField) {
-    // Validate the geometry payload rather than blindly casting - null means clearing the geometry
     if (change.newValue === null || change.newValue === undefined) {
       return { geometry: null };
     }
-    const parsed = GeoJSONGeometryCollectionSchema.safeParse(change.newValue);
-    if (!parsed.success) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Invalid geometry: must be a valid GeoJSON GeometryCollection",
-      });
-    }
-    return { geometry: parsed.data };
+    return { geometry: parseGeometryCollection(change.newValue) };
   }
 
   // For non-geometry fields, use the value directly
@@ -229,13 +233,7 @@ export const changesRouter = router({
         for (const change of input.changes) {
           if (input.entityType === "project" && change.fieldName === "geometry") {
             if (change.newValue !== null && change.newValue !== undefined) {
-              const parsed = GeoJSONGeometryCollectionSchema.safeParse(change.newValue);
-              if (!parsed.success) {
-                throw new TRPCError({
-                  code: "BAD_REQUEST",
-                  message: "Invalid geometry: must be a valid GeoJSON GeometryCollection",
-                });
-              }
+              parseGeometryCollection(change.newValue);
             }
           }
         }

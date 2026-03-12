@@ -122,7 +122,7 @@
           :label="$t('shapes.drawShapes')"
           severity="secondary"
           outlined
-          @click="emit('draw-shapes', project)"
+          @click="handleDrawShapesClick"
         >
           <template #icon>
             <svg
@@ -195,10 +195,14 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/ui/useToast";
+import { useIsMobile } from "@/composables/ui/useIsMobile";
 import type { OverlayObject, Project } from "@/types/index";
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
 const { t: $t } = useI18n();
+const toast = useToast();
+const { isMobile } = useIsMobile();
 
 interface Props {
   project: Project;
@@ -239,6 +243,18 @@ const { user } = storeToRefs(authStore);
 // Import pending modifications store for unified change detection
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 const pendingModsStore = usePendingModificationsStore();
+
+function handleDrawShapesClick() {
+  if (isMobile.value) {
+    toast.add({
+      severity: "warn",
+      summary: $t("shapes.desktopOnly"),
+      life: 3000,
+    });
+    return;
+  }
+  emit("draw-shapes", props.project);
+}
 
 // Check if project/overlay is published to backend (null status means not yet submitted)
 const isPublishedToBackend = computed(() => {

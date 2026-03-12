@@ -378,14 +378,12 @@ function getVisibleProjectsToRender() {
 
   const projectsToRender = new Map<string, Project>();
 
-  // Collect projects with overlays
+  // Collect projects with overlays — always use backend overlay data as the project record
+  // so that projectData.geometry is always the approved geometry. storedProject is looked
+  // up separately in processAndRenderProjectShape for edit-mode rendering.
   for (const overlay of overlayStore.viewModeOverlays) {
     if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
-      const storedProject = projectStore.projects[overlay.projectId];
-      projectsToRender.set(
-        overlay.projectId,
-        storedProject ?? normalizeOverlayProject(overlay.project),
-      );
+      projectsToRender.set(overlay.projectId, normalizeOverlayProject(overlay.project));
     }
   }
 

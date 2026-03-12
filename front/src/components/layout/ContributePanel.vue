@@ -219,6 +219,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
+import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
@@ -288,6 +289,7 @@ async function handleAddOverlayClick() {
 
 // Toast for delete operations
 const toast = useToast();
+const { isMobile } = useIsMobile();
 
 // Change requests functionality
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
@@ -538,6 +540,15 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
 
 // Handle draw shapes click — mirrors handleDrawShapes in PopupContainer
 async function handleDrawShapesClick(project: ProjectForModeration) {
+  if (isMobile.value) {
+    toast.add({
+      severity: "warn",
+      summary: t("shapes.desktopOnly"),
+      life: 3000,
+    });
+    return;
+  }
+
   // Ensure pending change requests are loaded (needed after page reload so we can use
   // the user's submitted pending geometry as the base).
   await refreshPendingChangeRequests(true);

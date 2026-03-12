@@ -64,12 +64,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from "vue";
+import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
@@ -108,10 +109,25 @@ const infoBannerDismissed = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const mapStore = useMapStore();
 const projectStore = useProjectStore();
 const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
+
+// Discard in-progress shape edits when leaving edit mode (e.g. switching to view mode).
+// The mode watcher in useViewportTriggers handles overlay cleanup but has no access to
+// the lazy shapeEditing chunk — so we handle it here where the other shape callbacks live.
+watch(
+  () => mapStore.mode,
+  async (newMode, oldMode) => {
+    if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditor.project) {
+      const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
+      destroyShapeEditor(map.value);
+      uiStore.closeShapeEditor();
+    }
+  },
+);
 
 // Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
