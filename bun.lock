@@ -14,7 +14,7 @@
         "google-auth-library": "^10.6.1",
         "hono": "^4.12.7",
         "hono-sessions": "^0.8.1",
-        "zod-geojson": "https://github.com/Leni-Vienne/zod-geojson",
+        "zod-geojson": "https://github.com/Leni-Vienne/zod-geojson#build-lib",
         "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
         "leaflet-toolbar": "git+https://github.com/Leni-Vienne/Leaflet.toolbar.git",
         "nodemailer": "^8.0.2",
@@ -1607,7 +1607,7 @@
 
     "zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
 
-    "zod-geojson": ["zod-geojson@github:Leni-Vienne/zod-geojson#b43b7dd", { "peerDependencies": { "zod": ">=3.25.0" } }, "Leni-Vienne-zod-geojson-b43b7dd", "sha512-jegLCZXoRlZ2QKprFYaHwOrwqcOEz2I3iJlcWbFWGkfcOoZvvst0AzEchlRPEEJXtlPKkPlwp1fcVwJztYO5lg=="],
+    "zod-geojson": ["zod-geojson@github:Leni-Vienne/zod-geojson#0067360", { "peerDependencies": { "zod": ">=3.25.0" } }, "Leni-Vienne-zod-geojson-0067360", "sha512-TWCeEVq43j6wnfSfsU0KqWWki47BJnkDh2c7+7jyJI1Tn8pylybqyCX604dNr7hS4AQ42trsDNN5yY835KtqtQ=="],
 
     "@babel/code-frame/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.27.1", "", {}, "sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow=="],
 
