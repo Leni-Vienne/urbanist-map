@@ -5,7 +5,7 @@ import type { Context as HonoContext } from "hono";
 
 export { TRPCError } from "@trpc/server";
 
-export type Context = {
+type Context = {
   user?: DBUser | null;
   hono: HonoContext;
 };

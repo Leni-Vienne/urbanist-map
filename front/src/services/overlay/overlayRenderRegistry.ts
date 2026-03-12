@@ -32,7 +32,7 @@ const creating = new Set<string>();
 export function beginCreation(id: string): boolean {
   if (creating.has(id)) return false;
   const entry = entries.get(id);
-  if (entry?.layer != null) return false;
+  if (entry?.layer !== null) return false;
   creating.add(id);
   return true;
 }
@@ -182,7 +182,7 @@ export function removeMarkerFromMap(id: string): void {
 export function getAllLayers(): [string, L.DistortableImageOverlay][] {
   const result: [string, L.DistortableImageOverlay][] = [];
   for (const [id, entry] of entries) {
-    if (entry.layer != null) result.push([id, entry.layer]);
+    if (entry.layer !== null) result.push([id, entry.layer]);
   }
   return result;
 }

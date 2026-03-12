@@ -259,7 +259,7 @@ export function addTileLayer(): void {
   initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
 
-function loadScript(src: string): Promise<void> {
+async function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     // Skip if already injected (e.g. called twice before first load completes isn't guarded here,
     // but ensureMaplibreLoaded checks globalThis.maplibregl so this is a safety net)

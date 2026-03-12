@@ -2,8 +2,8 @@
   "type": "module",
   "scripts": {
     "preview": "vite preview front",
-    "dev-front": "bunx --bun vite front",
-    "build-front-workflow": "bun --bun vite build front --mode=production",
+    "dev-front": "vite front",
+    "build-front-workflow": "vite build front --mode=production",
     "build-front": "vite build front --mode=production",
     "dev-back": "bun --hot back/src/index.ts",
     "build-back": "bun build back/src/index.ts --target=bun --outfile=./server.bundle.js --external sharp",

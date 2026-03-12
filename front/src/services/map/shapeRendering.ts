@@ -8,7 +8,10 @@ import { useUiStore } from "@/stores/uiStore";
 
 type ShapeEntry = {
   group: L.LayerGroup;
+  /** Visual layers — the ones that get styled on hover/highlight. */
   layers: L.Path[];
+  /** Interactive layers — the ones that receive mouse events (transparent hit targets for lines, visual layers for polygons). */
+  interactiveLayers: L.Path[];
   baseStyle: L.PathOptions;
   hoverStyle: L.PathOptions;
 };
@@ -31,38 +34,51 @@ const PREVIEW_COLORS = {
  * Build Leaflet path layers from a GeometryCollection.
  * Lines use `style` directly; polygons add `fillOpacity`.
  * Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
+ *
+ * For line geometries a transparent wide polyline is added as a hit target so lines
+ * are easy to click without changing their visual weight.
  */
 function buildShapeLayers(
   geometries: GeoJSON.Geometry[],
   style: L.PathOptions,
   fillOpacity: number,
-): L.Path[] {
-  const layers: L.Path[] = [];
+): { visual: L.Path[]; interactive: L.Path[] } {
+  const visual: L.Path[] = [];
+  const interactive: L.Path[] = [];
   const polygonStyle = { ...style, fillOpacity };
+  // Transparent wide polyline used as a click/hover target for lines.
+  const hitStyle: L.PathOptions = { opacity: 0, fillOpacity: 0, weight: 20, stroke: true };
+
   for (const geom of geometries) {
     if (geom.type === "LineString") {
       const coords = (geom.coordinates as [number, number][]).map(
         ([lng, lat]) => [lat, lng] as L.LatLngTuple,
       );
-      layers.push(L.polyline(coords, style));
+      visual.push(L.polyline(coords, { ...style, interactive: false }));
+      interactive.push(L.polyline(coords, hitStyle));
     } else if (geom.type === "MultiLineString") {
       const latlngs = (geom.coordinates as [number, number][][]).map((line) =>
         line.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
       );
-      layers.push(L.polyline(latlngs, style));
+      visual.push(L.polyline(latlngs, { ...style, interactive: false }));
+      interactive.push(L.polyline(latlngs, hitStyle));
     } else if (geom.type === "Polygon") {
       const rings = (geom.coordinates as [number, number][][]).map((ring) =>
         ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
       );
-      layers.push(L.polygon(rings, polygonStyle));
+      const layer = L.polygon(rings, polygonStyle);
+      visual.push(layer);
+      interactive.push(layer); // polygons have a large area, no separate hit layer needed
     } else if (geom.type === "MultiPolygon") {
       const polys = (geom.coordinates as [number, number][][][]).map((poly) =>
         poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple)),
       );
-      layers.push(L.polygon(polys, polygonStyle));
+      const layer = L.polygon(polys, polygonStyle);
+      visual.push(layer);
+      interactive.push(layer);
     }
   }
-  return layers;
+  return { visual, interactive };
 }
 
 /**
@@ -89,11 +105,15 @@ export function renderProjectShapes(
   const baseStyle: L.PathOptions = { color, weight: 3, opacity: 0.85 };
   const hoverStyle: L.PathOptions = { color, weight: 5, opacity: 1 };
 
-  const layers = buildShapeLayers(project.geometry.geometries, baseStyle, 0.15);
+  const { visual: layers, interactive: interactiveLayers } = buildShapeLayers(
+    project.geometry.geometries,
+    baseStyle,
+    0.15,
+  );
 
   if (layers.length === 0) return;
 
-  for (const layer of layers) {
+  for (const layer of interactiveLayers) {
     layer.on("mouseover", () => {
       highlightProjectShapes(project.id);
       onProjectHover?.(project.id);
@@ -126,9 +146,9 @@ export function renderProjectShapes(
     }
   }
 
-  const group = L.layerGroup(layers);
+  const group = L.layerGroup([...layers, ...interactiveLayers]);
   group.addTo(mapInstance);
-  shapeLayerMap.set(project.id, { group, layers, baseStyle, hoverStyle });
+  shapeLayerMap.set(project.id, { group, layers, interactiveLayers, baseStyle, hoverStyle });
 
   // If this project is currently highlighted (via overlay selection or project info popup),
   // apply hover style immediately — covers the timing case where shapes are re-rendered
@@ -225,28 +245,32 @@ export function renderPreviewShapes(
   const baseStyle = { color, weight: 4, opacity: 1, dashArray: "8 5" };
   const hoverStyle = { weight: 6, opacity: 1 };
 
-  const layers = buildShapeLayers(geometry.geometries, baseStyle, 0.2);
+  const { visual, interactive } = buildShapeLayers(geometry.geometries, baseStyle, 0.2);
 
-  if (layers.length === 0) return;
+  if (visual.length === 0) return;
 
   if (onShapeClick) {
-    for (const layer of layers) {
-      layer.on("mouseover", () => {
-        layer.setStyle(hoverStyle);
-        (layer.getElement() as HTMLElement | undefined)?.style.setProperty("cursor", "pointer");
+    // visual[k] and interactive[k] are paired: for lines interactive[k] is the hit target,
+    // for polygons they are the same object.
+    for (const [k, hitLayer] of interactive.entries()) {
+      const visualLayer = visual[k];
+      if (!hitLayer || !visualLayer) continue;
+      hitLayer.on("mouseover", () => {
+        visualLayer.setStyle(hoverStyle);
+        (hitLayer.getElement() as HTMLElement | undefined)?.style.setProperty("cursor", "pointer");
       });
-      layer.on("mouseout", () => {
-        layer.setStyle(baseStyle);
-        (layer.getElement() as HTMLElement | undefined)?.style.removeProperty("cursor");
+      hitLayer.on("mouseout", () => {
+        visualLayer.setStyle(baseStyle);
+        (hitLayer.getElement() as HTMLElement | undefined)?.style.removeProperty("cursor");
       });
-      layer.on("click", (e: L.LeafletMouseEvent) => {
+      hitLayer.on("click", (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e);
         onShapeClick(e.latlng);
       });
     }
   }
 
-  previewLayerGroup = L.layerGroup(layers);
+  previewLayerGroup = L.layerGroup([...visual, ...interactive]);
   previewLayerGroup.addTo(mapInstance);
 }
 

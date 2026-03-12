@@ -1,3 +1,3 @@
 {
-  "recommendations": ["Vue.volar", "oxc.oxc-vscode", "eamodio.gitlens"]
+  "recommendations": ["Vue.volar", "oxc.oxc-vscode", "eamodio.gitlens", "bradlc.vscode-tailwindcss"]
 }
