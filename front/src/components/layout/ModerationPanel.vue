@@ -173,7 +173,10 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { canModerateCountry } from "@/composables/overlay/useOverlayClickHandler";
+import {
+  canModerateCountry,
+  useOverlayClickHandler,
+} from "@/composables/overlay/useOverlayClickHandler";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
@@ -186,6 +189,7 @@ import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 
 // Use i18n for translations
 const { t } = useI18n();
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // Auth and moderation stores for country filtering
 const authStore = useAuthStore();
@@ -235,7 +239,14 @@ onMounted(async () => {
   try {
     // Restore state from Store or Map logic BEFORE fetching countries
     // This ensures markers are loaded immediately if we are returning to the panel
-    const initialCode = mapStore.selectedCountryCode ?? moderationStore.selectedCountryCode;
+    const initialCode =
+      mapStore.selectedCountryCode ??
+      moderationStore.selectedCountryCode ??
+      // Only fall back to selectedCity when no prior moderation data exists yet.
+      // If moderationLoaded is true, the user has an existing session context (e.g. an admin
+      // in global view with selectedCountryCode = null) that should not be overridden by
+      // whatever city they last clicked on the map.
+      (moderationStore.moderationLoaded ? null : mapStore.selectedCity?.countryCode);
     if (initialCode) {
       const user = authStore.user;
       const canAccess = !user?.moderatedCountries || user.moderatedCountries.includes(initialCode);
@@ -501,6 +512,7 @@ const filteredChangeRequests = computed(() => {
 watch(
   () => mapStore.selectedCity,
   async (city) => {
+    if (mapStore.mode !== "moderation") return;
     if (city && city.countryCode) {
       // Only switch if different (avoids reload loop)
       if (selectedCountryCode.value !== city.countryCode) {
@@ -528,8 +540,6 @@ async function handleViewOverlayPosition(overlay: OverlayForModeration, shouldFi
   if (!viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
   }
-  const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
-  const { handleOverlayClickNavigation } = useOverlayClickHandler();
   await handleOverlayClickNavigation(overlay, shouldFitBounds);
 }
 

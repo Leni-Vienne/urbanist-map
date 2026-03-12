@@ -1,102 +1,113 @@
-// Shared teleport target management for project info popups
-import type L from "leaflet";
+// Shared teleport target management for project info popups.
+//
+// Uses an invisible Leaflet anchor marker (same technique as OverlayFloatingToolbar) so
+// Leaflet's CSS transform on the marker pane handles smooth pan/zoom automatically —
+// no manual move/zoom/resize recalculation needed.
+
+import L from "leaflet";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { setProjectPopupTarget } from "@/services/map/popupState";
+import { unhighlightProjectShapes } from "@/services/map/shapeRendering";
 
-let currentMarkerForPopup: L.Marker | null = null;
+let anchorMarker: L.Marker | null = null;
 let mapClickHandler: (() => void) | null = null;
 
-/**
- * Update teleport target position based on current marker
- */
-function updateTeleportTargetPosition() {
-  if (!currentMarkerForPopup) return;
-
-  const teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
-  if (!teleportTarget) return;
-
-  const markerLatLng = currentMarkerForPopup.getLatLng();
-  const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
-
-  teleportTarget.style.left = `${markerPoint.x}px`;
-  teleportTarget.style.top = `${markerPoint.y}px`;
+// Inject anchor CSS once — resets Leaflet divIcon defaults and ensures overflow is visible.
+let cssInjected = false;
+function ensureAnchorCSS() {
+  if (cssInjected) return;
+  cssInjected = true;
+  const style = document.createElement("style");
+  style.textContent =
+    ".project-popup-anchor{background:none!important;border:none!important;overflow:visible!important;pointer-events:none;}";
+  document.head.appendChild(style);
 }
 
-/**
- * Create teleport target for project info popup at marker position
- */
-export function createProjectInfoTeleportTarget(marker: L.Marker) {
-  const markerLatLng = marker.getLatLng();
-  const markerPoint = map.value.latLngToContainerPoint(markerLatLng);
-
-  // Check if teleport target already exists (switching markers)
-  let teleportTarget = document.querySelector<HTMLElement>("#project-info-popup-teleport-target");
-
-  if (teleportTarget) {
-    // Target exists, just update its position for the new marker
-    teleportTarget.style.left = `${markerPoint.x}px`;
-    teleportTarget.style.top = `${markerPoint.y}px`;
-    currentMarkerForPopup = marker;
-    return;
+function createAnchorMarker(latlng: L.LatLng): L.Marker {
+  ensureAnchorCSS();
+  if (!map.value.getPane("projectPopupPane")) {
+    map.value.createPane("projectPopupPane").style.zIndex = "610";
   }
+  return L.marker(latlng, {
+    icon: L.divIcon({
+      className: "project-popup-anchor",
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    }),
+    interactive: false,
+    keyboard: false,
+    pane: "projectPopupPane",
+  }).addTo(map.value);
+}
 
-  // No existing target, create a new one
-  currentMarkerForPopup = marker;
-
-  teleportTarget = document.createElement("div");
-  teleportTarget.id = "project-info-popup-teleport-target";
-
-  teleportTarget.style.cssText = `
-    pointer-events: none;
-    position: absolute;
-    left: ${markerPoint.x}px;
-    top: ${markerPoint.y}px;
-    width: 0;
-    height: 0;
-    overflow: visible;
-  `;
-
-  const mapContainer = map.value.getContainer();
-  mapContainer.appendChild(teleportTarget);
-
-  // Set reactive state for PopupContainer
-  setProjectPopupTarget(teleportTarget);
-
-  map.value.on("move", updateTeleportTargetPosition);
-  map.value.on("zoom", updateTeleportTargetPosition);
-  map.value.on("resize", updateTeleportTargetPosition);
-
+function attachClickHandler() {
   mapClickHandler = () => {
     const uiStore = useUiStore();
     if (uiStore.projectInfoPopup.visible) {
+      const projectId = uiStore.projectInfoPopup.projectId;
       uiStore.closeProjectInfoPopup();
       cleanupProjectInfoTeleportTarget();
+      if (projectId) unhighlightProjectShapes(projectId);
     }
   };
   map.value.on("click", mapClickHandler);
 }
 
 /**
- * Clean up teleport target and event listeners
+ * Create teleport target for project info popup at marker position.
+ * If a target already exists (switching markers), just moves the anchor.
+ */
+export function createProjectInfoTeleportTarget(marker: L.Marker) {
+  const latlng = marker.getLatLng();
+
+  if (anchorMarker) {
+    // Anchor already exists — reposition it; the teleport stays mounted.
+    anchorMarker.setLatLng(latlng);
+    return;
+  }
+
+  anchorMarker = createAnchorMarker(latlng);
+  setProjectPopupTarget((anchorMarker as any)._icon ?? null);
+  attachClickHandler();
+}
+
+/**
+ * Create teleport target for project info popup at a map position (e.g. shape click).
+ * If a target already exists (switching projects), just moves the anchor.
+ */
+export function createProjectInfoTeleportTargetAtLatLng(latlng: L.LatLng) {
+  if (anchorMarker) {
+    anchorMarker.setLatLng(latlng);
+    return;
+  }
+
+  anchorMarker = createAnchorMarker(latlng);
+  setProjectPopupTarget((anchorMarker as any)._icon ?? null);
+  attachClickHandler();
+}
+
+/**
+ * Return the current popup anchor position.
+ * Must be called before cleanupProjectInfoTeleportTarget() clears the state.
+ */
+export function getPopupLatLng(): { lat: number; lng: number } | null {
+  const latlng = anchorMarker?.getLatLng();
+  if (!latlng) return null;
+  return { lat: latlng.lat, lng: latlng.lng };
+}
+
+/**
+ * Clean up the anchor marker and event listeners.
  */
 export function cleanupProjectInfoTeleportTarget() {
-  map.value.off("move", updateTeleportTargetPosition);
-  map.value.off("zoom", updateTeleportTargetPosition);
-  map.value.off("resize", updateTeleportTargetPosition);
-
   if (mapClickHandler) {
     map.value.off("click", mapClickHandler);
     mapClickHandler = null;
   }
 
-  const existingTarget = document.querySelector("#project-info-popup-teleport-target");
-  if (existingTarget) {
-    existingTarget.remove();
-  }
+  anchorMarker?.remove();
+  anchorMarker = null;
 
-  // Clear reactive state
   setProjectPopupTarget(null);
-
-  currentMarkerForPopup = null;
 }

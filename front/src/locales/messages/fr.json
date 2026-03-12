@@ -60,7 +60,8 @@
     "sourceUrl": "URL source",
     "caption": "Nom",
     "lat": "Latitude",
-    "lng": "Longitude"
+    "lng": "Longitude",
+    "geometry": "Formes"
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",
@@ -158,7 +159,7 @@
     "noProjects": "Aucun projet pour cette ville",
     "noProjectsDetail": "N'hésitez pas à en ajouter un !",
     "clickToZoomCountry": "Cliquez pour zoomer sur le pays",
-    "noCitiesInCountry": "Aucune ville dans ce pays",
+    "noContributionsInCountry": "Aucune contribution dans ce pays",
     "projectsCount": "{count} projet(s)",
     "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
   },
@@ -774,5 +775,26 @@
   "theme": {
     "light": "Mode clair",
     "dark": "Mode sombre"
+  },
+  "settings": {
+    "vectorTilesEnable": "Activer la carte vectorielle",
+    "vectorTilesDisable": "Désactiver la carte vectorielle"
+  },
+  "shapes": {
+    "drawShapes": "Dessiner",
+    "editorInstructions": "Utilisez les outils à gauche pour dessiner des lignes et des polygones. Utilisez le clic droit pour supprimer des points.",
+    "importGeoJSON": "Importer GeoJSON",
+    "importError": "Fichier GeoJSON invalide",
+    "importSkippedGeometryTypes": "Types de géométrie non pris en charge ignorés : {types}",
+    "clearAll": "Tout effacer",
+    "saveShapes": "Enregistrer les formes",
+    "cancel": "Annuler",
+    "savedSuccess": "Formes soumises pour révision",
+    "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre",
+    "geometrySummary": "{count} forme(s)",
+    "viewCurrentShapes": "Voir les formes actuelles",
+    "viewSuggestedShapes": "Voir les formes suggérées",
+    "noShapesToPreview": "Aucune forme disponible pour la prévisualisation",
+    "desktopOnly": "Cette fonctionnalité n'est disponible que sur ordinateur"
   }
 }

@@ -23,10 +23,12 @@ type CountryCode = "FRA" | "CHE";
 // Helper to convert bbox array to BoundingBox object
 function toBoundingBox(bbox: number[]): BoundingBox {
   return {
+    /* oxlint-disable no-non-null-assertion */
     minLng: bbox[0]!,
     minLat: bbox[1]!,
     maxLng: bbox[2]!,
     maxLat: bbox[3]!,
+    /* oxlint-enable no-non-null-assertion */
   };
 }
 
@@ -72,7 +74,7 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
   let inside = false;
   const x = lng;
   const y = lat;
-
+  /* oxlint-disable no-non-null-assertion */
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
     const [xi, yi] = ring[i]!;
     const [xj, yj] = ring[j]!;
@@ -80,6 +82,7 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
     const intersect = yi! > y !== yj! > y && x < ((xj! - xi!) * (y - yi!)) / (yj! - yi!) + xi!;
     if (intersect) inside = !inside;
   }
+  /* oxlint-enable no-non-null-assertion */
 
   return inside;
 }
@@ -165,8 +168,31 @@ export type TileLayerType = "FRA" | "esri" | "CHE" | "osm";
 // Current active tile layer (OSM as default for built-in labels)
 export const currentTileLayer = ref<TileLayerType>("osm");
 
-// Reference to the currently active tile layer instance
+// Vector tiles toggle — persisted in localStorage
+const VECTOR_TILES_KEY = "useVectorTiles";
+
+function getInitialVectorTiles(): boolean {
+  try {
+    return localStorage.getItem(VECTOR_TILES_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export const useVectorTiles = ref<boolean>(getInitialVectorTiles());
+export function setVectorTiles(enabled: boolean) {
+  useVectorTiles.value = enabled;
+  try {
+    localStorage.setItem(VECTOR_TILES_KEY, String(enabled));
+  } catch {
+    // Storage unavailable (privacy mode, quota exceeded) — preference not persisted
+  }
+}
+
+/** Reference to the currently active tile layer instance */
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
+/** tracks the currently active base layer, useful when using satelite layer with maplibre-gl */
+let activeBaseLayer: L.Layer | null = null;
 
 // Tile layer configurations with UI labels
 const tileLayerConfigs = {
@@ -227,27 +253,75 @@ const tileLayerConfigs = {
 
 export function addTileLayer(): void {
   // Check if tile layers were lost during hot reload
-  if (!activeTileLayer) {
-    addTileLayersToMap();
+  if (!activeBaseLayer) {
+    void addTileLayersToMap();
   }
 
   initEsriMetadataListener(); // Start listening for potential high-res availability
   initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
-//import { MaptilerLayer } from "@maptiler/leaflet-maptilersdk";
+
+async function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Skip if already injected (e.g. called twice before first load completes isn't guarded here,
+    // but ensureMaplibreLoaded checks globalThis.maplibregl so this is a safety net)
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    // crossorigin="anonymous" enables proper error reporting for cross-origin scripts
+    // and is required for SRI integrity checks. Integrity hashes should be added here
+    // (sha384-<hash>) once computed for each pinned version, or the assets should be
+    // bundled via Vite to eliminate the CDN dependency entirely.
+    script.crossOrigin = "anonymous";
+    script.addEventListener("load", () => resolve());
+    script.addEventListener("error", reject);
+    document.head.appendChild(script);
+  });
+}
+
+function loadStylesheet(href: string): void {
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+async function ensureMaplibreLoaded(): Promise<void> {
+  if ((globalThis as any).maplibregl) return;
+  // CSS can load in parallel with JS — no dependency
+  loadStylesheet("https://unpkg.com/maplibre-gl@5.20.0/dist/maplibre-gl.css");
+  // leaflet-maplibre-gl depends on maplibregl being defined, so load sequentially
+  await loadScript("https://unpkg.com/maplibre-gl@5.20.0/dist/maplibre-gl.js");
+  await loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js");
+}
+
 /**
  * Initialize all tile layers without layer control (using custom control instead)
  */
-function addTileLayersToMap(): void {
+async function addTileLayersToMap(): Promise<void> {
   try {
-    // Create and add OSM layer as default (has built-in labels)
-    activeTileLayer = createTileLayer("osm");
-    //activeTileLayer = new MaptilerLayer({ apiKey: import.meta.env.VITE_MAPTILER_API_KEY }).addTo(map.value);
-    activeTileLayer.addTo(map.value);
+    if (useVectorTiles.value) {
+      await ensureMaplibreLoaded();
+      activeBaseLayer = (L as any)
+        .maplibreGL({
+          style: "https://tiles.openfreemap.org/styles/liberty",
+        })
+        .addTo(map.value);
+      activeTileLayer = null;
+    } else {
+      activeTileLayer = createTileLayer("osm");
+      activeTileLayer.addTo(map.value);
+      activeBaseLayer = activeTileLayer;
+    }
   } catch (error) {
     console.error("Failed to initialize tile layers:", error);
     const fallbackLayer = createTileLayer("osm");
     activeTileLayer = fallbackLayer;
+    activeBaseLayer = fallbackLayer;
     activeTileLayer.addTo(map.value);
   }
 }
@@ -290,15 +364,25 @@ export async function switchTileLayer(layerType: TileLayerType) {
     fallbackRemovalTimer = null;
   }
 
+  const previousBaseLayer = activeBaseLayer;
   const newLayer = createTileLayer(resolvedLayerType);
   newLayer.addTo(map.value);
 
   activeTileLayer = newLayer;
+  activeBaseLayer = newLayer;
   currentTileLayer.value = resolvedLayerType;
 
   // Robust Cleanup Strategy (Last Write Wins)
   // Iterate through all layers and remove any TileLayer that is NOT the active one.
   function cleanupLayers() {
+    if (
+      previousBaseLayer &&
+      previousBaseLayer !== activeBaseLayer &&
+      map.value.hasLayer(previousBaseLayer)
+    ) {
+      map.value.removeLayer(previousBaseLayer);
+    }
+
     map.value.eachLayer((layer) => {
       if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
         map.value.removeLayer(layer);

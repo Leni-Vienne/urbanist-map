@@ -1,11 +1,17 @@
 ﻿<template>
   <div class="h-full flex flex-col">
-    <div class="flex-1 flex flex-col">
-      <div v-if="contributions.length > 0" class="flex-1 flex flex-col px-4 py-3">
+    <div
+      ref="scrollAreaRef"
+      :class="[
+        'flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        { 'scroll-area': isScrollable },
+      ]"
+    >
+      <div v-if="contributions.length > 0" ref="contentRef" class="flex flex-col px-4 py-3">
         <div
           v-for="contribution in contributions"
           :key="contribution.id"
-          class="group flex items-center gap-3 py-2 cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:bg-content-hover-background active:scale-[0.98]"
+          class="group flex items-center gap-3 py-2 rounded-lg cursor-pointer transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10 active:scale-[0.98]"
           @click="handleContributionClick(contribution)"
           @mouseenter="handleContributionHover(contribution)"
           @mouseleave="handleContributionLeave(contribution)"
@@ -82,20 +88,27 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { ref, watch, onMounted, onActivated, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  canModerateCountry,
+  syncModerationCountry,
+  useOverlayClickHandler,
+} from "@/composables/overlay/useOverlayClickHandler";
 import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
+import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
 const toast = useToast();
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
@@ -139,8 +152,6 @@ async function handleContributionClick(contribution: LatestContribution) {
   // In moderation mode, auto-select the country for the moderation panel
   // Block navigation if the moderator can't moderate this country
   if (mapStore.mode === "moderation" && contribution.countryCode) {
-    const { canModerateCountry, syncModerationCountry } =
-      await import("@/composables/overlay/useOverlayClickHandler");
     if (!canModerateCountry(contribution.countryCode)) {
       toast.add({
         severity: "warn",
@@ -154,14 +165,10 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 
   if (contribution.type === "overlay") {
-    const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
-    const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(contribution, false, true);
   } else if (contribution.type === "standalone") {
     // Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
-      const { navigateToStandaloneProject } =
-        await import("@/services/navigation/projectNavigation");
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,
@@ -174,8 +181,42 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 }
 
-// Load initial data
+// Scroll-area fade logic (same pattern as ProjectAccordionPanel)
+const scrollAreaRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
+const isScrollable = ref(false);
+
+function updateScrollable() {
+  const el = scrollAreaRef.value;
+  if (el) isScrollable.value = el.scrollHeight > el.clientHeight;
+}
+
+const scrollObserver = new ResizeObserver(updateScrollable);
+
 onMounted(() => {
+  if (scrollAreaRef.value) scrollObserver.observe(scrollAreaRef.value);
   fetchLatestContributions();
+  updateScrollable();
+});
+
+onActivated(updateScrollable);
+
+onBeforeUnmount(() => scrollObserver.disconnect());
+
+watch(contentRef, (el, oldEl) => {
+  if (oldEl) scrollObserver.unobserve(oldEl);
+  if (el) {
+    scrollObserver.observe(el);
+    updateScrollable();
+  } else {
+    isScrollable.value = false;
+  }
 });
 </script>
+
+<style scoped>
+.scroll-area {
+  mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+}
+</style>

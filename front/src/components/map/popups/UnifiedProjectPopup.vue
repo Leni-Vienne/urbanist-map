@@ -3,6 +3,7 @@
     :class="['unified-popup', `popup-source-${props.source}`]"
     class="w-75 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
     @click.stop
+    @mousedown.stop
   >
     <div v-if="loading" class="flex justify-center items-center h-50 p-4">
       <i class="pi pi-spin pi-spinner"></i>
@@ -113,9 +114,70 @@
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div v-if="!viewMode" class="px-4 pb-4 pt-3 flex gap-2 items-stretch border-t border-surface">
+    <div v-if="!viewMode" class="px-4 pb-4 pt-3 flex flex-col gap-2 border-t border-surface">
+      <div class="flex gap-2">
+        <Button
+          class="flex-1"
+          type="button"
+          :label="$t('shapes.drawShapes')"
+          severity="secondary"
+          outlined
+          @click="handleDrawShapesClick"
+        >
+          <template #icon>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-waypoints-icon lucide-waypoints"
+            >
+              <path d="m10.586 5.414-5.172 5.172" />
+              <path d="m18.586 13.414-5.172 5.172" />
+              <path d="M6 12h12" />
+              <circle cx="12" cy="20" r="2" />
+              <circle cx="12" cy="4" r="2" />
+              <circle cx="20" cy="12" r="2" />
+              <circle cx="4" cy="12" r="2" />
+            </svg>
+          </template>
+        </Button>
+        <Button
+          class="flex-1"
+          type="button"
+          :label="$t('project.addImages')"
+          severity="secondary"
+          outlined
+          @click="emit('add-images')"
+        >
+          <template #icon>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M16 5h6" />
+              <path d="M19 2v6" />
+              <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+              <circle cx="9" cy="9" r="2" />
+            </svg>
+          </template>
+        </Button>
+      </div>
       <Button
-        class="flex-1"
+        class="w-full"
         type="button"
         :label="$t('project.submitChangeRequest')"
         icon="pi pi-send"
@@ -124,34 +186,6 @@
         :disabled="!hasChanges"
         @click="handlePublishClick"
       />
-      <Button
-        class="flex-1"
-        type="button"
-        :label="$t('project.addImages')"
-        severity="secondary"
-        outlined
-        @click="emit('add-images')"
-      >
-        <template #icon>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="1em"
-            height="1em"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M16 5h6" />
-            <path d="M19 2v6" />
-            <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            <circle cx="9" cy="9" r="2" />
-          </svg>
-        </template>
-      </Button>
     </div>
   </div>
 </template>
@@ -161,10 +195,14 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/ui/useToast";
+import { useIsMobile } from "@/composables/ui/useIsMobile";
 import type { OverlayObject, Project } from "@/types/index";
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
 const { t: $t } = useI18n();
+const toast = useToast();
+const { isMobile } = useIsMobile();
 
 interface Props {
   project: Project;
@@ -193,6 +231,7 @@ const emit = defineEmits<{
   "publish-project": [];
   "close-popup": [];
   "add-images": [];
+  "draw-shapes": [project: Project];
   "view-original-overlay": [overlayId: string];
   "delete-project": [project: Project];
   "delete-overlay": [overlay: OverlayObject];
@@ -204,6 +243,18 @@ const { user } = storeToRefs(authStore);
 // Import pending modifications store for unified change detection
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 const pendingModsStore = usePendingModificationsStore();
+
+function handleDrawShapesClick() {
+  if (isMobile.value) {
+    toast.add({
+      severity: "warn",
+      summary: $t("shapes.desktopOnly"),
+      life: 3000,
+    });
+    return;
+  }
+  emit("draw-shapes", props.project);
+}
 
 // Check if project/overlay is published to backend (null status means not yet submitted)
 const isPublishedToBackend = computed(() => {

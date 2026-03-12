@@ -5,7 +5,7 @@ import type { Context as HonoContext } from "hono";
 
 export { TRPCError } from "@trpc/server";
 
-export type Context = {
+type Context = {
   user?: DBUser | null;
   hono: HonoContext;
 };
@@ -17,27 +17,27 @@ export type Context = {
 const t = initTRPC.context<Context>().create({
   transformer: superjson, // to send Date datatype
   errorFormatter({ shape, error }) {
+    const safeShape = {
+      ...shape,
+      data: {
+        ...shape.data,
+        stack: undefined,
+      },
+    };
+
     // Handle Zod validation errors with custom messages
     if (error.code === "BAD_REQUEST" && error.cause?.name === "ZodError") {
       const zodError = error.cause as any;
       const firstError = zodError.issues?.[0];
       if (firstError?.message) {
         return {
-          ...shape,
+          ...safeShape,
           message: firstError.message,
         };
       }
     }
 
-    // Strip stack traces and internal paths from client-facing errors
-    // Only show clean error messages to users
-    return {
-      ...shape,
-      data: {
-        ...shape.data,
-        stack: undefined, // To never expose stack traces to clients. Is there a better way ?
-      },
-    };
+    return safeShape;
   },
 });
 

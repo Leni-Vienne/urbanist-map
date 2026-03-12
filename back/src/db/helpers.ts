@@ -176,6 +176,7 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
       sourceUrl: projects.sourceUrl,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
+      geometry: projects.geometry,
       cityName: cities.name,
       countryCode: countries.code,
       countryName: countries.name,
