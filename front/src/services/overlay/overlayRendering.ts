@@ -94,6 +94,11 @@ export function createLeafletOverlay(
       // R2 CDN URLs don't support credentials and will fail if crossOrigin is set.
       crossOrigin: imageRequiresCredentials(imageUrl) ? "use-credentials" : undefined,
       mode: "resizeRotate",
+      // Prevent Geoman (shape editor) from snapping to distortable overlays.
+      // DistortableImageOverlay extends L.ImageOverlay, so Geoman's snap builder would try
+      // L.rectangle(overlay.getBounds()), but getBounds() returns an empty LatLngBounds
+      // (with _northEast = undefined) before the image loads, causing a crash.
+      snapIgnore: true,
     });
 
     // Register immediately so mode-switch cleanup (registry.clearEntry) can remove this
@@ -149,6 +154,10 @@ export function createLeafletOverlay(
     return newOverlay;
   } catch (error) {
     console.error("Failed to create overlay:", error);
+    // Clean up the layer reference set before the error so the registry doesn't
+    // hold a broken overlay that pruneOverlays would later try to re-add to the map
+    // (causing the "one control corner" symptom).
+    registry.clearLayer(overlayObject.id);
     return null;
   }
 }
