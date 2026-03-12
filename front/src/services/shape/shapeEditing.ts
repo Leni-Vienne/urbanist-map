@@ -103,7 +103,9 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
 export function addLayersFromGeometry(
   mapInstance: L.Map,
   geometry: GeoJSON.GeometryCollection,
-): void {
+): L.LatLngBounds | null {
+  const addedLayers: L.Layer[] = [];
+
   // Process each geometry individually by wrapping it in a Feature.
   // Using L.geoJSON(geometryCollection) produces a single FeatureGroup (not individual layers),
   // whose toGeoJSON() returns a FeatureCollection that fails the Feature type check in getDrawnGeometry.
@@ -114,6 +116,7 @@ export function addLayersFromGeometry(
     const layer = L.geoJSON(feature).getLayers()[0];
     if (!layer) continue;
     layer.addTo(mapInstance);
+    addedLayers.push(layer);
     geometryLayers.push(layer);
     // Reinitialize Geoman on this externally-created layer so vertex handles appear.
     // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline,
@@ -123,6 +126,11 @@ export function addLayersFromGeometry(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (layer as any).pm?.enable?.();
   }
+
+  if (addedLayers.length === 0) return null;
+
+  const bounds = L.featureGroup(addedLayers).getBounds();
+  return bounds.isValid() ? bounds : null;
 }
 
 /**

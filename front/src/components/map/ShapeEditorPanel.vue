@@ -49,6 +49,12 @@ import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
+import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import {
+  addLayersFromGeometry,
+  getDrawnGeometry,
+  loadGeoJSONFile,
+} from "@/services/shape/shapeEditing";
 
 const { t } = useI18n();
 const toast = useToast();
@@ -70,10 +76,11 @@ async function handleFileImport(event: Event) {
   // Reset input so the same file can be re-imported regardless of outcome
   if (fileInputRef.value) fileInputRef.value.value = "";
   try {
-    const { loadGeoJSONFile, addLayersFromGeometry } =
-      await import("@/services/shape/shapeEditing");
     const geometry = await loadGeoJSONFile(file);
-    addLayersFromGeometry(map.value, geometry);
+    const bounds = addLayersFromGeometry(map.value, geometry);
+    if (bounds) {
+      mobileAwareFlyToBounds(bounds, { maxZoom: 17 });
+    }
   } catch (error) {
     toast.add({
       severity: "error",
@@ -85,7 +92,6 @@ async function handleFileImport(event: Event) {
 }
 
 async function handleSave() {
-  const { getDrawnGeometry } = await import("@/services/shape/shapeEditing");
   const geometry = getDrawnGeometry(map.value);
   emit("done", geometry);
 }
