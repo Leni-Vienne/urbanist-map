@@ -103,6 +103,38 @@ export function getStandaloneProjectMarkerByProjectId(projectId: string): L.Mark
 }
 
 /**
+ * Scale up a standalone project marker for hover highlight (e.g. from side panel).
+ */
+export function highlightStandaloneProjectMarker(projectId: string): void {
+  const marker = standaloneProjectMarkerMap.get(projectId);
+  if (!marker) return;
+  const el = marker.getElement();
+  if (!el) return;
+  const svg = el.querySelector("svg");
+  if (svg) {
+    svg.style.transformOrigin = "center bottom";
+    svg.style.transition = "transform 0.15s ease";
+    svg.style.transform = "scale(1.5)";
+  }
+  el.style.zIndex = "1000";
+}
+
+/**
+ * Reset the scale of a standalone project marker after hover leave.
+ */
+export function unhighlightStandaloneProjectMarker(projectId: string): void {
+  const marker = standaloneProjectMarkerMap.get(projectId);
+  if (!marker) return;
+  const el = marker.getElement();
+  if (!el) return;
+  const svg = el.querySelector("svg");
+  if (svg) {
+    svg.style.transform = "";
+  }
+  el.style.zIndex = "";
+}
+
+/**
  * Remove standalone project marker for a specific project
  * This is called when the first overlay is added to a standalone project
  */

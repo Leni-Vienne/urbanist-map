@@ -90,18 +90,25 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onActivated, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  canModerateCountry,
+  syncModerationCountry,
+  useOverlayClickHandler,
+} from "@/composables/overlay/useOverlayClickHandler";
 import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
+import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
 const toast = useToast();
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
@@ -145,8 +152,6 @@ async function handleContributionClick(contribution: LatestContribution) {
   // In moderation mode, auto-select the country for the moderation panel
   // Block navigation if the moderator can't moderate this country
   if (mapStore.mode === "moderation" && contribution.countryCode) {
-    const { canModerateCountry, syncModerationCountry } =
-      await import("@/composables/overlay/useOverlayClickHandler");
     if (!canModerateCountry(contribution.countryCode)) {
       toast.add({
         severity: "warn",
@@ -160,14 +165,10 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 
   if (contribution.type === "overlay") {
-    const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
-    const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(contribution, false, true);
   } else if (contribution.type === "standalone") {
     // Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.cityId && contribution.lat && contribution.lng) {
-      const { navigateToStandaloneProject } =
-        await import("@/services/navigation/projectNavigation");
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,

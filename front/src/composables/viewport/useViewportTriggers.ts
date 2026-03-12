@@ -13,6 +13,12 @@ import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import {
+  saveAllOverlaysToCache,
+  setupKeyboardShortcuts,
+  updateOverlayEditingState,
+} from "@/services/overlay/overlayEditing";
+import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
 import { pendingChangeRequestsRef } from "@/composables/changes/useChanges";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
@@ -554,16 +560,6 @@ export function useViewportTriggers() {
         // Clear all standalone project markers on mode switch
         // They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
         clearAllStandaloneProjectMarkers();
-
-        // Single import for all overlayEditing symbols used in this watcher
-        // Avoids two separate dynamic import() calls to the same module
-        const [
-          { saveAllOverlaysToCache, updateOverlayEditingState, setupKeyboardShortcuts },
-          { refreshSelectionHighlight },
-        ] = await Promise.all([
-          import("@/services/overlay/overlayEditing"),
-          import("@/services/overlay/overlaySelection"),
-        ]);
 
         // CRITICAL: Save any modified overlays before we potentially hide them
         // If we are leaving edit mode, we must save the current state to cache

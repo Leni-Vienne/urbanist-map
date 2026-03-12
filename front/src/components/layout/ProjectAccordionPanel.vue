@@ -117,6 +117,8 @@
                     @show-user-stats="(data) => emit('show-user-stats', data)"
                     @edit-project="handleStandaloneProjectClick"
                     @project-click="handleCardClick"
+                    @highlight-project="handleProjectHighlight"
+                    @remove-project-highlight="handleProjectUnhighlight"
                     @highlight-overlay="highlightOverlayById"
                     @remove-highlight="removeOverlayHighlight"
                   >
@@ -205,6 +207,19 @@ import {
   consumeScrollRequest,
   pendingScrollRequest,
 } from "@/services/layout/accordionState";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import {
+  getProjectShapeBounds,
+  hasProjectShapes,
+  highlightProjectShapes,
+  unhighlightProjectShapes,
+} from "@/services/map/shapeRendering";
+import {
+  highlightStandaloneProjectMarker,
+  unhighlightStandaloneProjectMarker,
+} from "@/services/map/standaloneProjectMarkers";
+import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -267,6 +282,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
@@ -691,9 +707,6 @@ async function navigateToOverlayById(overlayId: string) {
         if (props.onOverlayClick) {
           await props.onOverlayClick(overlay, true);
         } else {
-          const { useOverlayClickHandler } =
-            await import("@/composables/overlay/useOverlayClickHandler");
-          const { handleOverlayClickNavigation } = useOverlayClickHandler();
           await handleOverlayClickNavigation(overlay, true);
         }
         return;
@@ -741,13 +754,17 @@ function getProjectChangeRequestsForProject(project: ProjectForModeration): Pend
   return projectChangesMap.value.get(project.id) || [];
 }
 
-function handleCardClick(project: ProjectForModeration) {
+async function handleCardClick(project: ProjectForModeration) {
+  if (hasProjectShapes(project.id)) {
+    const bounds = getProjectShapeBounds(project.id);
+    if (bounds) {
+      mobileAwareFlyToBounds(bounds, { padding: [50, 50], duration: 1.5 });
+      return;
+    }
+  }
   const hasOverlays = project.overlays && project.overlays.length > 0;
   if (hasOverlays) {
-    // Use helper which might use custom prop or default
-    // But here we need to call logic on an overlay.
-    // We can just call navigate to first overlay
-    if (project.overlays && project.overlays[0]) {
+    if (project.overlays[0]) {
       handleOverlayCardClick(project.overlays[0]);
     }
   } else {
@@ -755,12 +772,30 @@ function handleCardClick(project: ProjectForModeration) {
   }
 }
 
+async function handleProjectHighlight(project: ProjectForModeration) {
+  if (hasProjectShapes(project.id)) {
+    highlightProjectShapes(project.id);
+    return;
+  }
+  if (!project.overlays || project.overlays.length === 0) {
+    highlightStandaloneProjectMarker(project.id);
+  }
+}
+
+async function handleProjectUnhighlight(project: ProjectForModeration) {
+  if (hasProjectShapes(project.id)) {
+    unhighlightProjectShapes(project.id);
+    return;
+  }
+  if (!project.overlays || project.overlays.length === 0) {
+    unhighlightStandaloneProjectMarker(project.id);
+  }
+}
+
 async function handleOverlayCardClick(overlay: OverlayForModeration) {
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, true);
   } else {
-    const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
-    const { handleOverlayClickNavigation } = useOverlayClickHandler();
     await handleOverlayClickNavigation(overlay, true);
   }
 }
@@ -789,7 +824,6 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     if (!props.disableAutoModeSwitch && mapStore.mode !== "edit") {
       mapStore.setMode("edit");
     }
-    const { navigateToStandaloneProject } = await import("@/services/navigation/projectNavigation");
     await navigateToStandaloneProject(
       project.lat,
       project.lng,

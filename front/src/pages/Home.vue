@@ -74,11 +74,17 @@ import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { handleShapeProjectClick } from "@/services/map/standaloneProjectMarkers";
+import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
+import { clearProjectShapes, renderProjectShapes } from "@/services/map/shapeRendering";
+import {
+  highlightProjectOverlaysOnHover,
+  removeProjectOutlines,
+} from "@/services/overlay/overlaySelection";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
-import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 
 // Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));
@@ -147,22 +153,13 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
     projectStore.projects = { ...projectStore.projects, [project.id]: project };
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
-  const [
-    { destroyShapeEditor },
-    { clearProjectShapes, renderProjectShapes },
-    { highlightProjectOverlaysOnHover, removeProjectOutlines },
-  ] = await Promise.all([
-    import("@/services/shape/shapeEditing"),
-    import("@/services/map/shapeRendering"),
-    import("@/services/overlay/overlaySelection"),
-  ]);
+  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
   destroyShapeEditor(map.value);
   // Re-render updated shapes immediately. Geoman layers were just removed by destroyShapeEditor,
   // and the viewport loop only covers backend overlays — pending/local shapes need explicit rendering.
   clearProjectShapes(project.id);
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
-    const { handleShapeProjectClick } = await import("@/services/map/standaloneProjectMarkers");
     renderProjectShapes(
       updatedProject,
       map.value,
@@ -175,7 +172,8 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
   if (reopenAt) {
     uiStore.openProjectInfoPopup(project.id, project);
-    const L = (await import("leaflet")).default;
+    const leafletModule = await import("leaflet");
+    const L = leafletModule.default;
     createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
   }
 }
@@ -188,7 +186,8 @@ async function handleShapesCancel() {
   uiStore.closeShapeEditor();
   if (reopenAt && project) {
     uiStore.openProjectInfoPopup(project.id, project);
-    const L = (await import("leaflet")).default;
+    const leafletModule = await import("leaflet");
+    const L = leafletModule.default;
     createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
   }
 }

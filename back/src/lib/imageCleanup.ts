@@ -1,6 +1,7 @@
 import { db } from "../database";
 import { scheduledDeletions } from "../db/schema";
 import { lte, eq } from "drizzle-orm";
+import { appendFile } from "node:fs/promises";
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from "./storage";
 import type { StorageInterface } from "./types";
 
@@ -53,7 +54,6 @@ async function deleteFilesFromStorage(
 
 async function appendOrphanLog(failedFiles: string[]): Promise<void> {
   if (failedFiles.length === 0) return;
-  const { appendFile } = await import("node:fs/promises");
   const entry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(", ")}\n`;
   await appendFile("./orphaned_files.txt", entry).catch((error) => {
     console.error("Failed to write to orphaned files log:", error);

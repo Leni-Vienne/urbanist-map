@@ -197,6 +197,23 @@ export function hasProjectShapes(projectId: string): boolean {
 }
 
 /**
+ * Return the combined LatLngBounds of all rendered shape layers for a project.
+ * Returns null if the project has no rendered shapes or bounds are invalid.
+ */
+export function getProjectShapeBounds(projectId: string): L.LatLngBounds | null {
+  const entry = shapeLayerMap.get(projectId);
+  if (!entry || entry.layers.length === 0) return null;
+  let bounds: L.LatLngBounds | null = null;
+  for (const layer of entry.layers) {
+    const layerBounds = (layer as L.Polyline).getBounds?.();
+    if (layerBounds?.isValid()) {
+      bounds = bounds ? bounds.extend(layerBounds) : layerBounds;
+    }
+  }
+  return bounds?.isValid() ? bounds : null;
+}
+
+/**
  * Apply the hover style to all shape layers of a project (e.g. when an overlay is hovered).
  */
 export function highlightProjectShapes(projectId: string): void {

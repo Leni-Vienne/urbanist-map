@@ -231,6 +231,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import type { RouterOutput } from "@/client";
 import type {
   ProjectForModeration,
@@ -569,8 +570,6 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   if (uiStore.projectInfoPopup.visible) {
     uiStore.closeProjectInfoPopup();
     try {
-      const { closeProjectPopupAndResetMarkers } =
-        await import("@/services/map/standaloneProjectMarkers");
       closeProjectPopupAndResetMarkers();
     } catch (error) {
       console.warn("Failed to reset standalone markers on draw popup clear", error);
