@@ -32,7 +32,7 @@ const creating = new Set<string>();
 export function beginCreation(id: string): boolean {
   if (creating.has(id)) return false;
   const entry = entries.get(id);
-  if (entry?.layer !== null) return false;
+  if (entry !== undefined && entry.layer !== null) return false;
   creating.add(id);
   return true;
 }
