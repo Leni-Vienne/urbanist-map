@@ -25,7 +25,7 @@
     <PanelEmptyState
       v-if="citiesInCountry.length === 0"
       icon="map"
-      :message="$t('currentLocation.noCitiesInCountry')"
+      :message="$t('currentLocation.noContributionsInCountry')"
     />
 
     <!-- City list -->
@@ -117,6 +117,7 @@
 <script setup lang="ts">
 import { computed, ref, onActivated, onDeactivated, onUnmounted, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useToast } from "@/composables/ui/useToast";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -145,6 +146,7 @@ const projectStore = useProjectStore();
 const { t } = useI18n();
 const toast = useToast();
 const { handleNewProjectClick } = useNewProject();
+const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // Handle new project button click with error feedback
 async function handleAddOverlayClick() {
@@ -327,8 +329,6 @@ function handleBreadcrumbCityClick() {
 
 // Custom overlay click handler - lazily imported since it's only reachable after city selection
 async function handleOverlayClick(overlay: OverlayForModeration): Promise<void> {
-  const { useOverlayClickHandler } = await import("@/composables/overlay/useOverlayClickHandler");
-  const { handleOverlayClickNavigation } = useOverlayClickHandler();
   await handleOverlayClickNavigation(overlay, false);
 }
 

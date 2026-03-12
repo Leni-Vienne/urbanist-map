@@ -6,6 +6,14 @@ import { createProjectObject } from "@/utils/typeFactories";
 
 type PublishProjectInput = RouterInput["project"]["publishProject"];
 
+function requireProjectField<T>(value: T | null | undefined, fieldName: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Missing required project field: ${fieldName}`);
+  }
+
+  return value;
+}
+
 /**
  * Builds a consistent payload for publishing projects to the backend
  * Ensures proper handling of null vs undefined for date fields
@@ -14,11 +22,11 @@ type PublishProjectInput = RouterInput["project"]["publishProject"];
 export function buildProjectPayload(project: Partial<Project>): PublishProjectInput {
   return {
     id: project.id,
-    name: project.name!,
+    name: requireProjectField(project.name, "name"),
     description: project.description ?? undefined,
-    cityId: project.cityId!,
-    lat: project.lat!,
-    lng: project.lng!,
+    cityId: requireProjectField(project.cityId, "cityId"),
+    lat: requireProjectField(project.lat, "lat"),
+    lng: requireProjectField(project.lng, "lng"),
     proposalDate: project.proposalDate ?? null,
     proposalDatePrecision: project.proposalDatePrecision ?? null,
     startDate: project.startDate ?? null,
@@ -26,6 +34,7 @@ export function buildProjectPayload(project: Partial<Project>): PublishProjectIn
     endDate: project.endDate ?? null,
     endDatePrecision: project.endDatePrecision ?? null,
     sourceUrl: project.sourceUrl ?? undefined,
+    geometry: project.geometry ?? null,
   };
 }
 

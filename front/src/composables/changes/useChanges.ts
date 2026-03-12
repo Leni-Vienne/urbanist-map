@@ -1,7 +1,7 @@
 // ============================================================================
 // Combines change request handling and field-specific change utilities
 // ============================================================================
-import { ref, computed } from "vue";
+import { ref, computed, readonly } from "vue";
 import { trpc, type RouterOutput, type RouterInput } from "@/client";
 import type { FieldChange } from "@shared/validation/schemas";
 import { useAuthStore } from "@/stores/authStore";
@@ -23,6 +23,14 @@ type ChangeHistoryEntry = RouterOutput["changes"]["getChangeHistory"][number];
 type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][number];
 type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
+
+/** Read-only accessor for service-layer code that can't use composables. */
+export function getPendingChangeRequests(): ChangeRequest[] {
+  return pendingChangeRequests.value;
+}
+
+/** Reactive readonly ref — use this to watch for changes in Vue composables. */
+export const pendingChangeRequestsRef = readonly(pendingChangeRequests);
 const changeHistory = ref<ChangeHistoryEntry[]>([]);
 const isLoading = ref(false);
 

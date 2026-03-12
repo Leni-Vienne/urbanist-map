@@ -1,16 +1,20 @@
 @import "tailwindcss";
 @import "tailwindcss-primeui";
 
-/* tailwind recommanded those changes but they didn't work without those overrides */
+/* usages drop the "color-" prefix for convenience, e.g. "primary-color" instead of "color-primary-color" */
 @theme inline {
   --color-content-background: var(--p-content-background);
   --color-primary-color: var(--p-primary-color);
   --color-primary-hover-color: var(--p-primary-hover-color);
+  --color-tag-warn-color: var(--p-tag-warn-color);
+  --color-tag-warn-background: var(--p-tag-warn-background);
+  --color-tag-success-color: var(--p-tag-success-color);
+  --color-tag-success-background: var(--p-tag-success-background);
 }
 
 /* Class-based dark mode for Tailwind utilities (mirrors PrimeVue's .dark-mode selector) */
+/* without it, styles that uses "dark:xxxx" break */
 @custom-variant dark (&:where(.dark-mode, .dark-mode *));
-/* doesn't seem useful? */
 
 /* Prevent scrollbars on map page */
 html,
@@ -47,6 +51,11 @@ body {
 .leaflet-control-attribution a {
   color: #005a7d !important;
   /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
+}
+
+/* Push Geoman draw toolbar down so it doesn't overlap the top UI chrome */
+.leaflet-pm-toolbar {
+  margin-top: 180px !important;
 }
 
 /* Ensure overlay markers don't appear above the info popup */

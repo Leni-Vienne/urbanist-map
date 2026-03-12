@@ -57,11 +57,12 @@ function calculateRingSize(element: HTMLElement): number {
 /**
  * Apply the selection/hover ring to an overlay element.
  * Also suppresses the browser's native focus outline so they don't stack.
+ * @param color - Optional hex color; defaults to OVERLAY_OUTLINE_COLOR (blue).
  */
-export function applySelectionRing(element: HTMLElement): void {
+export function applySelectionRing(element: HTMLElement, color = OVERLAY_OUTLINE_COLOR): void {
   const size = calculateRingSize(element);
   const state = getState(element);
-  state.selection = `0 0 0 ${size}px ${OVERLAY_OUTLINE_COLOR}`;
+  state.selection = `0 0 0 ${size}px ${color}`;
   element.style.outline = "none";
   commit(element, state);
 }

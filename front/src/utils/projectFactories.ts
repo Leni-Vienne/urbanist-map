@@ -210,6 +210,7 @@ export function createLocalProjectContribution(
     endDate: localProject.endDate,
     endDatePrecision: localProject.endDatePrecision ?? null,
     sourceUrl: localProject.sourceUrl ?? null,
+    geometry: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     overlays: [overlayData],

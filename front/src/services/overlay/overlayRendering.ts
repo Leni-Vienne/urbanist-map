@@ -32,6 +32,8 @@ import {
   setupProjectHoverEvents,
   syncModerationCityFromOverlay,
   applySelectionOutline,
+  getCurrentHighlightedProjectId,
+  applyProjectHighlightToElement,
 } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
@@ -46,7 +48,7 @@ import {
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
+import { clearSelectionRing } from "@/services/overlay/overlayStyle";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
@@ -92,6 +94,11 @@ export function createLeafletOverlay(
       // R2 CDN URLs don't support credentials and will fail if crossOrigin is set.
       crossOrigin: imageRequiresCredentials(imageUrl) ? "use-credentials" : undefined,
       mode: "resizeRotate",
+      // Prevent Geoman (shape editor) from snapping to distortable overlays.
+      // DistortableImageOverlay extends L.ImageOverlay, so Geoman's snap builder would try
+      // L.rectangle(overlay.getBounds()), but getBounds() returns an empty LatLngBounds
+      // (with _northEast = undefined) before the image loads, causing a crash.
+      snapIgnore: true,
     });
 
     // Register immediately so mode-switch cleanup (registry.clearEntry) can remove this
@@ -147,6 +154,10 @@ export function createLeafletOverlay(
     return newOverlay;
   } catch (error) {
     console.error("Failed to create overlay:", error);
+    // Clean up the layer reference set before the error so the registry doesn't
+    // hold a broken overlay that pruneOverlays would later try to re-add to the map
+    // (causing the "one control corner" symptom).
+    registry.clearLayer(overlayObject.id);
     return null;
   }
 }
@@ -311,13 +322,11 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   if (overlayStore.idSelectedOverlay !== overlayObject.id) {
     const element = layer.getElement();
     if (element) {
-      // Apply project highlight ring if this overlay belongs to the same project as the
-      // currently selected overlay (e.g. switching to edit mode reveals sister overlays)
-      const selectedOverlay = overlayStore.idSelectedOverlay
-        ? overlayStore.overlays[overlayStore.idSelectedOverlay]
-        : null;
-      if (selectedOverlay?.projectId && selectedOverlay.projectId === overlayObject.projectId) {
-        applySelectionRing(element);
+      // Highlight if this overlay belongs to the currently highlighted project —
+      // either via overlay selection or project info popup (shape click).
+      const highlightedProjectId = getCurrentHighlightedProjectId();
+      if (highlightedProjectId && highlightedProjectId === overlayObject.projectId) {
+        applyProjectHighlightToElement(element, overlayObject);
       } else {
         clearSelectionRing(element);
       }

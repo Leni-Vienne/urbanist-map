@@ -60,7 +60,8 @@
     "sourceUrl": "Source URL",
     "caption": "Name",
     "lat": "Latitude",
-    "lng": "Longitude"
+    "lng": "Longitude",
+    "geometry": "Shapes"
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
@@ -158,7 +159,7 @@
     "noProjects": "No projects for this city",
     "noProjectsDetail": "Feel free to add one!",
     "clickToZoomCountry": "Click to zoom to country view",
-    "noCitiesInCountry": "No cities in this country",
+    "noContributionsInCountry": "No contributions in this country",
     "projectsCount": "{count} project(s)",
     "selectCityToExplore": "Select a city to explore its projects"
   },
@@ -772,5 +773,26 @@
   "theme": {
     "light": "Light mode",
     "dark": "Dark mode"
+  },
+  "settings": {
+    "vectorTilesEnable": "Enable vector map",
+    "vectorTilesDisable": "Disable vector map"
+  },
+  "shapes": {
+    "drawShapes": "Draw",
+    "editorInstructions": "Use the tools on the left to draw lines and polygons. Use the right click to delete points",
+    "importGeoJSON": "Import GeoJSON",
+    "importError": "Invalid GeoJSON file",
+    "importSkippedGeometryTypes": "Ignored unsupported geometry types: {types}",
+    "clearAll": "Clear all",
+    "saveShapes": "Save shapes",
+    "cancel": "Cancel",
+    "savedSuccess": "Shapes submitted for review",
+    "savedLocally": "Shapes saved — click Publish to submit",
+    "geometrySummary": "{count} shape(s)",
+    "viewCurrentShapes": "View Current Shapes",
+    "viewSuggestedShapes": "View Suggested Shapes",
+    "noShapesToPreview": "No shapes available to preview",
+    "desktopOnly": "This feature is only available on desktop"
   }
 }

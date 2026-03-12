@@ -128,11 +128,11 @@ export const projects = pgTable(
     startDatePrecision: text("start_date_precision").$type<DatePrecision | null>(),
     endDate: timestamp("end_date", { withTimezone: true }),
     endDatePrecision: text("end_date_precision").$type<DatePrecision | null>(),
-    latestUpdateOn: timestamp("latest_update_on", { withTimezone: true }),
     // Center coordinate for all projects - used as marker position when no images exist
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
     centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // PostGIS point for spatial queries (computed from lat/lng)
+    geometry: jsonb("geometry").$type<GeoJSON.GeometryCollection | null>(), // GeoJSON GeometryCollection for project shapes (lines + polygons)
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -279,7 +279,7 @@ export const changeRequests = pgTable(
     entityId: uuid("entity_id").notNull(),
     fieldName: text("field_name").notNull(),
     oldValue: jsonb("old_value"),
-    newValue: jsonb("new_value").notNull(),
+    newValue: jsonb("new_value"), // Nullable: null is a valid new value (e.g. clearing a geometry field)
     changeReason: text("change_reason"),
     status: changeRequestStatusEnum("status").default("pending").notNull(),
     requestedBy: uuid("requested_by").references(() => users.id, {
@@ -312,7 +312,7 @@ export const changeHistory = pgTable(
     entityId: uuid("entity_id").notNull(),
     fieldName: text("field_name").notNull(),
     oldValue: jsonb("old_value"),
-    newValue: jsonb("new_value").notNull(),
+    newValue: jsonb("new_value"), // Nullable: mirrors change_requests.new_value
     changedBy: uuid("changed_by").references(() => users.id, {
       onDelete: "set null",
       onUpdate: "cascade",

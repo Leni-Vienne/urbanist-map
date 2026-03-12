@@ -193,9 +193,9 @@ export function addOverlay(
   const projectStore = useProjectStore();
 
   // Try to find project in multiple store locations
-  let project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+  let project = projectStore.projects[projectId];
 
-  // If not found in projects or allProjects, check userContributions
+  // If not found in projects, check userContributions
   if (!project) {
     const userContribution = projectStore.userContributions.find((p) => p.id === projectId);
     if (userContribution) {

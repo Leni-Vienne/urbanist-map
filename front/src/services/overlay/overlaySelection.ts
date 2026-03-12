@@ -15,10 +15,34 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayObject, Project } from "@/types/index";
+import { getProjectMarkerColor } from "@/utils/markerColors";
+import {
+  markerColors,
+  OVERLAY_OUTLINE_COLOR,
+  getOverlayMarkerColor,
+  createOverlayIcon,
+} from "@/services/map/markers";
+import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
+
+/**
+ * Resolve the hex color for an overlay's selection outline.
+ * In edit mode, uses the overlay's own state color for consistency with the marker.
+ * In other modes, uses the project's timeline color to identify project membership.
+ */
+function resolveProjectHexColor(overlayObject: OverlayObject): string {
+  const mode = useMapStore().mode;
+  if (mode === "edit") {
+    return markerColors[getOverlayMarkerColor(overlayObject, mode)];
+  }
+  const proj = overlayObject.project;
+  if (!proj) return OVERLAY_OUTLINE_COLOR;
+  const colorKey = getProjectMarkerColor(proj as unknown as Project, mode);
+  return markerColors[colorKey];
+}
 
 /**
  * Clean up previously selected overlay
@@ -49,14 +73,16 @@ function cleanupPreviousSelection(
  */
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
   // Set position state for dynamic button feedback when selecting overlay
-  // If no explicit position state, default to showing approved position
-  // UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
+  // Default to viewing the approved position on first selection
   if (newlySelected.isViewingApprovedPosition === undefined) {
-    if (newlySelected.hasPendingChanges) {
-      newlySelected.isViewingApprovedPosition = false;
-    } else {
-      newlySelected.isViewingApprovedPosition = true;
-    }
+    newlySelected.isViewingApprovedPosition = true;
+  }
+
+  // Update marker icon to reflect isViewingApprovedPosition (may have just changed from undefined)
+  const marker = getMarker(overlayId);
+  if (marker) {
+    const mode = useMapStore().mode;
+    marker.setIcon(createOverlayIcon(getOverlayMarkerColor(newlySelected, mode)));
   }
 
   // Sync preview state for reactive button highlighting in change request UI
@@ -225,7 +251,7 @@ export function applySelectionOutline(overlayObject: OverlayObject): void {
 
   const element = selLayer.getElement();
   if (element) {
-    applySelectionRing(element);
+    applySelectionRing(element, resolveProjectHexColor(overlayObject));
   }
 }
 
@@ -292,12 +318,16 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 
   if (!projectId) return;
 
-  // Don't remove outlines if an overlay in this project is selected (unless forced)
+  // Don't remove outlines if an overlay in this project is selected or the project popup is open (unless forced)
   if (!force) {
     const selectedOverlay = overlayStore.idSelectedOverlay
       ? overlayStore.overlays[overlayStore.idSelectedOverlay]
       : null;
     if (selectedOverlay?.projectId === projectId) return;
+
+    const uiStore = useUiStore();
+    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId)
+      return;
   }
 
   // Remove all outlines from overlays in this project
@@ -306,10 +336,28 @@ export function removeProjectOutlines(projectId: string, force = false): void {
       removeOverlayOutline(overlayObject);
     }
   }
+
+  // Unhighlight project shapes alongside the overlays
+  unhighlightProjectShapes(projectId);
 }
 
 /**
- * Highlight all overlays from the same project on hover
+ * Apply the project highlight ring to a single overlay element.
+ * Use this when only one overlay needs styling (e.g. on load) to avoid the O(N)
+ * store loop inside highlightProjectOverlaysOnHover.
+ * Shapes are intentionally NOT restyles here — they are already highlighted.
+ */
+export function applyProjectHighlightToElement(
+  element: HTMLElement,
+  overlayObject: OverlayObject,
+): void {
+  applySelectionRing(element, resolveProjectHexColor(overlayObject));
+}
+
+/**
+ * Highlight all overlays (and shapes) from the same project on hover/select.
+ * Each overlay uses its own state color so pending overlays keep their yellow
+ * outline while approved overlays show green — even when hovered together.
  */
 export function highlightProjectOverlaysOnHover(projectId: string): void {
   const overlayStore = useOverlayStore();
@@ -322,10 +370,41 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
       if (hoverLayer) {
         const element = hoverLayer.getElement();
         if (element) {
-          applySelectionRing(element);
+          applySelectionRing(element, resolveProjectHexColor(overlayObject));
         }
       }
     }
+  }
+
+  // Highlight project shapes alongside the overlays
+  highlightProjectShapes(projectId);
+}
+
+/**
+ * Returns the projectId that is currently "highlighted" — either because an overlay of
+ * that project is selected, or because the project info popup (shape click) is open.
+ */
+export function getCurrentHighlightedProjectId(): string | null {
+  const overlayStore = useOverlayStore();
+  const uiStore = useUiStore();
+
+  const selected = overlayStore.idSelectedOverlay
+    ? overlayStore.overlays[overlayStore.idSelectedOverlay]
+    : null;
+  return (
+    selected?.projectId ??
+    (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null)
+  );
+}
+
+/**
+ * Re-apply the highlight (overlays + shapes) for the currently highlighted project.
+ * Call after mode switches so that persisting overlay elements get the correct new-mode color.
+ */
+export function refreshSelectionHighlight(): void {
+  const projectId = getCurrentHighlightedProjectId();
+  if (projectId) {
+    highlightProjectOverlaysOnHover(projectId);
   }
 }
 

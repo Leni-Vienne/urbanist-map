@@ -47,7 +47,9 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   // This ensures marker position doesn't jump when zooming in/out
   const corners = layer.getCorners();
   if (corners.length === 4) {
+    // oxlint-disable-next-line no-non-null-assertion
     const centroidLat = (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4;
+    // oxlint-disable-next-line no-non-null-assertion
     const centroidLng = (corners[0]!.lng + corners[1]!.lng + corners[2]!.lng + corners[3]!.lng) / 4;
     marker.setLatLng([centroidLat, centroidLng]);
   }
@@ -204,14 +206,9 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     if (!overlayObject) return;
 
     // Set position state for dynamic button feedback
-    // If no explicit position state, default to showing approved position
-    // UNLESS there are pending changes, in which case default to showing the suggested position (yellow marker)
+    // Default to viewing the approved position on first click
     if (overlayObject.isViewingApprovedPosition === undefined) {
-      if (overlayObject.hasPendingChanges) {
-        overlayObject.isViewingApprovedPosition = false;
-      } else {
-        overlayObject.isViewingApprovedPosition = true;
-      }
+      overlayObject.isViewingApprovedPosition = true;
     }
 
     // Sync preview state for reactive button highlighting in change request UI
@@ -314,8 +311,7 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   // Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
   const layer = registry.getLayer(overlay.id);
   if (layer) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const actualCorners = (layer as any).getCorners();
+    const actualCorners = layer.getCorners();
     if (actualCorners?.length === 4) {
       return L.latLngBounds(actualCorners);
     }
@@ -401,7 +397,7 @@ export function checkOverlaySizeAndWarn(
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+// oxlint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();
 }

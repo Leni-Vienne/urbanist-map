@@ -7,6 +7,7 @@ import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { formatDate } from "@/utils/dateFormat";
+import { createProjectFromUserContribution } from "@/utils/typeFactories";
 import {
   projectSchema,
   getValidationErrorsMap,
@@ -188,8 +189,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
   // Handle local-only project updates (no backend submission)
   function handleLocalOnlyUpdate() {
-    const currentProject =
-      projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
+    const currentProject = projectStore.projects[options.entityId];
 
     // Check if project exists in userContributions (for projects opened from ContributePanel)
     const userContributionProject = projectStore.userContributions.find(
@@ -243,10 +243,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       }
     } else if (userContributionProject) {
       // Project only exists in userContributions - add to projects store so infopopup finds it
-      // Convert UserContribution to Project type inline
-      // error because we removed latestUpdateOn but still have to keep it in DB schema for migration reasons
       const projectFromContribution: Project = {
-        id: userContributionProject.id,
+        ...createProjectFromUserContribution(userContributionProject),
         name: formData.name,
         description: formData.description ?? null,
         proposalDate: formData.proposalDate ?? null,
@@ -256,32 +254,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         endDate: formData.endDate ?? null,
         endDatePrecision: formData.endDatePrecision ?? null,
         sourceUrl: formData.sourceUrl ?? null,
-        lat: userContributionProject.lat,
-        lng: userContributionProject.lng,
-        cityId: userContributionProject.cityId,
-        latestUpdateOn: null, // feature has been removed bur still required in DB schema, can be null
-        city: {
-          id: userContributionProject.cityId,
-          name: userContributionProject.cityName,
-          nameLocal: userContributionProject.city.nameLocal ?? null,
-          countryCode: userContributionProject.countryCode ?? "XX",
-          coordinates: { x: userContributionProject.lng ?? 0, y: userContributionProject.lat ?? 0 },
-          approvedProjectCount: 0, // Not available from contribution context
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        status: userContributionProject.status,
-        rejectionReason: null, // Not available in local edit context (only for rejected items)
-        overlayIds: userContributionProject.overlays.map((o) => o.id),
         isModified: true,
-        createdAt: userContributionProject.createdAt,
-        updatedAt: userContributionProject.updatedAt,
-        ownerId: userContributionProject.ownerId ?? null,
-        centerCoordinate: {
-          x: userContributionProject.lng ?? 0,
-          y: userContributionProject.lat ?? 0,
-        },
-        version: userContributionProject.version,
       };
 
       // Add to projects store (updateProject handles creating new entries)
@@ -306,9 +279,19 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       lat: project.lat,
       lng: project.lng,
       proposalDate: formData.proposalDate,
+      proposalDatePrecision: formData.proposalDate
+        ? (formData.proposalDatePrecision ?? project.proposalDatePrecision)
+        : null,
       startDate: formData.startDate,
+      startDatePrecision: formData.startDate
+        ? (formData.startDatePrecision ?? project.startDatePrecision)
+        : null,
       endDate: formData.endDate,
+      endDatePrecision: formData.endDate
+        ? (formData.endDatePrecision ?? project.endDatePrecision)
+        : null,
       sourceUrl: formData.sourceUrl,
+      geometry: project.geometry ?? null,
     };
 
     await trpc.project.publishProject.mutate(buildProjectPayload(projectData));
@@ -324,8 +307,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   // Validate all form data using Zod schema
   function validateFormData(): boolean {
     // Get current project for lat/lng
-    const currentProject =
-      projectStore.projects[options.entityId] ?? projectStore.allProjects[options.entityId];
+    const currentProject = projectStore.projects[options.entityId];
 
     const validationData = prepareProjectValidationData(formData, {
       lat: currentProject?.lat,

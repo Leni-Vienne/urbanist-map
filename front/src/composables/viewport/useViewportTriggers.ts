@@ -13,7 +13,16 @@ import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import {
+  saveAllOverlaysToCache,
+  setupKeyboardShortcuts,
+  updateOverlayEditingState,
+} from "@/services/overlay/overlayEditing";
+import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
 import { citiesWithProjects } from "@/services/map/cityMarkers";
+import { pendingChangeRequestsRef } from "@/composables/changes/useChanges";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
@@ -75,7 +84,7 @@ export function useViewportTriggers() {
     const markerMap = getStandaloneProjectMarkerMap();
 
     for (const [projectId, marker] of markerMap.entries()) {
-      const project = projectStore.projects[projectId] ?? projectStore.allProjects[projectId];
+      const project = projectStore.projects[projectId];
       if (project && project.cityId !== activeCityId) {
         marker.remove();
         markerMap.delete(projectId);
@@ -102,8 +111,16 @@ export function useViewportTriggers() {
     // Fallback: when zoomed in far enough that no city marker is in the viewport
     // (e.g. viewing a contribution far from the city center, or loading a shared URL),
     // find the nearest city so its data still gets loaded.
+    // Distance cap: skip the fallback if the nearest city is farther than the viewport
+    // diagonal, so we don't load a completely unrelated city when the camera is over a
+    // pending-only area whose city doesn't appear in the current mode's citiesWithProjects.
     if (visible.length === 0 && citiesWithProjects.value.length > 0) {
       const center = map.value.getCenter();
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const viewportDiagSq =
+        (ne.lat - sw.lat) * (ne.lat - sw.lat) + (ne.lng - sw.lng) * (ne.lng - sw.lng);
+
       let nearest = citiesWithProjects.value[0]!;
       let minDist = Infinity;
       for (const city of citiesWithProjects.value) {
@@ -115,6 +132,13 @@ export function useViewportTriggers() {
           nearest = city;
         }
       }
+
+      // Only use the fallback if the nearest city is reasonably close.
+      // Cap at 10× the viewport diagonal (squared): tight enough to skip a city 500 km away
+      // in view mode (the main bug), but generous enough to cover contributions that sit far
+      // from their city center (e.g. large metro areas where the city marker is 30+ km away).
+      if (minDist > viewportDiagSq * 10) return [];
+
       return [nearest];
     }
 
@@ -465,18 +489,65 @@ export function useViewportTriggers() {
    * When mode changes, clear loaded cities cache and reload visible cities
    */
   function setupModeWatcher() {
-    // When the cityMarkers mode watcher updates citiesWithProjects with edit/moderation-mode cities
-    // (including cities that have ONLY pending content and were not in view-mode citiesWithProjects),
-    // trigger a viewport refresh so those new cities get loaded without requiring camera movement.
-    // This is the primary fix for: pending overlay/standalone marker invisible after page refresh + tab switch.
-    watch(citiesWithProjects, async () => {
+    // When the cityMarkers mode watcher updates citiesWithProjects with edit/moderation-mode cities,
+    // load any cities that are genuinely new (not yet in loadedCityIds) so pending content appears
+    // immediately without requiring the user to pan or zoom.
+    //
+    // Key scenario: camera is over a city that has ONLY pending content → the city is absent from
+    // view-mode's citiesWithProjects → it's never added to loadedCityIds.  On mode switch the mode
+    // watcher only reloads cities already in loadedCityIds, leaving pending-only cities unloaded.
+    // This watcher detects those newly-visible pending-only cities and loads them via refreshViewport.
+    watch(citiesWithProjects, async (newCities, oldCities) => {
       // Only needed in non-view modes — view mode's initial refreshViewport handles it.
       if (mapStore.mode === "view") return;
-      // force=true: bypass the isLoading guard so it doesn't silently drop if a concurrent
-      // refreshViewport is running. getCityOverlaysAndProjectsCache returns cached data for
-      // already-loaded cities so this doesn't cause redundant network requests.
-      await refreshViewport(true);
+
+      if (oldCities.length === 0) {
+        // Empty→populated: initial page load in a non-view mode.
+        await refreshViewport(true);
+        return;
+      }
+
+      // Populated→repopulated: mode switch (e.g., view→edit or view→moderation).
+      // The mapStore.mode watcher reloads cities already in loadedCityIds.
+      // BUT: cities with ONLY pending content were absent from view-mode's citiesWithProjects
+      // and thus never added to loadedCityIds — they won't be reloaded by the mode watcher.
+      // Detect those genuinely new cities and trigger a targeted load so they appear
+      // immediately without requiring the user to pan or zoom.
+      const oldCityIds = new Set(oldCities.map((c) => c.id));
+      const genuinelyNewCities = newCities.filter(
+        (c) => !oldCityIds.has(c.id) && !loadedCityIds.value.has(c.id),
+      );
+      if (genuinelyNewCities.length === 0) {
+        return;
+      }
+      // force=false: only load cities not yet in loadedCityIds, avoiding duplicate work
+      // with the mode watcher that already reloads cities already present in loadedCityIds.
+      await refreshViewport(false);
     });
+
+    // When pending change requests finish loading, re-render project shapes so that
+    // approved projects with a pending shape show it immediately without requiring
+    // the user to move the camera (timing fix: render loop ran before the fetch completed).
+    watch(pendingChangeRequestsRef, () => {
+      if (mapStore.mode === "view") return;
+      clearAllProjectShapes();
+      runViewportRenderLoop();
+    });
+
+    // In moderation mode, re-render project shapes once moderation data is ready.
+    // Covers two cases:
+    //   - Initial load: render loop ran before fetchPendingSubmissions() completed
+    //   - Post-approval: moderationLoaded is reset to false then back to true after refetch
+    // Rejection is handled by the pendingChangeRequestsRef watcher above (side-effect of
+    // rejectChangeRequests() reassigning pendingChangeRequests.value).
+    watch(
+      () => useModerationStore().moderationLoaded,
+      (loaded) => {
+        if (!loaded || mapStore.mode !== "moderation") return;
+        clearAllProjectShapes();
+        runViewportRenderLoop();
+      },
+    );
 
     watch(
       () => mapStore.mode,
@@ -489,11 +560,6 @@ export function useViewportTriggers() {
         // Clear all standalone project markers on mode switch
         // They might be invalid in the new mode (e.g., local projects in view mode) as they are not store-managed
         clearAllStandaloneProjectMarkers();
-
-        // Single import for all overlayEditing symbols used in this watcher
-        // Avoids two separate dynamic import() calls to the same module
-        const { saveAllOverlaysToCache, updateOverlayEditingState, setupKeyboardShortcuts } =
-          await import("@/services/overlay/overlayEditing");
 
         // CRITICAL: Save any modified overlays before we potentially hide them
         // If we are leaving edit mode, we must save the current state to cache
@@ -545,6 +611,11 @@ export function useViewportTriggers() {
           await updateOverlayEditingState();
           setupKeyboardShortcuts();
 
+          // Re-apply highlight with the new mode's color for the currently selected/popup project.
+          // Persisting overlay elements (not re-created on mode switch) keep their old ring color
+          // unless explicitly refreshed here.
+          refreshSelectionHighlight();
+
           // CRITICAL FIX: After reloading, explicitly create standalone markers for local projects
           // This ensures markers appear immediately without requiring user to click city or zoom
           if (newMode === "edit") {
@@ -577,6 +648,7 @@ export function useViewportTriggers() {
           // Still apply editing state and shortcuts even when no prior content was loaded
           await updateOverlayEditingState();
           setupKeyboardShortcuts();
+          refreshSelectionHighlight();
         }
       },
     );

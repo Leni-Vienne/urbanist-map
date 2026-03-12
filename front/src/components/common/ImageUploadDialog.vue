@@ -142,6 +142,7 @@ import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
+import { addOverlay } from "@/services/overlay/overlayEditing";
 
 const { t } = useI18n();
 const uiStore = useUiStore();
@@ -284,7 +285,6 @@ async function handleConfirm() {
   }
 
   try {
-    const { addOverlay } = await import("@/services/overlay/overlayEditing");
     // Check if this is a replacement overlay
     const replacementId = overlayStore.replacementOverlayId;
 
