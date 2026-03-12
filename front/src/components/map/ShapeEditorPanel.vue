@@ -76,7 +76,21 @@ async function handleFileImport(event: Event) {
   // Reset input so the same file can be re-imported regardless of outcome
   if (fileInputRef.value) fileInputRef.value.value = "";
   try {
-    const geometry = await loadGeoJSONFile(file);
+    const { geometry, skippedGeometryTypes } = await loadGeoJSONFile(file);
+
+    if (skippedGeometryTypes.length > 0) {
+      toast.add({
+        severity: "warn",
+        summary: t("shapes.importGeoJSON"),
+        detail: t("shapes.importSkippedGeometryTypes", {
+          types: skippedGeometryTypes.join(", "),
+        }),
+        life: 4000,
+      });
+    }
+
+    if (geometry.geometries.length === 0) return;
+
     const bounds = addLayersFromGeometry(map.value, geometry);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 17 });

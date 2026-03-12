@@ -4,6 +4,35 @@ import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import L from "leaflet";
 
+const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
+const supportedImportGeometryTypes = new Set([...drawableGeometryTypes, "Point", "MultiPoint"]);
+
+export type LoadedGeoJSON = {
+  geometry: GeoJSON.GeometryCollection;
+  skippedGeometryTypes: string[];
+};
+
+function filterDrawableGeometries(
+  geometries: (GeoJSON.Geometry | null | undefined)[],
+): LoadedGeoJSON {
+  const drawable: GeoJSON.Geometry[] = [];
+  const skipped = new Set<string>();
+
+  for (const geometry of geometries) {
+    if (!geometry) continue;
+    if (drawableGeometryTypes.has(geometry.type)) {
+      drawable.push(geometry);
+    } else {
+      skipped.add(geometry.type);
+    }
+  }
+
+  return {
+    geometry: { type: "GeometryCollection", geometries: drawable },
+    skippedGeometryTypes: [...skipped],
+  };
+}
+
 // Track layers added from existing geometry (not tracked by Geoman as "drawn" layers).
 let geometryLayers: L.Layer[] = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,7 +121,8 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((layer) => (layer as L.Polyline | L.Polygon).toGeoJSON() as GeoJSON.Feature | undefined)
     .filter((f): f is GeoJSON.Feature => f?.type === "Feature" && f.geometry !== null)
-    .map((f) => f.geometry);
+    .map((f) => f.geometry)
+    .filter((geometry) => drawableGeometryTypes.has(geometry.type));
 
   return { type: "GeometryCollection", geometries };
 }
@@ -111,7 +141,7 @@ export function addLayersFromGeometry(
   // whose toGeoJSON() returns a FeatureCollection that fails the Feature type check in getDrawnGeometry.
   // Wrapping each geometry separately guarantees one Leaflet layer per geometry,
   // each with a toGeoJSON() that returns a proper Feature.
-  for (const geom of geometry.geometries) {
+  for (const geom of geometry.geometries.filter((item) => drawableGeometryTypes.has(item.type))) {
     const feature: GeoJSON.Feature = { type: "Feature", geometry: geom, properties: {} };
     const layer = L.geoJSON(feature).getLayers()[0];
     if (!layer) continue;
@@ -134,11 +164,11 @@ export function addLayersFromGeometry(
 }
 
 /**
- * Read a .geojson / .json file and return a GeometryCollection.
- * Handles both FeatureCollection and GeometryCollection inputs.
+ * Read a .geojson / .json file and return drawable shapes plus any skipped geometry types.
+ * Handles FeatureCollection, GeometryCollection, Feature, and raw geometry inputs.
  * Throws a descriptive Error if the file is not valid JSON or not a recognised GeoJSON type.
  */
-export async function loadGeoJSONFile(file: File): Promise<GeoJSON.GeometryCollection> {
+export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
   const text = await file.text();
   const parsed = (() => {
     try {
@@ -152,29 +182,20 @@ export async function loadGeoJSONFile(file: File): Promise<GeoJSON.GeometryColle
     const geometries = parsed.features
       .map((f) => f.geometry)
       .filter((g): g is GeoJSON.Geometry => g !== null);
-    return { type: "GeometryCollection", geometries };
+    return filterDrawableGeometries(geometries);
   }
 
   if (parsed.type === "GeometryCollection") {
-    return parsed;
+    return filterDrawableGeometries(parsed.geometries);
   }
 
   // Single geometry or Feature
   if (parsed.type === "Feature" && parsed.geometry) {
-    return { type: "GeometryCollection", geometries: [parsed.geometry] };
+    return filterDrawableGeometries([parsed.geometry]);
   }
 
-  // Raw geometry types (Point, LineString, Polygon, Multi*, …)
-  const rawGeometryTypes = [
-    "Point",
-    "MultiPoint",
-    "LineString",
-    "MultiLineString",
-    "Polygon",
-    "MultiPolygon",
-  ];
-  if (rawGeometryTypes.includes(parsed.type)) {
-    return { type: "GeometryCollection", geometries: [parsed as GeoJSON.Geometry] };
+  if (supportedImportGeometryTypes.has(parsed.type)) {
+    return filterDrawableGeometries([parsed as GeoJSON.Geometry]);
   }
 
   throw new Error(

@@ -189,8 +189,10 @@ export function setVectorTiles(enabled: boolean) {
   }
 }
 
-// Reference to the currently active tile layer instance
+/** Reference to the currently active tile layer instance */
 let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
+/** tracks the currently active base layer, useful when using satelite layer with maplibre-gl */
+let activeBaseLayer: L.Layer | null = null;
 
 // Tile layer configurations with UI labels
 const tileLayerConfigs = {
@@ -251,7 +253,7 @@ const tileLayerConfigs = {
 
 export function addTileLayer(): void {
   // Check if tile layers were lost during hot reload
-  if (!activeTileLayer) {
+  if (!activeBaseLayer) {
     void addTileLayersToMap();
   }
 
@@ -304,19 +306,22 @@ async function addTileLayersToMap(): Promise<void> {
   try {
     if (useVectorTiles.value) {
       await ensureMaplibreLoaded();
-      activeTileLayer = (L as any)
+      activeBaseLayer = (L as any)
         .maplibreGL({
           style: "https://tiles.openfreemap.org/styles/liberty",
         })
         .addTo(map.value);
+      activeTileLayer = null;
     } else {
       activeTileLayer = createTileLayer("osm");
       activeTileLayer.addTo(map.value);
+      activeBaseLayer = activeTileLayer;
     }
   } catch (error) {
     console.error("Failed to initialize tile layers:", error);
     const fallbackLayer = createTileLayer("osm");
     activeTileLayer = fallbackLayer;
+    activeBaseLayer = fallbackLayer;
     activeTileLayer.addTo(map.value);
   }
 }
@@ -359,15 +364,25 @@ export async function switchTileLayer(layerType: TileLayerType) {
     fallbackRemovalTimer = null;
   }
 
+  const previousBaseLayer = activeBaseLayer;
   const newLayer = createTileLayer(resolvedLayerType);
   newLayer.addTo(map.value);
 
   activeTileLayer = newLayer;
+  activeBaseLayer = newLayer;
   currentTileLayer.value = resolvedLayerType;
 
   // Robust Cleanup Strategy (Last Write Wins)
   // Iterate through all layers and remove any TileLayer that is NOT the active one.
   function cleanupLayers() {
+    if (
+      previousBaseLayer &&
+      previousBaseLayer !== activeBaseLayer &&
+      map.value.hasLayer(previousBaseLayer)
+    ) {
+      map.value.removeLayer(previousBaseLayer);
+    }
+
     map.value.eachLayer((layer) => {
       if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
         map.value.removeLayer(layer);
