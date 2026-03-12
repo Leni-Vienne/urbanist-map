@@ -225,6 +225,21 @@ export const changesRouter = router({
           });
         }
 
+        // Validate field values before writing to the DB
+        for (const change of input.changes) {
+          if (input.entityType === "project" && change.fieldName === "geometry") {
+            if (change.newValue !== null && change.newValue !== undefined) {
+              const parsed = GeoJSONGeometryCollectionSchema.safeParse(change.newValue);
+              if (!parsed.success) {
+                throw new TRPCError({
+                  code: "BAD_REQUEST",
+                  message: "Invalid geometry: must be a valid GeoJSON GeometryCollection",
+                });
+              }
+            }
+          }
+        }
+
         // Process each change request - replace existing ones for the same field from the same user
         await db.transaction(async (tx) => {
           for (const change of input.changes) {

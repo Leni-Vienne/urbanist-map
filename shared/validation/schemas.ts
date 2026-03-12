@@ -130,25 +130,75 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8, "validation.passwordTooShort"),
 });
 
+// Allowed field names per entity type and their value validators
+const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
+  name: z.string().min(1).max(35),
+  description: z.string().max(2000).or(z.literal("")).nullable(),
+  sourceUrl: z.url().or(z.literal("")).nullable(),
+  proposalDate: z.date().nullable(),
+  startDate: z.date().nullable(),
+  endDate: z.date().nullable(),
+  proposalDatePrecision: z.enum(["year", "month", "day"]).nullable(),
+  startDatePrecision: z.enum(["year", "month", "day"]).nullable(),
+  endDatePrecision: z.enum(["year", "month", "day"]).nullable(),
+  cityId: z.number().int().positive(),
+  geometry: GeoJSONGeometryCollectionSchema.nullable(),
+};
+
+const OVERLAY_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
+  caption: z.string().max(500).or(z.literal("")).nullable(),
+  corners: z
+    .array(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
+    .length(4),
+};
+
 // Change request validation schema
-export const submitChangeRequestSchema = z.object({
-  entityType: z.enum(["project", "overlay"]),
-  entityId: z.uuid(),
-  changes: z
-    .array(
-      z.object({
-        fieldName: z.string().min(1, "validation.fieldNameRequired"),
-        oldValue: z.any().optional(),
-        newValue: z.any(),
-        changeReason: z
-          .string()
-          .or(z.literal(""))
-          .transform((val) => (val === "" ? undefined : val))
-          .optional(),
-      }),
-    )
-    .min(1, "validation.changesRequired"),
-});
+export const submitChangeRequestSchema = z
+  .object({
+    entityType: z.enum(["project", "overlay"]),
+    entityId: z.uuid(),
+    changes: z
+      .array(
+        z.object({
+          fieldName: z.string().min(1, "validation.fieldNameRequired"),
+          oldValue: z.any().optional(),
+          newValue: z.any(),
+          changeReason: z
+            .string()
+            .or(z.literal(""))
+            .transform((val) => (val === "" ? undefined : val))
+            .optional(),
+        }),
+      )
+      .min(1, "validation.changesRequired"),
+  })
+  .superRefine((data, ctx) => {
+    const validators =
+      data.entityType === "project" ? PROJECT_FIELD_VALIDATORS : OVERLAY_FIELD_VALIDATORS;
+
+    data.changes.forEach((change, i) => {
+      const validator = validators[change.fieldName];
+
+      if (!validator) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Invalid field name "${change.fieldName}" for entity type "${data.entityType}"`,
+          path: ["changes", i, "fieldName"],
+        });
+        return;
+      }
+
+      const result = validator.safeParse(change.newValue);
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          ctx.addIssue({
+            ...issue,
+            path: ["changes", i, "newValue", ...issue.path],
+          });
+        }
+      }
+    });
+  });
 
 // Validation error with i18n key and parameters
 export interface ValidationError {

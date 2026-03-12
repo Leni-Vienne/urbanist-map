@@ -63,7 +63,7 @@
     "vue-i18n": "^11.3.0",
     "vue-router": "^5.0.3",
     "zod": "^4.3.6",
-    "zod-geojson": "^1.6.3"
+    "zod-geojson": "https://github.com/Leni-Vienne/zod-geojson"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260310.1",
