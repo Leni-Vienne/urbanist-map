@@ -61,7 +61,8 @@
     "caption": "Name",
     "lat": "Latitude",
     "lng": "Longitude",
-    "geometry": "Shapes"
+    "geometry": "Shapes",
+    "tags": "Tags"
   },
   "navigation": {
     "latestContributions": "Latest Contributions",

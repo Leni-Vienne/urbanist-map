@@ -206,6 +206,7 @@
           :key="tag.slug"
           type="button"
           class="px-3 py-1 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+          :aria-pressed="localFormData.tags.includes(tag.slug)"
           :style="
             localFormData.tags.includes(tag.slug)
               ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
@@ -213,7 +214,7 @@
           "
           @click="toggleTag(tag.slug)"
         >
-          {{ $t(`tags.${tag.slug}`) }}
+          {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
         </button>
       </div>
     </div>

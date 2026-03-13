@@ -22,7 +22,9 @@ export async function resolveShapeEditorGeometry(
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
-  const localStoredGeometry = projectStore.projects[projectId]?.geometry ?? null;
+  // Use undefined (not null) as "not found" sentinel so that an explicit null
+  // (e.g. "delete all shapes") is preserved rather than falling through.
+  const localStoredGeometry = projectStore.projects[projectId]?.geometry; // undefined if project absent, null if explicitly cleared
   const pendingGeometryChange = getPendingChangeRequests().find(
     (cr) =>
       cr.requestedBy === authStore.user?.id &&
@@ -32,8 +34,10 @@ export async function resolveShapeEditorGeometry(
       cr.status === "pending",
   );
   const pendingGeometry = pendingGeometryChange
-    ? (pendingGeometryChange.newValue as GeoJSON.GeometryCollection)
-    : null;
+    ? (pendingGeometryChange.newValue as GeoJSON.GeometryCollection | null)
+    : undefined;
 
-  return localStoredGeometry ?? pendingGeometry ?? fallbackGeometry;
+  if (localStoredGeometry !== undefined) return localStoredGeometry;
+  if (pendingGeometry !== undefined) return pendingGeometry;
+  return fallbackGeometry;
 }
