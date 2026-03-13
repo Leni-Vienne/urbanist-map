@@ -18,7 +18,7 @@ interface CountryBorder {
   bbox: BoundingBox;
 }
 
-type CountryCode = "FRA" | "CHE";
+type CountryCode = "FRA" | "CHE" | "CAN";
 
 // Helper to convert bbox array to BoundingBox object
 function toBoundingBox(bbox: number[]): BoundingBox {
@@ -39,7 +39,11 @@ let countryBorders: CountryBorder[] | undefined;
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
   if (countryBorders) return countryBorders;
 
-  const { FRA: fraGeoJson, CHE: cheGeoJson } = await import("@/assets/country-borders");
+  const {
+    FRA: fraGeoJson,
+    CHE: cheGeoJson,
+    CAN: canGeoJson,
+  } = await import("@/assets/country-borders");
 
   countryBorders = [
     {
@@ -51,6 +55,11 @@ async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
       code: "CHE",
       geojson: cheGeoJson as FeatureCollection<Polygon | MultiPolygon>,
       bbox: toBoundingBox(countryBboxes.CHE),
+    },
+    {
+      code: "CAN",
+      geojson: canGeoJson as FeatureCollection<Polygon | MultiPolygon>,
+      bbox: toBoundingBox(countryBboxes.CAN),
     },
   ];
 
@@ -163,7 +172,7 @@ async function detectCountryFromCoordinates(
 const BASELINE_ESRI_MAX_ZOOM = 18;
 
 // Available tile layer types (FRA and CHE are used internally via auto-detection)
-export type TileLayerType = "FRA" | "esri" | "CHE" | "osm";
+export type TileLayerType = "FRA" | "esri" | "CHE" | "CAN" | "osm";
 
 // Current active tile layer (OSM as default for built-in labels)
 export const currentTileLayer = ref<TileLayerType>("osm");
@@ -243,6 +252,17 @@ const tileLayerConfigs = {
       maxNativeZoom: 20,
       tileSize: 256,
       attribution: "© swisstopo",
+    },
+  },
+  CAN: {
+    label: "Canada",
+    url: "https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/{z}/{y}/{x}.jpg",
+    options: {
+      minZoom: 0,
+      maxZoom: 22,
+      maxNativeZoom: 21, // there is a level 22 but it's the same quality as 21
+      tileSize: 256,
+      attribution: "donneesquebec.ca",
     },
   },
 };
@@ -404,7 +424,7 @@ export async function switchTileLayer(layerType: TileLayerType) {
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return ["FRA", "esri", "CHE", "osm"].includes(value);
+  return ["FRA", "esri", "CHE", "CAN", "osm"].includes(value);
 }
 
 // Debounce timer for metadata queries

@@ -315,8 +315,9 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
 // Handle draw-shapes button — open the shape editor for a project
 async function handleDrawShapes(project: Project) {
   // Capture geometry from popup context BEFORE closing popups (refs become null after).
-  // project.geometry may be null if the project was populated from getCityProjects which does
-  // not return a geometry column. The overlay/popup project objects carry the full backend data.
+  // project.geometry may be null if the project has no shapes yet, or if this project instance
+  // came from a reduced/cached source that does not include geometry. The overlay/popup project
+  // objects are expected to carry the full backend data (including geometry when it exists).
   const fallbackGeometry =
     overlayObject.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
 
