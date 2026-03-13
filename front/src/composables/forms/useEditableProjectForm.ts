@@ -212,6 +212,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       endDate: formData.endDate ?? null,
       endDatePrecision: formData.endDatePrecision ?? null,
       sourceUrl: formData.sourceUrl ?? null,
+      tags: formData.tags ?? [],
     });
 
     // Update or create project in projectStore.projects for infopopup sync
@@ -231,6 +232,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         sourceUrl: formData.sourceUrl,
         cityId: formData.cityId ?? undefined,
         city: cityObject,
+        tags: formData.tags ?? [],
         isModified: true,
       };
 
@@ -254,6 +256,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         endDate: formData.endDate ?? null,
         endDatePrecision: formData.endDatePrecision ?? null,
         sourceUrl: formData.sourceUrl ?? null,
+        tags: formData.tags ?? [],
         isModified: true,
       };
 
