@@ -111,7 +111,30 @@ const FIELD_DISPLAY_NAMES: Record<string, string> = {
   startDatePrecision: "Start Date Precision",
   endDatePrecision: "End Date Precision",
   geometry: "Shapes",
+  tags: "Tags",
 };
+
+// Normalize a project field value for change comparison
+function normalizeFieldValue(
+  field: keyof Project,
+  value: unknown,
+  projectSource: Partial<Project>,
+): unknown {
+  const fieldStr = String(field);
+  if (["proposalDate", "startDate", "endDate"].includes(fieldStr)) {
+    return normalizeDate(value);
+  }
+  if (fieldStr === "geometry") {
+    return hasShapes(value) ? JSON.stringify(value) : null;
+  }
+  if (getPrecisionDateField(field) !== null) {
+    return normalizeDatePrecision(field, value, projectSource);
+  }
+  if (fieldStr === "tags") {
+    return JSON.stringify(Array.isArray(value) ? (value as unknown[]).toSorted() : []);
+  }
+  return value ?? "";
+}
 
 // Check if a geometry value contains at least one shape
 function hasShapes(v: unknown): boolean {
@@ -247,6 +270,7 @@ export function useSubmissionService() {
       "proposalDatePrecision",
       "startDatePrecision",
       "geometry",
+      "tags",
     ];
 
     for (const field of fieldsToCheck) {
@@ -254,39 +278,31 @@ export function useSubmissionService() {
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
-      // Special handling for date fields
-      const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
       const isGeometryField = String(field) === "geometry";
-      const isDatePrecisionField = getPrecisionDateField(field) !== null;
+      const isArrayField = String(field) === "tags";
 
-      // Geometry uses JSON stringification for comparison; dates use normalization; others use raw value
-      let normalizedOld: unknown = null;
-      let normalizedNew: unknown = null;
-      if (isDateField) {
-        normalizedOld = normalizeDate(oldValue);
-        normalizedNew = normalizeDate(newValue);
-      } else if (isGeometryField) {
-        normalizedOld = hasShapes(oldValue) ? JSON.stringify(oldValue) : null;
-        normalizedNew = hasShapes(newValue) ? JSON.stringify(newValue) : null;
-      } else if (isDatePrecisionField) {
-        normalizedOld = normalizeDatePrecision(
-          field,
-          oldValue,
-          originalProject as Partial<Project>,
-        );
-        normalizedNew = normalizeDatePrecision(field, newValue, project);
-      } else {
-        normalizedOld = oldValue ?? "";
-        normalizedNew = newValue ?? "";
-      }
+      const normalizedOld = normalizeFieldValue(
+        field,
+        oldValue,
+        originalProject as Partial<Project>,
+      );
+      const normalizedNew = normalizeFieldValue(field, newValue, project);
 
       if (normalizedOld !== normalizedNew) {
-        // Store raw objects for geometry so the backend receives proper JSON, not a string
-        const storedOldValue = isGeometryField && normalizedOld !== null ? oldValue : normalizedOld;
+        // Store raw objects for geometry/arrays so the backend receives proper JSON, not a string
+        let pushedOldValue: unknown = normalizedOld;
+        let pushedNewValue: unknown = normalizedNew;
+        if (isGeometryField) {
+          pushedOldValue = normalizedOld !== null ? oldValue : normalizedOld;
+          pushedNewValue = newValue ?? null;
+        } else if (isArrayField) {
+          pushedOldValue = oldValue;
+          pushedNewValue = newValue;
+        }
         changes.push({
           fieldName: String(field),
-          oldValue: storedOldValue,
-          newValue: isGeometryField ? (newValue ?? null) : normalizedNew,
+          oldValue: pushedOldValue,
+          newValue: pushedNewValue,
           changeReason: customReason ?? undefined,
         });
       }
