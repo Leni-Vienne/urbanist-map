@@ -81,7 +81,16 @@ const originalProject = computed(() => {
 });
 
 const projectData = computed(() => projectToFormData(originalProject.value));
-const currentProjectData = computed(() => projectToFormData(props.project));
+const currentProjectData = computed(() => {
+  // Prefer the map store version if locally modified (updated by handleLocalOnlyUpdate)
+  const storeProject = projectStore.projects[props.project.id];
+  if (storeProject?.isModified) {
+    return projectToFormData(storeProject);
+  }
+  // Fall back to originalProject (authoritative backend state) rather than props.project
+  // which may come from a stale userContributions cache (e.g. tags wiped by a previous buggy save)
+  return projectToFormData(originalProject.value ?? props.project);
+});
 
 const form = useEditableProjectForm({
   entityId: props.project.id,

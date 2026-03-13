@@ -3,6 +3,7 @@
   "features": [
     {
       "type": "Feature",
+      "properties": { "GID_0": "CHE", "COUNTRY": "Switzerland" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [
@@ -200,8 +201,7 @@
             [8.6595, 47.6906]
           ]
         ]
-      },
-      "properties": { "GID_0": "CHE", "COUNTRY": "Switzerland" }
+      }
     }
   ]
 }

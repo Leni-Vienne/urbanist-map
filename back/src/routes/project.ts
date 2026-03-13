@@ -133,7 +133,7 @@ export const projectRouter = router({
               endDatePrecision: data.endDatePrecision,
               sourceUrl: data.sourceUrl,
               geometry: data.geometry ?? null,
-              tags: data.tags ?? null,
+              ...(data.tags !== undefined && { tags: data.tags }),
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),
             })
