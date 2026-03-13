@@ -363,6 +363,7 @@ function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): 
     ...project,
     overlayIds: [],
     geometry: project.geometry ?? null,
+    tags: project.tags ?? [],
   });
 }
 

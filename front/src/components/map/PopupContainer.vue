@@ -152,6 +152,7 @@ function convertAndCacheBackendProject(
     city: backendProject.city,
     overlayIds: overlaysForProject, // Use actual loaded overlays, not empty array!
     geometry: backendProject.geometry ?? null,
+    tags: backendProject.tags ?? [],
   };
 
   // Add to store for future use (or update if already exists)
