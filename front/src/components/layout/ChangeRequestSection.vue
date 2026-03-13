@@ -1,24 +1,21 @@
 ﻿<template>
   <div :class="['mt-4', containerClass]">
-    <div v-if="showHeader" class="mb-3">
-      <div v-if="isOverlayChanges" class="flex items-center gap-2">
-        <i class="pi pi-exclamation-triangle text-muted-color"></i>
-        <span class="text-[0.8125rem] font-semibold text-muted-color">
+    <div v-if="showHeader" class="mb-2.5">
+      <div class="flex items-center gap-1.5">
+        <i class="pi pi-info-circle text-amber-700 dark:text-amber-400 text-[11px]"></i>
+        <span class="text-[13px] font-medium text-amber-800 dark:text-amber-400">
           {{
-            isMyContributions
-              ? $t("moderation.yourPendingChanges")
-              : $t("moderation.pendingChangesFor", {
-                  name: entityName,
-                })
+            isOverlayChanges
+              ? isMyContributions
+                ? $t("moderation.yourPendingChanges")
+                : $t("moderation.pendingChangesFor", { name: entityName })
+              : isMyContributions
+                ? $t("moderation.yourPendingChanges")
+                : $t("moderation.pendingChanges")
           }}
         </span>
       </div>
-      <h3 v-else class="m-0 mb-3 text-sm font-semibold text-color">
-        {{
-          isMyContributions ? $t("moderation.yourPendingChanges") : $t("moderation.pendingChanges")
-        }}
-      </h3>
-      <p v-if="isMyContributions" class="mt-2 text-xs text-muted-color italic">
+      <p v-if="isMyContributions" class="mt-1.5 text-xs text-muted-color italic">
         {{ $t("moderation.moderatorReviewRequired") }}
       </p>
     </div>
@@ -41,8 +38,9 @@
           <div class="flex flex-row items-center gap-3">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
-                <strong class="text-color text-[0.8125rem]"
-                  >{{ formatFieldName(group.change.fieldName) }}:</strong
+                <span
+                  class="text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color"
+                  >{{ formatFieldName(group.change.fieldName) }}</span
                 >
               </div>
               <ChangeValueDisplay
