@@ -221,6 +221,8 @@
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
       "filterByStatus": "Filtrer par statut",
+      "filterByTags": "Filtrer par catégories",
+      "untagged": "Non catégorisé",
       "proposed": "Proposé",
       "planned": "Planifié",
       "inProgress": "En cours",

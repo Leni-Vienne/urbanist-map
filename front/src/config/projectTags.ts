@@ -11,10 +11,10 @@ export interface ProjectTag {
 }
 
 export const PROJECT_TAGS: ProjectTag[] = [
-  { slug: "tram", color: "#f472b6", textColor: "#ffffff" }, // pink-400
+  { slug: "tram", color: "#d877b8", textColor: "#ffffff" }, // pink-400
   { slug: "rail", color: "#f97316", textColor: "#ffffff" }, // orange-500
-  { slug: "subway", color: "#a855f7", textColor: "#ffffff" }, // purple-500
-  { slug: "bus", color: "#eab308", textColor: "#ffffff" }, // yellow-500
+  { slug: "subway", color: "#0202fe", textColor: "#ffffff" }, // purple-500
+  { slug: "bus", color: "#ce4444", textColor: "#ffffff" }, // muted dark red
   { slug: "bike", color: "#16a34a", textColor: "#ffffff" }, // green-600
   { slug: "road", color: "#64748b", textColor: "#ffffff" }, // slate-500
   { slug: "bridge", color: "#6366f1", textColor: "#ffffff" }, // indigo-500
