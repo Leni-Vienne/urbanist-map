@@ -17,7 +17,7 @@
     :draggable="false"
     :header="$t('projectSelector.suggestChanges')"
     @update:visible="uiStore.closeProjectEditForm"
-    :pt="{ root: { class: 'max-w-[90vw]' }, content: { class: '!p-0' } }"
+    :pt="{ root: { class: 'w-[40rem] max-w-[92vw]' }, content: { class: '!p-0' } }"
   >
     <EditProjectForm
       v-if="projectEditForm.data"
