@@ -383,10 +383,10 @@ export function useSubmissionService() {
 
     // Project-specific validation with Zod
     if (context.entityType === "project") {
-      const validationData = prepareProjectValidationData(context.entity, {
-        lat: context.entity.lat,
-        lng: context.entity.lng,
-      });
+      const validationData = prepareProjectValidationData(
+        { ...context.entity, tags: context.entity.tags ?? [] },
+        { lat: context.entity.lat, lng: context.entity.lng },
+      );
 
       const result = projectSchema.safeParse(validationData);
 

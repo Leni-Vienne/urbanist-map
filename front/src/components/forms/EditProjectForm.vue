@@ -99,6 +99,7 @@ const projectData = computed(() => ({
   endDate: toDateObject(originalProject.value.endDate),
   endDatePrecision: originalProject.value.endDatePrecision ?? null,
   cityId: originalProject.value.cityId,
+  tags: originalProject.value.tags ?? [],
 }));
 
 // Use current project values for the form's initial state (what user will see and edit)
@@ -113,6 +114,7 @@ const currentProjectData = computed(() => ({
   endDate: toDateObject(props.project.endDate),
   endDatePrecision: props.project.endDatePrecision ?? null,
   cityId: props.project.cityId,
+  tags: props.project.tags ?? [],
 }));
 
 const form = useEditableProjectForm({

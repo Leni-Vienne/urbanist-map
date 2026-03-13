@@ -13,6 +13,16 @@
               {{ project.description }}
             </p>
           </div>
+          <div v-if="project.tags && project.tags.length > 0" class="flex flex-wrap gap-1.5 mb-3">
+            <span
+              v-for="tag in project.tags"
+              :key="tag"
+              class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
+              :style="getTagStyle(tag)"
+            >
+              {{ $t(`tags.${tag}`, tag) }}
+            </span>
+          </div>
           <div class="flex flex-col gap-2">
             <div class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)">
               <i class="pi pi-clock text-xs text-muted-color w-3.5 shrink-0"></i>
@@ -257,8 +267,15 @@ import { getStatusSeverity } from "@/utils/statusHelpers";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
 import { formatProjectDateRange } from "@/utils/projectDateFormat";
+import { PROJECT_TAG_MAP } from "@/config/projectTags";
 
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
+
+function getTagStyle(slug: string): Record<string, string> {
+  const tag = PROJECT_TAG_MAP.get(slug);
+  if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
+  return { backgroundColor: tag.color, color: tag.textColor };
+}
 
 interface Props {
   project: ProjectForModeration;

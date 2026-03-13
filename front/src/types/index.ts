@@ -107,9 +107,6 @@ export interface Project extends Omit<DBProject, "status"> {
   // Computed fields for all contexts
   city: DBCity;
   overlayIds: string[];
-  name: string; // Computed from project name field
-  // Geometry for project shapes (lines + polygons drawn via geoman)
-  geometry: GeoJSON.GeometryCollection | null;
   // UI state for tracking local modifications
   isModified?: boolean;
 }
@@ -125,6 +122,7 @@ export interface ProjectFormData {
   endDatePrecision: "year" | "month" | "day" | null;
   cityId: number | null;
   sourceUrl: string | null;
+  tags: string[];
 }
 
 // Import shared overlay data type
@@ -190,6 +188,7 @@ export type ProjectForModeration = Pick<
   | "lat"
   | "lng"
   | "cityId"
+  | "tags"
 > & {
   ownerId?: string | null; // For spam prevention reporting (optional, only in moderation)
   ownerUsername?: string | null; // Display friendly username in moderation UI

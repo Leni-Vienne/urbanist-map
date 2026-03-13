@@ -40,6 +40,7 @@ const formData = reactive<ProjectFormData>({
   endDatePrecision: props.project.endDatePrecision ?? null,
   cityId: props.project.cityId ?? null,
   sourceUrl: props.project.sourceUrl ?? null,
+  tags: props.project.tags ?? [],
 });
 
 const isProposed = ref(false);
@@ -63,6 +64,7 @@ watch(
     formData.endDate = p.endDate ?? null;
     formData.cityId = p.cityId ?? null;
     formData.sourceUrl = p.sourceUrl ?? null;
+    formData.tags = p.tags ?? [];
   },
   { deep: true },
 );
@@ -93,6 +95,7 @@ function handleSubmit() {
     startDatePrecision: isProposed.value ? null : formData.startDatePrecision,
     endDate: isProposed.value ? null : formData.endDate,
     endDatePrecision: isProposed.value ? null : formData.endDatePrecision,
+    tags: formData.tags.length > 0 ? formData.tags : null,
   };
 
   // Include city object if available

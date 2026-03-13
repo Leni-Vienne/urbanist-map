@@ -10,10 +10,12 @@ const supportedImportGeometryTypes = new Set([...drawableGeometryTypes, "Point",
 type LoadedGeoJSON = {
   geometry: GeoJSON.GeometryCollection;
   skippedGeometryTypes: string[];
+  featureProperties: Record<string, unknown>[];
 };
 
 function filterDrawableGeometries(
   geometries: (GeoJSON.Geometry | null | undefined)[],
+  featureProperties: Record<string, unknown>[] = [],
 ): LoadedGeoJSON {
   const drawable: GeoJSON.Geometry[] = [];
   const skipped = new Set<string>();
@@ -30,6 +32,7 @@ function filterDrawableGeometries(
   return {
     geometry: { type: "GeometryCollection", geometries: drawable },
     skippedGeometryTypes: [...skipped],
+    featureProperties,
   };
 }
 
@@ -65,10 +68,11 @@ export function initShapeEditor(
     editControls: false,
   });
 
-  // Enable edit mode on newly drawn layers so nodes are draggable immediately.
-  // Guard against double-init: remove any previously registered handler before reassigning,
-  // so that calling initShapeEditor twice without destroyShapeEditor in between doesn't
-  // accumulate listeners that can never be cleaned up.
+  // Double-init guard: remove geometry layers from any previous init.
+  for (const layer of geometryLayers) layer.remove();
+  geometryLayers = [];
+
+  // Enable edit mode on newly drawn layers immediately; swap handler to avoid accumulating listeners.
   if (pmCreateHandler) {
     mapInstance.off("pm:create", pmCreateHandler);
   }
@@ -112,9 +116,6 @@ export function destroyShapeEditor(mapInstance: L.Map): void {
  * so that saving always produces the full set of shapes (not just newly added ones).
  */
 export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection {
-  // Combine geoman-tracked draw layers with layers loaded from existing geometry.
-  // Geoman's getGeomanDrawLayers() only returns layers it created itself — layers added
-  // via addLayersFromGeometry (existing shapes) are tracked separately in geometryLayers.
   const allLayers = [...mapInstance.pm.getGeomanDrawLayers(), ...geometryLayers];
 
   const geometries = allLayers
@@ -182,7 +183,10 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
     const geometries = parsed.features
       .map((f) => f.geometry)
       .filter((g): g is GeoJSON.Geometry => g !== null);
-    return filterDrawableGeometries(geometries);
+    const featureProperties = parsed.features.map(
+      (f) => (f.properties ?? {}) as Record<string, unknown>,
+    );
+    return filterDrawableGeometries(geometries, featureProperties);
   }
 
   if (parsed.type === "GeometryCollection") {
@@ -191,7 +195,10 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
 
   // Single geometry or Feature
   if (parsed.type === "Feature" && parsed.geometry) {
-    return filterDrawableGeometries([parsed.geometry]);
+    const featureProperties = parsed.properties
+      ? [parsed.properties as Record<string, unknown>]
+      : [];
+    return filterDrawableGeometries([parsed.geometry], featureProperties);
   }
 
   if (supportedImportGeometryTypes.has(parsed.type)) {
