@@ -20,7 +20,7 @@
               class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
               :style="getTagStyle(tag)"
             >
-              {{ $t(`tags.${tag}`, tag) }}
+              {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
             </span>
           </div>
           <div class="flex flex-col gap-2">

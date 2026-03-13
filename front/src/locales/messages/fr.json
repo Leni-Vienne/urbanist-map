@@ -61,7 +61,8 @@
     "caption": "Nom",
     "lat": "Latitude",
     "lng": "Longitude",
-    "geometry": "Formes"
+    "geometry": "Formes",
+    "tags": "Catégories"
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",

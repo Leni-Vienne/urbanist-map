@@ -96,24 +96,6 @@ interface ValidationResult {
   errors: string[];
 }
 
-// Field display names for user-friendly labels in UI
-const FIELD_DISPLAY_NAMES: Record<string, string> = {
-  name: "Project Name",
-  description: "Description",
-  sourceUrl: "Source URL",
-  proposalDate: "Proposal Date",
-  startDate: "Start Date",
-  endDate: "End Date",
-  caption: "Overlay Caption",
-  corners: "Position",
-  cityId: "City",
-  proposalDatePrecision: "Proposal Date Precision",
-  startDatePrecision: "Start Date Precision",
-  endDatePrecision: "End Date Precision",
-  geometry: "Shapes",
-  tags: "Tags",
-};
-
 // Normalize a project field value for change comparison
 function normalizeFieldValue(
   field: keyof Project,
@@ -314,13 +296,13 @@ export function useSubmissionService() {
   // Format value for human-readable display
   function formatValueForDisplay(value: any, fieldName?: string): string {
     if (value === null || value === undefined || value === "") {
-      return "Not set";
+      return t("overlay.notSet");
     }
 
     // Special handling for geometry - show shape count
     if (fieldName === "geometry" && typeof value === "object") {
       const count = (value as GeoJSON.GeometryCollection).geometries?.length ?? 0;
-      return `${count} shape${count !== 1 ? "s" : ""}`;
+      return t("shapes.geometrySummary", { count });
     }
 
     // Special handling for cityId - show city name
@@ -357,7 +339,7 @@ export function useSubmissionService() {
     const entityName =
       context.entityType === "project"
         ? context.entity.name
-        : (context.entity.caption ?? "Unnamed Overlay");
+        : (context.entity.caption ?? t("overlay.untitled"));
 
     let action = "";
     let requiresModeration = false;
@@ -380,7 +362,7 @@ export function useSubmissionService() {
       field: change.fieldName as RemovableChange, // Safe cast - we control field names in detectChanges
       oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
       newValue: formatValueForDisplay(change.newValue, change.fieldName),
-      displayLabel: FIELD_DISPLAY_NAMES[change.fieldName] ?? change.fieldName,
+      displayLabel: t(`fields.${change.fieldName}`),
     }));
 
     return {
