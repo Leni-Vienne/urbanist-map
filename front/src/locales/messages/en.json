@@ -221,6 +221,8 @@
     "controls": {
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Filter by Status",
+      "filterByTags": "Filter by Tags",
+      "untagged": "Untagged",
       "proposed": "Proposed",
       "planned": "Planned",
       "inProgress": "In Progress",
