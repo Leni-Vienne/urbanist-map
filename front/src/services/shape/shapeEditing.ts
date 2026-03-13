@@ -7,6 +7,28 @@ import L from "leaflet";
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 const supportedImportGeometryTypes = new Set([...drawableGeometryTypes, "Point", "MultiPoint"]);
 
+// Geometries with more vertices than this threshold are displayed but not editable,
+// because Geoman becomes extremely slow with many vertex handles.
+const MAX_EDITABLE_VERTICES = 500;
+
+function countVertices(geometry: GeoJSON.Geometry): number {
+  switch (geometry.type) {
+    case "LineString":
+    case "MultiPoint":
+      return geometry.coordinates.length;
+    case "MultiLineString":
+    case "Polygon":
+      return geometry.coordinates.reduce((sum, ring) => sum + ring.length, 0);
+    case "MultiPolygon":
+      return geometry.coordinates.reduce(
+        (sum, polygon) => sum + polygon.reduce((s, ring) => s + ring.length, 0),
+        0,
+      );
+    default:
+      return 0;
+  }
+}
+
 type LoadedGeoJSON = {
   geometry: GeoJSON.GeometryCollection;
   skippedGeometryTypes: string[];
@@ -134,8 +156,9 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
 export function addLayersFromGeometry(
   mapInstance: L.Map,
   geometry: GeoJSON.GeometryCollection,
-): L.LatLngBounds | null {
+): { bounds: L.LatLngBounds | null; hasUneditableShapes: boolean } {
   const addedLayers: L.Layer[] = [];
+  let hasUneditableShapes = false;
 
   // Process each geometry individually by wrapping it in a Feature.
   // Using L.geoJSON(geometryCollection) produces a single FeatureGroup (not individual layers),
@@ -149,6 +172,12 @@ export function addLayersFromGeometry(
     layer.addTo(mapInstance);
     addedLayers.push(layer);
     geometryLayers.push(layer);
+    // Skip Geoman initialization for geometries with too many vertices — editing would be
+    // unusable and freeze the browser. The layer is still rendered and preserved on save.
+    if (countVertices(geom) > MAX_EDITABLE_VERTICES) {
+      hasUneditableShapes = true;
+      continue;
+    }
     // Reinitialize Geoman on this externally-created layer so vertex handles appear.
     // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline,
     // so reInitLayer re-applies the PM mixin before enabling edit mode.
@@ -158,10 +187,10 @@ export function addLayersFromGeometry(
     (layer as any).pm?.enable?.();
   }
 
-  if (addedLayers.length === 0) return null;
+  if (addedLayers.length === 0) return { bounds: null, hasUneditableShapes };
 
-  const bounds = L.featureGroup(addedLayers).getBounds();
-  return bounds.isValid() ? bounds : null;
+  const groupBounds = L.featureGroup(addedLayers).getBounds();
+  return { bounds: groupBounds.isValid() ? groupBounds : null, hasUneditableShapes };
 }
 
 /**
