@@ -55,6 +55,7 @@ import {
   getDrawnGeometry,
   loadGeoJSONFile,
 } from "@/services/shape/shapeEditing";
+import { extractTagsFromOsmProperties } from "@/config/projectTags";
 
 const { t } = useI18n();
 const toast = useToast();
@@ -62,6 +63,7 @@ const toast = useToast();
 const emit = defineEmits<{
   done: [geometry: GeoJSON.GeometryCollection];
   cancel: [];
+  "suggest-tags": [tags: string[]];
 }>();
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -76,7 +78,12 @@ async function handleFileImport(event: Event) {
   // Reset input so the same file can be re-imported regardless of outcome
   if (fileInputRef.value) fileInputRef.value.value = "";
   try {
-    const { geometry, skippedGeometryTypes } = await loadGeoJSONFile(file);
+    const { geometry, skippedGeometryTypes, featureProperties } = await loadGeoJSONFile(file);
+
+    if (featureProperties.length > 0) {
+      const suggested = extractTagsFromOsmProperties(featureProperties);
+      if (suggested.length > 0) emit("suggest-tags", suggested);
+    }
 
     if (skippedGeometryTypes.length > 0) {
       toast.add({

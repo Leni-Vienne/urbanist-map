@@ -104,6 +104,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     },
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
+    tags: data.tags ?? null,
   };
 }
 

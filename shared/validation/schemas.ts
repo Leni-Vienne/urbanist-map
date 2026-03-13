@@ -36,6 +36,7 @@ export const projectSchema = z
       .transform((val) => (val === "" ? undefined : val))
       .optional(),
     geometry: GeoJSONGeometryCollectionSchema.nullable().optional(),
+    tags: z.array(z.string().max(50)).max(20).optional(),
   })
   .superRefine((data, ctx) => {
     // Validate proposal date is not in the future
@@ -143,6 +144,7 @@ const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   endDatePrecision: z.enum(["year", "month", "day"]).nullable(),
   cityId: z.number().int().positive(),
   geometry: GeoJSONGeometryCollectionSchema.nullable(),
+  tags: z.array(z.string().max(50)).max(20).nullable(),
 };
 
 const OVERLAY_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {

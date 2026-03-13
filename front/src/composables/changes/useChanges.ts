@@ -43,6 +43,28 @@ function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.isViewingApprovedPosition = undefined;
 }
 
+/** Ensures pending change requests are loaded. Safe to call outside Vue setup. */
+export async function refreshPendingChangeRequests(forceUserOnly = false) {
+  if (changeRequestsLoaded.value) return;
+  isLoading.value = true;
+  try {
+    const { isModerator } = useAuthStore();
+    const result = await withErrorHandling(
+      async () =>
+        isModerator && !forceUserOnly
+          ? trpc.changes.getPendingChangeRequests.query()
+          : trpc.changes.getMyChangeRequests.query(),
+      { errorMessage: "Failed to fetch pending change requests" },
+    );
+    if (result) {
+      pendingChangeRequests.value = result;
+      changeRequestsLoaded.value = true;
+    }
+  } finally {
+    isLoading.value = false;
+  }
+}
+
 export function useChangeRequests() {
   async function submitChangeRequest(input: SubmitChangeRequestInput) {
     isLoading.value = true;
@@ -59,35 +81,6 @@ export function useChangeRequests() {
       }
 
       return result;
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  async function refreshPendingChangeRequests(forceUserOnly = false) {
-    // Skip if already loaded
-    if (changeRequestsLoaded.value) {
-      return;
-    }
-
-    isLoading.value = true;
-    try {
-      const { isModerator } = useAuthStore();
-
-      // Use moderation route for moderation panel, user route for My Contributions
-      // forceUserOnly ensures My Contributions always shows only user's own changes
-      const result = await withErrorHandling(
-        async () =>
-          isModerator && !forceUserOnly
-            ? trpc.changes.getPendingChangeRequests.query()
-            : trpc.changes.getMyChangeRequests.query(),
-        { errorMessage: "Failed to fetch pending change requests" },
-      );
-
-      if (result) {
-        pendingChangeRequests.value = result;
-        changeRequestsLoaded.value = true;
-      }
     } finally {
       isLoading.value = false;
     }

@@ -194,6 +194,29 @@
         {{ $t("overlay.changedFrom") }}: "{{ originalData?.sourceUrl || $t("overlay.notSet") }}"
       </small>
     </div>
+
+    <!-- Tags field -->
+    <div class="flex flex-col gap-2">
+      <span class="text-sm text-(--p-text-color-secondary)">
+        {{ $t("project.tags") }} ({{ $t("project.optionalField") }})
+      </span>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="tag in allTags"
+          :key="tag.slug"
+          type="button"
+          class="px-3 py-1 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+          :style="
+            localFormData.tags.includes(tag.slug)
+              ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
+              : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
+          "
+          @click="toggleTag(tag.slug)"
+        >
+          {{ $t(`tags.${tag.slug}`) }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -219,6 +242,7 @@ import type { FlexibleDateInput } from "@shared/types/flexibleDate";
 import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
+import { PROJECT_TAGS } from "@/config/projectTags";
 
 // Re-export for backward compatibility
 export type { ProjectFormData };
@@ -279,7 +303,19 @@ const localFormData = ref<ProjectFormData>({
   proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
   startDatePrecision: props.formData.startDatePrecision ?? null,
   endDatePrecision: props.formData.endDatePrecision ?? null,
+  tags: props.formData.tags ?? [],
 });
+
+const allTags = PROJECT_TAGS;
+
+function toggleTag(slug: string) {
+  const idx = localFormData.value.tags.indexOf(slug);
+  if (idx === -1) {
+    localFormData.value.tags = [...localFormData.value.tags, slug];
+  } else {
+    localFormData.value.tags = localFormData.value.tags.filter((tag) => tag !== slug);
+  }
+}
 
 // Local state for flexible dates
 // We maintain these separately and sync them to localFormData (which uses plain Dates)
@@ -307,7 +343,7 @@ if (!props.formData.startDate && props.formData.endDate && !props.isProposed) {
 watch(
   () => props.formData,
   (newFormData) => {
-    localFormData.value = { ...newFormData };
+    localFormData.value = { ...newFormData, tags: newFormData.tags ?? [] };
 
     // Only update flexible inputs if the timestamp is different (simple check)
     // We use timestamps to avoid unnecessary re-parsing

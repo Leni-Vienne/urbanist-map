@@ -70,8 +70,7 @@ import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProje
 import { getPopupLatLng } from "@/services/map/projectPopupTeleport";
 import type { OverlayObject, Project } from "@/types/index";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
-import { useChangeRequests } from "@/composables/changes/useChanges";
-import { useAuthStore } from "@/stores/authStore";
+import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
 import type { DBProject, DBCity } from "../../../../back/src/db/schema";
 import type { ApprovalStatus } from "@shared/types";
 
@@ -98,9 +97,6 @@ const {
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { isSubmitting, prepareOverlaySubmission, prepareProjectWithOverlaysSubmission } =
   useSubmissionDialog();
-
-const { pendingChangeRequests, refreshPendingChangeRequests } = useChangeRequests();
-const authStore = useAuthStore();
 
 // Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
@@ -323,29 +319,7 @@ async function handleDrawShapes(project: Project) {
   const fallbackGeometry =
     overlayObject.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
 
-  // Ensure pending change requests are loaded (no-op if already loaded).
-  // Needed after page reload so we can use the user's submitted pending geometry as the base.
-  await refreshPendingChangeRequests(true);
-
-  // Priority order for the starting geometry:
-  // 1. Local store geometry — reflects same-session edits (saved but not yet submitted,
-  //    or submitted with isModified reset but geometry still in store).
-  // 2. Pending change request geometry — the user's last submitted value, used when the
-  //    project is not in the local store (e.g. after a page reload).
-  // 3. Fallback: approved geometry from the backend popup data.
-  const localStoredGeometry = projectStore.projects[project.id]?.geometry ?? null;
-  const pendingGeometryChange = pendingChangeRequests.value.find(
-    (cr) =>
-      cr.requestedBy === authStore.user?.id &&
-      cr.entityType === "project" &&
-      cr.entityId === project.id &&
-      cr.fieldName === "geometry" &&
-      cr.status === "pending",
-  );
-  const pendingGeometry = pendingGeometryChange
-    ? (pendingGeometryChange.newValue as GeoJSON.GeometryCollection)
-    : null;
-  const existingGeometry = localStoredGeometry ?? pendingGeometry ?? fallbackGeometry;
+  const existingGeometry = await resolveShapeEditorGeometry(project.id, fallbackGeometry);
 
   // Capture popup anchor before it's cleaned up — only for project/shape popups (not overlay).
   const reopenAt = showProjectPopup.value ? getPopupLatLng() : null;

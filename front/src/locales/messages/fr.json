@@ -105,7 +105,20 @@
     "submitChangeRequest": "Envoyer",
     "period": "Période",
     "source": "Source",
-    "addImages": "Ajouter"
+    "addImages": "Ajouter",
+    "tags": "Catégories"
+  },
+  "tags": {
+    "tram": "Tramway",
+    "rail": "Chemin de fer",
+    "subway": "Métro",
+    "bus": "Bus",
+    "bike": "Vélo",
+    "road": "Route",
+    "bridge": "Pont",
+    "waterway": "Voie d'eau",
+    "park": "Parc / Espace vert",
+    "building": "Bâtiment"
   },
   "status": {
     "approved": "Approuvé",

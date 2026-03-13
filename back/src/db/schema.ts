@@ -133,6 +133,7 @@ export const projects = pgTable(
     lng: doublePrecision("lng"),
     centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // PostGIS point for spatial queries (computed from lat/lng)
     geometry: jsonb("geometry").$type<GeoJSON.GeometryCollection | null>(), // GeoJSON GeometryCollection for project shapes (lines + polygons)
+    tags: text("tags").array(), // Project category tags (e.g. 'tram', 'rail', 'bike')
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -147,6 +148,7 @@ export const projects = pgTable(
     sql.raw(
       "CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
     ), // Spatial index for project center coordinates
+    sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_tags ON projects USING GIN (tags)"), // GIN index for efficient tag filtering
   ],
 );
 
