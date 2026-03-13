@@ -57,6 +57,7 @@ import { useEditableProjectForm } from "@/composables/forms/useEditableProjectFo
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { Project, ProjectFormData } from "@/types/index";
+import { projectToFormData } from "@/utils/projectFormHelpers";
 
 const props = defineProps<{ project: Project }>();
 const emit = defineEmits<{ close: []; submitted: [] }>();
@@ -73,49 +74,14 @@ const isProposed = ref(
   Boolean(props.project.proposalDate && !props.project.startDate && !props.project.endDate),
 );
 
-// Helper to ensure dates are Date objects
-function toDateObject(value: Date | string | null | undefined): Date | null {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 // Get original backend project if available (for comparison baseline)
 // Uses centralized helper that checks both originalBackendProjects and originalUserContributions
 const originalProject = computed(() => {
   return projectStore.getOriginalProject(props.project.id) ?? props.project;
 });
 
-// Use original backend values as the comparison baseline for "modified from X" indicators
-const projectData = computed(() => ({
-  name: originalProject.value.name,
-  description: originalProject.value.description || "",
-  sourceUrl: originalProject.value.sourceUrl || "",
-  proposalDate: toDateObject(originalProject.value.proposalDate),
-  proposalDatePrecision: originalProject.value.proposalDatePrecision ?? null,
-  startDate: toDateObject(originalProject.value.startDate),
-  startDatePrecision: originalProject.value.startDatePrecision ?? null,
-  endDate: toDateObject(originalProject.value.endDate),
-  endDatePrecision: originalProject.value.endDatePrecision ?? null,
-  cityId: originalProject.value.cityId,
-  tags: originalProject.value.tags ?? [],
-}));
-
-// Use current project values for the form's initial state (what user will see and edit)
-const currentProjectData = computed(() => ({
-  name: props.project.name,
-  description: props.project.description || "",
-  sourceUrl: props.project.sourceUrl || "",
-  proposalDate: toDateObject(props.project.proposalDate),
-  proposalDatePrecision: props.project.proposalDatePrecision ?? null,
-  startDate: toDateObject(props.project.startDate),
-  startDatePrecision: props.project.startDatePrecision ?? null,
-  endDate: toDateObject(props.project.endDate),
-  endDatePrecision: props.project.endDatePrecision ?? null,
-  cityId: props.project.cityId,
-  tags: props.project.tags,
-}));
+const projectData = computed(() => projectToFormData(originalProject.value));
+const currentProjectData = computed(() => projectToFormData(props.project));
 
 const form = useEditableProjectForm({
   entityId: props.project.id,

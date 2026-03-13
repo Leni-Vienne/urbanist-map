@@ -214,6 +214,8 @@ export function createLocalProjectContribution(
     sourceUrl: localProject.sourceUrl ?? null,
     tags: localProject.tags ?? [],
     geometry: null,
+    rejectionReason: null,
+    centerCoordinate: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     overlays: [overlayData],

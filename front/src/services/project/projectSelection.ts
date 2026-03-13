@@ -30,7 +30,6 @@ export function getCityProjects() {
           description: overlay.project.description ?? null,
           overlayIds: [],
           geometry: overlay.project.geometry ?? null,
-          tags: overlay.project.tags ?? [],
         });
         projectMap.set(overlay.project.id, frontendProject);
       }
