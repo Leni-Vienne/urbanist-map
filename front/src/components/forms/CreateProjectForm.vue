@@ -95,7 +95,7 @@ function handleSubmit() {
     startDatePrecision: isProposed.value ? null : formData.startDatePrecision,
     endDate: isProposed.value ? null : formData.endDate,
     endDatePrecision: isProposed.value ? null : formData.endDatePrecision,
-    tags: formData.tags.length > 0 ? formData.tags : null,
+    tags: formData.tags,
   };
 
   // Include city object if available

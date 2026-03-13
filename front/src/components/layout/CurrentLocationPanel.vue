@@ -391,7 +391,7 @@ const projectsWithOverlays = computed(() => {
         endDate: standaloneSummary.endDate,
         endDatePrecision: standaloneSummary.endDatePrecision,
         sourceUrl: standaloneSummary.sourceUrl,
-        tags: standaloneSummary.tags,
+        tags: standaloneSummary.tags ?? [],
         createdAt: standaloneSummary.createdAt,
         updatedAt: standaloneSummary.updatedAt,
         version: 0, // Not in summary

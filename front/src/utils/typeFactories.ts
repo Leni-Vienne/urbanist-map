@@ -104,7 +104,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     },
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
-    tags: data.tags ?? null,
+    tags: data.tags ?? [],
   };
 }
 
@@ -145,6 +145,7 @@ export function createProjectFromUserContribution(contribution: UserContribution
     },
     version: contribution.version,
     geometry: contribution.geometry ?? null,
+    tags: contribution.tags ?? [],
   });
 }
 

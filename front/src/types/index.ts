@@ -101,12 +101,14 @@ export type PendingChangeRequest =
 export type LatestContribution = RouterOutput["overlay"]["getLatestContributions"][number];
 
 // Base runtime project type - extends DB schema with computed fields
-export interface Project extends Omit<DBProject, "status"> {
+export interface Project extends Omit<DBProject, "status" | "tags"> {
   // Override status to allow null for local unsubmitted projects
   status: ApprovalStatus | null;
   // Computed fields for all contexts
   city: DBCity;
   overlayIds: string[];
+  // Always an array on the frontend — null coerced to [] at DB boundary
+  tags: string[];
   // UI state for tracking local modifications
   isModified?: boolean;
 }
@@ -188,8 +190,8 @@ export type ProjectForModeration = Pick<
   | "lat"
   | "lng"
   | "cityId"
-  | "tags"
 > & {
+  tags: string[] | null; // May be null for legacy projects without tags
   ownerId?: string | null; // For spam prevention reporting (optional, only in moderation)
   ownerUsername?: string | null; // Display friendly username in moderation UI
   ownerApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)

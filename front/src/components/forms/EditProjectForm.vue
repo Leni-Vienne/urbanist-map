@@ -114,7 +114,7 @@ const currentProjectData = computed(() => ({
   endDate: toDateObject(props.project.endDate),
   endDatePrecision: props.project.endDatePrecision ?? null,
   cityId: props.project.cityId,
-  tags: props.project.tags ?? [],
+  tags: props.project.tags,
 }));
 
 const form = useEditableProjectForm({

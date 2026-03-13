@@ -303,7 +303,7 @@ const localFormData = ref<ProjectFormData>({
   proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
   startDatePrecision: props.formData.startDatePrecision ?? null,
   endDatePrecision: props.formData.endDatePrecision ?? null,
-  tags: props.formData.tags ?? [],
+  tags: props.formData.tags,
 });
 
 const allTags = PROJECT_TAGS;
@@ -343,7 +343,7 @@ if (!props.formData.startDate && props.formData.endDate && !props.isProposed) {
 watch(
   () => props.formData,
   (newFormData) => {
-    localFormData.value = { ...newFormData, tags: newFormData.tags ?? [] };
+    localFormData.value = { ...newFormData };
 
     // Only update flexible inputs if the timestamp is different (simple check)
     // We use timestamps to avoid unnecessary re-parsing
