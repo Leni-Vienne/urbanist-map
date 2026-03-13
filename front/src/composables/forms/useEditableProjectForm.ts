@@ -1,5 +1,6 @@
 import { ref, computed, reactive } from "vue";
 import { buildProjectPayload } from "@/services/project/projectMutations";
+import { formDataToProjectFields } from "@/utils/projectFormHelpers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { useChangeRequests } from "@/composables/changes/useChanges";
@@ -201,42 +202,21 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       return;
     }
 
+    const formFields = formDataToProjectFields(formData);
+
     // Update userContributions so ContributePanel shows updated data
-    projectStore.updateProjectInUserContributions(options.entityId, {
-      name: formData.name,
-      description: formData.description ?? null,
-      proposalDate: formData.proposalDate ?? null,
-      proposalDatePrecision: formData.proposalDatePrecision ?? null,
-      startDate: formData.startDate ?? null,
-      startDatePrecision: formData.startDatePrecision ?? null,
-      endDate: formData.endDate ?? null,
-      endDatePrecision: formData.endDatePrecision ?? null,
-      sourceUrl: formData.sourceUrl ?? null,
-      tags: formData.tags,
-    });
+    projectStore.updateProjectInUserContributions(options.entityId, formFields);
 
     // Update or create project in projectStore.projects for infopopup sync
     if (currentProject) {
       // Project exists in projects store - update it
       const cityObject = getCityObjectForUpdate(currentProject);
-      const updatedData: Partial<Project> = {
+      projectStore.updateProject(options.entityId, {
         ...currentProject,
-        name: formData.name,
-        description: formData.description,
-        proposalDate: formData.proposalDate,
-        proposalDatePrecision: formData.proposalDatePrecision,
-        startDate: formData.startDate,
-        startDatePrecision: formData.startDatePrecision,
-        endDate: formData.endDate,
-        endDatePrecision: formData.endDatePrecision,
-        sourceUrl: formData.sourceUrl,
-        cityId: formData.cityId ?? undefined,
+        ...formFields,
         city: cityObject,
-        tags: formData.tags,
         isModified: true,
-      };
-
-      projectStore.updateProject(options.entityId, updatedData);
+      });
 
       const updatedProject = projectStore.projects[options.entityId];
       const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0;
@@ -247,16 +227,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       // Project only exists in userContributions - add to projects store so infopopup finds it
       const projectFromContribution: Project = {
         ...createProjectFromUserContribution(userContributionProject),
-        name: formData.name,
-        description: formData.description ?? null,
-        proposalDate: formData.proposalDate ?? null,
-        proposalDatePrecision: formData.proposalDatePrecision ?? null,
-        startDate: formData.startDate ?? null,
-        startDatePrecision: formData.startDatePrecision ?? null,
-        endDate: formData.endDate ?? null,
-        endDatePrecision: formData.endDatePrecision ?? null,
-        sourceUrl: formData.sourceUrl ?? null,
-        tags: formData.tags,
+        ...formFields,
         isModified: true,
       };
 
