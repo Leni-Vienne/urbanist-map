@@ -1,7 +1,7 @@
 <template>
   <AccordionContent>
     <div
-      class="rounded-lg border border-surface p-3 cursor-pointer transition-all duration-150 hover:border-(--p-text-muted-color) hover:bg-content-background active:bg-content-background active:scale-[0.98]"
+      class="cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:scale-[0.99] rounded-lg"
       @click="handleCardClick"
       @mouseenter="$emit('highlight-project', project)"
       @mouseleave="$emit('remove-project-highlight', project)"
@@ -118,8 +118,11 @@
       </div>
     </div>
 
+    <!-- Separator between project info and overlays -->
+    <div v-if="shouldShowOverlays" class="border-t border-surface mx-2 mb-1"></div>
+
     <!-- Project overlays -->
-    <div v-if="shouldShowOverlays" class="flex flex-col mt-4">
+    <div v-if="shouldShowOverlays" class="flex flex-col">
       <div
         v-for="overlay in project.overlays"
         :key="overlay.id"
@@ -173,10 +176,6 @@
               >
                 {{ overlay.name || $t("overlay.untitled") }}
               </p>
-            </div>
-            <div class="flex items-center gap-1.5 text-(--p-text-color-secondary) text-xs mb-1">
-              <i class="pi pi-map-marker text-muted-color"></i>
-              <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
             </div>
             <div class="text-xs text-muted-color mb-2">
               <ContributorInfo
@@ -392,32 +391,23 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
   const forceBackendUrl = status === "pending" || status === null;
   return buildThumbnailUrl(filename, forceBackendUrl);
 }
-
-function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
-  const cityName = overlay.cityName;
-  const countryName = overlay.countryName;
-  if (cityName && countryName) {
-    if (cityName.includes(countryName)) return cityName;
-    return `${cityName}, ${countryName}`;
-  } else if (cityName) return cityName;
-  else if (countryName) return countryName;
-  return "Unknown Location";
-}
 </script>
 
 <style scoped>
 /* Container classes passed as string props to ChangeRequestSection */
 .project-change-requests {
-  padding: 0.75rem;
+  padding: 0.5625rem 0.6875rem;
   background: var(--p-content-hover-background);
   border: 1px solid var(--p-content-border-color);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .overlay-change-requests {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.6875rem 0.6875rem;
   background: var(--p-orange-25);
   border-top: 1px solid var(--p-orange-200);
+  margin: 0 0.25rem 0.25rem;
+  border-radius: 0 0 8px 8px;
 }
 
 /* Pending change row — orange accent strip */

@@ -72,7 +72,7 @@ const emit = defineEmits<{ "field-click": [] }>();
 
 const cls = {
   row: "flex flex-col gap-0.5",
-  label: "text-2.5 font-medium uppercase tracking-[0.07em] text-muted-color",
+  label: "text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color",
   value: "text-[13px] text-color wrap-break-word",
   addBtn:
     "text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none text-left",
