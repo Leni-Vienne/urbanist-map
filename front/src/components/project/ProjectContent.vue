@@ -109,7 +109,7 @@
           :on-navigate-to-overlay="onNavigateToOverlay"
           :show-user-stats-link="showUserStatsLink"
           @show-user-stats="(data) => $emit('show-user-stats', data)"
-          container-class="project-change-requests"
+          container-class="py-[0.5625rem] px-[0.6875rem] bg-[var(--p-content-hover-background)] border border-surface rounded-lg"
         >
           <template #change-actions="{ change }">
             <slot name="change-actions" :change="change"></slot>
@@ -129,14 +129,16 @@
         :data-overlay-id="overlay.id"
         class="flex flex-col transition-all duration-150"
         :class="
-          getOverlayChangeRequestsForOverlay(overlay.id).length > 0 ? 'pending-overlay-row' : ''
+          getOverlayChangeRequestsForOverlay(overlay.id).length > 0
+            ? 'bg-orange-50 dark:bg-orange-400/12 rounded-xl my-1'
+            : ''
         "
       >
         <div
           class="group flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer transition-all duration-150 active:scale-[0.98] rounded-xl"
           :class="
             getOverlayChangeRequestsForOverlay(overlay.id).length > 0
-              ? 'pending-overlay-hover'
+              ? 'hover:bg-orange-100 active:bg-orange-100 dark:hover:bg-orange-400/20 dark:active:bg-orange-400/20'
               : 'hover:bg-white dark:hover:bg-white/10 active:bg-white dark:active:bg-white/10'
           "
           @click="handleOverlayCardClick(overlay, true)"
@@ -237,7 +239,7 @@
             :on-navigate-to-overlay="onNavigateToOverlay"
             :show-user-stats-link="showUserStatsLink"
             @show-user-stats="(data) => $emit('show-user-stats', data)"
-            container-class="overlay-change-requests"
+            container-class="mt-0 pt-2 px-[0.6875rem] pb-[0.6875rem] bg-[var(--p-orange-25)] border-t border-t-[var(--p-orange-200)] mx-1 mb-1 rounded-b-lg"
           >
             <template #change-actions="{ change }">
               <slot name="change-actions" :change="change"></slot>
@@ -392,49 +394,3 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
   return buildThumbnailUrl(filename, forceBackendUrl);
 }
 </script>
-
-<style scoped>
-/* Container classes passed as string props to ChangeRequestSection */
-.project-change-requests {
-  padding: 0.5625rem 0.6875rem;
-  background: var(--p-content-hover-background);
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 8px;
-}
-
-.overlay-change-requests {
-  padding: 0.5rem 0.6875rem 0.6875rem;
-  background: var(--p-orange-25);
-  border-top: 1px solid var(--p-orange-200);
-  margin: 0 0.25rem 0.25rem;
-  border-radius: 0 0 8px 8px;
-}
-
-/* Pending change row — orange accent strip */
-.pending-overlay-row {
-  /* orange-400 */
-  background: #fff7ed;
-  /* orange-50 */
-  border-radius: 0.25rem;
-  margin: 0.25rem 0;
-}
-
-.pending-overlay-hover:hover,
-.pending-overlay-hover:active {
-  background: #ffedd5;
-  /* orange-100 */
-}
-</style>
-
-<!-- Dark mode rules in a non-scoped block to avoid Vue scoping the .dark-mode selector -->
-<style>
-.dark-mode .pending-overlay-row {
-  background: rgba(251, 146, 60, 0.12) !important;
-  border-left-color: #f97316 !important;
-}
-
-.dark-mode .pending-overlay-hover:hover,
-.dark-mode .pending-overlay-hover:active {
-  background: rgba(251, 146, 60, 0.2) !important;
-}
-</style>

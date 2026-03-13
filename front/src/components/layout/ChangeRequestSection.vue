@@ -33,7 +33,7 @@
         <!-- Single non-conflicting change -->
         <div
           v-if="group.type === 'single'"
-          class="bg-content-background border border-surface rounded p-2"
+          class="bg-content-background border border-surface rounded-lg p-2"
         >
           <div class="flex flex-row items-center gap-3">
             <div class="flex-1 min-w-0">
@@ -61,7 +61,7 @@
         <!-- Grouped conflicting changes -->
         <div
           v-else
-          class="border-2 border-blue-300 dark:border-blue-700 bg-blue-50/30 dark:bg-blue-950/20 rounded overflow-hidden"
+          class="border-2 border-blue-300 dark:border-blue-700 bg-blue-50/30 dark:bg-blue-950/20 rounded-lg overflow-hidden"
         >
           <div
             class="flex items-center gap-2 px-2 py-2 bg-blue-100 dark:bg-blue-900/40 border-b border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 font-semibold text-[0.8125rem]"
@@ -77,7 +77,7 @@
           <div
             v-for="change in group.changes"
             :key="change.id"
-            class="bg-content-background rounded mx-2 px-3 py-2 my-2 border border-blue-200 dark:border-blue-700 first:mt-3 last:mb-2 hover:bg-blue-50/40 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 transition-colors duration-150"
+            class="bg-content-background rounded-lg mx-2 px-3 py-2 my-2 border border-blue-200 dark:border-blue-700 first:mt-3 last:mb-2 hover:bg-blue-50/40 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 transition-colors duration-150"
           >
             <div class="flex flex-row items-center gap-3">
               <div class="flex-1 min-w-0">
