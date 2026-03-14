@@ -56,6 +56,7 @@ function convertCornersToGeometry(cornersValue: unknown) {
   // Build polygon using parameterized PostGIS functions to prevent SQL injection
   // SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
   const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
+  // oxlint-disable no-non-null-assertion
   return sql`ST_MakePolygon(
     ST_MakeLine(ARRAY[
       ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326),
@@ -65,6 +66,7 @@ function convertCornersToGeometry(cornersValue: unknown) {
       ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326)
     ])
   )`;
+  // oxlint-enable no-non-null-assertion
 }
 
 // Helper function to convert coordinate object to PostGIS point geometry

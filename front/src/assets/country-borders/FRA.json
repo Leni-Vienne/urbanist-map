@@ -3,6 +3,7 @@
   "features": [
     {
       "type": "Feature",
+      "properties": { "GID_0": "FRA", "COUNTRY": "France" },
       "geometry": {
         "type": "MultiPolygon",
         "coordinates": [
@@ -417,8 +418,7 @@
             ]
           ]
         ]
-      },
-      "properties": { "GID_0": "FRA", "COUNTRY": "France" }
+      }
     }
   ]
 }

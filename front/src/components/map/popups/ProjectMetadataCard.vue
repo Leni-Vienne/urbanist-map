@@ -40,6 +40,19 @@
         </span>
       </div>
     </div>
+    <div v-if="project.tags && project.tags.length > 0" :class="cls.row">
+      <span :class="cls.label">{{ $t("project.tags") }}</span>
+      <div class="flex flex-wrap gap-1.5">
+        <span
+          v-for="tag in project.tags"
+          :key="tag"
+          class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
+          :style="getTagStyle(tag)"
+        >
+          {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
+        </span>
+      </div>
+    </div>
     <div v-if="project.sourceUrl" :class="cls.row">
       <span :class="cls.label">{{ $t("project.source") }}</span>
       <a
@@ -65,6 +78,7 @@ import type { Project } from "@/types/index";
 import { formatProjectDateRange } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
+import { PROJECT_TAG_MAP } from "@/config/projectTags";
 
 const { t: $t } = useI18n();
 
@@ -72,7 +86,7 @@ const emit = defineEmits<{ "field-click": [] }>();
 
 const cls = {
   row: "flex flex-col gap-0.5",
-  label: "text-2.5 font-medium uppercase tracking-[0.07em] text-muted-color",
+  label: "text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color",
   value: "text-[13px] text-color wrap-break-word",
   addBtn:
     "text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none text-left",
@@ -92,6 +106,12 @@ const props = withDefaults(defineProps<Props>(), {
   editMode: false,
   availableCities: () => [],
 });
+
+function getTagStyle(slug: string): Record<string, string> {
+  const tag = PROJECT_TAG_MAP.get(slug);
+  if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
+  return { backgroundColor: tag.color, color: tag.textColor };
+}
 
 const projectLocationDisplay = computed(() => {
   if (!props.project) return "—";

@@ -45,6 +45,7 @@ export function createProjectFromOverlayData(
     endDate: projectInfo?.endDate ?? null,
     endDatePrecision: projectInfo?.endDatePrecision ?? null,
     sourceUrl: projectInfo?.sourceUrl ?? null,
+    tags: projectInfo?.tags ?? [],
     createdAt: projectInfo?.createdAt ?? overlayData.createdAt,
     updatedAt: projectInfo?.updatedAt ?? overlayData.updatedAt,
     version: projectInfo?.version ?? overlayData.version,
@@ -154,6 +155,7 @@ export function createLocalProjectContribution(
     endDate: Date | null;
     endDatePrecision?: "year" | "month" | "day" | null;
     sourceUrl: string | null;
+    tags?: string[] | null;
   },
   overlay: {
     id: string;
@@ -210,7 +212,10 @@ export function createLocalProjectContribution(
     endDate: localProject.endDate,
     endDatePrecision: localProject.endDatePrecision ?? null,
     sourceUrl: localProject.sourceUrl ?? null,
+    tags: localProject.tags ?? [],
     geometry: null,
+    rejectionReason: null,
+    centerCoordinate: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     overlays: [overlayData],
