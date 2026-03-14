@@ -85,8 +85,8 @@ const tileLayerConfigs = {
       attribution: "© swisstopo",
     },
   },
-  CAN: {
-    label: "Canada",
+  QC: {
+    label: "Québec",
     url: "https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/{z}/{y}/{x}.jpg",
     options: {
       minZoom: 0,

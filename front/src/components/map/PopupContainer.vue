@@ -331,7 +331,7 @@ async function handleDrawShapes(project: Project) {
   else closeProjectInfoPopup();
   // Lazy-load geoman and init the toolbar with the best available geometry
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  initShapeEditor(map.value, existingGeometry ?? undefined);
+  await initShapeEditor(map.value, existingGeometry ?? undefined);
 }
 
 // Handle project deletion

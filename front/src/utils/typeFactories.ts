@@ -33,8 +33,11 @@ export function toProjectPartial(project: StandaloneProject): Partial<Project> {
     // safe access for optional/nullable fields
     sourceUrl: project.sourceUrl ?? null,
     proposalDate: project.proposalDate ?? null,
+    proposalDatePrecision: project.proposalDatePrecision ?? null,
     startDate: project.startDate ?? null,
+    startDatePrecision: project.startDatePrecision ?? null,
     endDate: project.endDate ?? null,
+    endDatePrecision: project.endDatePrecision ?? null,
   };
 
   // Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
@@ -58,6 +61,10 @@ export function toProjectPartial(project: StandaloneProject): Partial<Project> {
 
   if ("geometry" in project) {
     partial.geometry = (project as { geometry: GeoJSON.GeometryCollection | null }).geometry;
+  }
+
+  if ("tags" in project) {
+    partial.tags = project.tags ?? [];
   }
 
   return partial;
