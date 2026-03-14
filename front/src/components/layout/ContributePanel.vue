@@ -572,7 +572,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   uiStore.openShapeEditor(project as unknown as Project);
   // Lazy-load geoman and initialise the toolbar with the best available geometry
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  initShapeEditor(map.value, existingGeometry ?? undefined);
+  await initShapeEditor(map.value, existingGeometry ?? undefined);
 }
 
 // Handle edit project click - opens project edit form
