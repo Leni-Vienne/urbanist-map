@@ -99,7 +99,7 @@
         </div>
       </div>
 
-      <div @click.stop>
+      <div class="cursor-default" @click.stop>
         <ChangeRequestSection
           v-if="projectChanges.length > 0"
           :changes="projectChanges"
@@ -227,7 +227,7 @@
           ></i>
         </div>
 
-        <div @click.stop>
+        <div class="cursor-default" @click.stop>
           <ChangeRequestSection
             v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
             :changes="getOverlayChangeRequestsForOverlay(overlay.id)"

@@ -231,9 +231,10 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
  * Build project query with minimal fields for moderation lists
  */
 export function buildProjectModerationQuery(database: BunSQLDatabase<typeof schema>) {
+  const { geometry: _geometry, ...columnsWithoutGeometry } = PROJECT_COLUMNS;
   return database
     .select({
-      ...PROJECT_COLUMNS,
+      ...columnsWithoutGeometry,
       ownerUsername: users.username, // Display friendly username in moderation UI
       ownerApprovedCount: users.approvedCount, // User stats for spam detection
       ownerRejectedCount: users.rejectedCount,
