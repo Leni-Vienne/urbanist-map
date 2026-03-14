@@ -96,22 +96,27 @@ interface ValidationResult {
   errors: string[];
 }
 
-// Field display names for user-friendly labels in UI
-const FIELD_DISPLAY_NAMES: Record<string, string> = {
-  name: "Project Name",
-  description: "Description",
-  sourceUrl: "Source URL",
-  proposalDate: "Proposal Date",
-  startDate: "Start Date",
-  endDate: "End Date",
-  caption: "Overlay Caption",
-  corners: "Position",
-  cityId: "City",
-  proposalDatePrecision: "Proposal Date Precision",
-  startDatePrecision: "Start Date Precision",
-  endDatePrecision: "End Date Precision",
-  geometry: "Shapes",
-};
+// Normalize a project field value for change comparison
+function normalizeFieldValue(
+  field: keyof Project,
+  value: unknown,
+  projectSource: Partial<Project>,
+): unknown {
+  const fieldStr = String(field);
+  if (["proposalDate", "startDate", "endDate"].includes(fieldStr)) {
+    return normalizeDate(value);
+  }
+  if (fieldStr === "geometry") {
+    return hasShapes(value) ? JSON.stringify(value) : null;
+  }
+  if (getPrecisionDateField(field) !== null) {
+    return normalizeDatePrecision(field, value, projectSource);
+  }
+  if (fieldStr === "tags") {
+    return JSON.stringify(Array.isArray(value) ? (value as unknown[]).toSorted() : []);
+  }
+  return value ?? "";
+}
 
 // Check if a geometry value contains at least one shape
 function hasShapes(v: unknown): boolean {
@@ -247,6 +252,7 @@ export function useSubmissionService() {
       "proposalDatePrecision",
       "startDatePrecision",
       "geometry",
+      "tags",
     ];
 
     for (const field of fieldsToCheck) {
@@ -254,39 +260,31 @@ export function useSubmissionService() {
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
-      // Special handling for date fields
-      const isDateField = ["proposalDate", "startDate", "endDate"].includes(String(field));
       const isGeometryField = String(field) === "geometry";
-      const isDatePrecisionField = getPrecisionDateField(field) !== null;
+      const isArrayField = String(field) === "tags";
 
-      // Geometry uses JSON stringification for comparison; dates use normalization; others use raw value
-      let normalizedOld: unknown = null;
-      let normalizedNew: unknown = null;
-      if (isDateField) {
-        normalizedOld = normalizeDate(oldValue);
-        normalizedNew = normalizeDate(newValue);
-      } else if (isGeometryField) {
-        normalizedOld = hasShapes(oldValue) ? JSON.stringify(oldValue) : null;
-        normalizedNew = hasShapes(newValue) ? JSON.stringify(newValue) : null;
-      } else if (isDatePrecisionField) {
-        normalizedOld = normalizeDatePrecision(
-          field,
-          oldValue,
-          originalProject as Partial<Project>,
-        );
-        normalizedNew = normalizeDatePrecision(field, newValue, project);
-      } else {
-        normalizedOld = oldValue ?? "";
-        normalizedNew = newValue ?? "";
-      }
+      const normalizedOld = normalizeFieldValue(
+        field,
+        oldValue,
+        originalProject as Partial<Project>,
+      );
+      const normalizedNew = normalizeFieldValue(field, newValue, project);
 
       if (normalizedOld !== normalizedNew) {
-        // Store raw objects for geometry so the backend receives proper JSON, not a string
-        const storedOldValue = isGeometryField && normalizedOld !== null ? oldValue : normalizedOld;
+        // Store raw objects for geometry/arrays so the backend receives proper JSON, not a string
+        let pushedOldValue: unknown = normalizedOld;
+        let pushedNewValue: unknown = normalizedNew;
+        if (isGeometryField) {
+          pushedOldValue = normalizedOld !== null ? oldValue : normalizedOld;
+          pushedNewValue = newValue ?? null;
+        } else if (isArrayField) {
+          pushedOldValue = oldValue;
+          pushedNewValue = newValue;
+        }
         changes.push({
           fieldName: String(field),
-          oldValue: storedOldValue,
-          newValue: isGeometryField ? (newValue ?? null) : normalizedNew,
+          oldValue: pushedOldValue,
+          newValue: pushedNewValue,
           changeReason: customReason ?? undefined,
         });
       }
@@ -298,13 +296,13 @@ export function useSubmissionService() {
   // Format value for human-readable display
   function formatValueForDisplay(value: any, fieldName?: string): string {
     if (value === null || value === undefined || value === "") {
-      return "Not set";
+      return t("overlay.notSet");
     }
 
     // Special handling for geometry - show shape count
     if (fieldName === "geometry" && typeof value === "object") {
       const count = (value as GeoJSON.GeometryCollection).geometries?.length ?? 0;
-      return `${count} shape${count !== 1 ? "s" : ""}`;
+      return t("shapes.geometrySummary", { count });
     }
 
     // Special handling for cityId - show city name
@@ -341,7 +339,7 @@ export function useSubmissionService() {
     const entityName =
       context.entityType === "project"
         ? context.entity.name
-        : (context.entity.caption ?? "Unnamed Overlay");
+        : (context.entity.caption ?? t("overlay.untitled"));
 
     let action = "";
     let requiresModeration = false;
@@ -364,7 +362,7 @@ export function useSubmissionService() {
       field: change.fieldName as RemovableChange, // Safe cast - we control field names in detectChanges
       oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
       newValue: formatValueForDisplay(change.newValue, change.fieldName),
-      displayLabel: FIELD_DISPLAY_NAMES[change.fieldName] ?? change.fieldName,
+      displayLabel: t(`fields.${change.fieldName}`),
     }));
 
     return {
@@ -383,10 +381,10 @@ export function useSubmissionService() {
 
     // Project-specific validation with Zod
     if (context.entityType === "project") {
-      const validationData = prepareProjectValidationData(context.entity, {
-        lat: context.entity.lat,
-        lng: context.entity.lng,
-      });
+      const validationData = prepareProjectValidationData(
+        { ...context.entity, tags: context.entity.tags ?? [] },
+        { lat: context.entity.lat, lng: context.entity.lng },
+      );
 
       const result = projectSchema.safeParse(validationData);
 

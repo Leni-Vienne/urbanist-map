@@ -59,6 +59,7 @@
       v-if="uiStore.shapeEditor.project"
       @done="handleShapesDone"
       @cancel="handleShapesCancel"
+      @suggest-tags="handleSuggestTags"
     />
   </div>
 </template>
@@ -192,6 +193,14 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
     const L = leafletModule.default;
     createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
   }
+}
+
+function handleSuggestTags(suggestedTags: string[]) {
+  const project = uiStore.shapeEditor.project;
+  if (!project) return;
+  const existing = project.tags ?? [];
+  const merged = [...new Set([...existing, ...suggestedTags])];
+  projectStore.updateProject(project.id, { tags: merged, isModified: true });
 }
 
 async function handleShapesCancel() {

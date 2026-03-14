@@ -61,7 +61,8 @@
     "caption": "Name",
     "lat": "Latitude",
     "lng": "Longitude",
-    "geometry": "Shapes"
+    "geometry": "Shapes",
+    "tags": "Tags"
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
@@ -105,7 +106,20 @@
     "submitChangeRequest": "Submit",
     "period": "Period",
     "source": "Source",
-    "addImages": "Add Images"
+    "addImages": "Add Images",
+    "tags": "Tags"
+  },
+  "tags": {
+    "tram": "Tram",
+    "rail": "Railway",
+    "subway": "Metro",
+    "bus": "Bus",
+    "bike": "Cycling",
+    "road": "Road",
+    "bridge": "Bridge",
+    "waterway": "Waterway",
+    "park": "Park / Green space",
+    "building": "Building"
   },
   "status": {
     "approved": "Approved",
@@ -208,6 +222,8 @@
     "controls": {
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Filter by Status",
+      "filterByTags": "Filter by Tags",
+      "untagged": "Untagged",
       "proposed": "Proposed",
       "planned": "Planned",
       "inProgress": "In Progress",

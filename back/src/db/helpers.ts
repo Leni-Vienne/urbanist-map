@@ -151,6 +151,32 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
+// Shared project column selection — add new project fields here only
+const PROJECT_COLUMNS = {
+  id: projects.id,
+  name: projects.name,
+  description: projects.description,
+  status: projects.status,
+  version: projects.version,
+  ownerId: projects.ownerId,
+  cityId: projects.cityId,
+  lat: projects.lat,
+  lng: projects.lng,
+  proposalDate: projects.proposalDate,
+  proposalDatePrecision: projects.proposalDatePrecision,
+  startDate: projects.startDate,
+  startDatePrecision: projects.startDatePrecision,
+  endDate: projects.endDate,
+  endDatePrecision: projects.endDatePrecision,
+  sourceUrl: projects.sourceUrl,
+  tags: projects.tags,
+  createdAt: projects.createdAt,
+  updatedAt: projects.updatedAt,
+  geometry: projects.geometry,
+  rejectionReason: projects.rejectionReason,
+  centerCoordinate: projects.centerCoordinate,
+} as const;
+
 /**
  * Build project query with city and country location data
  * Returns chainable query that can be extended with .where(), .orderBy(), .limit()
@@ -158,25 +184,7 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
 export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof schema>) {
   return database
     .select({
-      id: projects.id,
-      name: projects.name,
-      description: projects.description,
-      status: projects.status,
-      version: projects.version,
-      ownerId: projects.ownerId,
-      cityId: projects.cityId,
-      lat: projects.lat,
-      lng: projects.lng,
-      proposalDate: projects.proposalDate,
-      proposalDatePrecision: projects.proposalDatePrecision,
-      startDate: projects.startDate,
-      startDatePrecision: projects.startDatePrecision,
-      endDate: projects.endDate,
-      endDatePrecision: projects.endDatePrecision,
-      sourceUrl: projects.sourceUrl,
-      createdAt: projects.createdAt,
-      updatedAt: projects.updatedAt,
-      geometry: projects.geometry,
+      ...PROJECT_COLUMNS,
       cityName: cities.name,
       countryCode: countries.code,
       countryName: countries.name,
@@ -223,26 +231,10 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
  * Build project query with minimal fields for moderation lists
  */
 export function buildProjectModerationQuery(database: BunSQLDatabase<typeof schema>) {
+  const { geometry: _geometry, ...columnsWithoutGeometry } = PROJECT_COLUMNS;
   return database
     .select({
-      id: projects.id,
-      name: projects.name,
-      description: projects.description,
-      status: projects.status,
-      version: projects.version,
-      createdAt: projects.createdAt,
-      updatedAt: projects.updatedAt,
-      startDate: projects.startDate,
-      startDatePrecision: projects.startDatePrecision,
-      endDate: projects.endDate,
-      endDatePrecision: projects.endDatePrecision,
-      proposalDate: projects.proposalDate,
-      proposalDatePrecision: projects.proposalDatePrecision,
-      sourceUrl: projects.sourceUrl,
-      lat: projects.lat,
-      lng: projects.lng,
-      cityId: projects.cityId,
-      ownerId: projects.ownerId, // For spam prevention filtering
+      ...columnsWithoutGeometry,
       ownerUsername: users.username, // Display friendly username in moderation UI
       ownerApprovedCount: users.approvedCount, // User stats for spam detection
       ownerRejectedCount: users.rejectedCount,

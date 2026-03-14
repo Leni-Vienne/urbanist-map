@@ -22,6 +22,7 @@ import { useProjectFormValidation } from "@/composables/forms/useProjectFormVali
 import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { ProjectFormData } from "@/components/forms/ProjectFormFields.vue";
 import type { Project } from "@/types/index";
+import { projectToFormData, formDataToProjectFields } from "@/utils/projectFormHelpers";
 
 const props = defineProps<{
   project: Partial<Project>;
@@ -29,18 +30,7 @@ const props = defineProps<{
 
 const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null);
 
-const formData = reactive<ProjectFormData>({
-  name: props.project.name ?? "",
-  description: props.project.description ?? null,
-  proposalDate: props.project.proposalDate ?? null,
-  proposalDatePrecision: props.project.proposalDatePrecision ?? null,
-  startDate: props.project.startDate ?? null,
-  startDatePrecision: props.project.startDatePrecision ?? null,
-  endDate: props.project.endDate ?? null,
-  endDatePrecision: props.project.endDatePrecision ?? null,
-  cityId: props.project.cityId ?? null,
-  sourceUrl: props.project.sourceUrl ?? null,
-});
+const formData = reactive<ProjectFormData>(projectToFormData(props.project));
 
 const isProposed = ref(false);
 
@@ -55,23 +45,17 @@ const markerCoordinates =
 
 watch(
   () => props.project,
-  (p) => {
-    formData.name = p.name ?? "";
-    formData.description = p.description ?? null;
-    formData.proposalDate = p.proposalDate ?? null;
-    formData.startDate = p.startDate ?? null;
-    formData.endDate = p.endDate ?? null;
-    formData.cityId = p.cityId ?? null;
-    formData.sourceUrl = p.sourceUrl ?? null;
-  },
+  (p) => Object.assign(formData, projectToFormData(p)),
   { deep: true },
 );
-function handleCityChange(newCityId: number | null) {
+async function handleCityChange(newCityId: number | null) {
   if (!newCityId) return;
   const cities = formFieldsRef.value?.cities ?? [];
   const selectedCity = cities.find((c) => c.id === newCityId);
   if (selectedCity) {
-    switchTileLayer(isTileLayerType(selectedCity.countryCode) ? selectedCity.countryCode : "esri");
+    await switchTileLayer(
+      isTileLayerType(selectedCity.countryCode) ? selectedCity.countryCode : "esri",
+    );
   }
 }
 
@@ -83,10 +67,7 @@ function handleSubmit() {
 
   const result: Partial<Project> = {
     ...props.project,
-    name: formData.name,
-    description: formData.description,
-    sourceUrl: formData.sourceUrl,
-    cityId: formData.cityId === null ? undefined : formData.cityId,
+    ...formDataToProjectFields(formData),
     proposalDate: isProposed.value ? formData.proposalDate : null,
     proposalDatePrecision: isProposed.value ? formData.proposalDatePrecision : null,
     startDate: isProposed.value ? null : formData.startDate,

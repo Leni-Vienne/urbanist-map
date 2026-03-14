@@ -274,6 +274,13 @@
       "when": 1773231124856,
       "tag": "0038_early_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1773399196405,
+      "tag": "0039_dapper_cyclops",
+      "breakpoints": true
     }
   ]
 }

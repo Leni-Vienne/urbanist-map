@@ -38,45 +38,8 @@ export function getCityProjects() {
     return [...projectMap.values()];
   });
 
-  const projectsWithCounts = computed(() => {
-    return projects.value.map((project) => ({
-      ...project,
-      overlayCount: getOverlayCountForProject(project.id),
-    }));
-  });
-
-  // Get overlay count from current city overlays
-  function getOverlayCountForProject(projectId: string): number {
-    return mapStore.currentCityOverlays.filter((overlay) => overlay.project?.id === projectId)
-      .length;
-  }
-
-  // Group projects by city for visual organization
-  const projectsByCity = computed(() => {
-    const groups = new Map<string, Project[]>();
-
-    for (const project of projects.value) {
-      const cityKey = `${project.city.name}, ${project.city.countryCode}`;
-
-      let list = groups.get(cityKey);
-      if (!list) {
-        list = [];
-        groups.set(cityKey, list);
-      }
-      list.push(project);
-    }
-
-    return [...groups.entries()].map(([cityName, projectList]) => ({
-      label: cityName,
-      items: projectList,
-    }));
-  });
-
   return {
     projects,
-    projectsWithCounts,
-    projectsByCity,
-    getOverlayCountForProject,
   };
 }
 

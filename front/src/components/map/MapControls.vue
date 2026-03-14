@@ -39,7 +39,6 @@ import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
-import type { viewModeMarkerColor } from "@/types/index";
 import FilterControl from "@/components/map/FilterControl.vue";
 import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
 
@@ -51,12 +50,12 @@ const { mode } = storeToRefs(mapStore);
 
 // Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{
-  "filter-overlays": [status: viewModeMarkerColor];
+  "filter-overlays": [];
 }>();
 
 // Handle filter overlays event from FilterControl
-function handleFilterOverlays(status: viewModeMarkerColor) {
-  emit("filter-overlays", status);
+function handleFilterOverlays() {
+  emit("filter-overlays");
 }
 
 // Helper to zoom with mobile offset - keeps focus on upper visible area
