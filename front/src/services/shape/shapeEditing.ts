@@ -7,27 +7,8 @@ import L from "leaflet";
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 const supportedImportGeometryTypes = new Set([...drawableGeometryTypes, "Point", "MultiPoint"]);
 
-// Geometries with more vertices than this threshold are displayed but not editable,
-// because Geoman becomes extremely slow with many vertex handles.
-const MAX_EDITABLE_VERTICES = 500;
-
-function countVertices(geometry: GeoJSON.Geometry): number {
-  switch (geometry.type) {
-    case "LineString":
-    case "MultiPoint":
-      return geometry.coordinates.length;
-    case "MultiLineString":
-    case "Polygon":
-      return geometry.coordinates.reduce((sum, ring) => sum + ring.length, 0);
-    case "MultiPolygon":
-      return geometry.coordinates.reduce(
-        (sum, polygon) => sum + polygon.reduce((s, ring) => s + ring.length, 0),
-        0,
-      );
-    default:
-      return 0;
-  }
-}
+// Number of geometries to add per batch before yielding to the browser's event loop.
+const BATCH_SIZE = 20;
 
 type LoadedGeoJSON = {
   geometry: GeoJSON.GeometryCollection;
@@ -67,10 +48,10 @@ let pmCreateHandler: ((e: any) => void) | null = null;
  * Activate the Geoman toolbar on the map with relevant draw tools only.
  * If existingGeometry is provided, the layers are added to the map.
  */
-export function initShapeEditor(
+export async function initShapeEditor(
   mapInstance: L.Map,
   existingGeometry?: GeoJSON.GeometryCollection,
-): void {
+): Promise<void> {
   // Geoman uses addInitHook, so map instances created before this lazy chunk was loaded
   // won't have .pm set. Manually initialize it on the existing instance.
   if (!mapInstance.pm) {
@@ -105,7 +86,7 @@ export function initShapeEditor(
   mapInstance.on("pm:create", pmCreateHandler);
 
   if (existingGeometry) {
-    addLayersFromGeometry(mapInstance, existingGeometry);
+    await addLayersFromGeometry(mapInstance, existingGeometry, { editable: true });
   }
 
   // Pre-select the Line tool by default when the shape editor opens
@@ -153,42 +134,50 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
 /**
  * Add layers from an existing GeometryCollection onto the map so the user can edit them.
  */
-export function addLayersFromGeometry(
+export async function addLayersFromGeometry(
   mapInstance: L.Map,
   geometry: GeoJSON.GeometryCollection,
-): { bounds: L.LatLngBounds | null } {
+  { editable = false }: { editable?: boolean } = {},
+): Promise<L.LatLngBounds | null> {
   const addedLayers: L.Layer[] = [];
 
-  // Process each geometry individually by wrapping it in a Feature.
-  // Using L.geoJSON(geometryCollection) produces a single FeatureGroup (not individual layers),
-  // whose toGeoJSON() returns a FeatureCollection that fails the Feature type check in getDrawnGeometry.
-  // Wrapping each geometry separately guarantees one Leaflet layer per geometry,
-  // each with a toGeoJSON() that returns a proper Feature.
-  for (const geom of geometry.geometries.filter((item) => drawableGeometryTypes.has(item.type))) {
+  const drawableGeoms = geometry.geometries.filter((item) => drawableGeometryTypes.has(item.type));
+
+  // Process in batches, yielding between each so the browser can repaint and stay responsive.
+  // Without this, adding hundreds of Leaflet layers synchronously freezes the main thread.
+  for (let i = 0; i < drawableGeoms.length; i++) {
+    if (i > 0 && i % BATCH_SIZE === 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
+
+    const geom = drawableGeoms[i]!;
+
+    // Process each geometry individually by wrapping it in a Feature.
+    // Using L.geoJSON(geometryCollection) produces a single FeatureGroup (not individual layers),
+    // whose toGeoJSON() returns a FeatureCollection that fails the Feature type check in getDrawnGeometry.
+    // Wrapping each geometry separately guarantees one Leaflet layer per geometry,
+    // each with a toGeoJSON() that returns a proper Feature.
     const feature: GeoJSON.Feature = { type: "Feature", geometry: geom, properties: {} };
     const layer = L.geoJSON(feature).getLayers()[0];
     if (!layer) continue;
     layer.addTo(mapInstance);
     addedLayers.push(layer);
     geometryLayers.push(layer);
-    // Skip Geoman initialization for geometries with too many vertices — editing would be
-    // unusable and freeze the browser. The layer is still rendered and preserved on save.
-    if (countVertices(geom) > MAX_EDITABLE_VERTICES) {
-      continue;
+    if (editable) {
+      // Reinitialize Geoman on this externally-created layer so vertex handles appear.
+      // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline,
+      // so reInitLayer re-applies the PM mixin before enabling edit mode.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (L as any).PM?.reInitLayer?.(layer);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (layer as any).pm?.enable?.();
     }
-    // Reinitialize Geoman on this externally-created layer so vertex handles appear.
-    // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline,
-    // so reInitLayer re-applies the PM mixin before enabling edit mode.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (L as any).PM?.reInitLayer?.(layer);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (layer as any).pm?.enable?.();
   }
 
-  if (addedLayers.length === 0) return { bounds: null };
+  if (addedLayers.length === 0) return null;
 
   const groupBounds = L.featureGroup(addedLayers).getBounds();
-  return { bounds: groupBounds.isValid() ? groupBounds : null };
+  return groupBounds.isValid() ? groupBounds : null;
 }
 
 /**
