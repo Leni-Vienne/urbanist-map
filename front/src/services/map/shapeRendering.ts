@@ -49,6 +49,7 @@ function buildShapeLayers(
   // Transparent wide polyline used as a click/hover target for lines.
   const hitStyle: L.PathOptions = { opacity: 0, fillOpacity: 0, weight: 20, stroke: true };
 
+  // oxlint-disable no-unsafe-type-assertion
   for (const geom of geometries) {
     if (geom.type === "LineString") {
       const coords = (geom.coordinates as [number, number][]).map(
@@ -78,6 +79,7 @@ function buildShapeLayers(
       interactive.push(layer);
     }
   }
+  // oxlint-enable no-unsafe-type-assertion
   return { visual, interactive };
 }
 

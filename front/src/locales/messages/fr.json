@@ -61,7 +61,8 @@
     "caption": "Nom",
     "lat": "Latitude",
     "lng": "Longitude",
-    "geometry": "Formes"
+    "geometry": "Formes",
+    "tags": "Catégories"
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",
@@ -105,7 +106,20 @@
     "submitChangeRequest": "Envoyer",
     "period": "Période",
     "source": "Source",
-    "addImages": "Ajouter"
+    "addImages": "Ajouter",
+    "tags": "Catégories"
+  },
+  "tags": {
+    "tram": "Tramway",
+    "rail": "Chemin de fer",
+    "subway": "Métro",
+    "bus": "Bus",
+    "bike": "Vélo",
+    "road": "Route",
+    "bridge": "Pont",
+    "waterway": "Voie d'eau",
+    "park": "Parc / Espace vert",
+    "building": "Bâtiment"
   },
   "status": {
     "approved": "Approuvé",
@@ -208,6 +222,8 @@
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
       "filterByStatus": "Filtrer par statut",
+      "filterByTags": "Filtrer par catégories",
+      "untagged": "Non catégorisé",
       "proposed": "Proposé",
       "planned": "Planifié",
       "inProgress": "En cours",

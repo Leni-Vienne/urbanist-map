@@ -5,6 +5,10 @@
     :modal="true"
     :closable="true"
     :draggable="false"
+    :pt="{
+      root: { class: 'w-[40rem] max-w-[92vw]' },
+      content: { class: 'sm:overflow-y-auto sm:max-h-[70vh]' },
+    }"
     @update:visible="handleVisibilityChange"
   >
     <template #default>

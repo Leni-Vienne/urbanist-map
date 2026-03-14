@@ -51,6 +51,7 @@ async function findIntersectingOverlays(
   try {
     // Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
     const [topLeft, topRight, bottomRight, bottomLeft] = targetOverlay.corners;
+    // oxlint-disable-next-line no-non-null-assertion
     const targetPolygonWKT = `POLYGON((${topLeft!.lng} ${topLeft!.lat}, ${topRight!.lng} ${topRight!.lat}, ${bottomRight!.lng} ${bottomRight!.lat}, ${bottomLeft!.lng} ${bottomLeft!.lat}, ${topLeft!.lng} ${topLeft!.lat}))`;
 
     // Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
@@ -270,6 +271,7 @@ export const overlayRouter = router({
       // SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
       // ST_MakePolygon creates a polygon from a LineString (ring)
       // ST_MakeLine creates a LineString from individual points
+      // oxlint-disable no-non-null-assertion
       const corners = sql`ST_MakePolygon(
         ST_MakeLine(ARRAY[
           ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326),
@@ -279,6 +281,7 @@ export const overlayRouter = router({
           ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326)
         ])
       )`;
+      // oxlint-enable no-non-null-assertion
 
       // Prepare overlay data for insert/update
       const overlayData = {

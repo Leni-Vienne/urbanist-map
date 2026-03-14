@@ -7,13 +7,37 @@ import L from "leaflet";
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 const supportedImportGeometryTypes = new Set([...drawableGeometryTypes, "Point", "MultiPoint"]);
 
+// Geometries with more vertices than this threshold are displayed but not editable,
+// because Geoman becomes extremely slow with many vertex handles.
+const MAX_EDITABLE_VERTICES = 500;
+
+function countVertices(geometry: GeoJSON.Geometry): number {
+  switch (geometry.type) {
+    case "LineString":
+    case "MultiPoint":
+      return geometry.coordinates.length;
+    case "MultiLineString":
+    case "Polygon":
+      return geometry.coordinates.reduce((sum, ring) => sum + ring.length, 0);
+    case "MultiPolygon":
+      return geometry.coordinates.reduce(
+        (sum, polygon) => sum + polygon.reduce((s, ring) => s + ring.length, 0),
+        0,
+      );
+    default:
+      return 0;
+  }
+}
+
 type LoadedGeoJSON = {
   geometry: GeoJSON.GeometryCollection;
   skippedGeometryTypes: string[];
+  featureProperties: Record<string, unknown>[];
 };
 
 function filterDrawableGeometries(
   geometries: (GeoJSON.Geometry | null | undefined)[],
+  featureProperties: Record<string, unknown>[] = [],
 ): LoadedGeoJSON {
   const drawable: GeoJSON.Geometry[] = [];
   const skipped = new Set<string>();
@@ -30,6 +54,7 @@ function filterDrawableGeometries(
   return {
     geometry: { type: "GeometryCollection", geometries: drawable },
     skippedGeometryTypes: [...skipped],
+    featureProperties,
   };
 }
 
@@ -65,10 +90,11 @@ export function initShapeEditor(
     editControls: false,
   });
 
-  // Enable edit mode on newly drawn layers so nodes are draggable immediately.
-  // Guard against double-init: remove any previously registered handler before reassigning,
-  // so that calling initShapeEditor twice without destroyShapeEditor in between doesn't
-  // accumulate listeners that can never be cleaned up.
+  // Double-init guard: remove geometry layers from any previous init.
+  for (const layer of geometryLayers) layer.remove();
+  geometryLayers = [];
+
+  // Enable edit mode on newly drawn layers immediately; swap handler to avoid accumulating listeners.
   if (pmCreateHandler) {
     mapInstance.off("pm:create", pmCreateHandler);
   }
@@ -112,9 +138,6 @@ export function destroyShapeEditor(mapInstance: L.Map): void {
  * so that saving always produces the full set of shapes (not just newly added ones).
  */
 export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection {
-  // Combine geoman-tracked draw layers with layers loaded from existing geometry.
-  // Geoman's getGeomanDrawLayers() only returns layers it created itself — layers added
-  // via addLayersFromGeometry (existing shapes) are tracked separately in geometryLayers.
   const allLayers = [...mapInstance.pm.getGeomanDrawLayers(), ...geometryLayers];
 
   const geometries = allLayers
@@ -133,7 +156,7 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
 export function addLayersFromGeometry(
   mapInstance: L.Map,
   geometry: GeoJSON.GeometryCollection,
-): L.LatLngBounds | null {
+): { bounds: L.LatLngBounds | null } {
   const addedLayers: L.Layer[] = [];
 
   // Process each geometry individually by wrapping it in a Feature.
@@ -148,6 +171,11 @@ export function addLayersFromGeometry(
     layer.addTo(mapInstance);
     addedLayers.push(layer);
     geometryLayers.push(layer);
+    // Skip Geoman initialization for geometries with too many vertices — editing would be
+    // unusable and freeze the browser. The layer is still rendered and preserved on save.
+    if (countVertices(geom) > MAX_EDITABLE_VERTICES) {
+      continue;
+    }
     // Reinitialize Geoman on this externally-created layer so vertex handles appear.
     // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline,
     // so reInitLayer re-applies the PM mixin before enabling edit mode.
@@ -157,10 +185,10 @@ export function addLayersFromGeometry(
     (layer as any).pm?.enable?.();
   }
 
-  if (addedLayers.length === 0) return null;
+  if (addedLayers.length === 0) return { bounds: null };
 
-  const bounds = L.featureGroup(addedLayers).getBounds();
-  return bounds.isValid() ? bounds : null;
+  const groupBounds = L.featureGroup(addedLayers).getBounds();
+  return { bounds: groupBounds.isValid() ? groupBounds : null };
 }
 
 /**
@@ -182,7 +210,10 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
     const geometries = parsed.features
       .map((f) => f.geometry)
       .filter((g): g is GeoJSON.Geometry => g !== null);
-    return filterDrawableGeometries(geometries);
+    const featureProperties = parsed.features.map(
+      (f) => (f.properties ?? {}) as Record<string, unknown>,
+    );
+    return filterDrawableGeometries(geometries, featureProperties);
   }
 
   if (parsed.type === "GeometryCollection") {
@@ -191,7 +222,10 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
 
   // Single geometry or Feature
   if (parsed.type === "Feature" && parsed.geometry) {
-    return filterDrawableGeometries([parsed.geometry]);
+    const featureProperties = parsed.properties
+      ? [parsed.properties as Record<string, unknown>]
+      : [];
+    return filterDrawableGeometries([parsed.geometry], featureProperties);
   }
 
   if (supportedImportGeometryTypes.has(parsed.type)) {
