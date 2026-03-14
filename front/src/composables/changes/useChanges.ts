@@ -19,7 +19,6 @@ import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 // ============================================================================
 
 // Use the actual tRPC output type for change requests
-type ChangeHistoryEntry = RouterOutput["changes"]["getChangeHistory"][number];
 type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][number];
 type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
@@ -31,7 +30,6 @@ export function getPendingChangeRequests(): ChangeRequest[] {
 
 /** Reactive readonly ref — use this to watch for changes in Vue composables. */
 export const pendingChangeRequestsRef = readonly(pendingChangeRequests);
-const changeHistory = ref<ChangeHistoryEntry[]>([]);
 const isLoading = ref(false);
 
 // Simple loaded flag for change requests
@@ -275,7 +273,6 @@ export function useChangeRequests() {
   return {
     // Change requests
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
-    changeHistory: computed(() => changeHistory.value),
     conflictingChanges,
     hasConflicts,
     isLoading: computed(() => isLoading.value),

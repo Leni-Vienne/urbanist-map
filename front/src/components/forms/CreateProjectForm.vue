@@ -48,12 +48,14 @@ watch(
   (p) => Object.assign(formData, projectToFormData(p)),
   { deep: true },
 );
-function handleCityChange(newCityId: number | null) {
+async function handleCityChange(newCityId: number | null) {
   if (!newCityId) return;
   const cities = formFieldsRef.value?.cities ?? [];
   const selectedCity = cities.find((c) => c.id === newCityId);
   if (selectedCity) {
-    switchTileLayer(isTileLayerType(selectedCity.countryCode) ? selectedCity.countryCode : "esri");
+    await switchTileLayer(
+      isTileLayerType(selectedCity.countryCode) ? selectedCity.countryCode : "esri",
+    );
   }
 }
 

@@ -156,9 +156,8 @@ export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection
 export function addLayersFromGeometry(
   mapInstance: L.Map,
   geometry: GeoJSON.GeometryCollection,
-): { bounds: L.LatLngBounds | null; hasUneditableShapes: boolean } {
+): { bounds: L.LatLngBounds | null } {
   const addedLayers: L.Layer[] = [];
-  let hasUneditableShapes = false;
 
   // Process each geometry individually by wrapping it in a Feature.
   // Using L.geoJSON(geometryCollection) produces a single FeatureGroup (not individual layers),
@@ -175,7 +174,6 @@ export function addLayersFromGeometry(
     // Skip Geoman initialization for geometries with too many vertices — editing would be
     // unusable and freeze the browser. The layer is still rendered and preserved on save.
     if (countVertices(geom) > MAX_EDITABLE_VERTICES) {
-      hasUneditableShapes = true;
       continue;
     }
     // Reinitialize Geoman on this externally-created layer so vertex handles appear.
@@ -187,10 +185,10 @@ export function addLayersFromGeometry(
     (layer as any).pm?.enable?.();
   }
 
-  if (addedLayers.length === 0) return { bounds: null, hasUneditableShapes };
+  if (addedLayers.length === 0) return { bounds: null };
 
   const groupBounds = L.featureGroup(addedLayers).getBounds();
-  return { bounds: groupBounds.isValid() ? groupBounds : null, hasUneditableShapes };
+  return { bounds: groupBounds.isValid() ? groupBounds : null };
 }
 
 /**
