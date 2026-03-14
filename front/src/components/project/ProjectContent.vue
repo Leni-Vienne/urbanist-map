@@ -1,7 +1,7 @@
 <template>
   <AccordionContent>
     <div
-      class="rounded-lg border border-surface p-3 cursor-pointer transition-all duration-150 hover:border-(--p-text-muted-color) hover:bg-content-background active:bg-content-background active:scale-[0.98]"
+      class="cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:scale-[0.99] rounded-lg"
       @click="handleCardClick"
       @mouseenter="$emit('highlight-project', project)"
       @mouseleave="$emit('remove-project-highlight', project)"
@@ -12,6 +12,16 @@
             <p class="text-sm leading-relaxed text-color m-0">
               {{ project.description }}
             </p>
+          </div>
+          <div v-if="project.tags && project.tags.length > 0" class="flex flex-wrap gap-1.5 mb-3">
+            <span
+              v-for="tag in project.tags"
+              :key="tag"
+              class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
+              :style="getTagStyle(tag)"
+            >
+              {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
+            </span>
           </div>
           <div class="flex flex-col gap-2">
             <div class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)">
@@ -89,7 +99,7 @@
         </div>
       </div>
 
-      <div @click.stop>
+      <div class="cursor-default" @click.stop>
         <ChangeRequestSection
           v-if="projectChanges.length > 0"
           :changes="projectChanges"
@@ -99,7 +109,7 @@
           :on-navigate-to-overlay="onNavigateToOverlay"
           :show-user-stats-link="showUserStatsLink"
           @show-user-stats="(data) => $emit('show-user-stats', data)"
-          container-class="project-change-requests"
+          container-class="py-[0.5625rem] px-[0.6875rem] bg-[var(--p-content-hover-background)] border border-surface rounded-lg"
         >
           <template #change-actions="{ change }">
             <slot name="change-actions" :change="change"></slot>
@@ -108,22 +118,27 @@
       </div>
     </div>
 
+    <!-- Separator between project info and overlays -->
+    <div v-if="shouldShowOverlays" class="border-t border-surface mx-2 mb-1"></div>
+
     <!-- Project overlays -->
-    <div v-if="shouldShowOverlays" class="flex flex-col mt-4">
+    <div v-if="shouldShowOverlays" class="flex flex-col">
       <div
         v-for="overlay in project.overlays"
         :key="overlay.id"
         :data-overlay-id="overlay.id"
         class="flex flex-col transition-all duration-150"
         :class="
-          getOverlayChangeRequestsForOverlay(overlay.id).length > 0 ? 'pending-overlay-row' : ''
+          getOverlayChangeRequestsForOverlay(overlay.id).length > 0
+            ? 'bg-orange-50 dark:bg-orange-400/12 rounded-xl my-1'
+            : ''
         "
       >
         <div
           class="group flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer transition-all duration-150 active:scale-[0.98] rounded-xl"
           :class="
             getOverlayChangeRequestsForOverlay(overlay.id).length > 0
-              ? 'pending-overlay-hover'
+              ? 'hover:bg-orange-100 active:bg-orange-100 dark:hover:bg-orange-400/20 dark:active:bg-orange-400/20'
               : 'hover:bg-white dark:hover:bg-white/10 active:bg-white dark:active:bg-white/10'
           "
           @click="handleOverlayCardClick(overlay, true)"
@@ -163,10 +178,6 @@
               >
                 {{ overlay.name || $t("overlay.untitled") }}
               </p>
-            </div>
-            <div class="flex items-center gap-1.5 text-(--p-text-color-secondary) text-xs mb-1">
-              <i class="pi pi-map-marker text-muted-color"></i>
-              <span class="truncate">{{ getOverlayLocationDisplay(overlay) }}</span>
             </div>
             <div class="text-xs text-muted-color mb-2">
               <ContributorInfo
@@ -216,7 +227,7 @@
           ></i>
         </div>
 
-        <div @click.stop>
+        <div class="cursor-default" @click.stop>
           <ChangeRequestSection
             v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
             :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
@@ -228,7 +239,7 @@
             :on-navigate-to-overlay="onNavigateToOverlay"
             :show-user-stats-link="showUserStatsLink"
             @show-user-stats="(data) => $emit('show-user-stats', data)"
-            container-class="overlay-change-requests"
+            container-class="mt-0 pt-2 px-[0.6875rem] pb-[0.6875rem] bg-[var(--p-orange-25)] border-t border-t-[var(--p-orange-200)] mx-1 mb-1 rounded-b-lg"
           >
             <template #change-actions="{ change }">
               <slot name="change-actions" :change="change"></slot>
@@ -257,8 +268,15 @@ import { getStatusSeverity } from "@/utils/statusHelpers";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
 import { formatProjectDateRange } from "@/utils/projectDateFormat";
+import { PROJECT_TAG_MAP } from "@/config/projectTags";
 
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
+
+function getTagStyle(slug: string): Record<string, string> {
+  const tag = PROJECT_TAG_MAP.get(slug);
+  if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
+  return { backgroundColor: tag.color, color: tag.textColor };
+}
 
 interface Props {
   project: ProjectForModeration;
@@ -375,59 +393,4 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
   const forceBackendUrl = status === "pending" || status === null;
   return buildThumbnailUrl(filename, forceBackendUrl);
 }
-
-function getOverlayLocationDisplay(overlay: OverlayForModeration): string {
-  const cityName = overlay.cityName;
-  const countryName = overlay.countryName;
-  if (cityName && countryName) {
-    if (cityName.includes(countryName)) return cityName;
-    return `${cityName}, ${countryName}`;
-  } else if (cityName) return cityName;
-  else if (countryName) return countryName;
-  return "Unknown Location";
-}
 </script>
-
-<style scoped>
-/* Container classes passed as string props to ChangeRequestSection */
-.project-change-requests {
-  padding: 0.75rem;
-  background: var(--p-content-hover-background);
-  border: 1px solid var(--p-content-border-color);
-  border-radius: 6px;
-}
-
-.overlay-change-requests {
-  padding: 0.75rem 1rem;
-  background: var(--p-orange-25);
-  border-top: 1px solid var(--p-orange-200);
-}
-
-/* Pending change row — orange accent strip */
-.pending-overlay-row {
-  /* orange-400 */
-  background: #fff7ed;
-  /* orange-50 */
-  border-radius: 0.25rem;
-  margin: 0.25rem 0;
-}
-
-.pending-overlay-hover:hover,
-.pending-overlay-hover:active {
-  background: #ffedd5;
-  /* orange-100 */
-}
-</style>
-
-<!-- Dark mode rules in a non-scoped block to avoid Vue scoping the .dark-mode selector -->
-<style>
-.dark-mode .pending-overlay-row {
-  background: rgba(251, 146, 60, 0.12) !important;
-  border-left-color: #f97316 !important;
-}
-
-.dark-mode .pending-overlay-hover:hover,
-.dark-mode .pending-overlay-hover:active {
-  background: rgba(251, 146, 60, 0.2) !important;
-}
-</style>

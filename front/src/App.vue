@@ -42,20 +42,6 @@ if (import.meta.env.VITE_DEBUG) {
     window.addEventListener("load", onLoad);
   }
 
-  // Describe the nearest meaningful DOM ancestor of a click target for logging
-  function describeClickTarget(target: EventTarget | null): string {
-    if (!(target instanceof Element)) return "unknown";
-    const el = target.closest("button, a, [role=button], [role=menuitem], li") ?? target;
-    const text = el.textContent?.trim().slice(0, 50);
-    const tag = el.tagName.toLowerCase();
-    const id = el.id ? `#${el.id}` : "";
-    const cls =
-      el.className && typeof el.className === "string"
-        ? `.${el.className.trim().split(/\s+/)[0]}`
-        : "";
-    return `<${tag}${id}${cls}>${text ? ` "${text}"` : ""}`;
-  }
-
   // Batch lazy chunks that arrive close together and print them grouped by trigger
   const pageLoadCutoff = performance.now() + 1500;
   let batchTrigger = "spontaneously loaded";
@@ -93,5 +79,19 @@ if (import.meta.env.VITE_DEBUG) {
   });
 
   lazyObserver.observe({ type: "resource", buffered: false });
+}
+
+// Describe the nearest meaningful DOM ancestor of a click target for logging
+function describeClickTarget(target: EventTarget | null): string {
+  if (!(target instanceof Element)) return "unknown";
+  const el = target.closest("button, a, [role=button], [role=menuitem], li") ?? target;
+  const text = el.textContent?.trim().slice(0, 50);
+  const tag = el.tagName.toLowerCase();
+  const id = el.id ? `#${el.id}` : "";
+  const cls =
+    el.className && typeof el.className === "string"
+      ? `.${el.className.trim().split(/\s+/)[0]}`
+      : "";
+  return `<${tag}${id}${cls}>${text ? ` "${text}"` : ""}`;
 }
 </script>

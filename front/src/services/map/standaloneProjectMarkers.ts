@@ -3,7 +3,12 @@ import { watch } from "vue";
 import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
-import { visibleStates, filterByStatus } from "@/services/overlay/statusFilters";
+import {
+  visibleStates,
+  selectedProjectTags,
+  filterByStatus,
+  shouldShowStandaloneProject,
+} from "@/services/overlay/statusFilters";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -65,11 +70,14 @@ function initializePopupWatcher() {
     },
   );
 
-  // Watch completion filter changes: refresh standalone markers AND sync overlay marker visibility.
+  // Watch filter changes: refresh standalone markers AND sync overlay marker visibility.
   // runViewportRenderLoop is NOT called — it runs on the next map event and handles proper
   // destruction; here we only need an immediate show/hide pass that works at all zoom levels.
   watch(
-    () => visibleStates.value,
+    () => ({
+      status: visibleStates.value,
+      tags: selectedProjectTags.value,
+    }),
     () => {
       refreshAllStandaloneMarkers();
 
@@ -199,10 +207,8 @@ function refreshAllStandaloneMarkers(): void {
     if (!project) continue;
 
     // Get marker color for this project
-    const markerColor = getProjectMarkerColor(project, mapStore.mode);
-
     // Check if this marker should be visible
-    const shouldBeVisible = visibleStates.value[markerColor];
+    const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
 
     // Show or hide the marker based on filter
     if (shouldBeVisible && !standaloneProjectsLayer.hasLayer(marker)) {
@@ -380,7 +386,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const markerColor = getProjectMarkerColor(project, mapStore.mode);
-  const shouldBeVisible = visibleStates.value[markerColor];
+  const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
 
   // Ensure standalone project layer exists
   if (!standaloneProjectsLayer) {

@@ -63,10 +63,14 @@ export function toProjectPartial(project: StandaloneProject): Partial<Project> {
   return partial;
 }
 
+// Accepts any subset of Project fields, with null allowed for any field.
+// All coercion to non-null defaults happens inside the factory body.
+type ProjectInput = { [K in keyof Project]?: Project[K] | null };
+
 /**
  * Create a new Project instance with defaults
  */
-export function createProjectObject(data: Partial<Project> = {}): Project {
+export function createProjectObject(data: ProjectInput = {}): Project {
   const id = data.id ?? uuidv4();
 
   return {
@@ -104,6 +108,7 @@ export function createProjectObject(data: Partial<Project> = {}): Project {
     },
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
+    tags: data.tags ?? [],
   };
 }
 
@@ -144,6 +149,7 @@ export function createProjectFromUserContribution(contribution: UserContribution
     },
     version: contribution.version,
     geometry: contribution.geometry ?? null,
+    tags: contribution.tags,
   });
 }
 

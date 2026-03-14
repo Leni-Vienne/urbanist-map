@@ -35,6 +35,7 @@ export function buildProjectPayload(project: Partial<Project>): PublishProjectIn
     endDatePrecision: project.endDatePrecision ?? null,
     sourceUrl: project.sourceUrl ?? undefined,
     geometry: project.geometry ?? null,
+    tags: project.tags ?? [],
   };
 }
 

@@ -133,6 +133,7 @@ export const projectRouter = router({
               endDatePrecision: data.endDatePrecision,
               sourceUrl: data.sourceUrl,
               geometry: data.geometry ?? null,
+              ...(data.tags !== undefined && { tags: data.tags }),
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),
             })
@@ -324,6 +325,7 @@ export const projectRouter = router({
             endDate: projects.endDate,
             endDatePrecision: projects.endDatePrecision,
             sourceUrl: projects.sourceUrl,
+            tags: projects.tags,
             createdAt: projects.createdAt,
             updatedAt: projects.updatedAt,
             // Count approved overlays OR user's own overlays (only in edit mode)
@@ -354,6 +356,7 @@ export const projectRouter = router({
             projects.endDate,
             projects.endDatePrecision,
             projects.sourceUrl,
+            projects.tags,
             projects.createdAt,
             projects.updatedAt,
             cities.id,

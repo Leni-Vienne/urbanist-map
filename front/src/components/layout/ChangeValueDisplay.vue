@@ -75,15 +75,6 @@
         size="small"
       />
     </div>
-    <div class="flex items-start gap-2 mt-1 text-xs flex-wrap">
-      <span class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm">{{
-        formatGeometrySummary(change.oldValue)
-      }}</span>
-      <i class="pi pi-arrow-right self-center"></i>
-      <span class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm">{{
-        formatGeometrySummary(change.newValue)
-      }}</span>
-    </div>
   </div>
 
   <!-- Regular field with formatted values -->
@@ -159,14 +150,6 @@ function hasGeometry(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const geo = value as { geometries?: unknown[] };
   return (geo.geometries?.length ?? 0) > 0;
-}
-
-function formatGeometrySummary(value: unknown): string {
-  if (!value || typeof value !== "object") return t("overlay.notSet");
-  const geo = value as { geometries?: unknown[] };
-  const count = geo.geometries?.length ?? 0;
-  if (count === 0) return t("overlay.notSet");
-  return t("shapes.geometrySummary", { count });
 }
 
 function formatValue(value: unknown, fieldName: string, change?: PendingChangeRequest): string {

@@ -35,6 +35,7 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
 
 // Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
 function collectLatLngs(geom: GeoJSON.Geometry, out: L.LatLng[]): void {
+  // oxlint-disable no-unsafe-type-assertion
   const add = (lng: number, lat: number) => out.push(L.latLng(lat, lng));
   if (geom.type === "LineString") {
     for (const [lng, lat] of geom.coordinates as [number, number][]) add(lng, lat);
@@ -48,6 +49,7 @@ function collectLatLngs(geom: GeoJSON.Geometry, out: L.LatLng[]): void {
     for (const poly of geom.coordinates as [number, number][][][])
       for (const ring of poly) for (const [lng, lat] of ring) add(lng, lat);
   }
+  // oxlint-enable no-unsafe-type-assertion
 }
 
 function computeBounds(geometry: GeoJSON.GeometryCollection): L.LatLngBounds | null {

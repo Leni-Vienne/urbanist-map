@@ -232,6 +232,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import type { RouterOutput } from "@/client";
 import type {
@@ -549,30 +550,10 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
     return;
   }
 
-  // Ensure pending change requests are loaded (needed after page reload so we can use
-  // the user's submitted pending geometry as the base).
-  await refreshPendingChangeRequests(true);
-
-  // Priority order for the starting geometry:
-  // 1. Local store geometry — reflects same-session edits.
-  // 2. Pending change request geometry — the user's last submitted value (post page reload).
-  // 3. Fallback: approved geometry stored on the project record itself.
-  const localStoredGeometry = projectStore.projects[project.id]?.geometry ?? null;
-  const pendingGeometryChange = pendingChangeRequests.value.find(
-    (cr) =>
-      cr.requestedBy === authStore.user?.id &&
-      cr.entityType === "project" &&
-      cr.entityId === project.id &&
-      cr.fieldName === "geometry" &&
-      cr.status === "pending",
-  );
-  const pendingGeometry = pendingGeometryChange
-    ? (pendingGeometryChange.newValue as GeoJSON.GeometryCollection)
-    : null;
   // project.geometry may be undefined on UserContribution — coerce to null
   const fallbackGeometry =
     (project as { geometry?: GeoJSON.GeometryCollection | null }).geometry ?? null;
-  const existingGeometry = localStoredGeometry ?? pendingGeometry ?? fallbackGeometry;
+  const existingGeometry = await resolveShapeEditorGeometry(project.id, fallbackGeometry);
 
   // Close any open popups (overlay popup or standalone project popup) to ensure a clean slate
   if (overlayStore.showInfoPopup) {
