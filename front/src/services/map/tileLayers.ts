@@ -18,8 +18,6 @@ interface CountryBorder {
   bbox: BoundingBox;
 }
 
-type CountryCode = "FRA" | "CHE" | "CAN";
-
 // Helper to convert bbox array to BoundingBox object
 function toBoundingBox(bbox: number[]): BoundingBox {
   return {
@@ -32,6 +30,107 @@ function toBoundingBox(bbox: number[]): BoundingBox {
   };
 }
 
+// Default max native zoom for Esri layer (safe baseline)
+const BASELINE_ESRI_MAX_ZOOM = 18;
+
+// Tile layer configurations with UI labels.
+// To add a country layer: add an entry here, add its bbox to country_bboxes.json,
+// and export its GeoJSON from country-borders/index.ts. Nothing else needs to change.
+const tileLayerConfigs = {
+  osm: {
+    label: "Plan",
+    url:
+      import.meta.env.VITE_DEBUG === "true"
+        ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        : `https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}.webp?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
+    options: {
+      minZoom: 0,
+      maxZoom: 22,
+      maxNativeZoom: 19,
+      tileSize: 256,
+      attribution:
+        '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
+    },
+  },
+  esri: {
+    label: "Satellite",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      minZoom: 0,
+      maxZoom: 22,
+      maxNativeZoom: BASELINE_ESRI_MAX_ZOOM,
+      tileSize: 256,
+      attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
+    },
+  },
+  FRA: {
+    label: "France",
+    url: "https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal",
+    options: {
+      minZoom: 0,
+      maxZoom: 22,
+      maxNativeZoom: 19,
+      tileSize: 256,
+      attribution: "IGN-F/Géoportail",
+    },
+  },
+  CHE: {
+    label: "Switzerland",
+    url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png",
+    options: {
+      minZoom: 2,
+      maxZoom: 22,
+      maxNativeZoom: 20,
+      tileSize: 256,
+      attribution: "© swisstopo",
+    },
+  },
+  CAN: {
+    label: "Canada",
+    url: "https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/{z}/{y}/{x}.jpg",
+    options: {
+      minZoom: 0,
+      maxZoom: 22,
+      maxNativeZoom: 21, // there is a level 22 but it's the same quality as 21
+      tileSize: 256,
+      attribution: "donneesquebec.ca",
+    },
+  },
+};
+
+// Derived types — adding a country only requires a new entry in tileLayerConfigs above
+export type TileLayerType = keyof typeof tileLayerConfigs;
+type CountryCode = Exclude<TileLayerType, "esri" | "osm">;
+
+// Current active tile layer (OSM as default for built-in labels)
+export const currentTileLayer = ref<TileLayerType>("osm");
+
+// Vector tiles toggle — persisted in localStorage
+const VECTOR_TILES_KEY = "useVectorTiles";
+
+function getInitialVectorTiles(): boolean {
+  try {
+    return localStorage.getItem(VECTOR_TILES_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export const useVectorTiles = ref<boolean>(getInitialVectorTiles());
+export function setVectorTiles(enabled: boolean) {
+  useVectorTiles.value = enabled;
+  try {
+    localStorage.setItem(VECTOR_TILES_KEY, String(enabled));
+  } catch {
+    // Storage unavailable (privacy mode, quota exceeded) — preference not persisted
+  }
+}
+
+/** Reference to the currently active tile layer instance */
+let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
+/** tracks the currently active base layer, useful when using satelite layer with maplibre-gl */
+let activeBaseLayer: L.Layer | null = null;
+
 // Cached after first load — undefined until the user first uses satellite mode
 let countryBorders: CountryBorder[] | undefined;
 
@@ -39,29 +138,17 @@ let countryBorders: CountryBorder[] | undefined;
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
   if (countryBorders) return countryBorders;
 
-  const {
-    FRA: fraGeoJson,
-    CHE: cheGeoJson,
-    CAN: canGeoJson,
-  } = await import("@/assets/country-borders");
+  const { borders: allBorders } = await import("@/assets/country-borders");
 
-  countryBorders = [
-    {
-      code: "FRA",
-      geojson: fraGeoJson as FeatureCollection<Polygon | MultiPolygon>,
-      bbox: toBoundingBox(countryBboxes.FRA),
-    },
-    {
-      code: "CHE",
-      geojson: cheGeoJson as FeatureCollection<Polygon | MultiPolygon>,
-      bbox: toBoundingBox(countryBboxes.CHE),
-    },
-    {
-      code: "CAN",
-      geojson: canGeoJson as FeatureCollection<Polygon | MultiPolygon>,
-      bbox: toBoundingBox(countryBboxes.CAN),
-    },
-  ];
+  const countryCodes = (Object.keys(tileLayerConfigs) as TileLayerType[]).filter(
+    (code): code is CountryCode => code !== "esri" && code !== "osm",
+  );
+
+  countryBorders = countryCodes.map((code) => ({
+    code,
+    geojson: allBorders[code] as FeatureCollection<Polygon | MultiPolygon>,
+    bbox: toBoundingBox(countryBboxes[code]),
+  }));
 
   return countryBorders;
 }
@@ -147,7 +234,7 @@ function isPointInCountry(
  * Async because the GeoJSON border data is lazy-loaded on first call.
  * @param lat Latitude
  * @param lng Longitude
- * @returns Country code (FRA, CHE) or undefined if not in any known country
+ * @returns Country code or undefined if not in any known country
  */
 async function detectCountryFromCoordinates(
   lat: number,
@@ -167,105 +254,6 @@ async function detectCountryFromCoordinates(
   }
   return undefined;
 }
-
-// Default max native zoom for Esri layer (safe baseline)
-const BASELINE_ESRI_MAX_ZOOM = 18;
-
-// Available tile layer types (FRA and CHE are used internally via auto-detection)
-export type TileLayerType = "FRA" | "esri" | "CHE" | "CAN" | "osm";
-
-// Current active tile layer (OSM as default for built-in labels)
-export const currentTileLayer = ref<TileLayerType>("osm");
-
-// Vector tiles toggle — persisted in localStorage
-const VECTOR_TILES_KEY = "useVectorTiles";
-
-function getInitialVectorTiles(): boolean {
-  try {
-    return localStorage.getItem(VECTOR_TILES_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-export const useVectorTiles = ref<boolean>(getInitialVectorTiles());
-export function setVectorTiles(enabled: boolean) {
-  useVectorTiles.value = enabled;
-  try {
-    localStorage.setItem(VECTOR_TILES_KEY, String(enabled));
-  } catch {
-    // Storage unavailable (privacy mode, quota exceeded) — preference not persisted
-  }
-}
-
-/** Reference to the currently active tile layer instance */
-let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
-/** tracks the currently active base layer, useful when using satelite layer with maplibre-gl */
-let activeBaseLayer: L.Layer | null = null;
-
-// Tile layer configurations with UI labels
-const tileLayerConfigs = {
-  osm: {
-    label: "Plan",
-    url:
-      import.meta.env.VITE_DEBUG === "true"
-        ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        : `https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}.webp?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 19,
-      tileSize: 256,
-      //attribution: "© OpenStreetMap contributors",
-      attribution:
-        '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
-    },
-  },
-  esri: {
-    label: "Satellite",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: BASELINE_ESRI_MAX_ZOOM,
-      tileSize: 256,
-      attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
-    },
-  },
-  FRA: {
-    label: "France",
-    url: "https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal",
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 19,
-      tileSize: 256,
-      attribution: "IGN-F/Géoportail",
-    },
-  },
-  CHE: {
-    label: "Switzerland",
-    url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png",
-    options: {
-      minZoom: 2,
-      maxZoom: 22,
-      maxNativeZoom: 20,
-      tileSize: 256,
-      attribution: "© swisstopo",
-    },
-  },
-  CAN: {
-    label: "Canada",
-    url: "https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/{z}/{y}/{x}.jpg",
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 21, // there is a level 22 but it's the same quality as 21
-      tileSize: 256,
-      attribution: "donneesquebec.ca",
-    },
-  },
-};
 
 /**
  * Add tile layers and layer control to the map
@@ -424,7 +412,7 @@ export async function switchTileLayer(layerType: TileLayerType) {
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return ["FRA", "esri", "CHE", "CAN", "osm"].includes(value);
+  return value in tileLayerConfigs;
 }
 
 // Debounce timer for metadata queries
@@ -562,7 +550,7 @@ async function checkAndAutoSwitchSatelliteLayer() {
 
   if (currentZoom <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
     if (currentTileLayer.value !== "esri") {
-      switchTileLayer("esri");
+      await switchTileLayer("esri");
     }
     return;
   }
@@ -577,7 +565,7 @@ async function checkAndAutoSwitchSatelliteLayer() {
     detectedCountry && isTileLayerType(detectedCountry) ? detectedCountry : "esri";
 
   if (currentTileLayer.value !== targetLayer) {
-    switchTileLayer(targetLayer);
+    await switchTileLayer(targetLayer);
   }
 }
 

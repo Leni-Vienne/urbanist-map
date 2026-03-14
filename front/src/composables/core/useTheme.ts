@@ -30,11 +30,5 @@ export function useTheme() {
     applyTheme(theme.value);
   }
 
-  function setTheme(t: Theme) {
-    theme.value = t;
-    localStorage.setItem(STORAGE_KEY, t);
-    applyTheme(t);
-  }
-
-  return { theme, toggle, setTheme };
+  return { theme, toggle };
 }

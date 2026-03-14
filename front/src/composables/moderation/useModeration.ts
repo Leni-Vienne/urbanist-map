@@ -21,7 +21,6 @@ import { createProjectObject } from "@/utils/typeFactories";
 // Result types for approval operations
 type ApprovalResult = {
   success: boolean;
-  itemName?: string;
   error?: "not_found" | "version_conflict" | "unknown";
   message?: string;
 };
@@ -98,8 +97,6 @@ export function useModeration() {
       };
     }
 
-    const itemName = item.name ?? (itemType === "project" ? "Unknown Project" : "Unknown");
-
     // Derive error messages from itemType and status
     const failureMessageKey =
       status === "approved"
@@ -136,7 +133,6 @@ export function useModeration() {
         success: false,
         error: "version_conflict",
         message: t(`moderation.${itemType}VersionConflict`),
-        itemName,
       };
     }
 
@@ -145,7 +141,6 @@ export function useModeration() {
 
     return {
       success: true,
-      itemName,
     };
   }
 

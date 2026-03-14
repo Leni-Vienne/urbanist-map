@@ -181,11 +181,6 @@ export const useUiStore = defineStore("ui", () => {
     shapeEditor.value = { project: null, reopenAt: null };
   }
 
-  // Post-login callback actions
-  function setPostLoginCallback(callback: (() => void) | null) {
-    postLoginCallback.value = callback;
-  }
-
   function executePostLoginCallback() {
     if (postLoginCallback.value) {
       postLoginCallback.value();
@@ -238,7 +233,6 @@ export const useUiStore = defineStore("ui", () => {
     closeImageUploadDialog,
     openShapeEditor,
     closeShapeEditor,
-    setPostLoginCallback,
     executePostLoginCallback,
     closeAllDialogs,
   };
