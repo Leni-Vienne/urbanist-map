@@ -98,7 +98,7 @@ async function handleFileImport(event: Event) {
 
     if (geometry.geometries.length === 0) return;
 
-    const { bounds } = addLayersFromGeometry(map.value, geometry);
+    const bounds = await addLayersFromGeometry(map.value, geometry);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 17 });
     }
