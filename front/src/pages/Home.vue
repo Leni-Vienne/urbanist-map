@@ -200,7 +200,7 @@ function handleSuggestTags(suggestedTags: string[]) {
   if (!project) return;
   const existing = project.tags ?? [];
   const merged = [...new Set([...existing, ...suggestedTags])];
-  projectStore.updateProject(project.id, { tags: merged });
+  projectStore.updateProject(project.id, { tags: merged, isModified: true });
 }
 
 async function handleShapesCancel() {

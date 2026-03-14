@@ -412,7 +412,7 @@ export async function switchTileLayer(layerType: TileLayerType) {
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return value in tileLayerConfigs;
+  return Object.hasOwn(tileLayerConfigs, value);
 }
 
 // Debounce timer for metadata queries
