@@ -69,18 +69,6 @@
           <span>{{ theme === "dark" ? $t("theme.light") : $t("theme.dark") }}</span>
         </button>
 
-        <!-- Vector tiles toggle -->
-        <button
-          type="button"
-          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
-          @click="toggleVectorTiles"
-        >
-          <i class="pi pi-map"></i>
-          <span>{{
-            useVectorTiles ? $t("settings.vectorTilesDisable") : $t("settings.vectorTilesEnable")
-          }}</span>
-        </button>
-
         <!-- Moderation Results as list item -->
         <button
           type="button"
@@ -137,7 +125,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 import { useTheme } from "@/composables/core/useTheme";
-import { useVectorTiles, setVectorTiles } from "@/services/map/tileLayers";
 
 // Lazy-load AuthModal for chunk splitting — avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
@@ -146,11 +133,6 @@ const ModeratedContributionsDialog = defineAsyncComponent(
 );
 
 const { theme, toggle: toggleTheme } = useTheme();
-
-function toggleVectorTiles() {
-  setVectorTiles(!useVectorTiles.value);
-  location.reload();
-}
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();

@@ -149,7 +149,12 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   // full overlay images are displayed.
   const showMarkers = true;
 
-  pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
+  // In view mode, backend overlays are synced by vectorTileSync (MapLibre idle event).
+  // pruneBackendOverlays is only needed for edit and moderation modes.
+  const mapStore = useMapStore();
+  if (mapStore.mode !== "view") {
+    pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
+  }
   pruneLocalOverlays(mapInstance, bounds, showImages, showMarkers);
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)

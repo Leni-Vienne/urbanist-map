@@ -4,6 +4,7 @@ import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { map } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
+import { getApiUrl } from "@/client";
 
 interface BoundingBox {
   minLat: number;
@@ -105,24 +106,20 @@ type CountryCode = Exclude<TileLayerType, "esri" | "osm">;
 // Current active tile layer (OSM as default for built-in labels)
 export const currentTileLayer = ref<TileLayerType>("osm");
 
-// Vector tiles toggle — persisted in localStorage
-const VECTOR_TILES_KEY = "useVectorTiles";
+/** Reference to the underlying MapLibre map instance. Available after mlMapReadyCallbacks fire. */
+const mlMapRef = { current: null as any };
+const mlMapReadyCallbacks: (() => void)[] = [];
 
-function getInitialVectorTiles(): boolean {
-  try {
-    return localStorage.getItem(VECTOR_TILES_KEY) === "true";
-  } catch {
-    return false;
-  }
+export function getMlMap(): any {
+  return mlMapRef.current;
 }
 
-export const useVectorTiles = ref<boolean>(getInitialVectorTiles());
-export function setVectorTiles(enabled: boolean) {
-  useVectorTiles.value = enabled;
-  try {
-    localStorage.setItem(VECTOR_TILES_KEY, String(enabled));
-  } catch {
-    // Storage unavailable (privacy mode, quota exceeded) — preference not persisted
+/** Register a callback to be called once (and immediately if already ready) when mlMap is loaded. */
+export function onMlMapReady(cb: () => void): void {
+  if (mlMapRef.current) {
+    cb();
+  } else {
+    mlMapReadyCallbacks.push(cb);
   }
 }
 
@@ -301,9 +298,9 @@ function loadStylesheet(href: string): void {
 async function ensureMaplibreLoaded(): Promise<void> {
   if ((globalThis as any).maplibregl) return;
   // CSS can load in parallel with JS — no dependency
-  loadStylesheet("https://unpkg.com/maplibre-gl@5.20.0/dist/maplibre-gl.css");
+  loadStylesheet("https://unpkg.com/maplibre-gl@5.20.1/dist/maplibre-gl.css");
   // leaflet-maplibre-gl depends on maplibregl being defined, so load sequentially
-  await loadScript("https://unpkg.com/maplibre-gl@5.20.0/dist/maplibre-gl.js");
+  await loadScript("https://unpkg.com/maplibre-gl@5.20.1/dist/maplibre-gl.js");
   await loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js");
 }
 
@@ -312,90 +309,198 @@ async function ensureMaplibreLoaded(): Promise<void> {
  */
 async function addTileLayersToMap(): Promise<void> {
   try {
-    if (useVectorTiles.value) {
-      await ensureMaplibreLoaded();
-      const leafletLayer = (L as any)
-        .maplibreGL({
-          style: "https://tiles.openfreemap.org/styles/liberty",
-          //style: `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
-        })
-        .addTo(map.value);
-      activeBaseLayer = leafletLayer;
+    await ensureMaplibreLoaded();
+    const leafletLayer = (L as any)
+      .maplibreGL({
+        style: "https://tiles.openfreemap.org/styles/liberty",
+        //style: `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
+      })
+      .addTo(map.value);
+    activeBaseLayer = leafletLayer;
+    activeTileLayer = null;
 
-      const mlMap = leafletLayer.getMaplibreMap();
-      mlMap.on("load", () => {
-        mlMap.addSource("railways", {
-          type: "vector",
-          tiles: ["http://localhost:3001/railways/{z}/{x}/{y}"],
-          minzoom: 0,
-          maxzoom: 10,
-          promoteId: { railways: "relation_id" },
-        });
+    const mlMap = leafletLayer.getMaplibreMap();
+    mlMap.on("load", () => {
+      mlMapRef.current = mlMap;
 
-        mlMap.addLayer({
-          id: "railways-layer",
-          type: "line",
-          source: "railways",
-          "source-layer": "railways",
-          paint: { "line-color": "#e63946", "line-width": 2 },
-        });
+      // Sources must exist before subscribers are notified — callbacks like
+      // projectPointsStore.init() call source.setData() immediately.
+      addProjectSourcesToMap(mlMap);
 
-        // Hover layer — sits on top, filter updated on mousemove
-        mlMap.addLayer({
-          id: "railways-layer-hover",
-          type: "line",
-          source: "railways",
-          "source-layer": "railways",
-          filter: ["==", ["get", "relation_id"], ""],
-          paint: { "line-color": "#ff6b6b", "line-width": 4 },
-        });
-
-        map.value.on("mousemove", (e: L.LeafletMouseEvent) => {
-          const { x, y } = mlMap.project([e.latlng.lng, e.latlng.lat]);
-          const bbox: [[number, number], [number, number]] = [
-            [x - 6, y - 6],
-            [x + 6, y + 6],
-          ];
-          const features = mlMap.queryRenderedFeatures(bbox, { layers: ["railways-layer"] });
-          if (features.length > 0) {
-            mlMap.getCanvas().style.cursor = "pointer";
-            const props = features[0]?.properties;
-            const id =
-              props?.relation_id ??
-              (props?.osm_way_id !== null && props?.osm_way_id !== undefined
-                ? String(props.osm_way_id)
-                : "");
-            mlMap.setFilter("railways-layer-hover", [
-              "==",
-              ["coalesce", ["get", "relation_id"], ["to-string", ["get", "osm_way_id"]]],
-              id,
-            ]);
-          } else {
-            mlMap.getCanvas().style.cursor = "";
-            mlMap.setFilter("railways-layer-hover", ["==", ["get", "relation_id"], ""]);
-          }
-        });
-
-        map.value.on("click", (e: L.LeafletMouseEvent) => {
-          const point = mlMap.project([e.latlng.lng, e.latlng.lat]);
-          const features = mlMap.queryRenderedFeatures([point.x, point.y], {
-            layers: ["railways-layer"],
-          });
-          if (features.length > 0) console.log("Railway:", features[0]?.properties);
-        });
-      });
-      activeTileLayer = null;
-    } else {
-      activeTileLayer = createTileLayer("osm");
-      activeTileLayer.addTo(map.value);
-      activeBaseLayer = activeTileLayer;
-    }
+      // Notify all waiting subscribers (e.g. vectorTileSync, projectPointsStore)
+      for (const cb of mlMapReadyCallbacks) cb();
+      mlMapReadyCallbacks.length = 0;
+    });
   } catch (error) {
-    console.error("Failed to initialize tile layers:", error);
+    console.error("Failed to initialize MapLibre tile layer:", error);
+    // Fallback to plain OSM if MapLibre fails to load
     const fallbackLayer = createTileLayer("osm");
     activeTileLayer = fallbackLayer;
     activeBaseLayer = fallbackLayer;
-    activeTileLayer.addTo(map.value);
+    fallbackLayer.addTo(map.value);
+  }
+}
+
+const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
+const CLUSTER_MAX_ZOOM = 10;
+
+/**
+ * Add all project-related MapLibre sources and layers.
+ * Called once from mlMap.on('load').
+ */
+export function addProjectSourcesToMap(mlMap: any): void {
+  // ── MVT source: project shapes + overlay footprints ───────────────────────
+  mlMap.addSource("project-sources", {
+    type: "vector",
+    tiles: [TILE_URL],
+    minzoom: 0,
+    maxzoom: 14,
+    promoteId: { "overlay-footprints": "id" },
+  });
+
+  // Project geometry shapes (lines/polygons) — visible from zoom 9
+  mlMap.addLayer({
+    id: "project-shapes",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "project-shapes",
+    minzoom: 9,
+    paint: {
+      "line-color": "#3b82f6",
+      "line-width": 2,
+    },
+  });
+
+  // Overlay footprints — permanent border outline replacing CSS box-shadow hack
+  // Visible from MIN_ZOOM_FOR_OVERLAYS (14)
+  mlMap.addLayer({
+    id: "overlay-footprints",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "overlay-footprints",
+    minzoom: 14,
+    paint: {
+      "line-color": "#3b82f6",
+      "line-width": 1.5,
+      "line-opacity": 0.7,
+    },
+  });
+
+  // ── GeoJSON cluster source: project center coordinates ────────────────────
+  // Populated later via updateProjectPointsSource() once /api/projects/points is fetched
+  mlMap.addSource("project-points", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+    cluster: true,
+    clusterMaxZoom: CLUSTER_MAX_ZOOM,
+    clusterRadius: 50,
+  });
+
+  // Cluster circles
+  mlMap.addLayer({
+    id: "clusters",
+    type: "circle",
+    source: "project-points",
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": ["step", ["get", "point_count"], "#3b82f6", 10, "#1d4ed8", 50, "#1e3a8a"],
+      "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 28],
+      "circle-opacity": 0.85,
+    },
+  });
+
+  // Cluster count labels
+  mlMap.addLayer({
+    id: "cluster-count",
+    type: "symbol",
+    source: "project-points",
+    filter: ["has", "point_count"],
+    layout: {
+      "text-field": "{point_count_abbreviated}",
+      "text-size": 12,
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+    },
+    paint: { "text-color": "#ffffff" },
+  });
+
+  // Individual unclustered points — visible between clusterMaxZoom and zoom 13
+  mlMap.addLayer({
+    id: "unclustered-point",
+    type: "circle",
+    source: "project-points",
+    filter: ["!", ["has", "point_count"]],
+    minzoom: CLUSTER_MAX_ZOOM,
+    maxzoom: 13,
+    paint: {
+      "circle-color": "#3b82f6",
+      "circle-radius": 6,
+      "circle-stroke-width": 1.5,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  // ── Click handlers ─────────────────────────────────────────────────────────
+  // Cluster click → zoom in to expand
+  mlMap.on("click", "clusters", (e: any) => {
+    const features = mlMap.queryRenderedFeatures(e.point, { layers: ["clusters"] });
+    if (!features.length) return;
+    const clusterId = features[0].properties.cluster_id;
+    (mlMap.getSource("project-points") as any).getClusterExpansionZoom(
+      clusterId,
+      (err: any, zoom: number) => {
+        if (err) return;
+        mlMap.easeTo({ center: features[0].geometry.coordinates, zoom });
+      },
+    );
+  });
+
+  // Project-shapes click → open project popup
+  mlMap.on("click", "project-shapes", (e: any) => {
+    const features = mlMap.queryRenderedFeatures(e.point, { layers: ["project-shapes"] });
+    if (!features.length) return;
+    const projectId = features[0].properties.id as string;
+    const latlng = L.latLng(e.lngLat.lat, e.lngLat.lng);
+    import("@/services/map/standaloneProjectMarkers")
+      .then(({ handleProjectClickFromTile }) => {
+        handleProjectClickFromTile(projectId, latlng);
+      })
+      .catch(console.error);
+  });
+
+  // Overlay-footprints click → open project popup for that overlay's project
+  mlMap.on("click", "overlay-footprints", (e: any) => {
+    const features = mlMap.queryRenderedFeatures(e.point, { layers: ["overlay-footprints"] });
+    if (!features.length) return;
+    const projectId = features[0].properties.project_id as string;
+    const latlng = L.latLng(e.lngLat.lat, e.lngLat.lng);
+    import("@/services/map/standaloneProjectMarkers")
+      .then(({ handleProjectClickFromTile }) => {
+        handleProjectClickFromTile(projectId, latlng);
+      })
+      .catch(console.error);
+  });
+
+  // Pointer cursor on hover
+  for (const layer of ["clusters", "project-shapes", "overlay-footprints", "unclustered-point"]) {
+    mlMap.on("mouseenter", layer, () => {
+      mlMap.getCanvas().style.cursor = "pointer";
+    });
+    mlMap.on("mouseleave", layer, () => {
+      mlMap.getCanvas().style.cursor = "";
+    });
+  }
+}
+
+/**
+ * Update the project-points GeoJSON source with fresh data.
+ * Called after /api/projects/points is fetched (and on filter changes).
+ */
+export function updateProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
+  const mlMap = mlMapRef.current;
+  if (!mlMap) return;
+  const source = mlMap.getSource("project-points");
+  if (source) {
+    source.setData(geojson);
   }
 }
 

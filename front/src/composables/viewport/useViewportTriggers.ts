@@ -314,6 +314,13 @@ export function useViewportTriggers() {
 
       lastZoomLevel.value = zoom;
 
+      // In view mode, overlays are managed by vectorTileSync (MapLibre idle event) and
+      // the cluster source. No city-based loading is needed — runViewportRenderLoop()
+      // already ran above for local overlay pruning and shape rendering.
+      if (mapStore.mode === "view") {
+        return;
+      }
+
       if (crossedThreshold) {
         await reRenderLoadedCities();
         // Continue execution to load new cities if needed
@@ -573,6 +580,39 @@ export function useViewportTriggers() {
         // - Edit mode: Approved + user's own pending
         // - Moderation mode: Approved + all users' pending
         // So we need to reload when switching between ANY modes to get correct data
+
+        // When switching TO view mode: overlays are handled by vectorTileSync.
+        // No city-based loading needed — clear the registry and let the idle sync drive rendering.
+        if (newMode === "view") {
+          clearAllOverlays(false);
+          await updateOverlayEditingState();
+          setupKeyboardShortcuts();
+          refreshSelectionHighlight();
+          return;
+        }
+
+        // When coming FROM view mode: loadedCityIds is empty because city loading was skipped.
+        // Force a fresh viewport load in the new mode so content appears immediately.
+        if (oldMode === "view") {
+          clearAllOverlays(newMode === "edit");
+          await refreshViewport(true);
+          await updateOverlayEditingState();
+          setupKeyboardShortcuts();
+          refreshSelectionHighlight();
+          if (newMode === "edit") {
+            const userProjects = Object.values(projectStore.projects).filter((p) => {
+              if (!p.lat || !p.lng) return false;
+              if (p.status === null) return true;
+              if (p.status === "pending" && p.ownerId === authStore.user?.id) return true;
+              return false;
+            });
+            for (const project of userProjects) {
+              addStandaloneProjectMarkerForProject(project);
+            }
+          }
+          return;
+        }
+
         const isModerationTransition = oldMode === "moderation" || newMode === "moderation";
         const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
         const hasLoadedContent = loadedCityIds.value.size > 0;

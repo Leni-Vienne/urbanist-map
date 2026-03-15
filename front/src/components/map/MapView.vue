@@ -56,6 +56,8 @@ import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } fr
 import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/core/map";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
+import { initVectorTileSync } from "@/services/map/vectorTileSync";
+import { useProjectPointsStore } from "@/stores/pinia/projectPointsStore";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
 import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 
@@ -124,6 +126,8 @@ async function initializeMapAndOverlays() {
   try {
     initializeMap();
     addTileLayer(); // Initialize tile layers after map is created
+    initVectorTileSync(); // Start idle-driven overlay sync for view mode
+    useProjectPointsStore().init(); // Fetch cluster source data
     initializeCameraBounds(); // Initialize camera bounds tracking
 
     // Load countries first (needed for breadcrumbs in Current Location panel)

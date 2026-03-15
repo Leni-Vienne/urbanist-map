@@ -1212,3 +1212,98 @@ This document outlines the granular functional test scenarios required to ensure
   8.  Call with `mode: "moderation"` while unauthenticated. **Check**: Returns `UNAUTHORIZED` error.
   9.  Call with a bbox outside any known project area. **Check**: Returns empty array.
   10. **Regression**: Switch to a city with **no** standalone projects — verify old markers are still removed instantly.
+
+---
+
+## 38. Vector Tile View Mode (Step 2)
+
+### 38.1. MapLibre Always-On Base Map
+
+- **Scenario**: Page loads for the first time (no toggle, MapLibre is mandatory).
+- **Checks**:
+  1. The MapLibre liberty-style base map renders immediately on page load with no fallback flash.
+  2. No "Plan / Satellite / Vector tiles" toggle is visible in the user menu.
+  3. The satellite layer switcher still works correctly alongside MapLibre.
+
+### 38.2. Cluster Source (`/api/projects/points`)
+
+- **Scenario**: View mode at low zoom over a city with approved projects.
+- **Checks**:
+  1. MapLibre cluster circles appear at zoom ≤ 10 where multiple projects are nearby.
+  2. Clicking a cluster circle zooms in and expands it into sub-clusters or individual points.
+  3. Individual unclustered-point circles appear between zoom 10 and 13.
+  4. Cluster circles disappear above zoom 13 (replaced by overlay images).
+  5. Projects with `geometry_size_m >= 5000` do NOT appear as cluster points (they are discoverable as lines in the MVT layer).
+  6. Projects with no geometry (`geometry_size_m IS NULL`) DO appear as cluster points.
+
+### 38.3. MVT Project Shapes Layer
+
+- **Scenario**: View mode at zoom ≥ 9 over a city with projects that have polygon/line geometry.
+- **Checks**:
+  1. Project-shape lines/polygons render as blue lines from the `project-shapes` MVT layer.
+  2. Clicking a shape opens the project info popup.
+  3. Panning away and back: shapes reload from tiles without user interaction.
+
+### 38.4. Overlay Footprints MVT Layer
+
+- **Scenario**: View mode at zoom ≥ 14 over a city with approved overlays.
+- **Checks**:
+  1. Overlay footprint outlines (blue border) appear as soon as tiles load, **before** the Leaflet image finishes loading.
+  2. Clicking an overlay footprint outline opens the project info popup.
+  3. Pointer cursor appears on hover over the footprint outline.
+
+### 38.5. vectorTileSync — Idle-Driven Leaflet Overlay Creation
+
+- **Scenario**: Zoom to ≥ 14 over a city with approved overlays in view mode.
+- **Checks**:
+  1. Leaflet DistortableImageOverlay images appear for overlays in the viewport after MapLibre fires `idle`.
+  2. No overlay markers (dot icons) are created in view mode — click interaction is handled by the `overlay-footprints` MapLibre layer.
+  3. Pan away: overlays that leave the viewport are removed from the map.
+  4. Pan back: overlays re-appear without a page refresh.
+  5. Zoom below 14: all view-mode overlay images are removed (footprints layer hides via MapLibre minzoom).
+
+### 38.6. Mode Switch — View → Edit
+
+- **Scenario**: User is in view mode (vectorTileSync-managed overlays on map), then switches to edit mode.
+- **Checks**:
+  1. vectorTileSync-managed Leaflet overlays are cleared.
+  2. `refreshViewport(true)` is triggered and city-based overlay loading runs for the current viewport.
+  3. Edit-mode features appear (toolbar on overlays, pending overlay markers).
+  4. No duplicate overlays (neither double Leaflet layers nor double markers).
+
+### 38.7. Mode Switch — Edit → View
+
+- **Scenario**: User is in edit mode with overlays loaded, then switches to view mode.
+- **Checks**:
+  1. Edit-mode overlays (pending + approved) are cleared from the map.
+  2. No city-based loading runs after the switch; the next MapLibre `idle` event repopulates view-mode overlays.
+  3. Standalone project markers are cleared.
+  4. `loadedCityIds` is empty after switching to view (no city-keyed cache is consumed).
+
+### 38.8. Project Points Store Refresh
+
+- **Scenario**: A moderator approves a project while the map is open (simulated by calling `fetchProjectPoints()` manually).
+- **Checks**:
+  1. The cluster source updates without a page reload — new project point appears in the appropriate zoom range.
+  2. Previously clustered area re-clusters correctly after `source.setData()`.
+
+### 38.9. `GET /api/projects/points` Endpoint
+
+- **Scenario**: Backend unit test for the projects/points endpoint.
+- **Checks**:
+  1. Returns a valid GeoJSON `FeatureCollection`.
+  2. Only includes projects with `status = 'approved'`.
+  3. Excludes projects where `geometry_size_m >= 5000`.
+  4. Includes projects where `geometry_size_m IS NULL` (no geometry → standalone).
+  5. Each feature has `id`, `name`, `tags` properties and a Point geometry with `[lng, lat]` coordinates.
+  6. Returns `Content-Type: application/geo+json` with `Cache-Control: public`.
+
+### 38.10. `GET /api/tiles/projects/:z/:x/:y` Endpoint
+
+- **Scenario**: Request an MVT tile that covers a known city.
+- **Checks**:
+  1. Returns `Content-Type: application/x-protobuf` with HTTP 200.
+  2. The tile contains a `project-shapes` source layer with approved project geometries.
+  3. The tile contains an `overlay-footprints` source layer with approved overlay corner polygons; each feature carries `c0_lat…c3_lng`, `filename`, `project_id` properties.
+  4. An empty tile area returns HTTP 204 (no body).
+  5. Invalid coordinates (e.g., `z=-1`) return HTTP 400.

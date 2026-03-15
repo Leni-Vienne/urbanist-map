@@ -359,6 +359,19 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
 }
 
 /**
+ * Handle a click on a MapLibre tile layer feature by project ID.
+ * Looks up the project from the store; if found delegates to handleShapeProjectClick.
+ * Used by tile layer click handlers that only have the project ID available.
+ */
+export function handleProjectClickFromTile(projectId: string, latlng: L.LatLng): void {
+  const projectStore = useProjectStore();
+  const project = projectStore.projects[projectId];
+  if (project) {
+    handleShapeProjectClick(project, latlng);
+  }
+}
+
+/**
  * Add standalone project marker for a specific project
  * This is called when the last overlay is deleted from a project
  */
