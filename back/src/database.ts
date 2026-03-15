@@ -23,3 +23,6 @@ const client = new SQL(config.DATABASE_URL, {
 
 export const db = drizzle({ client, schema });
 export type Database = typeof db;
+
+// Raw SQL client for queries that need binary output (e.g. MVT tiles)
+export const sqlClient = client;

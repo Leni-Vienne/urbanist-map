@@ -80,6 +80,10 @@ export const projectRouter = router({
         geometry: input.geometry
           ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326)`
           : null,
+        // Bbox diagonal in meters — used to exclude large-geometry projects from the cluster GeoJSON source
+        geometrySizeM: input.geometry
+          ? sql`ST_Length(ST_Diagonal(ST_Envelope(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)})))::geography)`
+          : null,
       };
 
       if (input.id) {
@@ -136,6 +140,7 @@ export const projectRouter = router({
               endDatePrecision: data.endDatePrecision,
               sourceUrl: data.sourceUrl,
               geometry: data.geometry ?? null,
+              geometrySizeM: data.geometrySizeM ?? null,
               ...(data.tags !== undefined && { tags: data.tags }),
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),

@@ -1159,4 +1159,56 @@ This document outlines the granular functional test scenarios required to ensure
   3.  Click a **different City Marker**.
   4.  **Check**: Old standalone project markers disappear **instantly** (no ~500ms delay).
   5.  **Check**: New city's standalone project markers appear correctly.
-  6.  **Regression**: Switch to a city with **no** standalone projects — verify old markers are still removed instantly.
+
+## 37. Vector Tile Backend (Step 1)
+
+### 37.1. MVT Tile Endpoint
+
+- **Scenario**: The `/api/tiles/projects/:z/:x/:y` endpoint returns valid MVT binary data.
+- **Steps**:
+  1.  Request a tile for a known location with approved projects that have geometry (e.g. `/api/tiles/projects/12/2064/1401`).
+  2.  **Check**: Response `Content-Type` is `application/x-protobuf`.
+  3.  **Check**: Response body is non-empty binary.
+  4.  **Check**: Decode the MVT — verify it contains a `project-shapes` layer with features.
+  5.  **Check**: Decode the MVT — verify it contains an `overlay-footprints` layer with features for tiles covering approved overlays.
+  6.  Request a tile over an area with no projects. **Check**: Response is `204 No Content`.
+  7.  Request with invalid coordinates (e.g. `z=-1`). **Check**: Response is `400`.
+
+### 37.2. Project Points GeoJSON Endpoint
+
+- **Scenario**: `/api/projects/points` returns the correct GeoJSON FeatureCollection.
+- **Steps**:
+  1.  Request `/api/projects/points`.
+  2.  **Check**: Response `Content-Type` is `application/geo+json`.
+  3.  **Check**: All features have `geometry.type === "Point"` and `properties.id`, `name`, `tags`.
+  4.  **Check**: No feature corresponds to a project with `geometry_size_m >= 5000` (large geometry projects are excluded).
+  5.  **Check**: Projects with `geometry_size_m IS NULL` (no geometry) ARE included.
+  6.  **Check**: Only `status = 'approved'` projects are returned (no pending/rejected).
+
+### 37.3. geometry_size_m Computed on Project Save
+
+- **Scenario**: When a project with geometry is saved, `geometry_size_m` is correctly populated.
+- **Steps**:
+  1.  Create or update a project with a small geometry (a short line, e.g. < 500m).
+  2.  **Check**: `geometry_size_m` in the DB is a small positive number (e.g. < 500).
+  3.  Create or update a project with a large geometry spanning > 5km (e.g. a long railway line).
+  4.  **Check**: `geometry_size_m` is > 5000.
+  5.  **Check**: This project does NOT appear in `/api/projects/points`.
+  6.  Update a project to remove its geometry (set to null).
+  7.  **Check**: `geometry_size_m` is NULL.
+  8.  **Check**: This project now appears in `/api/projects/points`.
+
+### 37.4. getOverlaysInViewport tRPC Procedure
+
+- **Scenario**: `viewport.getOverlaysInViewport` returns overlays for the given bbox.
+- **Steps**:
+  1.  Call with a bbox that covers a known city with approved overlays, `mode: "view"`.
+  2.  **Check**: Returns overlays whose centroid falls within the bbox.
+  3.  **Check**: No pending/rejected overlays are returned in view mode.
+  4.  Call with `mode: "edit"` as an authenticated user with pending overlays in bbox.
+  5.  **Check**: Own pending overlays are included. Others' pending overlays are not.
+  6.  Call with `mode: "moderation"` as a moderator.
+  7.  **Check**: All pending overlays in bbox are included (not just own).
+  8.  Call with `mode: "moderation"` while unauthenticated. **Check**: Returns `UNAUTHORIZED` error.
+  9.  Call with a bbox outside any known project area. **Check**: Returns empty array.
+  10. **Regression**: Switch to a city with **no** standalone projects — verify old markers are still removed instantly.

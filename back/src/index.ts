@@ -6,6 +6,7 @@ import { sessionMiddleware, type Session } from "hono-sessions";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
+import { tilesApp, handleProjectsPoints } from "./routes/tiles";
 import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config as appConfig } from "./config";
@@ -100,6 +101,13 @@ app.get("/api/health", (c) => {
   );
 
   return c.json({ status: "ok", timestamp });
+});
+
+// Public tile endpoints - mounted before session middleware (no auth needed)
+app.route("/api/tiles", tilesApp);
+
+app.get("/api/projects/points", async (c) => {
+  return handleProjectsPoints();
 });
 
 // Session duration constants
