@@ -106,7 +106,8 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
     if (change.newValue === null || change.newValue === undefined) {
       return { geometry: null };
     }
-    return { geometry: parseGeometryCollection(change.newValue) };
+    const collection = parseGeometryCollection(change.newValue);
+    return { geometry: sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326)` };
   }
 
   // For non-geometry fields, use the value directly

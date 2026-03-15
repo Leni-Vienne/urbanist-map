@@ -281,6 +281,13 @@
       "when": 1773399196405,
       "tag": "0039_dapper_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1773598913016,
+      "tag": "0040_dapper_tana_nile",
+      "breakpoints": true
     }
   ]
 }

@@ -172,7 +172,7 @@ const PROJECT_COLUMNS = {
   tags: projects.tags,
   createdAt: projects.createdAt,
   updatedAt: projects.updatedAt,
-  geometry: projects.geometry,
+  geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
   rejectionReason: projects.rejectionReason,
   centerCoordinate: projects.centerCoordinate,
 } as const;

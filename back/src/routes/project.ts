@@ -77,6 +77,9 @@ export const projectRouter = router({
         sourceUrl: input.sourceUrl,
         // Set center coordinate for all projects using PostGIS
         centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,
+        geometry: input.geometry
+          ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326)`
+          : null,
       };
 
       if (input.id) {
@@ -317,7 +320,7 @@ export const projectRouter = router({
             cityId: projects.cityId,
             lat: projects.lat,
             lng: projects.lng,
-            geometry: projects.geometry,
+            geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
             proposalDate: projects.proposalDate,
             proposalDatePrecision: projects.proposalDatePrecision,
             startDate: projects.startDate,

@@ -11,8 +11,23 @@ import {
   index,
   char,
   geometry,
+  customType,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+
+// Custom column type for PostGIS GeometryCollection.
+// Drizzle's built-in geometry() hardcodes getSQLType() to "geometry(point)" and
+// cannot represent complex geometry types. This customType declares the correct
+// SQL type for DDL generation and provides the right TypeScript data type.
+// Reads always use ST_AsGeoJSON(...) SQL expressions; writes always use ST_GeomFromGeoJSON(...).
+const geometryCollectionType = customType<{
+  data: GeoJSON.GeometryCollection | null;
+  driverData: string;
+}>({
+  dataType() {
+    return "geometry(geometrycollection, 4326)";
+  },
+});
 import { sql, relations, type InferSelectModel } from "drizzle-orm";
 
 export const approvalStatusEnum = pgEnum("approval_status", [
@@ -132,7 +147,7 @@ export const projects = pgTable(
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
     centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // PostGIS point for spatial queries (computed from lat/lng)
-    geometry: jsonb("geometry").$type<GeoJSON.GeometryCollection | null>(), // GeoJSON GeometryCollection for project shapes (lines + polygons)
+    geometry: geometryCollectionType("geometry"), // PostGIS GeometryCollection for project shapes (lines + polygons)
     tags: text("tags").array(), // Project category tags (e.g. 'tram', 'rail', 'bike')
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)

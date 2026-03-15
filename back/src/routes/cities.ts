@@ -232,8 +232,11 @@ export const citiesRouter = router({
                 FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
                 WHERE path[2] <= 4
               )`,
-            // Select project fields (all are safe - no geometry columns)
-            project: projects,
+            // Select project fields explicitly — geometry needs ST_AsGeoJSON wrapping
+            project: {
+              ...projects,
+              geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
+            },
             // Select city fields individually, extract coordinates from geometry
             cityId: cities.id,
             city: cities,
