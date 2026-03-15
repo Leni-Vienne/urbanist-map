@@ -314,11 +314,76 @@ async function addTileLayersToMap(): Promise<void> {
   try {
     if (useVectorTiles.value) {
       await ensureMaplibreLoaded();
-      activeBaseLayer = (L as any)
+      const leafletLayer = (L as any)
         .maplibreGL({
           style: "https://tiles.openfreemap.org/styles/liberty",
+          //style: `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
         })
         .addTo(map.value);
+      activeBaseLayer = leafletLayer;
+
+      const mlMap = leafletLayer.getMaplibreMap();
+      mlMap.on("load", () => {
+        mlMap.addSource("railways", {
+          type: "vector",
+          tiles: ["http://localhost:3001/railways/{z}/{x}/{y}"],
+          minzoom: 0,
+          maxzoom: 10,
+          promoteId: { railways: "relation_id" },
+        });
+
+        mlMap.addLayer({
+          id: "railways-layer",
+          type: "line",
+          source: "railways",
+          "source-layer": "railways",
+          paint: { "line-color": "#e63946", "line-width": 2 },
+        });
+
+        // Hover layer — sits on top, filter updated on mousemove
+        mlMap.addLayer({
+          id: "railways-layer-hover",
+          type: "line",
+          source: "railways",
+          "source-layer": "railways",
+          filter: ["==", ["get", "relation_id"], ""],
+          paint: { "line-color": "#ff6b6b", "line-width": 4 },
+        });
+
+        map.value.on("mousemove", (e: L.LeafletMouseEvent) => {
+          const { x, y } = mlMap.project([e.latlng.lng, e.latlng.lat]);
+          const bbox: [[number, number], [number, number]] = [
+            [x - 6, y - 6],
+            [x + 6, y + 6],
+          ];
+          const features = mlMap.queryRenderedFeatures(bbox, { layers: ["railways-layer"] });
+          if (features.length > 0) {
+            mlMap.getCanvas().style.cursor = "pointer";
+            const props = features[0]?.properties;
+            const id =
+              props?.relation_id ??
+              (props?.osm_way_id !== null && props?.osm_way_id !== undefined
+                ? String(props.osm_way_id)
+                : "");
+            mlMap.setFilter("railways-layer-hover", [
+              "==",
+              ["coalesce", ["get", "relation_id"], ["to-string", ["get", "osm_way_id"]]],
+              id,
+            ]);
+          } else {
+            mlMap.getCanvas().style.cursor = "";
+            mlMap.setFilter("railways-layer-hover", ["==", ["get", "relation_id"], ""]);
+          }
+        });
+
+        map.value.on("click", (e: L.LeafletMouseEvent) => {
+          const point = mlMap.project([e.latlng.lng, e.latlng.lat]);
+          const features = mlMap.queryRenderedFeatures([point.x, point.y], {
+            layers: ["railways-layer"],
+          });
+          if (features.length > 0) console.log("Railway:", features[0]?.properties);
+        });
+      });
       activeTileLayer = null;
     } else {
       activeTileLayer = createTileLayer("osm");
