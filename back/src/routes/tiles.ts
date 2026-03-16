@@ -1,7 +1,5 @@
 import { Hono } from "hono";
-import { db, sqlClient } from "../database";
-import { projects } from "../db/schema";
-import { eq, and, isNull, or, lt } from "drizzle-orm";
+import { sqlClient } from "../database";
 
 export const tilesApp = new Hono();
 
@@ -99,38 +97,36 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
 // Fully public, aggressively cached.
 export async function handleProjectsPoints(): Promise<Response> {
   try {
-    const rows = await db
-      .select({
-        id: projects.id,
-        lat: projects.lat,
-        lng: projects.lng,
-        name: projects.name,
-        tags: projects.tags,
-        geometrySizeM: projects.geometrySizeM,
-      })
-      .from(projects)
-      .where(
-        and(
-          eq(projects.status, "approved"),
-          or(isNull(projects.geometrySizeM), lt(projects.geometrySizeM, 5000)),
-        ),
-      );
+    // Snap points to a ~500m grid and pick one representative per cell.
+    // This drastically reduces the payload when many projects cluster together,
+    // without affecting the client-side MapLibre clustering experience.
+    const rows = await sqlClient`
+      SELECT DISTINCT ON (snapped)
+        id, lat, lng, name, COALESCE(tags, ARRAY[]::text[]) AS tags
+      FROM (
+        SELECT
+          id, lat, lng, name, tags,
+          ST_SnapToGrid(ST_SetSRID(ST_Point(lng, lat), 4326), 0.005) AS snapped
+        FROM projects
+        WHERE status = 'approved'
+          AND lat IS NOT NULL
+          AND lng IS NOT NULL
+          AND (geometry_size_m IS NULL OR geometry_size_m < 5000)
+      ) sub
+    `;
 
-    const features = rows
-      .filter((r) => r.lat !== null && r.lng !== null)
-      .map((r) => ({
-        type: "Feature" as const,
-        id: r.id,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [r.lng!, r.lat!],
-        },
-        properties: {
-          id: r.id,
-          name: r.name,
-          tags: r.tags ?? [],
-        },
-      }));
+    const features = rows.map((r: any) => ({
+      type: "Feature" as const,
+      id: r.id,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [Math.round(r.lng * 1e5) / 1e5, Math.round(r.lat * 1e5) / 1e5],
+      },
+      properties: {
+        name: r.name,
+        tags: r.tags ?? [],
+      },
+    }));
 
     const geojson = {
       type: "FeatureCollection" as const,

@@ -115,6 +115,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     },
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
+    geometrySizeM: data.geometrySizeM ?? null,
     tags: data.tags ?? [],
   };
 }

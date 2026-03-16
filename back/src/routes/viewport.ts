@@ -10,14 +10,21 @@ import {
   buildOverlayVisibilityCondition,
 } from "../db/helpers";
 
+const bboxSchema = z.object({
+  minLng: z.number().min(-180).max(180),
+  minLat: z.number().min(-90).max(90),
+  maxLng: z.number().min(-180).max(180),
+  maxLat: z.number().min(-90).max(90),
+});
+
 const getOverlaysInViewportSchema = z.object({
-  bbox: z.object({
-    minLng: z.number().min(-180).max(180),
-    minLat: z.number().min(-90).max(90),
-    maxLng: z.number().min(-180).max(180),
-    maxLat: z.number().min(-90).max(90),
-  }),
+  bbox: bboxSchema,
   mode: z.enum(["view", "edit", "moderation"]).optional().default("view"),
+});
+
+const getProjectsInViewportSchema = z.object({
+  bbox: bboxSchema,
+  mode: z.enum(["edit", "moderation"]),
 });
 
 export const viewportRouter = router({
@@ -202,6 +209,99 @@ export const viewportRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch overlays in viewport",
+        });
+      }
+    }),
+
+  // Bbox-based standalone project fetch for edit and moderation modes.
+  // Replaces getCityProjects as the map rendering data source for standalone markers.
+  // Uses ST_Intersects on project center_coordinate against the viewport bbox.
+  getProjectsInViewport: publicProcedure
+    .input(getProjectsInViewportSchema)
+    .query(async ({ input, ctx }) => {
+      try {
+        const { bbox, mode } = input;
+
+        if (!ctx.user) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required for edit/moderation mode",
+          });
+        }
+
+        const bboxCondition = sql`ST_Intersects(
+          ${projects.centerCoordinate},
+          ST_MakeEnvelope(${bbox.minLng}, ${bbox.minLat}, ${bbox.maxLng}, ${bbox.maxLat}, 4326)
+        )`;
+
+        const whereConditions = [
+          bboxCondition,
+          buildProjectVisibilityCondition(ctx.user, mode, false),
+        ];
+
+        const projectsData = await db
+          .select({
+            id: projects.id,
+            name: projects.name,
+            description: projects.description,
+            status: projects.status,
+            ownerId: projects.ownerId,
+            cityId: projects.cityId,
+            lat: projects.lat,
+            lng: projects.lng,
+            geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
+            proposalDate: projects.proposalDate,
+            proposalDatePrecision: projects.proposalDatePrecision,
+            startDate: projects.startDate,
+            startDatePrecision: projects.startDatePrecision,
+            endDate: projects.endDate,
+            endDatePrecision: projects.endDatePrecision,
+            sourceUrl: projects.sourceUrl,
+            tags: projects.tags,
+            createdAt: projects.createdAt,
+            updatedAt: projects.updatedAt,
+            overlayCount:
+              mode === "edit"
+                ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
+                : sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.status} = 'pending' THEN 1 END)::int`,
+            city: cities,
+          })
+          .from(projects)
+          .innerJoin(cities, eq(cities.id, projects.cityId))
+          .leftJoin(overlays, eq(overlays.projectId, projects.id))
+          .where(and(...whereConditions))
+          .groupBy(
+            projects.id,
+            projects.name,
+            projects.description,
+            projects.status,
+            projects.ownerId,
+            projects.cityId,
+            projects.lat,
+            projects.lng,
+            projects.geometry,
+            projects.proposalDate,
+            projects.proposalDatePrecision,
+            projects.startDate,
+            projects.startDatePrecision,
+            projects.endDate,
+            projects.endDatePrecision,
+            projects.sourceUrl,
+            projects.tags,
+            projects.createdAt,
+            projects.updatedAt,
+            cities.id,
+          );
+
+        return projectsData;
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Error fetching projects in viewport:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch projects in viewport",
         });
       }
     }),

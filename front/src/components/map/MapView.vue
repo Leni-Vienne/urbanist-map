@@ -105,10 +105,9 @@ watch(
   },
 );
 
-// Filter overlays - trigger re-render of loaded cities with new filter state
+// Filter overlays - force viewport re-render with new filter state
 async function filterOverlaysByCompletionStatus() {
-  // Force re-render of all loaded cities which will apply the new filter state
-  await viewportManager.reRenderLoadedCities();
+  await viewportManager.refreshViewport(true);
 }
 
 onMounted(async () => {

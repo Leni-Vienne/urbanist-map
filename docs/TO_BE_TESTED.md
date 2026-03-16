@@ -1307,3 +1307,56 @@ This document outlines the granular functional test scenarios required to ensure
   3. The tile contains an `overlay-footprints` source layer with approved overlay corner polygons; each feature carries `c0_lat…c3_lng`, `filename`, `project_id` properties.
   4. An empty tile area returns HTTP 204 (no body).
   5. Invalid coordinates (e.g., `z=-1`) return HTTP 400.
+
+### 38.11. `GET /api/projects/points` Grid Deduplication
+
+- **Scenario**: Multiple approved projects exist within ~500m of each other.
+- **Checks**:
+  1. The endpoint returns fewer features than the total number of approved projects when several share the same ~0.005° grid cell.
+  2. Each returned feature still has valid `id`, `name`, `tags`, and `coordinates`.
+  3. Projects that are far apart (different grid cells) are all represented — no legitimate points are dropped.
+  4. The MapLibre cluster source still renders correctly with the deduplicated data (clusters at low zoom, individual dots at zoom ≥ 10).
+
+### 38.12. Bbox-Based Edit/Moderation Loading (Step 3)
+
+- **Scenario**: In Edit or Moderation mode, overlays and standalone project markers load spatially from the viewport bbox rather than by city boundaries.
+- **Steps**:
+  1. Enter **Edit Mode** while zoomed in to street level (above `VIEWPORT_LOAD_THRESHOLD`).
+  2. Pan the map across a city boundary so that contributions from two cities are in view.
+  3. Observe that overlays and standalone project markers from **both** cities appear without needing to click a city marker.
+  4. Zoom out below `VIEWPORT_LOAD_THRESHOLD`. Overlays and standalone markers should clear.
+  5. Zoom back in. Data should reload via a fresh bbox fetch.
+- **Checks**:
+  1. Overlays from multiple cities appear simultaneously when their corners are within the viewport — no city boundary limitation.
+  2. Standalone project markers (projects with zero overlays) appear for projects whose `center_coordinate` falls within the viewport.
+  3. In Edit mode, the user's own pending/local projects appear alongside approved projects.
+  4. In Moderation mode, all pending projects (from any user) appear.
+  5. Panning a short distance (within the quantized bbox key) does NOT trigger a new backend fetch.
+  6. Panning a longer distance triggers a new fetch and renders the new viewport's data.
+
+### 38.13. Cluster Source Augmentation in Edit/Moderation
+
+- **Scenario**: The MapLibre cluster source shows both approved projects (from `/api/projects/points`) and pending projects (from the bbox tRPC fetch) when in Edit or Moderation mode.
+- **Steps**:
+  1. Create a new project (pending, not yet approved) with a center coordinate.
+  2. Switch to **Edit Mode**.
+  3. Zoom out to cluster level (zoom ≤ 10).
+- **Checks**:
+  1. The pending project's center point appears in the cluster source (either as part of a cluster or as an individual dot).
+  2. Switch to **View Mode** — the pending project disappears from the cluster source (only approved projects remain).
+  3. Switch back to **Edit Mode** — the pending project reappears in the cluster source.
+
+### 38.14. Mode Switch With Bbox Loading
+
+- **Scenario**: Switching between view, edit, and moderation modes correctly transitions between tile-driven and bbox-driven rendering.
+- **Steps**:
+  1. Start in **View Mode** at street level. Overlays are rendered by vectorTileSync (MVT idle sync).
+  2. Switch to **Edit Mode**.
+  3. Observe overlays reload from the bbox tRPC fetch. User's pending overlays also appear.
+  4. Move an overlay. Switch to **View Mode** — overlay returns to database position.
+  5. Switch back to **Edit Mode** — overlay returns to the cached (moved) position.
+  6. Switch to **Moderation Mode** — all users' pending content appears.
+- **Checks**:
+  1. No flash of empty content during mode transitions (overlays not visible in new mode are hidden before fetch).
+  2. Standalone project markers for local (unsaved) projects appear immediately after switching to Edit mode.
+  3. The cluster source is restored to base (approved-only) data when returning to View mode.
