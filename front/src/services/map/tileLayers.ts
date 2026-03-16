@@ -2,6 +2,7 @@ import L from "leaflet";
 import { ref } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { map } from "@/services/core/map";
+import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 import { getApiUrl } from "@/client";
@@ -344,6 +345,25 @@ async function addTileLayersToMap(): Promise<void> {
 
 const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 const CLUSTER_MAX_ZOOM = 10;
+const VECTOR_HOVER_HIT_RADIUS_PX = 6;
+const HOVER_NONE_ID = "__none__";
+
+const VECTOR_QUERY_LAYERS = [
+  "overlay-footprints",
+  "overlay-footprints-proposed-dashed",
+  "project-shapes",
+  "project-shapes-proposed-dashed",
+] as const;
+
+const CLICK_QUERY_LAYERS = ["clusters", ...VECTOR_QUERY_LAYERS, "unclustered-point"] as const;
+
+type RenderedMapFeature = {
+  properties?: Record<string, unknown>;
+  sourceLayer?: string;
+  geometry?: {
+    coordinates?: any;
+  };
+};
 
 const DEFAULT_PROJECT_LINE_COLOR = "#3b82f6";
 
@@ -401,6 +421,138 @@ function getSingleProjectClusterColorExpression(): any[] {
   return expression;
 }
 
+function getMaplibrePointFromLeafletEvent(
+  event: L.LeafletMouseEvent,
+  mlMap: any,
+): {
+  x: number;
+  y: number;
+} {
+  return mlMap.project([event.latlng.lng, event.latlng.lat]);
+}
+
+function queryFeaturesAtLeafletEvent(
+  event: L.LeafletMouseEvent,
+  mlMap: any,
+  layers: readonly string[],
+  radiusPx = 0,
+): any[] {
+  const point = getMaplibrePointFromLeafletEvent(event, mlMap);
+
+  if (radiusPx > 0) {
+    const bbox: [[number, number], [number, number]] = [
+      [point.x - radiusPx, point.y - radiusPx],
+      [point.x + radiusPx, point.y + radiusPx],
+    ];
+    return mlMap.queryRenderedFeatures(bbox, { layers: [...layers] });
+  }
+
+  return mlMap.queryRenderedFeatures([point.x, point.y], { layers: [...layers] });
+}
+
+function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
+  const rawValue = feature.properties?.[key];
+  if (rawValue === null || rawValue === undefined) {
+    return "";
+  }
+  return String(rawValue);
+}
+
+function getHoveredVectorId(feature: RenderedMapFeature | null): string {
+  if (!feature) {
+    return HOVER_NONE_ID;
+  }
+
+  const id = getFeaturePropertyAsString(feature, "id");
+  return id.length > 0 ? id : HOVER_NONE_ID;
+}
+
+function setVectorHoverFilters(mlMap: any, feature: RenderedMapFeature | null): void {
+  const hoveredId = getHoveredVectorId(feature);
+
+  mlMap.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  mlMap.setFilter("project-shapes-proposed-hover", [
+    "all",
+    getIsProposedFilterExpression(),
+    ["==", ["to-string", ["get", "id"]], hoveredId],
+  ]);
+  mlMap.setFilter("overlay-footprints-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  mlMap.setFilter("overlay-footprints-proposed-hover", [
+    "all",
+    getIsProposedFilterExpression(),
+    ["==", ["to-string", ["get", "id"]], hoveredId],
+  ]);
+}
+
+function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | null {
+  const vectorFeature = features.find((feature) => {
+    const sourceLayer = String(feature?.sourceLayer ?? "");
+    return sourceLayer === "overlay-footprints" || sourceLayer === "project-shapes";
+  });
+
+  return vectorFeature ?? null;
+}
+
+function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
+  const sourceLayer = String(feature.sourceLayer ?? "");
+  const projectId =
+    sourceLayer === "overlay-footprints"
+      ? getFeaturePropertyAsString(feature, "project_id")
+      : getFeaturePropertyAsString(feature, "id");
+
+  if (projectId.length === 0) {
+    return;
+  }
+
+  handleProjectClickFromTile(projectId, latlng);
+}
+
+function registerHybridInteractionHandlers(mlMap: any): void {
+  map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
+    const features = queryFeaturesAtLeafletEvent(
+      event,
+      mlMap,
+      CLICK_QUERY_LAYERS,
+      VECTOR_HOVER_HIT_RADIUS_PX,
+    );
+
+    mlMap.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
+    setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
+  });
+
+  map.value.on("mouseout", () => {
+    mlMap.getCanvas().style.cursor = "";
+    setVectorHoverFilters(mlMap, null);
+  });
+
+  map.value.on("click", (event: L.LeafletMouseEvent) => {
+    console.log("Map click at", event.latlng);
+    const features = queryFeaturesAtLeafletEvent(event, mlMap, CLICK_QUERY_LAYERS);
+    if (!features.length) {
+      return;
+    }
+    console.log("Clicked features:", features);
+
+    const clusterFeature = features.find((feature) => feature?.layer?.id === "clusters");
+    if (clusterFeature) {
+      const clusterId = clusterFeature.properties?.cluster_id;
+      (mlMap.getSource("project-points") as any).getClusterExpansionZoom(
+        clusterId,
+        (err: any, zoom: number) => {
+          if (err) return;
+          mlMap.easeTo({ center: clusterFeature.geometry.coordinates, zoom });
+        },
+      );
+      return;
+    }
+
+    const vectorFeature = getVectorFeatureFromFeatures(features);
+    if (vectorFeature) {
+      handleVectorFeatureClick(vectorFeature, event.latlng);
+    }
+  });
+}
+
 function addFirstTagToProjectPointsGeojson(
   geojson: GeoJSON.FeatureCollection,
 ): GeoJSON.FeatureCollection {
@@ -445,7 +597,7 @@ export function addProjectSourcesToMap(mlMap: any): void {
     tiles: [TILE_URL],
     minzoom: 0,
     maxzoom: 14,
-    promoteId: { "overlay-footprints": "id" },
+    promoteId: { "overlay-footprints": "id", "project-shapes": "id" },
   });
 
   // Project geometry shapes (lines/polygons) — visible from zoom 9
@@ -472,6 +624,40 @@ export function addProjectSourcesToMap(mlMap: any): void {
     paint: {
       "line-color": getProjectLineColorExpression(),
       "line-width": 2,
+      "line-dasharray": [2, 1.5],
+    },
+  });
+
+  // Hover highlight for project shapes.
+  mlMap.addLayer({
+    id: "project-shapes-hover",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "project-shapes",
+    minzoom: 9,
+    filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 4,
+      "line-opacity": 0.8,
+    },
+  });
+
+  mlMap.addLayer({
+    id: "project-shapes-proposed-hover",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "project-shapes",
+    minzoom: 9,
+    filter: [
+      "all",
+      getIsProposedFilterExpression(),
+      ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+    ],
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 4,
+      "line-opacity": 0.8,
       "line-dasharray": [2, 1.5],
     },
   });
@@ -503,6 +689,39 @@ export function addProjectSourcesToMap(mlMap: any): void {
       "line-color": getProjectLineColorExpression(),
       "line-width": 1.5,
       "line-opacity": 0.7,
+      "line-dasharray": [2, 1.5],
+    },
+  });
+
+  mlMap.addLayer({
+    id: "overlay-footprints-hover",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "overlay-footprints",
+    minzoom: 14,
+    filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 3.5,
+      "line-opacity": 0.9,
+    },
+  });
+
+  mlMap.addLayer({
+    id: "overlay-footprints-proposed-hover",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "overlay-footprints",
+    minzoom: 14,
+    filter: [
+      "all",
+      getIsProposedFilterExpression(),
+      ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+    ],
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 3.5,
+      "line-opacity": 0.9,
       "line-dasharray": [2, 1.5],
     },
   });
@@ -566,63 +785,7 @@ export function addProjectSourcesToMap(mlMap: any): void {
     },
   });
 
-  // ── Click handlers ─────────────────────────────────────────────────────────
-  // Cluster click → zoom in to expand
-  mlMap.on("click", "clusters", (e: any) => {
-    const features = mlMap.queryRenderedFeatures(e.point, { layers: ["clusters"] });
-    if (!features.length) return;
-    const clusterId = features[0].properties.cluster_id;
-    (mlMap.getSource("project-points") as any).getClusterExpansionZoom(
-      clusterId,
-      (err: any, zoom: number) => {
-        if (err) return;
-        mlMap.easeTo({ center: features[0].geometry.coordinates, zoom });
-      },
-    );
-  });
-
-  // Project-shapes click → open project popup
-  mlMap.on("click", "project-shapes", (e: any) => {
-    const features = mlMap.queryRenderedFeatures(e.point, { layers: ["project-shapes"] });
-    if (!features.length) return;
-    const projectId = features[0].properties.id as string;
-    const latlng = L.latLng(e.lngLat.lat, e.lngLat.lng);
-    import("@/services/map/standaloneProjectMarkers")
-      .then(({ handleProjectClickFromTile }) => {
-        handleProjectClickFromTile(projectId, latlng);
-      })
-      .catch(console.error);
-  });
-
-  // Overlay-footprints click → open project popup for that overlay's project
-  mlMap.on("click", "overlay-footprints", (e: any) => {
-    const features = mlMap.queryRenderedFeatures(e.point, { layers: ["overlay-footprints"] });
-    if (!features.length) return;
-    const projectId = features[0].properties.project_id as string;
-    const latlng = L.latLng(e.lngLat.lat, e.lngLat.lng);
-    import("@/services/map/standaloneProjectMarkers")
-      .then(({ handleProjectClickFromTile }) => {
-        handleProjectClickFromTile(projectId, latlng);
-      })
-      .catch(console.error);
-  });
-
-  // Pointer cursor on hover
-  for (const layer of [
-    "clusters",
-    "project-shapes",
-    "project-shapes-proposed-dashed",
-    "overlay-footprints",
-    "overlay-footprints-proposed-dashed",
-    "unclustered-point",
-  ]) {
-    mlMap.on("mouseenter", layer, () => {
-      mlMap.getCanvas().style.cursor = "pointer";
-    });
-    mlMap.on("mouseleave", layer, () => {
-      mlMap.getCanvas().style.cursor = "";
-    });
-  }
+  registerHybridInteractionHandlers(mlMap);
 }
 
 /**

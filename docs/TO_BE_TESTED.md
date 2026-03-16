@@ -53,6 +53,23 @@ This document outlines the granular functional test scenarios required to ensure
   2.  A cluster circle with `point_count = 1` uses that same project color.
   3.  Unknown or missing first tag falls back to the default blue.
 
+### 1.2d. Vector Hover and Click in Leaflet+MapLibre Hybrid Mode (New)
+
+- **Scenario**: Vector features remain interactive when MapLibre is embedded through Leaflet (`maplibre-gl-leaflet`).
+- **Steps**:
+  1.  Open the map in View mode where vector layers are available.
+  2.  Zoom to level 9+ where `project-shapes` lines are visible.
+  3.  Zoom to level 14+ where `overlay-footprints` lines are visible.
+  4.  Move the mouse slowly across vector lines and then over empty map areas.
+  5.  Click a project shape line, then click an overlay footprint line.
+- **Checks**:
+  1.  On vector hover, cursor changes to pointer and a white highlight outline appears only on the hovered feature.
+  2.  Leaving vector features clears the highlight and resets cursor.
+  3.  Clicking a `project-shapes` feature opens the project popup for that feature id.
+  4.  Clicking an `overlay-footprints` feature opens the popup for its `project_id`.
+  5.  Clicking on a cluster still zooms/expands the cluster (cluster interaction is not regressed).
+  6.  In areas where both relation and way features overlap, hover/click resolves to the relation feature when relation metadata is present (`relation_id` or `osm_type=relation`).
+
 ### 1.3. Standalone vs. Overlay Projects
 
 - **Scenario**: Viewing different project types.
