@@ -1150,6 +1150,19 @@ This document outlines the granular functional test scenarios required to ensure
   4.  **Check**: Once images are loaded, markers remain interactive and visible (no flash/disappearance).
   5.  **Regression**: Clear browser cache and repeat — verify markers appear before images on slow connection.
 
+### 36.5. No Stale Country Tile Requests After Plan→Satellite Round-Trip
+
+- **Scenario**: Re-enabling satellite over Quebec after visiting France does not briefly request France tiles.
+- **Steps**:
+  1.  Navigate to **France** and enable **Satellite** mode → France tile layer (`data.geopf.fr`) loads.
+  2.  Switch back to **Plan** (OSM) mode.
+  3.  Pan to **Quebec, Canada**.
+  4.  Open browser DevTools → Network tab, filter by `geopf.fr`.
+  5.  Re-enable **Satellite** mode.
+  6.  **Check**: No requests to `data.geopf.fr` appear in the Network tab.
+  7.  **Check**: Only Quebec tile requests (`mern.gouv.qc.ca`) are made.
+  8.  **Regression**: Verify no console errors about failed tile fetches from wrong tile servers.
+
 ### 36.4. Standalone Project Marker Cleanup on City Switch
 
 - **Scenario**: Old standalone project markers are removed instantly when navigating to a new city.
