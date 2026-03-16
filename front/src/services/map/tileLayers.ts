@@ -527,11 +527,16 @@ function registerHybridInteractionHandlers(mlMap: any): void {
 
   map.value.on("click", (event: L.LeafletMouseEvent) => {
     console.log("Map click at", event.latlng);
-    const features = queryFeaturesAtLeafletEvent(event, mlMap, CLICK_QUERY_LAYERS);
+    const features = queryFeaturesAtLeafletEvent(
+      event,
+      mlMap,
+      CLICK_QUERY_LAYERS,
+      VECTOR_HOVER_HIT_RADIUS_PX,
+    );
     if (!features.length) {
       return;
     }
-    console.log("Clicked features:", features);
+    console.table(features.map((f) => f?.properties));
 
     const clusterFeature = features.find((feature) => feature?.layer?.id === "clusters");
     if (clusterFeature) {
@@ -549,6 +554,15 @@ function registerHybridInteractionHandlers(mlMap: any): void {
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
       handleVectorFeatureClick(vectorFeature, event.latlng);
+      return;
+    }
+
+    const unclusteredPoint = features.find((f) => f?.layer?.id === "unclustered-point");
+    if (unclusteredPoint) {
+      const projectId = String(unclusteredPoint.id ?? "");
+      if (projectId.length > 0) {
+        handleProjectClickFromTile(projectId, event.latlng);
+      }
     }
   });
 }
@@ -590,7 +604,7 @@ function addFirstTagToProjectPointsGeojson(
  * Add all project-related MapLibre sources and layers.
  * Called once from mlMap.on('load').
  */
-export function addProjectSourcesToMap(mlMap: any): void {
+function addProjectSourcesToMap(mlMap: any): void {
   // ── MVT source: project shapes + overlay footprints ───────────────────────
   mlMap.addSource("project-sources", {
     type: "vector",
@@ -610,6 +624,7 @@ export function addProjectSourcesToMap(mlMap: any): void {
     paint: {
       "line-color": getProjectLineColorExpression(),
       "line-width": 2,
+      "line-dasharray": [4, 1.5],
     },
   });
 
