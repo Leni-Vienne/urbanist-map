@@ -32,7 +32,12 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             ) AS mvt_geom,
             p.id,
             p.name,
-            COALESCE(p.tags, ARRAY[]::text[]) AS tags
+            COALESCE(p.tags, ARRAY[]::text[]) AS tags,
+            COALESCE(p.tags[1], '') AS first_tag,
+            CASE
+              WHEN p.proposal_date IS NOT NULL AND p.start_date IS NULL THEN 1
+              ELSE 0
+            END AS is_proposed
           FROM projects p, tile_env te
           WHERE p.status = 'approved'
             AND p.geometry IS NOT NULL
@@ -53,6 +58,11 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             o.filename,
             o.caption,
             o.project_id,
+            COALESCE(p.tags[1], '') AS first_tag,
+            CASE
+              WHEN p.proposal_date IS NOT NULL AND p.start_date IS NULL THEN 1
+              ELSE 0
+            END AS is_proposed,
             ST_Y(ST_PointN(ST_ExteriorRing(o.corners), 1)) AS c0_lat,
             ST_X(ST_PointN(ST_ExteriorRing(o.corners), 1)) AS c0_lng,
             ST_Y(ST_PointN(ST_ExteriorRing(o.corners), 2)) AS c1_lat,
@@ -61,7 +71,9 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             ST_X(ST_PointN(ST_ExteriorRing(o.corners), 3)) AS c2_lng,
             ST_Y(ST_PointN(ST_ExteriorRing(o.corners), 4)) AS c3_lat,
             ST_X(ST_PointN(ST_ExteriorRing(o.corners), 4)) AS c3_lng
-          FROM overlays o, tile_env te
+          FROM overlays o
+          JOIN projects p ON p.id = o.project_id,
+          tile_env te
           WHERE o.status = 'approved'
             AND ST_Intersects(ST_Transform(o.corners, 3857), te.bounds)
         ) q

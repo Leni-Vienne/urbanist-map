@@ -27,6 +27,32 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Moderation Mode**: Ensure cities with _anyone's_ pending items appear.
   4.  **Mixed State**: Determine a city with both Approved and Pending items. Verify it is visible in View mode, but interacting with it shows the correct subset of data.
 
+### 1.2b. Vector Tile Line Styling by Tag (New)
+
+- **Scenario**: Vector lines are styled from the first project tag in MVT, and proposed timeline items are dashed.
+- **Steps**:
+  1.  Load a zone with approved project geometries and overlays at zoom level where vector lines are visible.
+  2.  Confirm at least one project where `first_tag` is one of: `tram`, `rail`, `subway`, `bus`, `bike`, `road`, `bridge`, `waterway`, `park`, `building`.
+  3.  Confirm at least one project with `proposal_date` set and `start_date` empty.
+- **Checks**:
+  1.  Project shape lines use the color mapped to the feature `first_tag`.
+  2.  Overlay footprint lines use the same tag-based color mapping as their project.
+  3.  Lines with `is_proposed = 1` render with a dashed stroke.
+  4.  Lines without `is_proposed` (or `false`) render as solid.
+  5.  Unknown or empty `first_tag` values fall back to the default blue color.
+
+### 1.2c. Project Point Color by First Tag (New)
+
+- **Scenario**: Single project points use the same color palette as `projectTags`.
+- **Steps**:
+  1.  Load an area where individual project points are visible (non-image zoom range).
+  2.  Confirm points with different first tags (e.g. `tram`, `rail`, `bike`).
+  3.  Find a zoom/area where a cluster contains a single project (`point_count = 1`).
+- **Checks**:
+  1.  Unclustered project points use the color mapped from `front/src/config/projectTags.ts` for `first_tag`.
+  2.  A cluster circle with `point_count = 1` uses that same project color.
+  3.  Unknown or missing first tag falls back to the default blue.
+
 ### 1.3. Standalone vs. Overlay Projects
 
 - **Scenario**: Viewing different project types.

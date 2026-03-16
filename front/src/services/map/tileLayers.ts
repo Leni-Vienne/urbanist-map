@@ -5,6 +5,7 @@ import { map } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 import { getApiUrl } from "@/client";
+import { PROJECT_TAGS } from "@/config/projectTags";
 
 interface BoundingBox {
   minLat: number;
@@ -344,6 +345,95 @@ async function addTileLayersToMap(): Promise<void> {
 const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 const CLUSTER_MAX_ZOOM = 10;
 
+const DEFAULT_PROJECT_LINE_COLOR = "#3b82f6";
+
+const PROJECT_LINE_COLOR_BY_TAG: Record<string, string> = {};
+
+for (const tag of PROJECT_TAGS) {
+  PROJECT_LINE_COLOR_BY_TAG[tag.slug] = tag.color;
+}
+
+function getTagColorExpression(tagExpression: any[]): any[] {
+  const expression: any[] = [
+    "match",
+    ["downcase", ["to-string", ["coalesce", ...tagExpression, ""]]],
+  ];
+  for (const [tag, color] of Object.entries(PROJECT_LINE_COLOR_BY_TAG)) {
+    expression.push(tag, color);
+  }
+  expression.push(DEFAULT_PROJECT_LINE_COLOR);
+  return expression;
+}
+
+function getProjectLineColorExpression(): any[] {
+  return getTagColorExpression([["get", "first_tag"]]);
+}
+
+function getProjectPointColorExpression(): any[] {
+  return getTagColorExpression([["get", "first_tag"]]);
+}
+
+function getIsProposedFilterExpression(): any[] {
+  return ["any", ["==", ["get", "is_proposed"], true], ["==", ["get", "is_proposed"], 1]];
+}
+
+function buildClusterProperties(): Record<string, any[]> {
+  const clusterProperties: Record<string, any[]> = {};
+
+  for (const tag of PROJECT_TAGS) {
+    clusterProperties[`tag_${tag.slug}`] = [
+      "+",
+      ["case", ["==", ["downcase", ["to-string", ["get", "first_tag"]]], tag.slug], 1, 0],
+    ];
+  }
+
+  return clusterProperties;
+}
+
+function getSingleProjectClusterColorExpression(): any[] {
+  const expression: any[] = ["case"];
+
+  for (const tag of PROJECT_TAGS) {
+    expression.push(["==", ["get", `tag_${tag.slug}`], 1], tag.color);
+  }
+
+  expression.push(DEFAULT_PROJECT_LINE_COLOR);
+  return expression;
+}
+
+function addFirstTagToProjectPointsGeojson(
+  geojson: GeoJSON.FeatureCollection,
+): GeoJSON.FeatureCollection {
+  const enrichedFeatures = [] as GeoJSON.Feature[];
+
+  for (const feature of geojson.features) {
+    const featureProps = (feature.properties ?? {}) as Record<string, unknown>;
+    const existingFirstTag = featureProps["first_tag"];
+    const tags = Array.isArray(featureProps["tags"])
+      ? (featureProps["tags"] as unknown[])
+      : ([] as unknown[]);
+    const firstTagFromTags = typeof tags[0] === "string" ? String(tags[0]) : "";
+
+    const firstTag =
+      typeof existingFirstTag === "string" && existingFirstTag.length > 0
+        ? existingFirstTag
+        : firstTagFromTags;
+
+    enrichedFeatures.push({
+      ...feature,
+      properties: {
+        ...featureProps,
+        first_tag: firstTag,
+      },
+    });
+  }
+
+  return {
+    ...geojson,
+    features: enrichedFeatures,
+  };
+}
+
 /**
  * Add all project-related MapLibre sources and layers.
  * Called once from mlMap.on('load').
@@ -366,8 +456,23 @@ export function addProjectSourcesToMap(mlMap: any): void {
     "source-layer": "project-shapes",
     minzoom: 9,
     paint: {
-      "line-color": "#3b82f6",
+      "line-color": getProjectLineColorExpression(),
       "line-width": 2,
+    },
+  });
+
+  // Proposed project shapes are overlaid as dashed lines.
+  mlMap.addLayer({
+    id: "project-shapes-proposed-dashed",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "project-shapes",
+    minzoom: 9,
+    filter: getIsProposedFilterExpression(),
+    paint: {
+      "line-color": getProjectLineColorExpression(),
+      "line-width": 2,
+      "line-dasharray": [2, 1.5],
     },
   });
 
@@ -380,9 +485,25 @@ export function addProjectSourcesToMap(mlMap: any): void {
     "source-layer": "overlay-footprints",
     minzoom: 14,
     paint: {
-      "line-color": "#3b82f6",
+      "line-color": getProjectLineColorExpression(),
       "line-width": 1.5,
       "line-opacity": 0.7,
+    },
+  });
+
+  // Proposed overlay footprints inherit proposed state from their parent project.
+  mlMap.addLayer({
+    id: "overlay-footprints-proposed-dashed",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "overlay-footprints",
+    minzoom: 14,
+    filter: getIsProposedFilterExpression(),
+    paint: {
+      "line-color": getProjectLineColorExpression(),
+      "line-width": 1.5,
+      "line-opacity": 0.7,
+      "line-dasharray": [2, 1.5],
     },
   });
 
@@ -394,6 +515,7 @@ export function addProjectSourcesToMap(mlMap: any): void {
     cluster: true,
     clusterMaxZoom: CLUSTER_MAX_ZOOM,
     clusterRadius: 50,
+    clusterProperties: buildClusterProperties(),
   });
 
   // Cluster circles
@@ -403,7 +525,12 @@ export function addProjectSourcesToMap(mlMap: any): void {
     source: "project-points",
     filter: ["has", "point_count"],
     paint: {
-      "circle-color": ["step", ["get", "point_count"], "#3b82f6", 10, "#1d4ed8", 50, "#1e3a8a"],
+      "circle-color": [
+        "case",
+        ["==", ["get", "point_count"], 1],
+        getSingleProjectClusterColorExpression(),
+        ["step", ["get", "point_count"], "#3b82f6", 10, "#1d4ed8", 50, "#1e3a8a"],
+      ],
       "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 28],
       "circle-opacity": 0.85,
     },
@@ -432,7 +559,7 @@ export function addProjectSourcesToMap(mlMap: any): void {
     minzoom: CLUSTER_MAX_ZOOM,
     maxzoom: 13,
     paint: {
-      "circle-color": "#3b82f6",
+      "circle-color": getProjectPointColorExpression(),
       "circle-radius": 6,
       "circle-stroke-width": 1.5,
       "circle-stroke-color": "#ffffff",
@@ -481,7 +608,14 @@ export function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Pointer cursor on hover
-  for (const layer of ["clusters", "project-shapes", "overlay-footprints", "unclustered-point"]) {
+  for (const layer of [
+    "clusters",
+    "project-shapes",
+    "project-shapes-proposed-dashed",
+    "overlay-footprints",
+    "overlay-footprints-proposed-dashed",
+    "unclustered-point",
+  ]) {
     mlMap.on("mouseenter", layer, () => {
       mlMap.getCanvas().style.cursor = "pointer";
     });
@@ -500,7 +634,7 @@ export function updateProjectPointsSource(geojson: GeoJSON.FeatureCollection): v
   if (!mlMap) return;
   const source = mlMap.getSource("project-points");
   if (source) {
-    source.setData(geojson);
+    source.setData(addFirstTagToProjectPointsGeojson(geojson));
   }
 }
 

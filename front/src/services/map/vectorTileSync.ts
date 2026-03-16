@@ -52,6 +52,9 @@ function syncOverlaysFromTiles(mlMap: any): void {
   const mapStore = useMapStore();
   if (mapStore.mode !== "view") return;
 
+  // During style reloads/HMR, idle can fire before this layer is present.
+  if (!mlMap.getLayer("overlay-footprints")) return;
+
   try {
     // Query features currently rendered in the overlay-footprints layer.
     // Pass options as the first (and only) argument — MapLibre detects the overloaded
