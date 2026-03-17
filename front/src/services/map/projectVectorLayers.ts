@@ -15,6 +15,7 @@ export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-proposed-dashed",
   "project-shapes",
   "project-shapes-proposed-dashed",
+  "project-shapes-points",
 ] as const;
 
 export const CLICK_QUERY_LAYERS = [
@@ -60,7 +61,12 @@ export function getProjectLineColorExpression(): any[] {
 }
 
 export function getProjectPointColorExpression(): any[] {
-  return getTagColorExpression([["get", "first_tag"]]);
+  return [
+    "case",
+    ["==", ["get", "is_pending"], true],
+    "#f97316", // Tailwind orange-500
+    getTagColorExpression([["get", "first_tag"]]),
+  ];
 }
 
 export function getIsProposedFilterExpression(): any[] {
@@ -76,6 +82,9 @@ export function buildClusterProperties(): Record<string, any[]> {
       ["case", ["==", ["downcase", ["to-string", ["get", "first_tag"]]], tag.slug], 1, 0],
     ];
   }
+
+  // Count pending projects inside the cluster (used to color the whole cluster orange from afar)
+  clusterProperties["pending_count"] = ["+", ["case", ["==", ["get", "is_pending"], true], 1, 0]];
 
   return clusterProperties;
 }
@@ -228,6 +237,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const clusterFeature = features.find((feature) => feature?.layer?.id === "clusters");
     if (clusterFeature) {
       const clusterId = clusterFeature.properties?.cluster_id;
+
       try {
         const expansionZoom = await (
           mlMap.getSource("project-points") as any
@@ -289,6 +299,7 @@ export function addFirstTagToProjectPointsGeojson(
       ...feature,
       properties: {
         ...featureProps,
+        id: feature.id, // Ensure ID is in properties so MapLibre preserves it
         first_tag: firstTag,
       },
     });
@@ -453,6 +464,21 @@ export function addProjectDataToMlMap(
     },
   });
 
+  m.addLayer({
+    id: "project-shapes-points",
+    type: "circle",
+    source: "project-sources",
+    "source-layer": "project-shapes",
+    minzoom: 13,
+    filter: ["==", ["geometry-type"], "Point"],
+    paint: {
+      "circle-color": getProjectLineColorExpression(),
+      "circle-radius": 6,
+      "circle-stroke-width": 1.5,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
   // ── GeoJSON cluster source: project center coordinates ────────────────────
   m.addSource("project-points", {
     type: "geojson",
@@ -470,10 +496,14 @@ export function addProjectDataToMlMap(
     id: "clusters",
     type: "circle",
     source: "project-points",
+    maxzoom: 13,
     filter: ["has", "point_count"],
     paint: {
       "circle-color": [
         "case",
+        // If the cluster contains ANY pending projects, color the whole thing orange to act as a beacon
+        [">", ["get", "pending_count"], 0],
+        "#f97316", // Tailwind orange-500
         ["==", ["get", "point_count"], 1],
         getSingleProjectClusterColorExpression(),
         ["step", ["get", "point_count"], "#3b82f6", 10, "#1d4ed8", 50, "#1e3a8a"],
@@ -488,10 +518,13 @@ export function addProjectDataToMlMap(
     id: "clusters-hover",
     type: "circle",
     source: "project-points",
+    maxzoom: 13,
     filter: ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]],
     paint: {
       "circle-color": [
         "case",
+        [">", ["get", "pending_count"], 0],
+        "#fb923c", // Tailwind orange-400 (lighter for hover)
         ["==", ["get", "point_count"], 1],
         getSingleProjectClusterColorExpression(),
         ["step", ["get", "point_count"], "#60a5fa", 10, "#3b82f6", 50, "#1d4ed8"],
@@ -506,6 +539,7 @@ export function addProjectDataToMlMap(
     id: "cluster-count",
     type: "symbol",
     source: "project-points",
+    maxzoom: 13,
     filter: ["has", "point_count"],
     layout: {
       "text-field": "{point_count_abbreviated}",
@@ -521,7 +555,7 @@ export function addProjectDataToMlMap(
     type: "circle",
     source: "project-points",
     filter: ["!", ["has", "point_count"]],
-    minzoom: CLUSTER_MAX_ZOOM,
+    maxzoom: 13,
     paint: {
       "circle-color": getProjectPointColorExpression(),
       "circle-radius": 6,

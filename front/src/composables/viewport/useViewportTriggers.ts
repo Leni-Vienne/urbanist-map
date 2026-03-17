@@ -35,7 +35,10 @@ import {
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import { trpc } from "@/client";
 import { createProjectObject, toProjectPartial } from "@/utils/typeFactories";
-import { mergeProjectPointsForMode } from "@/services/map/clusterSourceMerge";
+import {
+  mergeProjectPointsForMode,
+  updateGlobalPendingPoints,
+} from "@/services/map/clusterSourceMerge";
 import type { OverlayData } from "@/types/index";
 
 const isLoading = ref(false);
@@ -172,6 +175,11 @@ export function useViewportTriggers() {
         clearAllOverlays(isEditMode);
         clearAllStandaloneProjectMarkers();
         lastBboxKey = "";
+
+        // Even though we aren't loading bbox data, we still need to merge global pending points
+        if (mapStore.mode !== "view") {
+          mergeProjectPointsForMode([], [], mapStore.mode);
+        }
 
         lastZoomLevel.value = zoom;
         return;
@@ -332,6 +340,7 @@ export function useViewportTriggers() {
         // Overlays are handled by vectorTileSync. Clear and let idle sync drive rendering.
         if (newMode === "view") {
           clearAllOverlays(false);
+          await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();
           setupKeyboardShortcuts();
@@ -357,6 +366,8 @@ export function useViewportTriggers() {
         }
 
         // Fresh bbox fetch for the new mode
+        // Fetch global pending points for the whole map
+        await updateGlobalPendingPoints(newMode);
         await refreshViewport(true);
 
         await updateOverlayEditingState();

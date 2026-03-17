@@ -28,7 +28,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
         FROM (
           SELECT
             ST_AsMVTGeom(
-              ST_Transform(ST_SetSRID(p.geometry, 4326), 3857),
+              ST_Transform(ST_SetSRID(COALESCE(p.geometry, ST_Point(p.lng, p.lat)), 4326), 3857),
               te.bounds,
               4096, 64, true
             ) AS mvt_geom,
@@ -42,8 +42,17 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             END AS is_proposed
           FROM projects p, tile_env te
           WHERE p.status = 'approved'
-            AND p.geometry IS NOT NULL
-            AND ST_Intersects(ST_SetSRID(p.geometry, 4326), te.bounds_4326)
+            AND (
+              p.geometry IS NOT NULL 
+              OR (
+                p.lat IS NOT NULL 
+                AND p.lng IS NOT NULL 
+                AND NOT EXISTS (
+                  SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved'
+                )
+              )
+            )
+            AND ST_Intersects(ST_SetSRID(COALESCE(p.geometry, ST_Point(p.lng, p.lat)), 4326), te.bounds_4326)
         ) q
         WHERE q.mvt_geom IS NOT NULL
       ),

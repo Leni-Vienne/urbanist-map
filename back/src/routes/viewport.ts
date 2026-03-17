@@ -71,6 +71,81 @@ const getProjectsInViewportSchema = z.object({
 });
 
 export const viewportRouter = router({
+  // Global fetch for all pending items to allow map clustering from afar
+  getGlobalPendingPoints: publicProcedure
+    .input(z.object({ mode: z.enum(["edit", "moderation"]) }))
+    .query(async ({ input, ctx }) => {
+      try {
+        const { mode } = input;
+
+        if (!ctx.user) {
+          return [];
+        }
+
+        // 1. Pending Projects
+        const projectConditions =
+          mode === "edit"
+            ? sql`(${projects.ownerId} = ${ctx.user.id} AND ${projects.status} != 'approved')`
+            : buildProjectVisibilityCondition(ctx.user, mode, false);
+
+        const pendingProjects = await db
+          .select({
+            id: projects.id,
+            lat: projects.lat,
+            lng: projects.lng,
+            tags: projects.tags,
+            name: projects.name,
+            status: projects.status,
+          })
+          .from(projects)
+          .where(
+            and(
+              projectConditions,
+              sql`${projects.lat} IS NOT NULL`,
+              sql`${projects.lng} IS NOT NULL`,
+            ),
+          );
+
+        // 2. Projects with pending overlays
+        const overlayConditions =
+          mode === "edit"
+            ? sql`(${overlays.authorId} = ${ctx.user.id} AND ${overlays.status} != 'approved')`
+            : buildOverlayVisibilityCondition(ctx.user, mode, undefined); // No overlayChangeRequestIds here, keep it simple for afar
+
+        const pendingOverlays = await db
+          .selectDistinct({
+            id: projects.id,
+            lat: projects.lat,
+            lng: projects.lng,
+            tags: projects.tags,
+            name: projects.name,
+            status: sql<string>`'pending'`,
+          })
+          .from(overlays)
+          .innerJoin(projects, eq(overlays.projectId, projects.id))
+          .where(
+            and(
+              overlayConditions,
+              sql`${projects.lat} IS NOT NULL`,
+              sql`${projects.lng} IS NOT NULL`,
+            ),
+          );
+
+        // Merge results and deduplicate
+        const merged = new Map();
+        for (const p of pendingProjects) merged.set(p.id, p);
+        for (const p of pendingOverlays) merged.set(p.id, p);
+
+        return Array.from(merged.values());
+      } catch (error) {
+        console.error("Error fetching global pending points:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch global pending points",
+        });
+      }
+    }),
+
   // Bbox-based overlay fetch for edit and moderation modes.
   // Replaces getCityOverlaysAndProjects as the map rendering data source.
   // Uses ST_Intersects on overlay centroid against the viewport bbox.

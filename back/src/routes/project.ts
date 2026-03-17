@@ -82,7 +82,7 @@ export const projectRouter = router({
           : null,
         // Bbox diagonal in meters — used to exclude large-geometry projects from the cluster GeoJSON source
         geometrySizeM: input.geometry
-          ? sql`ST_Length(ST_Diagonal(ST_Envelope(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)})))::geography)`
+          ? sql`ST_Length(ST_BoundingDiagonal(ST_Envelope(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)})))::geography)`
           : null,
       };
 
