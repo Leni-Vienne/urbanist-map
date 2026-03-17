@@ -1,5 +1,10 @@
 import L from "leaflet";
-import type { Map as MaplibreMap, PointLike } from "maplibre-gl";
+import type {
+  Map as MaplibreMap,
+  PointLike,
+  FilterSpecification,
+  ExpressionSpecification,
+} from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { getApiUrl } from "@/client";
@@ -44,8 +49,8 @@ for (const tag of PROJECT_TAGS) {
   PROJECT_LINE_COLOR_BY_TAG[tag.slug] = tag.color;
 }
 
-export function getTagColorExpression(tagExpression: any[]): any[] {
-  const expression: any[] = [
+export function getTagColorExpression(tagExpression: unknown[]): ExpressionSpecification {
+  const expression: unknown[] = [
     "match",
     ["downcase", ["to-string", ["coalesce", ...tagExpression, ""]]],
   ];
@@ -53,51 +58,54 @@ export function getTagColorExpression(tagExpression: any[]): any[] {
     expression.push(tag, color);
   }
   expression.push(DEFAULT_PROJECT_LINE_COLOR);
-  return expression;
+  return expression as ExpressionSpecification;
 }
 
-export function getProjectLineColorExpression(): any[] {
+export function getProjectLineColorExpression(): ExpressionSpecification {
   return getTagColorExpression([["get", "first_tag"]]);
 }
 
-export function getProjectPointColorExpression(): any[] {
+export function getProjectPointColorExpression(): ExpressionSpecification {
   return [
     "case",
     ["==", ["get", "is_pending"], true],
     "#f97316", // Tailwind orange-500
     getTagColorExpression([["get", "first_tag"]]),
-  ];
+  ] as ExpressionSpecification;
 }
 
-export function getIsProposedFilterExpression(): any[] {
+export function getIsProposedFilterExpression(): ExpressionSpecification {
   return ["any", ["==", ["get", "is_proposed"], true], ["==", ["get", "is_proposed"], 1]];
 }
 
-export function buildClusterProperties(): Record<string, any[]> {
-  const clusterProperties: Record<string, any[]> = {};
+export function buildClusterProperties(): Record<string, ExpressionSpecification> {
+  const clusterProperties: Record<string, ExpressionSpecification> = {};
 
   for (const tag of PROJECT_TAGS) {
     clusterProperties[`tag_${tag.slug}`] = [
       "+",
       ["case", ["==", ["downcase", ["to-string", ["get", "first_tag"]]], tag.slug], 1, 0],
-    ];
+    ] as ExpressionSpecification;
   }
 
   // Count pending projects inside the cluster (used to color the whole cluster orange from afar)
-  clusterProperties["pending_count"] = ["+", ["case", ["==", ["get", "is_pending"], true], 1, 0]];
+  clusterProperties["pending_count"] = [
+    "+",
+    ["case", ["==", ["get", "is_pending"], true], 1, 0],
+  ] as ExpressionSpecification;
 
   return clusterProperties;
 }
 
-export function getSingleProjectClusterColorExpression(): any[] {
-  const expression: any[] = ["case"];
+export function getSingleProjectClusterColorExpression(): ExpressionSpecification {
+  const expression: unknown[] = ["case"];
 
   for (const tag of PROJECT_TAGS) {
     expression.push(["==", ["get", `tag_${tag.slug}`], 1], tag.color);
   }
 
   expression.push(DEFAULT_PROJECT_LINE_COLOR);
-  return expression;
+  return expression as ExpressionSpecification;
 }
 
 export function getMaplibrePointFromLeafletEvent(
@@ -143,16 +151,15 @@ export function setVectorHoverFilters(
   feature: RenderedMapFeature | null,
 ): void {
   const hoveredId = getHoveredVectorId(feature);
-  const m = mlMap as any;
 
-  m.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
-  m.setFilter("project-shapes-proposed-hover", [
+  mlMap.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  mlMap.setFilter("project-shapes-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
     ["==", ["to-string", ["get", "id"]], hoveredId],
   ]);
-  m.setFilter("overlay-footprints-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
-  m.setFilter("overlay-footprints-proposed-hover", [
+  mlMap.setFilter("overlay-footprints-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  mlMap.setFilter("overlay-footprints-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
     ["==", ["to-string", ["get", "id"]], hoveredId],
@@ -183,22 +190,22 @@ export function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.
 }
 
 export function setClusterHoverFilter(mlMap: MaplibreMap, clusterId: number | null): void {
-  (mlMap as any).setFilter("clusters-hover", [
+  mlMap.setFilter("clusters-hover", [
     "all",
     ["has", "point_count"],
     ["==", ["get", "cluster_id"], clusterId ?? -1],
-  ]);
+  ] as unknown as FilterSpecification);
 }
 
 export function setUnclusteredPointHoverFilter(
   mlMap: MaplibreMap,
   featureId: string | number | null,
 ): void {
-  (mlMap as any).setFilter("unclustered-point-hover", [
+  mlMap.setFilter("unclustered-point-hover", [
     "all",
     ["!", ["has", "point_count"]],
     ["==", ["get", "id"], featureId ?? HOVER_NONE_ID],
-  ]);
+  ] as unknown as FilterSpecification);
 }
 
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
@@ -359,12 +366,8 @@ export function addProjectDataToMlMap(
   mlMap: MaplibreMap,
   lastProjectPointsGeojson: GeoJSON.FeatureCollection | null,
 ): void {
-  // Cast to any for addLayer/addSource calls that use complex expression arrays
-  // which don't satisfy MapLibre's strict ExpressionSpecification type.
-  const m = mlMap as any;
-
   // ── MVT source: project shapes + overlay footprints ───────────────────────
-  m.addSource("project-sources", {
+  mlMap.addSource("project-sources", {
     type: "vector",
     tiles: [TILE_URL],
     minzoom: 0,
@@ -373,7 +376,7 @@ export function addProjectDataToMlMap(
   });
 
   // Project geometry shapes (lines/polygons) — visible from zoom 9
-  m.addLayer({
+  mlMap.addLayer({
     id: "project-shapes",
     type: "line",
     source: "project-sources",
@@ -387,7 +390,7 @@ export function addProjectDataToMlMap(
   });
 
   // Proposed project shapes are overlaid as dashed lines.
-  m.addLayer({
+  mlMap.addLayer({
     id: "project-shapes-proposed-dashed",
     type: "line",
     source: "project-sources",
@@ -402,7 +405,7 @@ export function addProjectDataToMlMap(
   });
 
   // Hover highlight for project shapes.
-  m.addLayer({
+  mlMap.addLayer({
     id: "project-shapes-hover",
     type: "line",
     source: "project-sources",
@@ -416,7 +419,7 @@ export function addProjectDataToMlMap(
     },
   });
 
-  m.addLayer({
+  mlMap.addLayer({
     id: "project-shapes-proposed-hover",
     type: "line",
     source: "project-sources",
@@ -436,7 +439,7 @@ export function addProjectDataToMlMap(
   });
 
   // Overlay footprints — permanent border outline replacing CSS box-shadow hack
-  m.addLayer({
+  mlMap.addLayer({
     id: "overlay-footprints",
     type: "line",
     source: "project-sources",
@@ -450,7 +453,7 @@ export function addProjectDataToMlMap(
   });
 
   // Proposed overlay footprints inherit proposed state from their parent project.
-  m.addLayer({
+  mlMap.addLayer({
     id: "overlay-footprints-proposed-dashed",
     type: "line",
     source: "project-sources",
@@ -465,7 +468,7 @@ export function addProjectDataToMlMap(
     },
   });
 
-  m.addLayer({
+  mlMap.addLayer({
     id: "overlay-footprints-hover",
     type: "line",
     source: "project-sources",
@@ -479,7 +482,7 @@ export function addProjectDataToMlMap(
     },
   });
 
-  m.addLayer({
+  mlMap.addLayer({
     id: "overlay-footprints-proposed-hover",
     type: "line",
     source: "project-sources",
@@ -498,7 +501,7 @@ export function addProjectDataToMlMap(
     },
   });
 
-  m.addLayer({
+  mlMap.addLayer({
     id: "project-shapes-points",
     type: "circle",
     source: "project-sources",
@@ -514,7 +517,7 @@ export function addProjectDataToMlMap(
   });
 
   // ── GeoJSON cluster source: project center coordinates ────────────────────
-  m.addSource("project-points", {
+  mlMap.addSource("project-points", {
     type: "geojson",
     data: lastProjectPointsGeojson
       ? addFirstTagToProjectPointsGeojson(lastProjectPointsGeojson)
@@ -526,7 +529,7 @@ export function addProjectDataToMlMap(
   });
 
   // Cluster circles
-  m.addLayer({
+  mlMap.addLayer({
     id: "clusters",
     type: "circle",
     source: "project-points",
@@ -548,7 +551,7 @@ export function addProjectDataToMlMap(
   });
 
   // Cluster hover highlight
-  m.addLayer({
+  mlMap.addLayer({
     id: "clusters-hover",
     type: "circle",
     source: "project-points",
@@ -569,7 +572,7 @@ export function addProjectDataToMlMap(
   });
 
   // Cluster count labels
-  m.addLayer({
+  mlMap.addLayer({
     id: "cluster-count",
     type: "symbol",
     source: "project-points",
@@ -584,7 +587,7 @@ export function addProjectDataToMlMap(
   });
 
   // Individual unclustered points
-  m.addLayer({
+  mlMap.addLayer({
     id: "unclustered-point",
     type: "circle",
     source: "project-points",
@@ -599,7 +602,7 @@ export function addProjectDataToMlMap(
   });
 
   // Unclustered point hover
-  m.addLayer({
+  mlMap.addLayer({
     id: "unclustered-point-hover",
     type: "circle",
     source: "project-points",
