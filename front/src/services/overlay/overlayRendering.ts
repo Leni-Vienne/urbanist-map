@@ -75,7 +75,7 @@ export function createLeafletOverlay(
       ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
       : undefined;
     const isEditMode = mapStore.mode === "edit";
-
+    console.trace("overlay");
     // Suppress the built-in leaflet-toolbar popup — OverlayFloatingToolbar.vue handles the UI.
     // Keep mode actions so editing handles (resize/distort) still work in edit mode.
     const newOverlay = L.distortableImageOverlay(imageUrl, {

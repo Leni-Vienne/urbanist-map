@@ -1,17 +1,33 @@
 /**
- * vectorTileSync.ts — idle-driven overlay sync for view mode.
+ * vectorTileSync.ts — idle-driven overlay sync for approved overlays.
  *
  * Listens to MapLibre's 'idle' event and diffs the rendered overlay-footprints
  * features against the overlay render registry to create/destroy Leaflet
- * DistortableImageOverlay instances. Replaces pruneBackendOverlays in view mode.
+ * DistortableImageOverlay instances for approved overlays.
  *
- * Only active while mode === 'view'. Edit/moderation use the bbox tRPC path.
+ * Runs in ALL modes (view, edit, moderation). Approved overlays are always
+ * delivered via tiles — the bbox tRPC fetch only returns pending content.
  */
 
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayData } from "@/types/index";
+
+// ── Approved overlay data cache ───────────────────────────────────────────────
+// Stores the last-synced set of OverlayData objects built from tile features.
+// Used by viewportRenderLoop to collect approved overlay project IDs for shape
+// rendering in edit/moderation mode (where viewModeOverlays only has pending content).
+const approvedOverlayDataCache = new Map<string, OverlayData>();
+
+/**
+ * Returns the current snapshot of approved overlay data built from tile features.
+ * Only includes overlays whose ids are currently in the rendered overlay-footprints layer.
+ */
+export function getApprovedOverlayDataFromTiles(): ReadonlyMap<string, OverlayData> {
+  return approvedOverlayDataCache;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function overlayDataFromFeature(feat: any): OverlayData | null {
   const p = feat.properties;
@@ -49,9 +65,6 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
 }
 
 function syncOverlaysFromTiles(mlMap: any): void {
-  const mapStore = useMapStore();
-  if (mapStore.mode !== "view") return;
-
   // During style reloads/HMR, idle can fire before this layer is present.
   if (!mlMap.getLayer("overlay-footprints")) return;
 
@@ -61,8 +74,9 @@ function syncOverlaysFromTiles(mlMap: any): void {
     // signature by checking for a 'layers' key, so this queries the full viewport.
     // Do NOT pass undefined explicitly as geometry: MapLibre 5.x throws internally
     // when it tries to compute tile ranges from an undefined geometry value.
-    // queryRenderedFeatures respects the layer's minzoom (14), so below zoom 14 this
-    // returns an empty array and all layers are cleaned up — correct behaviour.
+    // queryRenderedFeatures respects the layer's minzoom (13 MapLibre = Leaflet zoom 14 =
+    // MIN_ZOOM_FOR_OVERLAYS), so below that threshold this returns an empty array and all
+    // approved layers are cleaned up — correct behaviour.
     const features: any[] = mlMap.queryRenderedFeatures({ layers: ["overlay-footprints"] } as any);
 
     // Deduplicate by ID — same overlay can appear in adjacent tiles
@@ -75,12 +89,29 @@ function syncOverlaysFromTiles(mlMap: any): void {
       }
     }
 
-    // Remove layers for overlays no longer in the rendered set.
-    // Skip entries currently being created — their in-flight async load will clean up
+    // Remove layers for approved overlays no longer in the rendered set.
+    // Only evict registry entries that vectorTileSync itself created — identified by
+    // presence in approvedOverlayDataCache. Pending layers (from bbox tRPC fetch) and
+    // local/new layers are never in that cache, so they are never touched here.
+    // Also skip entries currently being created — their in-flight async load will clean up
     // via the visibility check in onOverlayFullyLoaded if they've since left view.
     for (const [id] of registry.getAllLayers()) {
-      if (!featureMap.has(id) && !registry.isCreating(id)) {
+      if (!featureMap.has(id) && !registry.isCreating(id) && approvedOverlayDataCache.has(id)) {
         registry.clearEntry(id);
+        approvedOverlayDataCache.delete(id);
+      }
+    }
+
+    // Sync the approved overlay data cache with the current feature set.
+    // Evict entries no longer in view, add new ones.
+    for (const [id, data] of featureMap) {
+      approvedOverlayDataCache.set(id, data);
+    }
+    // Also evict cache entries for IDs that are not in featureMap at all
+    // (covers the case where an entry is in cache but not in the registry).
+    for (const id of approvedOverlayDataCache.keys()) {
+      if (!featureMap.has(id)) {
+        approvedOverlayDataCache.delete(id);
       }
     }
 
@@ -99,7 +130,7 @@ function syncOverlaysFromTiles(mlMap: any): void {
 
 /**
  * Register the idle-driven overlay sync. Call once after map init.
- * The handler only runs in view mode; other modes use the bbox tRPC path.
+ * Runs in all modes — approved overlays always come from tiles.
  */
 export function initVectorTileSync(): void {
   onMlMapReady(() => {

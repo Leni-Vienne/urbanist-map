@@ -23,6 +23,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { getPendingChangeRequests } from "@/composables/changes/useChanges";
 import { createProjectObject } from "@/utils/typeFactories";
+import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -145,8 +146,9 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   // full overlay images are displayed.
   const showMarkers = true;
 
-  // In view mode, backend overlays are synced by vectorTileSync (MapLibre idle event).
-  // pruneBackendOverlays is only needed for edit and moderation modes.
+  // In view mode, all backend overlays are approved and synced by vectorTileSync.
+  // pruneBackendOverlays only runs for edit/moderation to manage pending overlays from
+  // viewModeOverlays (approved overlays in those modes are still handled by vectorTileSync).
   const mapStore = useMapStore();
   if (mapStore.mode !== "view") {
     pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
@@ -376,6 +378,7 @@ function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): 
 function getVisibleProjectsToRender() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
+  const mapStore = useMapStore();
 
   const projectsToRender = new Map<string, Project>();
 
@@ -385,6 +388,20 @@ function getVisibleProjectsToRender() {
   for (const overlay of overlayStore.viewModeOverlays) {
     if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
       projectsToRender.set(overlay.projectId, normalizeOverlayProject(overlay.project));
+    }
+  }
+
+  // In edit/moderation mode, viewModeOverlays only contains pending overlays.
+  // Approved overlays are rendered by vectorTileSync — collect their project IDs from
+  // the tile cache so that approved-overlay projects still get their shapes rendered.
+  if (mapStore.mode !== "view") {
+    for (const [, overlayData] of getApprovedOverlayDataFromTiles()) {
+      const projectId = overlayData.projectId;
+      if (!projectId || projectsToRender.has(projectId)) continue;
+      // The tile-based OverlayData has no project field — look up the project from the store.
+      // If not yet in the store, skip (shape will render on next cycle once the store is hydrated).
+      const p = projectStore.projects[projectId];
+      if (p) projectsToRender.set(projectId, p);
     }
   }
 

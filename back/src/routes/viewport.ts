@@ -10,6 +10,49 @@ import {
   buildOverlayVisibilityCondition,
 } from "../db/helpers";
 
+// ── Viewport-specific visibility overrides ──────────────────────────────────
+//
+// In edit mode the approved overlays are now served exclusively via the MVT
+// tile endpoint (vectorTileSync on the frontend). The bbox tRPC fetch must
+// therefore return ONLY the user's pending/change-request overlays so that:
+//   a) There is no duplication between tile-rendered and tRPC-rendered layers.
+//   b) The cluster source only gets augmented with pending content.
+//
+// This is intentionally an inline override rather than a change to
+// buildOverlayVisibilityCondition in helpers.ts, because other callers
+// (getCityOverlaysAndProjects, moderation panel) still need the full set.
+
+/**
+ * Build the overlay visibility WHERE condition for the viewport bbox endpoint
+ * in edit mode: ONLY the user's own pending overlays + overlays they have
+ * change requests on. Approved overlays are intentionally excluded here —
+ * they are delivered to the frontend via MVT tiles / vectorTileSync.
+ */
+function buildEditModeViewportOverlayCondition(
+  userId: string,
+  overlayChangeRequestIds: string[] | undefined,
+): ReturnType<typeof sql> {
+  if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
+    const idsArray = `{${overlayChangeRequestIds.join(",")}}`;
+    return sql`(
+      (${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending')
+      OR ${overlays.id} = ANY(${idsArray}::uuid[])
+    )`;
+  }
+  return sql`(${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending')`;
+}
+
+/**
+ * Build the project JOIN condition for the overlay viewport query in edit mode.
+ * We need to join projects that are either approved (overlays on approved projects)
+ * or owned by the user (overlays on the user's own pending projects). This is
+ * broader than the overlay condition on purpose — it covers the project JOIN
+ * rather than filtering which projects appear as standalone markers.
+ */
+function buildEditModeViewportProjectJoinCondition(userId: string): ReturnType<typeof sql> {
+  return sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${userId})`;
+}
+
 const bboxSchema = z.object({
   minLng: z.number().min(-180).max(180),
   minLat: z.number().min(-90).max(90),
@@ -61,8 +104,15 @@ export const viewportRouter = router({
 
         const whereConditions = [
           bboxCondition,
-          buildProjectVisibilityCondition(ctx.user, mode, false),
-          buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
+          // In edit mode: only return user's pending overlays (approved overlays come via
+          // MVT tiles / vectorTileSync). In other modes: use the shared helper.
+          mode === "edit" && ctx.user
+            ? buildEditModeViewportOverlayCondition(ctx.user.id, overlayChangeRequestIds)
+            : buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
+          // Project JOIN condition: in edit mode, allow overlays on approved OR user-owned projects.
+          mode === "edit" && ctx.user
+            ? buildEditModeViewportProjectJoinCondition(ctx.user.id)
+            : buildProjectVisibilityCondition(ctx.user, mode, false),
         ];
 
         const overlaysData = await db
@@ -238,7 +288,12 @@ export const viewportRouter = router({
 
         const whereConditions = [
           bboxCondition,
-          buildProjectVisibilityCondition(ctx.user, mode, false),
+          // In edit mode: only return the user's own non-approved projects (pending/rejected/null).
+          // Approved projects are already in the cluster source (/api/projects/points) which runs
+          // in all modes. Returning approved here would cause duplicates in the cluster source merge.
+          mode === "edit"
+            ? sql`(${projects.ownerId} = ${ctx.user.id} AND ${projects.status} != 'approved')`
+            : buildProjectVisibilityCondition(ctx.user, mode, false),
         ];
 
         const projectsData = await db

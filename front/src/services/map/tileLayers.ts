@@ -678,13 +678,15 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Overlay footprints — permanent border outline replacing CSS box-shadow hack
-  // Visible from MIN_ZOOM_FOR_OVERLAYS (14)
+  // minzoom: 13 (MapLibre) = Leaflet zoom 14 = MIN_ZOOM_FOR_OVERLAYS.
+  // maplibre-gl-leaflet applies a -1 offset (512px vs 256px tile size), so
+  // MapLibre zoom N corresponds to Leaflet zoom N+1.
   mlMap.addLayer({
     id: "overlay-footprints",
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 14,
+    minzoom: 13,
     paint: {
       "line-color": getProjectLineColorExpression(),
       "line-width": 1.5,
@@ -698,7 +700,7 @@ function addProjectSourcesToMap(mlMap: any): void {
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 14,
+    minzoom: 13,
     filter: getIsProposedFilterExpression(),
     paint: {
       "line-color": getProjectLineColorExpression(),
@@ -713,7 +715,7 @@ function addProjectSourcesToMap(mlMap: any): void {
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 14,
+    minzoom: 13,
     filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
     paint: {
       "line-color": "#ffffff",
@@ -727,7 +729,7 @@ function addProjectSourcesToMap(mlMap: any): void {
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 14,
+    minzoom: 13,
     filter: [
       "all",
       getIsProposedFilterExpression(),
