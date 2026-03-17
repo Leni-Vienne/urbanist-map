@@ -109,18 +109,6 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// Create count badge icon for Leaflet (city markers)
-export function createProjectCountIcon(projectCount: number): L.DivIcon {
-  const size = 28;
-  return L.divIcon({
-    html: createCityBadgeSVG(projectCount),
-    className: "custom-svg-marker city-marker",
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2) - 4],
-  });
-}
-
 // Cache overlay DivIcon instances — only 7 colors exist, no need to recreate on every call.
 // setIcon() reconstructs the marker DOM element each time, so reusing the same object
 // still triggers DOM work. The real gain comes from skipping setIcon() when color is unchanged

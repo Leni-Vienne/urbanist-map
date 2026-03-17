@@ -16,7 +16,6 @@ import { getApiUrl } from "@/client";
 
 export const useProjectPointsStore = defineStore("projectPoints", () => {
   const geojson = ref<GeoJSON.FeatureCollection | null>(null);
-  const isLoaded = ref(false);
 
   async function fetchProjectPoints(): Promise<void> {
     try {
@@ -24,7 +23,6 @@ export const useProjectPointsStore = defineStore("projectPoints", () => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = (await response.json()) as GeoJSON.FeatureCollection;
       geojson.value = data;
-      isLoaded.value = true;
       // Push to MapLibre source if the map is already ready; no-op otherwise
       // (the onMlMapReady callback in init() handles the map-ready-after-fetch case).
       updateProjectPointsSource(data);
@@ -48,5 +46,5 @@ export const useProjectPointsStore = defineStore("projectPoints", () => {
     });
   }
 
-  return { geojson, isLoaded, init, fetchProjectPoints };
+  return { geojson, init, fetchProjectPoints };
 });

@@ -37,6 +37,8 @@ import {
   fetchCityStandaloneProjectsOrCache,
   fetchCityOverlaysOrCache,
 } from "@/services/navigation/cityDataLoader";
+import { trpc } from "@/client";
+import { createProjectObject } from "@/utils/typeFactories";
 // useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
@@ -363,12 +365,46 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
  * Looks up the project from the store; if found delegates to handleShapeProjectClick.
  * Used by tile layer click handlers that only have the project ID available.
  */
-export function handleProjectClickFromTile(projectId: string, latlng: L.LatLng): void {
+export async function handleProjectClickFromTile(
+  projectId: string,
+  latlng: L.LatLng,
+): Promise<void> {
   const projectStore = useProjectStore();
-  const project = projectStore.projects[projectId];
-  if (project) {
-    handleShapeProjectClick(project, latlng);
+  let project = projectStore.projects[projectId];
+  if (!project) {
+    try {
+      const result = await trpc.project.getById.query({ id: projectId });
+      if (!result) return;
+      project = createProjectObject({
+        id: result.id,
+        name: result.name,
+        description: result.description,
+        status: result.status,
+        ownerId: result.ownerId,
+        cityId: result.cityId,
+        lat: result.lat,
+        lng: result.lng,
+        geometry: result.geometry,
+        proposalDate: result.proposalDate,
+        proposalDatePrecision: result.proposalDatePrecision,
+        startDate: result.startDate,
+        startDatePrecision: result.startDatePrecision,
+        endDate: result.endDate,
+        endDatePrecision: result.endDatePrecision,
+        sourceUrl: result.sourceUrl,
+        tags: result.tags ?? [],
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        city: result.city,
+        overlayIds: [],
+      });
+      projectStore.updateProject(projectId, project);
+    } catch (error) {
+      console.error("Failed to fetch project for tile click:", error);
+      return;
+    }
   }
+  handleShapeProjectClick(project, latlng);
 }
 
 /**

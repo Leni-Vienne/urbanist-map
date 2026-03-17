@@ -116,10 +116,10 @@ export async function handleProjectsPoints(): Promise<Response> {
     // without affecting the client-side MapLibre clustering experience.
     const rows = await sqlClient`
       SELECT DISTINCT ON (snapped)
-        id, lat, lng, name, COALESCE(tags, ARRAY[]::text[]) AS tags
+        id, lat, lng, COALESCE(tags, ARRAY[]::text[]) AS tags
       FROM (
         SELECT
-          id, lat, lng, name, tags,
+          id, lat, lng, tags,
           ST_SnapToGrid(ST_SetSRID(ST_Point(lng, lat), 4326), 0.005) AS snapped
         FROM projects
         WHERE status = 'approved'
@@ -137,7 +137,6 @@ export async function handleProjectsPoints(): Promise<Response> {
         coordinates: [Math.round(r.lng * 1e5) / 1e5, Math.round(r.lat * 1e5) / 1e5],
       },
       properties: {
-        name: r.name,
         tags: r.tags ?? [],
       },
     }));

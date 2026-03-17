@@ -385,6 +385,44 @@ export const projectRouter = router({
       }
     }),
 
+  // Get a single approved project by ID (used by vector tile click handler)
+  getById: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ input }) => {
+    try {
+      const rows = await db
+        .select({
+          id: projects.id,
+          name: projects.name,
+          description: projects.description,
+          status: projects.status,
+          ownerId: projects.ownerId,
+          cityId: projects.cityId,
+          lat: projects.lat,
+          lng: projects.lng,
+          geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
+          proposalDate: projects.proposalDate,
+          proposalDatePrecision: projects.proposalDatePrecision,
+          startDate: projects.startDate,
+          startDatePrecision: projects.startDatePrecision,
+          endDate: projects.endDate,
+          endDatePrecision: projects.endDatePrecision,
+          sourceUrl: projects.sourceUrl,
+          tags: projects.tags,
+          createdAt: projects.createdAt,
+          updatedAt: projects.updatedAt,
+          city: cities,
+        })
+        .from(projects)
+        .innerJoin(cities, eq(projects.cityId, cities.id))
+        .where(and(eq(projects.id, input.id), eq(projects.status, "approved")))
+        .limit(1);
+
+      return rows[0] ?? null;
+    } catch (error) {
+      console.error("Error fetching project by id:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });
+    }
+  }),
+
   // Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
   getUsersContributions: loggedInProcedure
     .input(

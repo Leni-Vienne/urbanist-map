@@ -559,7 +559,7 @@ function registerHybridInteractionHandlers(mlMap: any): void {
 
     const unclusteredPoint = features.find((f) => f?.layer?.id === "unclustered-point");
     if (unclusteredPoint) {
-      const projectId = String(unclusteredPoint.id ?? "");
+      const projectId = String(unclusteredPoint.properties?.id ?? unclusteredPoint.id ?? "");
       if (projectId.length > 0) {
         handleProjectClickFromTile(projectId, event.latlng);
       }
@@ -590,6 +590,9 @@ function addFirstTagToProjectPointsGeojson(
       properties: {
         ...featureProps,
         first_tag: firstTag,
+        // Copy feature.id into properties so queryRenderedFeatures can retrieve it
+        // (MapLibre doesn't reliably preserve string feature IDs on rendered features)
+        id: featureProps["id"] ?? feature.id,
       },
     });
   }
@@ -767,7 +770,7 @@ function addProjectSourcesToMap(mlMap: any): void {
         getSingleProjectClusterColorExpression(),
         ["step", ["get", "point_count"], "#3b82f6", 10, "#1d4ed8", 50, "#1e3a8a"],
       ],
-      "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 28],
+      "circle-radius": ["step", ["get", "point_count"], 11, 10, 16, 50, 21],
       "circle-opacity": 0.85,
     },
   });
