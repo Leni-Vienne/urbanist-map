@@ -27,7 +27,6 @@ import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
 } from "@/services/map/standaloneProjectMarkers";
-import { loadedCityIds } from "@/services/navigation/cityDataLoader";
 import {
   processStandaloneMarkers,
   renderFullOverlays,
@@ -172,7 +171,6 @@ export function useViewportTriggers() {
         const isEditMode = mapStore.mode === "edit";
         clearAllOverlays(isEditMode);
         clearAllStandaloneProjectMarkers();
-        loadedCityIds.value.clear();
         lastBboxKey = "";
 
         lastZoomLevel.value = zoom;

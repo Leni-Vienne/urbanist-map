@@ -536,7 +536,7 @@ function registerHybridInteractionHandlers(mlMap: any): void {
     if (!features.length) {
       return;
     }
-    console.table(features.map((f) => f?.properties));
+    console.log(features.flatMap((f) => f?.properties));
 
     const clusterFeature = features.find((feature) => feature?.layer?.id === "clusters");
     if (clusterFeature) {

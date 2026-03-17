@@ -1,5 +1,4 @@
 // Country data loading service (no marker rendering)
-import { removeCityMarkers } from "@/services/map/cityMarkers";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { trpc } from "@/client";
@@ -138,12 +137,8 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 /**
  * Clear all map content (markers, overlays, cache, and state)
  * This is called when switching between countries or logging out
- * Uses clearAllRenderedContent to ensure viewModeOverlays cache is also cleared
  */
-export function clearAllMapContent(preserveCityMarkers = false): void {
-  if (!preserveCityMarkers) {
-    removeCityMarkers();
-  }
+export function clearAllMapContent(): void {
   clearAllOverlays();
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();

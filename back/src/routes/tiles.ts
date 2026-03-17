@@ -19,14 +19,16 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
 
     const [row] = await sqlClient`
       WITH tile_env AS (
-        SELECT ST_TileEnvelope(${z}, ${x}, ${y}) AS bounds
+        SELECT
+          ST_TileEnvelope(${z}, ${x}, ${y}) AS bounds,
+          ST_Transform(ST_TileEnvelope(${z}, ${x}, ${y}), 4326) AS bounds_4326
       ),
       shapes AS (
         SELECT ST_AsMVT(q, 'project-shapes', 4096, 'mvt_geom') AS tile
         FROM (
           SELECT
             ST_AsMVTGeom(
-              ST_Transform(p.geometry, 3857),
+              ST_Transform(ST_SetSRID(p.geometry, 4326), 3857),
               te.bounds,
               4096, 64, true
             ) AS mvt_geom,
@@ -41,16 +43,16 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
           FROM projects p, tile_env te
           WHERE p.status = 'approved'
             AND p.geometry IS NOT NULL
-            AND ST_Intersects(ST_Transform(p.geometry, 3857), te.bounds)
+            AND ST_Intersects(ST_SetSRID(p.geometry, 4326), te.bounds_4326)
         ) q
         WHERE q.mvt_geom IS NOT NULL
       ),
       footprints AS (
-        SELECT ST_AsMVT(q, 'overlay-footprints', 4096, 'mvt_geom') AS tile
+          SELECT ST_AsMVT(q, 'overlay-footprints', 4096, 'mvt_geom') AS tile
         FROM (
           SELECT
             ST_AsMVTGeom(
-              ST_Transform(o.corners, 3857),
+              ST_Transform(ST_SetSRID(o.corners, 4326), 3857),
               te.bounds,
               4096, 64, true
             ) AS mvt_geom,
@@ -75,7 +77,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
           JOIN projects p ON p.id = o.project_id,
           tile_env te
           WHERE o.status = 'approved'
-            AND ST_Intersects(ST_Transform(o.corners, 3857), te.bounds)
+            AND ST_Intersects(ST_SetSRID(o.corners, 4326), te.bounds_4326)
         ) q
         WHERE q.mvt_geom IS NOT NULL
       )

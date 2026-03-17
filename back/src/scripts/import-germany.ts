@@ -300,8 +300,12 @@ async function main() {
           endDatePrecision,
           lat: center?.lat ?? null,
           lng: center?.lng ?? null,
-          geometry: sql`${JSON.stringify(geometry)}`,
-          centerCoordinate: center ? { x: center.lng, y: center.lat } : null,
+          geometry: geometry
+            ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
+            : null,
+          centerCoordinate: center
+            ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
+            : null,
         };
       })
       .filter((r) => r !== null);

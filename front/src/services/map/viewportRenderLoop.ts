@@ -1,6 +1,5 @@
 import type * as L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
@@ -84,9 +83,6 @@ export function runViewportRenderLoop() {
 
   // Prune Overlays
   pruneOverlays(mapInstance, paddedBounds, zoom);
-
-  // Prune City Markers
-  pruneCityMarkers(mapInstance, paddedBounds, zoom);
 }
 
 /**
@@ -468,31 +464,6 @@ function renderAllProjectShapes(mapInstance: L.Map) {
 
   for (const [projectId, projectData] of projectsToRender.entries()) {
     processAndRenderProjectShape(projectId, projectData, mapInstance, isEditMode, isModeration);
-  }
-}
-
-/**
- * Manage city marker visibility.
- * City markers are hidden when zoomed in past the contribution marker threshold —
- * contribution markers take over at that zoom level, so city markers are redundant.
- * Below the threshold, individual markers are shown/hidden based on viewport bounds.
- */
-function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
-  const cityMarkersStore = useCityMarkersStore();
-  const allCityMarkers = cityMarkersStore.cityMarkerMap;
-  const shouldShow = zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD);
-
-  for (const [_cityId, cityMarker] of allCityMarkers) {
-    const isOnMap = mapInstance.hasLayer(cityMarker);
-
-    if (!shouldShow) {
-      if (isOnMap) cityMarker.remove();
-      continue;
-    }
-
-    const isInBounds = bounds.contains(cityMarker.getLatLng());
-    if (isInBounds && !isOnMap) cityMarker.addTo(mapInstance);
-    else if (!isInBounds && isOnMap) cityMarker.remove();
   }
 }
 

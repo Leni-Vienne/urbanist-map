@@ -790,10 +790,6 @@
     "light": "Light mode",
     "dark": "Dark mode"
   },
-  "settings": {
-    "vectorTilesEnable": "Enable vector map",
-    "vectorTilesDisable": "Disable vector map"
-  },
   "shapes": {
     "drawShapes": "Draw",
     "editorInstructions": "Use the tools on the left to draw lines and polygons. Use the right click to delete points",

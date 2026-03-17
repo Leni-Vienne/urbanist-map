@@ -1,5 +1,4 @@
 import L from "leaflet";
-import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
 import { selectCity } from "@/services/navigation/locationNavigation";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
@@ -97,13 +96,8 @@ async function prepareNavigationToCity(
 
       mapStore.selectedCountryCode = countryCode;
 
-      // Load country data for context and ensure global markers are visible
-      // Parallel execution for better performance
-      await Promise.all([
-        loadCitiesForCountry(countryCode),
-        // Always reload ALL global city markers to maintain global context
-        loadAllCityMarkersGlobally(),
-      ]);
+      // Load country data for context
+      await loadCitiesForCountry(countryCode);
     }
   }
 

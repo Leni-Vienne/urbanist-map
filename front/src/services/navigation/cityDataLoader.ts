@@ -1,18 +1,10 @@
 // City data loading for navigation - pure data fetching only (no rendering)
 // Rendering is handled by callers to avoid circular dependencies
-import { ref } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { trpc } from "@/client";
 import type { OverlayData } from "@/types/index";
 import type { CityProject } from "@/utils/typeFactories";
 import type { AppMode } from "@shared/types";
-
-/**
- * Module-level ref to track loaded cities across both viewport manager and direct navigation
- * Shared state prevents duplicate loads and enables cache checking
- * Wrapped in Vue ref for reactivity and compatibility with existing code
- */
-export const loadedCityIds = ref<Set<number>>(new Set());
 
 /**
  * Helper to fetch city overlays from cache or backend
@@ -72,9 +64,6 @@ export async function loadCityData(
     fetchCityOverlaysOrCache(cityId, actualMode),
     fetchCityStandaloneProjectsOrCache(cityId, actualMode),
   ]);
-
-  // Mark city as loaded
-  loadedCityIds.value.add(cityId);
 
   return { overlays, projects };
 }

@@ -1403,3 +1403,63 @@ This document outlines the granular functional test scenarios required to ensure
   1. No flash of empty content during mode transitions (overlays not visible in new mode are hidden before fetch).
   2. Standalone project markers for local (unsaved) projects appear immediately after switching to Edit mode.
   3. The cluster source is restored to base (approved-only) data when returning to View mode.
+
+---
+
+## 39. Vector Tile Cleanup — Leaflet City Marker Removal (Step 4)
+
+### 39.1. City List Panels Remain Functional
+
+- **Scenario**: `citiesWithProjects` ref is still populated after the Leaflet city marker layer was removed.
+- **Steps**:
+  1. Open the app. Ensure no login (view mode).
+  2. Open **CurrentLocationPanel** / **MarkerHelpButton** / **PopupContainer**.
+  3. **Check**: City list is populated correctly (cities with approved projects visible).
+  4. Log in and switch to **Edit Mode**.
+  5. **Check**: City list updates to include cities with your own pending items.
+  6. Switch to **Moderation Mode** (if moderator).
+  7. **Check**: City list shows cities with any pending items in your jurisdiction.
+
+### 39.2. `activateCity` / `smartZoomToCity` Still Work
+
+- **Scenario**: Clicking a city entry in the panel triggers the correct city activation flow.
+- **Steps**:
+  1. Open **CurrentLocationPanel** and click a city name.
+  2. **Check**: Map flies to that city's content bounds.
+  3. **Check**: Overlays and standalone markers for the city load (as defined by current mode).
+  4. **Check**: Panel scrolls to show city accordion.
+  5. **Regression**: Click a city in a **different country** from the currently loaded one.
+  6. **Check**: Map flies to the new city; no ghost markers from the old country remain.
+
+### 39.3. Mode Watcher Refreshes City List
+
+- **Scenario**: Switching mode triggers `buildCitiesForCurrentMode` and updates the city list.
+- **Steps**:
+  1. Load map in **View Mode**. Note the number of cities in the panel list.
+  2. Switch to **Edit Mode**.
+  3. **Check**: City list updates (may include extra cities with your pending items).
+  4. Switch back to **View Mode**.
+  5. **Check**: City list returns to approved-only cities.
+
+### 39.4. Cross-Country City Navigation via `prepareNavigationToCity`
+
+- **Scenario**: Deep-link / panel navigation to a city in a different country no longer calls the deleted `loadAllCityMarkersGlobally`.
+- **Steps**:
+  1. Navigate to a project in **Country A** (e.g. France) via "Latest Contributions".
+  2. Navigate to a project in **Country B** (e.g. Switzerland) via "Latest Contributions".
+  3. **Check**: Map flies to Country B's city. No JavaScript error in console (`loadAllCityMarkersGlobally is not defined`).
+  4. **Check**: City list panels update to Country B context.
+  5. **Regression**: Navigate back to Country A. Verify no stale content from Country B remains.
+
+### 39.5. New Project Creation Sets City Context Without Leaflet Markers
+
+- **Scenario**: Creating a new project (standalone) in `ProjectManager.vue` sets the country/city context; the cluster source handles map display (no Leaflet city circle marker needed).
+- **Steps**:
+  1. Enter **Edit Mode**. Place a new standalone project marker in a city not yet active.
+  2. Fill the form and submit.
+  3. **Check**: No JavaScript errors (no call to deleted `addSingleCityMarker`).
+  4. **Check**: The new project's center point appears in the MapLibre cluster source at low zoom.
+  5. **Check**: `mapStore.selectedCity` is set to the new project's city.
+  6. **Check**: The standalone project marker (Leaflet) is visible at street zoom.
+  7. **Regression**: Upload an image to the new project.
+  8. **Check**: `ensureCityMarkersForProject` completes without error; overlay appears on map.

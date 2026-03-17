@@ -792,10 +792,6 @@
     "light": "Mode clair",
     "dark": "Mode sombre"
   },
-  "settings": {
-    "vectorTilesEnable": "Activer la carte vectorielle",
-    "vectorTilesDisable": "Désactiver la carte vectorielle"
-  },
   "shapes": {
     "drawShapes": "Dessiner",
     "editorInstructions": "Utilisez les outils à gauche pour dessiner des lignes et des polygones. Utilisez le clic droit pour supprimer des points.",

@@ -19,9 +19,9 @@ if (import.meta.env.VITE_DEBUG) {
   // Log all JS chunks downloaded during the initial page load
   function onLoad() {
     setTimeout(() => {
-      const scripts = performance
-        .getEntriesByType("resource")
-        .filter((res) => res.initiatorType === "script" || res.name.endsWith(".js"));
+      const scripts = (
+        performance.getEntriesByType("resource") as PerformanceResourceTiming[]
+      ).filter((res) => res.initiatorType === "script" || res.name.endsWith(".js"));
 
       const cleanList = scripts
         .map((res) => ({

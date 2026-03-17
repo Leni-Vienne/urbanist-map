@@ -52,9 +52,10 @@ export const viewportRouter = router({
             ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
             : undefined;
 
-        // Bbox condition on overlay centroid using ST_Intersects
+        // Bbox condition on overlay centroid using ST_Intersects.
+        // ST_SetSRID forces SRID 4326 on the stored geometry (data may have SRID 0 at rest).
         const bboxCondition = sql`ST_Intersects(
-          ${overlays.centroid},
+          ST_SetSRID(${overlays.centroid}, 4326),
           ST_MakeEnvelope(${bbox.minLng}, ${bbox.minLat}, ${bbox.maxLng}, ${bbox.maxLat}, 4326)
         )`;
 
@@ -229,8 +230,9 @@ export const viewportRouter = router({
           });
         }
 
+        // ST_SetSRID forces SRID 4326 on the stored geometry (data may have SRID 0 at rest).
         const bboxCondition = sql`ST_Intersects(
-          ${projects.centerCoordinate},
+          ST_SetSRID(${projects.centerCoordinate}, 4326),
           ST_MakeEnvelope(${bbox.minLng}, ${bbox.minLat}, ${bbox.maxLng}, ${bbox.maxLat}, 4326)
         )`;
 
@@ -270,28 +272,10 @@ export const viewportRouter = router({
           .innerJoin(cities, eq(cities.id, projects.cityId))
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
           .where(and(...whereConditions))
-          .groupBy(
-            projects.id,
-            projects.name,
-            projects.description,
-            projects.status,
-            projects.ownerId,
-            projects.cityId,
-            projects.lat,
-            projects.lng,
-            projects.geometry,
-            projects.proposalDate,
-            projects.proposalDatePrecision,
-            projects.startDate,
-            projects.startDatePrecision,
-            projects.endDate,
-            projects.endDatePrecision,
-            projects.sourceUrl,
-            projects.tags,
-            projects.createdAt,
-            projects.updatedAt,
-            cities.id,
-          );
+          // GROUP BY primary keys only — PostgreSQL's functional dependency optimization
+          // covers all other columns of both tables (projects.id and cities.id are PKs).
+          // Avoids B-tree equality requirement on projects.geometry (PostGIS type).
+          .groupBy(projects.id, cities.id);
 
         return projectsData;
       } catch (error) {

@@ -65,7 +65,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // Load countries for breadcrumbs (no marker rendering)
 import { loadCountriesWithProjects } from "@/services/map/countryData";
-import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
+import { initializeCitiesData } from "@/services/map/cityMarkers";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -132,8 +132,8 @@ async function initializeMapAndOverlays() {
     // Load countries first (needed for breadcrumbs in Current Location panel)
     await loadCountriesWithProjects();
 
-    // Load all city markers globally
-    const cities = await loadAllCityMarkersGlobally();
+    // Load all city data for panels (no Leaflet markers — cluster source handles map display)
+    const cities = await initializeCitiesData();
 
     // Populate cities lookup map in mapStore for panel auto-switch
     mapStore.citiesLookup.clear();
