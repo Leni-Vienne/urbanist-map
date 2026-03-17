@@ -1,6 +1,9 @@
 import L from "leaflet";
 import { ref } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
+import type { Map as MaplibreMap, PointLike, StyleSpecification } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { maplibreLayer, type MaplibreGL } from "@/lib/MaplibreLayer";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { MAP_CONFIG } from "@/constants/mapConstants";
@@ -36,83 +39,62 @@ function toBoundingBox(bbox: number[]): BoundingBox {
 // Default max native zoom for Esri layer (safe baseline)
 const BASELINE_ESRI_MAX_ZOOM = 18;
 
-// Tile layer configurations with UI labels.
-// To add a country layer: add an entry here, add its bbox to country_bboxes.json,
-// and export its GeoJSON from country-borders/index.ts. Nothing else needs to change.
-const tileLayerConfigs = {
-  osm: {
-    label: "Plan",
-    url:
-      import.meta.env.VITE_DEBUG === "true"
-        ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        : `https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}.webp?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 19,
-      tileSize: 256,
-      attribution:
-        '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
-    },
-  },
+// Satellite tile layer configurations. "plan" is the MapLibre vector basemap
+// and is not listed here (it uses the OpenFreeMap style URL directly).
+const satelliteLayerConfigs = {
   esri: {
     label: "Satellite",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: BASELINE_ESRI_MAX_ZOOM,
-      tileSize: 256,
-      attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
-    },
+    tiles: [
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    ],
+    tileSize: 256,
+    attribution: "Esri, Maxar, Earthstar Geographics, GIS User Community",
+    maxZoom: BASELINE_ESRI_MAX_ZOOM,
   },
   FRA: {
     label: "France",
-    url: "https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal",
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 19,
-      tileSize: 256,
-      attribution: "IGN-F/Géoportail",
-    },
+    tiles: [
+      "https://data.geopf.fr/wmts?service=WMTS&request=GetTile&version=1.0.0&tilematrixset=PM&tilematrix={z}&tilecol={x}&tilerow={y}&layer=ORTHOIMAGERY.ORTHOPHOTOS&format=image/jpeg&style=normal",
+    ],
+    tileSize: 256,
+    attribution: "IGN-F/Géoportail",
+    maxZoom: 19,
   },
   CHE: {
     label: "Switzerland",
-    url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png",
-    options: {
-      minZoom: 2,
-      maxZoom: 22,
-      maxNativeZoom: 20,
-      tileSize: 256,
-      attribution: "© swisstopo",
-    },
+    tiles: [
+      "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png",
+    ],
+    tileSize: 256,
+    attribution: "© swisstopo",
+    maxZoom: 20,
   },
   QC: {
     label: "Québec",
-    url: "https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/{z}/{y}/{x}.jpg",
-    options: {
-      minZoom: 0,
-      maxZoom: 22,
-      maxNativeZoom: 21, // there is a level 22 but it's the same quality as 21
-      tileSize: 256,
-      attribution: "donneesquebec.ca",
-    },
+    tiles: [
+      "https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/{z}/{y}/{x}.jpg",
+    ],
+    tileSize: 256,
+    attribution: "donneesquebec.ca",
+    maxZoom: 21,
   },
 };
 
-// Derived types — adding a country only requires a new entry in tileLayerConfigs above
-export type TileLayerType = keyof typeof tileLayerConfigs;
-type CountryCode = Exclude<TileLayerType, "esri" | "osm">;
+// Derived types — adding a country only requires a new entry in satelliteLayerConfigs above
+type SatelliteLayerType = keyof typeof satelliteLayerConfigs;
+type CountryCode = Exclude<SatelliteLayerType, "esri">;
+export type TileLayerType = "plan" | SatelliteLayerType;
 
-// Current active tile layer (OSM as default for built-in labels)
-export const currentTileLayer = ref<TileLayerType>("osm");
+const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+
+// Current active tile layer ("plan" = MapLibre vector basemap)
+export const currentTileLayer = ref<TileLayerType>("plan");
 
 /** Reference to the underlying MapLibre map instance. Available after mlMapReadyCallbacks fire. */
-const mlMapRef = { current: null as any };
+const mlMapRef = { current: null as MaplibreMap | null };
 const mlMapReadyCallbacks: (() => void)[] = [];
 
-export function getMlMap(): any {
+export function getMlMap(): MaplibreMap | null {
   return mlMapRef.current;
 }
 
@@ -125,10 +107,11 @@ export function onMlMapReady(cb: () => void): void {
   }
 }
 
-/** Reference to the currently active tile layer instance */
-let activeTileLayer: L.TileLayer | L.GridLayer | null = null;
-/** tracks the currently active base layer, useful when using satelite layer with maplibre-gl */
-let activeBaseLayer: L.Layer | null = null;
+/** Reference to the currently active MapLibre-GL Leaflet layer. Never removed from the map. */
+let activeBaseLayer: MaplibreGL | null = null;
+
+/** Last known project points GeoJSON — re-applied after style switches. */
+let lastProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
 
 // Cached after first load — undefined until the user first uses satellite mode
 let countryBorders: CountryBorder[] | undefined;
@@ -139,8 +122,8 @@ async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
 
   const { borders: allBorders } = await import("@/assets/country-borders");
 
-  const countryCodes = (Object.keys(tileLayerConfigs) as TileLayerType[]).filter(
-    (code): code is CountryCode => code !== "esri" && code !== "osm",
+  const countryCodes = (Object.keys(satelliteLayerConfigs) as SatelliteLayerType[]).filter(
+    (code): code is CountryCode => code !== "esri",
   );
 
   countryBorders = countryCodes.map((code) => ({
@@ -268,58 +251,15 @@ export function addTileLayer(): void {
   initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
 
-async function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Skip if already injected (e.g. called twice before first load completes isn't guarded here,
-    // but ensureMaplibreLoaded checks globalThis.maplibregl so this is a safety net)
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = src;
-    // crossorigin="anonymous" enables proper error reporting for cross-origin scripts
-    // and is required for SRI integrity checks. Integrity hashes should be added here
-    // (sha384-<hash>) once computed for each pinned version, or the assets should be
-    // bundled via Vite to eliminate the CDN dependency entirely.
-    script.crossOrigin = "anonymous";
-    script.addEventListener("load", () => resolve());
-    script.addEventListener("error", reject);
-    document.head.appendChild(script);
-  });
-}
-
-function loadStylesheet(href: string): void {
-  if (document.querySelector(`link[href="${href}"]`)) return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = href;
-  document.head.appendChild(link);
-}
-
-async function ensureMaplibreLoaded(): Promise<void> {
-  if ((globalThis as any).maplibregl) return;
-  // CSS can load in parallel with JS — no dependency
-  loadStylesheet("https://unpkg.com/maplibre-gl@5.20.1/dist/maplibre-gl.css");
-  // leaflet-maplibre-gl depends on maplibregl being defined, so load sequentially
-  await loadScript("https://unpkg.com/maplibre-gl@5.20.1/dist/maplibre-gl.js");
-  await loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js");
-}
-
 /**
- * Initialize all tile layers without layer control (using custom control instead)
+ * Initialize the MapLibre-GL Leaflet layer with the vector basemap.
+ * The MapLibre layer is permanent — satellite mode changes its style via setStyle(),
+ * it is never removed from the Leaflet map.
  */
 async function addTileLayersToMap(): Promise<void> {
   try {
-    await ensureMaplibreLoaded();
-    const leafletLayer = (L as any)
-      .maplibreGL({
-        style: "https://tiles.openfreemap.org/styles/liberty",
-        //style: `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
-      })
-      .addTo(map.value);
+    const leafletLayer = maplibreLayer({ style: OPENFREEMAP_STYLE_URL }).addTo(map.value);
     activeBaseLayer = leafletLayer;
-    activeTileLayer = null;
 
     const mlMap = leafletLayer.getMaplibreMap();
     mlMap.on("load", () => {
@@ -335,17 +275,13 @@ async function addTileLayersToMap(): Promise<void> {
     });
   } catch (error) {
     console.error("Failed to initialize MapLibre tile layer:", error);
-    // Fallback to plain OSM if MapLibre fails to load
-    const fallbackLayer = createTileLayer("osm");
-    activeTileLayer = fallbackLayer;
-    activeBaseLayer = fallbackLayer;
-    fallbackLayer.addTo(map.value);
   }
 }
 
 const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 const CLUSTER_MAX_ZOOM = 10;
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
+
 const HOVER_NONE_ID = "__none__";
 
 const VECTOR_QUERY_LAYERS = [
@@ -423,7 +359,7 @@ function getSingleProjectClusterColorExpression(): any[] {
 
 function getMaplibrePointFromLeafletEvent(
   event: L.LeafletMouseEvent,
-  mlMap: any,
+  mlMap: MaplibreMap,
 ): {
   x: number;
   y: number;
@@ -433,29 +369,21 @@ function getMaplibrePointFromLeafletEvent(
 
 function queryFeaturesAtLeafletEvent(
   event: L.LeafletMouseEvent,
-  mlMap: any,
+  mlMap: MaplibreMap,
   layers: readonly string[],
-  radiusPx = 0,
+  hitRadius: number,
 ): any[] {
   const point = getMaplibrePointFromLeafletEvent(event, mlMap);
 
-  if (radiusPx > 0) {
-    const bbox: [[number, number], [number, number]] = [
-      [point.x - radiusPx, point.y - radiusPx],
-      [point.x + radiusPx, point.y + radiusPx],
+  if (hitRadius > 0) {
+    const bbox: [PointLike, PointLike] = [
+      [point.x - hitRadius, point.y - hitRadius],
+      [point.x + hitRadius, point.y + hitRadius],
     ];
     return mlMap.queryRenderedFeatures(bbox, { layers: [...layers] });
   }
 
   return mlMap.queryRenderedFeatures([point.x, point.y], { layers: [...layers] });
-}
-
-function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
-  const rawValue = feature.properties?.[key];
-  if (rawValue === null || rawValue === undefined) {
-    return "";
-  }
-  return String(rawValue);
 }
 
 function getHoveredVectorId(feature: RenderedMapFeature | null): string {
@@ -467,17 +395,18 @@ function getHoveredVectorId(feature: RenderedMapFeature | null): string {
   return id.length > 0 ? id : HOVER_NONE_ID;
 }
 
-function setVectorHoverFilters(mlMap: any, feature: RenderedMapFeature | null): void {
+function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature | null): void {
   const hoveredId = getHoveredVectorId(feature);
+  const m = mlMap as any;
 
-  mlMap.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
-  mlMap.setFilter("project-shapes-proposed-hover", [
+  m.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  m.setFilter("project-shapes-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
     ["==", ["to-string", ["get", "id"]], hoveredId],
   ]);
-  mlMap.setFilter("overlay-footprints-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
-  mlMap.setFilter("overlay-footprints-proposed-hover", [
+  m.setFilter("overlay-footprints-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  m.setFilter("overlay-footprints-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
     ["==", ["to-string", ["get", "id"]], hoveredId],
@@ -507,8 +436,19 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
   handleProjectClickFromTile(projectId, latlng);
 }
 
-function registerHybridInteractionHandlers(mlMap: any): void {
+function setClusterHoverFilter(mlMap: MaplibreMap, clusterId: number | null): void {
+  (mlMap as any).setFilter("clusters-hover", [
+    "all",
+    ["has", "point_count"],
+    ["==", ["get", "cluster_id"], clusterId ?? -1],
+  ]);
+}
+
+function registerHybridInteractionHandlers(_mlMap: MaplibreMap): void {
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
+    const mlMap = getMlMap();
+    if (!mlMap) return;
+
     const features = queryFeaturesAtLeafletEvent(
       event,
       mlMap,
@@ -516,16 +456,26 @@ function registerHybridInteractionHandlers(mlMap: any): void {
       VECTOR_HOVER_HIT_RADIUS_PX,
     );
 
+    const clusterFeature = features.find((f) => f?.layer?.id === "clusters");
+    setClusterHoverFilter(mlMap, clusterFeature?.properties?.cluster_id ?? null);
+
     mlMap.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
     setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
   });
 
   map.value.on("mouseout", () => {
+    const mlMap = getMlMap();
+    if (!mlMap) return;
+
     mlMap.getCanvas().style.cursor = "";
     setVectorHoverFilters(mlMap, null);
+    setClusterHoverFilter(mlMap, null);
   });
 
   map.value.on("click", (event: L.LeafletMouseEvent) => {
+    const mlMap = getMlMap();
+    if (!mlMap) return;
+
     console.log("Map click at", event.latlng);
     const features = queryFeaturesAtLeafletEvent(
       event,
@@ -590,9 +540,6 @@ function addFirstTagToProjectPointsGeojson(
       properties: {
         ...featureProps,
         first_tag: firstTag,
-        // Copy feature.id into properties so queryRenderedFeatures can retrieve it
-        // (MapLibre doesn't reliably preserve string feature IDs on rendered features)
-        id: featureProps["id"] ?? feature.id,
       },
     });
   }
@@ -603,13 +550,24 @@ function addFirstTagToProjectPointsGeojson(
   };
 }
 
+function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
+  const value = feature.properties?.[key];
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
 /**
  * Add all project-related MapLibre sources and layers.
- * Called once from mlMap.on('load').
+ * Called once from mlMap.on('load') and after every style switch.
+ * Does NOT register interaction handlers (those are registered once at init).
  */
-function addProjectSourcesToMap(mlMap: any): void {
+function addProjectDataToMlMap(mlMap: MaplibreMap): void {
+  // Cast to any for addLayer/addSource calls that use complex expression arrays
+  // which don't satisfy MapLibre's strict ExpressionSpecification type.
+  const m = mlMap as any;
+
   // ── MVT source: project shapes + overlay footprints ───────────────────────
-  mlMap.addSource("project-sources", {
+  m.addSource("project-sources", {
     type: "vector",
     tiles: [TILE_URL],
     minzoom: 0,
@@ -618,7 +576,7 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Project geometry shapes (lines/polygons) — visible from zoom 9
-  mlMap.addLayer({
+  m.addLayer({
     id: "project-shapes",
     type: "line",
     source: "project-sources",
@@ -632,7 +590,7 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Proposed project shapes are overlaid as dashed lines.
-  mlMap.addLayer({
+  m.addLayer({
     id: "project-shapes-proposed-dashed",
     type: "line",
     source: "project-sources",
@@ -647,7 +605,7 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Hover highlight for project shapes.
-  mlMap.addLayer({
+  m.addLayer({
     id: "project-shapes-hover",
     type: "line",
     source: "project-sources",
@@ -661,7 +619,7 @@ function addProjectSourcesToMap(mlMap: any): void {
     },
   });
 
-  mlMap.addLayer({
+  m.addLayer({
     id: "project-shapes-proposed-hover",
     type: "line",
     source: "project-sources",
@@ -684,7 +642,7 @@ function addProjectSourcesToMap(mlMap: any): void {
   // minzoom: 13 (MapLibre) = Leaflet zoom 14 = MIN_ZOOM_FOR_OVERLAYS.
   // maplibre-gl-leaflet applies a -1 offset (512px vs 256px tile size), so
   // MapLibre zoom N corresponds to Leaflet zoom N+1.
-  mlMap.addLayer({
+  m.addLayer({
     id: "overlay-footprints",
     type: "line",
     source: "project-sources",
@@ -698,7 +656,7 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Proposed overlay footprints inherit proposed state from their parent project.
-  mlMap.addLayer({
+  m.addLayer({
     id: "overlay-footprints-proposed-dashed",
     type: "line",
     source: "project-sources",
@@ -713,7 +671,7 @@ function addProjectSourcesToMap(mlMap: any): void {
     },
   });
 
-  mlMap.addLayer({
+  m.addLayer({
     id: "overlay-footprints-hover",
     type: "line",
     source: "project-sources",
@@ -727,7 +685,7 @@ function addProjectSourcesToMap(mlMap: any): void {
     },
   });
 
-  mlMap.addLayer({
+  m.addLayer({
     id: "overlay-footprints-proposed-hover",
     type: "line",
     source: "project-sources",
@@ -747,10 +705,12 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // ── GeoJSON cluster source: project center coordinates ────────────────────
-  // Populated later via updateProjectPointsSource() once /api/projects/points is fetched
-  mlMap.addSource("project-points", {
+  // Populated immediately if data is already cached, otherwise by updateProjectPointsSource()
+  m.addSource("project-points", {
     type: "geojson",
-    data: { type: "FeatureCollection", features: [] },
+    data: lastProjectPointsGeojson
+      ? addFirstTagToProjectPointsGeojson(lastProjectPointsGeojson)
+      : { type: "FeatureCollection", features: [] },
     cluster: true,
     clusterMaxZoom: CLUSTER_MAX_ZOOM,
     clusterRadius: 50,
@@ -758,7 +718,7 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Cluster circles
-  mlMap.addLayer({
+  m.addLayer({
     id: "clusters",
     type: "circle",
     source: "project-points",
@@ -775,8 +735,26 @@ function addProjectSourcesToMap(mlMap: any): void {
     },
   });
 
+  // Cluster hover highlight — lighter fill, filter updated dynamically on mousemove
+  m.addLayer({
+    id: "clusters-hover",
+    type: "circle",
+    source: "project-points",
+    filter: ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]],
+    paint: {
+      "circle-color": [
+        "case",
+        ["==", ["get", "point_count"], 1],
+        getSingleProjectClusterColorExpression(),
+        ["step", ["get", "point_count"], "#60a5fa", 10, "#3b82f6", 50, "#1d4ed8"],
+      ],
+      "circle-radius": ["step", ["get", "point_count"], 11, 10, 16, 50, 21],
+      "circle-opacity": 1,
+    },
+  });
+
   // Cluster count labels
-  mlMap.addLayer({
+  m.addLayer({
     id: "cluster-count",
     type: "symbol",
     source: "project-points",
@@ -790,13 +768,12 @@ function addProjectSourcesToMap(mlMap: any): void {
   });
 
   // Individual unclustered points — visible between clusterMaxZoom and zoom 13
-  mlMap.addLayer({
+  m.addLayer({
     id: "unclustered-point",
     type: "circle",
     source: "project-points",
     filter: ["!", ["has", "point_count"]],
     minzoom: CLUSTER_MAX_ZOOM,
-    maxzoom: 13,
     paint: {
       "circle-color": getProjectPointColorExpression(),
       "circle-radius": 6,
@@ -804,7 +781,13 @@ function addProjectSourcesToMap(mlMap: any): void {
       "circle-stroke-color": "#ffffff",
     },
   });
+}
 
+/**
+ * Called once from mlMap.on('load'). Adds project data and registers interaction handlers.
+ */
+function addProjectSourcesToMap(mlMap: MaplibreMap): void {
+  addProjectDataToMlMap(mlMap);
   registerHybridInteractionHandlers(mlMap);
 }
 
@@ -813,29 +796,60 @@ function addProjectSourcesToMap(mlMap: any): void {
  * Called after /api/projects/points is fetched (and on filter changes).
  */
 export function updateProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
+  lastProjectPointsGeojson = geojson;
   const mlMap = mlMapRef.current;
   if (!mlMap) return;
   const source = mlMap.getSource("project-points");
   if (source) {
-    source.setData(addFirstTagToProjectPointsGeojson(geojson));
+    (source as any).setData(addFirstTagToProjectPointsGeojson(geojson));
   }
 }
 
 /**
- * Create a tile layer based on configuration
+ * Build a minimal MapLibre style containing only the given satellite raster source.
+ * Project data layers are re-added on top after the style loads.
  */
-function createTileLayer(layerType: TileLayerType): L.TileLayer | L.GridLayer {
-  const config = tileLayerConfigs[layerType];
-  return L.tileLayer(config.url, config.options);
+function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification {
+  const config = satelliteLayerConfigs[layerType];
+  return {
+    version: 8,
+    sources: {
+      satellite: {
+        type: "raster",
+        tiles: config.tiles,
+        tileSize: config.tileSize,
+        attribution: config.attribution,
+        maxzoom: config.maxZoom,
+      },
+    },
+    layers: [{ id: "satellite", type: "raster", source: "satellite" }],
+  };
 }
 
-// Timer for fallback removal of old layers
-let fallbackRemovalTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Switch the MapLibre map to a new style, then re-add project data on top.
+ * Temporarily nulls mlMapRef.current so event handlers bail during the transition.
+ */
+async function switchToStyle(style: StyleSpecification | string): Promise<void> {
+  const mlMap = mlMapRef.current;
+  if (!mlMap) return;
+
+  mlMapRef.current = null; // Disable event handlers during style transition
+
+  await new Promise<void>((resolve) => {
+    mlMap.once("style.load", () => {
+      addProjectDataToMlMap(mlMap);
+      mlMapRef.current = mlMap;
+      resolve();
+    });
+    mlMap.setStyle(style);
+  });
+}
 
 /**
  * Switch to a different tile layer (for custom layer control)
  */
-export async function switchTileLayer(layerType: TileLayerType) {
+export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
   // Optimization: If switching to satellite, check if we should directly go to a country layer
   // This prevents loading ESRI first then immediately switching (avoiding "flash" and wasted requests)
   let resolvedLayerType = layerType;
@@ -854,52 +868,21 @@ export async function switchTileLayer(layerType: TileLayerType) {
     return;
   }
 
-  if (fallbackRemovalTimer) {
-    clearTimeout(fallbackRemovalTimer);
-    fallbackRemovalTimer = null;
-  }
-
-  const previousBaseLayer = activeBaseLayer;
-  const newLayer = createTileLayer(resolvedLayerType);
-  newLayer.addTo(map.value);
-
-  activeTileLayer = newLayer;
-  activeBaseLayer = newLayer;
   currentTileLayer.value = resolvedLayerType;
 
-  // Robust Cleanup Strategy (Last Write Wins)
-  // Iterate through all layers and remove any TileLayer that is NOT the active one.
-  function cleanupLayers() {
-    if (
-      previousBaseLayer &&
-      previousBaseLayer !== activeBaseLayer &&
-      map.value.hasLayer(previousBaseLayer)
-    ) {
-      map.value.removeLayer(previousBaseLayer);
-    }
-
-    map.value.eachLayer((layer) => {
-      if (layer instanceof L.TileLayer && layer !== activeTileLayer) {
-        map.value.removeLayer(layer);
-      }
-    });
-
-    if (fallbackRemovalTimer) {
-      clearTimeout(fallbackRemovalTimer);
-      fallbackRemovalTimer = null;
-    }
+  if (resolvedLayerType === "plan") {
+    await switchToStyle(OPENFREEMAP_STYLE_URL);
+  } else {
+    await switchToStyle(buildSatelliteStyle(resolvedLayerType));
   }
 
-  newLayer.once("load", cleanupLayers);
-  fallbackRemovalTimer = setTimeout(cleanupLayers, 2000);
-
   if (resolvedLayerType === "esri") {
-    await checkEsriMaxZoom();
+    void checkEsriMaxZoom();
   }
 }
 
 export function isTileLayerType(value: string): value is TileLayerType {
-  return Object.hasOwn(tileLayerConfigs, value);
+  return value === "plan" || Object.hasOwn(satelliteLayerConfigs, value);
 }
 
 // Debounce timer for metadata queries
@@ -911,7 +894,7 @@ const maxZoomCache = new Map<string, number>();
 
 /**
  * Query Esri Metadata to look for high-resolution imagery availability
- * and dynamically adjust the maxNativeZoom.
+ * and dynamically adjust the maxzoom.
  */
 async function checkEsriMaxZoom() {
   if (currentTileLayer.value !== "esri") return;
@@ -944,16 +927,31 @@ async function checkEsriMaxZoom() {
 }
 
 function applyEsriMaxZoom(zoomLevel: number) {
-  const esriConfig = tileLayerConfigs.esri;
+  const esriConfig = satelliteLayerConfigs.esri;
 
-  if (esriConfig.options.maxNativeZoom !== zoomLevel) {
-    esriConfig.options.maxNativeZoom = zoomLevel;
+  if (esriConfig.maxZoom !== zoomLevel) {
+    esriConfig.maxZoom = zoomLevel;
 
-    if (activeTileLayer) {
-      (activeTileLayer.options as any).maxNativeZoom = zoomLevel;
-
-      if (map.value.getZoom() > BASELINE_ESRI_MAX_ZOOM) {
-        activeTileLayer.redraw();
+    if (currentTileLayer.value === "esri") {
+      const mlMap = getMlMap();
+      if (mlMap) {
+        // Since MapLibre GL JS does not officially support hot-swapping maxzoom on a source
+        // we'll attempt to update it via undocumented properties.
+        const source = mlMap.getSource("satellite");
+        if (source) {
+          (source as any).maxzoom = zoomLevel;
+          try {
+            // Try to force the style source cache to update
+            const sourceCache = (mlMap.style as any).sourceCaches["satellite"];
+            if (sourceCache) {
+              sourceCache.clearTiles();
+              sourceCache.update((mlMap as any).transform);
+            }
+          } catch (e) {
+            // ignore
+          }
+          mlMap.triggerRepaint();
+        }
       }
     }
   }
@@ -1015,21 +1013,14 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
     }
   }
 
-  return BASELINE_ESRI_MAX_ZOOM;
-}
-
-// Hook up the listener init
-function initEsriMetadataListener() {
-  map.value.on("moveend", () => {
-    void checkEsriMaxZoom();
-  });
+  return null;
 }
 
 /**
  * Automatically switch satellite layer based on map view location and zoom
  */
 async function checkAndAutoSwitchSatelliteLayer() {
-  if (currentTileLayer.value === "osm") {
+  if (currentTileLayer.value === "plan") {
     return;
   }
 
@@ -1062,6 +1053,12 @@ async function checkAndAutoSwitchSatelliteLayer() {
 function initAutoCountrySwitchListener() {
   map.value.on("moveend", () => {
     void checkAndAutoSwitchSatelliteLayer();
+  });
+}
+
+function initEsriMetadataListener() {
+  map.value.on("moveend", () => {
+    void checkEsriMaxZoom();
   });
 }
 
