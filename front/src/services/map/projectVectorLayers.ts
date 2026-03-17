@@ -1,4 +1,4 @@
-import type L from "leaflet";
+import L from "leaflet";
 import type { Map as MaplibreMap, PointLike } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
@@ -190,6 +190,17 @@ export function setClusterHoverFilter(mlMap: MaplibreMap, clusterId: number | nu
   ]);
 }
 
+export function setUnclusteredPointHoverFilter(
+  mlMap: MaplibreMap,
+  featureId: string | number | null,
+): void {
+  (mlMap as any).setFilter("unclustered-point-hover", [
+    "all",
+    ["!", ["has", "point_count"]],
+    ["==", ["get", "id"], featureId ?? HOVER_NONE_ID],
+  ]);
+}
+
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
@@ -205,6 +216,12 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const clusterFeature = features.find((f) => f?.layer?.id === "clusters");
     setClusterHoverFilter(mlMap, clusterFeature?.properties?.cluster_id ?? null);
 
+    const unclusteredPoint = features.find((f) => f?.layer?.id === "unclustered-point");
+    setUnclusteredPointHoverFilter(
+      mlMap,
+      unclusteredPoint?.properties?.id ?? unclusteredPoint?.id ?? null,
+    );
+
     mlMap.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
     setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
   });
@@ -216,6 +233,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     mlMap.getCanvas().style.cursor = "";
     setVectorHoverFilters(mlMap, null);
     setClusterHoverFilter(mlMap, null);
+    setUnclusteredPointHoverFilter(mlMap, null);
   });
 
   map.value.on("click", async (event: L.LeafletMouseEvent) => {
@@ -253,7 +271,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
           const targetZoom = Math.max(currentZoom + 2, Math.ceil(expansionZoom));
 
           // Use standard flyTo. Without forced duration, Leaflet calculates the best physics.
-          map.value?.flyTo([lat, lng], targetZoom);
+          map.value?.flyTo([lat, lng], targetZoom, { duration: 1.5 });
         }
       } catch (err) {
         console.error("Error getting cluster expansion zoom:", err);
@@ -271,7 +289,20 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (unclusteredPoint) {
       const projectId = String(unclusteredPoint.properties?.id ?? unclusteredPoint.id ?? "");
       if (projectId.length > 0) {
-        void handleProjectClickFromTile(projectId, event.latlng);
+        const coordinates = unclusteredPoint.geometry?.coordinates;
+        let targetLatLng = event.latlng;
+
+        if (coordinates && coordinates.length >= 2) {
+          const [lng, lat] = coordinates;
+          const currentZoom = map.value?.getZoom() || 0;
+          const targetZoom = Math.max(currentZoom + 2, 14); // Zoom in enough to see the shapes
+          map.value?.flyTo([lat, lng], targetZoom, { duration: 1.5 });
+
+          // Use exact feature coordinates to prevent massive popup offset when zooming in
+          targetLatLng = L.latLng(lat, lng);
+        }
+
+        void handleProjectClickFromTile(projectId, targetLatLng);
       }
     }
   });
@@ -295,11 +326,14 @@ export function addFirstTagToProjectPointsGeojson(
         ? existingFirstTag
         : firstTagFromTags;
 
+    const featureId = feature.id ?? featureProps["id"];
+
     enrichedFeatures.push({
       ...feature,
+      id: featureId as string | number, // Also set it on the feature root
       properties: {
         ...featureProps,
-        id: feature.id, // Ensure ID is in properties so MapLibre preserves it
+        id: featureId, // Ensure ID is in properties so MapLibre preserves it
         first_tag: firstTag,
       },
     });
@@ -560,6 +594,26 @@ export function addProjectDataToMlMap(
       "circle-color": getProjectPointColorExpression(),
       "circle-radius": 6,
       "circle-stroke-width": 1.5,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  // Unclustered point hover
+  m.addLayer({
+    id: "unclustered-point-hover",
+    type: "circle",
+    source: "project-points",
+    filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "id"], HOVER_NONE_ID]],
+    maxzoom: 13,
+    paint: {
+      "circle-color": [
+        "case",
+        ["==", ["get", "is_pending"], true],
+        "#fb923c", // Tailwind orange-400 (lighter hover)
+        getProjectPointColorExpression(), // Could use a lighter expression, but fallback to same for now
+      ],
+      "circle-radius": 8, // larger to indicate hover
+      "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
     },
   });
