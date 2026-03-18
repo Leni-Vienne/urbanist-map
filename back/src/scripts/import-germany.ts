@@ -13,7 +13,10 @@ import { ilike, sql } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const GEOJSON_PATH = path.join(process.cwd(), "../osm/germany-latest_proposed_linear.geojson");
+const GEOJSON_PATHS = [
+  path.join(process.cwd(), "../osm/germany-latest_proposed_linear.geojson"),
+  path.join(process.cwd(), "../osm/germany-latest_proposed_areal.geojson"),
+];
 
 const BATCH_SIZE = 50;
 
@@ -218,123 +221,140 @@ async function main() {
   }
   console.log(`Using city: ${city.name} (id=${city.id}, country=${city.countryCode})`);
 
-  const geojson = JSON.parse(fs.readFileSync(GEOJSON_PATH, "utf8")) as GeoJSON.FeatureCollection;
-  console.log(`Found ${geojson.features.length} features to import`);
+  let globalInserted = 0;
+  let globalSkipped = 0;
 
-  // --- Pre-import diagnostics ---
-  const allStatuses = new Map<string, number>();
-  const allTransportTypes = new Map<string, number>();
-  let noName = 0,
-    noEndDate = 0,
-    noStartDate = 0,
-    noTags = 0;
-  for (const f of geojson.features) {
-    const p = (f.properties ?? {}) as Record<string, unknown>;
-    const status = String(p["project_status"] ?? "missing");
-    allStatuses.set(status, (allStatuses.get(status) ?? 0) + 1);
-    const tt = String(p["transport_type"] ?? "missing");
-    allTransportTypes.set(tt, (allTransportTypes.get(tt) ?? 0) + 1);
-    if (!(p["display_name"] as string | undefined)?.trim()) noName++;
-    if (!parseOsmDate(p["opening_date"]) && !parseOsmDate(p["end_date"])) noEndDate++;
-    if (!parseOsmDate(p["start_date"]) && !parseOsmDate(p["construction_start_expected"]))
-      noStartDate++;
-    if (extractTags(p).length === 0) noTags++;
-  }
-  console.log("\nproject_status breakdown:  ", Object.fromEntries(allStatuses));
-  console.log("transport_type breakdown:  ", Object.fromEntries(allTransportTypes));
-  console.log(
-    `No display_name: ${noName}, no end_date: ${noEndDate}, no start_date: ${noStartDate}, no tags: ${noTags}\n`,
-  );
+  for (const geojsonPath of GEOJSON_PATHS) {
+    if (!fs.existsSync(geojsonPath)) {
+      console.warn(`File not found, skipping: ${geojsonPath}`);
+      continue;
+    }
 
-  let inserted = 0;
-  let skipped = 0;
+    console.log(`\n======================================================`);
+    console.log(`Processing ${path.basename(geojsonPath)}...`);
+    console.log(`======================================================`);
 
-  for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
-    const batch = geojson.features.slice(i, i + BATCH_SIZE);
+    const geojson = JSON.parse(fs.readFileSync(geojsonPath, "utf8")) as GeoJSON.FeatureCollection;
+    console.log(`Found ${geojson.features.length} features to import`);
 
-    const rows = batch
-      .map((feature) => {
-        const props = (feature.properties ?? {}) as Record<string, unknown>;
+    // --- Pre-import diagnostics ---
+    const allStatuses = new Map<string, number>();
+    const allTransportTypes = new Map<string, number>();
+    let noName = 0,
+      noEndDate = 0,
+      noStartDate = 0,
+      noTags = 0;
+    for (const f of geojson.features) {
+      const p = (f.properties ?? {}) as Record<string, unknown>;
+      const status = String(p["project_status"] ?? "missing");
+      allStatuses.set(status, (allStatuses.get(status) ?? 0) + 1);
+      const tt = String(p["transport_type"] ?? "missing");
+      allTransportTypes.set(tt, (allTransportTypes.get(tt) ?? 0) + 1);
+      if (!(p["display_name"] as string | undefined)?.trim()) noName++;
+      if (!parseOsmDate(p["opening_date"]) && !parseOsmDate(p["end_date"])) noEndDate++;
+      if (!parseOsmDate(p["start_date"]) && !parseOsmDate(p["construction_start_expected"]))
+        noStartDate++;
+      if (extractTags(p).length === 0) noTags++;
+    }
+    console.log("\nproject_status breakdown:  ", Object.fromEntries(allStatuses));
+    console.log("transport_type breakdown:  ", Object.fromEntries(allTransportTypes));
+    console.log(
+      `No display_name: ${noName}, no end_date: ${noEndDate}, no start_date: ${noStartDate}, no tags: ${noTags}\n`,
+    );
 
-        const name = (props["display_name"] as string | undefined)?.trim();
-        if (!name) {
-          skipped++;
-          return null;
-        }
+    let inserted = 0;
+    let skipped = 0;
 
-        const tags = extractTags(props);
+    for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
+      const batch = geojson.features.slice(i, i + BATCH_SIZE);
 
-        // Source URL: prefer source:url, then website
-        const sourceUrl =
-          (props["source:url"] as string | undefined) ||
-          (props["website"] as string | undefined) ||
-          null;
+      const rows = batch
+        .map((feature) => {
+          const props = (feature.properties ?? {}) as Record<string, unknown>;
 
-        // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
-        const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
-        const startParsed =
-          parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
-
-        const startDate = startParsed?.date ?? null;
-        const startDatePrecision = startParsed?.precision ?? null;
-
-        const endDate = endParsed?.date ?? null;
-        const endDatePrecision = endParsed?.precision ?? null;
-
-        // Centroid for lat/lng and center_coordinate
-        const geom = feature.geometry as GeoJSON.Geometry | null;
-        const center = geom ? centroid(geom) : null;
-        const geometry: GeoJSON.GeometryCollection | null = geom
-          ? { type: "GeometryCollection", geometries: [geom] }
-          : null;
-
-        return {
-          name,
-          cityId: city.id,
-          status: "approved" as const,
-          tags: tags.length > 0 ? tags : null,
-          sourceUrl,
-          startDate,
-          startDatePrecision,
-          endDate,
-          endDatePrecision,
-          lat: center?.lat ?? null,
-          lng: center?.lng ?? null,
-          geometry: geometry
-            ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
-            : null,
-          centerCoordinate: center
-            ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
-            : null,
-        };
-      })
-      .filter((r) => r !== null);
-
-    if (rows.length > 0) {
-      try {
-        await db.insert(projects).values(rows);
-        inserted += rows.length;
-      } catch (batchErr) {
-        // Batch failed — retry row by row to skip bad entries without losing the rest
-        //console.warn(`Batch ${i / BATCH_SIZE} failed, retrying row-by-row: ${batchErr}`);
-        for (const row of rows) {
-          try {
-            await db.insert(projects).values([row]);
-            inserted++;
-          } catch (rowErr) {
+          const name = (props["display_name"] as string | undefined)?.trim();
+          if (!name) {
             skipped++;
-            //console.warn(`  Skipped row "${row.name}": ${rowErr}`);
+            return null;
+          }
+
+          const tags = extractTags(props);
+
+          // Source URL: prefer source:url, then website
+          const sourceUrl =
+            (props["source:url"] as string | undefined) ||
+            (props["website"] as string | undefined) ||
+            null;
+
+          // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
+          const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
+          const startParsed =
+            parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
+
+          const startDate = startParsed?.date ?? null;
+          const startDatePrecision = startParsed?.precision ?? null;
+
+          const endDate = endParsed?.date ?? null;
+          const endDatePrecision = endParsed?.precision ?? null;
+
+          // Centroid for lat/lng and center_coordinate
+          const geom = feature.geometry as GeoJSON.Geometry | null;
+          const center = geom ? centroid(geom) : null;
+          const geometry: GeoJSON.GeometryCollection | null = geom
+            ? { type: "GeometryCollection", geometries: [geom] }
+            : null;
+
+          return {
+            name,
+            cityId: city.id,
+            status: "approved" as const,
+            tags: tags.length > 0 ? tags : null,
+            sourceUrl,
+            startDate,
+            startDatePrecision,
+            endDate,
+            endDatePrecision,
+            lat: center?.lat ?? null,
+            lng: center?.lng ?? null,
+            geometry: geometry
+              ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
+              : null,
+            centerCoordinate: center
+              ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
+              : null,
+          };
+        })
+        .filter((r) => r !== null);
+
+      if (rows.length > 0) {
+        try {
+          await db.insert(projects).values(rows);
+          inserted += rows.length;
+        } catch (batchErr) {
+          for (const row of rows) {
+            try {
+              await db.insert(projects).values([row]);
+              inserted++;
+            } catch (rowErr) {
+              skipped++;
+            }
           }
         }
       }
+
+      console.log(
+        `Progress: ${Math.min(i + BATCH_SIZE, geojson.features.length)} / ${geojson.features.length}`,
+      );
     }
 
+    globalInserted += inserted;
+    globalSkipped += skipped;
     console.log(
-      `Progress: ${Math.min(i + BATCH_SIZE, geojson.features.length)} / ${geojson.features.length}`,
+      `Finished ${path.basename(geojsonPath)}. Inserted: ${inserted}, skipped: ${skipped}`,
     );
   }
 
-  console.log(`\nDone. Inserted: ${inserted}, skipped (no display_name): ${skipped}`);
+  console.log(`\nDONE. Total Inserted: ${globalInserted}, Total Skipped: ${globalSkipped}`);
 }
 
 main().catch((err) => {

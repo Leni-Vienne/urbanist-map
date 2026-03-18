@@ -18,6 +18,7 @@ export const HOVER_NONE_ID = "__none__";
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints",
   "overlay-footprints-proposed-dashed",
+  "project-shapes-fill",
   "project-shapes",
   "project-shapes-proposed-dashed",
   "project-shapes-points",
@@ -153,6 +154,11 @@ export function setVectorHoverFilters(
   const hoveredId = getHoveredVectorId(feature);
 
   mlMap.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  mlMap.setFilter("project-shapes-hover-fill", [
+    "all",
+    ["==", ["geometry-type"], "Polygon"],
+    ["==", ["to-string", ["get", "id"]], hoveredId],
+  ]);
   mlMap.setFilter("project-shapes-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
@@ -375,6 +381,19 @@ export function addProjectDataToMlMap(
     promoteId: { "overlay-footprints": "id", "project-shapes": "id" },
   });
 
+  mlMap.addLayer({
+    id: "project-shapes-fill",
+    type: "fill",
+    source: "project-sources",
+    "source-layer": "project-shapes",
+    minzoom: 9,
+    filter: ["==", ["geometry-type"], "Polygon"],
+    paint: {
+      "fill-color": getProjectLineColorExpression(),
+      "fill-opacity": 0.2,
+    },
+  });
+
   // Project geometry shapes (lines/polygons) — visible from zoom 9
   mlMap.addLayer({
     id: "project-shapes",
@@ -384,7 +403,7 @@ export function addProjectDataToMlMap(
     minzoom: 9,
     paint: {
       "line-color": getProjectLineColorExpression(),
-      "line-width": 2,
+      "line-width": 3,
       "line-dasharray": [4, 1.5],
     },
   });
@@ -405,6 +424,19 @@ export function addProjectDataToMlMap(
   });
 
   // Hover highlight for project shapes.
+  mlMap.addLayer({
+    id: "project-shapes-hover-fill",
+    type: "fill",
+    source: "project-sources",
+    "source-layer": "project-shapes",
+    minzoom: 9,
+    filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+    paint: {
+      "fill-color": "#ffffff",
+      "fill-opacity": 0.4,
+    },
+  });
+
   mlMap.addLayer({
     id: "project-shapes-hover",
     type: "line",

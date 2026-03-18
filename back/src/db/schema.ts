@@ -164,6 +164,7 @@ export const projects = pgTable(
     sql.raw(
       "CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
     ), // Spatial index for project center coordinates
+    sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_geometry ON projects USING GIST (geometry)"), // Spatial index for geometry bbox filtering and MVT tiles
     sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_tags ON projects USING GIN (tags)"), // GIN index for efficient tag filtering
   ],
 );

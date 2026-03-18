@@ -123,21 +123,8 @@ export async function handleProjectsPoints(): Promise<Response> {
     // Snap points to a ~500m grid and pick one representative per cell.
     // This drastically reduces the payload when many projects cluster together,
     // without affecting the client-side MapLibre clustering experience.
-    const rows = await sqlClient`
-      SELECT DISTINCT ON (snapped)
-        id, lat, lng, COALESCE(tags, ARRAY[]::text[]) AS tags
-      FROM (
-        SELECT
-          id, lat, lng, tags,
-          ST_SnapToGrid(ST_SetSRID(ST_Point(lng, lat), 4326), 0.005) AS snapped
-        FROM projects
-        WHERE status = 'approved'
-          AND lat IS NOT NULL
-          AND lng IS NOT NULL
-          AND (geometry_size_m IS NULL OR geometry_size_m < 5000)
-      ) sub
-    `;
-
+    const rows = await sqlClient` SELECT  id, lat, lng, COALESCE(tags, ARRAY[]::text[]) AS tags
+      FROM projects WHERE status = 'approved' AND lat IS NOT NULL AND lng IS NOT NULL  AND (geometry_size_m IS NULL OR geometry_size_m < 5000)`;
     const features = rows.map((r: any) => ({
       type: "Feature" as const,
       id: r.id,
