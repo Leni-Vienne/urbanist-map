@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -11,7 +11,9 @@ import {
   addProjectDataToMlMap,
   registerHybridInteractionHandlers,
   addFirstTagToProjectPointsGeojson,
+  applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
+import { selectedProjectTags, filterGeoJsonByTags } from "@/services/overlay/statusFilters";
 
 interface BoundingBox {
   minLat: number;
@@ -284,16 +286,39 @@ async function addTileLayersToMap(): Promise<void> {
 /**
  * Update the project-points GeoJSON source with fresh data.
  * Called after /api/projects/points is fetched (and on filter changes).
+ * Applies current tag filters before pushing to the source.
  */
 export function updateProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
   lastProjectPointsGeojson = geojson;
+  applyFilteredProjectPoints();
+}
+
+/**
+ * Re-apply the current project points with tag filters.
+ * Called when filter selection changes.
+ */
+function applyFilteredProjectPoints(): void {
   const mlMap = mlMapRef.current;
-  if (!mlMap) return;
+  if (!mlMap || !lastProjectPointsGeojson) return;
   const source = mlMap.getSource("project-points");
   if (source) {
-    (source as any).setData(addFirstTagToProjectPointsGeojson(geojson));
+    const filtered = filterGeoJsonByTags(lastProjectPointsGeojson);
+    (source as any).setData(addFirstTagToProjectPointsGeojson(filtered));
   }
 }
+
+// Watch for tag filter changes and update both cluster source and MVT layers
+watch(
+  selectedProjectTags,
+  () => {
+    applyFilteredProjectPoints();
+    const mlMap = mlMapRef.current;
+    if (mlMap) {
+      applyTagFiltersToVectorLayers(mlMap);
+    }
+  },
+  { deep: true },
+);
 
 /**
  * Build a minimal MapLibre style containing only the given satellite raster source.

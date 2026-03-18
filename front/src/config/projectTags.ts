@@ -12,12 +12,12 @@ interface ProjectTag {
 
 export const PROJECT_TAGS: ProjectTag[] = [
   { slug: "tram", color: "#d877b8", textColor: "#ffffff" }, // pink-400
+  { slug: "light_rail", color: "#86efac", textColor: "#000000" }, // green-300 (light green)
   { slug: "rail", color: "#f97316", textColor: "#ffffff" }, // orange-500
   { slug: "subway", color: "#0202fe", textColor: "#ffffff" }, // purple-500
   { slug: "bus", color: "#ce4444", textColor: "#ffffff" }, // muted dark red
   { slug: "bike", color: "#16a34a", textColor: "#ffffff" }, // green-600
   { slug: "road", color: "#64748b", textColor: "#ffffff" }, // slate-500
-  { slug: "bridge", color: "#6366f1", textColor: "#ffffff" }, // indigo-500
   { slug: "waterway", color: "#3b82f6", textColor: "#ffffff" }, // blue-500
   { slug: "park", color: "#22c55e", textColor: "#ffffff" }, // green-500
   { slug: "building", color: "#78716c", textColor: "#ffffff" }, // stone-500
@@ -41,9 +41,13 @@ const OSM_RULES: OsmRule[] = [
   { key: "railway", values: ["tram"], tag: "tram" },
   { key: "route", values: ["tram"], tag: "tram" },
 
-  // Rail (heavy + light)
-  { key: "railway", values: ["rail", "light_rail", "narrow_gauge", "monorail"], tag: "rail" },
-  { key: "route", values: ["train", "light_rail", "railway"], tag: "rail" },
+  // Light rail
+  { key: "railway", values: ["light_rail"], tag: "light_rail" },
+  { key: "route", values: ["light_rail"], tag: "light_rail" },
+
+  // Rail (heavy rail, narrow gauge, monorail)
+  { key: "railway", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
+  { key: "route", values: ["train", "railway"], tag: "rail" },
 
   // Subway / metro
   { key: "railway", values: ["subway"], tag: "subway" },
@@ -74,10 +78,6 @@ const OSM_RULES: OsmRule[] = [
     tag: "road",
   },
   { key: "route", values: ["road"], tag: "road" },
-
-  // Bridge
-  { key: "bridge", values: ["yes"], tag: "bridge" },
-  { key: "man_made", values: ["bridge"], tag: "bridge" },
 
   // Waterway
   { key: "waterway", tag: "waterway" },

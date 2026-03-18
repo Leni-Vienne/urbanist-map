@@ -111,12 +111,12 @@
   },
   "tags": {
     "tram": "Tramway",
+    "light_rail": "Tram-train",
     "rail": "Chemin de fer",
     "subway": "Métro",
     "bus": "Bus",
     "bike": "Vélo",
     "road": "Route",
-    "bridge": "Pont",
     "waterway": "Voie d'eau",
     "park": "Parc / Espace vert",
     "building": "Bâtiment"

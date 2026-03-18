@@ -43,9 +43,10 @@ export function toggleProjectTagFilter(tag: string): void {
 }
 
 /**
- * Check whether a project matches the currently selected tag filters.
+ * Check whether tags match the currently selected tag filters.
+ * Exported for use by cluster filtering.
  */
-function matchesSelectedTags(tags: string[] | null | undefined): boolean {
+export function matchesSelectedTags(tags: string[] | null | undefined): boolean {
   if (selectedProjectTags.value.length === 0) return true;
 
   const includeUntagged = selectedProjectTags.value.includes(UNTAGGED_PROJECT_FILTER);
@@ -62,6 +63,27 @@ function matchesSelectedTags(tags: string[] | null | undefined): boolean {
   }
 
   return tags.some((tag) => selectedKnownTags.includes(tag));
+}
+
+/**
+ * Filter GeoJSON FeatureCollection based on current tag filters.
+ * Used by the cluster source to filter project points.
+ */
+export function filterGeoJsonByTags(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+  if (selectedProjectTags.value.length === 0) {
+    return geojson;
+  }
+
+  const filteredFeatures = geojson.features.filter((feature) => {
+    const props = feature.properties ?? {};
+    const tags = Array.isArray(props.tags) ? (props.tags as string[]) : null;
+    return matchesSelectedTags(tags);
+  });
+
+  return {
+    ...geojson,
+    features: filteredFeatures,
+  };
 }
 
 /**

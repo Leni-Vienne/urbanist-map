@@ -9,6 +9,11 @@ import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
+import {
+  filterGeoJsonByTags,
+  selectedProjectTags,
+  UNTAGGED_PROJECT_FILTER,
+} from "@/services/overlay/statusFilters";
 
 export const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 export const CLUSTER_MAX_ZOOM = 10;
@@ -77,6 +82,81 @@ export function getProjectPointColorExpression(): ExpressionSpecification {
 
 export function getIsProposedFilterExpression(): ExpressionSpecification {
   return ["any", ["==", ["get", "is_proposed"], true], ["==", ["get", "is_proposed"], 1]];
+}
+
+/**
+ * Build a MapLibre filter expression based on current tag selection.
+ * Returns null if no filtering is needed (all tags visible).
+ */
+export function getTagFilterExpression(): FilterSpecification | null {
+  const selected = selectedProjectTags.value;
+  if (selected.length === 0) {
+    return null; // No filter needed
+  }
+
+  const includeUntagged = selected.includes(UNTAGGED_PROJECT_FILTER);
+  const selectedKnownTags = selected.filter((t) => t !== UNTAGGED_PROJECT_FILTER);
+
+  const conditions: unknown[] = [];
+
+  // Match any of the selected known tags
+  for (const tag of selectedKnownTags) {
+    conditions.push(["==", ["downcase", ["to-string", ["get", "first_tag"]]], tag]);
+  }
+
+  // Match untagged (empty first_tag)
+  if (includeUntagged) {
+    conditions.push(["==", ["to-string", ["get", "first_tag"]], ""]);
+  }
+
+  if (conditions.length === 0) {
+    // Only untagged was selected but we didn't add it, show nothing
+    return ["==", 1, 0] as FilterSpecification; // Always false
+  }
+
+  if (conditions.length === 1) {
+    return conditions[0] as FilterSpecification;
+  }
+
+  return ["any", ...conditions] as FilterSpecification;
+}
+
+// Layers that need tag filtering applied
+// Layers that can have their filter fully replaced by tag filter
+const TAG_FILTERABLE_LAYERS = ["project-shapes", "overlay-footprints"] as const;
+
+// Layers with existing filters that need tag filter merged with "all"
+const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = {
+  "project-shapes-fill": () => ["==", ["geometry-type"], "Polygon"] as FilterSpecification,
+  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification,
+  "project-shapes-proposed-dashed": getIsProposedFilterExpression,
+  "overlay-footprints-proposed-dashed": getIsProposedFilterExpression,
+};
+
+/**
+ * Apply current tag filters to all project vector layers.
+ * Called when the tag selection changes.
+ */
+export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
+  const tagFilter = getTagFilterExpression();
+
+  // Apply to simple layers (filter can be fully replaced)
+  for (const layerId of TAG_FILTERABLE_LAYERS) {
+    if (!mlMap.getLayer(layerId)) continue;
+    mlMap.setFilter(layerId, tagFilter);
+  }
+
+  // Apply to layers that have existing filters (merge with "all")
+  for (const [layerId, getBaseFilter] of Object.entries(LAYERS_WITH_EXISTING_FILTERS)) {
+    if (!mlMap.getLayer(layerId)) continue;
+
+    const baseFilter = getBaseFilter();
+    if (tagFilter) {
+      mlMap.setFilter(layerId, ["all", baseFilter, tagFilter] as FilterSpecification);
+    } else {
+      mlMap.setFilter(layerId, baseFilter);
+    }
+  }
 }
 
 export function buildClusterProperties(): Record<string, ExpressionSpecification> {
@@ -549,11 +629,13 @@ export function addProjectDataToMlMap(
   });
 
   // ── GeoJSON cluster source: project center coordinates ────────────────────
+  const filteredGeojson = lastProjectPointsGeojson
+    ? addFirstTagToProjectPointsGeojson(filterGeoJsonByTags(lastProjectPointsGeojson))
+    : { type: "FeatureCollection" as const, features: [] };
+
   mlMap.addSource("project-points", {
     type: "geojson",
-    data: lastProjectPointsGeojson
-      ? addFirstTagToProjectPointsGeojson(lastProjectPointsGeojson)
-      : { type: "FeatureCollection", features: [] },
+    data: filteredGeojson,
     cluster: true,
     clusterMaxZoom: CLUSTER_MAX_ZOOM,
     clusterRadius: 50,
@@ -652,4 +734,7 @@ export function addProjectDataToMlMap(
       "circle-stroke-color": "#ffffff",
     },
   });
+
+  // Apply current tag filters to MVT layers
+  applyTagFiltersToVectorLayers(mlMap);
 }

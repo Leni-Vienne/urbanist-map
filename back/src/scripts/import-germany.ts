@@ -37,6 +37,13 @@ const OSM_RULES: OsmRule[] = [
   { key: "proposed", values: ["tram"], tag: "tram" },
   { key: "transport_type", values: ["tram"], tag: "tram" },
 
+  // --- Light rail ---
+  { key: "railway", values: ["light_rail"], tag: "light_rail" },
+  { key: "route", values: ["light_rail"], tag: "light_rail" },
+  { key: "construction", values: ["light_rail"], tag: "light_rail" },
+  { key: "proposed", values: ["light_rail"], tag: "light_rail" },
+  { key: "transport_type", values: ["light_rail"], tag: "light_rail" },
+
   // --- Subway / Metro ---
   { key: "railway", values: ["subway"], tag: "subway" },
   { key: "route", values: ["subway"], tag: "subway" },
@@ -44,14 +51,14 @@ const OSM_RULES: OsmRule[] = [
   { key: "proposed", values: ["subway"], tag: "subway" },
   { key: "transport_type", values: ["subway"], tag: "subway" },
 
-  // --- Rail (heavy rail, light rail, narrow gauge, monorail) ---
-  { key: "railway", values: ["rail", "light_rail", "narrow_gauge", "monorail"], tag: "rail" },
-  { key: "route", values: ["train", "light_rail", "railway"], tag: "rail" },
-  { key: "construction", values: ["rail", "light_rail", "narrow_gauge", "monorail"], tag: "rail" },
-  { key: "proposed", values: ["rail", "light_rail", "narrow_gauge", "monorail"], tag: "rail" },
+  // --- Rail (heavy rail, narrow gauge, monorail) ---
+  { key: "railway", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
+  { key: "route", values: ["train", "railway"], tag: "rail" },
+  { key: "construction", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
+  { key: "proposed", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
   {
     key: "transport_type",
-    values: ["rail", "light_rail", "narrow_gauge", "monorail", "miniature"],
+    values: ["rail", "narrow_gauge", "monorail", "miniature"],
     tag: "rail",
   },
 
@@ -118,10 +125,6 @@ const OSM_RULES: OsmRule[] = [
   { key: "natural", values: ["water", "bay", "strait"], tag: "waterway" },
   { key: "man_made", values: ["pier", "dam"], tag: "waterway" },
   { key: "transport_type", values: ["waterway"], tag: "waterway" },
-
-  // --- Bridge ---
-  { key: "bridge", values: ["yes"], tag: "bridge" },
-  { key: "man_made", values: ["bridge"], tag: "bridge" },
 
   // --- Park / green ---
   {
@@ -265,87 +268,92 @@ async function main() {
     let inserted = 0;
     let skipped = 0;
 
-    for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
-      const batch = geojson.features.slice(i, i + BATCH_SIZE);
+    // Use a transaction for the entire file import for better performance
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
+        const batch = geojson.features.slice(i, i + BATCH_SIZE);
 
-      const rows = batch
-        .map((feature) => {
-          const props = (feature.properties ?? {}) as Record<string, unknown>;
+        const rows = batch
+          .map((feature) => {
+            const props = (feature.properties ?? {}) as Record<string, unknown>;
 
-          const name = (props["display_name"] as string | undefined)?.trim();
-          if (!name) {
-            skipped++;
-            return null;
-          }
-
-          const tags = extractTags(props);
-
-          // Source URL: prefer source:url, then website
-          const sourceUrl =
-            (props["source:url"] as string | undefined) ||
-            (props["website"] as string | undefined) ||
-            null;
-
-          // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
-          const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
-          const startParsed =
-            parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
-
-          const startDate = startParsed?.date ?? null;
-          const startDatePrecision = startParsed?.precision ?? null;
-
-          const endDate = endParsed?.date ?? null;
-          const endDatePrecision = endParsed?.precision ?? null;
-
-          // Centroid for lat/lng and center_coordinate
-          const geom = feature.geometry as GeoJSON.Geometry | null;
-          const center = geom ? centroid(geom) : null;
-          const geometry: GeoJSON.GeometryCollection | null = geom
-            ? { type: "GeometryCollection", geometries: [geom] }
-            : null;
-
-          return {
-            name,
-            cityId: city.id,
-            status: "approved" as const,
-            tags: tags.length > 0 ? tags : null,
-            sourceUrl,
-            startDate,
-            startDatePrecision,
-            endDate,
-            endDatePrecision,
-            lat: center?.lat ?? null,
-            lng: center?.lng ?? null,
-            geometry: geometry
-              ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
-              : null,
-            centerCoordinate: center
-              ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
-              : null,
-          };
-        })
-        .filter((r) => r !== null);
-
-      if (rows.length > 0) {
-        try {
-          await db.insert(projects).values(rows);
-          inserted += rows.length;
-        } catch (batchErr) {
-          for (const row of rows) {
-            try {
-              await db.insert(projects).values([row]);
-              inserted++;
-            } catch (rowErr) {
+            const name = (props["display_name"] as string | undefined)?.trim();
+            if (!name) {
               skipped++;
+              return null;
+            }
+
+            const tags = extractTags(props);
+
+            // Source URL: prefer source:url, then website
+            const sourceUrl =
+              (props["source:url"] as string | undefined) ||
+              (props["website"] as string | undefined) ||
+              null;
+
+            // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
+            const endParsed =
+              parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
+            const startParsed =
+              parseOsmDate(props["start_date"]) ??
+              parseOsmDate(props["construction_start_expected"]);
+
+            const startDate = startParsed?.date ?? null;
+            const startDatePrecision = startParsed?.precision ?? null;
+
+            const endDate = endParsed?.date ?? null;
+            const endDatePrecision = endParsed?.precision ?? null;
+
+            // Centroid for lat/lng and center_coordinate
+            const geom = feature.geometry as GeoJSON.Geometry | null;
+            const center = geom ? centroid(geom) : null;
+            const geometry: GeoJSON.GeometryCollection | null = geom
+              ? { type: "GeometryCollection", geometries: [geom] }
+              : null;
+
+            return {
+              name,
+              cityId: city.id,
+              status: "approved" as const,
+              tags: tags.length > 0 ? tags : null,
+              sourceUrl,
+              startDate,
+              startDatePrecision,
+              endDate,
+              endDatePrecision,
+              lat: center?.lat ?? null,
+              lng: center?.lng ?? null,
+              geometry: geometry
+                ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
+                : null,
+              centerCoordinate: center
+                ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
+                : null,
+            };
+          })
+          .filter((r) => r !== null);
+
+        if (rows.length > 0) {
+          try {
+            await tx.insert(projects).values(rows);
+            inserted += rows.length;
+          } catch (batchErr) {
+            for (const row of rows) {
+              try {
+                await tx.insert(projects).values([row]);
+                inserted++;
+              } catch (rowErr) {
+                skipped++;
+              }
             }
           }
         }
-      }
 
-      console.log(
-        `Progress: ${Math.min(i + BATCH_SIZE, geojson.features.length)} / ${geojson.features.length}`,
-      );
-    }
+        console.log(
+          `Progress: ${Math.min(i + BATCH_SIZE, geojson.features.length)} / ${geojson.features.length}`,
+        );
+      }
+    });
 
     globalInserted += inserted;
     globalSkipped += skipped;
