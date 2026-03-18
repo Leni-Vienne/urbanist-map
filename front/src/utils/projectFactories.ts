@@ -105,7 +105,7 @@ export function createLocalOverlayContribution(
     imageUrl?: string;
   },
   parentProject: {
-    cityId: number;
+    cityId: number | null;
     cityName: string;
     countryCode: string | null;
     countryName: string | null;
@@ -144,7 +144,7 @@ export function createLocalProjectContribution(
     name: string;
     description: string | null;
     ownerId: string | null;
-    cityId: number;
+    cityId: number | null;
     city: { name: string; countryCode: string };
     lat: number | null;
     lng: number | null;
@@ -196,7 +196,7 @@ export function createLocalProjectContribution(
     lat: localProject.lat,
     lng: localProject.lng,
     city: {
-      id: localProject.cityId,
+      id: localProject.cityId ?? 0,
       name: localProject.city.name,
       countryCode: localProject.city.countryCode,
       nameLocal: null, // Default for local project

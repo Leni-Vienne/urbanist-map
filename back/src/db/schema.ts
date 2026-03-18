@@ -9,6 +9,7 @@ import {
   boolean,
   pgEnum,
   index,
+  uniqueIndex,
   char,
   geometry,
   customType,
@@ -52,7 +53,47 @@ export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[nu
 export const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
 export type DatePrecision = (typeof DATE_PRECISION_VALUES)[number];
 
+// Timeline status values - project lifecycle stage
+// Using const array + text column (not enum) for easier modification
+export const TIMELINE_STATUS_VALUES = [
+  "proposed", // Just an idea/proposal
+  "planned", // Approved/funded but not yet started
+  "under_construction", // Active construction
+  "completed", // Finished
+  "canceled", // Abandoned/canceled
+] as const;
+export type TimelineStatus = (typeof TIMELINE_STATUS_VALUES)[number];
+
 export type EntityType = "project" | "overlay";
+
+// Import sources table for tracking external data origins (OSM, city datasets, etc.)
+export const importSources = pgTable(
+  "import_sources",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    slug: text("slug").unique().notNull(), // e.g., "osm_germany", "osm_france"
+    name: text("name").notNull(), // Display name: "OpenStreetMap Germany"
+    type: text("type").notNull(), // "osm", "citydata", etc.
+    urlTemplate: text("url_template"), // e.g., "https://www.openstreetmap.org/{id}"
+    attribution: text("attribution"), // e.g., "(c) OpenStreetMap contributors"
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }), // When last import completed
+    lastSyncStartedAt: timestamp("last_sync_started_at", { withTimezone: true }), // For pruning stale data
+    enabled: boolean("enabled").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("idx_import_sources_slug").on(table.slug),
+    index("idx_import_sources_type").on(table.type),
+  ],
+);
+
+export const importSourcesRelations = relations(importSources, ({ many }) => ({
+  projects: many(projects),
+}));
 
 // Users table for custom authentication
 export const users = pgTable(
@@ -133,9 +174,21 @@ export const projects = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }),
-    cityId: integer("city_id")
-      .references(() => cities.id, { onDelete: "set null", onUpdate: "cascade" })
-      .notNull(), // Reference to the city where the project is located
+    cityId: integer("city_id").references(() => cities.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }), // Reference to the city where the project is located (optional for imported projects)
+    // Timeline status - project lifecycle stage
+    timelineStatus: text("timeline_status").$type<TimelineStatus>().default("proposed").notNull(),
+    // Import source tracking - NULL for user-submitted projects
+    importSourceId: uuid("import_source_id").references(() => importSources.id, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }),
+    externalId: text("external_id"), // Namespaced ID from source (e.g., "relation/123456", "way/789")
+    externalProperties: jsonb("external_properties"), // Raw properties from source (OSM tags, etc.)
+    externalLastModified: timestamp("external_last_modified", { withTimezone: true }), // When source data was last modified (e.g., osm_last_modified)
+    lastImportedAt: timestamp("last_imported_at", { withTimezone: true }), // For pruning stale imports
     sourceUrl: text("source_url"),
     proposalDate: timestamp("proposal_date", { withTimezone: true }),
     proposalDatePrecision: text("proposal_date_precision").$type<DatePrecision | null>(),
@@ -161,11 +214,19 @@ export const projects = pgTable(
   (table) => [
     index("idx_projects_status").on(table.status),
     index("idx_projects_owner_id").on(table.ownerId),
+    index("idx_projects_timeline_status").on(table.timelineStatus),
+    index("idx_projects_import_source").on(table.importSourceId),
+    index("idx_projects_external_id").on(table.externalId),
+    index("idx_projects_last_imported").on(table.lastImportedAt),
+    index("idx_projects_external_last_modified").on(table.externalLastModified), // For filtering stale imported data
     sql.raw(
       "CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
     ), // Spatial index for project center coordinates
     sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_geometry ON projects USING GIST (geometry)"), // Spatial index for geometry bbox filtering and MVT tiles
     sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_tags ON projects USING GIN (tags)"), // GIN index for efficient tag filtering
+    // Unique constraint for external data - prevents duplicate imports from same source
+    // Note: PostgreSQL allows multiple (NULL, NULL) rows since NULL != NULL in unique constraints
+    uniqueIndex("idx_projects_source_external").on(table.importSourceId, table.externalId),
   ],
 );
 
@@ -177,6 +238,10 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   city: one(cities, {
     fields: [projects.cityId],
     references: [cities.id],
+  }),
+  importSource: one(importSources, {
+    fields: [projects.importSourceId],
+    references: [importSources.id],
   }),
   overlays: many(overlays),
 }));
@@ -456,3 +521,4 @@ export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
 export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
 export type DBConfig = InferSelectModel<typeof config>;
 export type DBUserReport = InferSelectModel<typeof userReports>;
+export type DBImportSource = InferSelectModel<typeof importSources>;

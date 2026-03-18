@@ -95,9 +95,17 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
-    cityId: data.cityId ?? 0,
+    cityId: data.cityId ?? null, // Now nullable for imported projects
     status: data.status ?? null,
     rejectionReason: data.rejectionReason ?? null, // Moderator-selected rejection reason
+    // Timeline status - project lifecycle stage
+    timelineStatus: data.timelineStatus ?? "proposed",
+    // Import source tracking
+    importSourceId: data.importSourceId ?? null,
+    externalId: data.externalId ?? null,
+    externalProperties: data.externalProperties ?? null,
+    externalLastModified: data.externalLastModified ?? null,
+    lastImportedAt: data.lastImportedAt ?? null,
     // Center coordinate fields - all projects now have center coordinates
     lat: data.lat ?? null,
     lng: data.lng ?? null,
@@ -135,16 +143,18 @@ export function createProjectFromUserContribution(contribution: UserContribution
     lat: contribution.lat,
     lng: contribution.lng,
     cityId: contribution.cityId,
-    city: {
-      id: contribution.cityId,
-      name: contribution.cityName ?? contribution.city.name,
-      nameLocal: contribution.city.nameLocal ?? null,
-      countryCode: contribution.countryCode ?? contribution.city.countryCode ?? "XX",
-      coordinates: { x: contribution.lng ?? 0, y: contribution.lat ?? 0 },
-      approvedProjectCount: 0,
-      createdAt: contribution.city.createdAt,
-      updatedAt: contribution.city.updatedAt,
-    },
+    city: contribution.cityId
+      ? {
+          id: contribution.cityId,
+          name: contribution.cityName ?? contribution.city.name,
+          nameLocal: contribution.city.nameLocal ?? null,
+          countryCode: contribution.countryCode ?? contribution.city.countryCode ?? "XX",
+          coordinates: { x: contribution.lng ?? 0, y: contribution.lat ?? 0 },
+          approvedProjectCount: 0,
+          createdAt: contribution.city.createdAt,
+          updatedAt: contribution.city.updatedAt,
+        }
+      : undefined,
     status: contribution.status,
     rejectionReason: null,
     overlayIds: contribution.overlays.map((overlay) => overlay.id),

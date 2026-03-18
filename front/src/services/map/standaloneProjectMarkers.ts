@@ -337,19 +337,22 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
 
   uiStore.openProjectInfoPopup(project.id, project);
 
-  if (mapStore.selectedCity?.id !== project.city.id) {
-    mapStore.setSelectedCity({
-      id: project.city.id,
-      name: project.city.name,
-      nameLocal: project.city.nameLocal,
-      countryCode: project.city.countryCode,
-    });
-  }
+  // Only handle city-related logic if project has an associated city
+  if (project.cityId) {
+    if (mapStore.selectedCity?.id !== project.city.id) {
+      mapStore.setSelectedCity({
+        id: project.city.id,
+        name: project.city.name,
+        nameLocal: project.city.nameLocal,
+        countryCode: project.city.countryCode,
+      });
+    }
 
-  Promise.all([
-    fetchCityOverlaysOrCache(project.city.id, mapStore.mode),
-    fetchCityStandaloneProjectsOrCache(project.city.id, mapStore.mode),
-  ]).catch(console.error);
+    Promise.all([
+      fetchCityOverlaysOrCache(project.city.id, mapStore.mode),
+      fetchCityStandaloneProjectsOrCache(project.city.id, mapStore.mode),
+    ]).catch(console.error);
+  }
 
   if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
   requestScrollTo("project", project.id);

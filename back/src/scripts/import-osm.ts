@@ -1,15 +1,17 @@
 /**
  * Import Germany proposed/construction linear transport GeoJSON into the projects table.
- * All projects are assigned to the same city (Berlin) for testing purposes.
+ * Projects are auto-approved and linked to the "osm_germany" import source.
+ * Existing projects are updated via upsert on (importSourceId, externalId).
+ * Projects not seen in the current sync are automatically pruned.
  *
  * Covers railways, roads, aerialways, waterways, cycling and pedestrian paths.
  *
- * Usage: bun run back/src/scripts/import-germany-linear.ts
+ * Usage: bun run back/src/scripts/import-osm.ts
  */
 
 import { db } from "../database";
-import { cities, projects } from "../db/schema";
-import { ilike, sql } from "drizzle-orm";
+import { projects, importSources, type TimelineStatus } from "../db/schema";
+import { sql, eq } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -19,6 +21,32 @@ const GEOJSON_PATHS = [
 ];
 
 const BATCH_SIZE = 50;
+
+// Import source configuration
+const IMPORT_SOURCE_SLUG = "osm_germany";
+const IMPORT_SOURCE_CONFIG = {
+  slug: IMPORT_SOURCE_SLUG,
+  name: "OpenStreetMap Germany",
+  type: "osm",
+  urlTemplate: "https://www.openstreetmap.org/{id}",
+  attribution: "© OpenStreetMap contributors",
+  enabled: true,
+};
+
+// ---------------------------------------------------------------------------
+// OSM project_status → timeline status mapping
+// ---------------------------------------------------------------------------
+function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
+  // OSM project_status values: "proposed" or "under_construction"
+  // Map to our timeline statuses
+  switch (projectStatus) {
+    case "under_construction":
+      return "under_construction";
+    case "proposed":
+    default:
+      return "proposed";
+  }
+}
 
 // ---------------------------------------------------------------------------
 // OSM → tag mapping (mirrors front/src/config/projectTags.ts)
@@ -163,7 +191,8 @@ function extractTags(props: Record<string, unknown>): string[] {
       tt === "bike" ||
       tt === "pedestrian" ||
       tt === "road" ||
-      tt === "waterway"
+      tt === "waterway" ||
+      tt === "park"
     ) {
       found.add(tt);
     } else if (tt === "narrow_gauge" || tt === "monorail" || tt === "miniature") {
@@ -199,16 +228,28 @@ function extractTags(props: Record<string, unknown>): string[] {
 function parseOsmDate(value: unknown): { date: Date; precision: "year" | "month" | "day" } | null {
   if (!value || typeof value !== "string") return null;
   const s = value.trim();
+  let date: Date;
+  let precision: "year" | "month" | "day";
+
   if (/^\d{4}$/.test(s)) {
-    return { date: new Date(`${s}-01-01T00:00:00Z`), precision: "year" };
+    date = new Date(`${s}-01-01T00:00:00Z`);
+    precision = "year";
+  } else if (/^\d{4}-\d{2}$/.test(s)) {
+    date = new Date(`${s}-01T00:00:00Z`);
+    precision = "month";
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    date = new Date(`${s}T00:00:00Z`);
+    precision = "day";
+  } else {
+    return null;
   }
-  if (/^\d{4}-\d{2}$/.test(s)) {
-    return { date: new Date(`${s}-01T00:00:00Z`), precision: "month" };
+
+  // Validate the date is actually valid (e.g., not 2024-13-45)
+  if (isNaN(date.getTime())) {
+    return null;
   }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    return { date: new Date(`${s}T00:00:00Z`), precision: "day" };
-  }
-  return null;
+
+  return { date, precision };
 }
 
 // ---------------------------------------------------------------------------
@@ -245,17 +286,33 @@ function centroid(geom: GeoJSON.Geometry): { lat: number; lng: number } | null {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
-  // Find a German city to use for all projects — prefer Berlin
-  const cityRows = await db.select().from(cities).where(ilike(cities.name, "Berlin")).limit(10);
+  // Get or create import source
+  console.log(`Setting up import source: ${IMPORT_SOURCE_SLUG}`);
+  let importSource = await db
+    .select()
+    .from(importSources)
+    .where(eq(importSources.slug, IMPORT_SOURCE_SLUG))
+    .limit(1)
+    .then((rows) => rows[0]);
 
-  const germanCities = cityRows.filter((c) => c.countryCode === "DEU");
-  const city = germanCities[0];
-  if (!city) {
-    throw new Error(
-      "Could not find Berlin (DEU) in the cities table. Make sure geonames data is imported.",
-    );
+  if (!importSource) {
+    console.log(`Import source not found, creating: ${IMPORT_SOURCE_SLUG}`);
+    const created = await db.insert(importSources).values(IMPORT_SOURCE_CONFIG).returning();
+    importSource = created[0];
   }
-  console.log(`Using city: ${city.name} (id=${city.id}, country=${city.countryCode})`);
+
+  if (!importSource) {
+    throw new Error(`Failed to create or retrieve import source: ${IMPORT_SOURCE_SLUG}`);
+  }
+
+  console.log(`Using import source: ${importSource.name} (id=${importSource.id})`);
+
+  // Record sync start time for pruning stale data later
+  const syncStartTime = new Date();
+  await db
+    .update(importSources)
+    .set({ lastSyncStartedAt: syncStartTime })
+    .where(eq(importSources.id, importSource.id));
 
   let globalInserted = 0;
   let globalSkipped = 0;
@@ -301,92 +358,125 @@ async function main() {
     let inserted = 0;
     let skipped = 0;
 
-    // Use a transaction for the entire file import for better performance
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
-        const batch = geojson.features.slice(i, i + BATCH_SIZE);
+    // Process features individually to handle conflicts and errors gracefully
+    for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
+      const batch = geojson.features.slice(i, i + BATCH_SIZE);
 
-        const rows = batch
-          .map((feature) => {
-            const props = (feature.properties ?? {}) as Record<string, unknown>;
+      for (const feature of batch) {
+        try {
+          const props = (feature.properties ?? {}) as Record<string, unknown>;
 
-            const name = (props["display_name"] as string | undefined)?.trim();
-            if (!name) {
-              skipped++;
-              return null;
-            }
+          const name = (props["display_name"] as string | undefined)?.trim();
+          if (!name) {
+            skipped++;
+            continue;
+          }
 
-            const tags = extractTags(props);
+          const tags = extractTags(props);
 
-            // Source URL: prefer source:url, then website
-            const sourceUrl =
-              (props["source:url"] as string | undefined) ||
-              (props["website"] as string | undefined) ||
-              null;
+          // Map OSM project_status to our timeline status
+          const timelineStatus = mapTimelineStatus(props["project_status"] as string | undefined);
 
-            // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
-            const endParsed =
-              parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
-            const startParsed =
-              parseOsmDate(props["start_date"]) ??
-              parseOsmDate(props["construction_start_expected"]);
+          // Extract externalId from feature.id (e.g., "relation/123456" or "way/789")
+          const externalId = feature.id ? String(feature.id) : null;
 
-            const startDate = startParsed?.date ?? null;
-            const startDatePrecision = startParsed?.precision ?? null;
+          // Store all OSM properties as JSON for future use
+          const externalProperties = props;
 
-            const endDate = endParsed?.date ?? null;
-            const endDatePrecision = endParsed?.precision ?? null;
-
-            // Centroid for lat/lng and center_coordinate
-            const geom = feature.geometry as GeoJSON.Geometry | null;
-            const center = geom ? centroid(geom) : null;
-            const geometry: GeoJSON.GeometryCollection | null = geom
-              ? { type: "GeometryCollection", geometries: [geom] }
-              : null;
-
-            return {
-              name,
-              cityId: city.id,
-              status: "approved" as const,
-              tags: tags.length > 0 ? tags : null,
-              sourceUrl,
-              startDate,
-              startDatePrecision,
-              endDate,
-              endDatePrecision,
-              lat: center?.lat ?? null,
-              lng: center?.lng ?? null,
-              geometry: geometry
-                ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
-                : null,
-              centerCoordinate: center
-                ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
-                : null,
-            };
-          })
-          .filter((r) => r !== null);
-
-        if (rows.length > 0) {
-          try {
-            await tx.insert(projects).values(rows);
-            inserted += rows.length;
-          } catch (batchErr) {
-            for (const row of rows) {
-              try {
-                await tx.insert(projects).values([row]);
-                inserted++;
-              } catch (rowErr) {
-                skipped++;
-              }
+          // Extract OSM last modified timestamp
+          let osmLastModified: Date | null = null;
+          if (props["osm_last_modified"]) {
+            const parsed = new Date(String(props["osm_last_modified"]));
+            if (!isNaN(parsed.getTime())) {
+              osmLastModified = parsed;
             }
           }
-        }
 
-        console.log(
-          `Progress: ${Math.min(i + BATCH_SIZE, geojson.features.length)} / ${geojson.features.length}`,
-        );
+          // Source URL: prefer source:url, then website
+          const sourceUrl =
+            (props["source:url"] as string | undefined) ||
+            (props["website"] as string | undefined) ||
+            null;
+
+          // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
+          const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
+          const startParsed =
+            parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
+
+          const startDate = startParsed?.date ?? null;
+          const startDatePrecision = startParsed?.precision ?? null;
+
+          const endDate = endParsed?.date ?? null;
+          const endDatePrecision = endParsed?.precision ?? null;
+
+          // Centroid for lat/lng and center_coordinate
+          const geom = feature.geometry as GeoJSON.Geometry | null;
+          const center = geom ? centroid(geom) : null;
+          const geometry: GeoJSON.GeometryCollection | null = geom
+            ? { type: "GeometryCollection", geometries: [geom] }
+            : null;
+
+          const row = {
+            name,
+            cityId: null,
+            status: "approved" as const,
+            timelineStatus,
+            importSourceId: importSource.id,
+            externalId,
+            externalProperties,
+            externalLastModified: osmLastModified,
+            lastImportedAt: syncStartTime,
+            tags: tags.length > 0 ? tags : null,
+            sourceUrl,
+            startDate,
+            startDatePrecision,
+            endDate,
+            endDatePrecision,
+            lat: center?.lat ?? null,
+            lng: center?.lng ?? null,
+            geometry: geometry
+              ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
+              : null,
+            centerCoordinate: center
+              ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
+              : null,
+          };
+
+          await db
+            .insert(projects)
+            .values(row)
+            .onConflictDoUpdate({
+              target: [projects.importSourceId, projects.externalId],
+              set: {
+                name: row.name,
+                cityId: row.cityId,
+                timelineStatus: row.timelineStatus,
+                externalProperties: row.externalProperties,
+                externalLastModified: row.externalLastModified,
+                lastImportedAt: row.lastImportedAt,
+                tags: row.tags,
+                sourceUrl: row.sourceUrl,
+                startDate: row.startDate,
+                startDatePrecision: row.startDatePrecision,
+                endDate: row.endDate,
+                endDatePrecision: row.endDatePrecision,
+                lat: row.lat,
+                lng: row.lng,
+                geometry: row.geometry,
+                centerCoordinate: row.centerCoordinate,
+              },
+            });
+          inserted++;
+        } catch (rowErr) {
+          console.error(`Failed to insert/update row:`, rowErr);
+          skipped++;
+        }
       }
-    });
+
+      console.log(
+        `Progress: ${Math.min(i + BATCH_SIZE, geojson.features.length)} / ${geojson.features.length}`,
+      );
+    }
 
     globalInserted += inserted;
     globalSkipped += skipped;
@@ -396,6 +486,29 @@ async function main() {
   }
 
   console.log(`\nDONE. Total Inserted: ${globalInserted}, Total Skipped: ${globalSkipped}`);
+
+  // Prune stale projects that were not updated during this sync
+  console.log(`\nPruning stale projects not seen since ${syncStartTime.toISOString()}...`);
+  try {
+    const staleProjects = await db
+      .delete(projects)
+      .where(
+        sql`${projects.importSourceId} = ${importSource.id} AND (${projects.lastImportedAt} IS NULL OR ${projects.lastImportedAt} < ${syncStartTime})`,
+      )
+      .returning({ id: projects.id });
+
+    console.log(`Pruned ${staleProjects.length} stale projects`);
+  } catch (pruneErr) {
+    console.error("Failed to prune stale projects:", pruneErr);
+  }
+
+  // Update lastSyncAt to mark successful completion
+  await db
+    .update(importSources)
+    .set({ lastSyncAt: new Date() })
+    .where(eq(importSources.id, importSource.id));
+
+  console.log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
 }
 
 main().catch((err) => {

@@ -118,11 +118,16 @@ const projectLocationDisplay = computed(() => {
 
   const project = props.project;
 
+  // Check if project has a cityId first (imported projects may not have one)
+  if (!project.cityId) {
+    return "—";
+  }
+
   if (project.city.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
 
-  if (project.cityId && props.availableCities) {
+  if (props.availableCities) {
     const city = props.availableCities.find((c) => c.id === project.cityId);
     if (city) {
       return `${city.name}, ${city.countryCode}`;

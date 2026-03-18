@@ -218,9 +218,10 @@ type BackendUserContribution = RouterOutput["project"]["getUsersContributions"][
 
 export type UserContributionOverlay = Omit<
   BackendUserContribution["overlays"][number],
-  "status"
+  "status" | "cityId"
 > & {
   status: ApprovalStatus | null;
+  cityId: number | null; // Override: cityId is now nullable for imported projects
   // Frontend-specific fields added by factories
   imageUrl?: string;
   authorUsername?: string | null;
@@ -228,8 +229,9 @@ export type UserContributionOverlay = Omit<
   authorRejectedCount?: number | null;
 };
 
-export type UserContribution = Omit<BackendUserContribution, "status" | "overlays"> & {
+export type UserContribution = Omit<BackendUserContribution, "status" | "overlays" | "cityId"> & {
   status: ApprovalStatus | null;
+  cityId: number | null; // Override: cityId is now nullable for imported projects
   overlays: UserContributionOverlay[];
   // Date precision fields
   proposalDatePrecision?: "year" | "month" | "day" | null;

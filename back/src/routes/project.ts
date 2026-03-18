@@ -386,7 +386,7 @@ export const projectRouter = router({
     }),
 
   // Get a single approved project by ID (used by vector tile click handler)
-  getById: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ input }) => {
+  getById: publicProcedure.input(z.object({ id: z.uuid() })).query(async ({ input }) => {
     try {
       const rows = await db
         .select({
@@ -412,7 +412,7 @@ export const projectRouter = router({
           city: cities,
         })
         .from(projects)
-        .innerJoin(cities, eq(projects.cityId, cities.id))
+        .leftJoin(cities, eq(projects.cityId, cities.id))
         .where(and(eq(projects.id, input.id), eq(projects.status, "approved")))
         .limit(1);
 
