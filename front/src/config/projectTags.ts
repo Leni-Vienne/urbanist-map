@@ -12,7 +12,7 @@ interface ProjectTag {
 
 export const PROJECT_TAGS: ProjectTag[] = [
   { slug: "tram", color: "#d877b8", textColor: "#ffffff" }, // pink-400
-  { slug: "light_rail", color: "#86efac", textColor: "#000000" }, // green-300 (light green)
+  { slug: "light_rail", color: "#22c55e", textColor: "#000000" }, // same color as park but OSM has none anyway
   { slug: "rail", color: "#f97316", textColor: "#ffffff" }, // orange-500
   { slug: "subway", color: "#0202fe", textColor: "#ffffff" }, // purple-500
   { slug: "bus", color: "#ce4444", textColor: "#ffffff" }, // muted dark red

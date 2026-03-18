@@ -114,37 +114,28 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
 });
 
 // Exported handler for GET /api/projects/points
-// Lightweight GeoJSON FeatureCollection of approved project center coordinates.
+// Compact format: { points: [[id, lat, lng, tags], ...] }
+// Client reconstructs GeoJSON FeatureCollection from this.
 // Excludes projects with large geometry (>= 5km bbox diagonal) — those are
 // discoverable via the MVT project-shapes layer instead.
 // Fully public, aggressively cached.
 export async function handleProjectsPoints(): Promise<Response> {
   try {
-    // Snap points to a ~500m grid and pick one representative per cell.
-    // This drastically reduces the payload when many projects cluster together,
-    // without affecting the client-side MapLibre clustering experience.
     const rows = await sqlClient` SELECT  id, lat, lng, COALESCE(tags, ARRAY[]::text[]) AS tags
       FROM projects WHERE status = 'approved' AND lat IS NOT NULL AND lng IS NOT NULL  AND (geometry_size_m IS NULL OR geometry_size_m < 5000)`;
-    const features = rows.map((r: any) => ({
-      type: "Feature" as const,
-      id: r.id,
-      geometry: {
-        type: "Point" as const,
-        coordinates: [Math.round(r.lng * 1e5) / 1e5, Math.round(r.lat * 1e5) / 1e5],
-      },
-      properties: {
-        tags: r.tags ?? [],
-      },
-    }));
 
-    const geojson = {
-      type: "FeatureCollection" as const,
-      features,
-    };
+    // Compact format: array of [id, lat, lng, tags]
+    // Coordinates rounded to 5 decimal places (~1m precision)
+    const points = rows.map((r: any) => [
+      r.id,
+      Math.round(r.lat * 1e5) / 1e5,
+      Math.round(r.lng * 1e5) / 1e5,
+      r.tags ?? [],
+    ]);
 
-    return new Response(JSON.stringify(geojson), {
+    return new Response(JSON.stringify({ points }), {
       headers: {
-        "Content-Type": "application/geo+json",
+        "Content-Type": "application/json",
         "Cache-Control": "public, max-age=300",
       },
     });

@@ -16,7 +16,22 @@ import {
 } from "@/services/overlay/statusFilters";
 
 export const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
-export const CLUSTER_MAX_ZOOM = 10;
+
+// ── Zoom level constants (MapLibre zoom = Leaflet zoom - 1) ─────────────────
+/** Zoom level at which clustering stops and individual points appear */
+export const CLUSTER_MAX_ZOOM = 13;
+/** Radius in pixels for clustering nearby points */
+export const CLUSTER_RADIUS = 50;
+/** Zoom level at which cluster/point layers disappear (exclusive) */
+export const CLUSTER_LAYER_MAX_ZOOM = 15;
+/** Zoom level at which project shapes (MVT) become visible */
+export const PROJECT_SHAPES_MIN_ZOOM = 9;
+/** Zoom level at which overlay footprints and point geometries become visible */
+export const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
+/** Max zoom for MVT tile source */
+export const MVT_SOURCE_MAX_ZOOM = 14;
+
+// ── Interaction constants ───────────────────────────────────────────────────
 export const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 export const HOVER_NONE_ID = "__none__";
 
@@ -100,8 +115,11 @@ export function getTagFilterExpression(): FilterSpecification | null {
   const conditions: unknown[] = [];
 
   // Match any of the selected known tags
-  for (const tag of selectedKnownTags) {
-    conditions.push(["==", ["downcase", ["to-string", ["get", "first_tag"]]], tag]);
+  // The backend sends 'tags' as a JSON array string in the MVT tiles
+  if (selectedKnownTags.length > 0) {
+    for (const tag of selectedKnownTags) {
+      conditions.push(["in", tag, ["to-string", ["get", "tags"]]]);
+    }
   }
 
   // Match untagged (empty first_tag)
@@ -457,7 +475,7 @@ export function addProjectDataToMlMap(
     type: "vector",
     tiles: [TILE_URL],
     minzoom: 0,
-    maxzoom: 14,
+    maxzoom: MVT_SOURCE_MAX_ZOOM,
     promoteId: { "overlay-footprints": "id", "project-shapes": "id" },
   });
 
@@ -466,7 +484,7 @@ export function addProjectDataToMlMap(
     type: "fill",
     source: "project-sources",
     "source-layer": "project-shapes",
-    minzoom: 9,
+    minzoom: PROJECT_SHAPES_MIN_ZOOM,
     filter: ["==", ["geometry-type"], "Polygon"],
     paint: {
       "fill-color": getProjectLineColorExpression(),
@@ -480,7 +498,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "project-shapes",
-    minzoom: 9,
+    minzoom: PROJECT_SHAPES_MIN_ZOOM,
     paint: {
       "line-color": getProjectLineColorExpression(),
       "line-width": 3,
@@ -494,7 +512,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "project-shapes",
-    minzoom: 9,
+    minzoom: PROJECT_SHAPES_MIN_ZOOM,
     filter: getIsProposedFilterExpression(),
     paint: {
       "line-color": getProjectLineColorExpression(),
@@ -509,7 +527,7 @@ export function addProjectDataToMlMap(
     type: "fill",
     source: "project-sources",
     "source-layer": "project-shapes",
-    minzoom: 9,
+    minzoom: PROJECT_SHAPES_MIN_ZOOM,
     filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
     paint: {
       "fill-color": "#ffffff",
@@ -522,7 +540,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "project-shapes",
-    minzoom: 9,
+    minzoom: PROJECT_SHAPES_MIN_ZOOM,
     filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
     paint: {
       "line-color": "#ffffff",
@@ -536,7 +554,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "project-shapes",
-    minzoom: 9,
+    minzoom: PROJECT_SHAPES_MIN_ZOOM,
     filter: [
       "all",
       getIsProposedFilterExpression(),
@@ -556,7 +574,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 13,
+    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
     paint: {
       "line-color": getProjectLineColorExpression(),
       "line-width": 1.5,
@@ -570,7 +588,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 13,
+    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
     filter: getIsProposedFilterExpression(),
     paint: {
       "line-color": getProjectLineColorExpression(),
@@ -585,7 +603,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 13,
+    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
     filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
     paint: {
       "line-color": "#ffffff",
@@ -599,7 +617,7 @@ export function addProjectDataToMlMap(
     type: "line",
     source: "project-sources",
     "source-layer": "overlay-footprints",
-    minzoom: 13,
+    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
     filter: [
       "all",
       getIsProposedFilterExpression(),
@@ -618,7 +636,7 @@ export function addProjectDataToMlMap(
     type: "circle",
     source: "project-sources",
     "source-layer": "project-shapes",
-    minzoom: 13,
+    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
     filter: ["==", ["geometry-type"], "Point"],
     paint: {
       "circle-color": getProjectLineColorExpression(),
@@ -638,7 +656,7 @@ export function addProjectDataToMlMap(
     data: filteredGeojson,
     cluster: true,
     clusterMaxZoom: CLUSTER_MAX_ZOOM,
-    clusterRadius: 50,
+    clusterRadius: CLUSTER_RADIUS,
     clusterProperties: buildClusterProperties(),
   });
 
@@ -647,7 +665,7 @@ export function addProjectDataToMlMap(
     id: "clusters",
     type: "circle",
     source: "project-points",
-    maxzoom: 13,
+    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
     filter: ["has", "point_count"],
     paint: {
       "circle-color": [
@@ -669,7 +687,7 @@ export function addProjectDataToMlMap(
     id: "clusters-hover",
     type: "circle",
     source: "project-points",
-    maxzoom: 13,
+    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
     filter: ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]],
     paint: {
       "circle-color": [
@@ -690,7 +708,7 @@ export function addProjectDataToMlMap(
     id: "cluster-count",
     type: "symbol",
     source: "project-points",
-    maxzoom: 13,
+    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
     filter: ["has", "point_count"],
     layout: {
       "text-field": "{point_count_abbreviated}",
@@ -706,7 +724,7 @@ export function addProjectDataToMlMap(
     type: "circle",
     source: "project-points",
     filter: ["!", ["has", "point_count"]],
-    maxzoom: 13,
+    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
     paint: {
       "circle-color": getProjectPointColorExpression(),
       "circle-radius": 6,
@@ -721,7 +739,7 @@ export function addProjectDataToMlMap(
     type: "circle",
     source: "project-points",
     filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "id"], HOVER_NONE_ID]],
-    maxzoom: 13,
+    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
     paint: {
       "circle-color": [
         "case",

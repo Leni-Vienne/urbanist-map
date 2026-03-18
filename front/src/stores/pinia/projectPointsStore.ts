@@ -14,6 +14,25 @@ import { ref } from "vue";
 import { onMlMapReady, updateProjectPointsSource } from "@/services/map/tileLayers";
 import { getApiUrl } from "@/client";
 
+/** Compact format from backend: [id, lat, lng, tags][] */
+type CompactPoint = [id: string, lat: number, lng: number, tags: string[]];
+
+/** Decode compact points array into GeoJSON FeatureCollection */
+function decodeCompactPoints(points: CompactPoint[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: points.map(([id, lat, lng, tags]) => ({
+      type: "Feature" as const,
+      id,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [lng, lat],
+      },
+      properties: { tags },
+    })),
+  };
+}
+
 export const useProjectPointsStore = defineStore("projectPoints", () => {
   const geojson = ref<GeoJSON.FeatureCollection | null>(null);
 
@@ -21,11 +40,12 @@ export const useProjectPointsStore = defineStore("projectPoints", () => {
     try {
       const response = await fetch(`${getApiUrl()}/api/projects/points`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = (await response.json()) as GeoJSON.FeatureCollection;
-      geojson.value = data;
+      const data = (await response.json()) as { points: CompactPoint[] };
+      const decoded = decodeCompactPoints(data.points);
+      geojson.value = decoded;
       // Push to MapLibre source if the map is already ready; no-op otherwise
       // (the onMlMapReady callback in init() handles the map-ready-after-fetch case).
-      updateProjectPointsSource(data);
+      updateProjectPointsSource(decoded);
     } catch (error) {
       console.error("Failed to fetch project points:", error);
     }

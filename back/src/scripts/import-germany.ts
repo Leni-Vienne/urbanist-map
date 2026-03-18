@@ -149,6 +149,32 @@ const OSM_RULES: OsmRule[] = [
 
 function extractTags(props: Record<string, unknown>): string[] {
   const found = new Set<string>();
+
+  // First, check for transport_type directly which is the most accurate
+  if (props["transport_type"]) {
+    const tt = String(props["transport_type"]);
+    if (
+      tt === "rail" ||
+      tt === "light_rail" ||
+      tt === "subway" ||
+      tt === "tram" ||
+      tt === "cable_car" ||
+      tt === "bus" ||
+      tt === "bike" ||
+      tt === "pedestrian" ||
+      tt === "road" ||
+      tt === "waterway"
+    ) {
+      found.add(tt);
+    } else if (tt === "narrow_gauge" || tt === "monorail" || tt === "miniature") {
+      found.add("rail");
+    } else if (tt === "gondola" || tt === "funicular") {
+      found.add("cable_car");
+    }
+  }
+
+  // Then apply OSM rules to capture secondary tags (like parks or buildings)
+  // or catch anything that didn't have a clean transport_type
   for (const rule of OSM_RULES) {
     const val = props[rule.key];
     if (val === undefined || val === null || val === "") continue;
@@ -157,6 +183,13 @@ function extractTags(props: Record<string, unknown>): string[] {
       found.add(rule.tag);
     }
   }
+
+  // Clean up contradictory tags
+  // Many bike paths are mapped on OSM as highway=path, which triggers the pedestrian rule above
+  if (found.has("bike") && props["transport_type"] === "bike") {
+    found.delete("pedestrian");
+  }
+
   return [...found];
 }
 

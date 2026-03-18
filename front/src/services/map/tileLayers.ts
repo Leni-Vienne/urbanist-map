@@ -262,7 +262,10 @@ export function addTileLayer(): void {
  */
 async function addTileLayersToMap(): Promise<void> {
   try {
-    const leafletLayer = maplibreLayer({ style: OPENFREEMAP_STYLE_URL }).addTo(map.value);
+    const leafletLayer = maplibreLayer({
+      style: OPENFREEMAP_STYLE_URL,
+      fadeDuration: 0, // Disable fade animation for symbol layers (cluster counts)
+    }).addTo(map.value);
     activeBaseLayer = leafletLayer;
 
     const mlMap = leafletLayer.getMaplibreMap();
