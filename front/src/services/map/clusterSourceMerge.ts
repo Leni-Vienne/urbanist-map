@@ -1,15 +1,11 @@
 /**
- * clusterSourceMerge.ts - augments the MapLibre cluster source with pending projects.
+ * clusterSourceMerge.ts - builds the GeoJSON source for pending projects.
  *
- * In edit/moderation modes, the base /api/projects/points FeatureCollection only
- * contains approved projects. This module merges in pending/user-owned projects
- * from the bbox tRPC fetch so they appear in the cluster source immediately.
- *
- * In view mode (or when called with empty data), restores the base unaugmented source.
+ * In edit/moderation modes, this module collects pending/user-owned projects
+ * from the bbox tRPC fetch and updates the pending-project-points source.
  */
 
-import { useProjectPointsStore } from "@/stores/pinia/projectPointsStore";
-import { updateProjectPointsSource } from "@/services/map/tileLayers";
+import { updatePendingProjectPointsSource } from "@/services/map/tileLayers";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
@@ -87,16 +83,8 @@ function addProjectToMap(
   },
   isPending: boolean,
   pendingProjects: Map<string, GeoJSON.Feature>,
-  baseProjectIds: Set<string>,
-  baseProjectsToOverride: Set<string>,
 ): void {
-  if (!project.lat || !project.lng) return;
-
-  if (baseProjectIds.has(project.id)) {
-    if (isPending) baseProjectsToOverride.add(project.id);
-    return;
-  }
-
+  if (!project.lat || !project.lng || !isPending) return;
   if (pendingProjects.has(project.id)) return;
 
   pendingProjects.set(
@@ -115,9 +103,8 @@ function addProjectToMap(
 }
 
 /**
- * Merge pending projects from bbox fetch into the cluster source.
+ * Merge pending projects from bbox fetch into the geojson source.
  * Call after each viewport fetch in edit/moderation modes.
- * Call with empty arrays when switching to view mode to restore the base source.
  */
 export function mergeProjectPointsForMode(
   overlaysData: OverlayData[],
@@ -131,75 +118,43 @@ export function mergeProjectPointsForMode(
   }[],
   mode: AppMode,
 ): void {
-  const projectPointsStore = useProjectPointsStore();
-  const baseGeojson = projectPointsStore.geojson;
-  if (!baseGeojson) return;
+  const emptyGeojson: GeoJSON.FeatureCollection = {
+    type: "FeatureCollection",
+    features: [],
+  };
 
-  // In view mode, just restore the base source (remove any prior augmentation)
   if (mode === "view") {
-    updateProjectPointsSource(baseGeojson);
+    updatePendingProjectPointsSource(emptyGeojson);
     return;
   }
 
-  // Collect project IDs already in the base source
-  const baseProjectIds = new Set<string>();
-  for (const feature of baseGeojson.features) {
-    const id = feature.properties?.id ?? feature.id;
-    if (id) baseProjectIds.add(String(id));
-  }
-
-  // Collect unique pending projects from both overlays and standalone projects data
   const pendingProjects = new Map<string, GeoJSON.Feature>();
 
-  // We also want to track which base projects need their is_pending flag set to true
-  const baseProjectsToOverride = new Set<string>();
-
-  // Extract projects from overlay data (projects that have overlays)
   for (const overlay of overlaysData) {
     const project = overlay.project;
     if (!project?.lat || !project.lng) continue;
     const isPending = project.status !== "approved" || overlay.status !== "approved";
-    addProjectToMap(project, isPending, pendingProjects, baseProjectIds, baseProjectsToOverride);
+    addProjectToMap(project, isPending, pendingProjects);
   }
 
-  // Extract projects from standalone projects data
   for (const project of projectsData) {
     const isPending = project.status !== "approved";
-    addProjectToMap(project, isPending, pendingProjects, baseProjectIds, baseProjectsToOverride);
+    addProjectToMap(project, isPending, pendingProjects);
   }
 
-  // Extract projects from global pending points
   for (const project of globalPendingPoints) {
-    const isPending = true; // By definition, global pending points contain some pending element
-    addProjectToMap(project, isPending, pendingProjects, baseProjectIds, baseProjectsToOverride);
+    addProjectToMap(project, true, pendingProjects);
   }
 
-  // If no pending projects to add or override, just use the base source
-  if (pendingProjects.size === 0 && baseProjectsToOverride.size === 0) {
-    updateProjectPointsSource(baseGeojson);
+  if (pendingProjects.size === 0) {
+    updatePendingProjectPointsSource(emptyGeojson);
     return;
   }
 
-  // Map over base features and override is_pending if needed
-  const modifiedBaseFeatures = baseGeojson.features.map((feature) => {
-    const id = feature.properties?.id ?? feature.id;
-    if (id && baseProjectsToOverride.has(String(id))) {
-      return {
-        ...feature,
-        properties: {
-          ...feature.properties,
-          is_pending: true,
-        },
-      };
-    }
-    return feature;
-  });
-
-  // Merge: base features + pending features
   const mergedGeojson: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
-    features: [...modifiedBaseFeatures, ...pendingProjects.values()],
+    features: [...pendingProjects.values()],
   };
 
-  updateProjectPointsSource(mergedGeojson);
+  updatePendingProjectPointsSource(mergedGeojson);
 }

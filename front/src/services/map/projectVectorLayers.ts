@@ -1,32 +1,76 @@
 import L from "leaflet";
-import type {
-  Map as MaplibreMap,
-  PointLike,
-  FilterSpecification,
-  ExpressionSpecification,
+import {
+  type Map as MaplibreMap,
+  type PointLike,
+  type FilterSpecification,
+  type ExpressionSpecification,
+  addProtocol,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import {
-  filterGeoJsonByTags,
   selectedProjectTags,
   UNTAGGED_PROJECT_FILTER,
   visibleStates,
 } from "@/services/overlay/statusFilters";
 
-export const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
+// ── Global Request Deduplication for MapLibre ──────────────────────────────
+// MapLibre's renderWorldCopies means at zoom level < 3, it renders multiple copies
+// of the world to fill horizontal screens. It concurrently fetches identical tiles
+// for each world copy (e.g. wrap: -1, wrap: 0, wrap: 1).
+// This custom protocol intercepts those fetches and merges concurrent requests for
+// the exact same URL into a single backend fetch.
+
+const pendingTileRequests = new Map<string, Promise<ArrayBuffer>>();
+
+addProtocol("dedupe", async (params, abortController) => {
+  const url = params.url.replace("dedupe://", "");
+
+  if (pendingTileRequests.has(url)) {
+    const data = await pendingTileRequests.get(url);
+    // ArrayBuffers are transferred to WebWorkers by MapLibre, which detaches them.
+    // If multiple tile requests wait on the same promise, we MUST clone the ArrayBuffer
+    // before handing it to MapLibre, otherwise the 2nd worker gets a detached buffer error.
+    if (data) return { data: data.slice(0) };
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(url, {
+        headers: params.headers as any,
+        // Intentionally not passing abortController.signal.
+        // If multiple world copies (wrap 0, wrap 1) wait on this same promise,
+        // and one copy gets aborted (e.g. goes off screen), we don't want to cancel
+        // the fetch for the other copy that is still visible!
+      });
+      if (!response.ok) {
+        if (response.status === 204) return new ArrayBuffer(0); // Empty tile
+        throw new Error(`Tile fetch failed: ${response.status}`);
+      }
+      return await response.arrayBuffer();
+    } finally {
+      // Keep it in the map briefly to catch simultaneous world copy requests
+      setTimeout(() => pendingTileRequests.delete(url), 200);
+    }
+  })();
+
+  pendingTileRequests.set(url, promise);
+
+  const data = await promise;
+  return { data: data.slice(0) };
+});
+
+export const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
 // ── Zoom level constants (MapLibre zoom = Leaflet zoom - 1) ─────────────────
-/** Zoom level at which clustering stops and individual points appear */
-export const CLUSTER_MAX_ZOOM = 13;
-/** Radius in pixels for clustering nearby points */
-export const CLUSTER_RADIUS = 50;
-/** Zoom level at which cluster/point layers disappear (exclusive) */
-export const CLUSTER_LAYER_MAX_ZOOM = 15;
+/** Zoom level at which project points appear (prevents overloading with 20k+ points globally) */
+export const PROJECT_POINTS_MIN_ZOOM = 0;
+/** Zoom level at which project points disappear because shapes take over */
+export const PROJECT_POINTS_MAX_ZOOM = 15;
 /** Zoom level at which project shapes (MVT) become visible */
-export const PROJECT_SHAPES_MIN_ZOOM = 9; // TEMP: was 9, testing MVT from afar
+export const PROJECT_SHAPES_MIN_ZOOM = 9;
 /** Zoom level at which overlay footprints and point geometries become visible */
 export const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
@@ -46,10 +90,9 @@ export const VECTOR_QUERY_LAYERS = [
 ] as const;
 
 export const CLICK_QUERY_LAYERS = [
-  // TEMP: cluster/point layers disabled for testing
-  "clusters",
   ...VECTOR_QUERY_LAYERS,
-  "unclustered-point",
+  "project-points",
+  "pending-project-points",
 ] as const;
 
 export type RenderedMapFeature = {
@@ -143,7 +186,7 @@ export function getTagFilterExpression(): FilterSpecification | null {
 
 // Layers that need tag filtering applied
 // Layers that can have their filter fully replaced by tag filter
-const TAG_FILTERABLE_LAYERS = ["project-shapes", "overlay-footprints"] as const;
+const TAG_FILTERABLE_LAYERS = ["project-shapes", "overlay-footprints", "project-points"] as const;
 
 // Layers with existing filters that need tag filter merged with "all"
 const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = {
@@ -151,6 +194,7 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
   "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification,
   "project-shapes-proposed-dashed": getIsProposedFilterExpression,
   "overlay-footprints-proposed-dashed": getIsProposedFilterExpression,
+  "project-points-hover": () => ["==", ["get", "id"], HOVER_NONE_ID] as FilterSpecification,
 };
 
 /**
@@ -207,7 +251,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     if (combinedFilter) {
       mlMap.setFilter(layerId, combinedFilter);
     } else {
-      // Clear filter by setting it to null (which MapLibre allows via setFilter but types don't always reflect)
+      // Clear filter by setting it to null
       mlMap.setFilter(layerId, null);
     }
   }
@@ -223,36 +267,6 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
       mlMap.setFilter(layerId, baseFilter);
     }
   }
-}
-
-export function buildClusterProperties(): Record<string, ExpressionSpecification> {
-  const clusterProperties: Record<string, ExpressionSpecification> = {};
-
-  for (const tag of PROJECT_TAGS) {
-    clusterProperties[`tag_${tag.slug}`] = [
-      "+",
-      ["case", ["==", ["downcase", ["to-string", ["get", "first_tag"]]], tag.slug], 1, 0],
-    ] as ExpressionSpecification;
-  }
-
-  // Count pending projects inside the cluster (used to color the whole cluster orange from afar)
-  clusterProperties.pending_count = [
-    "+",
-    ["case", ["==", ["get", "is_pending"], true], 1, 0],
-  ] as ExpressionSpecification;
-
-  return clusterProperties;
-}
-
-export function getSingleProjectClusterColorExpression(): ExpressionSpecification {
-  const expression: unknown[] = ["case"];
-
-  for (const tag of PROJECT_TAGS) {
-    expression.push(["==", ["get", `tag_${tag.slug}`], 1], tag.color);
-  }
-
-  expression.push(DEFAULT_PROJECT_LINE_COLOR);
-  return expression as ExpressionSpecification;
 }
 
 export function getMaplibrePointFromLeafletEvent(
@@ -341,27 +355,26 @@ export function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.
   void handleProjectClickFromTile(projectId, latlng);
 }
 
-export function setClusterHoverFilter(mlMap: MaplibreMap, clusterId: number | null): void {
-  // TEMP: skip if layer doesn't exist (clustering disabled)
-  //if (!mlMap.getLayer("clusters-hover")) return;
-  mlMap.setFilter("clusters-hover", [
-    "all",
-    ["has", "point_count"],
-    ["==", ["get", "cluster_id"], clusterId ?? -1],
-  ] as unknown as FilterSpecification);
-}
+export function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | null): void {
+  const hoveredId = featureId !== null ? String(featureId) : HOVER_NONE_ID;
 
-export function setUnclusteredPointHoverFilter(
-  mlMap: MaplibreMap,
-  featureId: string | number | null,
-): void {
-  // TEMP: skip if layer doesn't exist (points disabled)
-  //if (!mlMap.getLayer("unclustered-point-hover")) return;
-  mlMap.setFilter("unclustered-point-hover", [
-    "all",
-    ["!", ["has", "point_count"]],
-    ["==", ["get", "id"], featureId ?? HOVER_NONE_ID],
-  ] as unknown as FilterSpecification);
+  const activeFilter = ["==", ["to-string", ["get", "id"]], hoveredId] as FilterSpecification;
+
+  // Also we must preserve tag/status filters if any
+  const tagFilter = getTagFilterExpression();
+  const statusFilter = getStatusFilterExpression();
+
+  let combinedFilter: any = activeFilter;
+  if (tagFilter && statusFilter) {
+    combinedFilter = ["all", activeFilter, tagFilter, statusFilter];
+  } else if (tagFilter) {
+    combinedFilter = ["all", activeFilter, tagFilter];
+  } else if (statusFilter) {
+    combinedFilter = ["all", activeFilter, statusFilter];
+  }
+
+  mlMap.setFilter("project-points-hover", combinedFilter);
+  mlMap.setFilter("pending-project-points-hover", activeFilter); // pending points don't have status filters
 }
 
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
@@ -376,14 +389,10 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       VECTOR_HOVER_HIT_RADIUS_PX,
     );
 
-    const clusterFeature = features.find((f) => f?.layer?.id === "clusters");
-    setClusterHoverFilter(mlMap, clusterFeature?.properties?.cluster_id ?? null);
-
-    const unclusteredPoint = features.find((f) => f?.layer?.id === "unclustered-point");
-    setUnclusteredPointHoverFilter(
-      mlMap,
-      unclusteredPoint?.properties?.id ?? unclusteredPoint?.id ?? null,
+    const pointFeature = features.find(
+      (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
+    setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
     mlMap.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
     setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
@@ -395,15 +404,13 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
 
     mlMap.getCanvas().style.cursor = "";
     setVectorHoverFilters(mlMap, null);
-    setClusterHoverFilter(mlMap, null);
-    setUnclusteredPointHoverFilter(mlMap, null);
+    setPointHoverFilter(mlMap, null);
   });
 
   map.value.on("click", async (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    console.log("Map click at", event.latlng);
     const features = queryFeaturesAtLeafletEvent(
       event,
       mlMap,
@@ -413,34 +420,6 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (!features.length) {
       return;
     }
-    console.log(features.flatMap((f) => f?.properties));
-
-    const clusterFeature = features.find((feature) => feature?.layer?.id === "clusters");
-    if (clusterFeature) {
-      const clusterId = clusterFeature.properties?.cluster_id;
-
-      try {
-        const expansionZoom = await (
-          mlMap.getSource("project-points") as any
-        ).getClusterExpansionZoom(clusterId);
-        const coordinates = clusterFeature.geometry?.coordinates;
-
-        if (coordinates && coordinates.length >= 2) {
-          const [lng, lat] = coordinates;
-
-          const currentZoom = map.value?.getZoom() || 0;
-          // Ensure we always visibly zoom in by at least 2 levels (standard clustering UX),
-          // or use MapLibre's recommended zoom if it's deeper.
-          const targetZoom = Math.max(currentZoom + 2, Math.ceil(expansionZoom));
-
-          // Use standard flyTo. Without forced duration, Leaflet calculates the best physics.
-          map.value?.flyTo([lat, lng], targetZoom, { duration: 1.5 });
-        }
-      } catch (error) {
-        console.error("Error getting cluster expansion zoom:", error);
-      }
-      return;
-    }
 
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
@@ -448,11 +427,13 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       return;
     }
 
-    const unclusteredPoint = features.find((f) => f?.layer?.id === "unclustered-point");
-    if (unclusteredPoint) {
-      const projectId = String(unclusteredPoint.properties?.id ?? unclusteredPoint.id ?? "");
+    const pointFeature = features.find(
+      (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
+    );
+    if (pointFeature) {
+      const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
       if (projectId.length > 0) {
-        const coordinates = unclusteredPoint.geometry?.coordinates;
+        const coordinates = pointFeature.geometry?.coordinates;
         let targetLatLng = event.latlng;
 
         if (coordinates && coordinates.length >= 2) {
@@ -471,43 +452,6 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   });
 }
 
-export function addFirstTagToProjectPointsGeojson(
-  geojson: GeoJSON.FeatureCollection,
-): GeoJSON.FeatureCollection {
-  const enrichedFeatures = [] as GeoJSON.Feature[];
-
-  for (const feature of geojson.features) {
-    const featureProps = (feature.properties ?? {}) as Record<string, unknown>;
-    const existingFirstTag = featureProps.first_tag;
-    const tags = Array.isArray(featureProps.tags)
-      ? (featureProps.tags as unknown[])
-      : ([] as unknown[]);
-    const firstTagFromTags = typeof tags[0] === "string" ? String(tags[0]) : "";
-
-    const firstTag =
-      typeof existingFirstTag === "string" && existingFirstTag.length > 0
-        ? existingFirstTag
-        : firstTagFromTags;
-
-    const featureId = feature.id ?? featureProps.id;
-
-    enrichedFeatures.push({
-      ...feature,
-      id: featureId as string | number, // Also set it on the feature root
-      properties: {
-        ...featureProps,
-        id: featureId, // Ensure ID is in properties so MapLibre preserves it
-        first_tag: firstTag,
-      },
-    });
-  }
-
-  return {
-    ...geojson,
-    features: enrichedFeatures,
-  };
-}
-
 export function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
   const value = feature.properties?.[key];
   if (value === null || value === undefined) return "";
@@ -518,17 +462,14 @@ export function getFeaturePropertyAsString(feature: RenderedMapFeature, key: str
  * Add all project-related MapLibre sources and layers.
  * Called once from mlMap.on('load') and after every style switch.
  */
-export function addProjectDataToMlMap(
-  mlMap: MaplibreMap,
-  lastProjectPointsGeojson: GeoJSON.FeatureCollection | null,
-): void {
-  // ── MVT source: project shapes + overlay footprints ───────────────────────
+export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
+  // ── MVT source: project shapes + overlay footprints + points ──────────────
   mlMap.addSource("project-sources", {
     type: "vector",
     tiles: [TILE_URL],
-    minzoom: 0,
+    minzoom: PROJECT_POINTS_MIN_ZOOM,
     maxzoom: MVT_SOURCE_MAX_ZOOM,
-    promoteId: { "overlay-footprints": "id", "project-shapes": "id" },
+    promoteId: { "overlay-footprints": "id", "project-shapes": "id", "project-points": "id" },
   });
 
   mlMap.addLayer({
@@ -698,85 +639,14 @@ export function addProjectDataToMlMap(
     },
   });
 
-  // ── GeoJSON cluster source: project center coordinates ────────────────────
-  const filteredGeojson = lastProjectPointsGeojson
-    ? addFirstTagToProjectPointsGeojson(filterGeoJsonByTags(lastProjectPointsGeojson))
-    : { type: "FeatureCollection" as const, features: [] };
-
-  mlMap.addSource("project-points", {
-    type: "geojson",
-    data: filteredGeojson,
-    cluster: true,
-    clusterMaxZoom: CLUSTER_MAX_ZOOM,
-    clusterRadius: CLUSTER_RADIUS,
-    clusterProperties: buildClusterProperties(),
-  });
-
-  // Cluster circles
+  // Individual MVT points
   mlMap.addLayer({
-    id: "clusters",
+    id: "project-points",
     type: "circle",
-    source: "project-points",
-    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
-    filter: ["has", "point_count"],
-    paint: {
-      "circle-color": [
-        "case",
-        // If the cluster contains ANY pending projects, color the whole thing orange to act as a beacon
-        [">", ["get", "pending_count"], 0],
-        "#f97316", // Tailwind orange-500
-        ["==", ["get", "point_count"], 1],
-        getSingleProjectClusterColorExpression(),
-        ["step", ["get", "point_count"], "#3b82f6", 10, "#1d4ed8", 50, "#1e3a8a"],
-      ],
-      "circle-radius": ["step", ["get", "point_count"], 11, 10, 16, 50, 21],
-      "circle-opacity": 0.85,
-    },
-  });
-
-  // Cluster hover highlight
-  mlMap.addLayer({
-    id: "clusters-hover",
-    type: "circle",
-    source: "project-points",
-    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
-    filter: ["all", ["has", "point_count"], ["==", ["get", "cluster_id"], -1]],
-    paint: {
-      "circle-color": [
-        "case",
-        [">", ["get", "pending_count"], 0],
-        "#fb923c", // Tailwind orange-400 (lighter for hover)
-        ["==", ["get", "point_count"], 1],
-        getSingleProjectClusterColorExpression(),
-        ["step", ["get", "point_count"], "#60a5fa", 10, "#3b82f6", 50, "#1d4ed8"],
-      ],
-      "circle-radius": ["step", ["get", "point_count"], 11, 10, 16, 50, 21],
-      "circle-opacity": 1,
-    },
-  });
-
-  // Cluster count labels
-  mlMap.addLayer({
-    id: "cluster-count",
-    type: "symbol",
-    source: "project-points",
-    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
-    filter: ["has", "point_count"],
-    layout: {
-      "text-field": "{point_count_abbreviated}",
-      "text-size": 12,
-      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-    },
-    paint: { "text-color": "#ffffff" },
-  });
-
-  // Individual unclustered points
-  mlMap.addLayer({
-    id: "unclustered-point",
-    type: "circle",
-    source: "project-points",
-    filter: ["!", ["has", "point_count"]],
-    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
+    source: "project-sources",
+    "source-layer": "project-points",
+    minzoom: PROJECT_POINTS_MIN_ZOOM,
+    maxzoom: PROJECT_POINTS_MAX_ZOOM,
     paint: {
       "circle-color": getProjectPointColorExpression(),
       "circle-radius": 6,
@@ -785,21 +655,60 @@ export function addProjectDataToMlMap(
     },
   });
 
-  // Unclustered point hover
+  // MVT point hover
   mlMap.addLayer({
-    id: "unclustered-point-hover",
+    id: "project-points-hover",
     type: "circle",
-    source: "project-points",
-    filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "id"], HOVER_NONE_ID]],
-    maxzoom: CLUSTER_LAYER_MAX_ZOOM,
+    source: "project-sources",
+    "source-layer": "project-points",
+    minzoom: PROJECT_POINTS_MIN_ZOOM,
+    filter: ["==", ["get", "id"], HOVER_NONE_ID],
+    maxzoom: PROJECT_POINTS_MAX_ZOOM,
     paint: {
       "circle-color": [
         "case",
         ["==", ["get", "is_pending"], true],
         "#fb923c", // Tailwind orange-400 (lighter hover)
-        getProjectPointColorExpression(), // Could use a lighter expression, but fallback to same for now
+        getProjectPointColorExpression(),
       ],
       "circle-radius": 8, // larger to indicate hover
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  // ── Pending points GeoJSON source ──
+  mlMap.addSource("pending-project-points-source", {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: [],
+    },
+    promoteId: "id",
+  });
+
+  mlMap.addLayer({
+    id: "pending-project-points",
+    type: "circle",
+    source: "pending-project-points-source",
+    maxzoom: PROJECT_POINTS_MAX_ZOOM,
+    paint: {
+      "circle-color": "#f97316", // Tailwind orange-500
+      "circle-radius": 6,
+      "circle-stroke-width": 1.5,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  mlMap.addLayer({
+    id: "pending-project-points-hover",
+    type: "circle",
+    source: "pending-project-points-source",
+    filter: ["==", ["get", "id"], HOVER_NONE_ID],
+    maxzoom: PROJECT_POINTS_MAX_ZOOM,
+    paint: {
+      "circle-color": "#fb923c", // Tailwind orange-400
+      "circle-radius": 8,
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
     },

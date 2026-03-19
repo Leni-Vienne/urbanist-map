@@ -6,7 +6,7 @@ import { sessionMiddleware, type Session } from "hono-sessions";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
-import { tilesApp, handleProjectsPoints } from "./routes/tiles";
+import { tilesApp } from "./routes/tiles";
 import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config as appConfig } from "./config";
@@ -105,10 +105,6 @@ app.get("/api/health", (c) => {
 
 // Public tile endpoints - mounted before session middleware (no auth needed)
 app.route("/api/tiles", tilesApp);
-
-app.get("/api/projects/points", async (c) => {
-  return handleProjectsPoints();
-});
 
 // Session duration constants
 const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login

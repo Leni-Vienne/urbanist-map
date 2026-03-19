@@ -17,11 +17,6 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
       return c.json({ error: "Invalid tile coordinates" }, 400);
     }
 
-    const includeBuildings = c.req.query("include_buildings") === "true";
-    const buildingFilter = includeBuildings
-      ? sqlClient``
-      : sqlClient`AND NOT ('building' = ANY(COALESCE(p.tags, ARRAY[]::text[])))`;
-
     const [row] = await sqlClient`
       WITH tile_env AS (
         SELECT
@@ -33,7 +28,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
         FROM (
           SELECT
             ST_AsMVTGeom(
-              ST_Transform(COALESCE(p.geometry, p.center_coordinate), 3857),
+              ST_Transform(p.geometry, 3857),
               te.bounds,
               4096, 64, true
             ) AS mvt_geom,
@@ -43,22 +38,32 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             COALESCE(p.tags[1], '') AS first_tag,
             p.timeline_status
           FROM projects p, tile_env te
-          WHERE p.status = 'approved'
-            ${buildingFilter}
-            AND (
-              p.geometry IS NOT NULL 
-              OR (
-                p.lat IS NOT NULL 
-                AND p.lng IS NOT NULL 
-                AND NOT EXISTS (
-                  SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved'
-                )
-              )
-            )
-            AND (
-              (p.geometry IS NOT NULL AND ST_Intersects(p.geometry, te.bounds_4326))
-              OR
-              (p.geometry IS NULL AND ST_Intersects(p.center_coordinate, te.bounds_4326))
+          WHERE ${z} >= 9
+            AND p.status = 'approved'
+            AND p.geometry IS NOT NULL 
+            AND p.geometry && te.bounds_4326
+            
+          UNION ALL
+          
+          SELECT
+            ST_AsMVTGeom(
+              ST_Transform(p.center_coordinate, 3857),
+              te.bounds,
+              4096, 64, true
+            ) AS mvt_geom,
+            p.id,
+            p.name,
+            COALESCE(p.tags, ARRAY[]::text[]) AS tags,
+            COALESCE(p.tags[1], '') AS first_tag,
+            p.timeline_status
+          FROM projects p, tile_env te
+          WHERE ${z} >= 9
+            AND p.status = 'approved'
+            AND p.geometry IS NULL 
+            AND p.center_coordinate IS NOT NULL 
+            AND p.center_coordinate && te.bounds_4326
+            AND NOT EXISTS (
+              SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved'
             )
         ) q
         WHERE q.mvt_geom IS NOT NULL
@@ -89,72 +94,75 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
           FROM overlays o
           JOIN projects p ON p.id = o.project_id,
           tile_env te
-          WHERE o.status = 'approved'
-            ${buildingFilter}
-            AND ST_Intersects(o.corners, te.bounds_4326)
+          WHERE ${z} >= 13
+            AND o.status = 'approved'
+            AND o.corners && te.bounds_4326
         ) q
         WHERE q.mvt_geom IS NOT NULL
+      ),
+      points AS (
+        SELECT ST_AsMVT(q, 'project-points', 4096, 'mvt_geom') AS tile
+        FROM (
+          SELECT DISTINCT ON (grid_id, first_tag, timeline_status)
+            mvt_geom,
+            id,
+            name,
+            tags,
+            first_tag,
+            timeline_status,
+            has_geometry
+          FROM (
+            SELECT
+              ST_AsMVTGeom(
+                ST_Transform(p.center_coordinate, 3857),
+                te.bounds,
+                4096, 64, true
+              ) AS mvt_geom,
+              p.id,
+              p.name,
+              COALESCE(p.tags, ARRAY[]::text[]) AS tags,
+              COALESCE(p.tags[1], '') AS first_tag,
+              p.timeline_status,
+              CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
+              (ST_X(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / 128)::text || '_' || (ST_Y(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / 128)::text as grid_id
+            FROM projects p, tile_env te
+            WHERE p.status = 'approved'
+              AND p.center_coordinate IS NOT NULL
+              AND p.center_coordinate && te.bounds_4326
+              AND (
+                ${z} >= 11 OR NOT ('building' = ANY(COALESCE(p.tags, ARRAY[]::text[])))
+              )
+          ) inner_q
+          WHERE inner_q.mvt_geom IS NOT NULL
+          ORDER BY grid_id, first_tag, timeline_status, id
+        ) q
       )
-      SELECT shapes.tile || footprints.tile AS mvt
-      FROM shapes, footprints
+      SELECT (
+        (SELECT tile FROM shapes) ||
+        (SELECT tile FROM footprints) ||
+        (SELECT tile FROM points)
+      ) AS tile;
     `;
 
-    const mvt: Buffer | null = row?.mvt ?? null;
+    const tileData = row?.tile as Buffer | undefined;
 
-    if (!mvt || mvt.length === 0) {
+    if (!tileData || tileData.length === 0) {
+      // Return empty 204 No Content for empty tiles (standard for MVT)
       return new Response(null, { status: 204 });
     }
 
-    return new Response(new Uint8Array(mvt), {
+    return new Response(new Uint8Array(tileData), {
       headers: {
-        "Content-Type": "application/x-protobuf",
-        "Cache-Control": "public, max-age=300",
-        "Content-Encoding": "identity",
+        "Content-Type": "application/vnd.mapbox-vector-tile",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600",
       },
     });
   } catch (error) {
-    console.error("Tile generation error:", error);
-    return c.json({ error: "Failed to generate tile" }, 500);
-  }
-});
-
-// Exported handler for GET /api/projects/points
-// Compact format: { points: [[id, lat, lng, tags], ...] }
-// Client reconstructs GeoJSON FeatureCollection from this.
-// Excludes projects with large geometry (>= 5km bbox diagonal) — those are
-// discoverable via the MVT project-shapes layer instead.
-// Fully public, aggressively cached.
-export async function handleProjectsPoints(includeBuildings: boolean = false): Promise<Response> {
-  try {
-    const buildingFilter = includeBuildings
-      ? sqlClient``
-      : sqlClient`AND NOT ('building' = ANY(COALESCE(tags, ARRAY[]::text[])))`;
-
-    const rows =
-      await sqlClient` SELECT  id, lat, lng, timeline_status, COALESCE(tags, ARRAY[]::text[]) AS tags
-      FROM projects WHERE status = 'approved' AND lat IS NOT NULL AND lng IS NOT NULL  AND (geometry_size_m IS NULL OR geometry_size_m < 5000) ${buildingFilter}`;
-
-    // Compact format: array of [id, lat, lng, tags, timelineStatus]
-    // Coordinates rounded to 5 decimal places (~1m precision)
-    const points = rows.map((r: any) => [
-      r.id,
-      Math.round(r.lat * 1e5) / 1e5,
-      Math.round(r.lng * 1e5) / 1e5,
-      r.tags ?? [],
-      r.timeline_status ?? "proposed",
-    ]);
-
-    return new Response(JSON.stringify({ points }), {
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=300",
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching project points:", error);
-    return new Response(JSON.stringify({ error: "Failed to fetch project points" }), {
+    console.error("Error generating MVT tile:", error);
+    return new Response(JSON.stringify({ error: "Failed to generate MVT tile" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
-}
+});

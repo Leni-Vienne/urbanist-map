@@ -57,7 +57,6 @@ import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/cor
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initVectorTileSync } from "@/services/map/vectorTileSync";
-import { useProjectPointsStore } from "@/stores/pinia/projectPointsStore";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
 import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 
@@ -124,9 +123,6 @@ onUnmounted(() => {
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
-    addTileLayer(); // Initialize tile layers after map is created
-    initVectorTileSync(); // Start idle-driven overlay sync for view mode
-    useProjectPointsStore().init(); // Fetch cluster source data
     initializeCameraBounds(); // Initialize camera bounds tracking
 
     // Load countries first (needed for breadcrumbs in Current Location panel)
@@ -152,7 +148,16 @@ async function initializeMapAndOverlays() {
     // Ensure map dimensions are calculated before checking bounds
     await nextTick();
     if (map.value !== null) {
-      map.value.invalidateSize();
+      // Pass false to disable animation during the initial size/bounds correction.
+      // This prevents a bounds correction from triggering a slow pan, which causes
+      // MapLibre to fetch tiles twice (once for the original center, once for the corrected).
+      map.value.invalidateSize(false);
+
+      // Initialize tile layers after map is created and dimensions are correct
+      // This prevents maplibre from double-fetching tiles due to resize immediately after load
+      addTileLayer();
+      initVectorTileSync(); // Start idle-driven overlay sync for view mode
+
       // Small delay to ensure Leaflet updates bounds after invalidateSize
       setTimeout(() => {
         viewportManager.refreshViewport();

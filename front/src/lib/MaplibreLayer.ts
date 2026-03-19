@@ -34,7 +34,7 @@ const MaplibreLayer = Layer.extend({
     updateInterval: 32,
     // How much to extend the overlay view (relative to map size)
     // e.g. 0.1 would be 10% of map view in each direction
-    padding: 0.1,
+    padding: 0,
     // whether or not to register the mouse and keyboard
     // events on the maplibre overlay
     interactive: false,
@@ -60,17 +60,9 @@ const MaplibreLayer = Layer.extend({
     this._initGL();
 
     this._offset = this._map.containerPointToLayerPoint([0, 0]);
-
-    // work around https://github.com/mapbox/mapbox-gl-leaflet/issues/47
-    if (map.options.zoomAnimation) {
-      DomEvent.on(map._proxy, DomUtil.TRANSITION_END, this._transitionEnd, this);
-    }
   },
 
   onRemove: function onRemove(map: any) {
-    if (this._map._proxy && this._map.options.zoomAnimation) {
-      DomEvent.off(this._map._proxy, DomUtil.TRANSITION_END, this._transitionEnd, this);
-    }
     const paneName = this.getPaneName();
     map.getPane(paneName).removeChild(this._container);
 
@@ -85,7 +77,7 @@ const MaplibreLayer = Layer.extend({
       zoom: this._pinchZoom, // animate every zoom event for smoother pinch-zooming
       zoomstart: this._zoomStart, // flag starting a zoom to disable panning
       zoomend: this._zoomEnd,
-      resize: this._resize,
+      resize: this._update,
     };
   },
 
@@ -98,7 +90,10 @@ const MaplibreLayer = Layer.extend({
   },
 
   getSize: function getSize() {
-    return this._map.getSize().multiplyBy(1 + this.options.padding * 2);
+    return this._map
+      .getSize()
+      .multiplyBy(1 + this.options.padding * 2)
+      .round();
   },
 
   getBounds: function getBounds() {
@@ -226,20 +221,16 @@ const MaplibreLayer = Layer.extend({
   // https://github.com/Leaflet/Leaflet/blob/master/src/layer/ImageOverlay.js#L139-L144
   _animateZoom: function _animateZoom(e: any) {
     const scale = this._map.getZoomScale(e.zoom);
-    const padding = this._map.getSize().multiplyBy(this.options.padding * scale);
-    const viewHalf = this.getSize()._divideBy(2);
-    // corrections for padding (scaled), adapted from
-    // https://github.com/Leaflet/Leaflet/blob/master/src/map/Map.js#L1490-L1508
-    const topLeft = this._map
-      .project(e.center, e.zoom)
-      ._subtract(viewHalf)
-      ._add(this._map._getMapPanePos().add(padding))
-      ._round();
-    const offset = this._map
-      .project(this._map.getBounds().getNorthWest(), e.zoom)
-      ._subtract(topLeft);
 
-    DomUtil.setTransform(this._glMap._actualCanvas, offset.subtract(this._offset), scale);
+    // Calculate where the current bounds (which match the canvas size since padding=0)
+    // will be positioned at the new zoom level, relative to the new map center.
+    const bounds = this.getBounds();
+    const offset = this._map._latLngBoundsToNewLayerBounds(bounds, e.zoom, e.center).min;
+
+    // The canvas is inside a container that is already translated by the rounded this._offset.
+    // We must subtract the rounded this._offset so the total translation relative to the tilePane is correct.
+    const containerOffset = this._roundPoint(this._offset);
+    DomUtil.setTransform(this._glMap._actualCanvas, offset.subtract(containerOffset), scale);
   },
 
   _zoomStart: function _zoomStart(_e: any) {
@@ -259,35 +250,6 @@ const MaplibreLayer = Layer.extend({
     this._zooming = false;
 
     this._update();
-  },
-
-  _transitionEnd: function _transitionEnd(_e: any) {
-    Util.requestAnimFrame(function _transitionEnd(this: any) {
-      const zoom = this._map.getZoom();
-      const center = this._map.getCenter();
-      const offset = this._map.latLngToContainerPoint(this._map.getBounds().getNorthWest());
-
-      // reset the scale and offset
-      DomUtil.setTransform(this._glMap._actualCanvas, offset, 1);
-
-      // enable panning once the gl map is ready again
-      this._glMap.once(
-        "moveend",
-        Util.bind(function _transitionEnd(this: any) {
-          this._zoomEnd();
-        }, this),
-      );
-
-      // update the map position
-      this._glMap.jumpTo({
-        center: center,
-        zoom: zoom - 1,
-      });
-    }, this);
-  },
-
-  _resize: function _resize(e: any) {
-    this._transitionEnd(e);
   },
 });
 

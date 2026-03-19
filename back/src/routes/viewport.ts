@@ -243,11 +243,10 @@ export const viewportRouter = router({
           });
         }
 
-        // ST_SetSRID forces SRID 4326 on the stored geometry (data may have SRID 0 at rest).
-        const bboxCondition = sql`ST_Intersects(
-          ST_SetSRID(${projects.centerCoordinate}, 4326),
-          ST_MakeEnvelope(${bbox.minLng}, ${bbox.minLat}, ${bbox.maxLng}, ${bbox.maxLat}, 4326)
-        )`;
+        // Bbox condition on project center_coordinate using &&.
+        const bboxCondition = sql`
+          ${projects.centerCoordinate} && ST_MakeEnvelope(${bbox.minLng}, ${bbox.minLat}, ${bbox.maxLng}, ${bbox.maxLat}, 4326)
+        `;
 
         const whereConditions = [
           bboxCondition,

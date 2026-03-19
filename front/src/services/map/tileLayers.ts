@@ -10,14 +10,9 @@ import countryBboxes from "@/assets/country_bboxes.json";
 import {
   addProjectDataToMlMap,
   registerHybridInteractionHandlers,
-  addFirstTagToProjectPointsGeojson,
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
-import {
-  selectedProjectTags,
-  visibleStates,
-  filterGeoJsonByTags,
-} from "@/services/overlay/statusFilters";
+import { selectedProjectTags, visibleStates } from "@/services/overlay/statusFilters";
 
 interface BoundingBox {
   minLat: number;
@@ -118,11 +113,10 @@ export function onMlMapReady(cb: () => void): void {
 /** Reference to the currently active MapLibre-GL Leaflet layer. Never removed from the map. */
 let activeBaseLayer: MaplibreGL | null = null;
 
-/** Last known project points GeoJSON — re-applied after style switches. */
-let lastProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
-
 // Cached after first load — undefined until the user first uses satellite mode
 let countryBorders: CountryBorder[] | undefined;
+
+let lastPendingProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
 
 // Dynamically imports all country borders as a single chunk — only loads on first satellite use
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
@@ -277,11 +271,14 @@ async function addTileLayersToMap(): Promise<void> {
       mlMapRef.current = mlMap;
 
       // Sources must exist before subscribers are notified — callbacks like
-      // projectPointsStore.init() call source.setData() immediately.
-      addProjectDataToMlMap(mlMap, lastProjectPointsGeojson);
+      // vectorTileSync call source.setData() immediately.
+      addProjectDataToMlMap(mlMap);
+      if (lastPendingProjectPointsGeojson) {
+        updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
+      }
       registerHybridInteractionHandlers(getMlMap);
 
-      // Notify all waiting subscribers (e.g. vectorTileSync, projectPointsStore)
+      // Notify all waiting subscribers (e.g. vectorTileSync)
       for (const cb of mlMapReadyCallbacks) cb();
       mlMapReadyCallbacks.length = 0;
     });
@@ -290,35 +287,10 @@ async function addTileLayersToMap(): Promise<void> {
   }
 }
 
-/**
- * Update the project-points GeoJSON source with fresh data.
- * Called after /api/projects/points is fetched (and on filter changes).
- * Applies current tag filters before pushing to the source.
- */
-export function updateProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
-  lastProjectPointsGeojson = geojson;
-  applyFilteredProjectPoints();
-}
-
-/**
- * Re-apply the current project points with tag filters.
- * Called when filter selection changes.
- */
-function applyFilteredProjectPoints(): void {
-  const mlMap = mlMapRef.current;
-  if (!mlMap || !lastProjectPointsGeojson) return;
-  const geoJSONSource = mlMap.getSource("project-points") as GeoJSONSource | undefined;
-  if (geoJSONSource) {
-    const filtered = filterGeoJsonByTags(lastProjectPointsGeojson);
-    geoJSONSource.setData(addFirstTagToProjectPointsGeojson(filtered));
-  }
-}
-
-// Watch for tag and status filter changes and update both cluster source and MVT layers
+// Watch for tag and status filter changes and update MVT layers
 watch(
   [selectedProjectTags, visibleStates],
   () => {
-    applyFilteredProjectPoints();
     const mlMap = mlMapRef.current;
     if (mlMap) {
       applyTagFiltersToVectorLayers(mlMap);
@@ -326,6 +298,22 @@ watch(
   },
   { deep: true },
 );
+
+/**
+ * Update the pending-project-points-source with fresh GeoJSON data.
+ * This is used for unapproved/pending projects in edit/moderation mode.
+ */
+export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
+  lastPendingProjectPointsGeojson = geojson;
+
+  const mlMap = mlMapRef.current;
+  if (!mlMap) return;
+
+  const source = mlMap.getSource("pending-project-points-source") as GeoJSONSource | undefined;
+  if (source) {
+    source.setData(geojson);
+  }
+}
 
 /**
  * Build a minimal MapLibre style containing only the given satellite raster source.
@@ -360,8 +348,11 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
 
   await new Promise<void>((resolve) => {
     mlMap.once("style.load", () => {
-      addProjectDataToMlMap(mlMap, lastProjectPointsGeojson);
+      addProjectDataToMlMap(mlMap);
       mlMapRef.current = mlMap;
+      if (lastPendingProjectPointsGeojson) {
+        updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
+      }
       resolve();
     });
     mlMap.setStyle(style);
