@@ -52,20 +52,7 @@ export const projectSchema = z
       });
     }
 
-    // Validate project has either proposalDate OR (startDate AND endDate) OR (endDate ONLY for already started)
-    const hasProposalDate = data.proposalDate !== null;
-    const hasPlannedDates =
-      (data.startDate !== null && data.endDate !== null) || data.endDate !== null; // Allow EndDate only (implies already started)
-
-    if (!hasProposalDate && !hasPlannedDates) {
-      ctx.addIssue({
-        code: "custom",
-        message: "validation.timelineRequired",
-        path: ["proposalDate"],
-      });
-    }
-
-    // Validate end date is after start date
+    // Validate end date is after start date (only when both are provided)
     if (data.startDate && data.endDate && data.endDate <= data.startDate) {
       ctx.addIssue({
         code: "custom",

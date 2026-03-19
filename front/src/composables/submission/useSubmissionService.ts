@@ -122,6 +122,17 @@ function normalizeFieldValue(
   return value ?? "";
 }
 
+// Serialize a value for sending to the backend (converts empty strings to null)
+function serializeForBackend(value: unknown): unknown {
+  if (value === "" || value === undefined) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return value;
+}
+
 // Check if a geometry value contains at least one shape
 function hasShapes(v: unknown): boolean {
   return (
@@ -276,10 +287,11 @@ export function useSubmissionService() {
 
       if (normalizedOld !== normalizedNew) {
         // Store raw objects for geometry/arrays so the backend receives proper JSON, not a string
-        let pushedOldValue: unknown = normalizedOld;
-        let pushedNewValue: unknown = normalizedNew;
+        // Use serializeForBackend to convert empty strings to null for the API
+        let pushedOldValue: unknown = serializeForBackend(normalizedOld);
+        let pushedNewValue: unknown = serializeForBackend(normalizedNew);
         if (isGeometryField) {
-          pushedOldValue = normalizedOld !== null ? oldValue : normalizedOld;
+          pushedOldValue = normalizedOld !== null ? oldValue : null;
           pushedNewValue = newValue ?? null;
         } else if (isArrayField) {
           pushedOldValue = oldValue;

@@ -88,7 +88,6 @@
     "yearOnly": "Year only",
     "monthYear": "Month & Year",
     "fullDate": "Full date",
-    "alreadyStarted": "Already started, start date unknown",
     "proposed": "Proposed",
     "proposedOn": "Proposed on",
     "proposedIn": "Proposed in",
@@ -98,8 +97,6 @@
     "endsOn": "Ends on",
     "locationRequired": "Location is required",
     "invalidLocation": "Invalid location selected",
-    "timelineChangedFromProposedToPlanned": "Timeline status changed from Proposed ({proposalDate}) to Planned",
-    "timelineChangedFromPlannedToProposed": "Timeline status changed from Planned ({startDate} to {endDate}) to Proposed",
     "clickMapToPlace": "Click on the map to place your project",
     "information": "Project Information",
     "edit": "Edit Project",
@@ -108,7 +105,8 @@
     "period": "Period",
     "source": "Source",
     "addImages": "Add Images",
-    "tags": "Tags"
+    "tags": "Tags",
+    "additionalDetails": "Additional Details"
   },
   "tags": {
     "tram": "Tram",

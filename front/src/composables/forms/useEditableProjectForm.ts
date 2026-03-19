@@ -20,11 +20,11 @@ import type { ApprovalStatus } from "@shared/types";
 
 // Helper to serialize values for JSONB storage
 // Dates must be converted to ISO strings to prevent double-serialization
-function serializeValue(value: any): any {
+function serializeValue(value: unknown): unknown {
   if (value instanceof Date) {
     return value.toISOString();
   }
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || value === "") {
     return null;
   }
   return value;

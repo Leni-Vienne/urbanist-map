@@ -6,7 +6,7 @@
     optionLabel="displayName"
     optionValue="id"
     class="w-full"
-    :showClear="false"
+    :showClear="showClear"
     :loading="citiesLoading"
     :disabled="disabled"
     :required="required"
@@ -49,6 +49,7 @@ interface Props {
   markerCoordinates?: { lat: number; lng: number } | null;
   disabled?: boolean;
   required?: boolean;
+  showClear?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -56,6 +57,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   required: false,
   markerCoordinates: null,
+  showClear: false,
 });
 
 defineEmits<{

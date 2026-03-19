@@ -1,118 +1,85 @@
 <template>
   <div class="w-full flex flex-col gap-2">
-    <!-- Precision Selection -->
-    <div class="flex gap-4 mb-2">
-      <div class="flex items-center gap-2">
-        <RadioButton
-          v-model="internalPrecision"
-          :inputId="'precision-year-' + uniqueId"
-          value="year"
-          :name="groupName"
-          @change="handlePrecisionChange"
+    <label class="text-sm text-(--p-text-color-secondary) font-medium">
+      {{ label }} {{ required ? "*" : "" }}
+    </label>
+
+    <!-- Compact layout: precision toggle + inputs on same row -->
+    <div class="flex gap-2 items-center flex-wrap">
+      <!-- Precision Selection - compact segmented buttons -->
+      <SelectButton
+        v-model="internalPrecision"
+        :options="precisionOptions"
+        optionLabel="label"
+        optionValue="value"
+        :allowEmpty="false"
+        class="shrink-0"
+        @change="handlePrecisionChange"
+      />
+
+      <!-- Year Only Mode: simple year dropdown -->
+      <Select
+        v-if="internalPrecision === 'year'"
+        v-model="selectedYear"
+        :options="yearOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Year"
+        class="w-28"
+        :class="{ 'p-invalid': isTouched && Boolean(error) }"
+        @change="handleYearChange"
+      />
+
+      <!-- Month & Year Mode: month + year dropdowns -->
+      <template v-else-if="internalPrecision === 'month'">
+        <Select
+          v-model="selectedMonth"
+          :options="monthOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Month"
+          class="w-32"
+          :class="{ 'p-invalid': isTouched && Boolean(error) }"
+          @change="handleMonthYearChange"
         />
-        <label :for="'precision-year-' + uniqueId" class="cursor-pointer text-sm mb-0">{{
-          $t("project.yearOnly")
-        }}</label>
-      </div>
-      <div class="flex items-center gap-2">
-        <RadioButton
-          v-model="internalPrecision"
-          :inputId="'precision-month-' + uniqueId"
-          value="month"
-          :name="groupName"
-          @change="handlePrecisionChange"
+        <Select
+          v-model="selectedYear"
+          :options="yearOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Year"
+          class="w-28"
+          :class="{ 'p-invalid': isTouched && Boolean(error) }"
+          @change="handleMonthYearChange"
         />
-        <label :for="'precision-month-' + uniqueId" class="cursor-pointer text-sm mb-0">{{
-          $t("project.monthYear")
-        }}</label>
-      </div>
-      <div class="flex items-center gap-2">
-        <RadioButton
-          v-model="internalPrecision"
-          :inputId="'precision-day-' + uniqueId"
-          value="day"
-          :name="groupName"
-          @change="handlePrecisionChange"
-        />
-        <label :for="'precision-day-' + uniqueId" class="cursor-pointer text-sm mb-0">{{
-          $t("project.fullDate")
-        }}</label>
-      </div>
+      </template>
+
+      <!-- Full Date Mode: DatePicker calendar -->
+      <DatePicker
+        v-else
+        v-model="fullDateValue"
+        dateFormat="dd/mm/yy"
+        class="flex-1 min-w-48"
+        :class="{ 'p-invalid': isTouched && Boolean(error) }"
+        :maxDate="maxDate"
+        :minDate="minDate"
+        showIcon
+        showButtonBar
+        @update:modelValue="handleFullDateChange"
+      />
     </div>
 
-    <!-- Input Fields based on precision -->
-    <div class="flex gap-2 items-start">
-      <!-- Year Only Mode -->
-      <div v-if="internalPrecision === 'year'" class="w-full">
-        <FloatLabel class="w-full" variant="in">
-          <DatePicker
-            v-model="yearDateValue"
-            view="year"
-            dateFormat="yy"
-            class="w-full"
-            :class="{ 'p-invalid': isTouched && Boolean(error) }"
-            :maxDate="maxDate"
-            :minDate="minDate"
-            showIcon
-            @update:modelValue="handleYearDateChange"
-            :id="'year-input-' + uniqueId"
-          />
-          <label :for="'year-input-' + uniqueId">{{ label }} {{ required ? "*" : "" }}</label>
-        </FloatLabel>
-      </div>
-
-      <!-- Month & Year Mode -->
-      <div v-else-if="internalPrecision === 'month'" class="flex gap-2 w-full">
-        <div class="flex-1">
-          <FloatLabel class="w-full" variant="in">
-            <DatePicker
-              v-model="monthDateValue"
-              view="month"
-              dateFormat="mm/yy"
-              class="w-full"
-              :class="{ 'p-invalid': isTouched && Boolean(error) }"
-              :maxDate="maxDate"
-              :minDate="minDate"
-              @update:modelValue="handleMonthDateChange"
-              showIcon
-              :id="'month-input-' + uniqueId"
-            />
-            <label :for="'month-input-' + uniqueId">{{ label }} {{ required ? "*" : "" }}</label>
-          </FloatLabel>
-        </div>
-      </div>
-
-      <!-- Full Date Mode -->
-      <div v-else class="w-full">
-        <FloatLabel class="w-full" variant="in">
-          <label for="date-input">{{ label }} {{ required ? "*" : "" }}</label>
-
-          <DatePicker
-            v-model="fullDateValue"
-            dateFormat="dd/mm/yy"
-            class="w-full"
-            :class="{ 'p-invalid': isTouched && Boolean(error) }"
-            :maxDate="maxDate"
-            :minDate="minDate"
-            @update:modelValue="handleFullDateChange"
-            showIcon
-            id="date-input"
-          />
-          <label for="date-input">{{ label }} {{ required ? "*" : "" }}</label>
-        </FloatLabel>
-      </div>
-    </div>
-
-    <small v-if="isTouched && error" class="text-red-500 text-xs mt-1 block">{{ error }}</small>
+    <small v-if="isTouched && error" class="text-red-500 text-xs block">{{ error }}</small>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDate";
-import RadioButton from "primevue/radiobutton";
+import SelectButton from "primevue/selectbutton";
+import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
-import FloatLabel from "primevue/floatlabel";
 
 const props = defineProps<{
   modelValue: FlexibleDateInput | null;
@@ -121,7 +88,7 @@ const props = defineProps<{
   maxDate?: Date;
   minDate?: Date;
   error?: string;
-  uniqueId?: string; // For grouping radio buttons if multiple instances exist
+  uniqueId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -129,16 +96,43 @@ const emit = defineEmits<{
   (e: "blur"): void;
 }>();
 
-const groupName = props.uniqueId || `precision-group-${Math.random().toString(36).slice(7)}`;
+const { t } = useI18n();
 
-// Track if user has interacted with the field to avoid premature validation errors
+// Track if user has interacted with the field
 const isTouched = ref(false);
 
 // Internal state
 const internalPrecision = ref<DatePrecision>("day");
-const yearDateValue = ref<Date | null>(null); // Changed to Date for DatePicker compatibility
-const monthDateValue = ref<Date | null>(null);
+const selectedYear = ref<number | null>(null);
+const selectedMonth = ref<number | null>(null);
 const fullDateValue = ref<Date | null>(null);
+
+// Precision options for SelectButton
+const precisionOptions = computed(() => [
+  { label: t("project.yearOnly"), value: "year" },
+  { label: t("project.monthYear"), value: "month" },
+  { label: t("project.fullDate"), value: "day" },
+]);
+
+// Generate year options (from minDate year or 1900 to maxDate year or current + 30)
+const yearOptions = computed(() => {
+  const minYear = props.minDate?.getFullYear() ?? 1900;
+  const maxYear = props.maxDate?.getFullYear() ?? new Date().getFullYear() + 30;
+  const years = [];
+  for (let y = maxYear; y >= minYear; y--) {
+    years.push({ label: String(y), value: y });
+  }
+  return years;
+});
+
+// Month options
+const monthOptions = computed(() => {
+  const formatter = new Intl.DateTimeFormat(undefined, { month: "long" });
+  return Array.from({ length: 12 }, (_, i) => ({
+    label: formatter.format(new Date(2000, i, 1)),
+    value: i + 1,
+  }));
+});
 
 // Sync from props
 watch(
@@ -146,30 +140,17 @@ watch(
   (newVal) => {
     if (newVal) {
       internalPrecision.value = newVal.precision;
+      selectedYear.value = newVal.year;
+      selectedMonth.value = newVal.month ?? null;
 
-      // Init year date
-      if (newVal.year) {
-        yearDateValue.value = new Date(newVal.year, 0, 1);
-      }
-
-      // Construct dates for pickers
-      if (newVal.month) {
-        // Month picker needs date
-        monthDateValue.value = new Date(newVal.year, newVal.month - 1, 1);
-
-        // Full date picker needs date
-        if (newVal.day) {
-          fullDateValue.value = new Date(newVal.year, newVal.month - 1, newVal.day);
-        }
-      } else if (newVal.year) {
-        // Also set month/full pickers to that year to be helpful if user switches precision
-        monthDateValue.value = new Date(newVal.year, 0, 1);
-        fullDateValue.value = new Date(newVal.year, 0, 1);
+      if (newVal.precision === "day" && newVal.month && newVal.day) {
+        fullDateValue.value = new Date(newVal.year, newVal.month - 1, newVal.day);
+      } else {
+        fullDateValue.value = null;
       }
     } else {
-      // If null, keep last precision or default, but clear values
-      yearDateValue.value = null;
-      monthDateValue.value = null;
+      selectedYear.value = null;
+      selectedMonth.value = null;
       fullDateValue.value = null;
     }
   },
@@ -177,74 +158,81 @@ watch(
 );
 
 function handlePrecisionChange() {
-  // When changing precision, try to preserve loaded values
-  // If we have a value in current mode, propagate it to others?
-  // Actually, if we switch FROM year TO month, we should keep year.
-  // But updateModel will read from the active input.
-  // So we need to sync internal states before updateModel if we want preservation.
+  isTouched.value = true;
 
-  // Strategy: Always keep the most precise date possible in a shared "currentDate" ?
-  // Or just sync the refs.
-
-  if (yearDateValue.value) {
-    if (!monthDateValue.value) monthDateValue.value = new Date(yearDateValue.value);
-    if (!fullDateValue.value) fullDateValue.value = new Date(yearDateValue.value);
-  }
-
-  updateModel();
-}
-
-function handleYearDateChange(date: any) {
-  if (date instanceof Date) {
-    yearDateValue.value = date;
-    // Sync others
-    monthDateValue.value = new Date(date);
-    fullDateValue.value = new Date(date);
-  }
-  updateModel();
-}
-
-function handleMonthDateChange(date: any) {
-  if (date instanceof Date) {
-    monthDateValue.value = date;
-    // Sync others
-    yearDateValue.value = new Date(date);
-    fullDateValue.value = new Date(date);
-  }
-  updateModel();
-}
-
-function handleFullDateChange(date: any) {
-  if (date instanceof Date) {
-    fullDateValue.value = date;
-    // Sync others
-    yearDateValue.value = new Date(date);
-    monthDateValue.value = new Date(date);
-  }
-  updateModel();
-}
-
-function updateModel() {
+  // When switching precision, try to preserve values
   if (internalPrecision.value === "year") {
-    if (yearDateValue.value) {
+    // Clear month, keep year
+    selectedMonth.value = null;
+    if (selectedYear.value) {
+      emitValue();
+    }
+  } else if (internalPrecision.value === "month") {
+    // Keep year, set month to current if not set
+    if (!selectedMonth.value) {
+      selectedMonth.value = new Date().getMonth() + 1;
+    }
+    if (selectedYear.value) {
+      emitValue();
+    }
+  } else {
+    // Full date mode - construct date from year/month if available
+    if (selectedYear.value && selectedMonth.value) {
+      fullDateValue.value = new Date(selectedYear.value, selectedMonth.value - 1, 1);
+      emitValue();
+    } else if (selectedYear.value) {
+      fullDateValue.value = new Date(selectedYear.value, 0, 1);
+      emitValue();
+    }
+  }
+}
+
+function handleYearChange() {
+  isTouched.value = true;
+  emitValue();
+}
+
+function handleMonthYearChange() {
+  isTouched.value = true;
+  emitValue();
+}
+
+function handleFullDateChange(date: Date | Date[] | (Date | null)[] | null | undefined) {
+  isTouched.value = true;
+  // PrimeVue DatePicker can emit various types; we only handle single Date
+  const singleDate = Array.isArray(date) ? date[0] : date;
+  if (singleDate instanceof Date) {
+    fullDateValue.value = singleDate;
+    // Sync year/month for when user switches precision
+    selectedYear.value = singleDate.getFullYear();
+    selectedMonth.value = singleDate.getMonth() + 1;
+  } else {
+    fullDateValue.value = null;
+  }
+  emitValue();
+}
+
+function emitValue() {
+  if (internalPrecision.value === "year") {
+    if (selectedYear.value) {
       emit("update:modelValue", {
-        year: yearDateValue.value.getFullYear(),
+        year: selectedYear.value,
         precision: "year",
       });
     } else {
       emit("update:modelValue", null);
     }
   } else if (internalPrecision.value === "month") {
-    if (monthDateValue.value) {
+    if (selectedYear.value && selectedMonth.value) {
       emit("update:modelValue", {
-        year: monthDateValue.value.getFullYear(),
-        month: monthDateValue.value.getMonth() + 1,
+        year: selectedYear.value,
+        month: selectedMonth.value,
         precision: "month",
       });
     } else {
       emit("update:modelValue", null);
     }
-  } else if (internalPrecision.value === "day") {
+  } else {
     if (fullDateValue.value) {
       emit("update:modelValue", {
         year: fullDateValue.value.getFullYear(),
@@ -256,10 +244,5 @@ function updateModel() {
       emit("update:modelValue", null);
     }
   }
-}
-
-function validate() {
-  isTouched.value = true;
-  emit("blur");
 }
 </script>

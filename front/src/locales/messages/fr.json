@@ -88,7 +88,6 @@
     "yearOnly": "Année uniquement",
     "monthYear": "Mois & Année",
     "fullDate": "Date complète",
-    "alreadyStarted": "Déjà commencé, date de début inconnue",
     "proposed": "Proposé",
     "proposedOn": "Proposé le",
     "proposedIn": "Proposé en",
@@ -98,8 +97,6 @@
     "endsOn": "Se termine le",
     "locationRequired": "La localisation est requise",
     "invalidLocation": "Emplacement invalide sélectionné",
-    "timelineChangedFromProposedToPlanned": "Statut chronologique changé de Proposé ({proposalDate}) à Prévu",
-    "timelineChangedFromPlannedToProposed": "Statut chronologique changé de Prévu ({startDate} à {endDate}) à Proposé",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
     "information": "Informations du projet",
     "edit": "Modifier le projet",
@@ -108,7 +105,8 @@
     "period": "Période",
     "source": "Source",
     "addImages": "Ajouter",
-    "tags": "Catégories"
+    "tags": "Catégories",
+    "additionalDetails": "Détails supplémentaires"
   },
   "tags": {
     "tram": "Tramway",
