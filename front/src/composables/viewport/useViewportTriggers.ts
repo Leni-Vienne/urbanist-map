@@ -213,7 +213,7 @@ export function useViewportTriggers() {
       }
 
       isLoading.value = true;
-      const mode = mapStore.mode as "edit" | "moderation";
+      const mode = mapStore.mode;
 
       const { overlays: overlaysData, projects: projectsData } = await fetchViewportData(mode);
 

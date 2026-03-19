@@ -236,7 +236,7 @@ export function buildClusterProperties(): Record<string, ExpressionSpecification
   }
 
   // Count pending projects inside the cluster (used to color the whole cluster orange from afar)
-  clusterProperties["pending_count"] = [
+  clusterProperties.pending_count = [
     "+",
     ["case", ["==", ["get", "is_pending"], true], 1, 0],
   ] as ExpressionSpecification;
@@ -436,8 +436,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
           // Use standard flyTo. Without forced duration, Leaflet calculates the best physics.
           map.value?.flyTo([lat, lng], targetZoom, { duration: 1.5 });
         }
-      } catch (err) {
-        console.error("Error getting cluster expansion zoom:", err);
+      } catch (error) {
+        console.error("Error getting cluster expansion zoom:", error);
       }
       return;
     }
@@ -478,9 +478,9 @@ export function addFirstTagToProjectPointsGeojson(
 
   for (const feature of geojson.features) {
     const featureProps = (feature.properties ?? {}) as Record<string, unknown>;
-    const existingFirstTag = featureProps["first_tag"];
-    const tags = Array.isArray(featureProps["tags"])
-      ? (featureProps["tags"] as unknown[])
+    const existingFirstTag = featureProps.first_tag;
+    const tags = Array.isArray(featureProps.tags)
+      ? (featureProps.tags as unknown[])
       : ([] as unknown[]);
     const firstTagFromTags = typeof tags[0] === "string" ? String(tags[0]) : "";
 
@@ -489,7 +489,7 @@ export function addFirstTagToProjectPointsGeojson(
         ? existingFirstTag
         : firstTagFromTags;
 
-    const featureId = feature.id ?? featureProps["id"];
+    const featureId = feature.id ?? featureProps.id;
 
     enrichedFeatures.push({
       ...feature,

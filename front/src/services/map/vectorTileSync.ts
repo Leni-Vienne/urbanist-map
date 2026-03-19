@@ -40,7 +40,7 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
     { lat: Number(p.c3_lat), lng: Number(p.c3_lng) },
   ];
 
-  if (corners.some((c) => isNaN(c.lat) || isNaN(c.lng))) return null;
+  if (corners.some((c) => Number.isNaN(c.lat) || Number.isNaN(c.lng))) return null;
 
   const centroid = {
     lat: (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4,

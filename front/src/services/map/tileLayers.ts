@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
-import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
+import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { maplibreLayer, type MaplibreGL } from "@/lib/MaplibreLayer";
 import { map } from "@/services/core/map";
@@ -307,10 +307,10 @@ export function updateProjectPointsSource(geojson: GeoJSON.FeatureCollection): v
 function applyFilteredProjectPoints(): void {
   const mlMap = mlMapRef.current;
   if (!mlMap || !lastProjectPointsGeojson) return;
-  const source = mlMap.getSource("project-points");
-  if (source) {
+  const geoJSONSource = mlMap.getSource("project-points") as GeoJSONSource | undefined;
+  if (geoJSONSource) {
     const filtered = filterGeoJsonByTags(lastProjectPointsGeojson);
-    (source as any).setData(addFirstTagToProjectPointsGeojson(filtered));
+    geoJSONSource.setData(addFirstTagToProjectPointsGeojson(filtered));
   }
 }
 
@@ -464,12 +464,12 @@ function applyEsriMaxZoom(zoomLevel: number) {
           (source as any).maxzoom = zoomLevel;
           try {
             // Try to force the style source cache to update
-            const sourceCache = (mlMap.style as any).sourceCaches["satellite"];
+            const sourceCache = (mlMap.style as any).sourceCaches.satellite;
             if (sourceCache) {
               sourceCache.clearTiles();
               sourceCache.update((mlMap as any).transform);
             }
-          } catch (e) {
+          } catch {
             // ignore
           }
           mlMap.triggerRepaint();

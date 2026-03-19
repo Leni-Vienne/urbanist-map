@@ -9,11 +9,19 @@ export const tilesApp = new Hono();
 //   - overlay-footprints: approved overlay corners as polygon outlines
 tilesApp.get("/projects/:z/:x/:y", async (c) => {
   try {
-    const z = parseInt(c.req.param("z"), 10);
-    const x = parseInt(c.req.param("x"), 10);
-    const y = parseInt(c.req.param("y"), 10);
+    const z = Number.parseInt(c.req.param("z"), 10);
+    const x = Number.parseInt(c.req.param("x"), 10);
+    const y = Number.parseInt(c.req.param("y"), 10);
 
-    if (isNaN(z) || isNaN(x) || isNaN(y) || z < 0 || z > 22 || x < 0 || y < 0) {
+    if (
+      Number.isNaN(z) ||
+      Number.isNaN(x) ||
+      Number.isNaN(y) ||
+      z < 0 ||
+      z > 22 ||
+      x < 0 ||
+      y < 0
+    ) {
       return c.json({ error: "Invalid tile coordinates" }, 400);
     }
 
@@ -88,7 +96,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
       FROM shapes, footprints
     `;
 
-    const mvt: Buffer | null = (row as any)?.mvt ?? null;
+    const mvt: Buffer | null = row?.mvt ?? null;
 
     if (!mvt || mvt.length === 0) {
       return new Response(null, { status: 204 });

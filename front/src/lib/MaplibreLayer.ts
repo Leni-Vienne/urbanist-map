@@ -13,7 +13,8 @@
 
 import L from "leaflet";
 import type { LatLngBounds, Layer as LayerType, Point as PointType } from "leaflet";
-import maplibre, { Map as MaplibreMap, type MapOptions } from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import maplibre, { type MapOptions } from "maplibre-gl";
 
 const { Layer, setOptions, DomEvent, DomUtil, latLngBounds, Util, extend, Point } = L;
 
@@ -41,19 +42,19 @@ const MaplibreLayer = Layer.extend({
     pane: "tilePane",
   },
 
-  initialize: function (options: any) {
+  initialize: function initialize(options: any) {
     setOptions(this, options);
 
     // setup throttling the update event when panning
     this._throttledUpdate = Util.throttle(this._update, this.options.updateInterval, this);
   },
 
-  onAdd: function (map: any) {
+  onAdd: function onAdd(map: any) {
     if (!this._container) {
       this._initContainer();
     }
 
-    var paneName = this.getPaneName();
+    const paneName = this.getPaneName();
     map.getPane(paneName)!.appendChild(this._container);
 
     this._initGL();
@@ -66,18 +67,18 @@ const MaplibreLayer = Layer.extend({
     }
   },
 
-  onRemove: function (map: any) {
+  onRemove: function onRemove(map: any) {
     if (this._map._proxy && this._map.options.zoomAnimation) {
       DomEvent.off(this._map._proxy, DomUtil.TRANSITION_END, this._transitionEnd, this);
     }
-    var paneName = this.getPaneName();
+    const paneName = this.getPaneName();
     map.getPane(paneName).removeChild(this._container);
 
     this._glMap.remove();
     this._glMap = null;
   },
 
-  getEvents: function () {
+  getEvents: function getEvents() {
     return {
       move: this._throttledUpdate, // sensibly throttle updating while panning
       zoomanim: this._animateZoom, // applies the zoom animation to the <canvas>
@@ -88,57 +89,57 @@ const MaplibreLayer = Layer.extend({
     };
   },
 
-  getMaplibreMap: function () {
+  getMaplibreMap: function getMaplibreMap() {
     return this._glMap;
   },
 
-  getCanvas: function () {
+  getCanvas: function getCanvas() {
     return this._glMap.getCanvas();
   },
 
-  getSize: function () {
+  getSize: function getSize() {
     return this._map.getSize().multiplyBy(1 + this.options.padding * 2);
   },
 
-  getBounds: function () {
-    var halfSize = this.getSize().multiplyBy(0.5);
-    var center = this._map.latLngToContainerPoint(this._map.getCenter());
+  getBounds: function getBounds() {
+    const halfSize = this.getSize().multiplyBy(0.5);
+    const center = this._map.latLngToContainerPoint(this._map.getCenter());
     return latLngBounds(
       this._map.containerPointToLatLng(center.subtract(halfSize)),
       this._map.containerPointToLatLng(center.add(halfSize)),
     );
   },
 
-  getContainer: function () {
+  getContainer: function getContainer() {
     return this._container;
   },
 
   // returns the pane name set in options if it is a valid pane, defaults to tilePane
-  getPaneName: function () {
+  getPaneName: function getPaneName() {
     return this._map.getPane(this.options.pane) ? this.options.pane : "tilePane";
   },
 
-  _roundPoint: function (p: any) {
+  _roundPoint: function _roundPoint(p: any) {
     return { x: Math.round(p.x), y: Math.round(p.y) };
   },
 
-  _initContainer: function () {
-    var container = (this._container = DomUtil.create("div", "leaflet-gl-layer"));
+  _initContainer: function _initContainer() {
+    const container = (this._container = DomUtil.create("div", "leaflet-gl-layer"));
 
-    var size = this.getSize();
-    var offset = this._map.getSize().multiplyBy(this.options.padding);
+    const size = this.getSize();
+    const offset = this._map.getSize().multiplyBy(this.options.padding);
     container.style.width = size.x + "px";
     container.style.height = size.y + "px";
 
-    var topLeft = this._map.containerPointToLayerPoint([0, 0]).subtract(offset);
+    const topLeft = this._map.containerPointToLayerPoint([0, 0]).subtract(offset);
 
     DomUtil.setPosition(container, this._roundPoint(topLeft));
   },
 
-  _initGL: function () {
-    var center = this._map.getCenter();
+  _initGL: function _initGL() {
+    const center = this._map.getCenter();
 
-    var options = extend({}, this.options, {
+    const options = extend({}, this.options, {
       container: this._container,
       center: [center.lng, center.lat],
       zoom: this._map.getZoom() - 1,
@@ -157,7 +158,7 @@ const MaplibreLayer = Layer.extend({
     }
 
     // treat child <canvas> element like L.ImageOverlay
-    var canvas = this._glMap._actualCanvas;
+    const canvas = this._glMap._actualCanvas;
     DomUtil.addClass(canvas, "leaflet-image-layer");
     DomUtil.addClass(canvas, "leaflet-zoom-animated");
     if (this.options.interactive) {
@@ -168,7 +169,7 @@ const MaplibreLayer = Layer.extend({
     }
   },
 
-  _update: function (_e: any) {
+  _update: function _update(_e: any) {
     // update the offset so we can correct for it later when we zoom
     this._offset = this._map.containerPointToLayerPoint([0, 0]);
 
@@ -176,7 +177,7 @@ const MaplibreLayer = Layer.extend({
       return;
     }
 
-    var size = this.getSize(),
+    const size = this.getSize(),
       container = this._container,
       gl = this._glMap,
       offset = this._map.getSize().multiplyBy(this.options.padding),
@@ -204,8 +205,8 @@ const MaplibreLayer = Layer.extend({
     }
   },
 
-  _transformGL: function (gl: any) {
-    var center = this._map.getCenter();
+  _transformGL: function _transformGL(gl: any) {
+    const center = this._map.getCenter();
 
     // Maplibre GL JS v5+ makes `transform` strictly readonly.
     // Instead of mutating `gl.transform`, we must use `jumpTo()`.
@@ -216,7 +217,7 @@ const MaplibreLayer = Layer.extend({
   },
 
   // update the map constantly during a pinch zoom
-  _pinchZoom: function (_e: any) {
+  _pinchZoom: function _pinchZoom(_e: any) {
     this._glMap.jumpTo({
       zoom: this._map.getZoom() - 1,
       center: this._map.getCenter(),
@@ -225,28 +226,30 @@ const MaplibreLayer = Layer.extend({
 
   // borrowed from L.ImageOverlay
   // https://github.com/Leaflet/Leaflet/blob/master/src/layer/ImageOverlay.js#L139-L144
-  _animateZoom: function (e: any) {
-    var scale = this._map.getZoomScale(e.zoom);
-    var padding = this._map.getSize().multiplyBy(this.options.padding * scale);
-    var viewHalf = this.getSize()._divideBy(2);
+  _animateZoom: function _animateZoom(e: any) {
+    const scale = this._map.getZoomScale(e.zoom);
+    const padding = this._map.getSize().multiplyBy(this.options.padding * scale);
+    const viewHalf = this.getSize()._divideBy(2);
     // corrections for padding (scaled), adapted from
     // https://github.com/Leaflet/Leaflet/blob/master/src/map/Map.js#L1490-L1508
-    var topLeft = this._map
+    const topLeft = this._map
       .project(e.center, e.zoom)
       ._subtract(viewHalf)
       ._add(this._map._getMapPanePos().add(padding))
       ._round();
-    var offset = this._map.project(this._map.getBounds().getNorthWest(), e.zoom)._subtract(topLeft);
+    const offset = this._map
+      .project(this._map.getBounds().getNorthWest(), e.zoom)
+      ._subtract(topLeft);
 
     DomUtil.setTransform(this._glMap._actualCanvas, offset.subtract(this._offset), scale);
   },
 
-  _zoomStart: function (_e: any) {
+  _zoomStart: function _zoomStart(_e: any) {
     this._zooming = true;
   },
 
-  _zoomEnd: function () {
-    var scale = this._map.getZoomScale(this._map.getZoom());
+  _zoomEnd: function _zoomEnd() {
+    const scale = this._map.getZoomScale(this._map.getZoom());
 
     DomUtil.setTransform(
       this._glMap._actualCanvas,
@@ -260,11 +263,11 @@ const MaplibreLayer = Layer.extend({
     this._update();
   },
 
-  _transitionEnd: function (_e: any) {
-    Util.requestAnimFrame(function (this: any) {
-      var zoom = this._map.getZoom();
-      var center = this._map.getCenter();
-      var offset = this._map.latLngToContainerPoint(this._map.getBounds().getNorthWest());
+  _transitionEnd: function _transitionEnd(_e: any) {
+    Util.requestAnimFrame(function _transitionEnd(this: any) {
+      const zoom = this._map.getZoom();
+      const center = this._map.getCenter();
+      const offset = this._map.latLngToContainerPoint(this._map.getBounds().getNorthWest());
 
       // reset the scale and offset
       DomUtil.setTransform(this._glMap._actualCanvas, offset, 1);
@@ -272,7 +275,7 @@ const MaplibreLayer = Layer.extend({
       // enable panning once the gl map is ready again
       this._glMap.once(
         "moveend",
-        Util.bind(function (this: any) {
+        Util.bind(function _transitionEnd(this: any) {
           this._zoomEnd();
         }, this),
       );
@@ -285,7 +288,7 @@ const MaplibreLayer = Layer.extend({
     }, this);
   },
 
-  _resize: function (e: any) {
+  _resize: function _resize(e: any) {
     this._transitionEnd(e);
   },
 });

@@ -40,8 +40,8 @@ export async function updateGlobalPendingPoints(mode: AppMode): Promise<void> {
   }
   try {
     globalPendingPoints = await trpc.viewport.getGlobalPendingPoints.query({ mode });
-  } catch (err) {
-    console.error("Failed to fetch global pending points", err);
+  } catch (error) {
+    console.error("Failed to fetch global pending points", error);
     globalPendingPoints = [];
   }
 }
@@ -89,7 +89,7 @@ export function mergeProjectPointsForMode(
   // Extract projects from overlay data (projects that have overlays)
   for (const overlay of overlaysData) {
     const project = overlay.project;
-    if (!project || !project.lat || !project.lng) continue;
+    if (!project?.lat || !project.lng) continue;
     const isPending = project.status !== "approved" || overlay.status !== "approved";
 
     if (baseProjectIds.has(project.id)) {

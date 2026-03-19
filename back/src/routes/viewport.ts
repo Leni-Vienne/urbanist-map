@@ -136,7 +136,7 @@ export const viewportRouter = router({
         for (const p of pendingProjects) merged.set(p.id, p);
         for (const p of pendingOverlays) merged.set(p.id, p);
 
-        return Array.from(merged.values());
+        return [...merged.values()];
       } catch (error) {
         console.error("Error fetching global pending points:", error);
         throw new TRPCError({

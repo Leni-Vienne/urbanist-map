@@ -154,9 +154,9 @@ function getStatusButtonStyle(color: viewModeMarkerColor) {
 // Determine if text should be white or dark based on background color
 function getContrastTextColor(hexColor: string): string {
   const hex = hexColor.replace("#", "");
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
+  const r = Number.parseInt(hex.substring(0, 2), 16);
+  const g = Number.parseInt(hex.substring(2, 4), 16);
+  const b = Number.parseInt(hex.substring(4, 6), 16);
   // Using relative luminance formula
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.5 ? "#1a1a1a" : "#ffffff";

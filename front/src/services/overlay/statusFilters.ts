@@ -125,11 +125,11 @@ export function filterGeoJsonByTags(geojson: GeoJSON.FeatureCollection): GeoJSON
     // Note: GeoJSON is only used in view mode for clusters, so we map timelineStatus to marker colors
     let statusMatch = true;
     if (timelineStatus) {
-      const color = getTimelineStatusColor(timelineStatus as any);
-      statusMatch = visibleStates.value[color] !== false;
+      const color = getTimelineStatusColor(timelineStatus);
+      statusMatch = visibleStates.value[color];
     } else {
       // Default color logic if timelineStatus is somehow missing
-      statusMatch = visibleStates.value["yellow"] !== false;
+      statusMatch = visibleStates.value.yellow;
     }
 
     return tagMatch && statusMatch;
@@ -176,5 +176,5 @@ function shouldShowOverlay(overlay: OverlayObject | OverlayData, mode: AppMode) 
   }
 
   const statusColor = getOverlayMarkerColor(overlay, mode);
-  return visibleStates.value[statusColor as keyof typeof visibleStates.value];
+  return visibleStates.value[statusColor];
 }
