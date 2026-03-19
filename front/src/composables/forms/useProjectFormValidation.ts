@@ -18,19 +18,13 @@ export function useProjectFormValidation() {
 
   function validateProjectForm(
     formData: ProjectFormData,
-    isProposed: boolean,
+    timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled",
     cities: { id: number }[],
     citiesLoaded: boolean,
   ): boolean {
-    // City-related checks (not covered by Zod schema)
-    // cityId is a number, so check explicitly (0 is invalid but falsy)
-    if (!formData.cityId || formData.cityId === 0 || !citiesLoaded) {
-      showError(t("project.locationRequired"));
-      return false;
-    }
-
-    if (cities.length > 0 && !cities.some((c) => c.id === formData.cityId)) {
-      showError(t("project.locationRequired"));
+    // We optionally have cityId, but if a city is provided it must exist
+    if (formData.cityId && cities.length > 0 && !cities.some((c) => c.id === formData.cityId)) {
+      showError(t("project.invalidLocation"));
       return false;
     }
 

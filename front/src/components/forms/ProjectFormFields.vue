@@ -55,7 +55,7 @@
 
     <!-- Timeline status selector -->
     <TimelineStatusSelector
-      v-model="localIsProposed"
+      v-model="localTimelineStatus"
       :id-prefix="idPrefix"
       @change="handleTimelineStatusChange"
     />
@@ -68,7 +68,7 @@
     </small>
 
     <!-- Proposal date field (shown when project is proposed) -->
-    <div class="flex flex-col gap-1" v-if="localIsProposed">
+    <div class="flex flex-col gap-1" v-if="localTimelineStatus === 'proposed'">
       <FlexibleDatePicker
         v-model="flexibleProposalDate"
         :label="$t('project.proposalDate')"
@@ -91,7 +91,7 @@
     </div>
 
     <!-- Start and end date fields (shown when project is planned) -->
-    <div class="flex flex-col gap-4" v-if="!localIsProposed">
+    <div class="flex flex-col gap-4" v-if="localTimelineStatus !== 'proposed'">
       <!-- Start Date (Optional with checkbox) -->
       <div class="flex flex-col gap-1">
         <div class="flex items-center gap-2 mb-2">
@@ -257,8 +257,8 @@ interface Props {
   showChangeIndicators?: boolean;
   // Unique prefix for input IDs to avoid conflicts
   idPrefix?: string;
-  // Initial isProposed state
-  isProposed?: boolean;
+  // Initial timelineStatus state
+  timelineStatus?: "proposed" | "planned" | "under_construction" | "completed" | "canceled";
   // Pre-filled city data for the CitySelect (uses Project['city'] format from DB)
   prefilledCity?: Project["city"];
   // Marker coordinates for city proximity search
@@ -271,14 +271,17 @@ interface Props {
 
 interface Emits {
   (e: "update:formData", value: ProjectFormData): void;
-  (e: "update:isProposed", value: boolean): void;
+  (
+    e: "update:timelineStatus",
+    value: "proposed" | "planned" | "under_construction" | "completed" | "canceled",
+  ): void;
   (e: "cityChange", cityId: number | null): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showChangeIndicators: false,
   idPrefix: "project",
-  isProposed: false,
+  timelineStatus: "proposed",
   prefilledCity: undefined,
   markerCoordinates: null,
 });
@@ -294,8 +297,8 @@ const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
 // Setup field validation
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
 
-// Local isProposed state synced with parent
-const localIsProposed = ref(props.isProposed);
+// Local timelineStatus state synced with parent
+const localTimelineStatus = ref(props.timelineStatus);
 
 // Local copy of formData to avoid mutating props
 // Explicitly initialize precision fields to null if undefined (for old projects without precision)
@@ -336,7 +339,7 @@ const projectAlreadyStarted = ref(false);
 
 // Initialize "Already Started" if we have an endDate but no startDate in a planned project
 // This assumes "Already Started" means we don't know the startDate
-if (!props.formData.startDate && props.formData.endDate && !props.isProposed) {
+if (!props.formData.startDate && props.formData.endDate && props.timelineStatus !== "proposed") {
   projectAlreadyStarted.value = true;
 }
 
@@ -377,14 +380,14 @@ watch(
 
 // Sync flexible dates to formData
 function syncDatesToFormData() {
-  localFormData.value.proposalDate = localIsProposed.value
-    ? flexibleDateToDb(flexibleProposalDate.value)
-    : null;
-  localFormData.value.proposalDatePrecision = localIsProposed.value
-    ? (flexibleProposalDate.value?.precision ?? null)
-    : null;
+  localFormData.value.proposalDate =
+    localTimelineStatus.value === "proposed" ? flexibleDateToDb(flexibleProposalDate.value) : null;
+  localFormData.value.proposalDatePrecision =
+    localTimelineStatus.value === "proposed"
+      ? (flexibleProposalDate.value?.precision ?? null)
+      : null;
 
-  if (localIsProposed.value) {
+  if (localTimelineStatus.value === "proposed") {
     localFormData.value.startDate = null;
     localFormData.value.startDatePrecision = null;
     localFormData.value.endDate = null;
@@ -524,11 +527,11 @@ function handleCityIdUpdate(cityId: number | undefined) {
   validateFieldHelper("cityId");
 }
 
-// Watch for external isProposed changes
+// Watch for external timelineStatus changes
 watch(
-  () => props.isProposed,
+  () => props.timelineStatus,
   (newValue) => {
-    localIsProposed.value = newValue;
+    localTimelineStatus.value = newValue;
   },
 );
 
@@ -543,20 +546,20 @@ const wasOriginallyProposed = computed(() => {
 // Computed to check if timeline status has changed
 const timelineStatusChanged = computed(() => {
   if (!props.originalData) return false;
-  return localIsProposed.value !== wasOriginallyProposed.value;
+  return (localTimelineStatus.value === "proposed") !== wasOriginallyProposed.value;
 });
 
 // Computed message to show what changed when timeline status changes
 const timelineStatusChangeMessage = computed(() => {
   if (!props.originalData) return "";
 
-  if (wasOriginallyProposed.value && !localIsProposed.value) {
+  if (wasOriginallyProposed.value && localTimelineStatus.value !== "proposed") {
     // Changed from proposed to planned
     const oldDate = formatDate(props.originalData.proposalDate) ?? t("overlay.notSet");
     return t("project.timelineChangedFromProposedToPlanned", {
       proposalDate: oldDate,
     });
-  } else if (!wasOriginallyProposed.value && localIsProposed.value) {
+  } else if (!wasOriginallyProposed.value && localTimelineStatus.value === "proposed") {
     // Changed from planned to proposed
     const oldStart = formatDate(props.originalData.startDate) ?? t("overlay.notSet");
     const oldEnd = formatDate(props.originalData.endDate) ?? t("overlay.notSet");
@@ -570,12 +573,14 @@ const timelineStatusChangeMessage = computed(() => {
 });
 
 // Handle timeline status change
-function handleTimelineStatusChange(newIsProposed: boolean) {
-  localIsProposed.value = newIsProposed;
-  emit("update:isProposed", newIsProposed);
+function handleTimelineStatusChange(
+  newStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled",
+) {
+  localTimelineStatus.value = newStatus;
+  emit("update:timelineStatus", newStatus);
 
   // Update local form data based on timeline status
-  if (newIsProposed) {
+  if (newStatus === "proposed") {
     // Switching to proposed - clear planned dates
     flexibleStartDate.value = null;
     flexibleEndDate.value = null;

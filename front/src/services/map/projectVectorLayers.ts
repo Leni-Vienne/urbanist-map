@@ -463,6 +463,10 @@ export function getFeaturePropertyAsString(feature: RenderedMapFeature, key: str
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
+  // Find the first symbol layer in the basemap so we can render our points under the labels
+  const layers = mlMap.getStyle().layers;
+  const firstSymbolLayerId = layers?.find((layer) => layer.type === "symbol")?.id;
+
   // ── MVT source: project shapes + overlay footprints + points ──────────────
   mlMap.addSource("project-sources", {
     type: "vector",
@@ -472,210 +476,249 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     promoteId: { "overlay-footprints": "id", "project-shapes": "id", "project-points": "id" },
   });
 
-  mlMap.addLayer({
-    id: "project-shapes-fill",
-    type: "fill",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: ["==", ["geometry-type"], "Polygon"],
-    paint: {
-      "fill-color": getProjectLineColorExpression(),
-      "fill-opacity": 0.2,
+  mlMap.addLayer(
+    {
+      id: "project-shapes-fill",
+      type: "fill",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: {
+        "fill-color": getProjectLineColorExpression(),
+        "fill-opacity": 0.2,
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // Project geometry shapes (lines/polygons) — visible from zoom 9
-  mlMap.addLayer({
-    id: "project-shapes",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      "line-width": 3,
-      "line-dasharray": [4, 1.5],
+  mlMap.addLayer(
+    {
+      id: "project-shapes",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": 3,
+        "line-dasharray": [4, 1.5],
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // Proposed project shapes are overlaid as dashed lines.
-  mlMap.addLayer({
-    id: "project-shapes-proposed-dashed",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: getIsProposedFilterExpression(),
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      "line-width": 2,
-      "line-dasharray": [2, 1.5],
+  mlMap.addLayer(
+    {
+      id: "project-shapes-proposed-dashed",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: getIsProposedFilterExpression(),
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": 2,
+        "line-dasharray": [2, 1.5],
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // Hover highlight for project shapes.
-  mlMap.addLayer({
-    id: "project-shapes-hover-fill",
-    type: "fill",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-    paint: {
-      "fill-color": "#ffffff",
-      "fill-opacity": 0.4,
+  mlMap.addLayer(
+    {
+      id: "project-shapes-hover-fill",
+      type: "fill",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      paint: {
+        "fill-color": "#ffffff",
+        "fill-opacity": 0.4,
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
-  mlMap.addLayer({
-    id: "project-shapes-hover",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-    paint: {
-      "line-color": "#ffffff",
-      "line-width": 4,
-      "line-opacity": 0.8,
+  mlMap.addLayer(
+    {
+      id: "project-shapes-hover",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": 4,
+        "line-opacity": 0.8,
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
-  mlMap.addLayer({
-    id: "project-shapes-proposed-hover",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: [
-      "all",
-      getIsProposedFilterExpression(),
-      ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-    ],
-    paint: {
-      "line-color": "#ffffff",
-      "line-width": 4,
-      "line-opacity": 0.8,
-      "line-dasharray": [2, 1.5],
+  mlMap.addLayer(
+    {
+      id: "project-shapes-proposed-hover",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: [
+        "all",
+        getIsProposedFilterExpression(),
+        ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      ],
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": 4,
+        "line-opacity": 0.8,
+        "line-dasharray": [2, 1.5],
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // Overlay footprints — permanent border outline replacing CSS box-shadow hack
-  mlMap.addLayer({
-    id: "overlay-footprints",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "overlay-footprints",
-    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      "line-width": 1.5,
-      "line-opacity": 0.7,
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": 1.5,
+        "line-opacity": 0.7,
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // Proposed overlay footprints inherit proposed state from their parent project.
-  mlMap.addLayer({
-    id: "overlay-footprints-proposed-dashed",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "overlay-footprints",
-    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-    filter: getIsProposedFilterExpression(),
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      "line-width": 1.5,
-      "line-opacity": 0.7,
-      "line-dasharray": [2, 1.5],
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints-proposed-dashed",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: getIsProposedFilterExpression(),
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": 1.5,
+        "line-opacity": 0.7,
+        "line-dasharray": [2, 1.5],
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
-  mlMap.addLayer({
-    id: "overlay-footprints-hover",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "overlay-footprints",
-    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-    filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-    paint: {
-      "line-color": "#ffffff",
-      "line-width": 3.5,
-      "line-opacity": 0.9,
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints-hover",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": 3.5,
+        "line-opacity": 0.9,
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
-  mlMap.addLayer({
-    id: "overlay-footprints-proposed-hover",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "overlay-footprints",
-    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-    filter: [
-      "all",
-      getIsProposedFilterExpression(),
-      ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-    ],
-    paint: {
-      "line-color": "#ffffff",
-      "line-width": 3.5,
-      "line-opacity": 0.9,
-      "line-dasharray": [2, 1.5],
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints-proposed-hover",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: [
+        "all",
+        getIsProposedFilterExpression(),
+        ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      ],
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": 3.5,
+        "line-opacity": 0.9,
+        "line-dasharray": [2, 1.5],
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
-  mlMap.addLayer({
-    id: "project-shapes-points",
-    type: "circle",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-    filter: ["==", ["geometry-type"], "Point"],
-    paint: {
-      "circle-color": getProjectLineColorExpression(),
-      "circle-radius": 6,
-      "circle-stroke-width": 1.5,
-      "circle-stroke-color": "#ffffff",
+  mlMap.addLayer(
+    {
+      id: "project-shapes-points",
+      type: "circle",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: ["==", ["geometry-type"], "Point"],
+      paint: {
+        "circle-color": getProjectLineColorExpression(),
+        "circle-radius": 6,
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "#ffffff",
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // Individual MVT points
-  mlMap.addLayer({
-    id: "project-points",
-    type: "circle",
-    source: "project-sources",
-    "source-layer": "project-points",
-    minzoom: PROJECT_POINTS_MIN_ZOOM,
-    maxzoom: PROJECT_POINTS_MAX_ZOOM,
-    paint: {
-      "circle-color": getProjectPointColorExpression(),
-      "circle-radius": 6,
-      "circle-stroke-width": 1.5,
-      "circle-stroke-color": "#ffffff",
+  mlMap.addLayer(
+    {
+      id: "project-points",
+      type: "circle",
+      source: "project-sources",
+      "source-layer": "project-points",
+      minzoom: PROJECT_POINTS_MIN_ZOOM,
+      maxzoom: PROJECT_POINTS_MAX_ZOOM,
+      paint: {
+        "circle-color": getProjectPointColorExpression(),
+        "circle-radius": 6,
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "#ffffff",
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // MVT point hover
-  mlMap.addLayer({
-    id: "project-points-hover",
-    type: "circle",
-    source: "project-sources",
-    "source-layer": "project-points",
-    minzoom: PROJECT_POINTS_MIN_ZOOM,
-    filter: ["==", ["get", "id"], HOVER_NONE_ID],
-    maxzoom: PROJECT_POINTS_MAX_ZOOM,
-    paint: {
-      "circle-color": [
-        "case",
-        ["==", ["get", "is_pending"], true],
-        "#fb923c", // Tailwind orange-400 (lighter hover)
-        getProjectPointColorExpression(),
-      ],
-      "circle-radius": 8, // larger to indicate hover
-      "circle-stroke-width": 2,
-      "circle-stroke-color": "#ffffff",
+  mlMap.addLayer(
+    {
+      id: "project-points-hover",
+      type: "circle",
+      source: "project-sources",
+      "source-layer": "project-points",
+      minzoom: PROJECT_POINTS_MIN_ZOOM,
+      filter: ["==", ["get", "id"], HOVER_NONE_ID],
+      maxzoom: PROJECT_POINTS_MAX_ZOOM,
+      paint: {
+        "circle-color": [
+          "case",
+          ["==", ["get", "is_pending"], true],
+          "#fb923c", // Tailwind orange-400 (lighter hover)
+          getProjectPointColorExpression(),
+        ],
+        "circle-radius": 8, // larger to indicate hover
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#ffffff",
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // ── Pending points GeoJSON source ──
   mlMap.addSource("pending-project-points-source", {
@@ -687,32 +730,38 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     promoteId: "id",
   });
 
-  mlMap.addLayer({
-    id: "pending-project-points",
-    type: "circle",
-    source: "pending-project-points-source",
-    maxzoom: PROJECT_POINTS_MAX_ZOOM,
-    paint: {
-      "circle-color": "#f97316", // Tailwind orange-500
-      "circle-radius": 6,
-      "circle-stroke-width": 1.5,
-      "circle-stroke-color": "#ffffff",
+  mlMap.addLayer(
+    {
+      id: "pending-project-points",
+      type: "circle",
+      source: "pending-project-points-source",
+      maxzoom: PROJECT_POINTS_MAX_ZOOM,
+      paint: {
+        "circle-color": "#f97316", // Tailwind orange-500
+        "circle-radius": 6,
+        "circle-stroke-width": 1.5,
+        "circle-stroke-color": "#ffffff",
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
-  mlMap.addLayer({
-    id: "pending-project-points-hover",
-    type: "circle",
-    source: "pending-project-points-source",
-    filter: ["==", ["get", "id"], HOVER_NONE_ID],
-    maxzoom: PROJECT_POINTS_MAX_ZOOM,
-    paint: {
-      "circle-color": "#fb923c", // Tailwind orange-400
-      "circle-radius": 8,
-      "circle-stroke-width": 2,
-      "circle-stroke-color": "#ffffff",
+  mlMap.addLayer(
+    {
+      id: "pending-project-points-hover",
+      type: "circle",
+      source: "pending-project-points-source",
+      filter: ["==", ["get", "id"], HOVER_NONE_ID],
+      maxzoom: PROJECT_POINTS_MAX_ZOOM,
+      paint: {
+        "circle-color": "#fb923c", // Tailwind orange-400
+        "circle-radius": 8,
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#ffffff",
+      },
     },
-  });
+    firstSymbolLayerId,
+  );
 
   // Apply current tag filters to MVT layers
   applyTagFiltersToVectorLayers(mlMap);

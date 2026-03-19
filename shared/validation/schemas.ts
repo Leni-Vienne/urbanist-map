@@ -14,7 +14,7 @@ export const projectSchema = z
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
       .optional(),
-    cityId: z.number({ message: "validation.cityRequired" }),
+    cityId: z.number({ message: "validation.cityRequired" }).nullable().optional(),
     lat: z
       .number({ message: "validation.invalidLatitude" })
       .min(-90, "validation.invalidLatitude")
@@ -29,6 +29,10 @@ export const projectSchema = z
     startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
     endDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
     endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+    timelineStatus: z
+      .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
+      .optional()
+      .default("proposed"),
     sourceUrl: z
       .string()
       .url("validation.invalidUrl")
@@ -142,7 +146,10 @@ const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   proposalDatePrecision: z.enum(["year", "month", "day"]).nullable(),
   startDatePrecision: z.enum(["year", "month", "day"]).nullable(),
   endDatePrecision: z.enum(["year", "month", "day"]).nullable(),
-  cityId: z.number().int().positive(),
+  timelineStatus: z
+    .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
+    .optional(),
+  cityId: z.number().int().positive().nullable().optional(),
   geometry: GeoJSONGeometryCollectionSchema.nullable(),
   tags: z.array(z.string().max(50)).max(20).nullable(),
 };

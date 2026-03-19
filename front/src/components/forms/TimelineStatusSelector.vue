@@ -1,76 +1,55 @@
-﻿<template>
-  <!-- Reusable timeline status selector for project forms -->
-  <fieldset class="field">
-    <legend class="text-(--p-text-color-secondary) font-medium mb-2 block">
+<template>
+  <div class="field">
+    <label
+      :for="`${idPrefix}-status-select`"
+      class="text-(--p-text-color-secondary) font-medium mb-2 block"
+    >
       {{ $t("project.timelineStatus") }} *
-    </legend>
-    <div class="flex gap-4">
-      <!-- Planned status option -->
-      <div
-        class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-content-hover-background transition-colors"
-        :class="{
-          'border-primary-500': !modelValue,
-          'border-surface': modelValue,
-        }"
-        @click="handleSelect(false)"
-      >
-        <!-- RadioButton click triggers parent div handler -->
-        <RadioButton
-          :inputId="`${idPrefix}-status-planned`"
-          :name="`${idPrefix}-timelineStatus`"
-          :value="false"
-          :modelValue="modelValue"
-        />
-        <div class="flex-1">
-          <label :for="`${idPrefix}-status-planned`" class="font-medium cursor-pointer">{{
-            $t("timelineStatus.planned")
-          }}</label>
-          <div class="text-xs text-muted-color">
-            {{ $t("project.plannedDescription") }}
-          </div>
+    </label>
+    <Select
+      :id="`${idPrefix}-status-select`"
+      :modelValue="modelValue"
+      :options="statusOptions"
+      optionLabel="label"
+      optionValue="value"
+      class="w-full"
+      @update:modelValue="handleSelect"
+    >
+      <template #value="slotProps">
+        <div v-if="slotProps.value" class="flex flex-col">
+          <span>{{ getOptionLabel(slotProps.value) }}</span>
         </div>
-      </div>
-
-      <!-- Proposed status option -->
-      <div
-        class="flex items-center gap-2 flex-1 p-3 border rounded cursor-pointer hover:bg-content-hover-background transition-colors"
-        :class="{
-          'border-primary-500': modelValue,
-          'border-surface': !modelValue,
-        }"
-        @click="handleSelect(true)"
-      >
-        <!-- RadioButton click triggers parent div handler -->
-        <RadioButton
-          :inputId="`${idPrefix}-status-proposed`"
-          :name="`${idPrefix}-timelineStatus`"
-          :value="true"
-          :modelValue="modelValue"
-        />
-        <div class="flex-1">
-          <label :for="`${idPrefix}-status-proposed`" class="font-medium cursor-pointer">{{
-            $t("project.proposed")
-          }}</label>
-          <div class="text-xs text-muted-color">
-            {{ $t("project.proposedDescription") }}
-          </div>
+      </template>
+      <template #option="slotProps">
+        <div class="flex flex-col py-1">
+          <div class="font-medium">{{ slotProps.option.label }}</div>
+          <div class="text-xs text-muted-color">{{ slotProps.option.description }}</div>
         </div>
-      </div>
-    </div>
-  </fieldset>
+      </template>
+    </Select>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import Select from "primevue/select";
+
+export type TimelineStatus =
+  | "proposed"
+  | "planned"
+  | "under_construction"
+  | "completed"
+  | "canceled";
+
 interface Props {
-  // v-model value - true for proposed, false for planned
-  modelValue: boolean;
-  // Unique prefix for input IDs to avoid conflicts when multiple instances exist
+  modelValue: TimelineStatus;
   idPrefix?: string;
 }
 
 interface Emits {
-  (e: "update:modelValue", value: boolean): void;
-  (e: "change", value: boolean): void;
+  (e: "update:modelValue", value: TimelineStatus): void;
+  (e: "change", value: TimelineStatus): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -78,9 +57,38 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
+const { t } = useI18n();
 
-function handleSelect(isProposed: boolean) {
-  emit("update:modelValue", isProposed);
-  emit("change", isProposed);
+const statusOptions = computed(() => [
+  {
+    value: "proposed",
+    label: t("timelineStatus.proposed"),
+    description: t("timelineStatus.proposedDescription"),
+  },
+  {
+    value: "planned",
+    label: t("timelineStatus.planned"),
+    description: t("timelineStatus.plannedDescription"),
+  },
+  {
+    value: "under_construction",
+    label: t("timelineStatus.under_construction"),
+    description: t("timelineStatus.under_constructionDescription"),
+  },
+]);
+
+function getOptionLabel(value: string) {
+  const option = statusOptions.value.find((opt) => opt.value === value);
+  // Fallback for options not in the array (e.g. if editing a completed project)
+  if (!option) {
+    return t(`timelineStatus.${value}`);
+  }
+  return option.label;
+}
+
+function handleSelect(status: string) {
+  const typedStatus = status as TimelineStatus;
+  emit("update:modelValue", typedStatus);
+  emit("change", typedStatus);
 }
 </script>

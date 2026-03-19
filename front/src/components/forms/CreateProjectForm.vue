@@ -4,11 +4,11 @@
       ref="formFieldsRef"
       :form-data="formData"
       :show-latest-update-field="false"
-      :is-proposed="isProposed"
+      :timeline-status="timelineStatus"
       :prefilled-city="props.project.city"
       :marker-coordinates="markerCoordinates"
       id-prefix="create"
-      @update:is-proposed="isProposed = $event"
+      @update:timeline-status="timelineStatus = $event"
       @update:form-data="Object.assign(formData, $event)"
       @city-change="handleCityChange"
     />
@@ -32,7 +32,9 @@ const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null);
 
 const formData = reactive<ProjectFormData>(projectToFormData(props.project));
 
-const isProposed = ref(false);
+const timelineStatus = ref<
+  "proposed" | "planned" | "under_construction" | "completed" | "canceled"
+>("proposed");
 
 const emit = defineEmits<{ cancel: []; submit: [project: Partial<Project>] }>();
 
@@ -63,17 +65,19 @@ function handleSubmit() {
   const cities = formFieldsRef.value?.cities ?? [];
   const citiesLoaded = formFieldsRef.value?.citiesLoaded ?? false;
 
-  if (!validateProjectForm(formData, isProposed.value, cities, citiesLoaded)) return;
+  if (!validateProjectForm(formData, timelineStatus.value, cities, citiesLoaded)) return;
 
   const result: Partial<Project> = {
     ...props.project,
     ...formDataToProjectFields(formData),
-    proposalDate: isProposed.value ? formData.proposalDate : null,
-    proposalDatePrecision: isProposed.value ? formData.proposalDatePrecision : null,
-    startDate: isProposed.value ? null : formData.startDate,
-    startDatePrecision: isProposed.value ? null : formData.startDatePrecision,
-    endDate: isProposed.value ? null : formData.endDate,
-    endDatePrecision: isProposed.value ? null : formData.endDatePrecision,
+    timelineStatus: timelineStatus.value,
+    proposalDate: timelineStatus.value === "proposed" ? formData.proposalDate : null,
+    proposalDatePrecision:
+      timelineStatus.value === "proposed" ? formData.proposalDatePrecision : null,
+    startDate: timelineStatus.value === "proposed" ? null : formData.startDate,
+    startDatePrecision: timelineStatus.value === "proposed" ? null : formData.startDatePrecision,
+    endDate: timelineStatus.value === "proposed" ? null : formData.endDate,
+    endDatePrecision: timelineStatus.value === "proposed" ? null : formData.endDatePrecision,
   };
 
   // Include city object if available

@@ -98,7 +98,7 @@ export interface Country extends DBCountry {
 export type PendingChangeRequest =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
 
-export type LatestContribution = RouterOutput["overlay"]["getLatestContributions"][number];
+export type LatestContribution = RouterOutput["feed"]["getLatestContributions"][number];
 
 // Base runtime project type - extends DB schema with computed fields
 export interface Project extends Omit<DBProject, "status" | "tags"> {
@@ -125,6 +125,7 @@ export interface ProjectFormData {
   cityId: number | null;
   sourceUrl: string | null;
   tags: string[];
+  timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled";
 }
 
 // Import shared overlay data type
@@ -224,10 +225,13 @@ type BackendUserContribution = RouterOutput["project"]["getUsersContributions"][
 
 export type UserContributionOverlay = Omit<
   BackendUserContribution["overlays"][number],
-  "status" | "cityId"
+  "status" | "cityId" | "cityName" | "countryCode" | "countryName"
 > & {
   status: ApprovalStatus | null;
   cityId: number | null; // Override: cityId is now nullable for imported projects
+  cityName: string | null;
+  countryCode: string | null;
+  countryName: string | null;
   // Frontend-specific fields added by factories
   imageUrl?: string;
   authorUsername?: string | null;

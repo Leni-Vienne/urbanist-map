@@ -22,7 +22,7 @@ export function useLatestContributions() {
     latestContributionsLoading.value = true;
     try {
       const result = await withErrorHandling(
-        async () => trpc.overlay.getLatestContributions.query({ limit: 20 }),
+        async () => trpc.feed.getLatestContributions.query({ limit: 20 }),
         { errorMessage: "Failed to load latest contributions. Please refresh the page." },
       );
 

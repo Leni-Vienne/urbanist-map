@@ -7,7 +7,7 @@
         :original-data="form.originalData"
         :show-change-indicators="true"
         :show-latest-update-field="true"
-        :is-proposed="isProposed"
+        :timeline-status="timelineStatus"
         :prefilled-city="project.city"
         :marker-coordinates="markerCoordinates"
         :field-classes="
@@ -15,7 +15,7 @@
         "
         :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
         id-prefix="edit"
-        @update:is-proposed="isProposed = $event"
+        @update:timeline-status="timelineStatus = $event"
         @update:form-data="Object.assign(form.formData, $event)"
       />
 
@@ -57,6 +57,7 @@ import { useEditableProjectForm } from "@/composables/forms/useEditableProjectFo
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { Project, ProjectFormData } from "@/types/index";
+import { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";
 
 const props = defineProps<{ project: Project }>();
@@ -70,9 +71,7 @@ const markerCoordinates =
     ? { lat: props.project.lat, lng: props.project.lng }
     : null;
 
-const isProposed = ref(
-  Boolean(props.project.proposalDate && !props.project.startDate && !props.project.endDate),
-);
+const timelineStatus = ref<TimelineStatus>(props.project.timelineStatus ?? "proposed");
 
 // Get original backend project if available (for comparison baseline)
 // Uses centralized helper that checks both originalBackendProjects and originalUserContributions

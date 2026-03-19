@@ -147,7 +147,7 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
     .select(overlaySelectFields)
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
@@ -197,7 +197,7 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
       city: cities,
     })
     .from(projects)
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
@@ -228,7 +228,7 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code))
     .leftJoin(users, eq(overlays.authorId, users.id));
 }
@@ -249,7 +249,7 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
       countryName: countries.name,
     })
     .from(projects)
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code))
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
@@ -835,7 +835,7 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     })
     .from(overlays)
     .innerJoin(projects, eq(projects.id, overlays.projectId))
-    .innerJoin(cities, eq(cities.id, projects.cityId))
+    .leftJoin(cities, eq(cities.id, projects.cityId))
     .where(and(...whereConditions))
     .orderBy(overlays.createdAt);
 }

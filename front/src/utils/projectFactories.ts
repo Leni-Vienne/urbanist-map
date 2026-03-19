@@ -55,12 +55,12 @@ export function createProjectFromOverlayData(
     createdAt: projectInfo?.createdAt ?? overlayData.createdAt,
     updatedAt: projectInfo?.updatedAt ?? overlayData.updatedAt,
     version: projectInfo?.version ?? overlayData.version,
-    countryCode: projectInfo?.city.countryCode ?? selectedCity.countryCode ?? null,
+    countryCode: projectInfo?.city?.countryCode ?? selectedCity.countryCode ?? null,
     countryName: getCountryName(
-      projectInfo?.city.countryCode ?? selectedCity.countryCode,
+      projectInfo?.city?.countryCode ?? selectedCity.countryCode,
       countries,
     ),
-    cityName: projectInfo?.city.name ?? selectedCity.name,
+    cityName: projectInfo?.city?.name ?? selectedCity.name,
     overlays: [],
   };
 }
@@ -87,8 +87,8 @@ export function createOverlayForModeration(
     authorUsername: undefined,
     authorReportCount: undefined,
     cityId: overlayData.project?.cityId ?? selectedCity.id,
-    cityName: overlayData.project?.city.name ?? selectedCity.name,
-    countryCode: overlayData.project?.city.countryCode ?? selectedCity.countryCode ?? null,
+    cityName: overlayData.project?.city?.name ?? selectedCity.name,
+    countryCode: overlayData.project?.city?.countryCode ?? selectedCity.countryCode ?? null,
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,
     replacedByOverlayId: overlayData.replacedByOverlayId,
@@ -112,7 +112,7 @@ export function createLocalOverlayContribution(
   },
   parentProject: {
     cityId: number | null;
-    cityName: string;
+    cityName: string | null;
     countryCode: string | null;
     countryName: string | null;
   },
@@ -151,7 +151,7 @@ export function createLocalProjectContribution(
     description: string | null;
     ownerId: string | null;
     cityId: number | null;
-    city: { name: string; countryCode: string };
+    city: { name: string; countryCode: string } | null;
     lat: number | null;
     lng: number | null;
     proposalDate: Date | null;
@@ -160,7 +160,13 @@ export function createLocalProjectContribution(
     startDatePrecision?: "year" | "month" | "day" | null;
     endDate: Date | null;
     endDatePrecision?: "year" | "month" | "day" | null;
-    timelineStatus?: string | null;
+    timelineStatus?:
+      | "proposed"
+      | "planned"
+      | "under_construction"
+      | "completed"
+      | "canceled"
+      | null;
     importSourceId?: string | null;
     externalId?: string | null;
     externalProperties?: any;
@@ -184,8 +190,8 @@ export function createLocalProjectContribution(
     overlay,
     {
       cityId: localProject.cityId,
-      cityName: localProject.city.name,
-      countryCode: localProject.city.countryCode,
+      cityName: localProject.city?.name ?? null,
+      countryCode: localProject.city?.countryCode ?? null,
       countryName: null,
     },
     username,
@@ -202,15 +208,15 @@ export function createLocalProjectContribution(
     ownerApprovedCount: null,
     ownerRejectedCount: null,
     cityId: localProject.cityId,
-    cityName: localProject.city.name,
-    countryCode: localProject.city.countryCode,
+    cityName: localProject.city?.name ?? null,
+    countryCode: localProject.city?.countryCode ?? null,
     countryName: null,
     lat: localProject.lat,
     lng: localProject.lng,
     city: {
       id: localProject.cityId ?? 0,
-      name: localProject.city.name,
-      countryCode: localProject.city.countryCode,
+      name: localProject.city?.name ?? "",
+      countryCode: localProject.city?.countryCode ?? "",
       nameLocal: null, // Default for local project
       coordinates: { x: 0, y: 0 },
       approvedProjectCount: 0,
@@ -223,13 +229,7 @@ export function createLocalProjectContribution(
     startDatePrecision: localProject.startDatePrecision ?? null,
     endDate: localProject.endDate,
     endDatePrecision: localProject.endDatePrecision ?? null,
-    timelineStatus:
-      (localProject.timelineStatus as
-        | "proposed"
-        | "planned"
-        | "under_construction"
-        | "completed"
-        | "canceled") ?? "proposed",
+    timelineStatus: localProject.timelineStatus ?? "proposed",
     importSourceId: localProject.importSourceId ?? null,
     externalId: localProject.externalId ?? null,
     externalProperties: localProject.externalProperties ?? null,

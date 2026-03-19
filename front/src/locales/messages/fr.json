@@ -97,6 +97,7 @@
     "endsIn": "Se termine en",
     "endsOn": "Se termine le",
     "locationRequired": "La localisation est requise",
+    "invalidLocation": "Emplacement invalide sélectionné",
     "timelineChangedFromProposedToPlanned": "Statut chronologique changé de Proposé ({proposalDate}) à Prévu",
     "timelineChangedFromPlannedToProposed": "Statut chronologique changé de Prévu ({startDate} à {endDate}) à Proposé",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
@@ -131,10 +132,15 @@
   },
   "timelineStatus": {
     "proposed": "Proposé",
+    "proposedDescription": "Projet non confirmé, dates non fixées",
     "planned": "Planifié",
+    "plannedDescription": "Projet confirmé avec dates programmées",
     "under_construction": "En construction",
+    "under_constructionDescription": "Le projet est en cours de construction",
     "completed": "Terminé",
-    "canceled": "Annulé"
+    "completedDescription": "La construction est terminée",
+    "canceled": "Annulé",
+    "canceledDescription": "Le projet a été annulé"
   },
   "help": {
     "filters": {

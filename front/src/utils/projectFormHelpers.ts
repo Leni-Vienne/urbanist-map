@@ -24,6 +24,7 @@ export function projectToFormData(p: {
   cityId?: number | null;
   sourceUrl?: string | null;
   tags?: string[] | null;
+  timelineStatus?: string | null;
 }): ProjectFormData {
   return {
     name: p.name ?? "",
@@ -37,6 +38,13 @@ export function projectToFormData(p: {
     cityId: p.cityId ?? null,
     sourceUrl: p.sourceUrl || null,
     tags: p.tags ?? [],
+    timelineStatus:
+      (p.timelineStatus as
+        | "proposed"
+        | "planned"
+        | "under_construction"
+        | "completed"
+        | "canceled") ?? "proposed",
   };
 }
 
@@ -57,5 +65,6 @@ export function formDataToProjectFields(f: ProjectFormData): Partial<Project> {
     cityId: f.cityId ?? undefined,
     sourceUrl: f.sourceUrl ?? null,
     tags: f.tags,
+    timelineStatus: f.timelineStatus,
   };
 }

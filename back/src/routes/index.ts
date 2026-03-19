@@ -8,6 +8,7 @@ import { changesRouter } from "./changes";
 import { authRouter } from "./auth";
 import { adminRouter } from "./admin";
 import { viewportRouter } from "./viewport";
+import { feedRouter } from "./feed";
 
 // Main router that combines all sub-routers
 export const appRouter = router({
@@ -20,6 +21,7 @@ export const appRouter = router({
   changes: changesRouter,
   admin: adminRouter,
   viewport: viewportRouter,
+  feed: feedRouter,
 });
 
 // Export types

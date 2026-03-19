@@ -85,13 +85,13 @@ export function createProjectFromUserContribution(contribution: UserContribution
     city: contribution.cityId
       ? {
           id: contribution.cityId,
-          name: contribution.cityName ?? contribution.city.name,
-          nameLocal: contribution.city.nameLocal ?? null,
-          countryCode: contribution.countryCode ?? contribution.city.countryCode ?? "XX",
+          name: contribution.cityName ?? contribution.city?.name ?? "",
+          nameLocal: contribution.city?.nameLocal ?? null,
+          countryCode: contribution.countryCode ?? contribution.city?.countryCode ?? "XX",
           coordinates: { x: contribution.lng ?? 0, y: contribution.lat ?? 0 },
           approvedProjectCount: 0,
-          createdAt: contribution.city.createdAt,
-          updatedAt: contribution.city.updatedAt,
+          createdAt: contribution.city?.createdAt ?? new Date(),
+          updatedAt: contribution.city?.updatedAt ?? new Date(),
         }
       : undefined,
     status: contribution.status,
