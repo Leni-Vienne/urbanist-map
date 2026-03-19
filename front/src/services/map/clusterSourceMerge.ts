@@ -1,5 +1,5 @@
 /**
- * clusterSourceMerge.ts — augments the MapLibre cluster source with pending projects.
+ * clusterSourceMerge.ts - augments the MapLibre cluster source with pending projects.
  *
  * In edit/moderation modes, the base /api/projects/points FeatureCollection only
  * contains approved projects. This module merges in pending/user-owned projects
@@ -47,6 +47,74 @@ export async function updateGlobalPendingPoints(mode: AppMode): Promise<void> {
 }
 
 /**
+ * Create a GeoJSON Feature for a project point
+ */
+function createProjectFeature(
+  project: {
+    id: string;
+    lat: number;
+    lng: number;
+    name: string;
+    tags: string[] | null;
+  },
+  isPending: boolean,
+): GeoJSON.Feature {
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: [project.lng, project.lat],
+    },
+    properties: {
+      id: project.id,
+      name: project.name,
+      tags: project.tags,
+      is_pending: isPending,
+    },
+  };
+}
+
+/**
+ * Add a project to the pending projects map if it meets criteria
+ */
+function addProjectToMap(
+  project: {
+    id: string;
+    lat: number | null;
+    lng: number | null;
+    name: string;
+    tags: string[] | null;
+  },
+  isPending: boolean,
+  pendingProjects: Map<string, GeoJSON.Feature>,
+  baseProjectIds: Set<string>,
+  baseProjectsToOverride: Set<string>,
+): void {
+  if (!project.lat || !project.lng) return;
+
+  if (baseProjectIds.has(project.id)) {
+    if (isPending) baseProjectsToOverride.add(project.id);
+    return;
+  }
+
+  if (pendingProjects.has(project.id)) return;
+
+  pendingProjects.set(
+    project.id,
+    createProjectFeature(
+      {
+        id: project.id,
+        lat: project.lat,
+        lng: project.lng,
+        name: project.name,
+        tags: project.tags,
+      },
+      isPending,
+    ),
+  );
+}
+
+/**
  * Merge pending projects from bbox fetch into the cluster source.
  * Call after each viewport fetch in edit/moderation modes.
  * Call with empty arrays when switching to view mode to restore the base source.
@@ -91,79 +159,19 @@ export function mergeProjectPointsForMode(
     const project = overlay.project;
     if (!project?.lat || !project.lng) continue;
     const isPending = project.status !== "approved" || overlay.status !== "approved";
-
-    if (baseProjectIds.has(project.id)) {
-      if (isPending) baseProjectsToOverride.add(project.id);
-      continue;
-    }
-    if (pendingProjects.has(project.id)) continue;
-
-    pendingProjects.set(project.id, {
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [project.lng, project.lat],
-      },
-      properties: {
-        id: project.id,
-        name: project.name,
-        tags: project.tags,
-        is_pending: isPending,
-      },
-    });
+    addProjectToMap(project, isPending, pendingProjects, baseProjectIds, baseProjectsToOverride);
   }
 
   // Extract projects from standalone projects data
   for (const project of projectsData) {
-    if (!project.lat || !project.lng) continue;
     const isPending = project.status !== "approved";
-
-    if (baseProjectIds.has(project.id)) {
-      if (isPending) baseProjectsToOverride.add(project.id);
-      continue;
-    }
-    if (pendingProjects.has(project.id)) continue;
-
-    pendingProjects.set(project.id, {
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [project.lng, project.lat],
-      },
-      properties: {
-        id: project.id,
-        name: project.name,
-        tags: project.tags,
-        is_pending: isPending,
-      },
-    });
+    addProjectToMap(project, isPending, pendingProjects, baseProjectIds, baseProjectsToOverride);
   }
 
   // Extract projects from global pending points
   for (const project of globalPendingPoints) {
-    if (!project.lat || !project.lng) continue;
-    // By definition, global pending points contain some pending element
-    const isPending = true;
-
-    if (baseProjectIds.has(project.id)) {
-      baseProjectsToOverride.add(project.id);
-      continue;
-    }
-    if (pendingProjects.has(project.id)) continue;
-
-    pendingProjects.set(project.id, {
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [project.lng, project.lat],
-      },
-      properties: {
-        id: project.id,
-        name: project.name,
-        tags: project.tags,
-        is_pending: isPending,
-      },
-    });
+    const isPending = true; // By definition, global pending points contain some pending element
+    addProjectToMap(project, isPending, pendingProjects, baseProjectIds, baseProjectsToOverride);
   }
 
   // If no pending projects to add or override, just use the base source

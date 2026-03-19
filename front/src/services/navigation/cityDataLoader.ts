@@ -12,7 +12,7 @@ import type { AppMode } from "@shared/types";
 export async function fetchCityOverlaysOrCache(
   cityId: number,
   mode: AppMode,
-): Promise<OverlayData[] | null> {
+): Promise<OverlayData[]> {
   const mapStore = useMapStore();
   let overlaysData = mapStore.getCityOverlaysAndProjectsCache(cityId, mode);
 

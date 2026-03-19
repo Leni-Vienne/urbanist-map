@@ -14,6 +14,7 @@ import { projects, importSources, type TimelineStatus } from "../db/schema";
 import { sql, eq } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { EXTENDED_OSM_RULES } from "@shared/osmRules";
 
 const GEOJSON_PATHS = [
   path.join(process.cwd(), "../osm/germany-latest_proposed_linear.geojson"),
@@ -49,132 +50,8 @@ function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
 }
 
 // ---------------------------------------------------------------------------
-// OSM → tag mapping (mirrors front/src/config/projectTags.ts)
+// OSM → tag mapping (uses shared rules from @shared/osmRules)
 // ---------------------------------------------------------------------------
-interface OsmRule {
-  key: string;
-  values?: string[];
-  tag: string;
-}
-
-const OSM_RULES: OsmRule[] = [
-  // --- Tram ---
-  { key: "railway", values: ["tram"], tag: "tram" },
-  { key: "route", values: ["tram"], tag: "tram" },
-  { key: "construction", values: ["tram"], tag: "tram" },
-  { key: "proposed", values: ["tram"], tag: "tram" },
-  { key: "transport_type", values: ["tram"], tag: "tram" },
-
-  // --- Light rail ---
-  { key: "railway", values: ["light_rail"], tag: "light_rail" },
-  { key: "route", values: ["light_rail"], tag: "light_rail" },
-  { key: "construction", values: ["light_rail"], tag: "light_rail" },
-  { key: "proposed", values: ["light_rail"], tag: "light_rail" },
-  { key: "transport_type", values: ["light_rail"], tag: "light_rail" },
-
-  // --- Subway / Metro ---
-  { key: "railway", values: ["subway"], tag: "subway" },
-  { key: "route", values: ["subway"], tag: "subway" },
-  { key: "construction", values: ["subway"], tag: "subway" },
-  { key: "proposed", values: ["subway"], tag: "subway" },
-  { key: "transport_type", values: ["subway"], tag: "subway" },
-
-  // --- Rail (heavy rail, narrow gauge, monorail) ---
-  { key: "railway", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
-  { key: "route", values: ["train", "railway"], tag: "rail" },
-  { key: "construction", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
-  { key: "proposed", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
-  {
-    key: "transport_type",
-    values: ["rail", "narrow_gauge", "monorail", "miniature"],
-    tag: "rail",
-  },
-
-  // --- Cable car / aerial / funicular ---
-  {
-    key: "aerialway",
-    values: ["cable_car", "gondola", "funicular", "chair_lift", "mixed_lift", "drag_lift"],
-    tag: "cable_car",
-  },
-  { key: "route", values: ["funicular"], tag: "cable_car" },
-  {
-    key: "construction",
-    values: ["cable_car", "gondola", "funicular", "chair_lift"],
-    tag: "cable_car",
-  },
-  {
-    key: "proposed",
-    values: ["cable_car", "gondola", "funicular", "chair_lift"],
-    tag: "cable_car",
-  },
-  { key: "transport_type", values: ["cable_car", "gondola", "funicular"], tag: "cable_car" },
-
-  // --- Bus / BRT ---
-  { key: "construction", values: ["bus", "trolleybus", "bus_guideway"], tag: "bus" },
-  { key: "proposed", values: ["bus", "trolleybus", "bus_guideway"], tag: "bus" },
-  { key: "route", values: ["bus", "trolleybus"], tag: "bus" },
-  { key: "amenity", values: ["bus_station"], tag: "bus" },
-  { key: "highway", values: ["bus_guideway"], tag: "bus" },
-  { key: "transport_type", values: ["bus"], tag: "bus" },
-
-  // --- Cycling / bike ---
-  { key: "construction", values: ["bicycle", "cycleway"], tag: "bike" },
-  { key: "proposed", values: ["bicycle", "cycleway"], tag: "bike" },
-  { key: "route", values: ["bicycle", "mtb"], tag: "bike" },
-  { key: "highway", values: ["cycleway"], tag: "bike" },
-  { key: "bicycle", values: ["yes", "designated"], tag: "bike" },
-  { key: "transport_type", values: ["bike"], tag: "bike" },
-
-  // --- Pedestrian ---
-  { key: "construction", values: ["pedestrian", "footway", "path"], tag: "pedestrian" },
-  { key: "proposed", values: ["pedestrian", "footway", "path"], tag: "pedestrian" },
-  { key: "highway", values: ["pedestrian", "footway", "path"], tag: "pedestrian" },
-  { key: "transport_type", values: ["pedestrian"], tag: "pedestrian" },
-
-  // --- Road ---
-  {
-    key: "highway",
-    values: [
-      "motorway",
-      "trunk",
-      "primary",
-      "secondary",
-      "tertiary",
-      "residential",
-      "unclassified",
-    ],
-    tag: "road",
-  },
-  { key: "route", values: ["road"], tag: "road" },
-  { key: "transport_type", values: ["road"], tag: "road" },
-
-  // --- Waterway ---
-  { key: "waterway", tag: "waterway" },
-  { key: "natural", values: ["water", "bay", "strait"], tag: "waterway" },
-  { key: "man_made", values: ["pier", "dam"], tag: "waterway" },
-  { key: "transport_type", values: ["waterway"], tag: "waterway" },
-
-  // --- Park / green ---
-  {
-    key: "leisure",
-    values: ["park", "garden", "playground", "sports_centre", "recreation_ground"],
-    tag: "park",
-  },
-  {
-    key: "landuse",
-    values: ["forest", "grass", "recreation_ground", "meadow", "greenfield"],
-    tag: "park",
-  },
-
-  // --- Building / urban development ---
-  { key: "building", tag: "building" },
-  {
-    key: "landuse",
-    values: ["construction", "commercial", "residential", "retail", "industrial"],
-    tag: "building",
-  },
-];
-
 function extractTags(props: Record<string, unknown>): string[] {
   const found = new Set<string>();
 
@@ -202,9 +79,9 @@ function extractTags(props: Record<string, unknown>): string[] {
     }
   }
 
-  // Then apply OSM rules to capture secondary tags (like parks or buildings)
+  // Then apply shared OSM rules to capture secondary tags (like parks or buildings)
   // or catch anything that didn't have a clean transport_type
-  for (const rule of OSM_RULES) {
+  for (const rule of EXTENDED_OSM_RULES) {
     const val = props[rule.key];
     if (val === undefined || val === null || val === "") continue;
     const strVal = String(val);
