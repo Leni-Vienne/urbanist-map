@@ -9,21 +9,18 @@ export const tilesApp = new Hono();
 //   - overlay-footprints: approved overlay corners as polygon outlines
 tilesApp.get("/projects/:z/:x/:y", async (c) => {
   try {
-    const z = Number.parseInt(c.req.param("z"), 10);
-    const x = Number.parseInt(c.req.param("x"), 10);
-    const y = Number.parseInt(c.req.param("y"), 10);
+    const z = parseInt(c.req.param("z"), 10);
+    const x = parseInt(c.req.param("x"), 10);
+    const y = parseInt(c.req.param("y"), 10);
 
-    if (
-      Number.isNaN(z) ||
-      Number.isNaN(x) ||
-      Number.isNaN(y) ||
-      z < 0 ||
-      z > 22 ||
-      x < 0 ||
-      y < 0
-    ) {
+    if (isNaN(z) || isNaN(x) || isNaN(y) || z < 0 || z > 22 || x < 0 || y < 0) {
       return c.json({ error: "Invalid tile coordinates" }, 400);
     }
+
+    const includeBuildings = c.req.query("include_buildings") === "true";
+    const buildingFilter = includeBuildings
+      ? sqlClient``
+      : sqlClient`AND NOT ('building' = ANY(COALESCE(p.tags, ARRAY[]::text[])))`;
 
     const [row] = await sqlClient`
       WITH tile_env AS (
@@ -36,7 +33,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
         FROM (
           SELECT
             ST_AsMVTGeom(
-              ST_Transform(ST_SetSRID(COALESCE(p.geometry, ST_Point(p.lng, p.lat)), 4326), 3857),
+              ST_Transform(COALESCE(p.geometry, p.center_coordinate), 3857),
               te.bounds,
               4096, 64, true
             ) AS mvt_geom,
@@ -47,6 +44,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             p.timeline_status
           FROM projects p, tile_env te
           WHERE p.status = 'approved'
+            ${buildingFilter}
             AND (
               p.geometry IS NOT NULL 
               OR (
@@ -57,7 +55,11 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
                 )
               )
             )
-            AND ST_Intersects(ST_SetSRID(COALESCE(p.geometry, ST_Point(p.lng, p.lat)), 4326), te.bounds_4326)
+            AND (
+              (p.geometry IS NOT NULL AND ST_Intersects(p.geometry, te.bounds_4326))
+              OR
+              (p.geometry IS NULL AND ST_Intersects(p.center_coordinate, te.bounds_4326))
+            )
         ) q
         WHERE q.mvt_geom IS NOT NULL
       ),
@@ -66,7 +68,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
         FROM (
           SELECT
             ST_AsMVTGeom(
-              ST_Transform(ST_SetSRID(o.corners, 4326), 3857),
+              ST_Transform(o.corners, 3857),
               te.bounds,
               4096, 64, true
             ) AS mvt_geom,
@@ -88,7 +90,8 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
           JOIN projects p ON p.id = o.project_id,
           tile_env te
           WHERE o.status = 'approved'
-            AND ST_Intersects(ST_SetSRID(o.corners, 4326), te.bounds_4326)
+            ${buildingFilter}
+            AND ST_Intersects(o.corners, te.bounds_4326)
         ) q
         WHERE q.mvt_geom IS NOT NULL
       )
@@ -121,11 +124,15 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
 // Excludes projects with large geometry (>= 5km bbox diagonal) — those are
 // discoverable via the MVT project-shapes layer instead.
 // Fully public, aggressively cached.
-export async function handleProjectsPoints(): Promise<Response> {
+export async function handleProjectsPoints(includeBuildings: boolean = false): Promise<Response> {
   try {
+    const buildingFilter = includeBuildings
+      ? sqlClient``
+      : sqlClient`AND NOT ('building' = ANY(COALESCE(tags, ARRAY[]::text[])))`;
+
     const rows =
       await sqlClient` SELECT  id, lat, lng, timeline_status, COALESCE(tags, ARRAY[]::text[]) AS tags
-      FROM projects WHERE status = 'approved' AND lat IS NOT NULL AND lng IS NOT NULL  AND (geometry_size_m IS NULL OR geometry_size_m < 5000)`;
+      FROM projects WHERE status = 'approved' AND lat IS NOT NULL AND lng IS NOT NULL  AND (geometry_size_m IS NULL OR geometry_size_m < 5000) ${buildingFilter}`;
 
     // Compact format: array of [id, lat, lng, tags, timelineStatus]
     // Coordinates rounded to 5 decimal places (~1m precision)
