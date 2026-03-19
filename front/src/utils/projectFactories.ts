@@ -44,6 +44,12 @@ export function createProjectFromOverlayData(
     startDatePrecision: projectInfo?.startDatePrecision ?? null,
     endDate: projectInfo?.endDate ?? null,
     endDatePrecision: projectInfo?.endDatePrecision ?? null,
+    timelineStatus: projectInfo?.timelineStatus ?? "proposed",
+    importSourceId: projectInfo?.importSourceId ?? null,
+    externalId: projectInfo?.externalId ?? null,
+    externalProperties: projectInfo?.externalProperties ?? null,
+    externalLastModified: projectInfo?.externalLastModified ?? null,
+    lastImportedAt: projectInfo?.lastImportedAt ?? null,
     sourceUrl: projectInfo?.sourceUrl ?? null,
     tags: projectInfo?.tags ?? [],
     createdAt: projectInfo?.createdAt ?? overlayData.createdAt,
@@ -154,6 +160,12 @@ export function createLocalProjectContribution(
     startDatePrecision?: "year" | "month" | "day" | null;
     endDate: Date | null;
     endDatePrecision?: "year" | "month" | "day" | null;
+    timelineStatus?: string | null;
+    importSourceId?: string | null;
+    externalId?: string | null;
+    externalProperties?: any;
+    externalLastModified?: Date | null;
+    lastImportedAt?: Date | null;
     sourceUrl: string | null;
     tags?: string[] | null;
   },
@@ -211,6 +223,18 @@ export function createLocalProjectContribution(
     startDatePrecision: localProject.startDatePrecision ?? null,
     endDate: localProject.endDate,
     endDatePrecision: localProject.endDatePrecision ?? null,
+    timelineStatus:
+      (localProject.timelineStatus as
+        | "proposed"
+        | "planned"
+        | "under_construction"
+        | "completed"
+        | "canceled") ?? "proposed",
+    importSourceId: localProject.importSourceId ?? null,
+    externalId: localProject.externalId ?? null,
+    externalProperties: localProject.externalProperties ?? null,
+    externalLastModified: localProject.externalLastModified ?? null,
+    lastImportedAt: localProject.lastImportedAt ?? null,
     sourceUrl: localProject.sourceUrl ?? null,
     tags: localProject.tags ?? [],
     geometry: null,

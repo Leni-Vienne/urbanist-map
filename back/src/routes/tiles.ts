@@ -36,10 +36,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             p.name,
             COALESCE(p.tags, ARRAY[]::text[]) AS tags,
             COALESCE(p.tags[1], '') AS first_tag,
-            CASE
-              WHEN p.proposal_date IS NOT NULL AND p.start_date IS NULL THEN 1
-              ELSE 0
-            END AS is_proposed
+            p.timeline_status
           FROM projects p, tile_env te
           WHERE p.status = 'approved'
             AND (
@@ -70,10 +67,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
             o.caption,
             o.project_id,
             COALESCE(p.tags[1], '') AS first_tag,
-            CASE
-              WHEN p.proposal_date IS NOT NULL AND p.start_date IS NULL THEN 1
-              ELSE 0
-            END AS is_proposed,
+            p.timeline_status,
             ST_Y(ST_PointN(ST_ExteriorRing(o.corners), 1)) AS c0_lat,
             ST_X(ST_PointN(ST_ExteriorRing(o.corners), 1)) AS c0_lng,
             ST_Y(ST_PointN(ST_ExteriorRing(o.corners), 2)) AS c1_lat,
@@ -121,16 +115,18 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
 // Fully public, aggressively cached.
 export async function handleProjectsPoints(): Promise<Response> {
   try {
-    const rows = await sqlClient` SELECT  id, lat, lng, COALESCE(tags, ARRAY[]::text[]) AS tags
+    const rows =
+      await sqlClient` SELECT  id, lat, lng, timeline_status, COALESCE(tags, ARRAY[]::text[]) AS tags
       FROM projects WHERE status = 'approved' AND lat IS NOT NULL AND lng IS NOT NULL  AND (geometry_size_m IS NULL OR geometry_size_m < 5000)`;
 
-    // Compact format: array of [id, lat, lng, tags]
+    // Compact format: array of [id, lat, lng, tags, timelineStatus]
     // Coordinates rounded to 5 decimal places (~1m precision)
     const points = rows.map((r: any) => [
       r.id,
       Math.round(r.lat * 1e5) / 1e5,
       Math.round(r.lng * 1e5) / 1e5,
       r.tags ?? [],
+      r.timeline_status ?? "proposed",
     ]);
 
     return new Response(JSON.stringify({ points }), {

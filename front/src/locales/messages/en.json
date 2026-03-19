@@ -121,16 +121,20 @@
     "park": "Park / Green space",
     "building": "Building"
   },
-  "status": {
+  "approvalStatus": {
     "approved": "Approved",
     "draft": "Draft",
     "pending": "Pending",
     "rejected": "Rejected",
     "replaced": "Replaced",
-    "conflicted": "Conflicted",
+    "conflicted": "Conflicted"
+  },
+  "timelineStatus": {
+    "proposed": "Proposed",
     "planned": "Planned",
-    "inConstruction": "In Construction",
-    "completed": "Completed"
+    "under_construction": "Under Construction",
+    "completed": "Completed",
+    "canceled": "Canceled"
   },
   "help": {
     "filters": {
@@ -227,10 +231,12 @@
       "proposed": "Proposed",
       "planned": "Planned",
       "inProgress": "In Progress",
+      "canceled": "Canceled",
       "toggleProposed": "Toggle proposed projects",
       "togglePlanned": "Toggle planned projects",
       "toggleInProgress": "Toggle in progress projects",
-      "toggleCompleted": "Toggle completed projects"
+      "toggleCompleted": "Toggle completed projects",
+      "toggleCanceled": "Toggle canceled projects"
     }
   },
   "search": {

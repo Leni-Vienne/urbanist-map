@@ -54,6 +54,7 @@
               <i class="pi pi-calendar text-xs text-muted-color w-3.5 shrink-0"></i>
               <span>{{
                 formatProjectDateRange(
+                  project.timelineStatus,
                   project.startDate,
                   project.endDate,
                   project.proposalDate,

@@ -5,7 +5,7 @@
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
-import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
+import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 
 // ============================================================================
@@ -230,7 +230,7 @@ export function getOverlayMarkerColor(
   if (!project) return "grey"; // No associated project
 
   // Use shared timeline helper
-  return getTimelineBasedColor(project.proposalDate, project.startDate, project.endDate);
+  return getTimelineStatusColor(project.timelineStatus);
 }
 
 // ============================================================================

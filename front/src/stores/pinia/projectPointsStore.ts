@@ -14,21 +14,21 @@ import { ref } from "vue";
 import { onMlMapReady, updateProjectPointsSource } from "@/services/map/tileLayers";
 import { getApiUrl } from "@/client";
 
-/** Compact format from backend: [id, lat, lng, tags][] */
-type CompactPoint = [id: string, lat: number, lng: number, tags: string[]];
+/** Compact format from backend: [id, lat, lng, tags, timelineStatus][] */
+type CompactPoint = [id: string, lat: number, lng: number, tags: string[], timelineStatus: string];
 
 /** Decode compact points array into GeoJSON FeatureCollection */
 function decodeCompactPoints(points: CompactPoint[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: points.map(([id, lat, lng, tags]) => ({
+    features: points.map(([id, lat, lng, tags, timelineStatus]) => ({
       type: "Feature" as const,
       id,
       geometry: {
         type: "Point" as const,
         coordinates: [lng, lat],
       },
-      properties: { tags },
+      properties: { tags, timelineStatus },
     })),
   };
 }

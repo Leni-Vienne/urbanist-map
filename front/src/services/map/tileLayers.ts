@@ -13,7 +13,11 @@ import {
   addFirstTagToProjectPointsGeojson,
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
-import { selectedProjectTags, filterGeoJsonByTags } from "@/services/overlay/statusFilters";
+import {
+  selectedProjectTags,
+  visibleStates,
+  filterGeoJsonByTags,
+} from "@/services/overlay/statusFilters";
 
 interface BoundingBox {
   minLat: number;
@@ -310,9 +314,9 @@ function applyFilteredProjectPoints(): void {
   }
 }
 
-// Watch for tag filter changes and update both cluster source and MVT layers
+// Watch for tag and status filter changes and update both cluster source and MVT layers
 watch(
-  selectedProjectTags,
+  [selectedProjectTags, visibleStates],
   () => {
     applyFilteredProjectPoints();
     const mlMap = mlMapRef.current;

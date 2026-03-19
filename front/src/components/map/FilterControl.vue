@@ -20,32 +20,24 @@
       <h3 class="m-0 mb-3 text-[0.95rem] font-semibold text-color">
         {{ $t("map.controls.filterByStatus") }}
       </h3>
-      <div class="flex flex-col gap-2">
-        <ToggleButton
+      <div class="flex flex-wrap gap-2 max-w-70">
+        <button
           v-for="{ color, labelKey, ariaKey } in filters"
           :key="color"
-          :modelValue="visibleStates[color]"
-          @update:modelValue="toggleCompletionFilter(color)"
-          @click.stop
+          type="button"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+          :aria-pressed="selectedStatusFilters.includes(color)"
+          :style="getStatusButtonStyle(color)"
+          @click.stop="toggleCompletionFilter(color)"
           @dblclick.stop
           :aria-label="$t(ariaKey)"
-          class="w-full justify-start"
         >
-          <template #default>
-            <div
-              class="marker-icon flex items-center justify-center shrink-0 w-6 h-6"
-              v-html="createButtonSVG(color)"
-            ></div>
-            <span class="flex-1 text-left">{{ $t(labelKey) }}</span>
-            <i
-              :class="[
-                'pi',
-                visibleStates[color] ? 'pi-check' : 'pi-times',
-                'shrink-0 text-base ml-auto',
-              ]"
-            ></i>
-          </template>
-        </ToggleButton>
+          <span
+            class="w-3 h-3 rounded-full shrink-0"
+            :style="{ backgroundColor: markerColors[color] }"
+          ></span>
+          <span>{{ $t(labelKey) }}</span>
+        </button>
       </div>
 
       <div class="mt-4">
@@ -101,26 +93,27 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import {
-  visibleStates,
+  selectedStatusFilters,
   selectedProjectTags,
   toggleFilter,
   toggleProjectTagFilter,
   UNTAGGED_PROJECT_FILTER,
 } from "@/services/overlay/statusFilters";
-import { createButtonSVG } from "@/services/map/markers";
+import { markerColors } from "@/services/map/markers";
 import type { viewModeMarkerColor } from "@/types/index";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { PROJECT_TAGS } from "@/config/projectTags";
 
 const filters: { color: viewModeMarkerColor; labelKey: string; ariaKey: string }[] = [
-  { color: "yellow", labelKey: "map.controls.proposed", ariaKey: "map.controls.toggleProposed" },
-  { color: "blue", labelKey: "map.controls.planned", ariaKey: "map.controls.togglePlanned" },
+  { color: "yellow", labelKey: "timelineStatus.proposed", ariaKey: "map.controls.toggleProposed" },
+  { color: "blue", labelKey: "timelineStatus.planned", ariaKey: "map.controls.togglePlanned" },
   {
     color: "orange",
-    labelKey: "map.controls.inProgress",
+    labelKey: "timelineStatus.under_construction",
     ariaKey: "map.controls.toggleInProgress",
   },
-  { color: "green", labelKey: "status.completed", ariaKey: "map.controls.toggleCompleted" },
+  { color: "green", labelKey: "timelineStatus.completed", ariaKey: "map.controls.toggleCompleted" },
+  { color: "grey", labelKey: "timelineStatus.canceled", ariaKey: "map.controls.toggleCanceled" },
 ];
 
 const { isMobile } = useIsMobile();
@@ -133,12 +126,41 @@ const showFilterPanel = ref(false);
 // Ref for the popover
 const filterPanel = ref();
 
-// Completion filters composable
-
 // Emit events to parent for complex operations
 const emit = defineEmits<{
   "filter-overlays": [];
 }>();
+
+// Get button style based on selection state
+function getStatusButtonStyle(color: viewModeMarkerColor) {
+  const baseColor = markerColors[color];
+  const isSelected = selectedStatusFilters.value.includes(color);
+
+  if (isSelected) {
+    return {
+      backgroundColor: baseColor,
+      color: getContrastTextColor(baseColor),
+      borderColor: baseColor,
+    };
+  }
+
+  return {
+    backgroundColor: "transparent",
+    color: baseColor,
+    borderColor: baseColor,
+  };
+}
+
+// Determine if text should be white or dark based on background color
+function getContrastTextColor(hexColor: string): string {
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  // Using relative luminance formula
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "#1a1a1a" : "#ffffff";
+}
 
 // Toggle filter panel visibility
 function toggleFilterPanel(event: Event) {
@@ -147,7 +169,7 @@ function toggleFilterPanel(event: Event) {
 }
 
 // Toggle completion status filter
-async function toggleCompletionFilter(color: viewModeMarkerColor) {
+function toggleCompletionFilter(color: viewModeMarkerColor) {
   toggleFilter(color);
   emit("filter-overlays");
 }
@@ -170,12 +192,3 @@ defineExpose({
   filterPanel,
 });
 </script>
-
-<style scoped>
-/* Keep deep selector for SVG inside v-html rendered marker icons */
-.marker-icon :deep(svg) {
-  width: 24px;
-  height: 24px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-}
-</style>

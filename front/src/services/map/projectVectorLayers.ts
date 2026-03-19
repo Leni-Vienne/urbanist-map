@@ -13,6 +13,7 @@ import {
   filterGeoJsonByTags,
   selectedProjectTags,
   UNTAGGED_PROJECT_FILTER,
+  visibleStates,
 } from "@/services/overlay/statusFilters";
 
 export const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
@@ -25,7 +26,7 @@ export const CLUSTER_RADIUS = 50;
 /** Zoom level at which cluster/point layers disappear (exclusive) */
 export const CLUSTER_LAYER_MAX_ZOOM = 15;
 /** Zoom level at which project shapes (MVT) become visible */
-export const PROJECT_SHAPES_MIN_ZOOM = 9;
+export const PROJECT_SHAPES_MIN_ZOOM = 9; // TEMP: was 9, testing MVT from afar
 /** Zoom level at which overlay footprints and point geometries become visible */
 export const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
@@ -45,6 +46,7 @@ export const VECTOR_QUERY_LAYERS = [
 ] as const;
 
 export const CLICK_QUERY_LAYERS = [
+  // TEMP: cluster/point layers disabled for testing
   "clusters",
   ...VECTOR_QUERY_LAYERS,
   "unclustered-point",
@@ -96,7 +98,7 @@ export function getProjectPointColorExpression(): ExpressionSpecification {
 }
 
 export function getIsProposedFilterExpression(): ExpressionSpecification {
-  return ["any", ["==", ["get", "is_proposed"], true], ["==", ["get", "is_proposed"], 1]];
+  return ["==", ["get", "timeline_status"], "proposed"];
 }
 
 /**
@@ -152,16 +154,62 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
 };
 
 /**
- * Apply current tag filters to all project vector layers.
- * Called when the tag selection changes.
+ * Build a MapLibre filter expression based on current timeline status selection.
+ */
+export function getStatusFilterExpression(): FilterSpecification | null {
+  // If all statuses are visible, we don't need a filter
+  const allVisible =
+    visibleStates.value.yellow &&
+    visibleStates.value.blue &&
+    visibleStates.value.orange &&
+    visibleStates.value.green &&
+    visibleStates.value.grey;
+
+  if (allVisible) {
+    return null;
+  }
+
+  const allowedStatuses: string[] = [];
+  if (visibleStates.value.yellow) allowedStatuses.push("proposed");
+  if (visibleStates.value.blue) allowedStatuses.push("planned");
+  if (visibleStates.value.orange) allowedStatuses.push("under_construction");
+  if (visibleStates.value.green) allowedStatuses.push("completed");
+  if (visibleStates.value.grey) allowedStatuses.push("canceled");
+
+  if (allowedStatuses.length === 0) {
+    return ["==", 1, 0] as FilterSpecification; // Always false
+  }
+
+  return ["in", ["get", "timeline_status"], ["literal", allowedStatuses]] as FilterSpecification;
+}
+
+/**
+ * Apply current tag and status filters to all project vector layers.
+ * Called when the filter selection changes.
  */
 export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const tagFilter = getTagFilterExpression();
+  const statusFilter = getStatusFilterExpression();
+
+  let combinedFilter: any = null;
+  if (tagFilter && statusFilter) {
+    combinedFilter = ["all", tagFilter, statusFilter];
+  } else if (tagFilter) {
+    combinedFilter = tagFilter;
+  } else if (statusFilter) {
+    combinedFilter = statusFilter;
+  }
 
   // Apply to simple layers (filter can be fully replaced)
   for (const layerId of TAG_FILTERABLE_LAYERS) {
     if (!mlMap.getLayer(layerId)) continue;
-    mlMap.setFilter(layerId, tagFilter);
+
+    if (combinedFilter) {
+      mlMap.setFilter(layerId, combinedFilter);
+    } else {
+      // Clear filter by setting it to null (which MapLibre allows via setFilter but types don't always reflect)
+      mlMap.setFilter(layerId, null);
+    }
   }
 
   // Apply to layers that have existing filters (merge with "all")
@@ -169,8 +217,8 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     if (!mlMap.getLayer(layerId)) continue;
 
     const baseFilter = getBaseFilter();
-    if (tagFilter) {
-      mlMap.setFilter(layerId, ["all", baseFilter, tagFilter] as FilterSpecification);
+    if (combinedFilter) {
+      mlMap.setFilter(layerId, ["all", baseFilter, combinedFilter] as any);
     } else {
       mlMap.setFilter(layerId, baseFilter);
     }
@@ -294,6 +342,8 @@ export function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.
 }
 
 export function setClusterHoverFilter(mlMap: MaplibreMap, clusterId: number | null): void {
+  // TEMP: skip if layer doesn't exist (clustering disabled)
+  //if (!mlMap.getLayer("clusters-hover")) return;
   mlMap.setFilter("clusters-hover", [
     "all",
     ["has", "point_count"],
@@ -305,6 +355,8 @@ export function setUnclusteredPointHoverFilter(
   mlMap: MaplibreMap,
   featureId: string | number | null,
 ): void {
+  // TEMP: skip if layer doesn't exist (points disabled)
+  //if (!mlMap.getLayer("unclustered-point-hover")) return;
   mlMap.setFilter("unclustered-point-hover", [
     "all",
     ["!", ["has", "point_count"]],

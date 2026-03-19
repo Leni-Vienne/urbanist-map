@@ -4,6 +4,22 @@
       <span :class="cls.label">{{ $t("project.name") }}</span>
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
+
+    <!-- Timeline Status Row -->
+    <div :class="cls.row">
+      <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
+      <div class="flex items-center gap-1.5">
+        <span
+          class="w-2.5 h-2.5 rounded-full inline-block"
+          :style="{ backgroundColor: getStatusColor(project.timelineStatus) }"
+        ></span>
+        <span :class="cls.value">{{
+          $te(`status.${project.timelineStatus}`)
+            ? $t(`status.${project.timelineStatus}`)
+            : project.timelineStatus
+        }}</span>
+      </div>
+    </div>
     <div v-if="showDescription" :class="cls.row">
       <span :class="cls.label">{{ $t("common.description") }}</span>
       <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
@@ -28,6 +44,7 @@
         <span :class="cls.value">
           {{
             formatProjectDateRange(
+              project.timelineStatus,
               project.startDate,
               project.endDate,
               project.proposalDate,
@@ -79,6 +96,8 @@ import { formatProjectDateRange } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { getTimelineStatusColor } from "@/utils/markerColors";
+import type { TimelineStatus } from "../../../../../back/src/db/schema";
 
 const { t: $t } = useI18n();
 
@@ -111,6 +130,20 @@ function getTagStyle(slug: string): Record<string, string> {
   const tag = PROJECT_TAG_MAP.get(slug);
   if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
   return { backgroundColor: tag.color, color: tag.textColor };
+}
+
+function getStatusColor(status: TimelineStatus | null | undefined): string {
+  const colorKey = getTimelineStatusColor(status);
+  const colorMap: Record<string, string> = {
+    yellow: "#eab308", // Tailwind yellow-500
+    blue: "#3b82f6", // Tailwind blue-500
+    orange: "#f97316", // Tailwind orange-500
+    green: "#22c55e", // Tailwind green-500
+    grey: "#6b7280", // Tailwind gray-500
+    red: "#ef4444", // Tailwind red-500
+    purple: "#a855f7", // Tailwind purple-500
+  };
+  return colorMap[colorKey] ?? colorMap.grey ?? "#6b7280";
 }
 
 const projectLocationDisplay = computed(() => {

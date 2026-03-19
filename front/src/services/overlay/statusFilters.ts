@@ -1,18 +1,61 @@
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { getOverlayMarkerColor } from "@/services/map/markers";
-import { getProjectMarkerColor } from "@/utils/markerColors";
-import type { Project, OverlayData, OverlayObject, viewModeMarkerColor } from "@/types/index";
+import { getProjectMarkerColor, getTimelineStatusColor } from "@/utils/markerColors";
+import type {
+  Project,
+  OverlayData,
+  OverlayObject,
+  viewModeMarkerColor,
+  MarkerColor,
+} from "@/types/index";
 import type { AppMode } from "@shared/types";
 
-// Includes all colors that can be returned by getOverlayMarkerColor for any mode
-export const visibleStates = ref({
-  yellow: true, // Proposed (view mode) / Pending approval & submitted change requests (edit mode) / Approved with changes (moderation mode)
-  green: true, // Completed (view mode) / Approved without pending changes (edit/moderation mode)
-  orange: true, // In progress (view mode) / Modified locally (edit mode)
-  grey: true, // Unused in view mode
-  blue: true, // Upcoming/planned (view mode) / Pending (moderation mode)
-  red: true, // Rejected or new overlay (edit mode)
-  purple: true, // Local replacement overlays before submission (edit mode)
+// All possible marker colors (includes edit/moderation mode colors)
+const ALL_MARKER_COLORS: MarkerColor[] = [
+  "yellow",
+  "green",
+  "orange",
+  "grey",
+  "blue",
+  "red",
+  "purple",
+];
+
+// Selected status filters. Empty selection means "show all statuses" (same behavior as tags).
+// Colors map to timeline statuses in view mode:
+//   yellow = proposed, blue = planned, orange = under_construction, green = completed, grey = canceled
+export const selectedStatusFilters = ref<viewModeMarkerColor[]>([]);
+
+// Computed visibility states for backwards compatibility
+// When selection is empty, all are visible. Otherwise, only selected are visible.
+// Uses MarkerColor internally to cover edit/moderation mode colors too.
+export const visibleStates = computed(() => {
+  const states: Record<MarkerColor, boolean> = {
+    yellow: false,
+    green: false,
+    orange: false,
+    grey: false,
+    blue: false,
+    red: false,
+    purple: false,
+  };
+
+  if (selectedStatusFilters.value.length === 0) {
+    // Empty selection = show all
+    for (const color of ALL_MARKER_COLORS) {
+      states[color] = true;
+    }
+  } else {
+    // Only show selected (view mode colors)
+    for (const color of selectedStatusFilters.value) {
+      states[color] = true;
+    }
+    // In edit/moderation modes, always show red and purple (user's own content)
+    states.red = true;
+    states.purple = true;
+  }
+
+  return states;
 });
 
 // Empty selection means "show all tags"
@@ -66,18 +109,30 @@ export function matchesSelectedTags(tags: string[] | null | undefined): boolean 
 }
 
 /**
- * Filter GeoJSON FeatureCollection based on current tag filters.
+ * Filter GeoJSON FeatureCollection based on current tag and status filters.
  * Used by the cluster source to filter project points.
  */
 export function filterGeoJsonByTags(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-  if (selectedProjectTags.value.length === 0) {
-    return geojson;
-  }
-
   const filteredFeatures = geojson.features.filter((feature) => {
     const props = feature.properties ?? {};
     const tags = Array.isArray(props.tags) ? (props.tags as string[]) : null;
-    return matchesSelectedTags(tags);
+    const timelineStatus = props.timelineStatus;
+
+    // Filter by tag
+    const tagMatch = matchesSelectedTags(tags);
+
+    // Filter by status (view mode logic)
+    // Note: GeoJSON is only used in view mode for clusters, so we map timelineStatus to marker colors
+    let statusMatch = true;
+    if (timelineStatus) {
+      const color = getTimelineStatusColor(timelineStatus as any);
+      statusMatch = visibleStates.value[color] !== false;
+    } else {
+      // Default color logic if timelineStatus is somehow missing
+      statusMatch = visibleStates.value["yellow"] !== false;
+    }
+
+    return tagMatch && statusMatch;
   });
 
   return {
@@ -95,10 +150,15 @@ export function shouldShowStandaloneProject(project: Project, mode: AppMode): bo
 }
 
 /**
- * Toggle a specific status filter
+ * Toggle a specific status filter. Empty selection means all statuses are visible.
  */
-export function toggleFilter(color: viewModeMarkerColor) {
-  visibleStates.value[color] = !visibleStates.value[color];
+export function toggleFilter(color: viewModeMarkerColor): void {
+  if (selectedStatusFilters.value.includes(color)) {
+    selectedStatusFilters.value = selectedStatusFilters.value.filter((c) => c !== color);
+    return;
+  }
+
+  selectedStatusFilters.value = [...selectedStatusFilters.value, color];
 }
 
 /**

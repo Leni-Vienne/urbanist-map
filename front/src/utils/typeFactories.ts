@@ -38,7 +38,25 @@ export function toProjectPartial(project: StandaloneProject): Partial<Project> {
     startDatePrecision: project.startDatePrecision ?? null,
     endDate: project.endDate ?? null,
     endDatePrecision: project.endDatePrecision ?? null,
+    timelineStatus: project.timelineStatus ?? "proposed",
   };
+
+  // Import source tracking fields
+  if ("importSourceId" in project) {
+    partial.importSourceId = project.importSourceId ?? null;
+  }
+  if ("externalId" in project) {
+    partial.externalId = project.externalId ?? null;
+  }
+  if ("externalProperties" in project) {
+    partial.externalProperties = project.externalProperties ?? null;
+  }
+  if ("externalLastModified" in project) {
+    partial.externalLastModified = project.externalLastModified ?? null;
+  }
+  if ("lastImportedAt" in project) {
+    partial.lastImportedAt = project.lastImportedAt ?? null;
+  }
 
   // Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
   if ("centerCoordinate" in project) {

@@ -23,7 +23,7 @@
         />
         <div class="flex-1">
           <label :for="`${idPrefix}-status-planned`" class="font-medium cursor-pointer">{{
-            $t("status.planned")
+            $t("timelineStatus.planned")
           }}</label>
           <div class="text-xs text-muted-color">
             {{ $t("project.plannedDescription") }}
