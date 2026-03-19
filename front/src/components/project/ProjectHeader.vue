@@ -5,7 +5,7 @@
       <!-- Show normal status tag (handle null/undefined for unsubmitted projects) -->
       <Tag
         v-if="!hideStatusBadges"
-        :value="$t(`status.${status ?? 'draft'}`)"
+        :value="$t(`approvalStatus.${status ?? 'draft'}`)"
         :severity="getStatusSeverity(status)"
         class="mr-2 capitalize shrink-0"
         rounded

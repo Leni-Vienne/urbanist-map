@@ -89,7 +89,7 @@ export function toggleProjectTagFilter(tag: string): void {
  * Check whether tags match the currently selected tag filters.
  * Exported for use by cluster filtering.
  */
-export function matchesSelectedTags(tags: string[] | null | undefined): boolean {
+function matchesSelectedTags(tags: string[] | null | undefined): boolean {
   if (selectedProjectTags.value.length === 0) return true;
 
   const includeUntagged = selectedProjectTags.value.includes(UNTAGGED_PROJECT_FILTER);

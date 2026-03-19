@@ -34,7 +34,7 @@ import {
 } from "@/services/navigation/cityRenderingCore";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import { trpc } from "@/client";
-import { createProjectObject, toProjectPartial } from "@/utils/typeFactories";
+import { createProjectObject } from "@/utils/typeFactories";
 import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
@@ -119,7 +119,9 @@ export function useViewportTriggers() {
     }
 
     // Process standalone project markers (projects with 0 visible overlays)
-    const standaloneProjects = projectsData.map((p) => createProjectObject(toProjectPartial(p)));
+    const standaloneProjects = projectsData.map((p) =>
+      createProjectObject(p as Parameters<typeof createProjectObject>[0]),
+    );
 
     // In edit mode, merge local (unsaved) projects into the standalone list
     if (mode === "edit") {

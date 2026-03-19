@@ -66,5 +66,5 @@ export const useProjectPointsStore = defineStore("projectPoints", () => {
     });
   }
 
-  return { geojson, init, fetchProjectPoints };
+  return { geojson, init };
 });

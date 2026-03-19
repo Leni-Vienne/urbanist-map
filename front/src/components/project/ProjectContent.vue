@@ -193,7 +193,7 @@
             <div class="flex items-center gap-2 flex-wrap">
               <Tag
                 v-if="!hideStatusBadges"
-                :value="$t(`status.${overlay.status ?? 'draft'}`)"
+                :value="$t(`approvalStatus.${overlay.status ?? 'draft'}`)"
                 :severity="getStatusSeverity(overlay.status)"
                 class="mr-2 capitalize"
                 rounded

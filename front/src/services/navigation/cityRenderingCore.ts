@@ -16,7 +16,6 @@ import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
   createOverlayObject,
-  toProjectPartial,
   type StandaloneProject,
 } from "@/utils/typeFactories";
 
@@ -53,7 +52,9 @@ export function processStandaloneMarkers(
     }
 
     if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-      addStandaloneProjectMarkerForProject(createProjectObject(toProjectPartial(project)));
+      addStandaloneProjectMarkerForProject(
+        createProjectObject(project as Parameters<typeof createProjectObject>[0]),
+      );
     }
   }
 }

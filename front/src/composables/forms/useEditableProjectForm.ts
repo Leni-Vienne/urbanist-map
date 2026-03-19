@@ -7,7 +7,6 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { formatDate } from "@/utils/dateFormat";
 import { createProjectFromUserContribution } from "@/utils/typeFactories";
 import {
   projectSchema,
@@ -29,20 +28,6 @@ function serializeValue(value: any): any {
     return null;
   }
   return value;
-}
-
-// Format value for display in change indicators
-function formatValue(value: any): string {
-  if (value === null || value === undefined || value === "") {
-    return "Not set";
-  }
-  if (value instanceof Date) {
-    return formatDate(value);
-  }
-  if (typeof value === "number") {
-    return value.toFixed(6);
-  }
-  return String(value);
 }
 
 // Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
@@ -351,7 +336,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     // Methods
     hasChanged,
     resetChanges,
-    formatValue,
     getFieldClasses,
     showErrorToast,
     submitChanges,

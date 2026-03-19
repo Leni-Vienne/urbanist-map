@@ -14,8 +14,8 @@
           :style="{ backgroundColor: getStatusColor(project.timelineStatus) }"
         ></span>
         <span :class="cls.value">{{
-          $te(`status.${project.timelineStatus}`)
-            ? $t(`status.${project.timelineStatus}`)
+          $te(`timelineStatus.${project.timelineStatus}`)
+            ? $t(`timelineStatus.${project.timelineStatus}`)
             : project.timelineStatus
         }}</span>
       </div>

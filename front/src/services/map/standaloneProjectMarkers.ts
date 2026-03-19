@@ -379,26 +379,8 @@ export async function handleProjectClickFromTile(
       const result = await trpc.project.getById.query({ id: projectId });
       if (!result) return;
       project = createProjectObject({
-        id: result.id,
-        name: result.name,
-        description: result.description,
-        status: result.status,
-        ownerId: result.ownerId,
-        cityId: result.cityId,
-        lat: result.lat,
-        lng: result.lng,
-        geometry: result.geometry,
-        proposalDate: result.proposalDate,
-        proposalDatePrecision: result.proposalDatePrecision,
-        startDate: result.startDate,
-        startDatePrecision: result.startDatePrecision,
-        endDate: result.endDate,
-        endDatePrecision: result.endDatePrecision,
-        sourceUrl: result.sourceUrl,
+        ...result,
         tags: result.tags ?? [],
-        createdAt: result.createdAt,
-        updatedAt: result.updatedAt,
-        city: result.city,
         overlayIds: [],
       });
       projectStore.updateProject(projectId, project);
