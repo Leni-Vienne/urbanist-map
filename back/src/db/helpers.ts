@@ -152,7 +152,7 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
 }
 
 // Shared project column selection — add new project fields here only
-const PROJECT_COLUMNS = {
+export const PROJECT_COLUMNS = {
   id: projects.id,
   name: projects.name,
   description: projects.description,
@@ -330,11 +330,15 @@ type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
 function toValidCityId(value: unknown): number | null {
   if (!value) return null;
 
-  const stringValue = typeof value === "string" ? value : String(value);
+  if (typeof value === "number") return value;
 
-  if (stringValue === "null" || stringValue === "undefined") return null;
+  if (typeof value === "string") {
+    if (value === "null" || value === "undefined") return null;
+    const parsed = Number(value);
+    return isNaN(parsed) ? null : parsed;
+  }
 
-  return Number(stringValue);
+  return null;
 }
 
 /**

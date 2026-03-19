@@ -56,8 +56,9 @@ function extractTags(props: Record<string, unknown>): string[] {
   const found = new Set<string>();
 
   // First, check for transport_type directly which is the most accurate
-  if (props["transport_type"]) {
-    const tt = String(props["transport_type"]);
+  const ttRaw = props["transport_type"];
+  if (typeof ttRaw === "string" || typeof ttRaw === "number") {
+    const tt = String(ttRaw);
     if (
       tt === "rail" ||
       tt === "light_rail" ||
@@ -83,10 +84,11 @@ function extractTags(props: Record<string, unknown>): string[] {
   // or catch anything that didn't have a clean transport_type
   for (const rule of EXTENDED_OSM_RULES) {
     const val = props[rule.key];
-    if (val === undefined || val === null || val === "") continue;
-    const strVal = String(val);
-    if (!rule.values || rule.values.includes(strVal)) {
-      found.add(rule.tag);
+    if (typeof val === "string" || typeof val === "number") {
+      const strVal = String(val);
+      if (!rule.values || rule.values.includes(strVal)) {
+        found.add(rule.tag);
+      }
     }
   }
 

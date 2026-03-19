@@ -113,7 +113,11 @@ function normalizeFieldValue(
     return normalizeDatePrecision(field, value, projectSource);
   }
   if (fieldStr === "tags") {
-    return JSON.stringify(Array.isArray(value) ? (value as unknown[]).toSorted() : []);
+    return JSON.stringify(
+      Array.isArray(value)
+        ? (value as string[]).toSorted((a, b) => String(a).localeCompare(String(b)))
+        : [],
+    );
   }
   return value ?? "";
 }

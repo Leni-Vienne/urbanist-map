@@ -195,13 +195,11 @@ const MaplibreLayer = Layer.extend({
       } else {
         gl.resize();
       }
-    } else {
+    } else if (gl._update !== null && gl._update !== undefined) {
       // older versions of mapbox-gl surfaced update publicly
-      if (gl._update !== null && gl._update !== undefined) {
-        gl._update();
-      } else {
-        gl.update();
-      }
+      gl._update();
+    } else {
+      gl.update();
     }
   },
 

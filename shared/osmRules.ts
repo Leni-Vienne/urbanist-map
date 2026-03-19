@@ -219,10 +219,11 @@ export function extractTagsFromOsmProperties(
   for (const props of featureProperties) {
     for (const rule of BASE_OSM_RULES) {
       const val = props[rule.key];
-      if (val === undefined || val === null || val === "") continue;
-      const strVal = String(val);
-      if (!rule.values || rule.values.includes(strVal)) {
-        found.add(rule.tag);
+      if (typeof val === "string" || typeof val === "number") {
+        const strVal = String(val);
+        if (!rule.values || rule.values.includes(strVal)) {
+          found.add(rule.tag);
+        }
       }
     }
   }

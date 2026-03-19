@@ -10,6 +10,7 @@ import {
   buildPaginationConditions,
   buildPaginationResponse,
   isUserBlocked,
+  PROJECT_COLUMNS,
 } from "../db/helpers";
 import {
   checkPendingLimitForNewContribution,
@@ -317,31 +318,7 @@ export const projectRouter = router({
 
         const projectsInCity = await db
           .select({
-            id: projects.id,
-            name: projects.name,
-            description: projects.description,
-            status: projects.status, // Include status to distinguish pending/approved/rejected
-            ownerId: projects.ownerId,
-            cityId: projects.cityId,
-            lat: projects.lat,
-            lng: projects.lng,
-            geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
-            proposalDate: projects.proposalDate,
-            proposalDatePrecision: projects.proposalDatePrecision,
-            startDate: projects.startDate,
-            startDatePrecision: projects.startDatePrecision,
-            endDate: projects.endDate,
-            endDatePrecision: projects.endDatePrecision,
-            timelineStatus: projects.timelineStatus,
-            importSourceId: projects.importSourceId,
-            externalId: projects.externalId,
-            externalProperties: projects.externalProperties,
-            externalLastModified: projects.externalLastModified,
-            lastImportedAt: projects.lastImportedAt,
-            sourceUrl: projects.sourceUrl,
-            tags: projects.tags,
-            createdAt: projects.createdAt,
-            updatedAt: projects.updatedAt,
+            ...PROJECT_COLUMNS,
             // Count approved overlays OR user's own overlays (only in edit mode)
             overlayCount:
               ctx.user && input.mode !== "view"
@@ -353,37 +330,10 @@ export const projectRouter = router({
           .innerJoin(cities, eq(projects.cityId, cities.id))
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
           .where(and(...whereConditions))
-          .groupBy(
-            projects.id,
-            projects.name,
-            projects.description,
-            projects.status, // Include status in groupBy
-            projects.ownerId,
-            projects.cityId,
-            projects.lat,
-            projects.lng,
-            projects.geometry,
-            projects.proposalDate,
-            projects.proposalDatePrecision,
-            projects.startDate,
-            projects.startDatePrecision,
-            projects.endDate,
-            projects.endDatePrecision,
-            projects.timelineStatus,
-            projects.importSourceId,
-            projects.externalId,
-            projects.externalProperties,
-            projects.externalLastModified,
-            projects.lastImportedAt,
-            projects.sourceUrl,
-            projects.tags,
-            projects.createdAt,
-            projects.updatedAt,
-            cities.id,
-            cities.name,
-            cities.countryCode,
-            cities.coordinates,
-          )
+          // GROUP BY primary keys only — PostgreSQL's functional dependency optimization
+          // covers all other columns of both tables (projects.id and cities.id are PKs).
+          // Avoids B-tree equality requirement on projects.geometry (PostGIS type).
+          .groupBy(projects.id, cities.id)
           .orderBy(sql`${projects.createdAt} DESC`)
           .limit(input.limit);
 
@@ -402,31 +352,7 @@ export const projectRouter = router({
     try {
       const rows = await db
         .select({
-          id: projects.id,
-          name: projects.name,
-          description: projects.description,
-          status: projects.status,
-          ownerId: projects.ownerId,
-          cityId: projects.cityId,
-          timelineStatus: projects.timelineStatus,
-          importSourceId: projects.importSourceId,
-          externalId: projects.externalId,
-          externalProperties: projects.externalProperties,
-          externalLastModified: projects.externalLastModified,
-          lastImportedAt: projects.lastImportedAt,
-          lat: projects.lat,
-          lng: projects.lng,
-          geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
-          proposalDate: projects.proposalDate,
-          proposalDatePrecision: projects.proposalDatePrecision,
-          startDate: projects.startDate,
-          startDatePrecision: projects.startDatePrecision,
-          endDate: projects.endDate,
-          endDatePrecision: projects.endDatePrecision,
-          sourceUrl: projects.sourceUrl,
-          tags: projects.tags,
-          createdAt: projects.createdAt,
-          updatedAt: projects.updatedAt,
+          ...PROJECT_COLUMNS,
           city: cities,
         })
         .from(projects)

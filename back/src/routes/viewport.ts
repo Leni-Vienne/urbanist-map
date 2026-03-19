@@ -10,6 +10,7 @@ import {
   fetchOverlayChangeRequests,
   transformOverlayDataWithChangeRequests,
   fetchOverlaysWithLocation,
+  PROJECT_COLUMNS,
 } from "../db/helpers";
 
 // ── Viewport-specific visibility overrides ──────────────────────────────────
@@ -260,31 +261,7 @@ export const viewportRouter = router({
 
         const projectsData = await db
           .select({
-            id: projects.id,
-            name: projects.name,
-            description: projects.description,
-            status: projects.status,
-            ownerId: projects.ownerId,
-            cityId: projects.cityId,
-            lat: projects.lat,
-            lng: projects.lng,
-            geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
-            proposalDate: projects.proposalDate,
-            proposalDatePrecision: projects.proposalDatePrecision,
-            startDate: projects.startDate,
-            startDatePrecision: projects.startDatePrecision,
-            endDate: projects.endDate,
-            endDatePrecision: projects.endDatePrecision,
-            timelineStatus: projects.timelineStatus,
-            importSourceId: projects.importSourceId,
-            externalId: projects.externalId,
-            externalProperties: projects.externalProperties,
-            externalLastModified: projects.externalLastModified,
-            lastImportedAt: projects.lastImportedAt,
-            sourceUrl: projects.sourceUrl,
-            tags: projects.tags,
-            createdAt: projects.createdAt,
-            updatedAt: projects.updatedAt,
+            ...PROJECT_COLUMNS,
             overlayCount:
               mode === "edit"
                 ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
