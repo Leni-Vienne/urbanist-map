@@ -295,6 +295,8 @@ async function main() {
             ? { type: "GeometryCollection", geometries: [geom] }
             : null;
 
+          const geometryJson = geometry ? JSON.stringify(geometry) : null;
+
           const row = {
             name,
             cityId: null,
@@ -313,11 +315,15 @@ async function main() {
             endDatePrecision,
             lat: center?.lat ?? null,
             lng: center?.lng ?? null,
-            geometry: geometry
-              ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326)`
+            geometry: geometryJson
+              ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${geometryJson}), 4326)`
               : null,
             centerCoordinate: center
               ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
+              : null,
+            // Bbox diagonal in meters - used to filter small geometries from cluster points
+            geometrySizeM: geometryJson
+              ? sql`ST_Length(ST_BoundingDiagonal(ST_Envelope(ST_GeomFromGeoJSON(${geometryJson})))::geography)`
               : null,
           };
 
@@ -343,6 +349,7 @@ async function main() {
                 lng: row.lng,
                 geometry: row.geometry,
                 centerCoordinate: row.centerCoordinate,
+                geometrySizeM: row.geometrySizeM,
               },
             });
           inserted++;

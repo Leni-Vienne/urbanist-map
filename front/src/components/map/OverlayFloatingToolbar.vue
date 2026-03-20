@@ -342,7 +342,7 @@ watch(
 onUnmounted(() => {
   stopRAF();
   destroyMarker();
-  map.value?.off("moveend", checkCollision);
+  map.value.off("moveend", checkCollision);
 });
 
 function readOpacity(): number {

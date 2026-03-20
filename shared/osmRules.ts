@@ -3,7 +3,7 @@
  * Shared between frontend (projectTags.ts) and backend (import-osm.ts)
  */
 
-export interface OsmRule {
+interface OsmRule {
   key: string;
   values?: string[];
   tag: string;
@@ -13,7 +13,7 @@ export interface OsmRule {
  * Base OSM rules used for display and basic tag extraction
  * These rules cover the core transport and infrastructure types
  */
-export const BASE_OSM_RULES: OsmRule[] = [
+const BASE_OSM_RULES: OsmRule[] = [
   // Tram
   { key: "railway", values: ["tram"], tag: "tram" },
   { key: "route", values: ["tram"], tag: "tram" },

@@ -1,4 +1,3 @@
-import L from "leaflet";
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";

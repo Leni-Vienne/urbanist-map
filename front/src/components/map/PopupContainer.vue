@@ -201,7 +201,8 @@ const activeProject = computed(() => {
             (cityOverlay) => cityOverlay.project?.id === overlay.projectId,
           )?.project;
 
-    if (backendProject) return convertAndCacheBackendProject(backendProject);
+    if (backendProject?.city)
+      return convertAndCacheBackendProject({ ...backendProject, city: backendProject.city });
   }
 
   // Priority 2: Check if viewing a project popup - get project from project popup state

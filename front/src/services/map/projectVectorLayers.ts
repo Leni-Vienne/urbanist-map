@@ -62,25 +62,25 @@ addProtocol("dedupe", async (params, abortController) => {
   return { data: data.slice(0) };
 });
 
-export const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
+const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
 // ── Zoom level constants (MapLibre zoom = Leaflet zoom - 1) ─────────────────
 /** Zoom level at which project points appear (prevents overloading with 20k+ points globally) */
-export const PROJECT_POINTS_MIN_ZOOM = 0;
+const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project points disappear because shapes take over */
-export const PROJECT_POINTS_MAX_ZOOM = 15;
+const PROJECT_POINTS_MAX_ZOOM = 15;
 /** Zoom level at which project shapes (MVT) become visible */
-export const PROJECT_SHAPES_MIN_ZOOM = 9;
+const PROJECT_SHAPES_MIN_ZOOM = 9;
 /** Zoom level at which overlay footprints and point geometries become visible */
-export const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
+const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
-export const MVT_SOURCE_MAX_ZOOM = 14;
+const MVT_SOURCE_MAX_ZOOM = 14;
 
 // ── Interaction constants ───────────────────────────────────────────────────
-export const VECTOR_HOVER_HIT_RADIUS_PX = 6;
-export const HOVER_NONE_ID = "__none__";
+const VECTOR_HOVER_HIT_RADIUS_PX = 6;
+const HOVER_NONE_ID = "__none__";
 
-export const VECTOR_QUERY_LAYERS = [
+const VECTOR_QUERY_LAYERS = [
   "overlay-footprints",
   "overlay-footprints-proposed-dashed",
   "project-shapes-fill",
@@ -89,13 +89,13 @@ export const VECTOR_QUERY_LAYERS = [
   "project-shapes-points",
 ] as const;
 
-export const CLICK_QUERY_LAYERS = [
+const CLICK_QUERY_LAYERS = [
   ...VECTOR_QUERY_LAYERS,
   "project-points",
   "pending-project-points",
 ] as const;
 
-export type RenderedMapFeature = {
+type RenderedMapFeature = {
   properties?: Record<string, unknown>;
   sourceLayer?: string;
   geometry?: {
@@ -107,15 +107,15 @@ export type RenderedMapFeature = {
   id?: string | number;
 };
 
-export const DEFAULT_PROJECT_LINE_COLOR = "#3b82f6";
+const DEFAULT_PROJECT_LINE_COLOR = "#3b82f6";
 
-export const PROJECT_LINE_COLOR_BY_TAG: Record<string, string> = {};
+const PROJECT_LINE_COLOR_BY_TAG: Record<string, string> = {};
 
 for (const tag of PROJECT_TAGS) {
   PROJECT_LINE_COLOR_BY_TAG[tag.slug] = tag.color;
 }
 
-export function getTagColorExpression(tagExpression: unknown[]): ExpressionSpecification {
+function getTagColorExpression(tagExpression: unknown[]): ExpressionSpecification {
   const expression: unknown[] = [
     "match",
     ["downcase", ["to-string", ["coalesce", ...tagExpression, ""]]],
@@ -127,11 +127,11 @@ export function getTagColorExpression(tagExpression: unknown[]): ExpressionSpeci
   return expression as ExpressionSpecification;
 }
 
-export function getProjectLineColorExpression(): ExpressionSpecification {
+function getProjectLineColorExpression(): ExpressionSpecification {
   return getTagColorExpression([["get", "first_tag"]]);
 }
 
-export function getProjectPointColorExpression(): ExpressionSpecification {
+function getProjectPointColorExpression(): ExpressionSpecification {
   return [
     "case",
     ["==", ["get", "is_pending"], true],
@@ -140,7 +140,7 @@ export function getProjectPointColorExpression(): ExpressionSpecification {
   ] as ExpressionSpecification;
 }
 
-export function getIsProposedFilterExpression(): ExpressionSpecification {
+function getIsProposedFilterExpression(): ExpressionSpecification {
   return ["==", ["get", "timeline_status"], "proposed"];
 }
 
@@ -148,7 +148,7 @@ export function getIsProposedFilterExpression(): ExpressionSpecification {
  * Build a MapLibre filter expression based on current tag selection.
  * Returns null if no filtering is needed (all tags visible).
  */
-export function getTagFilterExpression(): FilterSpecification | null {
+function getTagFilterExpression(): FilterSpecification | null {
   const selected = selectedProjectTags.value;
   if (selected.length === 0) {
     return null; // No filter needed
@@ -200,7 +200,7 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
 /**
  * Build a MapLibre filter expression based on current timeline status selection.
  */
-export function getStatusFilterExpression(): FilterSpecification | null {
+function getStatusFilterExpression(): FilterSpecification | null {
   // If all statuses are visible, we don't need a filter
   const allVisible =
     visibleStates.value.yellow &&
@@ -269,7 +269,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   }
 }
 
-export function getMaplibrePointFromLeafletEvent(
+function getMaplibrePointFromLeafletEvent(
   event: L.LeafletMouseEvent,
   mlMap: MaplibreMap,
 ): {
@@ -279,7 +279,7 @@ export function getMaplibrePointFromLeafletEvent(
   return mlMap.project([event.latlng.lng, event.latlng.lat]);
 }
 
-export function queryFeaturesAtLeafletEvent(
+function queryFeaturesAtLeafletEvent(
   event: L.LeafletMouseEvent,
   mlMap: MaplibreMap,
   layers: readonly string[],
@@ -298,7 +298,7 @@ export function queryFeaturesAtLeafletEvent(
   return mlMap.queryRenderedFeatures([point.x, point.y], { layers: [...layers] });
 }
 
-export function getHoveredVectorId(feature: RenderedMapFeature | null): string {
+function getHoveredVectorId(feature: RenderedMapFeature | null): string {
   if (!feature) {
     return HOVER_NONE_ID;
   }
@@ -307,10 +307,7 @@ export function getHoveredVectorId(feature: RenderedMapFeature | null): string {
   return id.length > 0 ? id : HOVER_NONE_ID;
 }
 
-export function setVectorHoverFilters(
-  mlMap: MaplibreMap,
-  feature: RenderedMapFeature | null,
-): void {
+function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature | null): void {
   const hoveredId = getHoveredVectorId(feature);
 
   mlMap.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
@@ -332,7 +329,7 @@ export function setVectorHoverFilters(
   ]);
 }
 
-export function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | null {
+function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | null {
   const vectorFeature = features.find((feature) => {
     const sourceLayer = String(feature?.sourceLayer ?? "");
     return sourceLayer === "overlay-footprints" || sourceLayer === "project-shapes";
@@ -341,7 +338,7 @@ export function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeatur
   return vectorFeature ?? null;
 }
 
-export function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
+function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
   const sourceLayer = String(feature.sourceLayer ?? "");
   const projectId =
     sourceLayer === "overlay-footprints"
@@ -355,7 +352,7 @@ export function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.
   void handleProjectClickFromTile(projectId, latlng);
 }
 
-export function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | null): void {
+function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | null): void {
   const hoveredId = featureId !== null ? String(featureId) : HOVER_NONE_ID;
 
   const activeFilter = ["==", ["to-string", ["get", "id"]], hoveredId] as FilterSpecification;
@@ -438,9 +435,9 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
 
         if (coordinates && coordinates.length >= 2) {
           const [lng, lat] = coordinates;
-          const currentZoom = map.value?.getZoom() || 0;
+          const currentZoom = map.value.getZoom();
           const targetZoom = Math.max(currentZoom + 2, 14); // Zoom in enough to see the shapes
-          map.value?.flyTo([lat, lng], targetZoom, { duration: 1.5 });
+          map.value.flyTo([lat, lng], targetZoom, { duration: 1.5 });
 
           // Use exact feature coordinates to prevent massive popup offset when zooming in
           targetLatLng = L.latLng(lat, lng);
@@ -452,7 +449,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   });
 }
 
-export function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
+function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
   const value = feature.properties?.[key];
   if (value === null || value === undefined) return "";
   return String(value);

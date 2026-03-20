@@ -1,6 +1,6 @@
 import { ref, computed } from "vue";
 import { getOverlayMarkerColor } from "@/services/map/markers";
-import { getProjectMarkerColor, getTimelineStatusColor } from "@/utils/markerColors";
+import { getProjectMarkerColor } from "@/utils/markerColors";
 import type {
   Project,
   OverlayData,
@@ -106,39 +106,6 @@ function matchesSelectedTags(tags: string[] | null | undefined): boolean {
   }
 
   return tags.some((tag) => selectedKnownTags.includes(tag));
-}
-
-/**
- * Filter GeoJSON FeatureCollection based on current tag and status filters.
- * Used by the cluster source to filter project points.
- */
-export function filterGeoJsonByTags(geojson: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-  const filteredFeatures = geojson.features.filter((feature) => {
-    const props = feature.properties ?? {};
-    const tags = Array.isArray(props.tags) ? (props.tags as string[]) : null;
-    const timelineStatus = props.timelineStatus;
-
-    // Filter by tag
-    const tagMatch = matchesSelectedTags(tags);
-
-    // Filter by status (view mode logic)
-    // Note: GeoJSON is only used in view mode for clusters, so we map timelineStatus to marker colors
-    let statusMatch = true;
-    if (timelineStatus) {
-      const color = getTimelineStatusColor(timelineStatus);
-      statusMatch = visibleStates.value[color];
-    } else {
-      // Default color logic if timelineStatus is somehow missing
-      statusMatch = visibleStates.value.yellow;
-    }
-
-    return tagMatch && statusMatch;
-  });
-
-  return {
-    ...geojson,
-    features: filteredFeatures,
-  };
 }
 
 /**
