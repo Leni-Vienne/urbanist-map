@@ -811,15 +811,6 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
       });
       return;
     }
-    if (!project.cityId || !project.cityName) {
-      toast.add({
-        severity: "warn",
-        summary: t("location.missingCityInfo"),
-        detail: t("project.cannotNavigateWithoutCity"),
-        life: 3000,
-      });
-      return;
-    }
     const mapStore = useMapStore();
     if (!props.disableAutoModeSwitch && mapStore.mode !== "edit") {
       mapStore.setMode("edit");

@@ -1,6 +1,6 @@
 import * as z from "zod";
 import { publicProcedure, router, TRPCError } from "../trpc";
-import { projects, cities, overlays } from "../db/schema";
+import { projects, cities, overlays, importSources } from "../db/schema";
 import { sql, eq, and } from "drizzle-orm";
 import { db } from "../database";
 import {
@@ -89,7 +89,7 @@ export const viewportRouter = router({
         const projectConditions =
           mode === "edit"
             ? sql`(${projects.ownerId} = ${ctx.user.id} AND ${projects.status} != 'approved')`
-            : buildProjectVisibilityCondition(ctx.user, mode, false);
+            : buildProjectVisibilityCondition(ctx.user, mode);
 
         const pendingProjects = await db
           .select({
@@ -266,15 +266,17 @@ export const viewportRouter = router({
                 ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
                 : sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.status} = 'pending' THEN 1 END)::int`,
             city: cities,
+            importSource: importSources,
           })
           .from(projects)
           .innerJoin(cities, eq(cities.id, projects.cityId))
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
+          .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
           .where(and(...whereConditions))
           // GROUP BY primary keys only — PostgreSQL's functional dependency optimization
           // covers all other columns of both tables (projects.id and cities.id are PKs).
           // Avoids B-tree equality requirement on projects.geometry (PostGIS type).
-          .groupBy(projects.id, cities.id);
+          .groupBy(projects.id, cities.id, importSources.id);
 
         return projectsData;
       } catch (error) {

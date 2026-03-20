@@ -45,6 +45,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     externalProperties: data.externalProperties ?? null,
     externalLastModified: data.externalLastModified ?? null,
     lastImportedAt: data.lastImportedAt ?? null,
+    importSource: data.importSource ?? null,
     // Center coordinate fields - all projects now have center coordinates
     lat: data.lat ?? null,
     lng: data.lng ?? null,

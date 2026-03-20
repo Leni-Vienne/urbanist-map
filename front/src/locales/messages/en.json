@@ -104,6 +104,8 @@
     "submitChangeRequest": "Submit",
     "period": "Period",
     "source": "Source",
+    "lastModified": "Last Modified",
+    "modifyOn": "Modify on {name}",
     "addImages": "Add Images",
     "tags": "Tags",
     "additionalDetails": "Additional Details"

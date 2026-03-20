@@ -5,7 +5,7 @@
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
 
-    <!-- Timeline Status Row -->
+    <!-- Timeline Status -->
     <div :class="cls.row">
       <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
       <div class="flex items-center gap-1.5">
@@ -20,43 +20,42 @@
         }}</span>
       </div>
     </div>
-    <div v-if="showDescription" :class="cls.row">
+
+    <!-- Description: hidden when null and not editable -->
+    <div
+      v-if="showDescription && (project.description || (editMode && !project.importSourceId))"
+      :class="cls.row"
+    >
       <span :class="cls.label">{{ $t("common.description") }}</span>
       <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
-      <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
+      <button v-else :class="cls.addBtn" @click="emit('field-click')">
         + {{ $t("common.addField") }}
       </button>
-      <span v-else :class="cls.value">—</span>
     </div>
+
     <div class="grid grid-cols-2 gap-4">
-      <div :class="cls.row">
+      <!-- Location: hidden when null and not editable -->
+      <div
+        v-if="projectLocationDisplay !== '—' || (editMode && !project.importSourceId)"
+        :class="cls.row"
+      >
         <span :class="cls.label">{{ $t("project.location") }}</span>
         <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
           projectLocationDisplay
         }}</span>
-        <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
+        <button v-else :class="cls.addBtn" @click="emit('field-click')">
           + {{ $t("common.addField") }}
         </button>
-        <span v-else :class="cls.value">—</span>
       </div>
-      <div :class="cls.row">
+
+      <!-- Period: hidden when empty -->
+      <div v-if="periodDisplay" :class="cls.row">
         <span :class="cls.label">{{ $t("project.period") }}</span>
-        <span :class="cls.value">
-          {{
-            formatProjectDateRange(
-              project.timelineStatus,
-              project.startDate,
-              project.endDate,
-              project.proposalDate,
-              project.startDatePrecision,
-              project.endDatePrecision,
-              project.proposalDatePrecision,
-              $t,
-            ) || $t("metadata.notSpecified")
-          }}
-        </span>
+        <span :class="cls.value">{{ periodDisplay }}</span>
       </div>
     </div>
+
+    <!-- Tags -->
     <div v-if="project.tags && project.tags.length > 0" :class="cls.row">
       <span :class="cls.label">{{ $t("project.tags") }}</span>
       <div class="flex flex-wrap gap-1.5">
@@ -70,6 +69,8 @@
         </span>
       </div>
     </div>
+
+    <!-- Source URL (user-provided reference: article, city hall page, etc.) -->
     <div v-if="project.sourceUrl" :class="cls.row">
       <span :class="cls.label">{{ $t("project.source") }}</span>
       <a
@@ -80,11 +81,33 @@
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
     </div>
-    <div v-else-if="editMode" :class="cls.row">
+    <div v-else-if="editMode && !project.importSourceId" :class="cls.row">
       <span :class="cls.label">{{ $t("project.source") }}</span>
       <button :class="cls.addBtn" @click="emit('field-click')">
         + {{ $t("common.addField") }}
       </button>
+    </div>
+
+    <!-- Last modified (imported projects only) -->
+    <div v-if="project.importSourceId" :class="cls.row">
+      <span :class="cls.label">{{ $t("project.lastModified") }}</span>
+      <span :class="cls.value">{{
+        formatDate(project.externalLastModified ?? project.updatedAt)
+      }}</span>
+    </div>
+
+    <!-- Modify on source link (imported projects only, edit mode) -->
+    <div v-if="editMode && osmEditUrl" :class="cls.row">
+      <span :class="cls.label">{{
+        $t("project.modifyOn", { name: project.importSource?.name ?? "OpenStreetMap" })
+      }}</span>
+      <a
+        :href="osmEditUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline"
+        >{{ project.externalId }}</a
+      >
     </div>
   </div>
 </template>
@@ -145,6 +168,35 @@ function getStatusColor(status: TimelineStatus | null | undefined): string {
   };
   return colorMap[colorKey] ?? colorMap.grey ?? "#6b7280";
 }
+
+function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(date));
+}
+
+const periodDisplay = computed(() => {
+  if (!props.project) return "";
+  return formatProjectDateRange(
+    props.project.timelineStatus,
+    props.project.startDate,
+    props.project.endDate,
+    props.project.proposalDate,
+    props.project.startDatePrecision,
+    props.project.endDatePrecision,
+    props.project.proposalDatePrecision,
+    $t,
+  );
+});
+
+const osmEditUrl = computed(() => {
+  const project = props.project;
+  if (!project?.importSource || project.importSource.type !== "osm" || !project.externalId) {
+    return null;
+  }
+  const template = project.importSource.urlTemplate;
+  if (!template) return null;
+  return template.replace("{id}", project.externalId);
+});
 
 const projectLocationDisplay = computed(() => {
   if (!props.project) return "—";

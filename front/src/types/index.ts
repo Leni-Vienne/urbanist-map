@@ -1,6 +1,12 @@
 import type * as L from "leaflet";
 import type { RouterOutput } from "@/client";
-import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back/src/db/schema";
+import type {
+  DBCountry,
+  DBProject,
+  DBCity,
+  DBImportSource,
+  ApprovalStatus,
+} from "../../../back/src/db/schema";
 
 // Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
@@ -110,6 +116,8 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   overlayIds: string[];
   // Always an array on the frontend — null coerced to [] at DB boundary
   tags: string[];
+  // Joined import source details (null for user-created projects)
+  importSource?: DBImportSource | null;
   // UI state for tracking local modifications
   isModified?: boolean;
 }

@@ -104,6 +104,8 @@
     "submitChangeRequest": "Envoyer",
     "period": "Période",
     "source": "Source",
+    "lastModified": "Dernière modification",
+    "modifyOn": "Modifier sur {name}",
     "addImages": "Ajouter",
     "tags": "Catégories",
     "additionalDetails": "Détails supplémentaires"

@@ -1,6 +1,6 @@
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { projects, cities, overlays, changeRequests } from "../db/schema";
+import { projects, cities, overlays, changeRequests, importSources } from "../db/schema";
 import { eq, sql, and, or, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
@@ -325,15 +325,17 @@ export const projectRouter = router({
                 ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
                 : sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' THEN 1 END)::int`,
             city: cities,
+            importSource: importSources,
           })
           .from(projects)
           .innerJoin(cities, eq(projects.cityId, cities.id))
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
+          .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
           .where(and(...whereConditions))
           // GROUP BY primary keys only — PostgreSQL's functional dependency optimization
           // covers all other columns of both tables (projects.id and cities.id are PKs).
           // Avoids B-tree equality requirement on projects.geometry (PostGIS type).
-          .groupBy(projects.id, cities.id)
+          .groupBy(projects.id, cities.id, importSources.id)
           .orderBy(sql`${projects.createdAt} DESC`)
           .limit(input.limit);
 
@@ -354,9 +356,11 @@ export const projectRouter = router({
         .select({
           ...PROJECT_COLUMNS,
           city: cities,
+          importSource: importSources,
         })
         .from(projects)
         .leftJoin(cities, eq(projects.cityId, cities.id))
+        .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
         .where(and(eq(projects.id, input.id), eq(projects.status, "approved")))
         .limit(1);
 

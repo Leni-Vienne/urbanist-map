@@ -326,16 +326,18 @@ export async function navigateToOverlayWithCity(
 export async function navigateToStandaloneProject(
   lat: number,
   lng: number,
-  cityId: number,
-  cityName: string,
+  cityId: number | null | undefined,
+  cityName: string | null | undefined,
   countryCode?: string,
   projectId?: string,
 ): Promise<void> {
   try {
-    await prepareNavigationToCity(cityId, cityName, countryCode);
+    if (cityId && cityName) {
+      await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    // CRITICAL FIX: Load city data to populate mapStore cache
-    await loadAndRenderCityData(cityId, true);
+      // CRITICAL FIX: Load city data to populate mapStore cache
+      await loadAndRenderCityData(cityId, true);
+    }
 
     await new Promise<void>(
       (resolve) =>
