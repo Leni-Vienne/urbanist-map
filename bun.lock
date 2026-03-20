@@ -17,7 +17,7 @@
         "hono-sessions": "^0.8.1",
         "leaflet-distortableimage": "Leni-vienne/Leaflet.DistortableImage",
         "leaflet-toolbar": "https://github.com/Leni-Vienne/Leaflet.toolbar",
-        "maplibre-gl": "^5.20.2",
+        "maplibre-gl": "^5.21.0",
         "nodemailer": "^8.0.3",
         "pinia": "^3.0.4",
         "pino": "^10.3.1",
@@ -33,9 +33,9 @@
         "vite-plugin-qrcode": "^0.3.0",
         "vue": "^3.5.30",
         "vue-i18n": "^11.3.0",
-        "vue-router": "^5.0.3",
+        "vue-router": "^5.0.4",
         "zod": "^4.3.6",
-        "zod-geojson": "https://github.com/Leni-Vienne/zod-geojson#build-lib",
+        "zod-geojson": "^1.6.4",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20260317.1",
@@ -54,12 +54,12 @@
         "drizzle-kit": "^0.31.10",
         "husky": "^9.1.7",
         "jscpd": "^4.0.8",
-        "jsdom": "^29.0.0",
+        "jsdom": "^29.0.1",
         "lint-staged": "^16.4.0",
         "madge": "^8.0.0",
         "oxfmt": "^0.41.0",
         "oxlint": "^1.56.0",
-        "oxlint-tsgolint": "^0.17.0",
+        "oxlint-tsgolint": "^0.17.1",
         "rollup-plugin-visualizer": "^7.0.1",
         "unplugin-vue-components": "^31.0.0",
         "vite-plugin-vue-devtools": "^8.1.0",
@@ -1128,7 +1128,7 @@
 
     "leaflet": ["leaflet@1.9.4", "", {}, "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA=="],
 
-    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#3c70685", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-3c70685", "sha512-7hm17AfIo+yIzzDd+LiwsL/shVGauTHOgBISduNHt7WUdAT2SyWKXaxrOz4oAKHqCYgn3Td58lqIIL9ZDj03wQ=="],
+    "leaflet-distortableimage": ["leaflet-distortableimage@github:Leni-vienne/Leaflet.DistortableImage#ac7796d", { "dependencies": { "exif-js": "^2.3.0", "glfx": "0.0.4", "leaflet-google-places-autocomplete": "^0.0.9", "leaflet-toolbar": "Leni-vienne/Leaflet.toolbar", "webgl-distort": "0.0.2" }, "peerDependencies": { "leaflet": "1.x" } }, "Leni-Vienne-Leaflet.DistortableImage-ac7796d", "sha512-qwqgj4WPIWdKSnV6Xgrqkd9WNrWEkaVed3evnKVr+Q48796YoEGbfol015BieQCjWCeLwhlym3F0pRyqYfS9CQ=="],
 
     "leaflet-google-places-autocomplete": ["leaflet-google-places-autocomplete@0.0.9", "", {}, "sha512-NHefPZn53GQIjuAZmwEN/KTy8TobEu8kRU/WlYR58j5WrQU3vZ4w2OKVUCFzKU5jlWxeZP/SQTFhmXf2vkHIeQ=="],
 
@@ -1648,7 +1648,7 @@
 
     "zod": ["zod@4.3.6", "", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
 
-    "zod-geojson": ["zod-geojson@github:Leni-Vienne/zod-geojson#0067360", { "peerDependencies": { "zod": ">=3.25.0" } }, "Leni-Vienne-zod-geojson-0067360", "sha512-TWCeEVq43j6wnfSfsU0KqWWki47BJnkDh2c7+7jyJI1Tn8pylybqyCX604dNr7hS4AQ42trsDNN5yY835KtqtQ=="],
+    "zod-geojson": ["zod-geojson@1.6.4", "", { "peerDependencies": { "zod": ">=3.25.0" } }, "sha512-GoAlq+TIo5HNVo81XQF705Ip7S1MqOf0rQHWoWZD0pWA7Oa5uj/4HLazrOTf1KGJZtDJIFdpmiDshVYqcLZFwQ=="],
 
     "@babel/code-frame/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.27.1", "", {}, "sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow=="],
 

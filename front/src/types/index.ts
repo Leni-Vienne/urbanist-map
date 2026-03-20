@@ -76,7 +76,7 @@ declare module "leaflet" {
     selectOnDrag: boolean;
     draggable: boolean;
     suppressToolbar?: boolean;
-    //cornersOrder?: "default" | "clockwise"; // 'default': [NW, NE, SW, SE], 'clockwise': [NW, NE, SE, SW]
+    cornersOrder?: "default" | "clockwise"; // 'default': [NW, NE, SW, SE], 'clockwise': [NW, NE, SE, SW]
   }
 
   function distortableImageOverlay(
