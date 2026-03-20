@@ -346,7 +346,7 @@ export function checkOverlaySizeAndWarn(
   const corners = overlay.getCorners();
 
   // Guard clause - corners can be undefined for newly created overlays
-  if (corners.length !== 4) {
+  if (!corners || corners.length !== 4) {
     return;
   }
 

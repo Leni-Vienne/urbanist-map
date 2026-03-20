@@ -338,7 +338,7 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
   uiStore.openProjectInfoPopup(project.id, project);
 
   // Only handle city-related logic if project has an associated city
-  if (project.cityId) {
+  if (project.cityId && project.city) {
     if (mapStore.selectedCity?.id !== project.city.id) {
       mapStore.setSelectedCity({
         id: project.city.id,
@@ -489,7 +489,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       const uiStore = useUiStore();
 
       // In moderation mode, clicking a contribution should load the city context
-      if (mapStore.mode === "moderation") {
+      if (mapStore.mode === "moderation" && project.city) {
         if (mapStore.selectedCity?.id !== project.city.id) {
           mapStore.setSelectedCity({
             id: project.city.id,
@@ -514,7 +514,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       const mode = mapStore.mode;
 
       // Set city if not already selected (required for currentLocation panel to show data)
-      if (mapStore.selectedCity?.id !== project.city.id) {
+      if (project.city && mapStore.selectedCity?.id !== project.city.id) {
         mapStore.setSelectedCity({
           id: project.city.id,
           name: project.city.name,
@@ -524,10 +524,12 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       }
 
       // Ensure data is loaded for the panel to work (overlays AND standalone projects)
-      await Promise.all([
-        fetchCityOverlaysOrCache(project.city.id, mode),
-        fetchCityStandaloneProjectsOrCache(project.city.id, mode),
-      ]).catch(console.error);
+      if (project.city) {
+        await Promise.all([
+          fetchCityOverlaysOrCache(project.city.id, mode),
+          fetchCityStandaloneProjectsOrCache(project.city.id, mode),
+        ]).catch(console.error);
+      }
 
       // Force switch to Current Location tab if user is exploring Latest tab
       if (uiStore.activeTab === "latest") {

@@ -76,6 +76,7 @@ declare module "leaflet" {
     selectOnDrag: boolean;
     draggable: boolean;
     suppressToolbar?: boolean;
+    //cornersOrder?: "default" | "clockwise"; // 'default': [NW, NE, SW, SE], 'clockwise': [NW, NE, SE, SW]
   }
 
   function distortableImageOverlay(
@@ -105,7 +106,7 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   // Override status to allow null for local unsubmitted projects
   status: ApprovalStatus | null;
   // Computed fields for all contexts
-  city: DBCity;
+  city: DBCity | null;
   overlayIds: string[];
   // Always an array on the frontend — null coerced to [] at DB boundary
   tags: string[];

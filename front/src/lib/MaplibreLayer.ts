@@ -16,7 +16,7 @@ import type { LatLngBounds, Layer as LayerType, Point as PointType } from "leafl
 import type { Map as MaplibreMap } from "maplibre-gl";
 import maplibre, { type MapOptions } from "maplibre-gl";
 
-const { Layer, setOptions, DomEvent, DomUtil, latLngBounds, Util, extend, Point } = L;
+const { Layer, setOptions, DomUtil, latLngBounds, Util, extend, Point } = L;
 
 type LeafletMaplibreGLOptions = Omit<MapOptions, "container">;
 
@@ -77,7 +77,7 @@ const MaplibreLayer = Layer.extend({
       zoom: this._pinchZoom, // animate every zoom event for smoother pinch-zooming
       zoomstart: this._zoomStart, // flag starting a zoom to disable panning
       zoomend: this._zoomEnd,
-      resize: this._update,
+      resize: this._resize,
     };
   },
 
@@ -143,6 +143,17 @@ const MaplibreLayer = Layer.extend({
 
     this._glMap = new maplibre.Map(options);
 
+    // Allow MapLibre to pan/zoom beyond Mercator limits so it stays in sync
+    // with Leaflet at low zoom levels where the canvas exceeds the world bounds.
+    // Without this, MapLibre clamps to a fractional minimum zoom (e.g. 1.11)
+    // causing a visual snap at the end of Leaflet's CSS zoom animation.
+    const tr = this._glMap.transform;
+    // MapLibre v5+
+    if (tr._helper) {
+      if (tr._helper._latRange !== undefined) tr._helper._latRange = [-Infinity, Infinity];
+      if (tr._helper._minZoom !== undefined) tr._helper._minZoom = -2;
+    }
+
     this._transformGL(this._glMap);
 
     if (this._glMap._canvas.canvas) {
@@ -172,30 +183,31 @@ const MaplibreLayer = Layer.extend({
       return;
     }
 
-    const size = this.getSize(),
-      container = this._container,
-      gl = this._glMap,
-      offset = this._map.getSize().multiplyBy(this.options.padding),
+    const offset = this._map.getSize().multiplyBy(this.options.padding),
       topLeft = this._map.containerPointToLayerPoint([0, 0]).subtract(offset);
 
-    DomUtil.setPosition(container, this._roundPoint(topLeft));
+    DomUtil.setPosition(this._container, this._roundPoint(topLeft));
+    this._transformGL(this._glMap);
+  },
 
-    this._transformGL(gl);
+  _resize: function _resize() {
+    const size = this.getSize();
+    this._container.style.width = size.x + "px";
+    this._container.style.height = size.y + "px";
 
-    if (gl.transform.width !== size.x || gl.transform.height !== size.y) {
-      container.style.width = size.x + "px";
-      container.style.height = size.y + "px";
+    // Debounce the actual GL canvas resize to avoid per-frame canvas clears
+    // (changing canvas dimensions clears it synchronously, causing a blank frame).
+    // The container is already the right size so layout is correct immediately.
+    if (this._resizeTimer) clearTimeout(this._resizeTimer);
+    this._resizeTimer = setTimeout(() => {
+      const gl = this._glMap;
       if (gl._resize !== null && gl._resize !== undefined) {
         gl._resize();
       } else {
         gl.resize();
       }
-    } else if (gl._update !== null && gl._update !== undefined) {
-      // older versions of mapbox-gl surfaced update publicly
-      gl._update();
-    } else {
-      gl.update();
-    }
+      this._update();
+    }, 100);
   },
 
   _transformGL: function _transformGL(gl: any) {
@@ -211,6 +223,11 @@ const MaplibreLayer = Layer.extend({
 
   // update the map constantly during a pinch zoom
   _pinchZoom: function _pinchZoom(_e: any) {
+    // Don't update MapLibre during CSS-animated zooms (scroll wheel, double-click)
+    // as it changes the canvas content mid-animation, causing visual glitches.
+    if (this._zooming) {
+      return;
+    }
     this._glMap.jumpTo({
       zoom: this._map.getZoom() - 1,
       center: this._map.getCenter(),
@@ -220,35 +237,27 @@ const MaplibreLayer = Layer.extend({
   // borrowed from L.ImageOverlay
   // https://github.com/Leaflet/Leaflet/blob/master/src/layer/ImageOverlay.js#L139-L144
   _animateZoom: function _animateZoom(e: any) {
+    this._zooming = true;
     const scale = this._map.getZoomScale(e.zoom);
 
-    // Calculate where the current bounds (which match the canvas size since padding=0)
-    // will be positioned at the new zoom level, relative to the new map center.
-    const bounds = this.getBounds();
-    const offset = this._map._latLngBoundsToNewLayerBounds(bounds, e.zoom, e.center).min;
+    // Work in world pixel coords (like GridLayer._setZoomTransform) to avoid
+    // lat/lng clamping at low zoom levels where the canvas extends beyond the Mercator bounds.
+    const containerPos = DomUtil.getPosition(this._container);
+    const pixelOrigin = this._map.getPixelOrigin();
+    const newPixelOrigin = this._map._getNewPixelOrigin(e.center, e.zoom);
+    const canvasWorldPos = pixelOrigin.add(containerPos);
+    const offset = canvasWorldPos.multiplyBy(scale).subtract(newPixelOrigin).subtract(containerPos);
 
-    // The canvas is inside a container that is already translated by the rounded this._offset.
-    // We must subtract the rounded this._offset so the total translation relative to the tilePane is correct.
-    const containerOffset = this._roundPoint(this._offset);
-    DomUtil.setTransform(this._glMap._actualCanvas, offset.subtract(containerOffset), scale);
+    DomUtil.setTransform(this._glMap._actualCanvas, offset, scale);
   },
 
-  _zoomStart: function _zoomStart(_e: any) {
-    this._zooming = true;
-  },
+  _zoomStart: function _zoomStart(_e: any) {},
 
   _zoomEnd: function _zoomEnd() {
-    const scale = this._map.getZoomScale(this._map.getZoom());
-
-    DomUtil.setTransform(
-      this._glMap._actualCanvas,
-      // https://github.com/mapbox/mapbox-gl-leaflet/pull/130
-      new Point(0, 0),
-      scale,
-    );
+    // Reset canvas CSS transform to identity (getZoomScale of current zoom = 1)
+    DomUtil.setTransform(this._glMap._actualCanvas, new Point(0, 0), 1);
 
     this._zooming = false;
-
     this._update();
   },
 });

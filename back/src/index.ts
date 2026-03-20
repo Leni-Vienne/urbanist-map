@@ -636,7 +636,7 @@ app.get("/uploads/*", async (c) => {
       })
       .from(overlays)
       .innerJoin(projects, eq(overlays.projectId, projects.id))
-      .innerJoin(cities, eq(projects.cityId, cities.id))
+      .leftJoin(cities, eq(projects.cityId, cities.id))
       .where(eq(overlays.filename, actualFilename))
       .limit(1);
 
@@ -667,7 +667,9 @@ app.get("/uploads/*", async (c) => {
       // Check authorization for pending/rejected images
       const isAuthor = user.id === overlay.authorId;
       const isAdmin = user.role === "admin" || user.moderatedCountries === null;
-      const isCountryModerator = user.moderatedCountries?.includes(overlay.countryCode);
+      const isCountryModerator = overlay.countryCode
+        ? user.moderatedCountries?.includes(overlay.countryCode)
+        : false;
 
       if (!isAuthor && !isAdmin && !isCountryModerator) {
         return c.json({ error: "Forbidden" }, 403);

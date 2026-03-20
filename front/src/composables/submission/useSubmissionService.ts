@@ -213,7 +213,7 @@ export function useSubmissionService() {
 
     // Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.projects)) {
-      if (project.city.id === project.cityId && !cache[project.cityId]) {
+      if (project.city && project.city.id === project.cityId && !cache[project.cityId]) {
         cache[project.cityId] = project.city.name;
       }
     }

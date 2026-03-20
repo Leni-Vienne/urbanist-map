@@ -84,6 +84,9 @@ export const useProjectStore = defineStore("project", () => {
 
   // Helper function to extract city metadata from project for user contributions
   function extractCityMetadata(project: Project) {
+    if (!project.city) {
+      return { cityName: null, countryCode: null, countryName: null };
+    }
     const countryCode = project.city.countryCode;
     const country = countries.value.find((c) => c.code === countryCode);
 
@@ -597,7 +600,7 @@ export const useProjectStore = defineStore("project", () => {
     for (const project of userProjectsToInclude) {
       if (project.cityId) {
         // Only add to map if not already present
-        if (!localProjectCitiesMap.has(project.cityId)) {
+        if (!localProjectCitiesMap.has(project.cityId) && project.city) {
           localProjectCitiesMap.set(project.cityId, {
             id: project.cityId,
             name: project.city.name,

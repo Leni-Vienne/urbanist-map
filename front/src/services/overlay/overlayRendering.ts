@@ -98,6 +98,7 @@ export function createLeafletOverlay(
       // L.rectangle(overlay.getBounds()), but getBounds() returns an empty LatLngBounds
       // (with _northEast = undefined) before the image loads, causing a crash.
       snapIgnore: true,
+      //cornersOrder: "clockwise", // Ensure corners are always in [NW, NE, SE, SW] order for consistency with backend and UI (e.g. tooltip) logic
     });
 
     // Register immediately so mode-switch cleanup (registry.clearEntry) can remove this

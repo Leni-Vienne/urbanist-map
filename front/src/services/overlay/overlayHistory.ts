@@ -31,7 +31,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
   }
 
   const initialCorners = layer.getCorners();
-  if (initialCorners.length === 4) {
+  if (initialCorners && initialCorners.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
     overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // Can't use structuredClone because corners are a class instance
     overlayObject.redoStack = [];

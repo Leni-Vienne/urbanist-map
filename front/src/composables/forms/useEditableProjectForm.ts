@@ -146,8 +146,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   // Update city object when cityId changes
-  function getCityObjectForUpdate(currentProject: Project): DBCity {
-    let cityObject: DBCity = currentProject.city;
+  function getCityObjectForUpdate(currentProject: Project): DBCity | null {
+    let cityObject: DBCity | null = currentProject.city;
 
     if (
       formData.cityId &&
