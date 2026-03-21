@@ -11,7 +11,11 @@ import {
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
-import { selectedProjectTags, visibleStates } from "@/services/overlay/statusFilters";
+import {
+  selectedProjectTags,
+  visibleStates,
+  sizeFilterRange,
+} from "@/services/overlay/statusFilters";
 
 interface BoundingBox {
   minLat: number;
@@ -288,7 +292,7 @@ async function addTileLayersToMap(): Promise<void> {
 
 // Watch for tag and status filter changes and update MVT layers
 watch(
-  [selectedProjectTags, visibleStates],
+  [selectedProjectTags, visibleStates, sizeFilterRange],
   () => {
     const mlMap = mlMapRef.current;
     if (mlMap) {

@@ -232,7 +232,11 @@
     "controls": {
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Filter by Status",
+      "filterBySize": "Filter by Size",
+      "resetSize": "Reset",
+      "filterByStatusAndTags": "Filters",
       "filterByTags": "Filter by Tags",
+      "clearTagFilters": "Clear",
       "untagged": "Untagged",
       "proposed": "Proposed",
       "planned": "Planned",

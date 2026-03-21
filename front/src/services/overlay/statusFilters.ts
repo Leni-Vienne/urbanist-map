@@ -62,6 +62,9 @@ export const visibleStates = computed(() => {
 export const selectedProjectTags = ref<string[]>([]);
 export const UNTAGGED_PROJECT_FILTER = "__untagged__";
 
+// Size filter: [minMeters, maxMeters]. Infinity = no upper bound.
+export const sizeFilterRange = ref<[number, number]>([0, Infinity]);
+
 /**
  * Filter overlays array based on current status filters
  * In view mode, also filters out pending overlays (only show approved)
@@ -71,6 +74,13 @@ export function filterByStatus<T extends OverlayObject | OverlayData>(
   mode: AppMode,
 ): T[] {
   return overlays.filter((overlay) => shouldShowOverlay(overlay, mode));
+}
+
+/**
+ * Clear all project tag filters, restoring show-all behavior.
+ */
+export function clearProjectTagFilters(): void {
+  selectedProjectTags.value = [];
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   selectedProjectTags,
   UNTAGGED_PROJECT_FILTER,
   visibleStates,
+  sizeFilterRange,
 } from "@/services/overlay/statusFilters";
 
 // ── Global Request Deduplication for MapLibre ──────────────────────────────
@@ -228,45 +229,89 @@ function getStatusFilterExpression(): FilterSpecification | null {
 }
 
 /**
- * Apply current tag and status filters to all project vector layers.
- * Called when the filter selection changes.
+ * Build a size filter expression for the project-points layer.
+ * Checks against min_size_m/max_size_m which reflect the full grid cell, not just the representative.
+ * Returns null if the size filter is at its default (no filtering needed).
+ */
+function getSizeFilterExpressionForPoints(): FilterSpecification | null {
+  const [minSize, maxSize] = sizeFilterRange.value;
+  if (minSize === 0 && maxSize === Infinity) return null;
+
+  // A cell matches if its size range overlaps the filter range.
+  // Standalone projects (no geometry) are treated as size 0 via coalesce.
+  const conditions: unknown[] = [[">=", ["coalesce", ["get", "max_size_m"], 0], minSize]];
+  if (maxSize !== Infinity) {
+    conditions.push(["<=", ["coalesce", ["get", "min_size_m"], 0], maxSize]);
+  }
+  return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
+}
+
+/**
+ * Build a size filter expression for the project-shapes layer.
+ * Standalone shape-points (null geometry_size_m) pass through as size 0.
+ */
+function getSizeFilterExpressionForShapes(): FilterSpecification | null {
+  const [minSize, maxSize] = sizeFilterRange.value;
+  if (minSize === 0 && maxSize === Infinity) return null;
+
+  const conditions: unknown[] = [[">=", ["coalesce", ["get", "geometry_size_m"], 0], minSize]];
+  if (maxSize !== Infinity) {
+    conditions.push(["<=", ["coalesce", ["get", "geometry_size_m"], 0], maxSize]);
+  }
+  return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
+}
+
+function combineFilters(...filters: (FilterSpecification | null)[]): FilterSpecification | null {
+  const active = filters.filter((f): f is FilterSpecification => f !== null);
+  if (active.length === 0) return null;
+  if (active.length === 1) return active[0] ?? null;
+  return ["all", ...active] as FilterSpecification;
+}
+
+/**
+ * Apply current tag, status, and size filters to all project vector layers.
+ * Called when any filter selection changes.
  */
 export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const tagFilter = getTagFilterExpression();
   const statusFilter = getStatusFilterExpression();
+  const baseFilter = combineFilters(tagFilter, statusFilter);
 
-  let combinedFilter: any = null;
-  if (tagFilter && statusFilter) {
-    combinedFilter = ["all", tagFilter, statusFilter];
-  } else if (tagFilter) {
-    combinedFilter = tagFilter;
-  } else if (statusFilter) {
-    combinedFilter = statusFilter;
+  const pointsFilter = combineFilters(baseFilter, getSizeFilterExpressionForPoints());
+  const shapesFilter = combineFilters(baseFilter, getSizeFilterExpressionForShapes());
+
+  // project-points: tag + status + point size
+  if (mlMap.getLayer("project-points")) {
+    mlMap.setFilter("project-points", pointsFilter);
   }
 
-  // Apply to simple layers (filter can be fully replaced)
-  for (const layerId of TAG_FILTERABLE_LAYERS) {
+  // project-shapes and overlay-footprints: tag + status + shape size (footprints inherit shape size)
+  for (const layerId of ["project-shapes", "overlay-footprints"] as const) {
+    if (!mlMap.getLayer(layerId)) continue;
+    mlMap.setFilter(layerId, shapesFilter);
+  }
+
+  // Layers with existing filters that must be merged
+  for (const [layerId, getBaseLayerFilter] of Object.entries(LAYERS_WITH_EXISTING_FILTERS)) {
     if (!mlMap.getLayer(layerId)) continue;
 
-    if (combinedFilter) {
-      mlMap.setFilter(layerId, combinedFilter);
-    } else {
-      // Clear filter by setting it to null
-      mlMap.setFilter(layerId, null);
-    }
+    const baseLayerFilter = getBaseLayerFilter();
+    // Points hover keeps points size filter; shapes-derived layers keep shapes size filter
+    const sizeFilter =
+      layerId === "project-points-hover"
+        ? getSizeFilterExpressionForPoints()
+        : getSizeFilterExpressionForShapes();
+    const merged = combineFilters(baseLayerFilter, baseFilter, sizeFilter);
+    mlMap.setFilter(layerId, merged ?? baseLayerFilter);
   }
+}
 
-  // Apply to layers that have existing filters (merge with "all")
-  for (const [layerId, getBaseFilter] of Object.entries(LAYERS_WITH_EXISTING_FILTERS)) {
-    if (!mlMap.getLayer(layerId)) continue;
-
-    const baseFilter = getBaseFilter();
-    if (combinedFilter) {
-      mlMap.setFilter(layerId, ["all", baseFilter, combinedFilter] as any);
-    } else {
-      mlMap.setFilter(layerId, baseFilter);
-    }
-  }
+function getNextGridZoom(currentZoom: number): number {
+  if (currentZoom <= 4) return 5;
+  if (currentZoom <= 6) return 7;
+  if (currentZoom <= 8) return 9;
+  if (currentZoom <= 10) return 11;
+  return currentZoom + 2;
 }
 
 function getMaplibrePointFromLeafletEvent(
@@ -428,22 +473,37 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
+      console.log("Clicked point feature:", pointFeature);
       const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
       if (projectId.length > 0) {
         const coordinates = pointFeature.geometry?.coordinates;
         let targetLatLng = event.latlng;
+        let shouldOpenPanel = true;
 
         if (coordinates && coordinates.length >= 2) {
           const [lng, lat] = coordinates;
           const currentZoom = map.value.getZoom();
-          const targetZoom = Math.max(currentZoom + 2, 14); // Zoom in enough to see the shapes
-          map.value.flyTo([lat, lng], targetZoom, { duration: 1.5 });
+          const repSize: number = pointFeature.properties?.representative_size_m ?? 0;
+          const targetZoom = getNextGridZoom(currentZoom);
+          const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+          map.value.flyTo([lat, lng], targetZoom, { duration });
 
           // Use exact feature coordinates to prevent massive popup offset when zooming in
           targetLatLng = L.latLng(lat, lng);
+
+          // If a size filter is active, check whether the representative project itself passes it.
+          // If not, the project won't be visible after zooming in — just zoom and let the user
+          // click the actual visible feature at higher zoom.
+          const [minSize, maxSize] = sizeFilterRange.value;
+          const isSizeFilterActive = minSize > 0 || maxSize !== Infinity;
+          if (isSizeFilterActive) {
+            shouldOpenPanel = repSize >= minSize && repSize <= maxSize;
+          }
         }
 
-        void handleProjectClickFromTile(projectId, targetLatLng);
+        if (shouldOpenPanel) {
+          void handleProjectClickFromTile(projectId, targetLatLng);
+        }
       }
     }
   });

@@ -86,7 +86,7 @@
       </div>
 
       <!-- Project fields + overlay section -->
-      <div class="px-4 pt-3 pb-1">
+      <div class="px-4 pt-3 pb-4">
         <ProjectMetadataCard
           :project="project"
           :show-name="false"
@@ -114,7 +114,7 @@
     </div>
 
     <!-- Actions Section - Edit mode buttons -->
-    <div v-if="!viewMode" class="px-4 pb-4 pt-3 flex flex-col gap-2">
+    <div v-if="!viewMode" class="px-4 pb-4 pt-0 flex flex-col gap-2">
       <div class="flex gap-2">
         <Button
           v-if="!project?.importSourceId"

@@ -17,73 +17,86 @@
   <!-- Filter Popover (View Mode Only) -->
   <Popover ref="filterPanel" @click.stop @dblclick.stop appendTo="body">
     <div class="p-2 min-w-55">
-      <h3 class="m-0 mb-3 text-[0.95rem] font-semibold text-color">
-        {{ $t("map.controls.filterByStatus") }}
-      </h3>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="m-0 text-[0.95rem] font-semibold text-color">
+          {{ $t("map.controls.filterByStatusAndTags") }}
+        </h3>
+        <button
+          v-if="selectedProjectTags.length > 0"
+          type="button"
+          class="text-xs text-color-secondary underline cursor-pointer bg-transparent border-0 p-0"
+          @click.stop="clearTagFilters"
+          @dblclick.stop
+        >
+          {{ $t("map.controls.clearTagFilters") }}
+        </button>
+      </div>
       <div class="flex flex-wrap gap-2 max-w-70">
         <button
           v-for="{ color, labelKey, ariaKey } in filters"
           :key="color"
           type="button"
-          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
           :aria-pressed="selectedStatusFilters.includes(color)"
           :style="getStatusButtonStyle(color)"
           @click.stop="toggleCompletionFilter(color)"
           @dblclick.stop
           :aria-label="$t(ariaKey)"
         >
-          <span
-            class="w-3 h-3 rounded-full shrink-0"
-            :style="{ backgroundColor: markerColors[color] }"
-          ></span>
-          <span>{{ $t(labelKey) }}</span>
+          {{ $t(labelKey) }}
+        </button>
+
+        <button
+          type="button"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+          :aria-pressed="selectedProjectTags.includes(untaggedFilter)"
+          :style="
+            selectedProjectTags.includes(untaggedFilter)
+              ? {
+                  backgroundColor: 'var(--p-surface-500)',
+                  color: 'var(--p-surface-0)',
+                  borderColor: 'var(--p-surface-500)',
+                }
+              : {
+                  backgroundColor: 'transparent',
+                  color: 'var(--p-text-color-secondary)',
+                  borderColor: 'var(--p-surface-400)',
+                }
+          "
+          @click.stop="toggleTagFilter(untaggedFilter)"
+          @dblclick.stop
+        >
+          {{ $t("map.controls.untagged") }}
+        </button>
+
+        <button
+          v-for="tag in allTags"
+          :key="tag.slug"
+          type="button"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+          :aria-pressed="selectedProjectTags.includes(tag.slug)"
+          :style="
+            selectedProjectTags.includes(tag.slug)
+              ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
+              : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
+          "
+          @click.stop="toggleTagFilter(tag.slug)"
+          @dblclick.stop
+        >
+          {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
         </button>
       </div>
 
       <div class="mt-4">
-        <h3 class="m-0 mb-3 text-[0.95rem] font-semibold text-color">
-          {{ $t("map.controls.filterByTags") }}
+        <h3 class="m-0 mb-2 text-[0.95rem] font-semibold text-color">
+          {{ $t("map.controls.filterBySize") }}
         </h3>
-        <div class="flex flex-wrap gap-2 max-w-70">
-          <button
-            type="button"
-            class="px-3 py-1 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-            :aria-pressed="selectedProjectTags.includes(untaggedFilter)"
-            :style="
-              selectedProjectTags.includes(untaggedFilter)
-                ? {
-                    backgroundColor: 'var(--p-surface-500)',
-                    color: 'var(--p-surface-0)',
-                    borderColor: 'var(--p-surface-500)',
-                  }
-                : {
-                    backgroundColor: 'transparent',
-                    color: 'var(--p-text-color-secondary)',
-                    borderColor: 'var(--p-surface-400)',
-                  }
-            "
-            @click.stop="toggleTagFilter(untaggedFilter)"
-            @dblclick.stop
-          >
-            {{ $t("map.controls.untagged") }}
-          </button>
-
-          <button
-            v-for="tag in allTags"
-            :key="tag.slug"
-            type="button"
-            class="px-3 py-1 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-            :aria-pressed="selectedProjectTags.includes(tag.slug)"
-            :style="
-              selectedProjectTags.includes(tag.slug)
-                ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
-                : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
-            "
-            @click.stop="toggleTagFilter(tag.slug)"
-            @dblclick.stop
-          >
-            {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
-          </button>
+        <div class="px-1">
+          <Slider v-model="sliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
+          <div class="flex justify-between mt-2 text-xs text-color-secondary">
+            <span>{{ formatSize(sizeFilterRange[0]) }}</span>
+            <span>{{ formatSize(sizeFilterRange[1]) }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -97,8 +110,34 @@ import {
   selectedProjectTags,
   toggleFilter,
   toggleProjectTagFilter,
+  clearProjectTagFilters,
   UNTAGGED_PROJECT_FILTER,
+  sizeFilterRange,
 } from "@/services/overlay/statusFilters";
+import Slider from "primevue/slider";
+
+// Logarithmic slider: internal positions are [0, 100], mapped to meters via a log curve.
+// LOG_SCALE_REF is only used to shape the curve — it is NOT a filter ceiling.
+// Position 100 maps to Infinity (no upper limit).
+const LOG_SCALE_REF = 500_001;
+
+function posToMeters(pos: number): number {
+  if (pos <= 0) return 0;
+  if (pos >= 100) return Infinity;
+  return Math.round(LOG_SCALE_REF ** (pos / 100) - 1);
+}
+
+const sliderPositions = ref<[number, number]>([0, 100]);
+
+watch(sliderPositions, ([minPos, maxPos]) => {
+  sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
+});
+
+function formatSize(meters: number): string {
+  if (!isFinite(meters)) return "100km+";
+  if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
+  return `${meters}m`;
+}
 import { markerColors } from "@/services/map/markers";
 import type { viewModeMarkerColor } from "@/types/index";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
@@ -176,6 +215,11 @@ function toggleCompletionFilter(color: viewModeMarkerColor) {
 
 function toggleTagFilter(slug: string) {
   toggleProjectTagFilter(slug);
+  emit("filter-overlays");
+}
+
+function clearTagFilters() {
+  clearProjectTagFilters();
   emit("filter-overlays");
 }
 

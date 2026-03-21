@@ -21,17 +21,18 @@ shapes AS (
       p.name,
       COALESCE(p.tags, ARRAY[]::text[]) AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
-      p.timeline_status
+      p.timeline_status,
+      ROUND(p.geometry_size_m)::int AS geometry_size_m
     FROM projects p, tile_env te
     WHERE $1 >= 9
       AND p.status = 'approved'
-      AND p.geometry IS NOT NULL 
+      AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
-      
+
     UNION ALL
-    
+
     -- Second part: for projects that don'thave geometry, we represent them as a single point in the shapes layer
-    -- BUT ONLY IF they also do not have any associated image overlays. 
+    -- BUT ONLY IF they also do not have any associated image overlays.
     -- This ensures small un-drawn projects are still clickable at high zooms.
     SELECT
       ST_AsMVTGeom(
@@ -43,12 +44,13 @@ shapes AS (
       p.name,
       COALESCE(p.tags, ARRAY[]::text[]) AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
-      p.timeline_status
+      p.timeline_status,
+      NULL::int AS geometry_size_m
     FROM projects p, tile_env te
     WHERE $1 >= 9
       AND p.status = 'approved'
-      AND p.geometry IS NULL 
-      AND p.center_coordinate IS NOT NULL 
+      AND p.geometry IS NULL
+      AND p.center_coordinate IS NOT NULL
       AND p.center_coordinate && te.bounds_4326
       AND NOT EXISTS (
         SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved'
@@ -94,19 +96,23 @@ footprints AS (
 grid_size AS (
   -- Determine the size of the logical grid used for decluttering (clustering) project markers based on zoom level.
   SELECT CASE
-    WHEN $1 <= 4 THEN 2048
-    WHEN $1 <= 6 THEN 1024
-    WHEN $1 <= 8 THEN 512
-    WHEN $1 <= 10 THEN 256
+    WHEN $1 <= 4 THEN 1024
+    WHEN $1 <= 6 THEN 512
+    WHEN $1 <= 8 THEN 256
+    WHEN $1 <= 10 THEN 192
     ELSE 128
   END AS cell_size
 ),
 points AS (
-  -- Generate the 'project-points' vector tile layer containing center markers for projects
+  -- Generate the 'project-points' vector tile layer containing center markers for projects.
   SELECT ST_AsMVT(q, 'project-points', 4096, 'mvt_geom') AS tile
   FROM (
-    -- Deduplicate markers: only keep one representative marker per local grid cell, 
-    -- categorized by its primary tag and visual timeline status (so different colored/typed markers don't entirely swallow each other)
+    -- Step 2: deduplicate — keep one representative project per (grid cell, tag, status) group.
+    -- DISTINCT ON picks the first row per group after ORDER BY; with no tiebreaker beyond the
+    -- group columns, Postgres picks whichever row it happens to encounter first in its scan,
+    -- which is effectively arbitrary and has no geographic bias.
+    -- Window functions compute the size range across ALL projects in the cell, not just the
+    -- representative, so the client-side size filter remains accurate for the whole cluster.
     SELECT DISTINCT ON (grid_id, first_tag, timeline_status)
       mvt_geom,
       id,
@@ -114,8 +120,15 @@ points AS (
       tags,
       first_tag,
       timeline_status,
-      has_geometry
+      has_geometry,
+      ROUND(geometry_size_m)::int AS representative_size_m,
+      ROUND(MIN(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS min_size_m,
+      ROUND(MAX(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS max_size_m
     FROM (
+      -- Step 1: project all approved markers into tile space and assign each to a grid cell.
+      -- grid_id divides the 4096-unit tile into a grid of cell_size squares. At low zoom levels
+      -- the cell covers a large geographic area, so many projects share the same cell and only
+      -- one representative is surfaced per (cell, tag, status) group after deduplication.
       SELECT
         ST_AsMVTGeom(
           ST_Transform(p.center_coordinate, 3857),
@@ -128,22 +141,27 @@ points AS (
         COALESCE(p.tags[1], '') AS first_tag,
         p.timeline_status,
         CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
-        -- Calculate the clustering grid cell identifier based on the point's local tile coordinates divided by cell size
-        (ST_X(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text || '_' || (ST_Y(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text as grid_id
+        p.geometry_size_m,
+        (ST_X(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
+          || '_' ||
+        (ST_Y(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
+          AS grid_id
       FROM projects p, tile_env te, grid_size gs
       WHERE p.status = 'approved'
         AND p.center_coordinate IS NOT NULL
         AND p.center_coordinate && te.bounds_4326
-        -- Hide individual 'building' markers at low zoom levels (<10) to reduce noise
+        -- Hide 'building' markers at low zoom levels (<10) to reduce noise
         AND (
           $1 >= 10 OR NOT ('building' = ANY(COALESCE(p.tags, ARRAY[]::text[])))
         )
-        -- We don't show center points for physically large features (e.g., roads/lines over 100m) at high zoom levels (>= 11)
-        -- because their polygon/line is already visible enough on the map and the central marker just clutters it.
-        AND ($1 < 11 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 100)
+        -- Hide center points for large geometries progressively as zoom increases,
+        -- since their shape is already visible in the shapes layer and the marker just clutters the map.
+        AND ($1 < 9  OR p.geometry_size_m IS NULL OR p.geometry_size_m < 50000)
+        AND ($1 < 10 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 5000)
+        AND ($1 < 11 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 500)
     ) inner_q
     WHERE inner_q.mvt_geom IS NOT NULL
-    ORDER BY grid_id, first_tag, timeline_status, id
+    ORDER BY grid_id, first_tag, timeline_status
   ) q
 )
 -- Aggregate all three computed tile layers into a single MVT binary payload returned to the client

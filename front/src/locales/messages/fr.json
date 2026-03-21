@@ -232,7 +232,11 @@
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
       "filterByStatus": "Filtrer par statut",
+      "filterBySize": "Filtrer par taille",
+      "resetSize": "Réinitialiser",
+      "filterByStatusAndTags": "Filtres",
       "filterByTags": "Filtrer par catégories",
+      "clearTagFilters": "Effacer",
       "untagged": "Non catégorisé",
       "proposed": "Proposé",
       "planned": "Planifié",
