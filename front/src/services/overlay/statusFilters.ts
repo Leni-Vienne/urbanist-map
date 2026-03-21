@@ -65,6 +65,22 @@ export const UNTAGGED_PROJECT_FILTER = "__untagged__";
 // Size filter: [minMeters, maxMeters]. Infinity = no upper bound.
 export const sizeFilterRange = ref<[number, number]>([0, Infinity]);
 
+// Name filter: "named" = projects with a non-empty name, "unnamed" = projects without a name.
+// Empty array means show all.
+export const selectedNameFilters = ref<Array<"named" | "unnamed">>([]);
+
+// Last modified date filter: [minTimestampMs, maxTimestampMs]. Infinity = no upper bound.
+// Uses externalLastModified if not null, otherwise updated_at.
+export const lastModifiedDateRange = ref<[number, number]>([0, Infinity]);
+
+export function toggleNameFilter(value: "named" | "unnamed"): void {
+  if (selectedNameFilters.value.includes(value)) {
+    selectedNameFilters.value = selectedNameFilters.value.filter((v) => v !== value);
+  } else {
+    selectedNameFilters.value = [...selectedNameFilters.value, value];
+  }
+}
+
 /**
  * Filter overlays array based on current status filters
  * In view mode, also filters out pending overlays (only show approved)
@@ -119,11 +135,56 @@ function matchesSelectedTags(tags: string[] | null | undefined): boolean {
 }
 
 /**
+ * Check whether a project's name matches the name filter.
+ */
+function matchesNameFilter(name: string | null | undefined): boolean {
+  if (selectedNameFilters.value.length === 0) return true;
+  const hasName = !!name && name.trim().length > 0;
+  if (
+    selectedNameFilters.value.includes("named") &&
+    selectedNameFilters.value.includes("unnamed")
+  ) {
+    return true;
+  }
+  if (selectedNameFilters.value.includes("named")) return hasName;
+  if (selectedNameFilters.value.includes("unnamed")) return !hasName;
+  return true;
+}
+
+/**
+ * Get the effective last modified timestamp for a project.
+ * Uses externalLastModified if not null, otherwise updated_at.
+ */
+function getEffectiveLastModifiedMs(project: Project): number | null {
+  const date = project.externalLastModified ?? project.updatedAt;
+  if (!date) return null;
+  return new Date(date).getTime();
+}
+
+/**
+ * Check whether a project's last modified date falls within the filter range.
+ */
+function matchesLastModifiedDateFilter(project: Project): boolean {
+  const [minMs, maxMs] = lastModifiedDateRange.value;
+  if (minMs === 0 && maxMs === Infinity) return true;
+  const ms = getEffectiveLastModifiedMs(project);
+  if (ms === null) return true;
+  if (ms < minMs) return false;
+  if (maxMs !== Infinity && ms > maxMs) return false;
+  return true;
+}
+
+/**
  * Shared visibility check for standalone project markers.
  */
 export function shouldShowStandaloneProject(project: Project, mode: AppMode): boolean {
   const markerColor = getProjectMarkerColor(project, mode);
-  return visibleStates.value[markerColor] && matchesSelectedTags(project.tags);
+  return (
+    visibleStates.value[markerColor] &&
+    matchesSelectedTags(project.tags) &&
+    matchesNameFilter(project.name) &&
+    matchesLastModifiedDateFilter(project)
+  );
 }
 
 /**

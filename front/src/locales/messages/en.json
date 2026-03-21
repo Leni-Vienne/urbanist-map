@@ -246,7 +246,12 @@
       "togglePlanned": "Toggle planned projects",
       "toggleInProgress": "Toggle in progress projects",
       "toggleCompleted": "Toggle completed projects",
-      "toggleCanceled": "Toggle canceled projects"
+      "toggleCanceled": "Toggle canceled projects",
+      "named": "Named",
+      "unnamed": "Unnamed",
+      "filterByLastModified": "Filter by Last Modified",
+      "lastModifiedFrom": "From",
+      "lastModifiedTo": "To"
     }
   },
   "search": {

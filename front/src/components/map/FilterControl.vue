@@ -16,7 +16,7 @@
 
   <!-- Filter Popover (View Mode Only) -->
   <Popover ref="filterPanel" @click.stop @dblclick.stop appendTo="body">
-    <div class="p-2 min-w-55">
+    <div class="min-w-55">
       <div class="flex items-center justify-between mb-3">
         <h3 class="m-0 text-[0.95rem] font-semibold text-color">
           {{ $t("map.controls.filterByStatusAndTags") }}
@@ -70,6 +70,31 @@
         </button>
 
         <button
+          v-for="nameVal in nameFilters"
+          :key="nameVal"
+          type="button"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+          :aria-pressed="selectedNameFilters.includes(nameVal)"
+          :style="
+            selectedNameFilters.includes(nameVal)
+              ? {
+                  backgroundColor: 'var(--p-surface-500)',
+                  color: 'var(--p-surface-0)',
+                  borderColor: 'var(--p-surface-500)',
+                }
+              : {
+                  backgroundColor: 'transparent',
+                  color: 'var(--p-text-color-secondary)',
+                  borderColor: 'var(--p-surface-400)',
+                }
+          "
+          @click.stop="handleToggleNameFilter(nameVal)"
+          @dblclick.stop
+        >
+          {{ $t(`map.controls.${nameVal}`) }}
+        </button>
+
+        <button
           v-for="tag in allTags"
           :key="tag.slug"
           type="button"
@@ -99,6 +124,32 @@
           </div>
         </div>
       </div>
+
+      <div class="mt-4">
+        <h3 class="m-0 mb-2 text-[0.95rem] font-semibold text-color">
+          {{ $t("map.controls.filterByLastModified") }}
+        </h3>
+        <div class="px-1">
+          <Slider
+            v-model="dateSliderPositions"
+            :min="0"
+            :max="DATE_SLIDER_MAX"
+            :step="1"
+            range
+            class="w-full"
+          />
+          <div class="flex justify-between mt-2 text-xs text-color-secondary">
+            <span
+              >{{ $t("map.controls.lastModifiedFrom") }}:
+              {{ formatDateSlider(dateSliderPositions[0]) }}</span
+            >
+            <span
+              >{{ $t("map.controls.lastModifiedTo") }}:
+              {{ formatDateSlider(dateSliderPositions[1]) }}</span
+            >
+          </div>
+        </div>
+      </div>
     </div>
   </Popover>
 </template>
@@ -113,6 +164,9 @@ import {
   clearProjectTagFilters,
   UNTAGGED_PROJECT_FILTER,
   sizeFilterRange,
+  selectedNameFilters,
+  toggleNameFilter,
+  lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 import Slider from "primevue/slider";
 
@@ -132,6 +186,38 @@ const sliderPositions = ref<[number, number]>([0, 100]);
 watch(sliderPositions, ([minPos, maxPos]) => {
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
 });
+
+// Date slider: each step is one month, from DATE_SLIDER_ORIGIN_YEAR to current month.
+const DATE_SLIDER_ORIGIN_YEAR = 2010;
+const _now = new Date();
+const DATE_SLIDER_MAX = (_now.getFullYear() - DATE_SLIDER_ORIGIN_YEAR) * 12 + _now.getMonth();
+
+const dateSliderPositions = ref<[number, number]>([0, DATE_SLIDER_MAX]);
+
+function posToDate(pos: number): Date {
+  const totalMonths = DATE_SLIDER_ORIGIN_YEAR * 12 + pos;
+  const year = Math.floor(totalMonths / 12);
+  const month = totalMonths % 12;
+  return new Date(year, month, 1);
+}
+
+function formatDateSlider(pos: number): string {
+  const d = posToDate(pos);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+watch(dateSliderPositions, ([minPos, maxPos]) => {
+  const minMs = posToDate(minPos).getTime();
+  const maxMs = maxPos >= DATE_SLIDER_MAX ? Infinity : posToDate(maxPos).getTime();
+  lastModifiedDateRange.value = [minMs, maxMs];
+});
+
+const nameFilters: Array<"named" | "unnamed"> = ["named", "unnamed"];
+
+function handleToggleNameFilter(value: "named" | "unnamed") {
+  toggleNameFilter(value);
+  emit("filter-overlays");
+}
 
 function formatSize(meters: number): string {
   if (!isFinite(meters)) return "100km+";

@@ -15,6 +15,8 @@ import {
   UNTAGGED_PROJECT_FILTER,
   visibleStates,
   sizeFilterRange,
+  selectedNameFilters,
+  lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 
 // ── Global Request Deduplication for MapLibre ──────────────────────────────
@@ -261,6 +263,37 @@ function getSizeFilterExpressionForShapes(): FilterSpecification | null {
   return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
 }
 
+/**
+ * Build a name filter expression. Returns null if no name filter is active.
+ */
+function getNameFilterExpression(): FilterSpecification | null {
+  const selected = selectedNameFilters.value;
+  if (selected.length === 0 || (selected.includes("named") && selected.includes("unnamed"))) {
+    return null;
+  }
+  if (selected.includes("named")) {
+    return ["==", ["get", "is_named"], 1] as FilterSpecification;
+  }
+  // unnamed only
+  return ["==", ["get", "is_named"], 0] as FilterSpecification;
+}
+
+/**
+ * Build a last modified date filter expression. Returns null if filter is at its default.
+ * The tile property `last_modified_s` is in Unix seconds.
+ */
+function getLastModifiedDateFilterExpression(): FilterSpecification | null {
+  const [minMs, maxMs] = lastModifiedDateRange.value;
+  if (minMs === 0 && maxMs === Infinity) return null;
+
+  const minS = Math.floor(minMs / 1000);
+  const conditions: unknown[] = [[">=", ["get", "last_modified_s"], minS]];
+  if (maxMs !== Infinity) {
+    conditions.push(["<=", ["get", "last_modified_s"], Math.floor(maxMs / 1000)]);
+  }
+  return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
+}
+
 function combineFilters(...filters: (FilterSpecification | null)[]): FilterSpecification | null {
   const active = filters.filter((f): f is FilterSpecification => f !== null);
   if (active.length === 0) return null;
@@ -275,7 +308,9 @@ function combineFilters(...filters: (FilterSpecification | null)[]): FilterSpeci
 export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const tagFilter = getTagFilterExpression();
   const statusFilter = getStatusFilterExpression();
-  const baseFilter = combineFilters(tagFilter, statusFilter);
+  const nameFilter = getNameFilterExpression();
+  const dateFilter = getLastModifiedDateFilterExpression();
+  const baseFilter = combineFilters(tagFilter, statusFilter, nameFilter, dateFilter);
 
   const pointsFilter = combineFilters(baseFilter, getSizeFilterExpressionForPoints());
   const shapesFilter = combineFilters(baseFilter, getSizeFilterExpressionForShapes());

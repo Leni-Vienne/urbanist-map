@@ -22,7 +22,9 @@ shapes AS (
       COALESCE(p.tags, ARRAY[]::text[]) AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
-      ROUND(p.geometry_size_m)::int AS geometry_size_m
+      ROUND(p.geometry_size_m)::int AS geometry_size_m,
+      CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
+      EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s
     FROM projects p, tile_env te
     WHERE $1 >= 9
       AND p.status = 'approved'
@@ -45,7 +47,9 @@ shapes AS (
       COALESCE(p.tags, ARRAY[]::text[]) AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
-      NULL::int AS geometry_size_m
+      NULL::int AS geometry_size_m,
+      CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
+      EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s
     FROM projects p, tile_env te
     WHERE $1 >= 9
       AND p.status = 'approved'
@@ -121,6 +125,8 @@ points AS (
       first_tag,
       timeline_status,
       has_geometry,
+      is_named,
+      last_modified_s,
       ROUND(geometry_size_m)::int AS representative_size_m,
       ROUND(MIN(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS min_size_m,
       ROUND(MAX(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS max_size_m
@@ -142,6 +148,8 @@ points AS (
         p.timeline_status,
         CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
         p.geometry_size_m,
+        CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
+        EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
         (ST_X(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
           || '_' ||
         (ST_Y(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text

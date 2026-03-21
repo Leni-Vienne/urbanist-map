@@ -15,6 +15,8 @@ import {
   selectedProjectTags,
   visibleStates,
   sizeFilterRange,
+  selectedNameFilters,
+  lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 
 interface BoundingBox {
@@ -292,7 +294,7 @@ async function addTileLayersToMap(): Promise<void> {
 
 // Watch for tag and status filter changes and update MVT layers
 watch(
-  [selectedProjectTags, visibleStates, sizeFilterRange],
+  [selectedProjectTags, visibleStates, sizeFilterRange, selectedNameFilters, lastModifiedDateRange],
   () => {
     const mlMap = mlMapRef.current;
     if (mlMap) {
