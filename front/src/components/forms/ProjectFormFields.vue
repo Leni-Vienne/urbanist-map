@@ -103,28 +103,55 @@
       </div>
     </div>
 
+    <!-- Country field -->
+    <div class="flex flex-col gap-1">
+      <FloatLabel class="w-full" variant="in">
+        <Select
+          input-id="country-select"
+          v-model="localFormData.countryCode"
+          :options="countries"
+          option-label="name"
+          option-value="code"
+          :loading="countriesLoading"
+          class="w-full"
+          @update:modelValue="handleCountryCodeUpdate"
+        />
+        <label for="country-select" class="text-(--p-text-color-secondary)">
+          {{ $t("project.country") }}
+        </label>
+      </FloatLabel>
+      <small
+        v-if="showCountryCodeChangeIndicator"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
+        {{ $t("overlay.changedFrom") }}: "{{ originalData?.countryCode || $t("overlay.notSet") }}"
+      </small>
+    </div>
+
     <!-- Additional details section (collapsible) -->
     <Panel :header="$t('project.additionalDetails')" toggleable collapsed>
-      <!-- Proposal date field -->
-      <div class="flex flex-col gap-1">
-        <FlexibleDatePicker
-          v-model="flexibleProposalDate"
-          :label="$t('project.proposalDate')"
-          :max-date="new Date()"
-          unique-id="proposal-date"
-          :error="getFieldError('proposalDate') ?? undefined"
-          @update:modelValue="handleProposalDateChange"
-          @blur="handleProposalDateChange"
-        />
-        <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
-        <small
-          v-if="showProposalDateChangeIndicator"
-          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-        >
-          {{ $t("overlay.changedFrom") }}: "{{
-            formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
-          }}"
-        </small>
+      <div class="flex flex-col gap-4">
+        <!-- Proposal date field -->
+        <div class="flex flex-col gap-1">
+          <FlexibleDatePicker
+            v-model="flexibleProposalDate"
+            :label="$t('project.proposalDate')"
+            :max-date="new Date()"
+            unique-id="proposal-date"
+            :error="getFieldError('proposalDate') ?? undefined"
+            @update:modelValue="handleProposalDateChange"
+            @blur="handleProposalDateChange"
+          />
+          <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
+          <small
+            v-if="showProposalDateChangeIndicator"
+            class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+          >
+            {{ $t("overlay.changedFrom") }}: "{{
+              formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
+            }}"
+          </small>
+        </div>
       </div>
     </Panel>
 
@@ -206,15 +233,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, toRaw } from "vue";
+import { ref, computed, watch, toRaw, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import FloatLabel from "primevue/floatlabel";
-import Panel from "primevue/panel";
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
 import type CitySelect from "./CitySelect.vue";
-import InputText from "primevue/inputtext";
-import Textarea from "primevue/textarea";
+import { trpc } from "@/client";
 import type { Project, ProjectFormData } from "@/types/index";
 import {
   dbToFlexibleDate,
@@ -286,10 +310,49 @@ const localFormData = ref<ProjectFormData>({
   proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
   startDatePrecision: props.formData.startDatePrecision ?? null,
   endDatePrecision: props.formData.endDatePrecision ?? null,
+  countryCode: props.formData.countryCode,
   tags: props.formData.tags,
 });
 
 const allTags = PROJECT_TAGS;
+
+// Countries for the country dropdown
+const countries = ref<{ code: string; name: string }[]>([]);
+const countriesLoading = ref(false);
+
+onMounted(async () => {
+  try {
+    countriesLoading.value = true;
+    countries.value = await trpc.country.getAllCountries.query();
+  } catch (error) {
+    console.error("Failed to load countries:", error);
+  } finally {
+    countriesLoading.value = false;
+  }
+  // Auto-fetch country code for the initial marker position if not already set
+  if (props.markerCoordinates && !localFormData.value.countryCode) {
+    await fetchAndSetNearestCountryCode(props.markerCoordinates.lat, props.markerCoordinates.lng);
+  }
+  // If still empty after fetch (no nearby city found), leave as-is; user must select manually
+});
+
+async function fetchAndSetNearestCountryCode(lat: number, lng: number) {
+  try {
+    const code = await trpc.cities.getNearestCountryCode.query({ lat, lng });
+    localFormData.value.countryCode = code ?? "";
+  } catch (error) {
+    console.error("Failed to fetch nearest country code:", error);
+  }
+}
+
+watch(
+  () => props.markerCoordinates,
+  async (coords) => {
+    if (coords) {
+      await fetchAndSetNearestCountryCode(coords.lat, coords.lng);
+    }
+  },
+);
 
 function toggleTag(slug: string) {
   const idx = localFormData.value.tags.indexOf(slug);
@@ -432,6 +495,10 @@ const showCityChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("cityId"),
 );
 
+const showCountryCodeChangeIndicator = computed(
+  () => props.showChangeIndicators && props.hasChanged?.("countryCode"),
+);
+
 const showSourceUrlChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("sourceUrl"),
 );
@@ -464,10 +531,19 @@ function handleCityIdUpdate(cityId: number | undefined | "") {
   const normalizedCityId = cityId === "" || cityId === undefined ? null : cityId;
   // Update local form data (will trigger watch to emit)
   localFormData.value.cityId = normalizedCityId;
+  // Prefill countryCode from the selected city
+  if (normalizedCityId !== null) {
+    const city = citySelectRef.value?.cities.find((c) => c.id === normalizedCityId);
+    if (city) localFormData.value.countryCode = city.countryCode;
+  }
   // Emit city change event for parent components (e.g., to switch tile layer)
   emit("cityChange", normalizedCityId);
   // Validate city field when it changes
   validateFieldHelper("cityId");
+}
+
+function handleCountryCodeUpdate(code: string | null | undefined) {
+  localFormData.value.countryCode = code ?? "";
 }
 
 // Watch for external timelineStatus changes

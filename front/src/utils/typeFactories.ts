@@ -65,6 +65,8 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     geometry: data.geometry ?? null,
     geometrySizeM: data.geometrySizeM ?? null,
     tags: data.tags ?? [],
+    countryCode: data.countryCode ?? "",
+    detachedAt: data.detachedAt ?? null,
   };
 }
 

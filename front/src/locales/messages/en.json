@@ -81,6 +81,7 @@
     "plannedDescription": "Confirmed project with scheduled dates",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
+    "country": "Country",
     "startDate": "Construction Start Date",
     "endDate": "Construction End Date",
     "sourceUrl": "Source URL",

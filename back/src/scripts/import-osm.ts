@@ -162,6 +162,60 @@ function centroid(geom: GeoJSON.Geometry): { lat: number; lng: number } | null {
 }
 
 // ---------------------------------------------------------------------------
+// Batched KNN country code lookup
+// ---------------------------------------------------------------------------
+const KNN_CHUNK_SIZE = 1_000;
+
+async function resolveCountryCodes(
+  points: Array<{ lat: number; lng: number } | null>,
+): Promise<Array<string | null>> {
+  const results: Array<string | null> = Array.from({ length: points.length }, () => null);
+
+  // Collect indices of points that actually have coordinates
+  const validIndices: number[] = [];
+  const lats: number[] = [];
+  const lngs: number[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const pt = points[i];
+    if (pt != null) {
+      validIndices.push(i);
+      lats.push(pt.lat);
+      lngs.push(pt.lng);
+    }
+  }
+
+  // Process in chunks to avoid excessive memory in a single query
+  for (let offset = 0; offset < validIndices.length; offset += KNN_CHUNK_SIZE) {
+    const chunkLats = lats.slice(offset, offset + KNN_CHUNK_SIZE);
+    const chunkLngs = lngs.slice(offset, offset + KNN_CHUNK_SIZE);
+
+    const latLiteral = `ARRAY[${chunkLats.join(",")}]::float8[]`;
+    const lngLiteral = `ARRAY[${chunkLngs.join(",")}]::float8[]`;
+    const rows = (await db.execute(
+      sql.raw(`
+      SELECT c.country_code
+      FROM unnest(${latLiteral}, ${lngLiteral}) AS input(lat, lng)
+      JOIN LATERAL (
+        SELECT country_code
+        FROM cities
+        ORDER BY coordinates <-> ST_SetSRID(ST_MakePoint(input.lng, input.lat), 4326)
+        LIMIT 1
+      ) c ON true
+    `),
+    )) as Array<{ country_code: string | null }>;
+
+    for (let i = 0; i < rows.length; i++) {
+      const originalIndex = validIndices[offset + i];
+      if (originalIndex !== undefined) {
+        results[originalIndex] = rows[i]?.country_code ?? null;
+      }
+    }
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
@@ -237,16 +291,28 @@ async function main() {
     let inserted = 0;
     let skipped = 0;
 
+    // Resolve countryCode for all features via batched KNN lookup before the upsert loop
+    console.log(`Resolving country codes for ${geojson.features.length} features...`);
+    const featureCentroids = geojson.features.map((f) => {
+      const geom = f.geometry as GeoJSON.Geometry | null;
+      return geom ? centroid(geom) : null;
+    });
+    const countryCodes = await resolveCountryCodes(featureCentroids);
+    console.log(`Country code resolution complete.`);
+
     // Process features individually to handle conflicts and errors gracefully
     for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
       const batch = geojson.features.slice(i, i + BATCH_SIZE);
 
-      for (const feature of batch) {
+      for (let batchOffset = 0; batchOffset < batch.length; batchOffset++) {
+        const feature = batch[batchOffset]!;
+        const featureIndex = i + batchOffset;
         try {
           const props = (feature.properties ?? {}) as Record<string, unknown>;
 
-          const name = (props["display_name"] as string | undefined)?.trim();
-          if (!name) {
+          const name = (props["display_name"] as string | undefined)?.trim() || null;
+          const countryCode = countryCodes[featureIndex] ?? null;
+          if (!countryCode) {
             skipped++;
             continue;
           }
@@ -300,6 +366,7 @@ async function main() {
           const row = {
             name,
             cityId: null,
+            countryCode,
             status: "approved" as const,
             timelineStatus,
             importSourceId: importSource.id,
@@ -335,6 +402,7 @@ async function main() {
               set: {
                 name: row.name,
                 cityId: row.cityId,
+                countryCode: row.countryCode,
                 timelineStatus: row.timelineStatus,
                 externalProperties: row.externalProperties,
                 externalLastModified: row.externalLastModified,
@@ -374,18 +442,39 @@ async function main() {
   console.log(`\nDONE. Total Inserted: ${globalInserted}, Total Skipped: ${globalSkipped}`);
 
   // Prune stale projects that were not updated during this sync
+  // Projects with overlays are soft-detached (import link severed, geometry cleared, overlays kept).
+  // Projects without overlays are hard-deleted.
   console.log(`\nPruning stale projects not seen since ${syncStartTime.toISOString()}...`);
-  try {
-    const staleProjects = await db
-      .delete(projects)
-      .where(
-        sql`${projects.importSourceId} = ${importSource.id} AND (${projects.lastImportedAt} IS NULL OR ${projects.lastImportedAt} < ${syncStartTime})`,
-      )
-      .returning({ id: projects.id });
+  const staleCondition = sql`import_source_id = ${importSource.id} AND (last_imported_at IS NULL OR last_imported_at < ${syncStartTime})`;
+  const hasOverlays = sql`EXISTS (SELECT 1 FROM overlays WHERE project_id = projects.id)`;
 
-    console.log(`Pruned ${staleProjects.length} stale projects`);
-  } catch (pruneErr) {
-    console.error("Failed to prune stale projects:", pruneErr);
+  try {
+    const hardDeleted = await db
+      .delete(projects)
+      .where(sql`${staleCondition} AND NOT (${hasOverlays})`)
+      .returning({ id: projects.id });
+    console.log(`Hard-deleted ${hardDeleted.length} stale projects with no overlays`);
+  } catch (err) {
+    console.error("Failed to hard-delete stale projects:", err);
+  }
+
+  try {
+    const softDetached = await db
+      .update(projects)
+      .set({
+        detachedAt: new Date(),
+        importSourceId: null,
+        externalId: null,
+        externalProperties: null,
+        externalLastModified: null,
+        geometry: null,
+        geometrySizeM: null,
+      })
+      .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
+      .returning({ id: projects.id });
+    console.log(`Soft-detached ${softDetached.length} stale projects with overlays`);
+  } catch (err) {
+    console.error("Failed to soft-detach stale projects:", err);
   }
 
   // Update lastSyncAt to mark successful completion

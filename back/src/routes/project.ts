@@ -130,6 +130,7 @@ export const projectRouter = router({
               name: data.name,
               description: data.description,
               cityId: data.cityId,
+              countryCode: data.countryCode,
               lat: data.lat,
               lng: data.lng,
               centerCoordinate: data.centerCoordinate,

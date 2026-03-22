@@ -167,7 +167,7 @@ export const projects = pgTable(
   "projects",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    name: text("name").notNull(),
+    name: text("name"), // Nullable: OSM-imported projects may lack a name
     description: text("description"),
     status: approvalStatusEnum("status").default("pending").notNull(),
     ownerId: uuid("owner_id").references(() => users.id, {
@@ -178,6 +178,10 @@ export const projects = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }), // Reference to the city where the project is located (optional for imported projects)
+    countryCode: char("country_code", { length: 3 }).references(() => countries.code, {
+      onDelete: "restrict",
+      onUpdate: "cascade",
+    }), // ISO 3166-1 alpha-3 code (e.g. "DEU"). Required for all projects; auto-assigned from nearest city on creation.
     // Timeline status - project lifecycle stage
     timelineStatus: text("timeline_status").$type<TimelineStatus>().default("proposed").notNull(),
     // Import source tracking - NULL for user-submitted projects
@@ -205,6 +209,7 @@ export const projects = pgTable(
     tags: text("tags").array(), // Project category tags (e.g. 'tram', 'rail', 'bike')
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
+    detachedAt: timestamp("detached_at", { withTimezone: true }), // Set when OSM source was deleted/redrawn and project had overlays; import link is severed
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -220,7 +225,7 @@ export const projects = pgTable(
     index("idx_projects_last_imported").on(table.lastImportedAt),
     index("idx_projects_external_last_modified").on(table.externalLastModified), // For filtering stale imported data
     sql.raw(
-      "CREATE INDEX idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
+      "CREATE INDEX IF NOT EXISTS idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
     ), // Spatial index for project center coordinates
     sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_geometry ON projects USING GIST (geometry)"), // Spatial index for geometry bbox filtering and MVT tiles
     sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_tags ON projects USING GIN (tags)"), // GIN index for efficient tag filtering
@@ -242,6 +247,10 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   importSource: one(importSources, {
     fields: [projects.importSourceId],
     references: [importSources.id],
+  }),
+  country: one(countries, {
+    fields: [projects.countryCode],
+    references: [countries.code],
   }),
   overlays: many(overlays),
 }));

@@ -132,6 +132,7 @@ export interface ProjectFormData {
   endDate: Date | null;
   endDatePrecision: "year" | "month" | "day" | null;
   cityId: number | null;
+  countryCode: string | null;
   sourceUrl: string | null;
   tags: string[];
   timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled";

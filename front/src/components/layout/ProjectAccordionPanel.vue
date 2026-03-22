@@ -96,7 +96,7 @@
                 >
                   <!-- Extracted Project Header to isolate reactivity -->
                   <ProjectHeader
-                    :name="project.name"
+                    :name="project.name ?? ''"
                     :status="project.status"
                     :hide-status-badges="hideStatusBadges"
                   />

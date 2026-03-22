@@ -25,6 +25,7 @@ export function buildProjectPayload(project: Partial<Project>): PublishProjectIn
     name: requireProjectField(project.name, "name"),
     description: project.description ?? undefined,
     cityId: requireProjectField(project.cityId, "cityId"),
+    countryCode: project.countryCode ?? undefined,
     lat: requireProjectField(project.lat, "lat"),
     lng: requireProjectField(project.lng, "lng"),
     proposalDate: project.proposalDate ?? null,

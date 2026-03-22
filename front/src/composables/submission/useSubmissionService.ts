@@ -84,7 +84,7 @@ export interface SubmissionChange {
 
 export interface SubmissionSummary {
   action: string;
-  entityName: string;
+  entityName: string | null;
   changes: SubmissionChange[];
   requiresModeration: boolean;
   entityType: SubmissionEntityType;
@@ -398,7 +398,7 @@ export function useSubmissionService() {
     // Project-specific validation with Zod
     if (context.entityType === "project") {
       const validationData = prepareProjectValidationData(
-        { ...context.entity, tags: context.entity.tags ?? [] },
+        { ...context.entity, name: context.entity.name ?? "", tags: context.entity.tags ?? [] },
         { lat: context.entity.lat, lng: context.entity.lng },
       );
 

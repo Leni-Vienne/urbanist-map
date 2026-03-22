@@ -147,7 +147,7 @@ export function createLocalOverlayContribution(
 export function createLocalProjectContribution(
   localProject: {
     id: string;
-    name: string;
+    name: string | null;
     description: string | null;
     ownerId: string | null;
     cityId: number | null;

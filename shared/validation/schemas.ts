@@ -15,6 +15,7 @@ export const projectSchema = z
       .transform((val) => (val === "" ? undefined : val))
       .optional(),
     cityId: z.number({ message: "validation.cityRequired" }).nullable().optional(),
+    countryCode: z.string().length(3).nullable().optional(),
     lat: z
       .number({ message: "validation.invalidLatitude" })
       .min(-90, "validation.invalidLatitude")

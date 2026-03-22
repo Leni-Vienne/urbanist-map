@@ -81,6 +81,7 @@
     "plannedDescription": "Projet confirmé avec dates programmées",
     "proposalDate": "Date de proposition",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
+    "country": "Pays",
     "startDate": "Début des travaux",
     "endDate": "Fin des travaux",
     "sourceUrl": "URL source",

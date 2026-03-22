@@ -70,6 +70,27 @@ export const citiesRouter = router({
       }
     }),
 
+  // Get the country code of the nearest city to given coordinates
+  getNearestCountryCode: publicProcedure
+    .input(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
+    .query(async ({ input }) => {
+      try {
+        const { lat, lng } = input;
+        const result = await db
+          .select({ countryCode: cities.countryCode })
+          .from(cities)
+          .orderBy(sql`${cities.coordinates} <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)`)
+          .limit(1);
+        return result[0]?.countryCode ?? null;
+      } catch (error) {
+        console.error("Error fetching nearest country code:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch nearest country code",
+        });
+      }
+    }),
+
   // Search cities near given coordinates with name filter
   searchCitiesNearLocation: publicProcedure
     .input(searchCitiesNearLocationSchema)

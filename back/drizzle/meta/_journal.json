@@ -302,6 +302,13 @@
       "when": 1773858532781,
       "tag": "0042_black_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1774195581820,
+      "tag": "0043_lazy_norrin_radd",
+      "breakpoints": true
     }
   ]
 }

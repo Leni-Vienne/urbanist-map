@@ -412,7 +412,7 @@ const projectsWithOverlays = computed(() => {
   }
 
   // Convert to array and sort by name
-  return [...projectsMap.values()].toSorted((a, b) => a.name.localeCompare(b.name));
+  return [...projectsMap.values()].toSorted((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 });
 
 // Save scroll position when deactivating (tab switch)

@@ -16,7 +16,7 @@ let globalPendingPoints: {
   lat: number | null;
   lng: number | null;
   tags: string[] | null;
-  name: string;
+  name: string | null;
   status: string;
 }[] = [];
 
@@ -50,7 +50,7 @@ function createProjectFeature(
     id: string;
     lat: number;
     lng: number;
-    name: string;
+    name: string | null;
     tags: string[] | null;
   },
   isPending: boolean,
@@ -78,7 +78,7 @@ function addProjectToMap(
     id: string;
     lat: number | null;
     lng: number | null;
-    name: string;
+    name: string | null;
     tags: string[] | null;
   },
   isPending: boolean,
@@ -112,7 +112,7 @@ export function mergeProjectPointsForMode(
     id: string;
     lat: number | null;
     lng: number | null;
-    name: string;
+    name: string | null;
     tags: string[] | null;
     status: string;
   }[],
