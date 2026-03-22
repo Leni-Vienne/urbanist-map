@@ -28,7 +28,7 @@ export const feedRouter = router({
           status: projects.status,
           lat: projects.lat,
           lng: projects.lng,
-          updatedAt: projects.updatedAt,
+          updatedAt: sql<Date>`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
           cityId: cities.id,
           cityName: cities.name,
           countryCode: countries.code,
@@ -36,27 +36,15 @@ export const feedRouter = router({
         })
         .from(projects)
         .leftJoin(cities, eq(projects.cityId, cities.id))
-        .leftJoin(countries, eq(cities.countryCode, countries.code))
+        .leftJoin(countries, eq(projects.countryCode, countries.code))
         .leftJoin(
           overlays,
           and(eq(overlays.projectId, projects.id), eq(overlays.status, "approved")),
         )
-        .where(eq(projects.status, "approved"))
-        .groupBy(
-          projects.id,
-          projects.name,
-          projects.description,
-          projects.status,
-          projects.lat,
-          projects.lng,
-          projects.updatedAt,
-          cities.id,
-          cities.name,
-          countries.code,
-          countries.name,
-        )
+        .where(and(eq(projects.status, "approved"), sql`${projects.name} is not null`))
+        .groupBy(projects.id, cities.id, cities.name, countries.code, countries.name)
         .having(sql`COUNT(${overlays.id}) = 0`)
-        .orderBy(sql`${projects.updatedAt} DESC`)
+        .orderBy(sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt}) DESC`)
         .limit(input.limit);
 
       // Transform and combine results with discriminated union type
