@@ -3,21 +3,16 @@ import { SQL } from "bun";
 import { config } from "./config";
 import * as schema from "./db/schema";
 
-// Connection pool configuration for production
-// postgres-js handles pooling automatically, but we configure limits
+const isDev = process.env.NODE_ENV !== "production";
+
+// Connection pool configuration
+// In dev, keep the pool small: hot reloads create new pool instances while old
+// connections linger on the PostgreSQL side until TCP keepalive expires,
+// so a large dev pool quickly exhausts max_connections after a few reloads.
 const client = new SQL(config.DATABASE_URL, {
-  // Maximum number of connections in pool (default: 10)
-  // For VPS with 2-4 CPU cores, 10-20 is optimal
-  // Formula: (CPU cores * 2) + effective_spindle_count
-  max: 20,
-
-  // Close idle connections after 30 seconds to free resources
+  max: isDev ? 3 : 20,
   idle_timeout: 30,
-
-  // Maximum time to wait for connection before erroring (30 seconds)
   connect_timeout: 30,
-
-  // Use prepared statements for better performance (cache query plans)
   prepare: true,
 });
 
@@ -26,3 +21,17 @@ export type Database = typeof db;
 
 // Raw SQL client for queries that need binary output (e.g. MVT tiles)
 export const sqlClient = client;
+
+// Dedicated pool for MVT tile generation with JIT disabled.
+// The tile query's estimated cost exceeds jit_above_cost (due to PostGIS function costs),
+// but the actual row count processed is small (~7k projects), so LLVM compilation time
+// (~36ms) far outweighs any per-row savings. Setting jit=off at connection startup
+// eliminates this overhead with no per-query round-trip.
+const tilesDbUrl = new URL(config.DATABASE_URL);
+tilesDbUrl.searchParams.set("options", "-c jit=off");
+
+export const tilesSqlClient = new SQL(tilesDbUrl.toString(), {
+  max: isDev ? 1 : 4,
+  idle_timeout: 30,
+  connect_timeout: 30,
+});

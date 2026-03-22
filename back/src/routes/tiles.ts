@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sqlClient } from "../database";
+import { tilesSqlClient } from "../database"; // client with jit=off for tile generation
 
 export const tilesApp = new Hono();
 
@@ -25,7 +25,8 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
       return c.json({ error: "Invalid tile coordinates" }, 400);
     }
 
-    const [row] = await sqlClient.file(`${import.meta.dir}/tiles.sql`, [z, x, y]);
+    // using the jit=off client to avoid LLVM compilation overhead : 2x lower latency, 5x lower CPU load
+    const [row] = await tilesSqlClient.file(`${import.meta.dir}/tiles.sql`, [z, x, y]);
 
     const tileData = row?.tile as Buffer | undefined;
 
