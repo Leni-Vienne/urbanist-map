@@ -5,18 +5,26 @@
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
 
-    <!-- Timeline Status -->
-    <div :class="cls.row">
-      <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
-      <div class="flex items-center gap-1.5">
-        <span
-          class="w-2.5 h-2.5 rounded-full inline-block"
-          :style="{ backgroundColor: getStatusColor(project.timelineStatus) }"
-        ></span>
+    <!-- Timeline Status + Last Modified (inline) -->
+    <div class="flex gap-4">
+      <div :class="cls.row">
+        <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
+        <div class="flex items-center gap-1.5">
+          <span
+            class="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+            :style="{ backgroundColor: getStatusColor(project.timelineStatus) }"
+          ></span>
+          <span :class="cls.value">{{
+            $te(`timelineStatus.${project.timelineStatus}`)
+              ? $t(`timelineStatus.${project.timelineStatus}`)
+              : project.timelineStatus
+          }}</span>
+        </div>
+      </div>
+      <div v-if="project.importSourceId" :class="cls.row">
+        <span :class="cls.label">{{ $t("project.lastModified") }}</span>
         <span :class="cls.value">{{
-          $te(`timelineStatus.${project.timelineStatus}`)
-            ? $t(`timelineStatus.${project.timelineStatus}`)
-            : project.timelineStatus
+          formatDate(project.externalLastModified ?? project.updatedAt)
         }}</span>
       </div>
     </div>
@@ -88,16 +96,8 @@
       </button>
     </div>
 
-    <!-- Last modified (imported projects only) -->
-    <div v-if="project.importSourceId" :class="cls.row">
-      <span :class="cls.label">{{ $t("project.lastModified") }}</span>
-      <span :class="cls.value">{{
-        formatDate(project.externalLastModified ?? project.updatedAt)
-      }}</span>
-    </div>
-
     <!-- Modify on source link (imported projects only, edit mode) -->
-    <div v-if="editMode && osmEditUrl" :class="cls.row">
+    <div v-if="osmEditUrl" :class="cls.row">
       <span :class="cls.label">{{
         $t("project.modifyOn", { name: project.importSource?.name ?? "OpenStreetMap" })
       }}</span>

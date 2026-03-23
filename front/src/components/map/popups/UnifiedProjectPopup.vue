@@ -1,7 +1,7 @@
 ﻿<template>
   <div
     :class="['unified-popup', `popup-source-${props.source}`]"
-    class="w-75 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
+    class="w-max min-w-60 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
     @click.stop
     @mousedown.stop
   >
@@ -14,8 +14,11 @@
         <div :class="['flex gap-2', overlay ? 'items-start' : 'items-center']">
           <!-- Left: project name stacked above overlay subtitle -->
           <div class="flex-1 flex flex-col gap-0.5 min-w-0">
-            <span class="text-sm font-semibold text-color leading-snug">
-              {{ project?.name || "—" }}
+            <span
+              class="text-sm font-semibold leading-snug"
+              :class="project?.name ? 'text-color' : 'text-muted-color italic'"
+            >
+              {{ project?.name || $t("project.unnamed") }}
             </span>
             <!-- Overlay subtitle: image name or untitled + text "modifier" link -->
             <div v-if="overlay" class="flex items-baseline gap-1.5">

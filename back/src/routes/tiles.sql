@@ -122,53 +122,61 @@ points AS (
       id,
       name,
       tags,
-      first_tag,
+      first_tag, -- used for the points/vectors color
       timeline_status,
       has_geometry,
       is_named,
-      last_modified_s,
-      ROUND(geometry_size_m)::int AS representative_size_m,
+      last_modified_s, -- used for filtering by last modified date
+      -- min_size_m and max_size_m are used for filtering clusters by size on the client
       ROUND(MIN(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS min_size_m,
-      ROUND(MAX(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS max_size_m
+      ROUND(MAX(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS max_size_m,
+      -- cell_count is used for determining whether to zoom in on a tile (x > 1)or directly open the project panel (cell_count = 1)
+      COUNT(*) OVER (PARTITION BY grid_id, first_tag, timeline_status)::int AS cell_count
     FROM (
-      -- Step 1: project all approved markers into tile space and assign each to a grid cell.
-      -- grid_id divides the 4096-unit tile into a grid of cell_size squares. At low zoom levels
-      -- the cell covers a large geographic area, so many projects share the same cell and only
-      -- one representative is surfaced per (cell, tag, status) group after deduplication.
+      -- Step 1b: add a per-cell flag indicating whether any non-building project exists in the cell.
+      -- Used to suppress building markers at low zoom only when other project types are already visible.
       SELECT
-        ST_AsMVTGeom(
-          ST_Transform(p.center_coordinate, 3857),
-          te.bounds,
-          4096, 64, true
-        ) AS mvt_geom,
-        p.id,
-        p.name,
-        COALESCE(p.tags, ARRAY[]::text[]) AS tags,
-        COALESCE(p.tags[1], '') AS first_tag,
-        p.timeline_status,
-        CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
-        p.geometry_size_m,
-        CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
-        EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
-        (ST_X(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
-          || '_' ||
-        (ST_Y(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
-          AS grid_id
-      FROM projects p, tile_env te, grid_size gs
-      WHERE p.status = 'approved'
-        AND p.center_coordinate IS NOT NULL
-        AND p.center_coordinate && te.bounds_4326
-        -- Hide 'building' markers at low zoom levels (<10) to reduce noise
-        AND (
-          $1 >= 10 OR NOT ('building' = ANY(COALESCE(p.tags, ARRAY[]::text[])))
-        )
-        -- Hide center points for large geometries progressively as zoom increases,
-        -- since their shape is already visible in the shapes layer and the marker just clutters the map.
-        AND ($1 < 9  OR p.geometry_size_m IS NULL OR p.geometry_size_m < 50000)
-        AND ($1 < 10 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 5000)
-        AND ($1 < 11 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 500)
+        *,
+        BOOL_OR(NOT ('building' = ANY(tags))) OVER (PARTITION BY grid_id) AS cell_has_non_building
+      FROM (
+        -- Step 1: project all approved markers into tile space and assign each to a grid cell.
+        -- grid_id divides the 4096-unit tile into a grid of cell_size squares. At low zoom levels
+        -- the cell covers a large geographic area, so many projects share the same cell and only
+        -- one representative is surfaced per (cell, tag, status) group after deduplication.
+        SELECT
+          ST_AsMVTGeom(
+            ST_Transform(p.center_coordinate, 3857),
+            te.bounds,
+            4096, 64, true
+          ) AS mvt_geom,
+          p.id,
+          p.name,
+          COALESCE(p.tags, ARRAY[]::text[]) AS tags,
+          COALESCE(p.tags[1], '') AS first_tag,
+          p.timeline_status,
+          CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
+          p.geometry_size_m,
+          CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
+          EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
+          (ST_X(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
+            || '_' ||
+          (ST_Y(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
+            AS grid_id
+        FROM projects p, tile_env te, grid_size gs
+        WHERE p.status = 'approved'
+          AND p.center_coordinate IS NOT NULL
+          AND p.center_coordinate && te.bounds_4326
+          -- Hide center points for large geometries progressively as zoom increases,
+          -- since their shape is already visible in the shapes layer and the marker just clutters the map.
+          AND ($1 < 9  OR p.geometry_size_m IS NULL OR p.geometry_size_m < 50000)
+          AND ($1 < 10 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 5000)
+          AND ($1 < 11 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 500)
+      ) raw_q
     ) inner_q
     WHERE inner_q.mvt_geom IS NOT NULL
+      -- At low zoom (<10), hide 'building' markers only in cells that already have non-building projects.
+      -- In empty cells (buildings only), show them to avoid blank areas.
+      AND ($1 >= 10 OR NOT ('building' = ANY(inner_q.tags)) OR NOT inner_q.cell_has_non_building)
     ORDER BY grid_id, first_tag, timeline_status
   ) q
 )

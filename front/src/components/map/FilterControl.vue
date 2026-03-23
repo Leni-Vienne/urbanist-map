@@ -103,7 +103,13 @@
           :style="
             selectedProjectTags.includes(tag.slug)
               ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
-              : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
+              : theme === 'dark'
+                ? {
+                    backgroundColor: tag.color + '28',
+                    color: tag.textColor,
+                    borderColor: tag.color,
+                  }
+                : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
           "
           @click.stop="toggleTagFilter(tag.slug)"
           @dblclick.stop
@@ -228,6 +234,7 @@ import { markerColors } from "@/services/map/markers";
 import type { viewModeMarkerColor } from "@/types/index";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { PROJECT_TAGS } from "@/config/projectTags";
+import { useTheme } from "@/composables/core/useTheme";
 
 const filters: { color: viewModeMarkerColor; labelKey: string; ariaKey: string }[] = [
   { color: "yellow", labelKey: "timelineStatus.proposed", ariaKey: "map.controls.toggleProposed" },
@@ -242,6 +249,7 @@ const filters: { color: viewModeMarkerColor; labelKey: string; ariaKey: string }
 ];
 
 const { isMobile } = useIsMobile();
+const { theme } = useTheme();
 const allTags = PROJECT_TAGS;
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
 

@@ -341,6 +341,23 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   }
 }
 
+/**
+ * Compute the Leaflet zoom level at which a geometry of `sizeMeters` fits
+ * within `targetFraction` of the map's shorter viewport dimension.
+ * Uses the Web Mercator ground resolution formula adjusted for latitude.
+ */
+function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): number {
+  // Approximate a square bounding box centered on the point.
+  // 111320m per degree latitude is a standard geodesic constant.
+  const halfDegLat = sizeMeters / 2 / 111320;
+  const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
+  const bounds = L.latLngBounds(
+    [lat - halfDegLat, lng - halfDegLng],
+    [lat + halfDegLat, lng + halfDegLng],
+  );
+  return Math.max(8, Math.min(16, map.value.getBoundsZoom(bounds)));
+}
+
 function getNextGridZoom(currentZoom: number): number {
   if (currentZoom <= 4) return 5;
   if (currentZoom <= 6) return 7;
@@ -518,21 +535,29 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
         if (coordinates && coordinates.length >= 2) {
           const [lng, lat] = coordinates;
           const currentZoom = map.value.getZoom();
-          const repSize: number = pointFeature.properties?.representative_size_m ?? 0;
-          const targetZoom = getNextGridZoom(currentZoom);
-          const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-          map.value.flyTo([lat, lng], targetZoom, { duration });
+          const cellCount: number = pointFeature.properties?.cell_count ?? 2;
 
           // Use exact feature coordinates to prevent massive popup offset when zooming in
           targetLatLng = L.latLng(lat, lng);
 
-          // If a size filter is active, check whether the representative project itself passes it.
-          // If not, the project won't be visible after zooming in — just zoom and let the user
-          // click the actual visible feature at higher zoom.
-          const [minSize, maxSize] = sizeFilterRange.value;
-          const isSizeFilterActive = minSize > 0 || maxSize !== Infinity;
-          if (isSizeFilterActive) {
-            shouldOpenPanel = repSize >= minSize && repSize <= maxSize;
+          if (cellCount === 1) {
+            // Lone point: it's already rendered and passed all active filters, so open the panel.
+            // Zoom to the appropriate level: shapes zoom (Leaflet 10) for projects with geometry,
+            // or a closer zoom (Leaflet 14) for standalone point-only projects.
+            const hasGeometry: boolean = pointFeature.properties?.has_geometry === true;
+            const maxSizeM: number = pointFeature.properties?.max_size_m ?? 0;
+            const idealZoom =
+              hasGeometry && maxSizeM > 0 ? getZoomForGeometrySize(maxSizeM, lat, lng) : 14;
+            const targetZoom = Math.max(currentZoom, idealZoom);
+            const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+            map.value.flyTo([lat, lng], targetZoom, { duration });
+          } else {
+            // Cluster: jump three grid tiers to give the cluster a real chance of splitting.
+            // Never open the panel -- the user needs to click the actual visible point after zoom.
+            shouldOpenPanel = false;
+            const targetZoom = getNextGridZoom(getNextGridZoom(getNextGridZoom(currentZoom)));
+            const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+            map.value.flyTo([lat, lng], targetZoom, { duration });
           }
         }
 

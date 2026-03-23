@@ -72,6 +72,7 @@
   },
   "project": {
     "create": "Créer un projet",
+    "unnamed": "Projet sans nom",
     "name": "Nom du projet",
     "location": "Localisation",
     "noLocation": "Aucun emplacement",
@@ -238,7 +239,7 @@
       "filterByStatusAndTags": "Filtres",
       "filterByTags": "Filtrer par catégories",
       "clearTagFilters": "Effacer",
-      "untagged": "Non catégorisé",
+      "untagged": "Sans catégorie",
       "proposed": "Proposé",
       "planned": "Planifié",
       "inProgress": "En cours",
