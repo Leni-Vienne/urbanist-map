@@ -6,7 +6,7 @@
     :change-requests="pendingChangeRequests"
     :show-edit-buttons="true"
     :should-switch-to-edit-mode="false"
-    :disable-grouping="showingCityProjects"
+    :disable-grouping="false"
     title=""
     panel-class="my-contributions-panel"
     :empty-message="
@@ -150,64 +150,45 @@
     </template>
 
     <template #header-actions>
-      <!-- Wrapper with column layout for two rows -->
-      <div class="flex flex-col gap-3 w-full">
-        <!-- First row - breadcrumb and buttons -->
-        <div class="flex gap-4 items-center justify-between w-full">
-          <span class="flex items-center gap-2 text-base min-w-0 flex-1">
-            <span
-              :class="[
-                'font-semibold shrink-0 transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2',
-                showingCityProjects
-                  ? 'text-primary-color cursor-pointer hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)]'
-                  : 'text-color',
-              ]"
-              @click="showingCityProjects ? handleMyContributionsClick() : null"
-              :title="showingCityProjects ? $t('contribute.viewAllContributions') : ''"
-            >
+      <div class="flex gap-4 items-center justify-between w-full">
+        <div class="flex flex-col gap-3 w-full">
+          <!-- First row - title and buttons -->
+          <div class="flex gap-4 items-center justify-between w-full">
+            <span class="text-base font-semibold text-color">
               {{ $t("contribute.myContributions") }}
             </span>
-            <template v-if="showingCityProjects && lastSelectedCity">
-              <span class="text-muted-color font-normal mx-1 shrink-0">|</span>
-              <span
-                class="font-semibold text-color py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
+            <div class="flex gap-2">
+              <Button
+                @click="handleAddOverlayClick"
+                severity="primary"
+                size="small"
+                icon="pi pi-plus"
+                :label="$t('common.add')"
+                class="font-semibold"
+                v-tooltip.bottom="$t('dialog.createNewProject')"
+              />
+            </div>
+          </div>
+          <!-- Second row - filters (hidden when no contributions yet) -->
+          <div v-if="displayedProjects.length > 0" class="flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="showPending" inputId="showPending" binary />
+              <label
+                for="showPending"
+                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
               >
-                {{ lastSelectedCity.name }}
-              </span>
-            </template>
-          </span>
-
-          <!-- Buttons on the right -->
-          <div class="flex gap-2">
-            <Button
-              @click="handleAddOverlayClick"
-              severity="primary"
-              size="small"
-              icon="pi pi-plus"
-              :label="$t('common.add')"
-              class="font-semibold"
-              v-tooltip.bottom="$t('dialog.createNewProject')"
-            />
-          </div>
-        </div>
-
-        <!-- Second row - filters (hidden when no contributions yet) -->
-        <div v-if="displayedProjects.length > 0" class="flex items-center gap-4 flex-wrap">
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="showPending" inputId="showPending" binary />
-            <label
-              for="showPending"
-              class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >{{ $t("help.filters.showPending") }}</label
-            >
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="showApproved" inputId="showApproved" binary />
-            <label
-              for="showApproved"
-              class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >{{ $t("help.filters.showApproved") }}</label
-            >
+                {{ $t("help.filters.showPending") }}
+              </label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="showApproved" inputId="showApproved" binary />
+              <label
+                for="showApproved"
+                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
+              >
+                {{ $t("help.filters.showApproved") }}
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -216,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
@@ -226,7 +207,6 @@ import { useUserContributions } from "@/composables/project/useUserContributions
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
@@ -262,7 +242,6 @@ const {
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-const mapStore = useMapStore();
 const pendingModsStore = usePendingModificationsStore();
 const authStore = useAuthStore();
 
@@ -296,76 +275,8 @@ const { isMobile } = useIsMobile();
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
   useChangeRequests();
 
-// Watch for city and mode changes to fetch appropriate contributions
-// - Edit mode + city selected: ALL projects in that city (so users can contribute to any project)
-// - Otherwise: User's own contributions from anywhere
-watch(
-  () => ({ cityId: mapStore.selectedCity?.id, mode: mapStore.mode }),
-  ({ cityId, mode }) => {
-    const isEditMode = mode === "edit";
-
-    // Fetch contributions with appropriate scope
-    // includeCityProjects=true returns ALL city projects (not just user's), allowing contributions to any project in the city
-    fetchUserContributions({
-      cityId: isEditMode ? cityId : undefined,
-      includeCityProjects: isEditMode && Boolean(cityId),
-    });
-  },
-  { immediate: true }, // Run on mount
-);
-
 // Just use allContributions directly - backend handles everything!
 const displayedProjects = allContributions;
-
-// Track if we're currently showing city-scoped projects or ALL user contributions
-const showingCityProjects = ref(false);
-// Remember the last selected city even after clearing selection
-const lastSelectedCity = ref<{
-  id: number;
-  name: string;
-  nameLocal: string | null;
-  countryCode?: string;
-} | null>(null);
-
-// Update state based on city selection and mode
-watch(
-  () => ({ city: mapStore.selectedCity, mode: mapStore.mode }),
-  ({ city, mode }) => {
-    if (mode === "edit" && city) {
-      // Remember this city and mark as showing city projects
-      lastSelectedCity.value = {
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        countryCode: city.countryCode,
-      };
-      showingCityProjects.value = true;
-    } else if (city) {
-      // In view mode, remember city but not showing city projects
-      lastSelectedCity.value = {
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        countryCode: city.countryCode,
-      };
-    }
-    // Don't clear lastSelectedCity when city is cleared - keep it for breadcrumb
-  },
-  { immediate: true },
-);
-
-// Handle "My Contributions" click - switch to show only user's contributions
-function handleMyContributionsClick() {
-  // Switch to user contribution mode
-  showingCityProjects.value = false;
-
-  // Clear the selected city to exit city-scoped view
-  mapStore.clearSelectedCity();
-
-  // Fetch all user contributions (no city scoping)
-  // The cache will prevent redundant calls if we've already fetched this
-  fetchUserContributions();
-}
 
 // Computed filtered projects based on two independent checkboxes
 // Uses displayedProjects which conditionally shows city data or user contributions
@@ -590,6 +501,7 @@ function handleEditProjectClick(project: ProjectForModeration) {
 
 // Load initial data
 onMounted(() => {
+  fetchUserContributions();
   // Force user-only mode to show only this user's change requests, even for moderators
   refreshPendingChangeRequests(true);
 });

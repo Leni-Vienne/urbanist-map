@@ -386,8 +386,21 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   }
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
-  if (hasNoOverlays && project.lat && project.lng && project.city) {
-    await displayProjectMarkerAndPopup(projectId, project.city);
+  if (hasNoOverlays && project.lat && project.lng) {
+    if (project.city) {
+      await displayProjectMarkerAndPopup(projectId, project.city);
+    } else {
+      // City object not available from form — create marker directly
+      const storedProject = projectStore.projects[projectId];
+      if (storedProject) {
+        addStandaloneProjectMarkerForProject(storedProject);
+        const marker = getStandaloneProjectMarkerByProjectId(projectId);
+        if (marker) {
+          createProjectInfoTeleportTarget(marker);
+          uiStore.openProjectInfoPopup(projectId, storedProject);
+        }
+      }
+    }
     toast.add({
       severity: "success",
       summary: $t("common.success"),

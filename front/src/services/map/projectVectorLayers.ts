@@ -467,6 +467,16 @@ function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | nu
   mlMap.setFilter("pending-project-points-hover", activeFilter); // pending points don't have status filters
 }
 
+/**
+ * Highlight a project by id across all hover layers (shapes, footprints, points).
+ * Pass null to clear the highlight.
+ */
+export function setHoveredProjectId(mlMap: MaplibreMap, projectId: string | null): void {
+  const id = projectId ?? HOVER_NONE_ID;
+  setVectorHoverFilters(mlMap, projectId ? { properties: { id } } : null);
+  setPointHoverFilter(mlMap, projectId);
+}
+
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
@@ -650,8 +660,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       paint: {
-        "fill-color": "#ffffff",
-        "fill-opacity": 0.4,
+        "fill-color": getProjectLineColorExpression(),
+        "fill-opacity": 0.35,
       },
     },
     firstSymbolLayerId,
@@ -666,9 +676,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       paint: {
-        "line-color": "#ffffff",
+        "line-color": getProjectLineColorExpression(),
         "line-width": 4,
-        "line-opacity": 0.8,
+        "line-opacity": 1,
       },
     },
     firstSymbolLayerId,
@@ -687,9 +697,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
       paint: {
-        "line-color": "#ffffff",
+        "line-color": getProjectLineColorExpression(),
         "line-width": 4,
-        "line-opacity": 0.8,
+        "line-opacity": 1,
         "line-dasharray": [2, 1.5],
       },
     },
@@ -741,9 +751,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       paint: {
-        "line-color": "#ffffff",
+        "line-color": getProjectLineColorExpression(),
         "line-width": 3.5,
-        "line-opacity": 0.9,
+        "line-opacity": 1,
       },
     },
     firstSymbolLayerId,
@@ -762,9 +772,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
       paint: {
-        "line-color": "#ffffff",
+        "line-color": getProjectLineColorExpression(),
         "line-width": 3.5,
-        "line-opacity": 0.9,
+        "line-opacity": 1,
         "line-dasharray": [2, 1.5],
       },
     },

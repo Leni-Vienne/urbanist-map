@@ -66,7 +66,8 @@
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
-    "currentLocation": "Current Location",
+    "currentLocation": "On Map",
+    "onMap": "On Map",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
   },
@@ -188,6 +189,16 @@
     "noContributionsInCountry": "No contributions in this country",
     "projectsCount": "{count} project(s)",
     "selectCityToExplore": "Select a city to explore its projects"
+  },
+  "onMap": {
+    "noProjects": "No projects visible",
+    "noProjectsDetail": "Zoom in or pan the map to find projects",
+    "projectsVisible": "{count} project(s) on screen",
+    "sortRecent": "Sort by most recent",
+    "sortName": "Sort by name",
+    "sortSize": "Sort by size",
+    "sortStatus": "Sort by timeline status",
+    "sortReverse": "Reverse order"
   },
   "overlay": {
     "overlayImage": "image",

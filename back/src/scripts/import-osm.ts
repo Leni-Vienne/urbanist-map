@@ -388,9 +388,11 @@ async function main() {
             centerCoordinate: center
               ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
               : null,
-            // Bbox diagonal in meters - used to filter small geometries from cluster points
+            // Largest single-component bbox diagonal in meters - used to filter small geometries from cluster points.
+            // ST_Dump splits multi-geometries into individual components so that disconnected outlier segments
+            // (e.g. a small stub 7km away) don't inflate the result, while a long connected highway stays large.
             geometrySizeM: geometryJson
-              ? sql`ST_Length(ST_BoundingDiagonal(ST_Envelope(ST_GeomFromGeoJSON(${geometryJson})))::geography)`
+              ? sql`(SELECT MAX(ST_Length(ST_BoundingDiagonal(ST_Envelope(g.geom))::geography)) FROM ST_Dump(ST_GeomFromGeoJSON(${geometryJson})) AS g)`
               : null,
           };
 

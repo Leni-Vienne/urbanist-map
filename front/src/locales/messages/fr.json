@@ -66,7 +66,8 @@
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",
-    "currentLocation": "Emplacement Actuel",
+    "currentLocation": "Sur la carte",
+    "onMap": "Sur la carte",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
   },
@@ -188,6 +189,16 @@
     "noContributionsInCountry": "Aucune contribution dans ce pays",
     "projectsCount": "{count} projet(s)",
     "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
+  },
+  "onMap": {
+    "noProjects": "Aucun projet visible",
+    "noProjectsDetail": "Zoomez ou déplacez la carte pour trouver des projets",
+    "projectsVisible": "{count} projet(s) à l'écran",
+    "sortRecent": "Trier par plus récent",
+    "sortName": "Trier par nom",
+    "sortSize": "Trier par taille",
+    "sortStatus": "Trier par statut chronologique",
+    "sortReverse": "Ordre inverse"
   },
   "overlay": {
     "overlayImage": "image",
