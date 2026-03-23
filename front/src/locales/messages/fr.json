@@ -198,7 +198,8 @@
     "sortName": "Trier par nom",
     "sortSize": "Trier par taille",
     "sortStatus": "Trier par statut chronologique",
-    "sortReverse": "Ordre inverse"
+    "sortReverse": "Ordre inverse",
+    "moreProjectsHidden": "+{count} de plus non affichés"
   },
   "overlay": {
     "overlayImage": "image",

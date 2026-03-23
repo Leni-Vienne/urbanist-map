@@ -43,42 +43,51 @@
     </div>
 
     <!-- Scrollable list -->
-    <div class="flex-1 overflow-y-auto">
-      <button
-        v-for="project in projects"
-        :key="project.id"
-        class="w-full flex items-center gap-3 px-4 py-3 border-none bg-transparent cursor-pointer transition-all duration-150 text-left border-b border-surface last:border-b-0 hover:bg-content-hover-background"
-        @click="navigateToProject(project)"
-        @mouseenter="hoverProject(project.id)"
-        @mouseleave="hoverProject(null)"
-      >
-        <!-- Tag color dot -->
-        <span
-          class="shrink-0 w-2.5 h-2.5 rounded-full"
-          :style="{ backgroundColor: tagColor(project.firstTag) }"
-        ></span>
-
-        <!-- Name -->
-        <span
-          class="flex-1 text-sm truncate"
-          :class="project.name ? 'text-color font-medium' : 'text-muted-color italic'"
+    <div
+      ref="scrollAreaRef"
+      :class="[
+        'flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        { 'scroll-area': isScrollable },
+      ]"
+    >
+      <div ref="contentRef">
+        <button
+          v-for="project in projects"
+          :key="project.id"
+          class="w-full flex items-center gap-3 px-4 py-3 border-none bg-transparent cursor-pointer transition-all duration-150 text-left border-b border-surface last:border-b-0 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10"
+          @click="navigateToProject(project)"
+          @mouseenter="hoverProject(project.id)"
+          @mouseleave="hoverProject(null)"
         >
-          {{ project.name || $t("project.unnamed") }}
-        </span>
+          <!-- Tag color dot -->
+          <span
+            class="shrink-0 w-2.5 h-2.5 rounded-full"
+            :style="{ backgroundColor: tagColor(project.firstTag) }"
+          ></span>
 
-        <!-- Status badge -->
-        <span
-          class="shrink-0 text-[0.7rem] font-semibold px-1.5 py-0.5 rounded"
-          :style="statusStyle(project.timelineStatus)"
-        >
-          {{ $t(`timelineStatus.${project.timelineStatus}`, project.timelineStatus) }}
-        </span>
-      </button>
+          <!-- Name -->
+          <span
+            class="flex-1 text-sm truncate"
+            :class="project.name ? 'text-color font-medium' : 'text-muted-color italic'"
+          >
+            {{ project.name || $t("project.unnamed") }}
+          </span>
+
+          <!-- Status badge -->
+          <span
+            class="shrink-0 text-[0.7rem] font-semibold px-1.5 py-0.5 rounded"
+            :style="statusStyle(project.timelineStatus)"
+          >
+            {{ $t(`timelineStatus.${project.timelineStatus}`, project.timelineStatus) }}
+          </span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onActivated, onBeforeUnmount, watch } from "vue";
 import { useVisibleProjects } from "@/composables/project/useVisibleProjects";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
@@ -101,7 +110,7 @@ const SORT_BUTTONS: { mode: SortMode; icon: string; i18nKey: string }[] = [
   { mode: "recent", icon: "pi pi-clock", i18nKey: "onMap.sortRecent" },
   { mode: "name", icon: "pi pi-sort-alpha-down", i18nKey: "onMap.sortName" },
   { mode: "size", icon: "pi pi-expand", i18nKey: "onMap.sortSize" },
-  { mode: "status", icon: "pi pi-flag", i18nKey: "onMap.sortStatus" },
+  { mode: "status", icon: "pi pi-calendar", i18nKey: "onMap.sortStatus" },
 ];
 
 const DEFAULT_TAG_COLOR = "#3b82f6";
@@ -121,4 +130,42 @@ const STATUS_STYLES: Record<string, { backgroundColor: string; color: string }> 
 function statusStyle(status: string): Record<string, string> {
   return STATUS_STYLES[status] ?? STATUS_STYLES["proposed"]!;
 }
+
+// Scroll-area fade logic (same pattern as LatestContributionsPanel)
+const scrollAreaRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
+const isScrollable = ref(false);
+
+function updateScrollable() {
+  const el = scrollAreaRef.value;
+  if (el) isScrollable.value = el.scrollHeight > el.clientHeight;
+}
+
+const scrollObserver = new ResizeObserver(updateScrollable);
+
+onMounted(() => {
+  if (scrollAreaRef.value) scrollObserver.observe(scrollAreaRef.value);
+  updateScrollable();
+});
+
+onActivated(updateScrollable);
+
+onBeforeUnmount(() => scrollObserver.disconnect());
+
+watch(contentRef, (el, oldEl) => {
+  if (oldEl) scrollObserver.unobserve(oldEl);
+  if (el) {
+    scrollObserver.observe(el);
+    updateScrollable();
+  } else {
+    isScrollable.value = false;
+  }
+});
 </script>
+
+<style scoped>
+.scroll-area {
+  mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
+}
+</style>

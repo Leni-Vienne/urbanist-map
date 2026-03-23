@@ -198,7 +198,8 @@
     "sortName": "Sort by name",
     "sortSize": "Sort by size",
     "sortStatus": "Sort by timeline status",
-    "sortReverse": "Reverse order"
+    "sortReverse": "Reverse order",
+    "moreProjectsHidden": "+{count} more not shown"
   },
   "overlay": {
     "overlayImage": "image",

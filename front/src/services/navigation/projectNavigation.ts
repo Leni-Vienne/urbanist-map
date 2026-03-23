@@ -9,13 +9,8 @@ import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavi
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useUiStore } from "@/stores/uiStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import {
-  getStandaloneProjectMarkerByProjectId,
-  updateStandaloneProjectMarkerOpacities,
-} from "@/services/map/standaloneProjectMarkers";
-import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
+import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { requestScrollTo } from "@/services/layout/accordionState";
 
@@ -358,20 +353,7 @@ export async function navigateToStandaloneProject(
 
     map.value.once("moveend", () => {
       if (projectId) {
-        const overlayStore = useOverlayStore();
-        const uiStore = useUiStore();
-
-        const marker = getStandaloneProjectMarkerByProjectId(projectId);
-        if (!marker) return;
-
-        createProjectInfoTeleportTarget(marker);
-        updateStandaloneProjectMarkerOpacities(marker);
-
-        if (overlayStore.showInfoPopup) {
-          overlayStore.hideInfoPopup();
-        }
-
-        uiStore.openProjectInfoPopup(projectId);
+        void handleProjectClickFromTile(projectId, L.latLng(lat, lng));
       }
     });
   } catch (error) {

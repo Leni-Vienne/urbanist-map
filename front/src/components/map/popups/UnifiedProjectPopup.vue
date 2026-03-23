@@ -1,7 +1,7 @@
 ﻿<template>
   <div
     :class="['unified-popup', `popup-source-${props.source}`]"
-    class="w-max min-w-60 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
+    class="w-max min-w-60 max-w-80 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
     @click.stop
     @mousedown.stop
   >
@@ -15,8 +15,9 @@
           <!-- Left: project name stacked above overlay subtitle -->
           <div class="flex-1 flex flex-col gap-0.5 min-w-0">
             <span
-              class="text-sm font-semibold leading-snug"
+              class="text-sm font-semibold leading-snug truncate"
               :class="project?.name ? 'text-color' : 'text-muted-color italic'"
+              v-tooltip.bottom="project?.name || undefined"
             >
               {{ project?.name || $t("project.unnamed") }}
             </span>

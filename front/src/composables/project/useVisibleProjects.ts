@@ -1,10 +1,11 @@
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import L from "leaflet";
 import * as maplibregl from "maplibre-gl";
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import { setHoveredProjectId } from "@/services/map/projectVectorLayers";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { useUiStore } from "@/stores/uiStore";
 
 export type SortMode = "recent" | "name" | "size" | "status";
 
@@ -72,6 +73,7 @@ export function useVisibleProjects() {
   const sortMode = ref<SortMode>("recent");
   const sortReverse = ref(false);
   const isReady = ref(false);
+  const uiStore = useUiStore();
 
   const projects = computed<VisibleProject[]>(() => {
     const named = rawProjects.value.filter((p) => p.name);
@@ -102,10 +104,16 @@ export function useVisibleProjects() {
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
-    const INSET = 100;
+    const INSET = 50;
+
+    // On mobile, the drawer overlaps the bottom of the map -- exclude that area
+    const drawerOffsetPx = uiStore.mobileDrawerVisible
+      ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight
+      : 0;
+
     const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
       [INSET, INSET],
-      [w - INSET, h - INSET],
+      [w - INSET, h - drawerOffsetPx - INSET],
     ];
     // applying an inset to avoid projects that are at the edge of the screen
     const features = mlMap.queryRenderedFeatures(bbox, { layers: [...QUERY_LAYERS] });
@@ -174,6 +182,9 @@ export function useVisibleProjects() {
     mlMap.on("idle", idleHandler);
     refresh();
   });
+
+  // Re-run when the drawer is resized or toggled (map idle won't fire in that case)
+  watch(() => [uiStore.mobileDrawerHeightPercent, uiStore.mobileDrawerVisible], scheduleRefresh);
 
   onUnmounted(() => {
     if (timer) clearTimeout(timer);
