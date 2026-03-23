@@ -24,6 +24,7 @@ import {
   createOverlayIcon,
 } from "@/services/map/markers";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
+import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
@@ -337,8 +338,9 @@ export function removeProjectOutlines(projectId: string, force = false): void {
     }
   }
 
-  // Unhighlight project shapes alongside the overlays
+  // Unhighlight project shapes alongside the overlays (Leaflet layers in edit/moderation, vector tiles in view mode)
   unhighlightProjectShapes(projectId);
+  setOverlayDrivenHover(null);
 }
 
 /**
@@ -376,8 +378,9 @@ export function highlightProjectOverlaysOnHover(projectId: string): void {
     }
   }
 
-  // Highlight project shapes alongside the overlays
+  // Highlight project shapes alongside the overlays (Leaflet layers in edit/moderation, vector tiles in view mode)
   highlightProjectShapes(projectId);
+  setOverlayDrivenHover(projectId);
 }
 
 /**

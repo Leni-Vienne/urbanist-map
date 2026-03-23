@@ -8,6 +8,10 @@ import {
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import {
+  getOverlayDrivenHoverId,
+  registerOverlayHoverCallback,
+} from "@/services/map/vectorHoverState";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import {
@@ -478,6 +482,11 @@ export function setHoveredProjectId(mlMap: MaplibreMap, projectId: string | null
 }
 
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
+  registerOverlayHoverCallback((projectId) => {
+    const mlMap = mlMapGetter();
+    if (mlMap) setHoveredProjectId(mlMap, projectId);
+  });
+
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
@@ -495,7 +504,10 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
     mlMap.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
-    setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
+    // Don't override an overlay-driven hover with an empty vector result.
+    if (getOverlayDrivenHoverId() === null) {
+      setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
+    }
   });
 
   map.value.on("mouseout", () => {
