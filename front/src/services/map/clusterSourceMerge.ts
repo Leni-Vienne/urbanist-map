@@ -66,6 +66,7 @@ function createProjectFeature(
       name: project.name,
       tags: project.tags,
       is_pending: isPending,
+      cell_count: 1,
     },
   };
 }

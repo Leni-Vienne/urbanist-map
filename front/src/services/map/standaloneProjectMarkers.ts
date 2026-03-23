@@ -13,6 +13,7 @@ import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
 import {
   selectOverlay,
@@ -375,18 +376,38 @@ export async function handleProjectClickFromTile(
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
   if (!project) {
-    try {
-      const result = await trpc.project.getById.query({ id: projectId });
-      if (!result) return;
+    // Check moderation store for pending projects before hitting the API
+    const moderationStore = useModerationStore();
+    const pendingProject = moderationStore.projects.find((p) => p.id === projectId);
+    if (pendingProject) {
       project = createProjectObject({
-        ...result,
-        tags: result.tags ?? [],
+        ...pendingProject,
+        tags: pendingProject.tags ?? [],
         overlayIds: [],
+        city: pendingProject.city
+          ? {
+              ...pendingProject.city,
+              createdAt: new Date(0),
+              updatedAt: new Date(0),
+              coordinates: { x: 0, y: 0 },
+              approvedProjectCount: 0,
+            }
+          : null,
       });
-      projectStore.updateProject(projectId, project);
-    } catch (error) {
-      console.error("Failed to fetch project for tile click:", error);
-      return;
+    } else {
+      try {
+        const result = await trpc.project.getById.query({ id: projectId });
+        if (!result) return;
+        project = createProjectObject({
+          ...result,
+          tags: result.tags ?? [],
+          overlayIds: [],
+        });
+        projectStore.updateProject(projectId, project);
+      } catch (error) {
+        console.error("Failed to fetch project for tile click:", error);
+        return;
+      }
     }
   }
   handleShapeProjectClick(project, latlng);

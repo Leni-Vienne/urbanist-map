@@ -54,7 +54,7 @@ export async function buildPaginationConditions(
   }
 
   if (filters.countryCode) {
-    conditions.push(eq(cities.countryCode, filters.countryCode));
+    conditions.push(eq(projects.countryCode, filters.countryCode));
   }
 
   // Cursor-based pagination: fetch records after the cursor position

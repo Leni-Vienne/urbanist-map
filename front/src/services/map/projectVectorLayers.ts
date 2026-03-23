@@ -858,7 +858,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       id: "pending-project-points",
       type: "circle",
       source: "pending-project-points-source",
-      maxzoom: PROJECT_POINTS_MAX_ZOOM,
       paint: {
         "circle-color": "#f97316", // Tailwind orange-500
         "circle-radius": 6,
@@ -875,7 +874,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "circle",
       source: "pending-project-points-source",
       filter: ["==", ["get", "id"], HOVER_NONE_ID],
-      maxzoom: PROJECT_POINTS_MAX_ZOOM,
       paint: {
         "circle-color": "#fb923c", // Tailwind orange-400
         "circle-radius": 8,
