@@ -1,5 +1,4 @@
 import { ref, computed, reactive } from "vue";
-import { buildProjectPayload } from "@/services/project/projectMutations";
 import { formDataToProjectFields } from "@/utils/projectFormHelpers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
@@ -254,7 +253,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       tags: formData.tags,
     };
 
-    await trpc.project.publishProject.mutate(buildProjectPayload(projectData));
+    await trpc.project.publishProject.mutate(projectSchema.parse(projectData));
 
     toast.add({
       severity: "info",

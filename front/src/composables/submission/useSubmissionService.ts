@@ -3,9 +3,11 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
-import { buildProjectPayload } from "@/services/project/projectMutations";
 import { selectCity } from "@/services/navigation/locationNavigation";
-import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
+import {
+  addStandaloneProjectMarkerForProject,
+  updateStandaloneProjectMarkerColor,
+} from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import type { Project, OverlayObject, RemovableChange, ProjectForModeration } from "@/types/index";
 import {
@@ -477,7 +479,7 @@ export function useSubmissionService() {
     project: Project,
     changeType: SubmissionChangeType,
   ): Promise<void> {
-    await trpc.project.publishProject.mutate(buildProjectPayload(project));
+    await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
     projectStore.updateProject(project.id, { isModified: false, status: "pending" });
 
@@ -485,7 +487,11 @@ export function useSubmissionService() {
 
     const updatedProject = projectStore.projects[project.id];
     if (updatedProject) {
-      updateStandaloneProjectMarkerColor(project.id, updatedProject);
+      if (changeType === "create") {
+        addStandaloneProjectMarkerForProject(updatedProject);
+      } else {
+        updateStandaloneProjectMarkerColor(project.id, updatedProject);
+      }
     }
 
     if (project.cityId) {

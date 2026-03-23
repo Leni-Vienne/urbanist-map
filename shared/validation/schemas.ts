@@ -13,7 +13,8 @@ export const projectSchema = z
       .max(2000, "validation.descriptionTooLong")
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
-      .optional(),
+      .nullish()
+      .transform((val) => val ?? undefined),
     cityId: z.number({ message: "validation.cityRequired" }).nullable().optional(),
     countryCode: z.string().length(3).nullable().optional(),
     lat: z
@@ -39,7 +40,8 @@ export const projectSchema = z
       .url("validation.invalidUrl")
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
-      .optional(),
+      .nullish()
+      .transform((val) => val ?? undefined),
     geometry: GeoJSONGeometryCollectionSchema.nullable().optional(),
     tags: z.array(z.string().max(50)).max(20).optional(),
   })

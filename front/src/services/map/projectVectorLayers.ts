@@ -187,10 +187,6 @@ function getTagFilterExpression(): FilterSpecification | null {
   return ["any", ...conditions] as FilterSpecification;
 }
 
-// Layers that need tag filtering applied
-// Layers that can have their filter fully replaced by tag filter
-const TAG_FILTERABLE_LAYERS = ["project-shapes", "overlay-footprints", "project-points"] as const;
-
 // Layers with existing filters that need tag filter merged with "all"
 const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = {
   "project-shapes-fill": () => ["==", ["geometry-type"], "Polygon"] as FilterSpecification,
