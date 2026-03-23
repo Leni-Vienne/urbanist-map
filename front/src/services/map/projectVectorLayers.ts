@@ -400,7 +400,11 @@ function getHoveredVectorId(feature: RenderedMapFeature | null): string {
     return HOVER_NONE_ID;
   }
 
-  const id = getFeaturePropertyAsString(feature, "id");
+  // Overlay footprint features store their project id in "project_id", not "id"
+  // (id is the overlay's own id). All other layers (shapes, points) use "id" as the project id.
+  const sourceLayer = String((feature as any).sourceLayer ?? "");
+  const propKey = sourceLayer === "overlay-footprints" ? "project_id" : "id";
+  const id = getFeaturePropertyAsString(feature, propKey);
   return id.length > 0 ? id : HOVER_NONE_ID;
 }
 
@@ -418,11 +422,16 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
     getIsProposedFilterExpression(),
     ["==", ["to-string", ["get", "id"]], hoveredId],
   ]);
-  mlMap.setFilter("overlay-footprints-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  // Footprint layers group by project_id, not the overlay's own id
+  mlMap.setFilter("overlay-footprints-hover", [
+    "==",
+    ["to-string", ["get", "project_id"]],
+    hoveredId,
+  ]);
   mlMap.setFilter("overlay-footprints-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
-    ["==", ["to-string", ["get", "id"]], hoveredId],
+    ["==", ["to-string", ["get", "project_id"]], hoveredId],
   ]);
 }
 
@@ -669,7 +678,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": 2,
-        "line-dasharray": [2, 1.5],
+        "line-dasharray": [4, 1.5],
       },
     },
     firstSymbolLayerId,
@@ -725,7 +734,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-color": getProjectLineColorExpression(),
         "line-width": 4,
         "line-opacity": 1,
-        "line-dasharray": [2, 1.5],
+        "line-dasharray": [4, 1.5],
       },
     },
     firstSymbolLayerId,
@@ -743,7 +752,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-color": getProjectLineColorExpression(),
         "line-width": 6,
         "line-opacity": 0.9,
-        "line-dasharray": [2, 1.5],
+        "line-dasharray": [4, 1.5],
       },
     },
     firstSymbolLayerId,
@@ -762,7 +771,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-color": getProjectLineColorExpression(),
         "line-width": 6,
         "line-opacity": 0.9,
-        "line-dasharray": [2, 1.5],
+        "line-dasharray": [4, 1.5],
       },
     },
     firstSymbolLayerId,
@@ -778,7 +787,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 3.5,
+        "line-width": 6,
         "line-opacity": 1,
       },
     },
@@ -801,7 +810,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-color": getProjectLineColorExpression(),
         "line-width": 3.5,
         "line-opacity": 1,
-        "line-dasharray": [2, 1.5],
+        "line-dasharray": [4, 1.5],
       },
     },
     firstSymbolLayerId,

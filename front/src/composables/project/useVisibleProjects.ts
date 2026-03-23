@@ -2,7 +2,10 @@ import { ref, computed, watch, onUnmounted } from "vue";
 import L from "leaflet";
 import * as maplibregl from "maplibre-gl";
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
-import { setHoveredProjectId } from "@/services/map/projectVectorLayers";
+import {
+  highlightProjectOverlaysOnHover,
+  removeProjectOutlines,
+} from "@/services/overlay/overlaySelection";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { useUiStore } from "@/stores/uiStore";
@@ -202,10 +205,18 @@ export function useVisibleProjects() {
     void handleProjectClickFromTile(project.id, latlng);
   }
 
+  let lastHoveredProjectId: string | null = null;
+
   function hoverProject(projectId: string | null) {
-    const mlMap = getMlMap();
-    if (!mlMap) return;
-    setHoveredProjectId(mlMap, projectId);
+    if (projectId) {
+      highlightProjectOverlaysOnHover(projectId);
+      lastHoveredProjectId = projectId;
+    } else {
+      if (lastHoveredProjectId) {
+        removeProjectOutlines(lastHoveredProjectId);
+        lastHoveredProjectId = null;
+      }
+    }
   }
 
   return { projects, sortMode, sortReverse, isReady, refresh, navigateToProject, hoverProject };
