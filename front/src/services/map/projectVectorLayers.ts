@@ -83,15 +83,29 @@ const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
 const MVT_SOURCE_MAX_ZOOM = 14;
 
+// ── Line styling constants ──────────────────────────────────────────────────
+// Overlay footprints use double width because half the stroke is covered by the overlay image.
+// Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
+const SHAPE_LINE_WIDTH = 3;
+const FOOTPRINT_LINE_WIDTH = 6; // = SHAPE_LINE_WIDTH * 2
+
+const SHAPE_LONG_DASH: [number, number] = [4, 2];
+const SHAPE_SHORT_DASH: [number, number] = [1.5, 2];
+const FOOTPRINT_LONG_DASH: [number, number] = [2, 1]; // = SHAPE_LONG_DASH / 2
+const FOOTPRINT_SHORT_DASH: [number, number] = [0.75, 1]; // = SHAPE_SHORT_DASH / 2
+
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 
 const VECTOR_QUERY_LAYERS = [
+  "overlay-footprints-fill",
   "overlay-footprints",
+  "overlay-footprints-completed",
   "overlay-footprints-proposed-dashed",
   "project-shapes-fill",
   "project-shapes",
+  "project-shapes-completed",
   "project-shapes-proposed-dashed",
   "project-shapes-points",
 ] as const;
@@ -151,6 +165,18 @@ function getIsProposedFilterExpression(): ExpressionSpecification {
   return ["==", ["get", "timeline_status"], "proposed"];
 }
 
+function getIsCompletedFilterExpression(): FilterSpecification {
+  return ["==", ["get", "timeline_status"], "completed"] as FilterSpecification;
+}
+
+function getIsNeitherProposedNorCompletedFilterExpression(): FilterSpecification {
+  return [
+    "all",
+    ["!=", ["get", "timeline_status"], "proposed"],
+    ["!=", ["get", "timeline_status"], "completed"],
+  ] as FilterSpecification;
+}
+
 /**
  * Build a MapLibre filter expression based on current tag selection.
  * Returns null if no filtering is needed (all tags visible).
@@ -193,9 +219,13 @@ function getTagFilterExpression(): FilterSpecification | null {
 
 // Layers with existing filters that need tag filter merged with "all"
 const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = {
+  "project-shapes": getIsNeitherProposedNorCompletedFilterExpression,
+  "project-shapes-completed": getIsCompletedFilterExpression,
   "project-shapes-fill": () => ["==", ["geometry-type"], "Polygon"] as FilterSpecification,
   "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification,
   "project-shapes-proposed-dashed": getIsProposedFilterExpression,
+  "overlay-footprints": getIsNeitherProposedNorCompletedFilterExpression,
+  "overlay-footprints-completed": getIsCompletedFilterExpression,
   "overlay-footprints-proposed-dashed": getIsProposedFilterExpression,
   "project-points-hover": () => ["==", ["get", "id"], HOVER_NONE_ID] as FilterSpecification,
 };
@@ -313,17 +343,10 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const baseFilter = combineFilters(tagFilter, statusFilter, nameFilter, dateFilter);
 
   const pointsFilter = combineFilters(baseFilter, getSizeFilterExpressionForPoints());
-  const shapesFilter = combineFilters(baseFilter, getSizeFilterExpressionForShapes());
 
   // project-points: tag + status + point size
   if (mlMap.getLayer("project-points")) {
     mlMap.setFilter("project-points", pointsFilter);
-  }
-
-  // project-shapes and overlay-footprints: tag + status + shape size (footprints inherit shape size)
-  for (const layerId of ["project-shapes", "overlay-footprints"] as const) {
-    if (!mlMap.getLayer(layerId)) continue;
-    mlMap.setFilter(layerId, shapesFilter);
   }
 
   // Layers with existing filters that must be merged
@@ -484,7 +507,7 @@ function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | nu
  * Highlight a project by id across all hover layers (shapes, footprints, points).
  * Pass null to clear the highlight.
  */
-export function setHoveredProjectId(mlMap: MaplibreMap, projectId: string | null): void {
+function setHoveredProjectId(mlMap: MaplibreMap, projectId: string | null): void {
   const id = projectId ?? HOVER_NONE_ID;
   setVectorHoverFilters(mlMap, projectId ? { properties: { id } } : null);
   setPointHoverFilter(mlMap, projectId);
@@ -650,6 +673,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   );
 
   // Project geometry shapes (lines/polygons) — visible from zoom 9
+  // under_construction / planned / canceled: long dashes
   mlMap.addLayer(
     {
       id: "project-shapes",
@@ -657,16 +681,34 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: getIsNeitherProposedNorCompletedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 3,
-        "line-dasharray": [4, 1.5],
+        "line-width": SHAPE_LINE_WIDTH,
+        "line-dasharray": SHAPE_LONG_DASH,
       },
     },
     firstSymbolLayerId,
   );
 
-  // Proposed project shapes are overlaid as dashed lines.
+  // completed project shapes: solid line
+  mlMap.addLayer(
+    {
+      id: "project-shapes-completed",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: getIsCompletedFilterExpression(),
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": SHAPE_LINE_WIDTH,
+      },
+    },
+    firstSymbolLayerId,
+  );
+
+  // proposed project shapes: short dashes
   mlMap.addLayer(
     {
       id: "project-shapes-proposed-dashed",
@@ -677,8 +719,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: getIsProposedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 2,
-        "line-dasharray": [4, 1.5],
+        "line-width": SHAPE_LINE_WIDTH,
+        "line-dasharray": SHAPE_SHORT_DASH,
       },
     },
     firstSymbolLayerId,
@@ -711,7 +753,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 4,
+        "line-width": SHAPE_LINE_WIDTH + 1,
         "line-opacity": 1,
       },
     },
@@ -732,15 +774,34 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       ],
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 4,
+        "line-width": SHAPE_LINE_WIDTH + 1,
         "line-opacity": 1,
-        "line-dasharray": [4, 1.5],
+      },
+    },
+    firstSymbolLayerId,
+  );
+
+  // Transparent fill so queryRenderedFeatures hits the interior of each footprint polygon,
+  // not just its outline pixels. Without this, hover only fires on the dashed border.
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints-fill",
+      type: "fill",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      paint: {
+        "fill-color": getProjectLineColorExpression(),
+        "fill-opacity": 0.001,
       },
     },
     firstSymbolLayerId,
   );
 
   // Overlay footprints — permanent border outline replacing CSS box-shadow hack
+  // Width is 6 (double project-shapes) because half the stroke is covered by the overlay image.
+  // Dasharray values are halved vs project-shapes so physical dash/gap sizes stay identical.
+  // under_construction / planned / canceled: long dashes
   mlMap.addLayer(
     {
       id: "overlay-footprints",
@@ -748,17 +809,36 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: getIsNeitherProposedNorCompletedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 6,
+        "line-width": FOOTPRINT_LINE_WIDTH,
         "line-opacity": 0.9,
-        "line-dasharray": [4, 1.5],
+        "line-dasharray": FOOTPRINT_LONG_DASH,
       },
     },
     firstSymbolLayerId,
   );
 
-  // Proposed overlay footprints inherit proposed state from their parent project.
+  // completed overlay footprints: solid line
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints-completed",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: getIsCompletedFilterExpression(),
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": FOOTPRINT_LINE_WIDTH,
+        "line-opacity": 0.9,
+      },
+    },
+    firstSymbolLayerId,
+  );
+
+  // proposed overlay footprints: short dashes
   mlMap.addLayer(
     {
       id: "overlay-footprints-proposed-dashed",
@@ -769,9 +849,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: getIsProposedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 6,
+        "line-width": FOOTPRINT_LINE_WIDTH,
         "line-opacity": 0.9,
-        "line-dasharray": [4, 1.5],
+        "line-dasharray": FOOTPRINT_SHORT_DASH,
       },
     },
     firstSymbolLayerId,
@@ -787,7 +867,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 6,
+        "line-width": FOOTPRINT_LINE_WIDTH,
         "line-opacity": 1,
       },
     },
@@ -808,9 +888,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       ],
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 3.5,
+        "line-width": FOOTPRINT_LINE_WIDTH,
         "line-opacity": 1,
-        "line-dasharray": [4, 1.5],
       },
     },
     firstSymbolLayerId,

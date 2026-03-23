@@ -304,7 +304,7 @@ export function updateStandaloneProjectMarkerTooltip(
 /**
  * Update standalone project marker opacities based on selected marker
  */
-export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
+function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
   if (!standaloneProjectsLayer) return;
 
   selectedStandaloneProjectMarker = selectedMarker;
