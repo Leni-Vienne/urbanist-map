@@ -598,9 +598,22 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
-  // Find the first symbol layer in the basemap so we can render our points under the labels
+  // Find insertion point: after all fill-extrusion (3D buildings) layers but before labels.
+  // Inserting before the very first symbol layer risks landing under 3D buildings when the
+  // basemap style places fill-extrusion layers after its first symbol layers.
   const layers = mlMap.getStyle().layers;
-  const firstSymbolLayerId = layers?.find((layer) => layer.type === "symbol")?.id;
+  let lastExtrusionIndex = -1;
+  if (layers) {
+    for (let i = layers.length - 1; i >= 0; i--) {
+      if (layers[i]?.type === "fill-extrusion") {
+        lastExtrusionIndex = i;
+        break;
+      }
+    }
+  }
+  const firstSymbolLayerId = layers?.find(
+    (layer, i) => layer.type === "symbol" && i > lastExtrusionIndex,
+  )?.id;
 
   // ── MVT source: project shapes + overlay footprints + points ──────────────
   mlMap.addSource("project-sources", {
@@ -728,8 +741,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 1.5,
-        "line-opacity": 0.7,
+        "line-width": 6,
+        "line-opacity": 0.9,
+        "line-dasharray": [2, 1.5],
       },
     },
     firstSymbolLayerId,
@@ -746,8 +760,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: getIsProposedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 1.5,
-        "line-opacity": 0.7,
+        "line-width": 6,
+        "line-opacity": 0.9,
         "line-dasharray": [2, 1.5],
       },
     },
