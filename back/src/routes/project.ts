@@ -350,9 +350,14 @@ export const projectRouter = router({
       }
     }),
 
-  // Get a single approved project by ID (used by vector tile click handler)
-  getById: publicProcedure.input(z.object({ id: z.uuid() })).query(async ({ input }) => {
+  // Get a project by ID (used by vector tile click handler).
+  // Returns approved projects to everyone; also returns the project to its owner regardless of status.
+  getById: publicProcedure.input(z.object({ id: z.uuid() })).query(async ({ input, ctx }) => {
     try {
+      const statusCondition = ctx.user
+        ? or(eq(projects.status, "approved"), eq(projects.ownerId, ctx.user.id))
+        : eq(projects.status, "approved");
+
       const rows = await db
         .select({
           ...PROJECT_COLUMNS,
@@ -362,7 +367,7 @@ export const projectRouter = router({
         .from(projects)
         .leftJoin(cities, eq(projects.cityId, cities.id))
         .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-        .where(and(eq(projects.id, input.id), eq(projects.status, "approved")))
+        .where(and(eq(projects.id, input.id), statusCondition))
         .limit(1);
 
       return rows[0] ?? null;

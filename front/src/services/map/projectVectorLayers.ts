@@ -12,6 +12,7 @@ import {
   getOverlayDrivenHoverId,
   registerOverlayHoverCallback,
 } from "@/services/map/vectorHoverState";
+import { mobileAwareFlyTo, mobileAwarePanTo } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import {
@@ -654,14 +655,20 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
               hasGeometry && maxSizeM > 0 ? getZoomForGeometrySize(maxSizeM, lat, lng) : 14;
             const targetZoom = Math.max(currentZoom, idealZoom);
             const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-            map.value.flyTo([lat, lng], targetZoom, { duration });
+            if (targetZoom === currentZoom) {
+              // flyTo zooms out then back in even for pure pans, causing MapLibre canvas flicker.
+              // When no zoom change is needed, use panTo to avoid the zoom-out arc.
+              mobileAwarePanTo([lat, lng], { animate: true, duration });
+            } else {
+              mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+            }
           } else {
             // Cluster: jump three grid tiers to give the cluster a real chance of splitting.
             // Never open the panel -- the user needs to click the actual visible point after zoom.
             shouldOpenPanel = false;
             const targetZoom = getNextGridZoom(getNextGridZoom(getNextGridZoom(currentZoom)));
             const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-            map.value.flyTo([lat, lng], targetZoom, { duration });
+            mobileAwareFlyTo([lat, lng], targetZoom, { duration });
           }
         }
 
