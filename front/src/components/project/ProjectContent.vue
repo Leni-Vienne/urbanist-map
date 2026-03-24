@@ -153,7 +153,7 @@
             <img
               v-if="!imageErrors[overlay.id]"
               :src="overlay.imageUrl || getOverlayImageUrl(overlay.filename, overlay.status)"
-              :alt="overlay.name"
+              :alt="overlay.caption ?? undefined"
               class="w-full h-full object-cover"
               :crossorigin="
                 imageRequiresCredentials(
@@ -174,10 +174,10 @@
               <p
                 :class="[
                   'text-[15px] font-bold m-0 leading-tight flex-1 min-w-0 truncate',
-                  overlay.name ? 'text-color' : 'italic text-muted-color',
+                  overlay.caption ? 'text-color' : 'italic text-muted-color',
                 ]"
               >
-                {{ overlay.name || $t("overlay.untitled") }}
+                {{ overlay.caption || $t("overlay.untitled") }}
               </p>
             </div>
             <div class="text-xs text-muted-color mb-2">
@@ -236,7 +236,7 @@
             :projects="projectsContext"
             :is-my-contributions="isContributePanel"
             :is-overlay-changes="true"
-            :entity-name="overlay.name || $t('overlay.untitled')"
+            :entity-name="overlay.caption || $t('overlay.untitled')"
             :on-navigate-to-overlay="onNavigateToOverlay"
             :show-user-stats-link="showUserStatsLink"
             @show-user-stats="(data) => $emit('show-user-stats', data)"

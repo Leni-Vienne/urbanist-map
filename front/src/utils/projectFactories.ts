@@ -75,7 +75,7 @@ export function createOverlayForModeration(
 ): OverlayForModeration {
   return {
     id: overlayData.id,
-    name: overlayData.caption ?? "",
+    caption: overlayData.caption,
     filename: overlayData.filename.startsWith("data:")
       ? `pending-${overlayData.id}.webp`
       : overlayData.filename,
@@ -108,7 +108,11 @@ export function createLocalOverlayContribution(
     projectId: string | null;
     authorId: string | null;
     replacesOverlayId: string | null;
+    replacedByOverlayId?: string | null;
     imageUrl?: string;
+    status?: import("@shared/types").ApprovalStatus | null;
+    version?: number;
+    updatedAt?: Date;
   },
   parentProject: {
     cityId: number | null;
@@ -120,18 +124,18 @@ export function createLocalOverlayContribution(
 ): UserContributionOverlay {
   return {
     id: overlay.id,
-    name: overlay.caption ?? "Untitled",
+    caption: overlay.caption,
     filename: overlay.filename,
-    status: null,
-    version: 1,
+    status: overlay.status !== undefined ? overlay.status : null,
+    version: overlay.version ?? 1,
     projectId: overlay.projectId ?? "",
     authorId: overlay.authorId ?? null,
     authorUsername: username,
     authorApprovedCount: null,
     authorRejectedCount: null,
     replacesOverlayId: overlay.replacesOverlayId ?? null,
-    replacedByOverlayId: null,
-    updatedAt: new Date(),
+    replacedByOverlayId: overlay.replacedByOverlayId ?? null,
+    updatedAt: overlay.updatedAt ?? new Date(),
     cityId: parentProject.cityId,
     cityName: parentProject.cityName,
     countryCode: parentProject.countryCode,

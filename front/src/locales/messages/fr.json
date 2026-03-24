@@ -159,6 +159,11 @@
     "tryChangingFilters": "Essayez de modifier vos paramètres de filtre.",
     "noProjectsFound": "Aucun projet trouvé.",
     "createFirstProject": "Ajoutez votre premier projet !",
+    "selectedProject": "Projet sélectionné",
+    "role": {
+      "created": "créé",
+      "contributed": "contribué"
+    },
     "deleteOverlay": "Supprimer l'image",
     "deleteProject": "Supprimer le projet",
     "deleteChangeRequest": "Supprimer la suggestion",

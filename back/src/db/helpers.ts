@@ -209,7 +209,7 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
   return database
     .select({
       id: overlays.id,
-      name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
+      caption: overlays.caption,
       filename: overlays.filename,
       status: overlays.status,
       version: overlays.version,

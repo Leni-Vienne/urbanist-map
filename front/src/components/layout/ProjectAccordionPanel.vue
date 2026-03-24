@@ -18,133 +18,261 @@
         { 'scroll-area': isScrollable },
       ]"
     >
-      <div v-if="projects.length > 0" ref="contentRef" class="flex flex-col gap-2 pb-2 pr-3">
-        <template v-for="countryGroup in groupedByCountry" :key="countryGroup.countryCode">
-          <!-- Country header (hide if grouping disabled) -->
-          <div
-            v-if="!disableGrouping"
-            class="-mr-3 py-3.5 px-4 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b-2 border-primary-200 cursor-pointer transition-colors duration-150 select-none hover:bg-[color-mix(in_srgb,var(--p-primary-color)_14%,var(--p-content-background))]"
-            @click="handleToggleCountryExpanded(countryGroup.countryCode)"
-          >
-            <div class="flex items-center gap-3">
-              <i
-                :class="[
-                  'pi text-primary-600 text-xs transition-transform',
-                  isCountryExpanded(countryGroup.countryCode)
-                    ? 'pi-chevron-down'
-                    : 'pi-chevron-right',
-                ]"
-              ></i>
-              <h3 class="m-0 text-base font-bold text-color flex-1 flex items-center gap-1.5">
-                {{ countryGroup.countryName }}
-                <span class="text-[0.8125rem] font-semibold text-muted-color"
-                  >({{ countryGroup.countryCode }})</span
-                >
-              </h3>
-              <span
-                class="text-[0.8125rem] font-bold text-primary-color bg-[color-mix(in_srgb,var(--p-primary-color)_15%,transparent)] px-2.5 py-1 rounded-xl min-w-7 text-center"
-                >{{ countryGroup.totalProjects }}</span
-              >
+      <div
+        v-if="projects.length > 0 || pinnedExternalProject"
+        ref="contentRef"
+        class="flex flex-col gap-2 pb-2 pr-3"
+      >
+        <!-- Flat list (no grouping): preserves input order with optional pinned project at top -->
+        <template v-if="disableGrouping">
+          <!-- External pinned project (selected on map, not in user contributions) -->
+          <template v-if="pinnedExternalProject">
+            <div
+              class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+            >
+              {{ $t("contribute.selectedProject") }}
             </div>
-          </div>
-
-          <!-- Country content (always expanded if grouping disabled) -->
-          <div v-if="shouldShowCountryContent(countryGroup.countryCode)">
-            <template v-for="cityGroup in countryGroup.cities" :key="cityGroup.key">
-              <!-- City header (hide if grouping disabled) -->
-              <div
-                v-if="!disableGrouping"
-                class="flex items-center justify-between py-2.5 px-3.5 mt-3 mb-2 first:mt-1 bg-content-hover-background border-l-[3px] border-l-content-border-color rounded cursor-pointer transition-colors duration-150 select-none hover:bg-content-hover-background hover:brightness-95 dark:hover:brightness-110"
-                :data-city-key="cityGroup.key"
-                @click="toggleCityExpanded(cityGroup.key)"
+            <Accordion
+              :multiple="true"
+              :lazy="true"
+              v-model:value="activeAccordionPanels"
+              class="city-accordion"
+            >
+              <AccordionPanel
+                :key="pinnedExternalProject.id"
+                :value="pinnedExternalProject.id"
+                :data-project-id="pinnedExternalProject.id"
               >
-                <div class="flex items-center gap-2">
-                  <i
-                    :class="[
-                      'pi text-muted-color text-2.5 transition-transform',
-                      isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right',
-                    ]"
-                  ></i>
-                  <h4 class="m-0 text-[0.8125rem] font-semibold text-color">
-                    {{ cityGroup.cityName }}
-                    <span
-                      v-if="cityGroup.cityNameLocal"
-                      class="text-xs font-medium text-muted-color ml-1"
-                      >({{ cityGroup.cityNameLocal }})</span
-                    >
-                  </h4>
-                </div>
+                <ProjectHeader
+                  :name="pinnedExternalProject.name ?? ''"
+                  :status="pinnedExternalProject.status"
+                  :hide-status-badges="hideStatusBadges"
+                />
+                <ProjectContent
+                  :project="pinnedExternalProject"
+                  :project-changes="[]"
+                  :all-change-requests="[]"
+                  :overlay-changes-map="new Map()"
+                  :projects-context="[pinnedExternalProject]"
+                  :is-contribute-panel="false"
+                  :show-user-stats-link="showUserStatsLink"
+                  :hide-status-badges="hideStatusBadges"
+                  :show-edit-buttons="false"
+                  :on-navigate-to-overlay="navigateToOverlayById"
+                  :on-overlay-click="onOverlayClick"
+                  @edit-project="handleStandaloneProjectClick"
+                  @project-click="onExternalProjectClick ?? handleCardClick"
+                  @highlight-project="handleProjectHighlight"
+                  @remove-project-highlight="handleProjectUnhighlight"
+                  @highlight-overlay="highlightOverlayById"
+                  @remove-highlight="removeOverlayHighlight"
+                >
+                  <template
+                    v-if="$slots['pinned-external-project-actions']"
+                    #project-actions="{ project: p }"
+                  >
+                    <slot name="pinned-external-project-actions" :project="p"></slot>
+                  </template>
+                </ProjectContent>
+              </AccordionPanel>
+            </Accordion>
+            <!-- Contributions section divider (only when there are contributions below) -->
+            <div
+              v-if="projects.length > 0"
+              class="-mr-3 mt-2 px-4 py-2 bg-content-hover-background border-b border-surface text-[0.75rem] font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+            >
+              {{ $t("contribute.myContributions") }}
+            </div>
+          </template>
+
+          <!-- Pinned own contribution separator -->
+          <div
+            v-else-if="pinnedProject"
+            class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+          >
+            {{ $t("contribute.selectedProject") }}
+          </div>
+          <Accordion
+            :multiple="true"
+            :lazy="true"
+            v-model:value="activeAccordionPanels"
+            class="city-accordion"
+          >
+            <AccordionPanel
+              v-for="project in flatOrderedProjects"
+              :key="project.id"
+              :value="project.id"
+              :data-project-id="project.id"
+            >
+              <ProjectHeader
+                :name="project.name ?? ''"
+                :status="project.status"
+                :hide-status-badges="hideStatusBadges"
+                :role="projectRoles?.[project.id] ?? null"
+              />
+              <ProjectContent
+                :project="project"
+                :project-changes="getProjectChangeRequestsForProject(project)"
+                :all-change-requests="changeRequests"
+                :overlay-changes-map="overlayChangesMap"
+                :projects-context="projects"
+                :is-contribute-panel="isContributePanel"
+                :show-user-stats-link="showUserStatsLink"
+                :hide-status-badges="hideStatusBadges"
+                :show-edit-buttons="showEditButtons"
+                :on-navigate-to-overlay="navigateToOverlayById"
+                :on-overlay-click="onOverlayClick"
+                @show-user-stats="(data) => emit('show-user-stats', data)"
+                @edit-project="handleStandaloneProjectClick"
+                @project-click="handleCardClick"
+                @highlight-project="handleProjectHighlight"
+                @remove-project-highlight="handleProjectUnhighlight"
+                @highlight-overlay="highlightOverlayById"
+                @remove-highlight="removeOverlayHighlight"
+              >
+                <template #project-actions="{ project: p }">
+                  <slot v-if="$slots['project-actions']" name="project-actions" :project="p"></slot>
+                </template>
+                <template #change-actions="{ change }">
+                  <slot name="change-actions" :change="change"></slot>
+                </template>
+                <template #overlay-actions="{ overlay, project: p }">
+                  <slot
+                    v-if="$slots['overlay-actions']"
+                    name="overlay-actions"
+                    :overlay="overlay"
+                    :project="p"
+                  ></slot>
+                </template>
+              </ProjectContent>
+            </AccordionPanel>
+          </Accordion>
+        </template>
+
+        <!-- Grouped list (country / city hierarchy) -->
+        <template v-else>
+          <template v-for="countryGroup in groupedByCountry" :key="countryGroup.countryCode">
+            <!-- Country header -->
+            <div
+              class="-mr-3 py-3.5 px-4 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b-2 border-primary-200 cursor-pointer transition-colors duration-150 select-none hover:bg-[color-mix(in_srgb,var(--p-primary-color)_14%,var(--p-content-background))]"
+              @click="handleToggleCountryExpanded(countryGroup.countryCode)"
+            >
+              <div class="flex items-center gap-3">
+                <i
+                  :class="[
+                    'pi text-primary-600 text-xs transition-transform',
+                    isCountryExpanded(countryGroup.countryCode)
+                      ? 'pi-chevron-down'
+                      : 'pi-chevron-right',
+                  ]"
+                ></i>
+                <h3 class="m-0 text-base font-bold text-color flex-1 flex items-center gap-1.5">
+                  {{ countryGroup.countryName }}
+                  <span class="text-[0.8125rem] font-semibold text-muted-color"
+                    >({{ countryGroup.countryCode }})</span
+                  >
+                </h3>
                 <span
-                  class="text-[0.6875rem] font-semibold text-(--p-text-color-secondary) bg-content-hover-background border border-surface px-2 py-0.5 rounded-xl min-w-5 text-center"
-                  >{{ cityGroup.projects.length }}</span
+                  class="text-[0.8125rem] font-bold text-primary-color bg-[color-mix(in_srgb,var(--p-primary-color)_15%,transparent)] px-2.5 py-1 rounded-xl min-w-7 text-center"
+                  >{{ countryGroup.totalProjects }}</span
                 >
               </div>
+            </div>
 
-              <!-- City accordion (always expanded if grouping disabled) -->
-              <Accordion
-                v-if="shouldShowCityContent(cityGroup.key)"
-                :multiple="true"
-                :lazy="true"
-                v-model:value="activeAccordionPanels"
-                class="city-accordion"
-              >
-                <AccordionPanel
-                  v-for="project in cityGroup.projects"
-                  :key="project.id"
-                  :value="project.id"
-                  :data-project-id="project.id"
+            <!-- Country content -->
+            <div v-if="shouldShowCountryContent(countryGroup.countryCode)">
+              <template v-for="cityGroup in countryGroup.cities" :key="cityGroup.key">
+                <!-- City header -->
+                <div
+                  class="flex items-center justify-between py-2.5 px-3.5 mt-3 mb-2 first:mt-1 bg-content-hover-background border-l-[3px] border-l-content-border-color rounded cursor-pointer transition-colors duration-150 select-none hover:bg-content-hover-background hover:brightness-95 dark:hover:brightness-110"
+                  :data-city-key="cityGroup.key"
+                  @click="toggleCityExpanded(cityGroup.key)"
                 >
-                  <!-- Extracted Project Header to isolate reactivity -->
-                  <ProjectHeader
-                    :name="project.name ?? ''"
-                    :status="project.status"
-                    :hide-status-badges="hideStatusBadges"
-                  />
-
-                  <!-- Extracted Project Content to isolate reactivity -->
-                  <ProjectContent
-                    :project="project"
-                    :project-changes="getProjectChangeRequestsForProject(project)"
-                    :all-change-requests="changeRequests"
-                    :overlay-changes-map="overlayChangesMap"
-                    :projects-context="projects"
-                    :is-contribute-panel="isContributePanel"
-                    :show-user-stats-link="showUserStatsLink"
-                    :hide-status-badges="hideStatusBadges"
-                    :show-edit-buttons="showEditButtons"
-                    :on-navigate-to-overlay="navigateToOverlayById"
-                    :on-overlay-click="onOverlayClick"
-                    @show-user-stats="(data) => emit('show-user-stats', data)"
-                    @edit-project="handleStandaloneProjectClick"
-                    @project-click="handleCardClick"
-                    @highlight-project="handleProjectHighlight"
-                    @remove-project-highlight="handleProjectUnhighlight"
-                    @highlight-overlay="highlightOverlayById"
-                    @remove-highlight="removeOverlayHighlight"
+                  <div class="flex items-center gap-2">
+                    <i
+                      :class="[
+                        'pi text-muted-color text-2.5 transition-transform',
+                        isCityExpanded(cityGroup.key) ? 'pi-chevron-down' : 'pi-chevron-right',
+                      ]"
+                    ></i>
+                    <h4 class="m-0 text-[0.8125rem] font-semibold text-color">
+                      {{ cityGroup.cityName }}
+                      <span
+                        v-if="cityGroup.cityNameLocal"
+                        class="text-xs font-medium text-muted-color ml-1"
+                        >({{ cityGroup.cityNameLocal }})</span
+                      >
+                    </h4>
+                  </div>
+                  <span
+                    class="text-[0.6875rem] font-semibold text-(--p-text-color-secondary) bg-content-hover-background border border-surface px-2 py-0.5 rounded-xl min-w-5 text-center"
+                    >{{ cityGroup.projects.length }}</span
                   >
-                    <template #project-actions="{ project: p }">
-                      <slot
-                        v-if="$slots['project-actions']"
-                        name="project-actions"
-                        :project="p"
-                      ></slot>
-                    </template>
-                    <template #change-actions="{ change }">
-                      <slot name="change-actions" :change="change"></slot>
-                    </template>
-                    <template #overlay-actions="{ overlay, project: p }">
-                      <slot
-                        v-if="$slots['overlay-actions']"
-                        name="overlay-actions"
-                        :overlay="overlay"
-                        :project="p"
-                      ></slot>
-                    </template>
-                  </ProjectContent>
-                </AccordionPanel>
-              </Accordion>
-            </template>
-          </div>
+                </div>
+
+                <!-- City accordion -->
+                <Accordion
+                  v-if="shouldShowCityContent(cityGroup.key)"
+                  :multiple="true"
+                  :lazy="true"
+                  v-model:value="activeAccordionPanels"
+                  class="city-accordion"
+                >
+                  <AccordionPanel
+                    v-for="project in cityGroup.projects"
+                    :key="project.id"
+                    :value="project.id"
+                    :data-project-id="project.id"
+                  >
+                    <ProjectHeader
+                      :name="project.name ?? ''"
+                      :status="project.status"
+                      :hide-status-badges="hideStatusBadges"
+                    />
+                    <ProjectContent
+                      :project="project"
+                      :project-changes="getProjectChangeRequestsForProject(project)"
+                      :all-change-requests="changeRequests"
+                      :overlay-changes-map="overlayChangesMap"
+                      :projects-context="projects"
+                      :is-contribute-panel="isContributePanel"
+                      :show-user-stats-link="showUserStatsLink"
+                      :hide-status-badges="hideStatusBadges"
+                      :show-edit-buttons="showEditButtons"
+                      :on-navigate-to-overlay="navigateToOverlayById"
+                      :on-overlay-click="onOverlayClick"
+                      @show-user-stats="(data) => emit('show-user-stats', data)"
+                      @edit-project="handleStandaloneProjectClick"
+                      @project-click="handleCardClick"
+                      @highlight-project="handleProjectHighlight"
+                      @remove-project-highlight="handleProjectUnhighlight"
+                      @highlight-overlay="highlightOverlayById"
+                      @remove-highlight="removeOverlayHighlight"
+                    >
+                      <template #project-actions="{ project: p }">
+                        <slot
+                          v-if="$slots['project-actions']"
+                          name="project-actions"
+                          :project="p"
+                        ></slot>
+                      </template>
+                      <template #change-actions="{ change }">
+                        <slot name="change-actions" :change="change"></slot>
+                      </template>
+                      <template #overlay-actions="{ overlay, project: p }">
+                        <slot
+                          v-if="$slots['overlay-actions']"
+                          name="overlay-actions"
+                          :overlay="overlay"
+                          :project="p"
+                        ></slot>
+                      </template>
+                    </ProjectContent>
+                  </AccordionPanel>
+                </Accordion>
+              </template>
+            </div>
+          </template>
         </template>
       </div>
 
@@ -240,6 +368,10 @@ interface Props {
   disableGrouping?: boolean;
   showEditButtons?: boolean;
   shouldSwitchToEditMode?: boolean;
+  pinnedProjectId?: string | null;
+  projectRoles?: Record<string, "created" | "contributed">;
+  pinnedExternalProject?: ProjectForModeration | null;
+  onExternalProjectClick?: ((project: ProjectForModeration) => void) | null;
 }
 
 interface CityGroup {
@@ -266,6 +398,10 @@ const props = withDefaults(defineProps<Props>(), {
   disableGrouping: false,
   showEditButtons: false,
   shouldSwitchToEditMode: false,
+  pinnedProjectId: null,
+  projectRoles: () => ({}),
+  pinnedExternalProject: null,
+  onExternalProjectClick: undefined,
 });
 
 const emit = defineEmits<{
@@ -379,6 +515,21 @@ const groupedByCountry = computed(() => {
 
   return sorted;
 });
+
+// When grouping is disabled, preserve input order (updatedAt desc from backend) instead of alphabetical
+const flatOrderedProjects = computed(() => {
+  if (!props.disableGrouping) return [];
+  if (!props.pinnedProjectId) return props.projects;
+  const pinned = props.projects.find((p) => p.id === props.pinnedProjectId);
+  const rest = props.projects.filter((p) => p.id !== props.pinnedProjectId);
+  return pinned ? [pinned, ...rest] : props.projects;
+});
+
+const pinnedProject = computed(() =>
+  props.disableGrouping && props.pinnedProjectId
+    ? (props.projects.find((p) => p.id === props.pinnedProjectId) ?? null)
+    : null,
+);
 
 // Track if panel is active (visible) to prevent inactive panels from consuming scroll requests
 const isPanelActive = ref(false);

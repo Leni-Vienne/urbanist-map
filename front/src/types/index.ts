@@ -169,7 +169,7 @@ export type OverlayForModeration = Pick<
   | "replacesOverlayId"
   | "replacedByOverlayId"
 > & {
-  name: string; // Display name
+  caption: string | null;
   authorId: string | null; // For spam prevention reporting
   authorUsername?: string | null; // Display friendly username in moderation UI
   authorApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)

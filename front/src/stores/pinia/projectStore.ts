@@ -10,6 +10,8 @@ import type {
 import type { AppMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
 import { createProjectObject, createProjectFromUserContribution } from "@/utils/typeFactories";
+import { createLocalOverlayContribution } from "@/utils/projectFactories";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 // Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -106,7 +108,7 @@ export const useProjectStore = defineStore("project", () => {
   ) {
     return {
       id: overlay.id,
-      name: overlay.caption ?? "Unnamed",
+      caption: overlay.caption,
       filename: filename,
       status: "pending" as const,
       version: 1,
@@ -207,12 +209,23 @@ export const useProjectStore = defineStore("project", () => {
         return;
       }
 
+      // Include all overlays already loaded in the store for this project (e.g. approved ones),
+      // then add/replace with the newly submitted overlay
+      const overlayStore = useOverlayStore();
+      const cityMeta = extractCityMetadata(project);
+      const existingOverlays = Object.values(overlayStore.overlays)
+        .filter((o) => o.projectId === project.id && o.id !== overlay.id)
+        .map((o) =>
+          createLocalOverlayContribution(o, { ...cityMeta, cityId: project.cityId }, null),
+        );
+      const newOverlayMetadata = createOverlayMetadata(overlay, project, filename, authorUsername);
+
       const newProject = {
         ...project,
         ...extractCityMetadata(project),
         status: project.status, // Type assertion - null already filtered above
-        overlays: [createOverlayMetadata(overlay, project, filename, authorUsername)],
-        overlayCount: 1,
+        overlays: [...existingOverlays, newOverlayMetadata],
+        overlayCount: existingOverlays.length + 1,
       };
 
       userContributions.value = [newProject, ...userContributions.value];
