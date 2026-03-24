@@ -6,8 +6,19 @@ WITH tile_env AS (
     ST_Transform(ST_TileEnvelope($1, $2, $3), 4326) AS bounds_4326
 ),
 shapes AS (
-  -- Generate the 'project-shapes' vector tile layer containing physical structures (polygons/lines)
-  -- This layer is only rendered at zoom level 9 and higher.
+  -- Generate the 'project-shapes' vector tile layer containing physical structures (polygons/lines).
+  -- Shapes are gated by both zoom and size to avoid noise in dense areas at mid-zoom.
+  -- All zoom values are MapLibre zoom = Leaflet zoom - 1.
+  -- The points CTE mirrors these thresholds to hide a center marker once its shape dominates,
+  -- EXCEPT the z11 catch-all: small shapes (< 200m) never suppress their marker since they
+  -- are too small to be dominant even at close zoom.
+  --   z4  (Lft z5):  >= 100 km
+  --   z5  (Lft z6):  >= 50 km
+  --   z7  (Lft z8):  >= 10 km
+  --   z8  (Lft z9):  >= 1 km
+  --   z9  (Lft z10): >= 500 m  (shapes visible; marker suppressed only at z11+)
+  --   z10 (Lft z11): >= 200 m  (shapes visible; marker suppressed only at z12+)
+  --   z11+(Lft z12+): all      (shapes visible; marker suppressed only at z13+)
   SELECT ST_AsMVT(q, 'project-shapes', 4096, 'mvt_geom') AS tile
   FROM (
     -- First part: retrieve projects that have an explicitly drawn geometry (polygon or line)
@@ -26,16 +37,26 @@ shapes AS (
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s
     FROM projects p, tile_env te
-    WHERE $1 >= 9
+    WHERE $1 >= 3
       AND p.status = 'approved'
       AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
+      AND (
+        $1 >= 11
+        OR ($1 >= 10 AND p.geometry_size_m >= 200)
+        OR ($1 >= 9  AND p.geometry_size_m >= 500)
+        OR ($1 >= 8  AND p.geometry_size_m >= 1000)
+        OR ($1 >= 7  AND p.geometry_size_m >= 10000)
+        OR ($1 >= 5  AND p.geometry_size_m >= 50000)
+        OR ($1 >= 4  AND p.geometry_size_m >= 100000)
+      )
 
     UNION ALL
 
-    -- Second part: for projects that don'thave geometry, we represent them as a single point in the shapes layer
+    -- Second part: for projects that don't have geometry, we represent them as a single point in the shapes layer
     -- BUT ONLY IF they also do not have any associated image overlays.
     -- This ensures small un-drawn projects are still clickable at high zooms.
+    -- These have no meaningful size so they only appear at z8+ (same as before).
     SELECT
       ST_AsMVTGeom(
         ST_Transform(p.center_coordinate, 3857),
@@ -51,7 +72,7 @@ shapes AS (
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s
     FROM projects p, tile_env te
-    WHERE $1 >= 9
+    WHERE $1 >= 8
       AND p.status = 'approved'
       AND p.geometry IS NULL
       AND p.center_coordinate IS NOT NULL
@@ -127,6 +148,9 @@ points AS (
       has_geometry,
       is_named,
       last_modified_s, -- used for filtering by last modified date
+      -- min/max last_modified_s are used for filtering clusters by date on the client
+      MIN(last_modified_s) OVER (PARTITION BY grid_id, first_tag, timeline_status) AS min_last_modified_s,
+      MAX(last_modified_s) OVER (PARTITION BY grid_id, first_tag, timeline_status) AS max_last_modified_s,
       -- min_size_m and max_size_m are used for filtering clusters by size on the client
       ROUND(MIN(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS min_size_m,
       ROUND(MAX(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS max_size_m,
@@ -166,11 +190,18 @@ points AS (
         WHERE p.status = 'approved'
           AND p.center_coordinate IS NOT NULL
           AND p.center_coordinate && te.bounds_4326
-          -- Hide center points for large geometries progressively as zoom increases,
-          -- since their shape is already visible in the shapes layer and the marker just clutters the map.
-          AND ($1 < 9  OR p.geometry_size_m IS NULL OR p.geometry_size_m < 50000)
-          AND ($1 < 10 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 5000)
-          AND ($1 < 11 OR p.geometry_size_m IS NULL OR p.geometry_size_m < 500)
+          -- Hide the center marker once its shape is visible (mirrors the shapes CTE conditions above).
+          -- All zoom values are MapLibre zoom = Leaflet zoom - 1.
+          AND NOT (
+            p.geometry_size_m IS NOT NULL AND (
+              ($1 >= 13 AND p.geometry_size_m >= 200)
+              OR ($1 >= 12 AND p.geometry_size_m >= 500)
+              OR ($1 >= 11 AND p.geometry_size_m >= 1000)
+              OR ($1 >= 7  AND p.geometry_size_m >= 10000)
+              OR ($1 >= 5  AND p.geometry_size_m >= 50000)
+              OR ($1 >= 4  AND p.geometry_size_m >= 100000)
+            )
+          )
       ) raw_q
     ) inner_q
     WHERE inner_q.mvt_geom IS NOT NULL

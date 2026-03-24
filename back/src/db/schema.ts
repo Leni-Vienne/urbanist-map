@@ -205,7 +205,7 @@ export const projects = pgTable(
     lng: doublePrecision("lng"),
     centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // PostGIS point for spatial queries (computed from lat/lng)
     geometry: geometryCollectionType("geometry"), // PostGIS GeometryCollection for project shapes (lines + polygons)
-    geometrySizeM: doublePrecision("geometry_size_m"), // Largest single-component bbox diagonal in meters (null = no geometry). Computed on save.
+    geometrySizeM: doublePrecision("geometry_size_m"), // LEAST(total line/polygon length, global bbox diagonal) in meters. See import-osm.ts for rationale. Null = no geometry.
     tags: text("tags").array(), // Project category tags (e.g. 'tram', 'rail', 'bike')
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)

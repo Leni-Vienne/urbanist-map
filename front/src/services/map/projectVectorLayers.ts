@@ -76,8 +76,9 @@ const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project points disappear because shapes take over */
 const PROJECT_POINTS_MAX_ZOOM = 15;
-/** Zoom level at which project shapes (MVT) become visible */
-const PROJECT_SHAPES_MIN_ZOOM = 9;
+/** Zoom level at which project shapes (MVT) become visible.
+ *  Large shapes appear earlier via getShapeZoomVisibilityFilter — see that function for the full table. */
+const PROJECT_SHAPES_MIN_ZOOM = 3;
 /** Zoom level at which overlay footprints and point geometries become visible */
 const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
@@ -98,7 +99,7 @@ const FOOTPRINT_SHORT_DASH: [number, number] = [0.75, 1]; // = SHAPE_SHORT_DASH 
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 
-const VECTOR_QUERY_LAYERS = [
+export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
   "overlay-footprints",
   "overlay-footprints-completed",
@@ -161,6 +162,31 @@ function getProjectPointColorExpression(): ExpressionSpecification {
   ] as ExpressionSpecification;
 }
 
+/**
+ * Zoom-dependent size gate for the project-shapes layer.
+ * Mirrors the server-side logic in tiles.sql (all values are MapLibre zoom = Leaflet zoom - 1):
+ *   z11+ → all shapes
+ *   z10  → geometry_size_m >= 200 m
+ *   z9   → geometry_size_m >= 500 m
+ *   z8   → geometry_size_m >= 1 km
+ *   z7   → geometry_size_m >= 10 km
+ *   z5   → geometry_size_m >= 50 km
+ *   z4   → geometry_size_m >= 100 km
+ * Projects with null geometry_size_m (point stand-ins) are never shown via this filter.
+ */
+function getShapeZoomVisibilityFilter(): FilterSpecification {
+  return [
+    "any",
+    [">=", ["zoom"], 11],
+    ["all", [">=", ["zoom"], 10], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 200]],
+    ["all", [">=", ["zoom"], 9], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 500]],
+    ["all", [">=", ["zoom"], 8], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 1000]],
+    ["all", [">=", ["zoom"], 7], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 10000]],
+    ["all", [">=", ["zoom"], 5], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 50000]],
+    ["all", [">=", ["zoom"], 4], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 100000]],
+  ] as FilterSpecification;
+}
+
 function getIsProposedFilterExpression(): ExpressionSpecification {
   return ["==", ["get", "timeline_status"], "proposed"];
 }
@@ -219,11 +245,29 @@ function getTagFilterExpression(): FilterSpecification | null {
 
 // Layers with existing filters that need tag filter merged with "all"
 const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = {
-  "project-shapes": getIsNeitherProposedNorCompletedFilterExpression,
-  "project-shapes-completed": getIsCompletedFilterExpression,
-  "project-shapes-fill": () => ["==", ["geometry-type"], "Polygon"] as FilterSpecification,
-  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification,
-  "project-shapes-proposed-dashed": getIsProposedFilterExpression,
+  // project-shapes sub-layers: each combines a status filter with the zoom+size visibility gate
+  // so that large projects appear at lower zoom levels (z6/z7) while small ones wait until z8+.
+  "project-shapes": () =>
+    [
+      "all",
+      getIsNeitherProposedNorCompletedFilterExpression(),
+      getShapeZoomVisibilityFilter(),
+    ] as FilterSpecification,
+  "project-shapes-completed": () =>
+    [
+      "all",
+      getIsCompletedFilterExpression(),
+      getShapeZoomVisibilityFilter(),
+    ] as FilterSpecification,
+  "project-shapes-fill": () =>
+    [
+      "all",
+      ["==", ["geometry-type"], "Polygon"],
+      getShapeZoomVisibilityFilter(),
+    ] as FilterSpecification,
+  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate: these are small stand-ins, already gated to z8+ by null size_m
+  "project-shapes-proposed-dashed": () =>
+    ["all", getIsProposedFilterExpression(), getShapeZoomVisibilityFilter()] as FilterSpecification,
   "overlay-footprints": getIsNeitherProposedNorCompletedFilterExpression,
   "overlay-footprints-completed": getIsCompletedFilterExpression,
   "overlay-footprints-proposed-dashed": getIsProposedFilterExpression,
@@ -309,17 +353,27 @@ function getNameFilterExpression(): FilterSpecification | null {
 }
 
 /**
- * Build a last modified date filter expression. Returns null if filter is at its default.
- * The tile property `last_modified_s` is in Unix seconds.
+ * Build a last modified date filter expression for the project-points layer.
+ * Checks against min_last_modified_s/max_last_modified_s which reflect the full grid cell,
+ * not just the representative, so clusters are only hidden when no project in the cell matches.
+ * Returns null if filter is at its default.
+ * The tile properties are in Unix seconds.
  */
 function getLastModifiedDateFilterExpression(): FilterSpecification | null {
   const [minMs, maxMs] = lastModifiedDateRange.value;
   if (minMs === 0 && maxMs === Infinity) return null;
 
   const minS = Math.floor(minMs / 1000);
-  const conditions: unknown[] = [[">=", ["get", "last_modified_s"], minS]];
+  // A cell matches if its date range overlaps the filter range.
+  const conditions: unknown[] = [
+    [">=", ["coalesce", ["get", "max_last_modified_s"], ["get", "last_modified_s"]], minS],
+  ];
   if (maxMs !== Infinity) {
-    conditions.push(["<=", ["get", "last_modified_s"], Math.floor(maxMs / 1000)]);
+    conditions.push([
+      "<=",
+      ["coalesce", ["get", "min_last_modified_s"], ["get", "last_modified_s"]],
+      Math.floor(maxMs / 1000),
+    ]);
   }
   return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
 }
@@ -754,7 +808,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH + 1,
-        "line-opacity": 1,
       },
     },
     firstSymbolLayerId,
@@ -775,7 +828,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH + 1,
-        "line-opacity": 1,
       },
     },
     firstSymbolLayerId,
@@ -813,7 +865,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
-        "line-opacity": 0.9,
         "line-dasharray": FOOTPRINT_LONG_DASH,
       },
     },
@@ -832,7 +883,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
-        "line-opacity": 0.9,
       },
     },
     firstSymbolLayerId,
@@ -850,7 +900,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
-        "line-opacity": 0.9,
         "line-dasharray": FOOTPRINT_SHORT_DASH,
       },
     },
@@ -868,7 +917,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
-        "line-opacity": 1,
       },
     },
     firstSymbolLayerId,
@@ -889,7 +937,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
-        "line-opacity": 1,
       },
     },
     firstSymbolLayerId,

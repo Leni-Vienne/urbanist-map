@@ -388,11 +388,53 @@ async function main() {
             centerCoordinate: center
               ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
               : null,
-            // Largest single-component bbox diagonal in meters - used to filter small geometries from cluster points.
-            // ST_Dump splits multi-geometries into individual components so that disconnected outlier segments
-            // (e.g. a small stub 7km away) don't inflate the result, while a long connected highway stays large.
+            // Spatial size in meters, used to:
+            //   - decide zoom level when flying to a project
+            //   - progressively hide center-point markers when the shape is large enough
+            //   - drive the size filter slider in the UI
+            //
+            // The cap is GREATEST(bbox_width, bbox_height) -- the longest side of the bounding box.
+            // Using the bbox diagonal instead would inflate areas by up to sqrt(2) (~41%) for square shapes.
+            //
+            // GREATEST(ST_Length, ST_Perimeter) handles both geometry families:
+            //   - LineString/MultiLineString: ST_Length > 0, ST_Perimeter = 0
+            //   - Polygon/MultiPolygon:       ST_Length = 0, ST_Perimeter > 0
+            //
+            // Examples (lines):
+            //   - A20 motorway (170km route, ~200km bbox diagonal): LEAST(170km, 200km) = 170km  correct
+            //   - B96a (675m total, 7200m bbox diagonal):           LEAST(675m,  7200m) = 675m   correct
+            // Examples (polygons):
+            //   - 100x100m parking lot (400m perimeter):            LEAST(400m, 100m)   = 100m   correct
+            //   - Circular park r=500m (3141m perimeter):           LEAST(3141m, 1000m) = 1000m  correct (diameter)
+            //
+            // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
+            // The geometry JSON is parsed once via a scalar subquery to avoid redundant work.
             geometrySizeM: geometryJson
-              ? sql`(SELECT MAX(ST_Length(ST_BoundingDiagonal(ST_Envelope(g.geom))::geography)) FROM ST_Dump(ST_GeomFromGeoJSON(${geometryJson})) AS g)`
+              ? sql`(
+                  SELECT CASE
+                    WHEN ST_Area(g) > 0 THEN
+                      LEAST(
+                        ST_Perimeter(g::geography),
+                        GREATEST(
+                          ST_Distance(
+                            ST_MakePoint(ST_XMin(e), ST_YMin(e))::geography,
+                            ST_MakePoint(ST_XMax(e), ST_YMin(e))::geography
+                          ),
+                          ST_Distance(
+                            ST_MakePoint(ST_XMin(e), ST_YMin(e))::geography,
+                            ST_MakePoint(ST_XMin(e), ST_YMax(e))::geography
+                          )
+                        )
+                      )
+                    ELSE
+                      LEAST(
+                        ST_Length(g::geography),
+                        ST_Length(ST_BoundingDiagonal(e)::geography)
+                      )
+                  END
+                  FROM (VALUES (ST_GeomFromGeoJSON(${geometryJson}))) t(g),
+                  LATERAL (SELECT ST_Envelope(t.g)) l(e)
+                )`
               : null,
           };
 

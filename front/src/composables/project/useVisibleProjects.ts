@@ -8,6 +8,7 @@ import {
 } from "@/services/overlay/overlaySelection";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
 
 export type SortMode = "recent" | "name" | "size" | "status";
@@ -31,7 +32,12 @@ const STATUS_RANK: Record<string, number> = {
   canceled: 4,
 };
 
-const QUERY_LAYERS = ["project-points", "project-shapes", "overlay-footprints"] as const;
+// All MapLibre layer IDs that can contain project features.
+// VECTOR_QUERY_LAYERS covers all project-shapes and overlay-footprints sub-layers
+// (split by status because MapLibre line-dasharray can't be data-driven).
+// "project-points" is added separately as it lives in a different source.
+// "pending-project-points" is intentionally excluded (unapproved, not shown in panel).
+const QUERY_LAYERS = ["project-points", ...VECTOR_QUERY_LAYERS] as const;
 
 function collectCoords(geom: GeoJSON.Geometry): number[][] {
   switch (geom.type) {
