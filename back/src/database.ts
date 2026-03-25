@@ -19,9 +19,6 @@ const client = new SQL(config.DATABASE_URL, {
 export const db = drizzle({ client, schema });
 export type Database = typeof db;
 
-// Raw SQL client for queries that need binary output (e.g. MVT tiles)
-export const sqlClient = client;
-
 // Dedicated pool for MVT tile generation with JIT disabled.
 // The tile query's estimated cost exceeds jit_above_cost (due to PostGIS function costs),
 // but the actual row count processed is small (~7k projects), so LLVM compilation time

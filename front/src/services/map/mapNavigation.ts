@@ -3,7 +3,6 @@ import L, { type FitBoundsOptions, type PanOptions, type ZoomPanOptions } from "
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import type { CameraBounds } from "@/types/index";
-import countryBboxes from "@/assets/country_bboxes.json";
 
 const currentCameraBounds = ref<CameraBounds | null>(null);
 
@@ -241,27 +240,6 @@ export function mobileAwareFlyToBounds(
   // Use the already-normalized targetBounds for consistency
   map.value.flyToBounds(targetBounds, flyOptions);
   return false;
-}
-
-/**
- * Fly to a country using its bounding box from the bundled JSON.
- * @param countryCode - ISO country code (must be a key of country_bboxes.json)
- * @param duration - Animation duration in seconds (default: 1.5)
- */
-export function flyToCountry(countryCode: keyof typeof countryBboxes, duration = 1.5) {
-  const bbox = countryBboxes[countryCode];
-
-  // bbox format is [minLng, minLat, maxLng, maxLat]
-  mobileAwareFlyToBounds(
-    [
-      [bbox[1]!, bbox[0]!], // southwest corner [lat, lng]
-      [bbox[3]!, bbox[2]!], // northeast corner [lat, lng]
-    ],
-    {
-      duration,
-      padding: [30, 30] as [number, number],
-    },
-  );
 }
 
 /**

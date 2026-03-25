@@ -12,10 +12,8 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { map } from "@/services/core/map";
 
-import { requestScrollTo } from "@/services/layout/accordionState";
-
 // Type aliases using RouterOutput from tRPC
-export type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][number];
+type CityWithProjects = RouterOutput["cities"]["getCitiesWithProjects"][number];
 
 // Cities with projects data — used by panels (CurrentLocationPanel, PopupContainer, MarkerHelpButton)
 export const citiesWithProjects = ref<CityWithProjects[]>([]);
@@ -53,7 +51,7 @@ async function buildCitiesForCurrentMode(): Promise<CityWithProjects[]> {
 /**
  * Smart zoom logic: Fit bounds of all content (center + projects + overlays)
  */
-export function smartZoomToCity(
+function smartZoomToCity(
   city: { lat: number; lng: number },
   data: {
     overlays: { corners?: { lat: number; lng: number }[] | null }[];
@@ -105,9 +103,6 @@ export async function activateCity(city: CityWithProjects) {
     nameLocal: city.nameLocal,
     countryCode: city.countryCode,
   });
-
-  // Request scroll to city in adjacent panels
-  requestScrollTo("city", city.id);
 
   // Load city data before flight animation
   // Leaflet event handlers have no composable layer above them, so errors must be caught here

@@ -8,12 +8,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import type { Country } from "@/types/index";
-import countryBboxes from "@/assets/country_bboxes.json";
-
-// Type guard to validate country code against countryBboxes keys
-export function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
-  return code in countryBboxes;
-}
 
 /**
  * Load countries with projects from backend

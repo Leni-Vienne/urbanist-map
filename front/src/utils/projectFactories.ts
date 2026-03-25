@@ -9,73 +9,12 @@ import type {
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
-
-export interface CountryInfo {
-  code: string;
-  name: string;
-}
-
-export function getCountryName(
-  countryCode: string | null | undefined,
-  countries: CountryInfo[],
-): string | null {
-  if (!countryCode) return null;
-  const country = countries.find((c) => c.code === countryCode);
-  return country?.name ?? null;
-}
+import type { ApprovalStatus } from "@shared/types";
 
 interface SelectedCity {
   id: number;
   name: string;
   countryCode?: string;
-}
-
-/**
- * Create ProjectForModeration from overlay data
- * Used by currentLocationPanel to build projects from city overlay cache
- */
-// eslint-disable-next-line complexity
-export function createProjectFromOverlayData(
-  overlayData: OverlayData,
-  selectedCity: SelectedCity,
-  countries: CountryInfo[],
-): ProjectForModeration {
-  const projectInfo = overlayData.project;
-
-  return {
-    id: overlayData.projectId ?? "",
-    name: projectInfo?.name ?? overlayData.projectId ?? "",
-    description: projectInfo?.description ?? null,
-    status: projectInfo?.status ?? "approved",
-    ownerId: projectInfo?.ownerId ?? overlayData.authorId,
-    cityId: projectInfo?.cityId ?? selectedCity.id,
-    lat: projectInfo?.lat ?? overlayData.centroid.lat,
-    lng: projectInfo?.lng ?? overlayData.centroid.lng,
-    proposalDate: projectInfo?.proposalDate ?? null,
-    proposalDatePrecision: projectInfo?.proposalDatePrecision ?? null,
-    startDate: projectInfo?.startDate ?? null,
-    startDatePrecision: projectInfo?.startDatePrecision ?? null,
-    endDate: projectInfo?.endDate ?? null,
-    endDatePrecision: projectInfo?.endDatePrecision ?? null,
-    timelineStatus: projectInfo?.timelineStatus ?? "proposed",
-    importSourceId: projectInfo?.importSourceId ?? null,
-    externalId: projectInfo?.externalId ?? null,
-    externalProperties: projectInfo?.externalProperties ?? null,
-    externalLastModified: projectInfo?.externalLastModified ?? null,
-    lastImportedAt: projectInfo?.lastImportedAt ?? null,
-    sourceUrl: projectInfo?.sourceUrl ?? null,
-    tags: projectInfo?.tags ?? [],
-    createdAt: projectInfo?.createdAt ?? overlayData.createdAt,
-    updatedAt: projectInfo?.updatedAt ?? overlayData.updatedAt,
-    version: projectInfo?.version ?? overlayData.version,
-    countryCode: projectInfo?.city?.countryCode ?? selectedCity.countryCode ?? null,
-    countryName: getCountryName(
-      projectInfo?.city?.countryCode ?? selectedCity.countryCode,
-      countries,
-    ),
-    cityName: projectInfo?.city?.name ?? selectedCity.name,
-    overlays: [],
-  };
 }
 
 /**
@@ -123,7 +62,7 @@ export function createLocalOverlayContribution(
     replacesOverlayId: string | null;
     replacedByOverlayId?: string | null;
     imageUrl?: string;
-    status?: import("@shared/types").ApprovalStatus | null;
+    status?: ApprovalStatus | null;
     version?: number;
     updatedAt?: Date;
   },

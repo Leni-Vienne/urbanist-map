@@ -13,7 +13,7 @@ import { useUiStore } from "@/stores/uiStore";
 
 export type SortMode = "recent" | "name" | "size" | "status";
 
-export interface VisibleProject {
+interface VisibleProject {
   id: string;
   name: string;
   firstTag: string;

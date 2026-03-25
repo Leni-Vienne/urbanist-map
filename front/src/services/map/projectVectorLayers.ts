@@ -630,7 +630,6 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
-      console.log("Clicked point feature:", pointFeature);
       const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
       if (projectId.length > 0) {
         const coordinates = pointFeature.geometry?.coordinates;

@@ -6,7 +6,6 @@
     :change-requests="pendingChangeRequests"
     :show-edit-buttons="true"
     :should-switch-to-edit-mode="false"
-    :disable-grouping="true"
     :pinned-project-id="selectedProjectId"
     :pinned-external-project="pinnedExternalProject"
     @external-project-click="handleExternalProjectClick"
@@ -168,6 +167,7 @@ import type {
   ProjectForModeration,
   UserContribution,
   UserContributionOverlay,
+  OverlayForModeration,
 } from "@/types/index";
 import {
   createOverlayForModeration,
