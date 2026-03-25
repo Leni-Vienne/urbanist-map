@@ -97,6 +97,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ProjectForModeration } from "@/types/index";
 
 interface Props {
@@ -107,18 +109,21 @@ interface Props {
   showSave?: boolean;
   showDelete?: boolean;
   isModified?: boolean;
-  saveTooltip?: string;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   showEdit: false,
   showAddImage: false,
   showDraw: false,
   showSave: false,
   showDelete: false,
   isModified: false,
-  saveTooltip: "",
 });
+
+const { t } = useI18n();
+const saveTooltip = computed(() =>
+  props.isModified ? t("project.submitChangeRequest") : t("overlay.noChangesToSave"),
+);
 
 defineEmits<{
   edit: [project: ProjectForModeration];

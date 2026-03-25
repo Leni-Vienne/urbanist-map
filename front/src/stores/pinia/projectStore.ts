@@ -99,33 +99,6 @@ export const useProjectStore = defineStore("project", () => {
     };
   }
 
-  // Helper function to create overlay metadata for user contributions
-  function createOverlayMetadata(
-    overlay: OverlayObject,
-    project: Project,
-    filename: string,
-    authorUsername: string | null,
-  ) {
-    return {
-      id: overlay.id,
-      caption: overlay.caption,
-      filename: filename,
-      status: "pending" as const,
-      version: 1,
-      projectId: project.id,
-      authorId: overlay.authorId ?? null,
-      authorUsername: authorUsername,
-      authorApprovedCount: null,
-      authorRejectedCount: null,
-      replacesOverlayId: overlay.replacesOverlayId ?? null,
-      replacedByOverlayId: null,
-      updatedAt: new Date(),
-      cityId: project.cityId,
-      imageUrl: overlay.imageUrl, // Pass the full image URL (Data URI or backend URL)
-      ...extractCityMetadata(project),
-    };
-  }
-
   // User contributions actions
   function setUserContributions(contributions: UserContribution[], cacheKey: string) {
     userContributions.value = contributions;
@@ -173,7 +146,11 @@ export const useProjectStore = defineStore("project", () => {
       // Check if overlay already exists in the project
       const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
 
-      const overlayMetadata = createOverlayMetadata(overlay, project, filename, authorUsername);
+      const overlayMetadata = createLocalOverlayContribution(
+        { ...overlay, filename, projectId: project.id, status: "pending" as const, version: 1 },
+        { cityId: project.cityId, ...extractCityMetadata(project) },
+        authorUsername,
+      );
 
       const updatedOverlays =
         existingOverlayIndex !== -1
@@ -218,7 +195,11 @@ export const useProjectStore = defineStore("project", () => {
         .map((o) =>
           createLocalOverlayContribution(o, { ...cityMeta, cityId: project.cityId }, null),
         );
-      const newOverlayMetadata = createOverlayMetadata(overlay, project, filename, authorUsername);
+      const newOverlayMetadata = createLocalOverlayContribution(
+        { ...overlay, filename, projectId: project.id, status: "pending" as const, version: 1 },
+        { cityId: project.cityId, ...extractCityMetadata(project) },
+        authorUsername,
+      );
 
       const newProject = {
         ...project,

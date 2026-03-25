@@ -3,13 +3,26 @@
 
 import type {
   OverlayData,
+  Project,
   ProjectForModeration,
   OverlayForModeration,
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
 
-import { getCountryName, type CountryInfo } from "@/services/map/countryData";
+export interface CountryInfo {
+  code: string;
+  name: string;
+}
+
+export function getCountryName(
+  countryCode: string | null | undefined,
+  countries: CountryInfo[],
+): string | null {
+  if (!countryCode) return null;
+  const country = countries.find((c) => c.code === countryCode);
+  return country?.name ?? null;
+}
 
 interface SelectedCity {
   id: number;
@@ -144,63 +157,36 @@ export function createLocalOverlayContribution(
   };
 }
 
-/**
- * Create UserContribution from local (unsaved) project with overlay
- * Used by useAllContributions for projects that exist only in frontend state
- */
-export function createLocalProjectContribution(
-  localProject: {
-    id: string;
-    name: string | null;
-    description: string | null;
-    ownerId: string | null;
-    cityId: number | null;
-    city: { name: string; countryCode: string } | null;
-    lat: number | null;
-    lng: number | null;
-    proposalDate: Date | null;
-    proposalDatePrecision?: "year" | "month" | "day" | null;
-    startDate: Date | null;
-    startDatePrecision?: "year" | "month" | "day" | null;
-    endDate: Date | null;
-    endDatePrecision?: "year" | "month" | "day" | null;
-    timelineStatus?:
-      | "proposed"
-      | "planned"
-      | "under_construction"
-      | "completed"
-      | "canceled"
-      | null;
-    importSourceId?: string | null;
-    externalId?: string | null;
-    externalProperties?: any;
-    externalLastModified?: Date | null;
-    lastImportedAt?: Date | null;
-    sourceUrl: string | null;
-    tags?: string[] | null;
-  },
-  overlay: {
-    id: string;
-    caption: string | null;
-    filename: string;
-    projectId: string | null;
-    authorId: string | null;
-    replacesOverlayId: string | null;
-    imageUrl?: string;
-  },
+type LocalProject = {
+  id: string;
+  name: string | null;
+  description: string | null;
+  ownerId: string | null;
+  cityId: number | null;
+  city: { name: string; countryCode: string } | null;
+  lat: number | null;
+  lng: number | null;
+  proposalDate: Date | null;
+  proposalDatePrecision?: "year" | "month" | "day" | null;
+  startDate: Date | null;
+  startDatePrecision?: "year" | "month" | "day" | null;
+  endDate: Date | null;
+  endDatePrecision?: "year" | "month" | "day" | null;
+  timelineStatus?: "proposed" | "planned" | "under_construction" | "completed" | "canceled" | null;
+  importSourceId?: string | null;
+  externalId?: string | null;
+  externalProperties?: any;
+  externalLastModified?: Date | null;
+  lastImportedAt?: Date | null;
+  sourceUrl: string | null;
+  tags?: string[] | null;
+};
+
+function buildLocalProjectShell(
+  localProject: LocalProject,
+  overlays: UserContributionOverlay[],
   username: string | null,
 ): UserContribution {
-  const overlayData = createLocalOverlayContribution(
-    overlay,
-    {
-      cityId: localProject.cityId,
-      cityName: localProject.city?.name ?? null,
-      countryCode: localProject.city?.countryCode ?? null,
-      countryName: null,
-    },
-    username,
-  );
-
   return {
     id: localProject.id,
     name: localProject.name,
@@ -221,7 +207,7 @@ export function createLocalProjectContribution(
       id: localProject.cityId ?? 0,
       name: localProject.city?.name ?? "",
       countryCode: localProject.city?.countryCode ?? "",
-      nameLocal: null, // Default for local project
+      nameLocal: null,
       coordinates: { x: 0, y: 0 },
       approvedProjectCount: 0,
       createdAt: new Date(),
@@ -246,7 +232,68 @@ export function createLocalProjectContribution(
     centerCoordinate: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-    overlays: [overlayData],
-    overlayCount: 1,
+    overlays,
+    overlayCount: overlays.length,
   };
+}
+
+/**
+ * Create UserContribution from a local (unsaved) project with a single overlay.
+ * Used by useAllContributions for projects that exist only in frontend state.
+ */
+export function createLocalProjectContribution(
+  localProject: LocalProject,
+  overlay: {
+    id: string;
+    caption: string | null;
+    filename: string;
+    projectId: string | null;
+    authorId: string | null;
+    replacesOverlayId: string | null;
+    imageUrl?: string;
+  },
+  username: string | null,
+): UserContribution {
+  const overlayData = createLocalOverlayContribution(
+    overlay,
+    {
+      cityId: localProject.cityId,
+      cityName: localProject.city?.name ?? null,
+      countryCode: localProject.city?.countryCode ?? null,
+      countryName: null,
+    },
+    username,
+  );
+  return buildLocalProjectShell(localProject, [overlayData], username);
+}
+
+/**
+ * Create ProjectForModeration from a full Project object with pre-built overlays.
+ * Used by ContributePanel for external (non-owned) selected projects.
+ */
+export function createProjectForModerationFromProject(
+  project: Project,
+  overlays: OverlayForModeration[],
+): ProjectForModeration {
+  return {
+    ...project,
+    tags: project.tags ?? null,
+    cityName: project.city?.name ?? null,
+    countryCode: project.city?.countryCode ?? null,
+    countryName: null,
+    overlays,
+    overlayCount: project.overlayIds?.length ?? 0,
+  };
+}
+
+/**
+ * Create UserContribution from a local (unsaved) project with pre-built overlays.
+ * Used when overlays have already been mapped via createLocalOverlayContribution.
+ */
+export function createLocalProjectContributionWithOverlays(
+  localProject: LocalProject,
+  overlays: UserContributionOverlay[],
+  username: string | null,
+): UserContribution {
+  return buildLocalProjectShell(localProject, overlays, username);
 }

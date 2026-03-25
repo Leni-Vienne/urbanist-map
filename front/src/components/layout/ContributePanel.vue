@@ -10,7 +10,7 @@
     :pinned-project-id="selectedProjectId"
     :project-roles="projectRoles"
     :pinned-external-project="pinnedExternalProject"
-    :on-external-project-click="handleExternalProjectClick"
+    @external-project-click="handleExternalProjectClick"
     title=""
     panel-class="my-contributions-panel"
     :empty-message="
@@ -33,7 +33,6 @@
         show-save
         show-delete
         :is-modified="isProjectModified(project.id)"
-        :save-tooltip="getProjectSaveTooltip(project)"
         @edit="handleEditProjectClick"
         @add-image="handleAddImageToProject"
         @draw="handleDrawShapesClick"
@@ -81,7 +80,6 @@
         show-add-image
         show-save
         :is-modified="isProjectModified(project.id)"
-        :save-tooltip="getProjectSaveTooltip(project)"
         @add-image="handleAddImageToProject"
         @save="handleSaveProjectClick"
       />
@@ -168,12 +166,15 @@ import {
 } from "@/services/map/standaloneProjectMarkers";
 import type { RouterOutput } from "@/client";
 import type {
-  ProjectForModeration,
-  OverlayForModeration,
   Project,
+  ProjectForModeration,
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
+import {
+  createOverlayForModeration,
+  createProjectForModerationFromProject,
+} from "@/utils/projectFactories";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
@@ -270,31 +271,15 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   if (isOwnContribution) return null;
   const project = lastSelectedProject.value;
   if (!project) return null;
-  return {
-    id: project.id,
-    name: project.name,
-    description: project.description ?? null,
-    status: project.status,
-    version: project.version ?? 1,
-    cityId: project.cityId ?? null,
-    cityName: project.city?.name ?? null,
-    countryCode: project.city?.countryCode ?? null,
-    countryName: null,
-    city: project.city ?? null,
-    lat: project.lat ?? null,
-    lng: project.lng ?? null,
-    tags: project.tags ?? null,
-    overlays: Object.values(overlayStore.overlays).filter(
-      (o) => o.projectId === project.id,
-    ) as unknown as OverlayForModeration[],
-    overlayCount: project.overlayIds?.length ?? 0,
-    proposalDate: project.proposalDate ?? null,
-    startDate: project.startDate ?? null,
-    endDate: project.endDate ?? null,
-    sourceUrl: project.sourceUrl ?? null,
-    createdAt: project.createdAt ?? new Date(),
-    updatedAt: project.updatedAt ?? new Date(),
-  } as unknown as ProjectForModeration;
+  const city = {
+    id: project.cityId ?? 0,
+    name: project.city?.name ?? "",
+    countryCode: project.city?.countryCode,
+  };
+  const overlays = Object.values(overlayStore.overlays)
+    .filter((o) => o.projectId === project.id)
+    .map((o) => createOverlayForModeration(o, city));
+  return createProjectForModerationFromProject(project, overlays);
 });
 
 // Map each contribution to "created" (user owns it) or "contributed" (user added overlay/change)
@@ -460,14 +445,6 @@ function isProjectModified(projectId: string): boolean {
   return project.overlays.some((overlay: UserContributionOverlay) => isOverlayModified(overlay.id));
 }
 
-// Get save button tooltip based on project status and modification state
-function getProjectSaveTooltip(project: ProjectForModeration): string {
-  if (!isProjectModified(project.id)) {
-    return t("overlay.noChangesToSave");
-  }
-  return t("project.submitChangeRequest");
-}
-
 // Handle save project click - uses shared submission dialog composable
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return;
@@ -516,8 +493,9 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   await initShapeEditor(map.value, existingGeometry ?? undefined);
 }
 
-// Navigate to the external pinned project using the same logic as a map click
-// Uses the full Project data from lastSelectedProject for proper geometry/lat+lng handling
+// Navigate to the external pinned project using the same logic as a map click.
+// The ProjectForModeration argument is intentionally ignored: it lacks geometry data.
+// lastSelectedProject holds the full Project with lat/lng/geometry needed for navigation.
 function handleExternalProjectClick(_project: ProjectForModeration) {
   const fullProject = lastSelectedProject.value;
   if (!fullProject) return;

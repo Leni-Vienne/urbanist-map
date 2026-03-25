@@ -33,6 +33,7 @@ import {
   hydrateOverlayStoreObjects,
 } from "@/services/navigation/cityRenderingCore";
 import { filterByStatus } from "@/services/overlay/statusFilters";
+import { convertOverlayToData } from "@/utils/typeFactories";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import {
@@ -251,22 +252,7 @@ export function useViewportTriggers() {
       for (const [id, existing] of Object.entries(overlayStore.overlays)) {
         if (overlayDataIds.has(id)) continue;
 
-        allOverlaysForMarkers.push({
-          id: existing.id,
-          version: existing.version,
-          filename: existing.filename,
-          caption: existing.caption,
-          status: existing.status,
-          projectId: existing.projectId,
-          authorId: existing.authorId,
-          replacesOverlayId: existing.replacesOverlayId,
-          replacedByOverlayId: existing.replacedByOverlayId,
-          createdAt: existing.createdAt,
-          updatedAt: existing.updatedAt,
-          centroid: existing.centroid,
-          corners: existing.corners,
-          isModified: existing.isModified,
-        });
+        allOverlaysForMarkers.push(convertOverlayToData(existing));
       }
     }
 

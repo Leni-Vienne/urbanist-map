@@ -119,6 +119,8 @@ import { setOverlayPopupTarget } from "@/services/map/popupState";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import "@/services/overlay/overlayActions"; // ensure navigateOverlaySequence callback is registered
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { trpc } from "@/client";
+import { createProjectObject } from "@/utils/typeFactories";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
@@ -405,7 +407,23 @@ const hasUnsavedModifications = computed(() => {
 
 // --- Actions ---
 
-function toggleInfoPopup() {
+async function toggleInfoPopup() {
+  if (!showInfoPopup.value) {
+    const overlay = selectedId.value ? overlayStore.overlays[selectedId.value] : null;
+    if (overlay?.projectId && !projectStore.projects[overlay.projectId] && !overlay.project) {
+      try {
+        const result = await trpc.project.getById.query({ id: overlay.projectId });
+        if (result) {
+          projectStore.updateProject(
+            overlay.projectId,
+            createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch project for overlay popup:", error);
+      }
+    }
+  }
   showInfoPopup.value = !showInfoPopup.value;
 }
 

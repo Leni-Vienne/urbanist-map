@@ -71,6 +71,9 @@ export function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
         hasPendingChanges: overlayData.hasPendingChanges,
         suggestedCorners: overlayData.suggestedCorners,
         pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
+        // Approved overlays first loaded via vectorTileSync lack project data.
+        // Update it here when the city fetch provides it, so the popup can resolve activeProject.
+        ...(overlayData.project ? { project: overlayData.project } : {}),
       };
     } else {
       // Instantiate an OverlayObject so that markers and interactions have a reactive target

@@ -25,79 +25,68 @@
       >
         <!-- Flat list (no grouping): preserves input order with optional pinned project at top -->
         <template v-if="disableGrouping">
-          <!-- External pinned project (selected on map, not in user contributions) -->
-          <template v-if="pinnedExternalProject">
-            <div
-              class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
-            >
-              {{ $t("contribute.selectedProject") }}
-            </div>
-            <Accordion
-              :multiple="true"
-              :lazy="true"
-              v-model:value="activeAccordionPanels"
-              class="city-accordion"
-            >
-              <AccordionPanel
-                :key="pinnedExternalProject.id"
-                :value="pinnedExternalProject.id"
-                :data-project-id="pinnedExternalProject.id"
-              >
-                <ProjectHeader
-                  :name="pinnedExternalProject.name ?? ''"
-                  :status="pinnedExternalProject.status"
-                  :hide-status-badges="hideStatusBadges"
-                />
-                <ProjectContent
-                  :project="pinnedExternalProject"
-                  :project-changes="[]"
-                  :all-change-requests="[]"
-                  :overlay-changes-map="new Map()"
-                  :projects-context="[pinnedExternalProject]"
-                  :is-contribute-panel="false"
-                  :show-user-stats-link="showUserStatsLink"
-                  :hide-status-badges="hideStatusBadges"
-                  :show-edit-buttons="false"
-                  :on-navigate-to-overlay="navigateToOverlayById"
-                  :on-overlay-click="onOverlayClick"
-                  @edit-project="handleStandaloneProjectClick"
-                  @project-click="onExternalProjectClick ?? handleCardClick"
-                  @highlight-project="handleProjectHighlight"
-                  @remove-project-highlight="handleProjectUnhighlight"
-                  @highlight-overlay="highlightOverlayById"
-                  @remove-highlight="removeOverlayHighlight"
-                >
-                  <template
-                    v-if="$slots['pinned-external-project-actions']"
-                    #project-actions="{ project: p }"
-                  >
-                    <slot name="pinned-external-project-actions" :project="p"></slot>
-                  </template>
-                </ProjectContent>
-              </AccordionPanel>
-            </Accordion>
-            <!-- Contributions section divider (only when there are contributions below) -->
-            <div
-              v-if="projects.length > 0"
-              class="-mr-3 mt-2 px-4 py-2 bg-content-hover-background border-b border-surface text-[0.75rem] font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
-            >
-              {{ $t("contribute.myContributions") }}
-            </div>
-          </template>
-
-          <!-- Pinned own contribution separator -->
+          <!-- Section label: external selected project or pinned own contribution -->
+          <div
+            v-if="pinnedExternalProject"
+            class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+          >
+            {{ $t("contribute.selectedProject") }}
+          </div>
           <div
             v-else-if="pinnedProject"
             class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
           >
             {{ $t("contribute.selectedProject") }}
           </div>
+
+          <!-- Single accordion for all flat-list panels -->
           <Accordion
             :multiple="true"
             :lazy="true"
             v-model:value="activeAccordionPanels"
             class="city-accordion"
           >
+            <!-- External pinned project (selected on map, not in user contributions) -->
+            <AccordionPanel
+              v-if="pinnedExternalProject"
+              :key="pinnedExternalProject.id"
+              :value="pinnedExternalProject.id"
+              :data-project-id="pinnedExternalProject.id"
+            >
+              <ProjectHeader
+                :name="pinnedExternalProject.name ?? ''"
+                :status="pinnedExternalProject.status"
+                :hide-status-badges="hideStatusBadges"
+              />
+              <ProjectContent
+                :project="pinnedExternalProject"
+                :project-changes="[]"
+                :all-change-requests="[]"
+                :overlay-changes-map="new Map()"
+                :projects-context="[pinnedExternalProject]"
+                :is-contribute-panel="false"
+                :show-user-stats-link="showUserStatsLink"
+                :hide-status-badges="hideStatusBadges"
+                :show-edit-buttons="false"
+                :on-navigate-to-overlay="navigateToOverlayById"
+                :on-overlay-click="onOverlayClick"
+                @edit-project="handleStandaloneProjectClick"
+                @project-click="(p) => emit('external-project-click', p)"
+                @highlight-project="handleProjectHighlight"
+                @remove-project-highlight="handleProjectUnhighlight"
+                @highlight-overlay="highlightOverlayById"
+                @remove-highlight="removeOverlayHighlight"
+              >
+                <template
+                  v-if="$slots['pinned-external-project-actions']"
+                  #project-actions="{ project: p }"
+                >
+                  <slot name="pinned-external-project-actions" :project="p"></slot>
+                </template>
+              </ProjectContent>
+            </AccordionPanel>
+
+            <!-- User contribution projects -->
             <AccordionPanel
               v-for="project in flatOrderedProjects"
               :key="project.id"
@@ -228,6 +217,7 @@
                       :name="project.name ?? ''"
                       :status="project.status"
                       :hide-status-badges="hideStatusBadges"
+                      :role="projectRoles?.[project.id] ?? null"
                     />
                     <ProjectContent
                       :project="project"
@@ -371,7 +361,6 @@ interface Props {
   pinnedProjectId?: string | null;
   projectRoles?: Record<string, "created" | "contributed">;
   pinnedExternalProject?: ProjectForModeration | null;
-  onExternalProjectClick?: ((project: ProjectForModeration) => void) | null;
 }
 
 interface CityGroup {
@@ -401,7 +390,6 @@ const props = withDefaults(defineProps<Props>(), {
   pinnedProjectId: null,
   projectRoles: () => ({}),
   pinnedExternalProject: null,
-  onExternalProjectClick: undefined,
 });
 
 const emit = defineEmits<{
@@ -414,6 +402,7 @@ const emit = defineEmits<{
       reportCount?: number;
     },
   ];
+  "external-project-click": [project: ProjectForModeration];
 }>();
 
 const { t } = useI18n();

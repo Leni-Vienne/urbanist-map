@@ -613,7 +613,7 @@ export function useSubmissionService() {
         // Optimistically update pending overlay in user contributions
         if (overlayData.caption !== undefined) {
           projectStore.updateOverlayInUserContributions(context.entity.id, {
-            name: overlayData.caption || "Unnamed",
+            caption: overlayData.caption,
           });
         }
       }

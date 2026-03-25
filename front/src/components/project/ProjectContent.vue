@@ -214,14 +214,6 @@
           <div v-if="$slots['overlay-actions']" class="flex flex-col gap-2" @click.stop>
             <slot name="overlay-actions" :overlay="overlay" :project="project"></slot>
           </div>
-          <button
-            v-else-if="showEditButtons"
-            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
-            @click.stop=""
-            v-tooltip.top="$t('common.edit')"
-          >
-            <i class="pi pi-pencil"></i>
-          </button>
           <i
             v-else
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150 group-hover:text-(--p-text-color-secondary)"

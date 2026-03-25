@@ -15,23 +15,6 @@ export function isValidCountryCode(code: string): code is keyof typeof countryBb
   return code in countryBboxes;
 }
 
-export interface CountryInfo {
-  code: string;
-  name: string;
-}
-
-/**
- * Helper to get country name from country code
- */
-export function getCountryName(
-  countryCode: string | null | undefined,
-  countries: CountryInfo[],
-): string | null {
-  if (!countryCode) return null;
-  const country = countries.find((c) => c.code === countryCode);
-  return country?.name ?? null;
-}
-
 /**
  * Load countries with projects from backend
  * This loads country data for breadcrumbs and navigation (no markers rendered)
