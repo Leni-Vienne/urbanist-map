@@ -57,7 +57,7 @@ import { useEditableProjectForm } from "@/composables/forms/useEditableProjectFo
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { Project, ProjectFormData } from "@/types/index";
-import { TimelineStatus } from "../../../../back/src/db/schema";
+import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";
 
 const props = defineProps<{ project: Project }>();

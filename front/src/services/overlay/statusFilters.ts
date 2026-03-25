@@ -67,7 +67,7 @@ export const sizeFilterRange = ref<[number, number]>([0, Infinity]);
 
 // Name filter: "named" = projects with a non-empty name, "unnamed" = projects without a name.
 // Empty array means show all.
-export const selectedNameFilters = ref<Array<"named" | "unnamed">>([]);
+export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
 
 // Last modified date filter: [minTimestampMs, maxTimestampMs]. Infinity = no upper bound.
 // Uses externalLastModified if not null, otherwise updated_at.

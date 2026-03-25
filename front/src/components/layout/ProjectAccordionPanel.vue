@@ -86,6 +86,17 @@
               </ProjectContent>
             </AccordionPanel>
 
+            <!-- "Your contributions" section divider, shown only when a selected project is pinned above -->
+            <template
+              v-if="(pinnedExternalProject || pinnedProject) && flatOrderedProjects.length > 0"
+            >
+              <div
+                class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+              >
+                {{ $t("contribute.yourContributions") }}
+              </div>
+            </template>
+
             <!-- User contribution projects -->
             <AccordionPanel
               v-for="project in flatOrderedProjects"
@@ -97,7 +108,6 @@
                 :name="project.name ?? ''"
                 :status="project.status"
                 :hide-status-badges="hideStatusBadges"
-                :role="projectRoles?.[project.id] ?? null"
               />
               <ProjectContent
                 :project="project"
@@ -217,7 +227,6 @@
                       :name="project.name ?? ''"
                       :status="project.status"
                       :hide-status-badges="hideStatusBadges"
-                      :role="projectRoles?.[project.id] ?? null"
                     />
                     <ProjectContent
                       :project="project"
@@ -359,7 +368,6 @@ interface Props {
   showEditButtons?: boolean;
   shouldSwitchToEditMode?: boolean;
   pinnedProjectId?: string | null;
-  projectRoles?: Record<string, "created" | "contributed">;
   pinnedExternalProject?: ProjectForModeration | null;
 }
 
@@ -388,7 +396,6 @@ const props = withDefaults(defineProps<Props>(), {
   showEditButtons: false,
   shouldSwitchToEditMode: false,
   pinnedProjectId: null,
-  projectRoles: () => ({}),
   pinnedExternalProject: null,
 });
 

@@ -1,6 +1,6 @@
 import { ref, computed, watch, onUnmounted } from "vue";
 import L from "leaflet";
-import * as maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import {
   highlightProjectOverlaysOnHover,
@@ -67,8 +67,8 @@ function getBboxCenter(geom: GeoJSON.Geometry | null): [number | null, number | 
     minY = Infinity,
     maxY = -Infinity;
   for (const coord of coords) {
-    const x = coord[0] as number;
-    const y = coord[1] as number;
+    const x = coord[0]!;
+    const y = coord[1]!;
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
     if (y < minY) minY = y;
@@ -102,7 +102,7 @@ export function useVisibleProjects() {
       return sortReverse.value ? -result : result;
     }
 
-    return [...named.sort(compareBySortMode), ...unnamed.sort(compareBySortMode)];
+    return [...named.toSorted(compareBySortMode), ...unnamed.toSorted(compareBySortMode)];
   });
 
   function refresh() {
@@ -137,11 +137,11 @@ export function useVisibleProjects() {
       let name: string;
 
       if (sourceLayer === "overlay-footprints") {
-        id = String(props["project_id"] ?? "");
+        id = String(props.project_id ?? "");
         name = "";
       } else {
-        id = String(props["id"] ?? "");
-        name = String(props["name"] ?? "");
+        id = String(props.id ?? "");
+        name = String(props.name ?? "");
       }
 
       if (!id) continue;
@@ -149,15 +149,15 @@ export function useVisibleProjects() {
       const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
 
       // project-points uses max_size_m, project-shapes uses geometry_size_m
-      const sizeM = Number(props["geometry_size_m"] ?? props["max_size_m"] ?? 0);
+      const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
 
       if (!seen.has(id)) {
         seen.set(id, {
           id,
           name,
-          firstTag: String(props["first_tag"] ?? ""),
-          timelineStatus: String(props["timeline_status"] ?? ""),
-          lastModifiedS: Number(props["last_modified_s"] ?? 0),
+          firstTag: String(props.first_tag ?? ""),
+          timelineStatus: String(props.timeline_status ?? ""),
+          lastModifiedS: Number(props.last_modified_s ?? 0),
           sizeM,
           lat,
           lng,

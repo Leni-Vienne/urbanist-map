@@ -182,9 +182,9 @@ function getShapeZoomVisibilityFilter(): FilterSpecification {
     ["all", [">=", ["zoom"], 10], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 200]],
     ["all", [">=", ["zoom"], 9], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 500]],
     ["all", [">=", ["zoom"], 8], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 1000]],
-    ["all", [">=", ["zoom"], 7], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 10000]],
-    ["all", [">=", ["zoom"], 5], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 50000]],
-    ["all", [">=", ["zoom"], 4], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 100000]],
+    ["all", [">=", ["zoom"], 7], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 10_000]],
+    ["all", [">=", ["zoom"], 5], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 50_000]],
+    ["all", [">=", ["zoom"], 4], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 100_000]],
   ] as FilterSpecification;
 }
 
@@ -427,7 +427,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
 function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): number {
   // Approximate a square bounding box centered on the point.
   // 111320m per degree latitude is a standard geodesic constant.
-  const halfDegLat = sizeMeters / 2 / 111320;
+  const halfDegLat = sizeMeters / 2 / 111_320;
   const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
   const bounds = L.latLngBounds(
     [lat - halfDegLat, lng - halfDegLng],

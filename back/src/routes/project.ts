@@ -1,7 +1,7 @@
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { projects, cities, overlays, changeRequests, importSources } from "../db/schema";
-import { eq, sql, and, or, inArray } from "drizzle-orm";
+import { eq, sql, and, or, inArray, isNull, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import {
@@ -454,17 +454,15 @@ export const projectRouter = router({
           .orderBy(sql`${sortColumn} DESC`)
           .limit(input.limit + 1);
 
+        // Helper: project is not owned by the user (handles null ownerId for imported projects)
+        const notOwnedByUser = or(isNull(projects.ownerId), ne(projects.ownerId, ctx.user.id));
+
         // Get project IDs where user has authored overlays (but doesn't own the project)
         const contributedProjectIdsFromOverlays = await db
           .selectDistinct({ projectId: overlays.projectId })
           .from(overlays)
           .innerJoin(projects, eq(overlays.projectId, projects.id))
-          .where(
-            and(
-              eq(overlays.authorId, ctx.user.id),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
-            ),
-          )
+          .where(and(eq(overlays.authorId, ctx.user.id), notOwnedByUser))
           .limit(input.limit);
 
         // Get project IDs where user has submitted change requests for overlays (but doesn't own the project)
@@ -479,7 +477,7 @@ export const projectRouter = router({
             and(
               eq(changeRequests.requestedBy, ctx.user.id),
               eq(changeRequests.entityType, "overlay"),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
+              notOwnedByUser,
             ),
           )
           .limit(input.limit);
@@ -495,7 +493,7 @@ export const projectRouter = router({
             and(
               eq(changeRequests.requestedBy, ctx.user.id),
               eq(changeRequests.entityType, "project"),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
+              notOwnedByUser,
             ),
           )
           .limit(input.limit);

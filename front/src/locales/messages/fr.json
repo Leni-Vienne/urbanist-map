@@ -160,6 +160,7 @@
     "noProjectsFound": "Aucun projet trouvé.",
     "createFirstProject": "Ajoutez votre premier projet !",
     "selectedProject": "Projet sélectionné",
+    "yourContributions": "Vos contributions",
     "role": {
       "created": "créé",
       "contributed": "contribué"

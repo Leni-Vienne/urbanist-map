@@ -218,7 +218,7 @@ watch(dateSliderPositions, ([minPos, maxPos]) => {
   lastModifiedDateRange.value = [minMs, maxMs];
 });
 
-const nameFilters: Array<"named" | "unnamed"> = ["named", "unnamed"];
+const nameFilters: ("named" | "unnamed")[] = ["named", "unnamed"];
 
 function handleToggleNameFilter(value: "named" | "unnamed") {
   toggleNameFilter(value);

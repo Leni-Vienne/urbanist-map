@@ -11,7 +11,7 @@
         raised
         data-testid="sign-in-button"
         @dblclick.stop
-        @click="
+        @click.stop="
           uiStore.authModalInitialMode = 'login';
           uiStore.authModalVisible = true;
         "
@@ -24,7 +24,7 @@
       type="button"
       class="appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-content-background border border-surface rounded-md cursor-pointer shadow transition-all duration-200 min-w-27 hover:shadow-md max-md:min-w-0 max-md:p-0 max-md:rounded-full max-md:w-8 max-md:h-8 max-md:justify-center max-md:gap-0"
       data-testid="user-menu"
-      @click="toggleMenu"
+      @click.stop="toggleMenu"
       @dblclick.stop
       ref="userMenuRef"
     >

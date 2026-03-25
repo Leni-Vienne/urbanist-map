@@ -668,14 +668,14 @@ export async function fetchOverlayChangeRequests(
 ): Promise<
   Map<
     string,
-    Array<{
+    {
       id: string;
       entityType: string;
       entityId: string;
       fieldName: string;
       newValue: unknown;
       requestedBy: string | null;
-    }>
+    }[]
   >
 > {
   let changeRequestsData: {
@@ -746,11 +746,11 @@ export function transformOverlayDataWithChangeRequests(
   overlaysData: Awaited<ReturnType<typeof fetchOverlaysWithLocation>>,
   changeRequestsByOverlay: Map<
     string,
-    Array<{
+    {
       fieldName: string;
       newValue: unknown;
       requestedBy: string | null;
-    }>
+    }[]
   >,
   allChangeRequestCounts: Map<string, number>,
   mode: AppMode,

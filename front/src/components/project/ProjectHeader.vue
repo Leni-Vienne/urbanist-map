@@ -1,16 +1,10 @@
 <template>
   <AccordionHeader>
     <div class="flex items-center justify-between w-full gap-2">
-      <span class="font-semibold truncate">{{ name }}</span>
+      <span class="font-semibold truncate" :class="name ? '' : 'text-muted-color italic'">{{
+        name || $t("project.unnamed")
+      }}</span>
       <div class="flex items-center gap-1.5 shrink-0 mr-2">
-        <!-- Role badge (created / contributed) -->
-        <Tag
-          v-if="role"
-          :value="$t(`contribute.role.${role}`)"
-          severity="secondary"
-          class="capitalize text-[0.6875rem]"
-          rounded
-        />
         <!-- Status badge -->
         <Tag
           v-if="!hideStatusBadges"
@@ -28,10 +22,9 @@
 import { AccordionHeader, Tag } from "primevue";
 
 interface Props {
-  name: string;
+  name: string | null;
   status: string | null;
   hideStatusBadges?: boolean;
-  role?: "created" | "contributed" | null;
 }
 
 const props = defineProps<Props>();

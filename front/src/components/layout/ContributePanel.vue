@@ -8,7 +8,6 @@
     :should-switch-to-edit-mode="false"
     :disable-grouping="true"
     :pinned-project-id="selectedProjectId"
-    :project-roles="projectRoles"
     :pinned-external-project="pinnedExternalProject"
     @external-project-click="handleExternalProjectClick"
     title=""
@@ -154,7 +153,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
 import L from "leaflet";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
@@ -197,7 +195,6 @@ const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const pendingModsStore = usePendingModificationsStore();
-const authStore = useAuthStore();
 
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
@@ -280,17 +277,6 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
     .filter((o) => o.projectId === project.id)
     .map((o) => createOverlayForModeration(o, city));
   return createProjectForModerationFromProject(project, overlays);
-});
-
-// Map each contribution to "created" (user owns it) or "contributed" (user added overlay/change)
-const projectRoles = computed<Record<string, "created" | "contributed">>(() => {
-  const userId = authStore.user?.id;
-  if (!userId) return {};
-  const roles: Record<string, "created" | "contributed"> = {};
-  for (const project of displayedProjects.value) {
-    roles[project.id] = project.ownerId === userId ? "created" : "contributed";
-  }
-  return roles;
 });
 
 // Computed filtered projects based on two independent checkboxes
