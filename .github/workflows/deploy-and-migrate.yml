@@ -54,10 +54,20 @@ jobs:
           fi
 
       - name: Run database migrations
-        run: bun run db:migrate || echo "⚠️ Migration skipped - database not accessible (probably fresh deployment)"
+        run: |
+          # 1. Manually construct and print the URL for debugging (Password masked)
+          DEBUG_URL="postgres://postgres:****@${{ secrets.REMOTE_HOST }}:${{ env.DB_PORT }}/${{ env.DB_NAME }}"
+          echo "🚀 Attempting migration on: $DEBUG_URL"
+
+          # 2. Check if the port is even open from this VM host
+          echo "🔍 Testing network connectivity..."
+          nc -zv -w 5 ${{ secrets.REMOTE_HOST }} ${{ env.DB_PORT }} || echo "❌ Cannot reach port ${{ env.DB_PORT }} on ${{ secrets.REMOTE_HOST }}"
+
+          # 3. Run the migration without the '|| echo' silencer
+          # We use --bun to ensure it uses the Bun runtime environment
+          bun run db:migrate
         env:
           DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.REMOTE_HOST }}:${{ env.DB_PORT }}/${{ env.DB_NAME }}
-
       - name: Build frontend
         run: bun run build-front-workflow
         env:
