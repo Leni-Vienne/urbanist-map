@@ -1,33 +1,34 @@
 /**
- * Import Germany proposed/construction linear transport GeoJSON into the projects table.
- * Projects are auto-approved and linked to the "osm_germany" import source.
+ * Import worldwide proposed/construction features GeoJSON into the projects table.
+ * Projects are auto-approved and linked to the "osm_world" import source.
  * Existing projects are updated via upsert on (importSourceId, externalId).
  * Projects not seen in the current sync are automatically pruned.
  *
- * Covers railways, roads, aerialways, waterways, cycling and pedestrian paths.
+ * Covers railways, roads, aerialways, waterways, cycling and pedestrian paths,
+ * buildings under construction, and parks/green spaces.
  *
  * Usage: bun run back/src/scripts/import-osm.ts
  */
 
 import { db } from "../database";
-import { projects, importSources, type TimelineStatus } from "../db/schema";
+import { projects, importSources, countries, type TimelineStatus } from "../db/schema";
 import { sql, eq } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { EXTENDED_OSM_RULES } from "@shared/osmRules";
 
 const GEOJSON_PATHS = [
-  path.join(process.cwd(), "../osm/germany-latest_proposed_linear.geojson"),
-  path.join(process.cwd(), "../osm/germany-latest_proposed_areal.geojson"),
+  path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_linear.geojson"),
+  path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_areal.geojson"),
 ];
 
 const BATCH_SIZE = 50;
 
 // Import source configuration
-const IMPORT_SOURCE_SLUG = "osm_germany";
+const IMPORT_SOURCE_SLUG = "osm_world";
 const IMPORT_SOURCE_CONFIG = {
   slug: IMPORT_SOURCE_SLUG,
-  name: "OpenStreetMap Germany",
+  name: "OpenStreetMap",
   type: "osm",
   urlTemplate: "https://www.openstreetmap.org/{id}",
   attribution: "© OpenStreetMap contributors",
@@ -240,6 +241,13 @@ async function main() {
 
   console.log(`Using import source: ${importSource.name} (id=${importSource.id})`);
 
+  // Load valid country codes once to guard against KNN returning codes not in our countries table
+  // (e.g. XKX for Kosovo, which uses a user-assigned code not in ISO 3166-1)
+  const validCountryCodes = new Set(
+    (await db.select({ code: countries.code }).from(countries)).map((r) => r.code),
+  );
+  console.log(`Loaded ${validCountryCodes.size} valid country codes`);
+
   // Record sync start time for pruning stale data later
   const syncStartTime = new Date();
   await db
@@ -312,7 +320,7 @@ async function main() {
 
           const name = (props["display_name"] as string | undefined)?.trim() || null;
           const countryCode = countryCodes[featureIndex] ?? null;
-          if (!countryCode) {
+          if (!countryCode || !validCountryCodes.has(countryCode)) {
             skipped++;
             continue;
           }

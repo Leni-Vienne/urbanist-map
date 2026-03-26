@@ -22,7 +22,7 @@ import { parseCSVLine } from "../utils/csv-parser";
  * - Run: bun run back/src/scripts/import-geonames.ts
  */
 
-const GEONAMES_DIR = path.join(process.cwd(), "geonames-data");
+const GEONAMES_DIR = path.join(process.cwd(), "./back/src/scripts/geonames-data");
 const COUNTRIES_CSV = path.join(GEONAMES_DIR, "countries.csv");
 const BATCH_SIZE = 1000; // Insert in batches for better performance
 
