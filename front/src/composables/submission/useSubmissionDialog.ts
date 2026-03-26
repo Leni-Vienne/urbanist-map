@@ -92,7 +92,7 @@ function buildNewOverlayChanges(
     if (!overlay) continue;
 
     const imageUrl = getImageUrl(overlay);
-    const overlayName = "caption" in overlay ? overlay.caption : overlay.name;
+    const overlayName = overlay.caption;
 
     changes.push({
       field: "new_overlay",

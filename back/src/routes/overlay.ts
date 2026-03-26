@@ -24,11 +24,6 @@ const getOverlaySchema = z.object({
   includeStatus: z.array(z.enum(["pending", "approved", "rejected"])).optional(), // Optional status filter for admins
 });
 
-// Schema for getting latest contributions (overlays + standalone projects)
-const getLatestContributionsSchema = z.object({
-  limit: z.number().min(1).max(20).optional().default(20),
-});
-
 // Schema for updating overlay fields directly
 const updateOverlaySchema = z.object({
   id: z.uuid(),
@@ -76,104 +71,6 @@ async function findIntersectingOverlays(
 }
 
 export const overlayRouter = router({
-  // Get latest contributions (overlays + standalone projects combined)
-  getLatestContributions: publicProcedure
-    .input(getLatestContributionsSchema)
-    .query(async ({ input }) => {
-      try {
-        // Fetch overlays with their project and location info
-        const latestOverlays = await buildOverlayQuery(db)
-          .where(and(eq(overlays.status, "approved"), eq(projects.status, "approved")))
-          .orderBy(sql`${overlays.updatedAt} DESC`)
-          .limit(input.limit);
-
-        // Fetch projects without overlays (standalone projects) with location info
-        const latestStandaloneProjects = await db
-          .select({
-            id: projects.id,
-            name: projects.name,
-            description: projects.description,
-            status: projects.status,
-            lat: projects.lat,
-            lng: projects.lng,
-            updatedAt: projects.updatedAt,
-            cityId: cities.id,
-            cityName: cities.name,
-            countryCode: countries.code,
-            countryName: countries.name,
-          })
-          .from(projects)
-          .innerJoin(cities, eq(projects.cityId, cities.id))
-          .leftJoin(countries, eq(cities.countryCode, countries.code))
-          .leftJoin(
-            overlays,
-            and(eq(overlays.projectId, projects.id), eq(overlays.status, "approved")),
-          )
-          .where(eq(projects.status, "approved"))
-          .groupBy(
-            projects.id,
-            projects.name,
-            projects.description,
-            projects.status,
-            projects.lat,
-            projects.lng,
-            projects.updatedAt,
-            cities.id,
-            cities.name,
-            countries.code,
-            countries.name,
-          )
-          .having(sql`COUNT(${overlays.id}) = 0`)
-          .orderBy(sql`${projects.updatedAt} DESC`)
-          .limit(input.limit);
-
-        // Transform and combine results with discriminated union type
-        const overlayContributions = latestOverlays.map((o) => ({
-          type: "overlay" as const,
-          id: o.id,
-          name: o.caption || o.projectName, // fallback to project name if caption is missing or empty
-          filename: o.filename,
-          updatedAt: o.updatedAt,
-          cityId: o.cityId,
-          cityName: o.cityName,
-          countryCode: o.countryCode,
-          countryName: o.countryName,
-          // Include overlay-specific fields for navigation
-          centroid: o.centroid,
-          status: o.status,
-        }));
-
-        const standaloneProjectContributions = latestStandaloneProjects.map((d) => ({
-          type: "standalone" as const,
-          id: d.id,
-          name: d.name,
-          filename: null as string | null,
-          updatedAt: d.updatedAt,
-          cityId: d.cityId,
-          cityName: d.cityName,
-          countryCode: d.countryCode,
-          countryName: d.countryName,
-          // Include standalone-project-specific fields for navigation
-          lat: d.lat,
-          lng: d.lng,
-          status: d.status,
-        }));
-
-        // Combine and sort by updatedAt descending
-        const combined = [...overlayContributions, ...standaloneProjectContributions]
-          .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, input.limit);
-
-        return combined;
-      } catch (error) {
-        console.error("Error fetching latest contributions:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch latest contributions",
-        });
-      }
-    }),
-
   getOverlay: publicProcedure.input(getOverlaySchema).query(async ({ input, ctx }) => {
     try {
       // Determine mode based on context - edit mode if logged in, view mode otherwise

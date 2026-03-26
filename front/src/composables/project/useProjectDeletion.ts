@@ -57,7 +57,7 @@ export function useProjectDeletion() {
    */
   async function handleDeleteProject(
     projectId: string,
-    projectName: string,
+    projectName: string | null,
     overlayCount: number,
     onSuccess?: () => void,
   ): Promise<boolean> {

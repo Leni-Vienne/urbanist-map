@@ -24,6 +24,7 @@ import {
   createOverlayIcon,
 } from "@/services/map/markers";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
+import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
@@ -337,8 +338,9 @@ export function removeProjectOutlines(projectId: string, force = false): void {
     }
   }
 
-  // Unhighlight project shapes alongside the overlays
+  // Unhighlight project shapes alongside the overlays (Leaflet layers in edit/moderation, vector tiles in view mode)
   unhighlightProjectShapes(projectId);
+  setOverlayDrivenHover(null);
 }
 
 /**
@@ -359,24 +361,44 @@ export function applyProjectHighlightToElement(
  * Each overlay uses its own state color so pending overlays keep their yellow
  * outline while approved overlays show green — even when hovered together.
  */
+/**
+ * Highlight all overlays (and shapes) from the same project on hover.
+ *
+ * Two intentionally different strategies depending on mode -- both live here
+ * so there is one place to maintain:
+ *
+ * VIEW MODE: drive the MapLibre vector footprint highlight via setOverlayDrivenHover.
+ *   The footprint polygon already carries the project tag color, so no extra color
+ *   resolution is needed.  CSS rings are skipped because the tag color is not
+ *   available on the OverlayObject in view mode without a separate lookup.
+ *
+ * EDIT / MODERATION: apply CSS rings colored by modification/approval state.
+ *   The blue MapLibre highlight is skipped because it conflicts with the
+ *   yellow/orange/green status colors of the rings.
+ */
 export function highlightProjectOverlaysOnHover(projectId: string): void {
-  const overlayStore = useOverlayStore();
-
   if (!projectId) return;
 
-  for (const overlayObject of Object.values(overlayStore.overlays)) {
-    if (overlayObject.projectId === projectId) {
+  const mode = useMapStore().mode;
+
+  if (mode === "view") {
+    setOverlayDrivenHover(projectId);
+  } else {
+    const overlayStore = useOverlayStore();
+    for (const overlayObject of Object.values(overlayStore.overlays)) {
+      if (!overlayObject.projectId) continue;
+
       const hoverLayer = getLayer(overlayObject.id);
-      if (hoverLayer) {
-        const element = hoverLayer.getElement();
-        if (element) {
-          applySelectionRing(element, resolveProjectHexColor(overlayObject));
-        }
+      if (!hoverLayer) continue;
+
+      const element = hoverLayer.getElement();
+      if (element) {
+        applySelectionRing(element, resolveProjectHexColor(overlayObject));
       }
     }
   }
 
-  // Highlight project shapes alongside the overlays
+  // Leaflet shape layers (standalone project geometry) exist in all modes
   highlightProjectShapes(projectId);
 }
 
@@ -409,7 +431,13 @@ export function refreshSelectionHighlight(): void {
 }
 
 /**
- * Setup hover event listeners for project highlighting in view mode
+ * Setup hover event listeners for project highlighting in edit/moderation mode.
+ *
+ * In view mode this is intentionally a no-op: the Leaflet overlay image uses a
+ * matrix3d CSS transform whose pre-transform layout box does not match the visual
+ * polygon, so mouseenter only fires at certain edges.  Instead, the MapLibre
+ * mousemove handler drives view-mode hover via the overlay-footprints vector layer,
+ * which correctly bounds the visual shape.
  */
 export function setupProjectHoverEvents(
   overlay: L.DistortableImageOverlay,
@@ -421,12 +449,14 @@ export function setupProjectHoverEvents(
   if (!element) return;
 
   element.addEventListener("mouseenter", () => {
+    if (useMapStore().mode === "view") return;
     if (overlayObject.projectId) {
       highlightProjectOverlaysOnHover(overlayObject.projectId);
     }
   });
 
   element.addEventListener("mouseleave", () => {
+    if (useMapStore().mode === "view") return;
     if (overlayObject.projectId) {
       removeProjectOutlines(overlayObject.projectId);
     }

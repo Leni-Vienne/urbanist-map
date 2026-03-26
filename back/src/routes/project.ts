@@ -1,7 +1,7 @@
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { projects, cities, overlays, changeRequests } from "../db/schema";
-import { eq, sql, and, or, inArray } from "drizzle-orm";
+import { projects, cities, overlays, changeRequests, importSources } from "../db/schema";
+import { eq, sql, and, or, inArray, isNull, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import {
@@ -10,6 +10,7 @@ import {
   buildPaginationConditions,
   buildPaginationResponse,
   isUserBlocked,
+  PROJECT_COLUMNS,
 } from "../db/helpers";
 import {
   checkPendingLimitForNewContribution,
@@ -77,6 +78,13 @@ export const projectRouter = router({
         sourceUrl: input.sourceUrl,
         // Set center coordinate for all projects using PostGIS
         centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,
+        geometry: input.geometry
+          ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326)`
+          : null,
+        // Bbox diagonal in meters — used to exclude large-geometry projects from the cluster GeoJSON source
+        geometrySizeM: input.geometry
+          ? sql`ST_Length(ST_BoundingDiagonal(ST_Envelope(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)})))::geography)`
+          : null,
       };
 
       if (input.id) {
@@ -122,6 +130,7 @@ export const projectRouter = router({
               name: data.name,
               description: data.description,
               cityId: data.cityId,
+              countryCode: data.countryCode,
               lat: data.lat,
               lng: data.lng,
               centerCoordinate: data.centerCoordinate,
@@ -133,6 +142,7 @@ export const projectRouter = router({
               endDatePrecision: data.endDatePrecision,
               sourceUrl: data.sourceUrl,
               geometry: data.geometry ?? null,
+              geometrySizeM: data.geometrySizeM ?? null,
               ...(data.tags !== undefined && { tags: data.tags }),
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),
@@ -309,61 +319,24 @@ export const projectRouter = router({
 
         const projectsInCity = await db
           .select({
-            id: projects.id,
-            name: projects.name,
-            description: projects.description,
-            status: projects.status, // Include status to distinguish pending/approved/rejected
-            ownerId: projects.ownerId,
-            cityId: projects.cityId,
-            lat: projects.lat,
-            lng: projects.lng,
-            geometry: projects.geometry,
-            proposalDate: projects.proposalDate,
-            proposalDatePrecision: projects.proposalDatePrecision,
-            startDate: projects.startDate,
-            startDatePrecision: projects.startDatePrecision,
-            endDate: projects.endDate,
-            endDatePrecision: projects.endDatePrecision,
-            sourceUrl: projects.sourceUrl,
-            tags: projects.tags,
-            createdAt: projects.createdAt,
-            updatedAt: projects.updatedAt,
+            ...PROJECT_COLUMNS,
             // Count approved overlays OR user's own overlays (only in edit mode)
             overlayCount:
               ctx.user && input.mode !== "view"
                 ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
                 : sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' THEN 1 END)::int`,
             city: cities,
+            importSource: importSources,
           })
           .from(projects)
           .innerJoin(cities, eq(projects.cityId, cities.id))
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
+          .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
           .where(and(...whereConditions))
-          .groupBy(
-            projects.id,
-            projects.name,
-            projects.description,
-            projects.status, // Include status in groupBy
-            projects.ownerId,
-            projects.cityId,
-            projects.lat,
-            projects.lng,
-            projects.geometry,
-            projects.proposalDate,
-            projects.proposalDatePrecision,
-            projects.startDate,
-            projects.startDatePrecision,
-            projects.endDate,
-            projects.endDatePrecision,
-            projects.sourceUrl,
-            projects.tags,
-            projects.createdAt,
-            projects.updatedAt,
-            cities.id,
-            cities.name,
-            cities.countryCode,
-            cities.coordinates,
-          )
+          // GROUP BY primary keys only — PostgreSQL's functional dependency optimization
+          // covers all other columns of both tables (projects.id and cities.id are PKs).
+          // Avoids B-tree equality requirement on projects.geometry (PostGIS type).
+          .groupBy(projects.id, cities.id, importSources.id)
           .orderBy(sql`${projects.createdAt} DESC`)
           .limit(input.limit);
 
@@ -376,6 +349,33 @@ export const projectRouter = router({
         });
       }
     }),
+
+  // Get a project by ID (used by vector tile click handler).
+  // Returns approved projects to everyone; also returns the project to its owner regardless of status.
+  getById: publicProcedure.input(z.object({ id: z.uuid() })).query(async ({ input, ctx }) => {
+    try {
+      const statusCondition = ctx.user
+        ? or(eq(projects.status, "approved"), eq(projects.ownerId, ctx.user.id))
+        : eq(projects.status, "approved");
+
+      const rows = await db
+        .select({
+          ...PROJECT_COLUMNS,
+          city: cities,
+          importSource: importSources,
+        })
+        .from(projects)
+        .leftJoin(cities, eq(projects.cityId, cities.id))
+        .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
+        .where(and(eq(projects.id, input.id), statusCondition))
+        .limit(1);
+
+      return rows[0] ?? null;
+    } catch (error) {
+      console.error("Error fetching project by id:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });
+    }
+  }),
 
   // Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
   getUsersContributions: loggedInProcedure
@@ -454,17 +454,15 @@ export const projectRouter = router({
           .orderBy(sql`${sortColumn} DESC`)
           .limit(input.limit + 1);
 
+        // Helper: project is not owned by the user (handles null ownerId for imported projects)
+        const notOwnedByUser = or(isNull(projects.ownerId), ne(projects.ownerId, ctx.user.id));
+
         // Get project IDs where user has authored overlays (but doesn't own the project)
         const contributedProjectIdsFromOverlays = await db
           .selectDistinct({ projectId: overlays.projectId })
           .from(overlays)
           .innerJoin(projects, eq(overlays.projectId, projects.id))
-          .where(
-            and(
-              eq(overlays.authorId, ctx.user.id),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
-            ),
-          )
+          .where(and(eq(overlays.authorId, ctx.user.id), notOwnedByUser))
           .limit(input.limit);
 
         // Get project IDs where user has submitted change requests for overlays (but doesn't own the project)
@@ -479,7 +477,7 @@ export const projectRouter = router({
             and(
               eq(changeRequests.requestedBy, ctx.user.id),
               eq(changeRequests.entityType, "overlay"),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
+              notOwnedByUser,
             ),
           )
           .limit(input.limit);
@@ -495,7 +493,7 @@ export const projectRouter = router({
             and(
               eq(changeRequests.requestedBy, ctx.user.id),
               eq(changeRequests.entityType, "project"),
-              sql`${projects.ownerId} != ${ctx.user.id}`, // Exclude projects already owned by user
+              notOwnedByUser,
             ),
           )
           .limit(input.limit);

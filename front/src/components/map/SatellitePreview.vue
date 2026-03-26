@@ -50,18 +50,18 @@ const props = defineProps<{
   inDrawer?: boolean;
 }>();
 
-const lastSatelliteLayer = ref<TileLayerType>("esri");
+const lastSatelliteLayer = ref<Exclude<TileLayerType, "plan">>("esri");
 
 // Track last selected satellite layer to remember user preference
 watch(currentTileLayer, (newVal) => {
-  if (newVal !== "osm") {
-    lastSatelliteLayer.value = newVal as TileLayerType;
+  if (newVal !== "plan") {
+    lastSatelliteLayer.value = newVal;
   }
 });
 
 // Check if current layer is a satellite-type layer
 const isSatellite = computed(() => {
-  return currentTileLayer.value !== "osm";
+  return currentTileLayer.value !== "plan";
 });
 
 // Cooldown state to prevent spamming switches
@@ -82,7 +82,7 @@ async function toggleLayer() {
   // Smart toggle: If satellite, go to plan. If plan, go to last used satellite.
   // Switching immediately to provide instant feedback (no debounce)
   if (isSatellite.value) {
-    await switchTileLayer("osm");
+    await switchTileLayer("plan");
   } else {
     await switchTileLayer(lastSatelliteLayer.value);
   }

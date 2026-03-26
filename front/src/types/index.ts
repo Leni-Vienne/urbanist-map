@@ -1,6 +1,12 @@
 import type * as L from "leaflet";
 import type { RouterOutput } from "@/client";
-import type { DBCountry, DBProject, DBCity, ApprovalStatus } from "../../../back/src/db/schema";
+import type {
+  DBCountry,
+  DBProject,
+  DBCity,
+  DBImportSource,
+  ApprovalStatus,
+} from "../../../back/src/db/schema";
 
 // Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
@@ -8,7 +14,7 @@ export type RemovableChange = ModifiableField | "new_overlay" | "geometry";
 
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
-export type viewModeMarkerColor = "yellow" | "orange" | "blue" | "green";
+export type viewModeMarkerColor = "yellow" | "orange" | "blue" | "green" | "grey";
 
 // Interface for camera bounds used in view mode
 export interface CameraBounds {
@@ -76,6 +82,7 @@ declare module "leaflet" {
     selectOnDrag: boolean;
     draggable: boolean;
     suppressToolbar?: boolean;
+    cornersOrder?: "default" | "clockwise"; // 'default': [NW, NE, SW, SE], 'clockwise': [NW, NE, SE, SW]
   }
 
   function distortableImageOverlay(
@@ -98,17 +105,19 @@ export interface Country extends DBCountry {
 export type PendingChangeRequest =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
 
-export type LatestContribution = RouterOutput["overlay"]["getLatestContributions"][number];
+export type LatestContribution = RouterOutput["feed"]["getLatestContributions"][number];
 
 // Base runtime project type - extends DB schema with computed fields
 export interface Project extends Omit<DBProject, "status" | "tags"> {
   // Override status to allow null for local unsubmitted projects
   status: ApprovalStatus | null;
   // Computed fields for all contexts
-  city: DBCity;
+  city: DBCity | null;
   overlayIds: string[];
   // Always an array on the frontend — null coerced to [] at DB boundary
   tags: string[];
+  // Joined import source details (null for user-created projects)
+  importSource?: DBImportSource | null;
   // UI state for tracking local modifications
   isModified?: boolean;
 }
@@ -123,8 +132,10 @@ export interface ProjectFormData {
   endDate: Date | null;
   endDatePrecision: "year" | "month" | "day" | null;
   cityId: number | null;
+  countryCode: string | null;
   sourceUrl: string | null;
   tags: string[];
+  timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled";
 }
 
 // Import shared overlay data type
@@ -158,7 +169,7 @@ export type OverlayForModeration = Pick<
   | "replacesOverlayId"
   | "replacedByOverlayId"
 > & {
-  name: string; // Display name
+  caption: string | null;
   authorId: string | null; // For spam prevention reporting
   authorUsername?: string | null; // Display friendly username in moderation UI
   authorApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)
@@ -186,6 +197,12 @@ export type ProjectForModeration = Pick<
   | "endDatePrecision"
   | "proposalDate"
   | "proposalDatePrecision"
+  | "timelineStatus"
+  | "importSourceId"
+  | "externalId"
+  | "externalProperties"
+  | "externalLastModified"
+  | "lastImportedAt"
   | "sourceUrl"
   | "lat"
   | "lng"
@@ -218,9 +235,13 @@ type BackendUserContribution = RouterOutput["project"]["getUsersContributions"][
 
 export type UserContributionOverlay = Omit<
   BackendUserContribution["overlays"][number],
-  "status"
+  "status" | "cityId" | "cityName" | "countryCode" | "countryName"
 > & {
   status: ApprovalStatus | null;
+  cityId: number | null; // Override: cityId is now nullable for imported projects
+  cityName: string | null;
+  countryCode: string | null;
+  countryName: string | null;
   // Frontend-specific fields added by factories
   imageUrl?: string;
   authorUsername?: string | null;
@@ -228,8 +249,9 @@ export type UserContributionOverlay = Omit<
   authorRejectedCount?: number | null;
 };
 
-export type UserContribution = Omit<BackendUserContribution, "status" | "overlays"> & {
+export type UserContribution = Omit<BackendUserContribution, "status" | "overlays" | "cityId"> & {
   status: ApprovalStatus | null;
+  cityId: number | null; // Override: cityId is now nullable for imported projects
   overlays: UserContributionOverlay[];
   // Date precision fields
   proposalDatePrecision?: "year" | "month" | "day" | null;

@@ -75,7 +75,6 @@ export function createLeafletOverlay(
       ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
       : undefined;
     const isEditMode = mapStore.mode === "edit";
-
     // Suppress the built-in leaflet-toolbar popup — OverlayFloatingToolbar.vue handles the UI.
     // Keep mode actions so editing handles (resize/distort) still work in edit mode.
     const newOverlay = L.distortableImageOverlay(imageUrl, {
@@ -99,6 +98,7 @@ export function createLeafletOverlay(
       // L.rectangle(overlay.getBounds()), but getBounds() returns an empty LatLngBounds
       // (with _northEast = undefined) before the image loads, causing a crash.
       snapIgnore: true,
+      cornersOrder: "clockwise", // Ensure corners are always in [NW, NE, SE, SW] order for consistency with backend and UI (e.g. tooltip) logic
     });
 
     // Register immediately so mode-switch cleanup (registry.clearEntry) can remove this
@@ -605,20 +605,25 @@ function renderSingleOverlay(
       return;
     }
 
-    const marker = registry.getMarker(cdnOverlay.id);
-    // Marker may be gone if the user panned away or mode switched before image loaded
-    if (!marker) {
-      const layer = registry.getLayer(cdnOverlay.id);
-      if (layer && map.value.hasLayer(layer)) layer.remove();
-      registry.clearLayer(cdnOverlay.id);
-      registry.cancelCreation(cdnOverlay.id);
-      return;
-    }
+    // When createMarkers=false (view mode, vectorTileSync path) the lifecycle is managed
+    // by the idle diff loop — no marker to check. When createMarkers=true (normal path)
+    // use marker presence as the "is the overlay still needed?" gate.
+    if (createMarkers) {
+      const marker = registry.getMarker(cdnOverlay.id);
+      // Marker may be gone if the user panned away or mode switched before image loaded
+      if (!marker) {
+        const layer = registry.getLayer(cdnOverlay.id);
+        if (layer && map.value.hasLayer(layer)) layer.remove();
+        registry.clearLayer(cdnOverlay.id);
+        registry.cancelCreation(cdnOverlay.id);
+        return;
+      }
 
-    // Safety net: re-add the marker if it was removed from the map
-    // during a zoom-out cleanup before the image finished loading.
-    if (!map.value.hasLayer(marker)) {
-      marker.addTo(map.value);
+      // Safety net: re-add the marker if it was removed from the map
+      // during a zoom-out cleanup before the image finished loading.
+      if (!map.value.hasLayer(marker)) {
+        marker.addTo(map.value);
+      }
     }
 
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);

@@ -1,6 +1,5 @@
 import type * as L from "leaflet";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useCityMarkersStore } from "@/stores/pinia/cityMarkersStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
@@ -24,6 +23,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { getPendingChangeRequests } from "@/composables/changes/useChanges";
 import { createProjectObject } from "@/utils/typeFactories";
+import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -84,9 +84,6 @@ export function runViewportRenderLoop() {
 
   // Prune Overlays
   pruneOverlays(mapInstance, paddedBounds, zoom);
-
-  // Prune City Markers
-  pruneCityMarkers(mapInstance, paddedBounds, zoom);
 }
 
 /**
@@ -149,7 +146,13 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   // full overlay images are displayed.
   const showMarkers = true;
 
-  pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
+  // In view mode, all backend overlays are approved and synced by vectorTileSync.
+  // pruneBackendOverlays only runs for edit/moderation to manage pending overlays from
+  // viewModeOverlays (approved overlays in those modes are still handled by vectorTileSync).
+  const mapStore = useMapStore();
+  if (mapStore.mode !== "view") {
+    pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
+  }
   pruneLocalOverlays(mapInstance, bounds, showImages, showMarkers);
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)
@@ -375,6 +378,7 @@ function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): 
 function getVisibleProjectsToRender() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
+  const mapStore = useMapStore();
 
   const projectsToRender = new Map<string, Project>();
 
@@ -384,6 +388,20 @@ function getVisibleProjectsToRender() {
   for (const overlay of overlayStore.viewModeOverlays) {
     if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
       projectsToRender.set(overlay.projectId, normalizeOverlayProject(overlay.project));
+    }
+  }
+
+  // In edit/moderation mode, viewModeOverlays only contains pending overlays.
+  // Approved overlays are rendered by vectorTileSync — collect their project IDs from
+  // the tile cache so that approved-overlay projects still get their shapes rendered.
+  if (mapStore.mode !== "view") {
+    for (const [, overlayData] of getApprovedOverlayDataFromTiles()) {
+      const projectId = overlayData.projectId;
+      if (!projectId || projectsToRender.has(projectId)) continue;
+      // The tile-based OverlayData has no project field — look up the project from the store.
+      // If not yet in the store, skip (shape will render on next cycle once the store is hydrated).
+      const p = projectStore.projects[projectId];
+      if (p) projectsToRender.set(projectId, p);
     }
   }
 
@@ -463,31 +481,6 @@ function renderAllProjectShapes(mapInstance: L.Map) {
 
   for (const [projectId, projectData] of projectsToRender.entries()) {
     processAndRenderProjectShape(projectId, projectData, mapInstance, isEditMode, isModeration);
-  }
-}
-
-/**
- * Manage city marker visibility.
- * City markers are hidden when zoomed in past the contribution marker threshold —
- * contribution markers take over at that zoom level, so city markers are redundant.
- * Below the threshold, individual markers are shown/hidden based on viewport bounds.
- */
-function pruneCityMarkers(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
-  const cityMarkersStore = useCityMarkersStore();
-  const allCityMarkers = cityMarkersStore.cityMarkerMap;
-  const shouldShow = zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD);
-
-  for (const [_cityId, cityMarker] of allCityMarkers) {
-    const isOnMap = mapInstance.hasLayer(cityMarker);
-
-    if (!shouldShow) {
-      if (isOnMap) cityMarker.remove();
-      continue;
-    }
-
-    const isInBounds = bounds.contains(cityMarker.getLatLng());
-    if (isInBounds && !isOnMap) cityMarker.addTo(mapInstance);
-    else if (!isInBounds && isOnMap) cityMarker.remove();
   }
 }
 

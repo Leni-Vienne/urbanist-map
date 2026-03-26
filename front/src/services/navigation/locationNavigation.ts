@@ -60,8 +60,8 @@ export async function navigateToCity(
 ): Promise<void> {
   const projectStore = useProjectStore();
 
-  // Clear city-specific content but preserve city markers for efficient navigation
-  clearAllMapContent(true);
+  // Clear city-specific content before navigating to new city
+  clearAllMapContent();
   const mapStore = useMapStore();
   mapStore.selectedCountryCode = countryCode;
   await loadCitiesForCountry(countryCode);

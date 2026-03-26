@@ -3,9 +3,11 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
-import { buildProjectPayload } from "@/services/project/projectMutations";
 import { selectCity } from "@/services/navigation/locationNavigation";
-import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
+import {
+  addStandaloneProjectMarkerForProject,
+  updateStandaloneProjectMarkerColor,
+} from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import type { Project, OverlayObject, RemovableChange, ProjectForModeration } from "@/types/index";
 import {
@@ -84,7 +86,7 @@ export interface SubmissionChange {
 
 export interface SubmissionSummary {
   action: string;
-  entityName: string;
+  entityName: string | null;
   changes: SubmissionChange[];
   requiresModeration: boolean;
   entityType: SubmissionEntityType;
@@ -113,9 +115,24 @@ function normalizeFieldValue(
     return normalizeDatePrecision(field, value, projectSource);
   }
   if (fieldStr === "tags") {
-    return JSON.stringify(Array.isArray(value) ? (value as unknown[]).toSorted() : []);
+    return JSON.stringify(
+      Array.isArray(value)
+        ? (value as string[]).toSorted((a, b) => String(a).localeCompare(String(b)))
+        : [],
+    );
   }
   return value ?? "";
+}
+
+// Serialize a value for sending to the backend (converts empty strings to null)
+function serializeForBackend(value: unknown): unknown {
+  if (value === "" || value === undefined) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return value;
 }
 
 // Check if a geometry value contains at least one shape
@@ -198,7 +215,7 @@ export function useSubmissionService() {
 
     // Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.projects)) {
-      if (project.city.id === project.cityId && !cache[project.cityId]) {
+      if (project.city && project.city.id === project.cityId && !cache[project.cityId]) {
         cache[project.cityId] = project.city.name;
       }
     }
@@ -272,10 +289,11 @@ export function useSubmissionService() {
 
       if (normalizedOld !== normalizedNew) {
         // Store raw objects for geometry/arrays so the backend receives proper JSON, not a string
-        let pushedOldValue: unknown = normalizedOld;
-        let pushedNewValue: unknown = normalizedNew;
+        // Use serializeForBackend to convert empty strings to null for the API
+        let pushedOldValue: unknown = serializeForBackend(normalizedOld);
+        let pushedNewValue: unknown = serializeForBackend(normalizedNew);
         if (isGeometryField) {
-          pushedOldValue = normalizedOld !== null ? oldValue : normalizedOld;
+          pushedOldValue = normalizedOld !== null ? oldValue : null;
           pushedNewValue = newValue ?? null;
         } else if (isArrayField) {
           pushedOldValue = oldValue;
@@ -382,7 +400,7 @@ export function useSubmissionService() {
     // Project-specific validation with Zod
     if (context.entityType === "project") {
       const validationData = prepareProjectValidationData(
-        { ...context.entity, tags: context.entity.tags ?? [] },
+        { ...context.entity, name: context.entity.name ?? "", tags: context.entity.tags ?? [] },
         { lat: context.entity.lat, lng: context.entity.lng },
       );
 
@@ -461,7 +479,7 @@ export function useSubmissionService() {
     project: Project,
     changeType: SubmissionChangeType,
   ): Promise<void> {
-    await trpc.project.publishProject.mutate(buildProjectPayload(project));
+    await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
     projectStore.updateProject(project.id, { isModified: false, status: "pending" });
 
@@ -469,7 +487,11 @@ export function useSubmissionService() {
 
     const updatedProject = projectStore.projects[project.id];
     if (updatedProject) {
-      updateStandaloneProjectMarkerColor(project.id, updatedProject);
+      if (changeType === "create") {
+        addStandaloneProjectMarkerForProject(updatedProject);
+      } else {
+        updateStandaloneProjectMarkerColor(project.id, updatedProject);
+      }
     }
 
     if (project.cityId) {
@@ -591,7 +613,7 @@ export function useSubmissionService() {
         // Optimistically update pending overlay in user contributions
         if (overlayData.caption !== undefined) {
           projectStore.updateOverlayInUserContributions(context.entity.id, {
-            name: overlayData.caption || "Unnamed",
+            caption: overlayData.caption,
           });
         }
       }
