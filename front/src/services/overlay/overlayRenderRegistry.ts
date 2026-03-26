@@ -153,32 +153,6 @@ export function renameEntry(oldId: string, newId: string): void {
   }
 }
 
-/**
- * Remove a single overlay's layer from the map without touching the marker.
- * Used by clearContentExceptActiveCity (zoom out while city is still active).
- */
-export function removeLayerFromMap(id: string): void {
-  const entry = entries.get(id);
-  if (!entry?.layer) return;
-  if (map.value.hasLayer(entry.layer)) {
-    entry.layer.remove();
-  }
-  entry.layer = null;
-}
-
-/**
- * Remove a single overlay's marker from the map and clear it from the registry.
- * Used by clearContentExceptActiveCity for non-active cities.
- */
-export function removeMarkerFromMap(id: string): void {
-  const entry = entries.get(id);
-  if (!entry?.marker) return;
-  if (map.value.hasLayer(entry.marker)) {
-    entry.marker.remove();
-  }
-  entry.marker = null;
-}
-
 export function getAllLayers(): [string, L.DistortableImageOverlay][] {
   const result: [string, L.DistortableImageOverlay][] = [];
   for (const [id, entry] of entries) {

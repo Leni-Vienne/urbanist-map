@@ -5,7 +5,7 @@
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
-import { getApprovalStatusColor, getTimelineBasedColor } from "@/utils/markerColors";
+import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 
 // ============================================================================
@@ -29,23 +29,6 @@ export const markerColors: Record<MarkerColor, string> = {
   purple: "#9932CC",
   grey: "#A0A0A0",
 };
-
-// Simple functions to generate variants from base color
-// NOTE: Global SVGs in MapSvgDefs.vue use these colors but compute them locally.
-// We keep markerColors export for consistency/reuse.
-
-// City marker: circle badge showing project count
-function createCityBadgeSVG(projectCount: number): string {
-  const size = 28;
-  const r = 12;
-  let fontSize = 12;
-  if (projectCount >= 100) fontSize = 8;
-  else if (projectCount >= 10) fontSize = 10;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="City">
-    <circle cx="14" cy="14" r="${r}" style="fill:var(--p-button-primary-background)" stroke="white" stroke-width="2.5"/>
-    <text x="14" y="14" text-anchor="middle" dominant-baseline="central" fill="white" font-size="${fontSize}" font-weight="bold" font-family="sans-serif">${projectCount}</text>
-  </svg>`;
-}
 
 // Overlay marker with picture frame icon to indicate images/overlays
 function createOverlayMarkerSVG(color: MarkerColor): string {
@@ -109,18 +92,6 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// Create count badge icon for Leaflet (city markers)
-export function createProjectCountIcon(projectCount: number): L.DivIcon {
-  const size = 28;
-  return L.divIcon({
-    html: createCityBadgeSVG(projectCount),
-    className: "custom-svg-marker city-marker",
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2) - 4],
-  });
-}
-
 // Cache overlay DivIcon instances — only 7 colors exist, no need to recreate on every call.
 // setIcon() reconstructs the marker DOM element each time, so reusing the same object
 // still triggers DOM work. The real gain comes from skipping setIcon() when color is unchanged
@@ -160,27 +131,6 @@ export function createStandaloneProjectIcon(color: MarkerColor): L.DivIcon {
 // Get raw marker SVG string for cursor display
 export function getMarkerSvg(color: MarkerColor): string {
   return createStandaloneProjectMarkerSVG(color);
-}
-
-// Create button-sized marker SVG using base color
-export function createButtonSVG(color: MarkerColor): string {
-  const baseColor = markerColors[color];
-  const size = 16;
-
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 50 82" role="img" aria-label="Map pin">
-      <!-- Pin body -->
-      <path d="M25 1
-               C38.807 1 50 12.193 50 26
-               C50 45 25 81 25 81
-               S0 45 0 26
-               C0 12.193 11.193 1 25 1Z"
-            fill="${baseColor}" stroke="rgba(0,0,0,0.3)" stroke-width="1" />
-
-      <!-- Inner white circle -->
-      <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>
-    </svg>
-  `;
 }
 
 // ============================================================================
@@ -242,7 +192,7 @@ export function getOverlayMarkerColor(
   if (!project) return "grey"; // No associated project
 
   // Use shared timeline helper
-  return getTimelineBasedColor(project.proposalDate, project.startDate, project.endDate);
+  return getTimelineStatusColor(project.timelineStatus);
 }
 
 // ============================================================================

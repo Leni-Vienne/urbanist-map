@@ -4,42 +4,66 @@
       <span :class="cls.label">{{ $t("project.name") }}</span>
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
-    <div v-if="showDescription" :class="cls.row">
+
+    <!-- Timeline Status + Last Modified (inline) -->
+    <div class="flex gap-4">
+      <div :class="cls.row">
+        <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
+        <div class="flex items-center gap-1.5">
+          <span
+            class="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+            :style="{ backgroundColor: getStatusColor(project.timelineStatus) }"
+          ></span>
+          <span :class="cls.value">{{
+            $te(`timelineStatus.${project.timelineStatus}`)
+              ? $t(`timelineStatus.${project.timelineStatus}`)
+              : project.timelineStatus
+          }}</span>
+        </div>
+      </div>
+      <div v-if="project.importSourceId" :class="cls.row">
+        <span :class="cls.label">{{ $t("project.lastModified") }}</span>
+        <span :class="cls.value">{{
+          formatDate(project.externalLastModified ?? project.updatedAt)
+        }}</span>
+      </div>
+    </div>
+
+    <!-- Description: hidden when null and not editable -->
+    <div
+      v-if="showDescription && (project.description || (editMode && !project.importSourceId))"
+      :class="cls.row"
+    >
       <span :class="cls.label">{{ $t("common.description") }}</span>
       <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
-      <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
+      <button v-else :class="cls.addBtn" @click="emit('field-click')">
         + {{ $t("common.addField") }}
       </button>
-      <span v-else :class="cls.value">—</span>
     </div>
+
     <div class="grid grid-cols-2 gap-4">
-      <div :class="cls.row">
+      <!-- Location: hidden when null and not editable -->
+      <div
+        v-if="projectLocationDisplay !== '—' || (editMode && !project.importSourceId)"
+        :class="cls.row"
+      >
         <span :class="cls.label">{{ $t("project.location") }}</span>
         <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
           projectLocationDisplay
         }}</span>
-        <button v-else-if="editMode" :class="cls.addBtn" @click="emit('field-click')">
+        <button v-else :class="cls.addBtn" @click="emit('field-click')">
           + {{ $t("common.addField") }}
         </button>
-        <span v-else :class="cls.value">—</span>
       </div>
-      <div :class="cls.row">
+
+      <!-- Period: hidden when empty -->
+      <div v-if="periodDisplay" :class="cls.row">
         <span :class="cls.label">{{ $t("project.period") }}</span>
-        <span :class="cls.value">
-          {{
-            formatProjectDateRange(
-              project.startDate,
-              project.endDate,
-              project.proposalDate,
-              project.startDatePrecision,
-              project.endDatePrecision,
-              project.proposalDatePrecision,
-              $t,
-            ) || $t("metadata.notSpecified")
-          }}
-        </span>
+        <span :class="cls.value">{{ periodDisplay }}</span>
       </div>
     </div>
+
+    <!-- Tags -->
     <div v-if="project.tags && project.tags.length > 0" :class="cls.row">
       <span :class="cls.label">{{ $t("project.tags") }}</span>
       <div class="flex flex-wrap gap-1.5">
@@ -53,6 +77,8 @@
         </span>
       </div>
     </div>
+
+    <!-- Source URL (user-provided reference: article, city hall page, etc.) -->
     <div v-if="project.sourceUrl" :class="cls.row">
       <span :class="cls.label">{{ $t("project.source") }}</span>
       <a
@@ -63,11 +89,25 @@
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
     </div>
-    <div v-else-if="editMode" :class="cls.row">
+    <div v-else-if="editMode && !project.importSourceId" :class="cls.row">
       <span :class="cls.label">{{ $t("project.source") }}</span>
       <button :class="cls.addBtn" @click="emit('field-click')">
         + {{ $t("common.addField") }}
       </button>
+    </div>
+
+    <!-- Modify on source link (imported projects only, edit mode) -->
+    <div v-if="osmEditUrl" :class="cls.row">
+      <span :class="cls.label">{{
+        $t("project.modifyOn", { name: project.importSource?.name ?? "OpenStreetMap" })
+      }}</span>
+      <a
+        :href="osmEditUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline"
+        >{{ project.externalId }}</a
+      >
     </div>
   </div>
 </template>
@@ -79,6 +119,8 @@ import { formatProjectDateRange } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { getTimelineStatusColor } from "@/utils/markerColors";
+import type { TimelineStatus } from "../../../../../back/src/db/schema";
 
 const { t: $t } = useI18n();
 
@@ -113,16 +155,64 @@ function getTagStyle(slug: string): Record<string, string> {
   return { backgroundColor: tag.color, color: tag.textColor };
 }
 
+function getStatusColor(status: TimelineStatus | null | undefined): string {
+  const colorKey = getTimelineStatusColor(status);
+  const colorMap: Record<string, string> = {
+    yellow: "#eab308", // Tailwind yellow-500
+    blue: "#3b82f6", // Tailwind blue-500
+    orange: "#f97316", // Tailwind orange-500
+    green: "#22c55e", // Tailwind green-500
+    grey: "#6b7280", // Tailwind gray-500
+    red: "#ef4444", // Tailwind red-500
+    purple: "#a855f7", // Tailwind purple-500
+  };
+  return colorMap[colorKey] ?? colorMap.grey ?? "#6b7280";
+}
+
+function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(date));
+}
+
+const periodDisplay = computed(() => {
+  if (!props.project) return "";
+  return formatProjectDateRange(
+    props.project.timelineStatus,
+    props.project.startDate,
+    props.project.endDate,
+    props.project.proposalDate,
+    props.project.startDatePrecision,
+    props.project.endDatePrecision,
+    props.project.proposalDatePrecision,
+    $t,
+  );
+});
+
+const osmEditUrl = computed(() => {
+  const project = props.project;
+  if (!project?.importSource || project.importSource.type !== "osm" || !project.externalId) {
+    return null;
+  }
+  const template = project.importSource.urlTemplate;
+  if (!template) return null;
+  return template.replace("{id}", project.externalId);
+});
+
 const projectLocationDisplay = computed(() => {
   if (!props.project) return "—";
 
   const project = props.project;
 
-  if (project.city.name) {
+  // Check if project has a cityId first (imported projects may not have one)
+  if (!project.cityId) {
+    return "—";
+  }
+
+  if (project.city?.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
   }
 
-  if (project.cityId && props.availableCities) {
+  if (props.availableCities) {
     const city = props.availableCities.find((c) => c.id === project.cityId);
     if (city) {
       return `${city.name}, ${city.countryCode}`;

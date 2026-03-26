@@ -6,6 +6,7 @@ import { sessionMiddleware, type Session } from "hono-sessions";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
+import { tilesApp } from "./routes/tiles";
 import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config as appConfig } from "./config";
@@ -101,6 +102,9 @@ app.get("/api/health", (c) => {
 
   return c.json({ status: "ok", timestamp });
 });
+
+// Public tile endpoints - mounted before session middleware (no auth needed)
+app.route("/api/tiles", tilesApp);
 
 // Session duration constants
 const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
@@ -632,7 +636,7 @@ app.get("/uploads/*", async (c) => {
       })
       .from(overlays)
       .innerJoin(projects, eq(overlays.projectId, projects.id))
-      .innerJoin(cities, eq(projects.cityId, cities.id))
+      .leftJoin(cities, eq(projects.cityId, cities.id))
       .where(eq(overlays.filename, actualFilename))
       .limit(1);
 
@@ -663,7 +667,9 @@ app.get("/uploads/*", async (c) => {
       // Check authorization for pending/rejected images
       const isAuthor = user.id === overlay.authorId;
       const isAdmin = user.role === "admin" || user.moderatedCountries === null;
-      const isCountryModerator = user.moderatedCountries?.includes(overlay.countryCode);
+      const isCountryModerator = overlay.countryCode
+        ? user.moderatedCountries?.includes(overlay.countryCode)
+        : false;
 
       if (!isAuthor && !isAdmin && !isCountryModerator) {
         return c.json({ error: "Forbidden" }, 403);

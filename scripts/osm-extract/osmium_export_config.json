@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "type": true,
+    "id": true,
+    "version": false,
+    "changeset": false,
+    "timestamp": false,
+    "uid": false,
+    "user": false
+  },
+  "format_options": {
+    "print_record_separator": true
+  }
+}

@@ -1,5 +1,10 @@
 <template>
   <div class="absolute top-18 left-4 z-1000 flex flex-col gap-3 transition-opacity duration-300">
+    <div class="flex flex-col gap-1.5 mb-3">
+      <!-- Filter Control (View Mode Only) -->
+      <FilterControl v-if="mode !== 'edit'" @filter-overlays="handleFilterOverlays" />
+    </div>
+
     <!-- Zoom Controls -->
     <div class="flex flex-col gap-1.5 mb-3">
       <Button
@@ -20,11 +25,6 @@
         v-tooltip.right="{ value: $t('controls.zoom.out'), disabled: isMobile }"
         severity="secondary"
       />
-    </div>
-
-    <div class="flex flex-col gap-1.5 mb-3">
-      <!-- Filter Control (View Mode Only) -->
-      <FilterControl v-if="mode !== 'edit'" @filter-overlays="handleFilterOverlays" />
     </div>
   </div>
 

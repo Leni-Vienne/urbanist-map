@@ -27,6 +27,49 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Moderation Mode**: Ensure cities with _anyone's_ pending items appear.
   4.  **Mixed State**: Determine a city with both Approved and Pending items. Verify it is visible in View mode, but interacting with it shows the correct subset of data.
 
+### 1.2b. Vector Tile Line Styling by Tag (New)
+
+- **Scenario**: Vector lines are styled from the first project tag in MVT, and proposed timeline items are dashed.
+- **Steps**:
+  1.  Load a zone with approved project geometries and overlays at zoom level where vector lines are visible.
+  2.  Confirm at least one project where `first_tag` is one of: `tram`, `rail`, `subway`, `bus`, `bike`, `road`, `bridge`, `waterway`, `park`, `building`.
+  3.  Confirm at least one project with `proposal_date` set and `start_date` empty.
+- **Checks**:
+  1.  Project shape lines use the color mapped to the feature `first_tag`.
+  2.  Overlay footprint lines use the same tag-based color mapping as their project.
+  3.  Lines with `is_proposed = 1` render with a dashed stroke.
+  4.  Lines without `is_proposed` (or `false`) render as solid.
+  5.  Unknown or empty `first_tag` values fall back to the default blue color.
+
+### 1.2c. Project Point Color by First Tag (New)
+
+- **Scenario**: Single project points use the same color palette as `projectTags`.
+- **Steps**:
+  1.  Load an area where individual project points are visible (non-image zoom range).
+  2.  Confirm points with different first tags (e.g. `tram`, `rail`, `bike`).
+  3.  Find a zoom/area where a cluster contains a single project (`point_count = 1`).
+- **Checks**:
+  1.  Unclustered project points use the color mapped from `front/src/config/projectTags.ts` for `first_tag`.
+  2.  A cluster circle with `point_count = 1` uses that same project color.
+  3.  Unknown or missing first tag falls back to the default blue.
+
+### 1.2d. Vector Hover and Click in Leaflet+MapLibre Hybrid Mode (New)
+
+- **Scenario**: Vector features remain interactive when MapLibre is embedded through Leaflet (`maplibre-gl-leaflet`).
+- **Steps**:
+  1.  Open the map in View mode where vector layers are available.
+  2.  Zoom to level 9+ where `project-shapes` lines are visible.
+  3.  Zoom to level 14+ where `overlay-footprints` lines are visible.
+  4.  Move the mouse slowly across vector lines and then over empty map areas.
+  5.  Click a project shape line, then click an overlay footprint line.
+- **Checks**:
+  1.  On vector hover, cursor changes to pointer and a white highlight outline appears only on the hovered feature.
+  2.  Leaving vector features clears the highlight and resets cursor.
+  3.  Clicking a `project-shapes` feature opens the project popup for that feature id.
+  4.  Clicking an `overlay-footprints` feature opens the popup for its `project_id`.
+  5.  Clicking on a cluster still zooms/expands the cluster (cluster interaction is not regressed).
+  6.  In areas where both relation and way features overlap, hover/click resolves to the relation feature when relation metadata is present (`relation_id` or `osm_type=relation`).
+
 ### 1.3. Standalone vs. Overlay Projects
 
 - **Scenario**: Viewing different project types.
@@ -1172,4 +1215,264 @@ This document outlines the granular functional test scenarios required to ensure
   3.  Click a **different City Marker**.
   4.  **Check**: Old standalone project markers disappear **instantly** (no ~500ms delay).
   5.  **Check**: New city's standalone project markers appear correctly.
-  6.  **Regression**: Switch to a city with **no** standalone projects — verify old markers are still removed instantly.
+
+## 37. Vector Tile Backend (Step 1)
+
+### 37.1. MVT Tile Endpoint
+
+- **Scenario**: The `/api/tiles/projects/:z/:x/:y` endpoint returns valid MVT binary data.
+- **Steps**:
+  1.  Request a tile for a known location with approved projects that have geometry (e.g. `/api/tiles/projects/12/2064/1401`).
+  2.  **Check**: Response `Content-Type` is `application/x-protobuf`.
+  3.  **Check**: Response body is non-empty binary.
+  4.  **Check**: Decode the MVT — verify it contains a `project-shapes` layer with features.
+  5.  **Check**: Decode the MVT — verify it contains an `overlay-footprints` layer with features for tiles covering approved overlays.
+  6.  Request a tile over an area with no projects. **Check**: Response is `204 No Content`.
+  7.  Request with invalid coordinates (e.g. `z=-1`). **Check**: Response is `400`.
+
+### 37.2. Project Points GeoJSON Endpoint
+
+- **Scenario**: `/api/projects/points` returns the correct GeoJSON FeatureCollection.
+- **Steps**:
+  1.  Request `/api/projects/points`.
+  2.  **Check**: Response `Content-Type` is `application/geo+json`.
+  3.  **Check**: All features have `geometry.type === "Point"` and `properties.id`, `name`, `tags`.
+  4.  **Check**: No feature corresponds to a project with `geometry_size_m >= 5000` (large geometry projects are excluded).
+  5.  **Check**: Projects with `geometry_size_m IS NULL` (no geometry) ARE included.
+  6.  **Check**: Only `status = 'approved'` projects are returned (no pending/rejected).
+
+### 37.3. geometry_size_m Computed on Project Save
+
+- **Scenario**: When a project with geometry is saved, `geometry_size_m` is correctly populated.
+- **Steps**:
+  1.  Create or update a project with a small geometry (a short line, e.g. < 500m).
+  2.  **Check**: `geometry_size_m` in the DB is a small positive number (e.g. < 500).
+  3.  Create or update a project with a large geometry spanning > 5km (e.g. a long railway line).
+  4.  **Check**: `geometry_size_m` is > 5000.
+  5.  **Check**: This project does NOT appear in `/api/projects/points`.
+  6.  Update a project to remove its geometry (set to null).
+  7.  **Check**: `geometry_size_m` is NULL.
+  8.  **Check**: This project now appears in `/api/projects/points`.
+
+### 37.4. getOverlaysInViewport tRPC Procedure
+
+- **Scenario**: `viewport.getOverlaysInViewport` returns overlays for the given bbox.
+- **Steps**:
+  1.  Call with a bbox that covers a known city with approved overlays, `mode: "view"`.
+  2.  **Check**: Returns overlays whose centroid falls within the bbox.
+  3.  **Check**: No pending/rejected overlays are returned in view mode.
+  4.  Call with `mode: "edit"` as an authenticated user with pending overlays in bbox.
+  5.  **Check**: Own pending overlays are included. Others' pending overlays are not.
+  6.  Call with `mode: "moderation"` as a moderator.
+  7.  **Check**: All pending overlays in bbox are included (not just own).
+  8.  Call with `mode: "moderation"` while unauthenticated. **Check**: Returns `UNAUTHORIZED` error.
+  9.  Call with a bbox outside any known project area. **Check**: Returns empty array.
+  10. **Regression**: Switch to a city with **no** standalone projects — verify old markers are still removed instantly.
+
+---
+
+## 38. Vector Tile View Mode (Step 2)
+
+### 38.1. MapLibre Always-On Base Map
+
+- **Scenario**: Page loads for the first time (no toggle, MapLibre is mandatory).
+- **Checks**:
+  1. The MapLibre liberty-style base map renders immediately on page load with no fallback flash.
+  2. No "Plan / Satellite / Vector tiles" toggle is visible in the user menu.
+  3. The satellite layer switcher still works correctly alongside MapLibre.
+
+### 38.2. Cluster Source (`/api/projects/points`)
+
+- **Scenario**: View mode at low zoom over a city with approved projects.
+- **Checks**:
+  1. MapLibre cluster circles appear at zoom ≤ 10 where multiple projects are nearby.
+  2. Clicking a cluster circle zooms in and expands it into sub-clusters or individual points.
+  3. Individual unclustered-point circles appear between zoom 10 and 13.
+  4. Cluster circles disappear above zoom 13 (replaced by overlay images).
+  5. Projects with `geometry_size_m >= 5000` do NOT appear as cluster points (they are discoverable as lines in the MVT layer).
+  6. Projects with no geometry (`geometry_size_m IS NULL`) DO appear as cluster points.
+
+### 38.3. MVT Project Shapes Layer
+
+- **Scenario**: View mode at zoom ≥ 9 over a city with projects that have polygon/line geometry.
+- **Checks**:
+  1. Project-shape lines/polygons render as blue lines from the `project-shapes` MVT layer.
+  2. Clicking a shape opens the project info popup.
+  3. Panning away and back: shapes reload from tiles without user interaction.
+
+### 38.4. Overlay Footprints MVT Layer
+
+- **Scenario**: View mode at zoom ≥ 14 over a city with approved overlays.
+- **Checks**:
+  1. Overlay footprint outlines (blue border) appear as soon as tiles load, **before** the Leaflet image finishes loading.
+  2. Clicking an overlay footprint outline opens the project info popup.
+  3. Pointer cursor appears on hover over the footprint outline.
+
+### 38.5. vectorTileSync — Idle-Driven Leaflet Overlay Creation
+
+- **Scenario**: Zoom to ≥ 14 over a city with approved overlays in view mode.
+- **Checks**:
+  1. Leaflet DistortableImageOverlay images appear for overlays in the viewport after MapLibre fires `idle`.
+  2. No overlay markers (dot icons) are created in view mode — click interaction is handled by the `overlay-footprints` MapLibre layer.
+  3. Pan away: overlays that leave the viewport are removed from the map.
+  4. Pan back: overlays re-appear without a page refresh.
+  5. Zoom below 14: all view-mode overlay images are removed (footprints layer hides via MapLibre minzoom).
+
+### 38.6. Mode Switch — View → Edit
+
+- **Scenario**: User is in view mode (vectorTileSync-managed overlays on map), then switches to edit mode.
+- **Checks**:
+  1. vectorTileSync-managed Leaflet overlays are cleared.
+  2. `refreshViewport(true)` is triggered and city-based overlay loading runs for the current viewport.
+  3. Edit-mode features appear (toolbar on overlays, pending overlay markers).
+  4. No duplicate overlays (neither double Leaflet layers nor double markers).
+
+### 38.7. Mode Switch — Edit → View
+
+- **Scenario**: User is in edit mode with overlays loaded, then switches to view mode.
+- **Checks**:
+  1. Edit-mode overlays (pending + approved) are cleared from the map.
+  2. No city-based loading runs after the switch; the next MapLibre `idle` event repopulates view-mode overlays.
+  3. Standalone project markers are cleared.
+  4. `loadedCityIds` is empty after switching to view (no city-keyed cache is consumed).
+
+### 38.8. Project Points Store Refresh
+
+- **Scenario**: A moderator approves a project while the map is open (simulated by calling `fetchProjectPoints()` manually).
+- **Checks**:
+  1. The cluster source updates without a page reload — new project point appears in the appropriate zoom range.
+  2. Previously clustered area re-clusters correctly after `source.setData()`.
+
+### 38.9. `GET /api/projects/points` Endpoint
+
+- **Scenario**: Backend unit test for the projects/points endpoint.
+- **Checks**:
+  1. Returns a valid GeoJSON `FeatureCollection`.
+  2. Only includes projects with `status = 'approved'`.
+  3. Excludes projects where `geometry_size_m >= 5000`.
+  4. Includes projects where `geometry_size_m IS NULL` (no geometry → standalone).
+  5. Each feature has `id`, `name`, `tags` properties and a Point geometry with `[lng, lat]` coordinates.
+  6. Returns `Content-Type: application/geo+json` with `Cache-Control: public`.
+
+### 38.10. `GET /api/tiles/projects/:z/:x/:y` Endpoint
+
+- **Scenario**: Request an MVT tile that covers a known city.
+- **Checks**:
+  1. Returns `Content-Type: application/x-protobuf` with HTTP 200.
+  2. The tile contains a `project-shapes` source layer with approved project geometries.
+  3. The tile contains an `overlay-footprints` source layer with approved overlay corner polygons; each feature carries `c0_lat…c3_lng`, `filename`, `project_id` properties.
+  4. An empty tile area returns HTTP 204 (no body).
+  5. Invalid coordinates (e.g., `z=-1`) return HTTP 400.
+
+### 38.11. `GET /api/projects/points` Grid Deduplication
+
+- **Scenario**: Multiple approved projects exist within ~500m of each other.
+- **Checks**:
+  1. The endpoint returns fewer features than the total number of approved projects when several share the same ~0.005° grid cell.
+  2. Each returned feature still has valid `id`, `name`, `tags`, and `coordinates`.
+  3. Projects that are far apart (different grid cells) are all represented — no legitimate points are dropped.
+  4. The MapLibre cluster source still renders correctly with the deduplicated data (clusters at low zoom, individual dots at zoom ≥ 10).
+
+### 38.12. Bbox-Based Edit/Moderation Loading (Step 3)
+
+- **Scenario**: In Edit or Moderation mode, overlays and standalone project markers load spatially from the viewport bbox rather than by city boundaries.
+- **Steps**:
+  1. Enter **Edit Mode** while zoomed in to street level (above `VIEWPORT_LOAD_THRESHOLD`).
+  2. Pan the map across a city boundary so that contributions from two cities are in view.
+  3. Observe that overlays and standalone project markers from **both** cities appear without needing to click a city marker.
+  4. Zoom out below `VIEWPORT_LOAD_THRESHOLD`. Overlays and standalone markers should clear.
+  5. Zoom back in. Data should reload via a fresh bbox fetch.
+- **Checks**:
+  1. Overlays from multiple cities appear simultaneously when their corners are within the viewport — no city boundary limitation.
+  2. Standalone project markers (projects with zero overlays) appear for projects whose `center_coordinate` falls within the viewport.
+  3. In Edit mode, the user's own pending/local projects appear alongside approved projects.
+  4. In Moderation mode, all pending projects (from any user) appear.
+  5. Panning a short distance (within the quantized bbox key) does NOT trigger a new backend fetch.
+  6. Panning a longer distance triggers a new fetch and renders the new viewport's data.
+
+### 38.13. Cluster Source Augmentation in Edit/Moderation
+
+- **Scenario**: The MapLibre cluster source shows both approved projects (from `/api/projects/points`) and pending projects (from the bbox tRPC fetch) when in Edit or Moderation mode.
+- **Steps**:
+  1. Create a new project (pending, not yet approved) with a center coordinate.
+  2. Switch to **Edit Mode**.
+  3. Zoom out to cluster level (zoom ≤ 10).
+- **Checks**:
+  1. The pending project's center point appears in the cluster source (either as part of a cluster or as an individual dot).
+  2. Switch to **View Mode** — the pending project disappears from the cluster source (only approved projects remain).
+  3. Switch back to **Edit Mode** — the pending project reappears in the cluster source.
+
+### 38.14. Mode Switch With Bbox Loading
+
+- **Scenario**: Switching between view, edit, and moderation modes correctly transitions between tile-driven and bbox-driven rendering.
+- **Steps**:
+  1. Start in **View Mode** at street level. Overlays are rendered by vectorTileSync (MVT idle sync).
+  2. Switch to **Edit Mode**.
+  3. Observe overlays reload from the bbox tRPC fetch. User's pending overlays also appear.
+  4. Move an overlay. Switch to **View Mode** — overlay returns to database position.
+  5. Switch back to **Edit Mode** — overlay returns to the cached (moved) position.
+  6. Switch to **Moderation Mode** — all users' pending content appears.
+- **Checks**:
+  1. No flash of empty content during mode transitions (overlays not visible in new mode are hidden before fetch).
+  2. Standalone project markers for local (unsaved) projects appear immediately after switching to Edit mode.
+  3. The cluster source is restored to base (approved-only) data when returning to View mode.
+
+---
+
+## 39. Vector Tile Cleanup — Leaflet City Marker Removal (Step 4)
+
+### 39.1. City List Panels Remain Functional
+
+- **Scenario**: `citiesWithProjects` ref is still populated after the Leaflet city marker layer was removed.
+- **Steps**:
+  1. Open the app. Ensure no login (view mode).
+  2. Open **CurrentLocationPanel** / **MarkerHelpButton** / **PopupContainer**.
+  3. **Check**: City list is populated correctly (cities with approved projects visible).
+  4. Log in and switch to **Edit Mode**.
+  5. **Check**: City list updates to include cities with your own pending items.
+  6. Switch to **Moderation Mode** (if moderator).
+  7. **Check**: City list shows cities with any pending items in your jurisdiction.
+
+### 39.2. `activateCity` / `smartZoomToCity` Still Work
+
+- **Scenario**: Clicking a city entry in the panel triggers the correct city activation flow.
+- **Steps**:
+  1. Open **CurrentLocationPanel** and click a city name.
+  2. **Check**: Map flies to that city's content bounds.
+  3. **Check**: Overlays and standalone markers for the city load (as defined by current mode).
+  4. **Check**: Panel scrolls to show city accordion.
+  5. **Regression**: Click a city in a **different country** from the currently loaded one.
+  6. **Check**: Map flies to the new city; no ghost markers from the old country remain.
+
+### 39.3. Mode Watcher Refreshes City List
+
+- **Scenario**: Switching mode triggers `buildCitiesForCurrentMode` and updates the city list.
+- **Steps**:
+  1. Load map in **View Mode**. Note the number of cities in the panel list.
+  2. Switch to **Edit Mode**.
+  3. **Check**: City list updates (may include extra cities with your pending items).
+  4. Switch back to **View Mode**.
+  5. **Check**: City list returns to approved-only cities.
+
+### 39.4. Cross-Country City Navigation via `prepareNavigationToCity`
+
+- **Scenario**: Deep-link / panel navigation to a city in a different country no longer calls the deleted `loadAllCityMarkersGlobally`.
+- **Steps**:
+  1. Navigate to a project in **Country A** (e.g. France) via "Latest Contributions".
+  2. Navigate to a project in **Country B** (e.g. Switzerland) via "Latest Contributions".
+  3. **Check**: Map flies to Country B's city. No JavaScript error in console (`loadAllCityMarkersGlobally is not defined`).
+  4. **Check**: City list panels update to Country B context.
+  5. **Regression**: Navigate back to Country A. Verify no stale content from Country B remains.
+
+### 39.5. New Project Creation Sets City Context Without Leaflet Markers
+
+- **Scenario**: Creating a new project (standalone) in `ProjectManager.vue` sets the country/city context; the cluster source handles map display (no Leaflet city circle marker needed).
+- **Steps**:
+  1. Enter **Edit Mode**. Place a new standalone project marker in a city not yet active.
+  2. Fill the form and submit.
+  3. **Check**: No JavaScript errors (no call to deleted `addSingleCityMarker`).
+  4. **Check**: The new project's center point appears in the MapLibre cluster source at low zoom.
+  5. **Check**: `mapStore.selectedCity` is set to the new project's city.
+  6. **Check**: The standalone project marker (Leaflet) is visible at street zoom.
+  7. **Regression**: Upload an image to the new project.
+  8. **Check**: `ensureCityMarkersForProject` completes without error; overlay appears on map.

@@ -5,9 +5,9 @@ import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
 import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 import { map } from "@/services/core/map";
 import { trpc, getApiUrl } from "@/client";
-import { buildProjectPayload } from "@/services/project/projectMutations";
 import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
+import { projectSchema } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
 import { getLayer, renameEntry } from "@/services/overlay/overlayRenderRegistry";
@@ -59,7 +59,7 @@ export function useOverlayPublisher() {
       }
 
       // Use shared helper to build consistent payload
-      const projectResult = await trpc.project.publishProject.mutate(buildProjectPayload(project));
+      const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
       // Handle project ID update and IndexedDB cleanup if this is a new project
       if (projectResult.id) {

@@ -1,4 +1,5 @@
 import { moderatorProcedure, adminProcedure, router } from "../trpc";
+import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
 import {
   projects,
   overlays,
@@ -9,7 +10,7 @@ import {
   userReports,
   type EntityType,
 } from "../db/schema";
-import { and, eq, or, sql, inArray, ne, type SQL } from "drizzle-orm";
+import { and, eq, or, sql, inArray, ne, isNotNull, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { db, type Database } from "../database";
 import {
@@ -417,16 +418,21 @@ export const moderationRouter = router({
       const isAdmin = ctx.user.role === "admin";
 
       // Build country filter based on moderator permissions
-      let countryFilter: SQL | undefined = undefined;
+      // Use projects.countryCode directly (more reliable than joining via cities.countryCode,
+      // since projects.cityId is nullable and projects without a city would be missed)
+      let countryFilter: SQL | undefined = isNotNull(projects.countryCode);
       if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
-        countryFilter = inArray(cities.countryCode, userModeratedCountries);
+        countryFilter = and(
+          isNotNull(projects.countryCode),
+          inArray(projects.countryCode, userModeratedCountries),
+        );
       }
 
       // Efficient single-query approach using CASE statements for conditional counting
       // This prevents N+1 queries and uses database indexes optimally
       const result = await db
         .select({
-          countryCode: cities.countryCode,
+          countryCode: projects.countryCode,
           // Count distinct pending projects
           pendingProjects: sql<number>`COUNT(DISTINCT CASE WHEN ${projects.status} = 'pending' THEN ${projects.id} END)`,
           // Count distinct pending overlays
@@ -434,8 +440,7 @@ export const moderationRouter = router({
           // Count distinct pending change requests (for both project and overlay changes)
           pendingChanges: sql<number>`COUNT(DISTINCT CASE WHEN ${changeRequests.status} = 'pending' THEN ${changeRequests.id} END)`,
         })
-        .from(cities)
-        .leftJoin(projects, eq(projects.cityId, cities.id))
+        .from(projects)
         .leftJoin(overlays, eq(overlays.projectId, projects.id))
         .leftJoin(
           changeRequests,
@@ -445,10 +450,11 @@ export const moderationRouter = router({
           ),
         )
         .where(countryFilter)
-        .groupBy(cities.countryCode);
+        .groupBy(projects.countryCode);
 
       // Calculate total pending items per country and filter out countries with zero counts
       const countsWithTotals = result
+        .filter((row): row is typeof row & { countryCode: string } => row.countryCode !== null)
         .map((row) => ({
           countryCode: row.countryCode,
           total:
@@ -504,6 +510,7 @@ export const moderationRouter = router({
           }
         });
 
+        await invalidateProjectTiles(input.id);
         return { success: true };
       } catch (error) {
         console.error("Error updating project status:", error);
@@ -553,6 +560,7 @@ export const moderationRouter = router({
           }
         });
 
+        await invalidateOverlayTiles(input.id);
         return { success: true };
       } catch (error) {
         console.error("Error updating overlay status:", error);
@@ -718,6 +726,7 @@ export const moderationRouter = router({
           }
         }
 
+        if (result.success) await invalidateProjectTiles(input.id);
         return result;
       } catch (error) {
         console.error("Error updating project status with version:", error);
@@ -870,6 +879,7 @@ export const moderationRouter = router({
           queueR2Migration(overlayFilename);
         }
 
+        if (transactionResult.success) await invalidateOverlayTiles(input.id);
         return transactionResult;
       } catch (error) {
         console.error("Error updating overlay status with version:", error);

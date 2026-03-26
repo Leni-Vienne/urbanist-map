@@ -82,6 +82,7 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     include: [
       "@geoman-io/leaflet-geoman-free",
+      "primevue/selectbutton",
       "primevue/autocomplete",
       "primevue/badge",
       "primevue/button",

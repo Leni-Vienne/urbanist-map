@@ -130,7 +130,10 @@ const overlayObject = computed(() => {
 
 // Helper to convert backend project data and add to store
 function convertAndCacheBackendProject(
-  backendProject: Omit<DBProject, "status"> & { status: ApprovalStatus | null; city: DBCity },
+  backendProject: Omit<DBProject, "status"> & {
+    status: ApprovalStatus | null;
+    city: DBCity | null;
+  },
 ): Project {
   // CRITICAL: If project already exists, just return it to preserve overlayIds
   // This fixes bug where opening info popup clears overlayIds, breaking arrow navigation
@@ -201,7 +204,11 @@ const activeProject = computed(() => {
             (cityOverlay) => cityOverlay.project?.id === overlay.projectId,
           )?.project;
 
-    if (backendProject) return convertAndCacheBackendProject(backendProject);
+    if (backendProject)
+      return convertAndCacheBackendProject({
+        ...backendProject,
+        city: backendProject.city ?? null,
+      });
   }
 
   // Priority 2: Check if viewing a project popup - get project from project popup state

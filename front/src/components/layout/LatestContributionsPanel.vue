@@ -127,6 +127,10 @@ function getLocationDisplay(contribution: LatestContribution): string {
     return `${contribution.cityName}, ${contribution.countryName}`;
   } else if (contribution.cityName) {
     return contribution.cityName;
+  } else if (contribution.countryName && contribution.countryCode) {
+    return `${contribution.countryName} (${contribution.countryCode})`;
+  } else if (contribution.countryCode) {
+    return contribution.countryCode;
   } else if (contribution.countryName) {
     return contribution.countryName;
   }
@@ -168,7 +172,7 @@ async function handleContributionClick(contribution: LatestContribution) {
     await handleOverlayClickNavigation(contribution, false, true);
   } else if (contribution.type === "standalone") {
     // Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
-    if (contribution.cityId && contribution.lat && contribution.lng) {
+    if (contribution.lat && contribution.lng) {
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,
