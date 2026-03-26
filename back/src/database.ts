@@ -19,13 +19,16 @@ const client = new SQL(config.DATABASE_URL, {
 export const db = drizzle({ client, schema });
 export type Database = typeof db;
 
-// Dedicated pool for MVT tile generation with JIT disabled.
-// The tile query's estimated cost exceeds jit_above_cost (due to PostGIS function costs),
-// but the actual row count processed is small (~7k projects), so LLVM compilation time
-// (~36ms) far outweighs any per-row savings. Setting jit=off at connection startup
-// eliminates this overhead with no per-query round-trip.
+// Dedicated pool for MVT tile generation with tuned session settings:
+//   jit=off       -- The tile query's estimated cost exceeds jit_above_cost (due to PostGIS
+//                    function costs), but actual row count is small, so LLVM compilation time
+//                    (~36ms) far outweighs any per-row savings.
+//   work_mem=128MB -- Low-zoom tiles (z0-z6) process 100k+ point rows in a single sort.
+//                    With the default 4MB, the sort spills 60+ MB to disk, adding ~600ms.
+//                    128MB keeps the sort in memory. With max 4 tile connections the ceiling
+//                    is 512MB, well within typical server capacity.
 const tilesDbUrl = new URL(config.DATABASE_URL);
-tilesDbUrl.searchParams.set("options", "-c jit=off");
+tilesDbUrl.searchParams.set("options", "-c jit=off -c work_mem=128MB");
 
 export const tilesSqlClient = new SQL(tilesDbUrl.toString(), {
   max: isDev ? 1 : 4,

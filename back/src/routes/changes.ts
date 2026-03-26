@@ -17,6 +17,7 @@ import { addConflictFlags, enrichChangeRequestsWithNames, isUserBlocked } from "
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
+import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -520,6 +521,17 @@ export const changesRouter = router({
           });
         }
 
+        const seen = new Set<string>();
+        for (const change of changesToApprove) {
+          const key = `${change.entityType}:${change.entityId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          if (change.entityType === "project") {
+            await invalidateProjectTiles(change.entityId);
+          } else if (change.entityType === "overlay") {
+            await invalidateOverlayTiles(change.entityId);
+          }
+        }
         return { success: true };
       } catch (error) {
         console.error("Error approving change requests:", error);

@@ -1,3 +1,14 @@
+-- Parameters:
+--   $1 = zoom level (Z)
+--   $2 = tile X
+--   $3 = tile Y
+--   $4 = shapes_min_size_m: minimum geometry_size_m to show a shape at this zoom (NULL = show all)
+--   $5 = marker_suppress_min_size_m: minimum geometry_size_m at which the center marker is hidden
+--        because its shape is dominant (NULL = never suppress)
+--
+-- $4 and $5 are pre-computed by the caller (tiles.ts) from the zoom level.
+-- Passing them as literal parameters lets the planner pick the appropriate partial GIST index
+-- (idx_projects_geometry_Nk) instead of scanning the full geometry index.
 WITH tile_env AS (
   -- Calculate the bounding box for the requested tile ($1=Z, $2=X, $3=Y) in Web Mercator (EPSG:3857)
   -- and also transform it to WGS84 (EPSG:4326) for quick intersection checks against table geometries.
@@ -37,19 +48,11 @@ shapes AS (
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s
     FROM projects p, tile_env te
-    WHERE $1 >= 3
+    WHERE $1 >= 4
       AND p.status = 'approved'
       AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
-      AND (
-        $1 >= 11
-        OR ($1 >= 10 AND p.geometry_size_m >= 200)
-        OR ($1 >= 9  AND p.geometry_size_m >= 500)
-        OR ($1 >= 8  AND p.geometry_size_m >= 1000)
-        OR ($1 >= 7  AND p.geometry_size_m >= 10000)
-        OR ($1 >= 5  AND p.geometry_size_m >= 50000)
-        OR ($1 >= 4  AND p.geometry_size_m >= 100000)
-      )
+      AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
 
     UNION ALL
 
@@ -167,12 +170,10 @@ points AS (
         -- grid_id divides the 4096-unit tile into a grid of cell_size squares. At low zoom levels
         -- the cell covers a large geographic area, so many projects share the same cell and only
         -- one representative is surfaced per (cell, tag, status) group after deduplication.
+        -- The LATERAL computes ST_AsMVTGeom(ST_Transform(...)) once per row so it is not
+        -- redundantly re-evaluated for both mvt_geom and the two components of grid_id.
         SELECT
-          ST_AsMVTGeom(
-            ST_Transform(p.center_coordinate, 3857),
-            te.bounds,
-            4096, 64, true
-          ) AS mvt_geom,
+          mvt.geom AS mvt_geom,
           p.id,
           p.name,
           COALESCE(p.tags, ARRAY[]::text[]) AS tags,
@@ -182,26 +183,20 @@ points AS (
           p.geometry_size_m,
           CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
           EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
-          (ST_X(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
+          (ST_X(mvt.geom)::integer / gs.cell_size)::text
             || '_' ||
-          (ST_Y(ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true))::integer / gs.cell_size)::text
+          (ST_Y(mvt.geom)::integer / gs.cell_size)::text
             AS grid_id
         FROM projects p, tile_env te, grid_size gs
+        CROSS JOIN LATERAL (
+          SELECT ST_AsMVTGeom(ST_Transform(p.center_coordinate, 3857), te.bounds, 4096, 64, true) AS geom
+        ) mvt
         WHERE p.status = 'approved'
           AND p.center_coordinate IS NOT NULL
           AND p.center_coordinate && te.bounds_4326
-          -- Hide the center marker once its shape is visible (mirrors the shapes CTE conditions above).
-          -- All zoom values are MapLibre zoom = Leaflet zoom - 1.
-          AND NOT (
-            p.geometry_size_m IS NOT NULL AND (
-              ($1 >= 13 AND p.geometry_size_m >= 200)
-              OR ($1 >= 12 AND p.geometry_size_m >= 500)
-              OR ($1 >= 11 AND p.geometry_size_m >= 1000)
-              OR ($1 >= 7  AND p.geometry_size_m >= 10000)
-              OR ($1 >= 5  AND p.geometry_size_m >= 50000)
-              OR ($1 >= 4  AND p.geometry_size_m >= 100000)
-            )
-          )
+          -- Hide the center marker once its shape is visible and dominant at this zoom.
+          -- $5 is the minimum geometry_size_m at which the shape is considered dominant.
+          AND NOT (p.geometry_size_m IS NOT NULL AND $5::float8 IS NOT NULL AND p.geometry_size_m >= $5::float8)
       ) raw_q
     ) inner_q
     WHERE inner_q.mvt_geom IS NOT NULL

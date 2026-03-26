@@ -1,4 +1,5 @@
 import { moderatorProcedure, adminProcedure, router } from "../trpc";
+import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
 import {
   projects,
   overlays,
@@ -504,6 +505,7 @@ export const moderationRouter = router({
           }
         });
 
+        await invalidateProjectTiles(input.id);
         return { success: true };
       } catch (error) {
         console.error("Error updating project status:", error);
@@ -553,6 +555,7 @@ export const moderationRouter = router({
           }
         });
 
+        await invalidateOverlayTiles(input.id);
         return { success: true };
       } catch (error) {
         console.error("Error updating overlay status:", error);
@@ -718,6 +721,7 @@ export const moderationRouter = router({
           }
         }
 
+        if (result.success) await invalidateProjectTiles(input.id);
         return result;
       } catch (error) {
         console.error("Error updating project status with version:", error);
@@ -870,6 +874,7 @@ export const moderationRouter = router({
           queueR2Migration(overlayFilename);
         }
 
+        if (transactionResult.success) await invalidateOverlayTiles(input.id);
         return transactionResult;
       } catch (error) {
         console.error("Error updating overlay status with version:", error);

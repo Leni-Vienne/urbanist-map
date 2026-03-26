@@ -309,6 +309,13 @@
       "when": 1774195581820,
       "tag": "0043_lazy_norrin_radd",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1774200000000,
+      "tag": "0044_missing_spatial_indexes",
+      "breakpoints": true
     }
   ]
 }

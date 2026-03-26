@@ -11,6 +11,7 @@
  */
 
 import { db } from "../database";
+import { clearTileCache } from "../routes/tiles";
 import { projects, importSources, countries, type TimelineStatus } from "../db/schema";
 import { sql, eq } from "drizzle-orm";
 import * as fs from "node:fs";
@@ -535,6 +536,20 @@ async function main() {
     .set({ lastSyncAt: new Date() })
     .where(eq(importSources.id, importSource.id));
 
+  // Refresh planner statistics after the large upsert/delete cycle.
+  // The spatial columns (center_coordinate, geometry) use GIST indexes whose
+  // selectivity estimates assume uniform geographic distribution, so they will
+  // still under-count clustered regions, but scalar column stats (tags,
+  // geometry_size_m, timeline_status) benefit meaningfully from a fresh ANALYZE.
+  console.log(`Running ANALYZE on projects table...`);
+  try {
+    await db.execute(sql`ANALYZE projects`);
+    console.log(`ANALYZE complete.`);
+  } catch (err) {
+    console.error("ANALYZE failed (non-fatal):", err);
+  }
+
+  clearTileCache();
   console.log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
 }
 
