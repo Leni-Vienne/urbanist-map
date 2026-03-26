@@ -82,7 +82,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Internal configuration (not exposed as props)
 const MIN_HEIGHT_PX = 65;
-const MAX_HEIGHT_PERCENT = 90;
+const MAX_HEIGHT_PERCENT = 75;
 
 const emit = defineEmits<{
   "update:visible": [value: boolean];

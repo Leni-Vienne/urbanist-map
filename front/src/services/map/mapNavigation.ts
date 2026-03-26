@@ -1,9 +1,8 @@
 import { ref } from "vue";
-import L, { type FitBoundsOptions, type ZoomPanOptions } from "leaflet";
+import L, { type FitBoundsOptions, type PanOptions, type ZoomPanOptions } from "leaflet";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import type { CameraBounds } from "@/types/index";
-import countryBboxes from "@/assets/country_bboxes.json";
 
 const currentCameraBounds = ref<CameraBounds | null>(null);
 
@@ -49,8 +48,8 @@ export function getCameraBounds() {
 }
 
 /**
- * Check if mobile drawer is covering the map
- * Only apply offset when on mobile AND drawer is open
+ * Check if mobile drawer is covering the map.
+ * Only apply offset when on mobile AND drawer is open.
  */
 function shouldApplyMobileOffset(): boolean {
   const isMobile = globalThis.innerWidth <= 768;
@@ -58,6 +57,16 @@ function shouldApplyMobileOffset(): boolean {
 
   const uiStore = useUiStore();
   return uiStore.mobileDrawerVisible;
+}
+
+/**
+ * Returns the actual drawer height in pixels based on the current draggable height percentage.
+ * Adds a small margin so the target point isn't flush against the drawer edge.
+ */
+function getMobileDrawerBottomPaddingPx(): number {
+  const uiStore = useUiStore();
+  const drawerHeightPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
+  return drawerHeightPx + 20; // 20px margin above the drawer
 }
 
 /**
@@ -84,7 +93,9 @@ export function mobileAwareFlyTo(
     return; // Already at target, skip animation
   }
 
-  if (!shouldApplyMobileOffset()) {
+  const applyOffset = shouldApplyMobileOffset();
+
+  if (!applyOffset) {
     // Desktop or drawer closed - center normally
     map.value.flyTo([latLng.lat, latLng.lng], zoom, options);
     return;
@@ -98,15 +109,57 @@ export function mobileAwareFlyTo(
     [latLng.lat + offset, latLng.lng + offset],
   );
 
+  const bottomPadding = getMobileDrawerBottomPaddingPx();
   // Use flyToBounds with mobile-aware padding and target zoom
   const fitOptions: FitBoundsOptions = {
     ...options,
     maxZoom: zoom ?? map.value.getZoom(),
     paddingTopLeft: [50, 50],
-    paddingBottomRight: [50, globalThis.innerHeight * 0.45],
+    paddingBottomRight: [50, bottomPadding],
   };
 
   map.value.flyToBounds(bounds, fitOptions);
+}
+
+/**
+ * Mobile-aware panTo - pure pan with no zoom change, but accounts for the mobile drawer offset.
+ * Use this instead of mobileAwareFlyTo when the zoom level is already correct, to avoid
+ * the zoom-out arc that flyTo produces even for same-zoom pans.
+ */
+export function mobileAwarePanTo(
+  latlng: L.LatLngExpression,
+  options: PanOptions = { animate: true, duration: 0.3 },
+): void {
+  const latLng = L.latLng(latlng);
+  const currentCenter = map.value.getCenter();
+  const distance = currentCenter.distanceTo(latLng);
+
+  if (distance < distanceThreshold) {
+    return; // Already at target, skip animation
+  }
+
+  const applyOffset = shouldApplyMobileOffset();
+
+  if (!applyOffset) {
+    map.value.panTo([latLng.lat, latLng.lng], options);
+    return;
+  }
+
+  // Mobile with drawer open: shift the pan target southward in pixel space.
+  // panTo centers on the given point, so panning to a point south of the target
+  // makes the target appear north of center (i.e. in the visible area above the drawer).
+  // NOTE: in Leaflet pixel coords, Y increases southward, so adding to Y moves south.
+  const drawerPaddingBottom = getMobileDrawerBottomPaddingPx();
+  const drawerPaddingTop = 50;
+  const verticalOffsetPx = (drawerPaddingBottom - drawerPaddingTop) / 2;
+  const currentZoom = map.value.getZoom();
+  const targetPixel = map.value.project(latLng, currentZoom);
+  const offsetLatLng = map.value.unproject(
+    targetPixel.add(L.point(0, verticalOffsetPx)),
+    currentZoom,
+  );
+
+  map.value.panTo(offsetLatLng, options);
 }
 
 /**
@@ -176,7 +229,7 @@ export function mobileAwareFlyToBounds(
         ...options,
         duration,
         paddingTopLeft: [50, 50] as [number, number],
-        paddingBottomRight: [50, globalThis.innerHeight * 0.45] as [number, number], // 45% to cover drawer + margin
+        paddingBottomRight: [50, getMobileDrawerBottomPaddingPx()] as [number, number],
       }
     : {
         ...options,
@@ -187,27 +240,6 @@ export function mobileAwareFlyToBounds(
   // Use the already-normalized targetBounds for consistency
   map.value.flyToBounds(targetBounds, flyOptions);
   return false;
-}
-
-/**
- * Fly to a country using its bounding box from the bundled JSON.
- * @param countryCode - ISO country code (must be a key of country_bboxes.json)
- * @param duration - Animation duration in seconds (default: 1.5)
- */
-export function flyToCountry(countryCode: keyof typeof countryBboxes, duration = 1.5) {
-  const bbox = countryBboxes[countryCode];
-
-  // bbox format is [minLng, minLat, maxLng, maxLat]
-  mobileAwareFlyToBounds(
-    [
-      [bbox[1]!, bbox[0]!], // southwest corner [lat, lng]
-      [bbox[3]!, bbox[2]!], // northeast corner [lat, lng]
-    ],
-    {
-      duration,
-      padding: [30, 30] as [number, number],
-    },
-  );
 }
 
 /**

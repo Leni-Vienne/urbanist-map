@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "geometry_size_m" double precision;

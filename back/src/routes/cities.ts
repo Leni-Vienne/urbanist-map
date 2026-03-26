@@ -1,14 +1,16 @@
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { publicProcedure, router, TRPCError } from "../trpc";
-import { cities, projects, overlays, changeRequests } from "../db/schema";
+import { cities, projects } from "../db/schema";
 import { sql, eq, isNotNull, and } from "drizzle-orm";
 import { db } from "../database";
-import type { OverlayData } from "@shared/types";
 import {
   getUserOverlayChangeRequestIds,
   buildProjectVisibilityCondition,
   buildOverlayVisibilityCondition,
   buildProjectHasVisibleContentCondition,
+  fetchOverlayChangeRequests,
+  transformOverlayDataWithChangeRequests,
+  fetchOverlaysWithLocation,
 } from "../db/helpers";
 
 const getCitiesNearLocationSchema = z.object({
@@ -64,6 +66,27 @@ export const citiesRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch cities near location",
+        });
+      }
+    }),
+
+  // Get the country code of the nearest city to given coordinates
+  getNearestCountryCode: publicProcedure
+    .input(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
+    .query(async ({ input }) => {
+      try {
+        const { lat, lng } = input;
+        const result = await db
+          .select({ countryCode: cities.countryCode })
+          .from(cities)
+          .orderBy(sql`${cities.coordinates} <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)`)
+          .limit(1);
+        return result[0]?.countryCode ?? null;
+      } catch (error) {
+        console.error("Error fetching nearest country code:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch nearest country code",
         });
       }
     }),
@@ -207,98 +230,10 @@ export const citiesRouter = router({
           buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
         ];
 
-        // Single optimized query that extracts all data including corners as JSON
-        // Uses Drizzle ORM for main data to preserve Date objects through superjson
-        const overlaysData = await db
-          .select({
-            // Select overlay fields individually to avoid geometry column issues
-            overlayId: overlays.id,
-            overlayVersion: overlays.version,
-            overlayFilename: overlays.filename,
-            overlayCaption: overlays.caption,
-            overlayStatus: overlays.status,
-            overlayProjectId: overlays.projectId,
-            overlayAuthorId: overlays.authorId,
-            overlayReplacesOverlayId: overlays.replacesOverlayId,
-            overlayReplacedByOverlayId: overlays.replacedByOverlayId,
-            overlayCreatedAt: overlays.createdAt,
-            overlayUpdatedAt: overlays.updatedAt,
-            // Extract centroid and corners directly in the query
-            centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
-            centroidLng: sql<number>`ST_X(${overlays.centroid})`,
-            // Extract corners as JSON array in a single query
-            corners: sql<{ lat: number; lng: number }[]>`(
-                SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-                FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-                WHERE path[2] <= 4
-              )`,
-            // Select project fields (all are safe - no geometry columns)
-            project: projects,
-            // Select city fields individually, extract coordinates from geometry
-            cityId: cities.id,
-            city: cities,
-          })
-          .from(overlays)
-          .innerJoin(projects, eq(projects.id, overlays.projectId))
-          .innerJoin(cities, eq(cities.id, projects.cityId))
-          .where(and(...whereConditions))
-          .orderBy(overlays.createdAt);
+        const overlaysData = await fetchOverlaysWithLocation(whereConditions);
 
-        // Fetch change requests based on mode
-        let changeRequestsData: {
-          id: string;
-          entityType: string;
-          entityId: string;
-          fieldName: string;
-          newValue: unknown;
-          requestedBy: string | null;
-        }[] = [];
-
-        if (ctx.user) {
-          if (mode === "edit") {
-            // In edit mode, fetch only user's own pending change requests
-            changeRequestsData = await db
-              .select({
-                id: changeRequests.id,
-                entityType: changeRequests.entityType,
-                entityId: changeRequests.entityId,
-                fieldName: changeRequests.fieldName,
-                newValue: changeRequests.newValue,
-                requestedBy: changeRequests.requestedBy,
-              })
-              .from(changeRequests)
-              .where(
-                and(
-                  eq(changeRequests.requestedBy, ctx.user.id),
-                  eq(changeRequests.entityType, "overlay"),
-                  eq(changeRequests.status, "pending"),
-                ),
-              );
-          } else if (mode === "moderation") {
-            // In moderation mode, fetch ALL pending change requests to show suggested positions
-            changeRequestsData = await db
-              .select({
-                id: changeRequests.id,
-                entityType: changeRequests.entityType,
-                entityId: changeRequests.entityId,
-                fieldName: changeRequests.fieldName,
-                newValue: changeRequests.newValue,
-                requestedBy: changeRequests.requestedBy,
-              })
-              .from(changeRequests)
-              .where(
-                and(eq(changeRequests.entityType, "overlay"), eq(changeRequests.status, "pending")),
-              );
-          }
-        }
-
-        // Group change requests by overlay ID for easy lookup
-        const changeRequestsByOverlay = new Map<string, typeof changeRequestsData>();
-        for (const cr of changeRequestsData) {
-          const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
-          existing.push(cr);
-          changeRequestsByOverlay.set(cr.entityId, existing);
-        }
+        // Fetch and group change requests by overlay ID
+        const changeRequestsByOverlay = await fetchOverlayChangeRequests(ctx.user, mode);
 
         // In moderation mode, count change requests per overlay
         const allChangeRequestCounts = new Map<string, number>();
@@ -308,59 +243,13 @@ export const citiesRouter = router({
           }
         }
 
-        const result: OverlayData[] = overlaysData.map((row) => {
-          const approvedCorners = row.corners;
-          const centroid = { lat: row.centroidLat, lng: row.centroidLng };
-
-          // Get change requests for this overlay
-          const overlayChangeRequests = changeRequestsByOverlay.get(row.overlayId) ?? [];
-
-          // Check for pending corners change request
-          const cornersChangeRequest = overlayChangeRequests.find(
-            (cr) => cr.fieldName === "corners",
-          );
-          const hasPendingCorners = Boolean(cornersChangeRequest);
-          const suggestedCorners =
-            hasPendingCorners && cornersChangeRequest?.newValue
-              ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
-              : null;
-
-          // ALWAYS use consistent field names - no more flipping!
-          // - corners = ALWAYS approved position (database value)
-          // - suggestedCorners = pending changes if they exist
-          // Frontend decides what to display based on mode + user state
-
-          // Determine if user has their own pending changes
-          const userHasPendingChanges =
-            mode === "edit" && overlayChangeRequests.some((cr) => cr.requestedBy === ctx.user?.id);
-
-          return {
-            id: row.overlayId,
-            version: row.overlayVersion,
-            filename: row.overlayFilename,
-            caption: row.overlayCaption,
-            status: row.overlayStatus,
-            projectId: row.overlayProjectId,
-            authorId: row.overlayAuthorId,
-            replacesOverlayId: row.overlayReplacesOverlayId,
-            replacedByOverlayId: row.overlayReplacedByOverlayId ?? null,
-            createdAt: row.overlayCreatedAt,
-            updatedAt: row.overlayUpdatedAt,
-            centroid,
-            corners: approvedCorners, // ALWAYS approved position from database
-            suggestedCorners: suggestedCorners ?? undefined, // Suggested position if pending changes exist
-            distance: 0,
-            project: {
-              ...row.project,
-              city: row.city,
-            },
-            // Flag for user's own pending changes (edit mode) or any pending changes (moderation mode)
-            hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
-            // In moderation mode, add count of ALL pending change requests for this overlay
-            pendingChangeRequestsCount:
-              mode === "moderation" ? (allChangeRequestCounts.get(row.overlayId) ?? 0) : undefined,
-          };
-        });
+        const result = transformOverlayDataWithChangeRequests(
+          overlaysData,
+          changeRequestsByOverlay,
+          allChangeRequestCounts,
+          mode,
+          ctx.user?.id,
+        );
 
         return result;
       } catch (error) {

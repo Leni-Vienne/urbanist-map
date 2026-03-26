@@ -61,7 +61,7 @@
           >
             <div class="flex justify-between items-center mb-2">
               <strong>{{ $t(`fields.${change.fieldName}`) }}</strong>
-              <Tag severity="warning" :value="$t('status.pending')" size="small" />
+              <Tag severity="warning" :value="$t('approvalStatus.pending')" size="small" />
             </div>
             <div class="flex items-center gap-3 mt-2 p-2 bg-content-background rounded-md">
               <span class="px-2 py-1 bg-content-hover-background rounded text-sm font-mono">{{

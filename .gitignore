@@ -64,15 +64,5 @@ dist-ssr
 *.local
 .env
 
-/cypress/videos/
-/cypress/screenshots/
-
-# Editor directories and files
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-*.tsbuildinfo
+*.osm.pbf
+*.geojson

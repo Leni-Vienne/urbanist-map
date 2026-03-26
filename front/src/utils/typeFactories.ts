@@ -9,67 +9,6 @@ import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 export type CityProject = RouterOutput["project"]["getCityProjects"][number];
 export type StandaloneProject = CityProject | Project;
 
-/**
- * Helper to safely convert StandaloneProject to Partial<Project>
- * Maps fields common to both CityProject (backend) and Project (frontend)
- */
-export function toProjectPartial(project: StandaloneProject): Partial<Project> {
-  const partial: Partial<Project> = {
-    id: project.id,
-    name: project.name,
-    description: project.description,
-    status: project.status, // Both types share ApprovalStatus
-    ownerId: project.ownerId,
-    cityId: project.cityId,
-
-    // Map backend specific date naming if needed, or common fields
-    updatedAt: project.updatedAt,
-    createdAt: project.createdAt,
-
-    // Map spatial fields which are present in DBProject and Project
-    lat: project.lat,
-    lng: project.lng,
-
-    // safe access for optional/nullable fields
-    sourceUrl: project.sourceUrl ?? null,
-    proposalDate: project.proposalDate ?? null,
-    proposalDatePrecision: project.proposalDatePrecision ?? null,
-    startDate: project.startDate ?? null,
-    startDatePrecision: project.startDatePrecision ?? null,
-    endDate: project.endDate ?? null,
-    endDatePrecision: project.endDatePrecision ?? null,
-  };
-
-  // Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
-  if ("centerCoordinate" in project) {
-    partial.centerCoordinate = project.centerCoordinate;
-  }
-
-  if ("version" in project) {
-    partial.version = project.version;
-  }
-
-  // Check for optional fields that might not exist on all project types (e.g. CityProject vs Project)
-  if ("rejectionReason" in project) {
-    partial.rejectionReason = project.rejectionReason;
-  }
-
-  // Check if 'city' object is present (it is in Project, but dependent on relation in CityProject)
-  if ("city" in project) {
-    partial.city = project.city;
-  }
-
-  if ("geometry" in project) {
-    partial.geometry = (project as { geometry: GeoJSON.GeometryCollection | null }).geometry;
-  }
-
-  if ("tags" in project) {
-    partial.tags = project.tags ?? [];
-  }
-
-  return partial;
-}
-
 // Accepts any subset of Project fields, with null allowed for any field.
 // All coercion to non-null defaults happens inside the factory body.
 type ProjectInput = { [K in keyof Project]?: Project[K] | null };
@@ -95,9 +34,18 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
-    cityId: data.cityId ?? 0,
+    cityId: data.cityId ?? null, // Now nullable for imported projects
     status: data.status ?? null,
     rejectionReason: data.rejectionReason ?? null, // Moderator-selected rejection reason
+    // Timeline status - project lifecycle stage
+    timelineStatus: data.timelineStatus ?? "proposed",
+    // Import source tracking
+    importSourceId: data.importSourceId ?? null,
+    externalId: data.externalId ?? null,
+    externalProperties: data.externalProperties ?? null,
+    externalLastModified: data.externalLastModified ?? null,
+    lastImportedAt: data.lastImportedAt ?? null,
+    importSource: data.importSource ?? null,
     // Center coordinate fields - all projects now have center coordinates
     lat: data.lat ?? null,
     lng: data.lng ?? null,
@@ -115,7 +63,10 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     },
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
+    geometrySizeM: data.geometrySizeM ?? null,
     tags: data.tags ?? [],
+    countryCode: data.countryCode ?? "",
+    detachedAt: data.detachedAt ?? null,
   };
 }
 
@@ -134,16 +85,18 @@ export function createProjectFromUserContribution(contribution: UserContribution
     lat: contribution.lat,
     lng: contribution.lng,
     cityId: contribution.cityId,
-    city: {
-      id: contribution.cityId,
-      name: contribution.cityName ?? contribution.city.name,
-      nameLocal: contribution.city.nameLocal ?? null,
-      countryCode: contribution.countryCode ?? contribution.city.countryCode ?? "XX",
-      coordinates: { x: contribution.lng ?? 0, y: contribution.lat ?? 0 },
-      approvedProjectCount: 0,
-      createdAt: contribution.city.createdAt,
-      updatedAt: contribution.city.updatedAt,
-    },
+    city: contribution.cityId
+      ? {
+          id: contribution.cityId,
+          name: contribution.cityName ?? contribution.city?.name ?? "",
+          nameLocal: contribution.city?.nameLocal ?? null,
+          countryCode: contribution.countryCode ?? contribution.city?.countryCode ?? "XX",
+          coordinates: { x: contribution.lng ?? 0, y: contribution.lat ?? 0 },
+          approvedProjectCount: 0,
+          createdAt: contribution.city?.createdAt ?? new Date(),
+          updatedAt: contribution.city?.updatedAt ?? new Date(),
+        }
+      : undefined,
     status: contribution.status,
     rejectionReason: null,
     overlayIds: contribution.overlays.map((overlay) => overlay.id),

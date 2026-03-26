@@ -56,6 +56,7 @@ import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } fr
 import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/core/map";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
+import { initVectorTileSync } from "@/services/map/vectorTileSync";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
 import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 
@@ -63,7 +64,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // Load countries for breadcrumbs (no marker rendering)
 import { loadCountriesWithProjects } from "@/services/map/countryData";
-import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
+import { initializeCitiesData } from "@/services/map/cityMarkers";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -103,10 +104,9 @@ watch(
   },
 );
 
-// Filter overlays - trigger re-render of loaded cities with new filter state
+// Filter overlays - force viewport re-render with new filter state
 async function filterOverlaysByCompletionStatus() {
-  // Force re-render of all loaded cities which will apply the new filter state
-  await viewportManager.reRenderLoadedCities();
+  await viewportManager.refreshViewport(true);
 }
 
 onMounted(async () => {
@@ -123,14 +123,13 @@ onUnmounted(() => {
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
-    addTileLayer(); // Initialize tile layers after map is created
     initializeCameraBounds(); // Initialize camera bounds tracking
 
     // Load countries first (needed for breadcrumbs in Current Location panel)
     await loadCountriesWithProjects();
 
-    // Load all city markers globally
-    const cities = await loadAllCityMarkersGlobally();
+    // Load all city data for panels (no Leaflet markers — cluster source handles map display)
+    const cities = await initializeCitiesData();
 
     // Populate cities lookup map in mapStore for panel auto-switch
     mapStore.citiesLookup.clear();
@@ -149,7 +148,16 @@ async function initializeMapAndOverlays() {
     // Ensure map dimensions are calculated before checking bounds
     await nextTick();
     if (map.value !== null) {
-      map.value.invalidateSize();
+      // Pass false to disable animation during the initial size/bounds correction.
+      // This prevents a bounds correction from triggering a slow pan, which causes
+      // MapLibre to fetch tiles twice (once for the original center, once for the corrected).
+      map.value.invalidateSize(false);
+
+      // Initialize tile layers after map is created and dimensions are correct
+      // This prevents maplibre from double-fetching tiles due to resize immediately after load
+      addTileLayer();
+      initVectorTileSync(); // Start idle-driven overlay sync for view mode
+
       // Small delay to ensure Leaflet updates bounds after invalidateSize
       setTimeout(() => {
         viewportManager.refreshViewport();

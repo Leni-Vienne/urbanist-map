@@ -13,6 +13,7 @@ import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
 import {
   selectOverlay,
@@ -37,6 +38,8 @@ import {
   fetchCityStandaloneProjectsOrCache,
   fetchCityOverlaysOrCache,
 } from "@/services/navigation/cityDataLoader";
+import { trpc } from "@/client";
+import { createProjectObject } from "@/utils/typeFactories";
 // useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
@@ -301,7 +304,7 @@ export function updateStandaloneProjectMarkerTooltip(
 /**
  * Update standalone project marker opacities based on selected marker
  */
-export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
+function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
   if (!standaloneProjectsLayer) return;
 
   selectedStandaloneProjectMarker = selectedMarker;
@@ -335,19 +338,22 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
 
   uiStore.openProjectInfoPopup(project.id, project);
 
-  if (mapStore.selectedCity?.id !== project.city.id) {
-    mapStore.setSelectedCity({
-      id: project.city.id,
-      name: project.city.name,
-      nameLocal: project.city.nameLocal,
-      countryCode: project.city.countryCode,
-    });
-  }
+  // Only handle city-related logic if project has an associated city
+  if (project.cityId && project.city) {
+    if (mapStore.selectedCity?.id !== project.city.id) {
+      mapStore.setSelectedCity({
+        id: project.city.id,
+        name: project.city.name,
+        nameLocal: project.city.nameLocal,
+        countryCode: project.city.countryCode,
+      });
+    }
 
-  Promise.all([
-    fetchCityOverlaysOrCache(project.city.id, mapStore.mode),
-    fetchCityStandaloneProjectsOrCache(project.city.id, mapStore.mode),
-  ]).catch(console.error);
+    Promise.all([
+      fetchCityOverlaysOrCache(project.city.id, mapStore.mode),
+      fetchCityStandaloneProjectsOrCache(project.city.id, mapStore.mode),
+    ]).catch(console.error);
+  }
 
   if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
   requestScrollTo("project", project.id);
@@ -356,6 +362,55 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
   if (overlayStore.idSelectedOverlay) selectOverlay(null);
 
   createProjectInfoTeleportTargetAtLatLng(latlng);
+}
+
+/**
+ * Handle a click on a MapLibre tile layer feature by project ID.
+ * Looks up the project from the store; if found delegates to handleShapeProjectClick.
+ * Used by tile layer click handlers that only have the project ID available.
+ */
+export async function handleProjectClickFromTile(
+  projectId: string,
+  latlng: L.LatLng,
+): Promise<void> {
+  const projectStore = useProjectStore();
+  let project = projectStore.projects[projectId];
+  if (!project) {
+    // Check moderation store for pending projects before hitting the API
+    const moderationStore = useModerationStore();
+    const pendingProject = moderationStore.projects.find((p) => p.id === projectId);
+    if (pendingProject) {
+      project = createProjectObject({
+        ...pendingProject,
+        tags: pendingProject.tags ?? [],
+        overlayIds: [],
+        city: pendingProject.city
+          ? {
+              ...pendingProject.city,
+              createdAt: new Date(0),
+              updatedAt: new Date(0),
+              coordinates: { x: 0, y: 0 },
+              approvedProjectCount: 0,
+            }
+          : null,
+      });
+    } else {
+      try {
+        const result = await trpc.project.getById.query({ id: projectId });
+        if (!result) return;
+        project = createProjectObject({
+          ...result,
+          tags: result.tags ?? [],
+          overlayIds: [],
+        });
+        projectStore.updateProject(projectId, project);
+      } catch (error) {
+        console.error("Failed to fetch project for tile click:", error);
+        return;
+      }
+    }
+  }
+  handleShapeProjectClick(project, latlng);
 }
 
 /**
@@ -455,7 +510,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       const uiStore = useUiStore();
 
       // In moderation mode, clicking a contribution should load the city context
-      if (mapStore.mode === "moderation") {
+      if (mapStore.mode === "moderation" && project.city) {
         if (mapStore.selectedCity?.id !== project.city.id) {
           mapStore.setSelectedCity({
             id: project.city.id,
@@ -480,7 +535,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       const mode = mapStore.mode;
 
       // Set city if not already selected (required for currentLocation panel to show data)
-      if (mapStore.selectedCity?.id !== project.city.id) {
+      if (project.city && mapStore.selectedCity?.id !== project.city.id) {
         mapStore.setSelectedCity({
           id: project.city.id,
           name: project.city.name,
@@ -490,10 +545,12 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       }
 
       // Ensure data is loaded for the panel to work (overlays AND standalone projects)
-      await Promise.all([
-        fetchCityOverlaysOrCache(project.city.id, mode),
-        fetchCityStandaloneProjectsOrCache(project.city.id, mode),
-      ]).catch(console.error);
+      if (project.city) {
+        await Promise.all([
+          fetchCityOverlaysOrCache(project.city.id, mode),
+          fetchCityStandaloneProjectsOrCache(project.city.id, mode),
+        ]).catch(console.error);
+      }
 
       // Force switch to Current Location tab if user is exploring Latest tab
       if (uiStore.activeTab === "latest") {

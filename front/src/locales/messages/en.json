@@ -66,12 +66,14 @@
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
-    "currentLocation": "Current Location",
+    "currentLocation": "On Map",
+    "onMap": "On Map",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
   },
   "project": {
     "create": "Create Project",
+    "unnamed": "Unnamed project",
     "name": "Project Name",
     "location": "Location",
     "noLocation": "No Location",
@@ -81,6 +83,7 @@
     "plannedDescription": "Confirmed project with scheduled dates",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
+    "country": "Country",
     "startDate": "Construction Start Date",
     "endDate": "Construction End Date",
     "sourceUrl": "Source URL",
@@ -88,7 +91,6 @@
     "yearOnly": "Year only",
     "monthYear": "Month & Year",
     "fullDate": "Full date",
-    "alreadyStarted": "Already started, start date unknown",
     "proposed": "Proposed",
     "proposedOn": "Proposed on",
     "proposedIn": "Proposed in",
@@ -97,8 +99,7 @@
     "endsIn": "Ends in",
     "endsOn": "Ends on",
     "locationRequired": "Location is required",
-    "timelineChangedFromProposedToPlanned": "Timeline status changed from Proposed ({proposalDate}) to Planned",
-    "timelineChangedFromPlannedToProposed": "Timeline status changed from Planned ({startDate} to {endDate}) to Proposed",
+    "invalidLocation": "Invalid location selected",
     "clickMapToPlace": "Click on the map to place your project",
     "information": "Project Information",
     "edit": "Edit Project",
@@ -106,31 +107,43 @@
     "submitChangeRequest": "Submit",
     "period": "Period",
     "source": "Source",
+    "lastModified": "Last Modified",
+    "modifyOn": "Modify on {name}",
     "addImages": "Add Images",
-    "tags": "Tags"
+    "tags": "Tags",
+    "additionalDetails": "Additional Details"
   },
   "tags": {
     "tram": "Tram",
+    "light_rail": "Light Rail",
     "rail": "Railway",
     "subway": "Metro",
     "bus": "Bus",
     "bike": "Cycling",
     "road": "Road",
-    "bridge": "Bridge",
     "waterway": "Waterway",
     "park": "Park / Green space",
     "building": "Building"
   },
-  "status": {
+  "approvalStatus": {
     "approved": "Approved",
     "draft": "Draft",
     "pending": "Pending",
     "rejected": "Rejected",
     "replaced": "Replaced",
-    "conflicted": "Conflicted",
+    "conflicted": "Conflicted"
+  },
+  "timelineStatus": {
+    "proposed": "Proposed",
+    "proposedDescription": "Unconfirmed project, dates not yet set",
     "planned": "Planned",
-    "inConstruction": "In Construction",
-    "completed": "Completed"
+    "plannedDescription": "Confirmed project with scheduled dates",
+    "under_construction": "Under Construction",
+    "under_constructionDescription": "Project is currently being built",
+    "completed": "Completed",
+    "completedDescription": "Construction has finished",
+    "canceled": "Canceled",
+    "canceledDescription": "Project has been canceled"
   },
   "help": {
     "filters": {
@@ -146,6 +159,12 @@
     "tryChangingFilters": "Try changing your filter settings.",
     "noProjectsFound": "No projects found.",
     "createFirstProject": "Add your first project!",
+    "selectedProject": "Selected project",
+    "yourContributions": "Your contributions",
+    "role": {
+      "created": "created",
+      "contributed": "contributed"
+    },
     "deleteOverlay": "Delete image",
     "deleteProject": "Delete project",
     "deleteChangeRequest": "Delete change request",
@@ -176,6 +195,17 @@
     "noContributionsInCountry": "No contributions in this country",
     "projectsCount": "{count} project(s)",
     "selectCityToExplore": "Select a city to explore its projects"
+  },
+  "onMap": {
+    "noProjects": "No projects visible",
+    "noProjectsDetail": "Zoom in or pan the map to find projects",
+    "projectsVisible": "{count} project(s) on screen",
+    "sortRecent": "Sort by most recent",
+    "sortName": "Sort by name",
+    "sortSize": "Sort by size",
+    "sortStatus": "Sort by timeline status",
+    "sortReverse": "Reverse order",
+    "moreProjectsHidden": "+{count} more not shown"
   },
   "overlay": {
     "overlayImage": "image",
@@ -222,15 +252,26 @@
     "controls": {
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Filter by Status",
+      "filterBySize": "Filter by Size",
+      "resetSize": "Reset",
+      "filterByStatusAndTags": "Filters",
       "filterByTags": "Filter by Tags",
+      "clearTagFilters": "Clear",
       "untagged": "Untagged",
       "proposed": "Proposed",
       "planned": "Planned",
       "inProgress": "In Progress",
+      "canceled": "Canceled",
       "toggleProposed": "Toggle proposed projects",
       "togglePlanned": "Toggle planned projects",
       "toggleInProgress": "Toggle in progress projects",
-      "toggleCompleted": "Toggle completed projects"
+      "toggleCompleted": "Toggle completed projects",
+      "toggleCanceled": "Toggle canceled projects",
+      "named": "Named",
+      "unnamed": "Unnamed",
+      "filterByLastModified": "Filter by Last Modified",
+      "lastModifiedFrom": "From",
+      "lastModifiedTo": "To"
     }
   },
   "search": {
@@ -789,10 +830,6 @@
   "theme": {
     "light": "Light mode",
     "dark": "Dark mode"
-  },
-  "settings": {
-    "vectorTilesEnable": "Enable vector map",
-    "vectorTilesDisable": "Disable vector map"
   },
   "shapes": {
     "drawShapes": "Draw",

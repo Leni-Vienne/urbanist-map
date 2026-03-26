@@ -74,7 +74,7 @@ export function useModeration() {
     id: string,
     status: "approved" | "rejected",
     itemType: "overlay" | "project",
-    items: { id: string; name?: string; version: number }[],
+    items: { id: string; name?: string | null; version: number }[],
     apiCall: (params: {
       id: string;
       expectedVersion: number;

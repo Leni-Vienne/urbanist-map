@@ -14,7 +14,6 @@
       {{ $t("navigation.latestContributions") }}
     </button>
     <button
-      v-if="mapStore.selectedCity || mapStore.selectedCountryCode"
       :class="[
         'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
         variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
@@ -24,7 +23,7 @@
       ]"
       @click="$emit('update:activeTab', 'currentLocation')"
     >
-      {{ $t("navigation.currentLocation") }}
+      {{ $t("navigation.onMap") }}
     </button>
     <button
       :class="[
@@ -57,10 +56,8 @@
 <script setup lang="ts">
 import type { PanelTab } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 
 const authStore = useAuthStore();
-const mapStore = useMapStore();
 
 defineProps<{
   activeTab: PanelTab;
