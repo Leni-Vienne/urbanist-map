@@ -11,6 +11,7 @@ import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMark
 import {
   getOverlayDrivenHoverId,
   registerOverlayHoverCallback,
+  setOverlayDrivenHover,
 } from "@/services/map/vectorHoverState";
 import { mobileAwareFlyTo, mobileAwarePanTo } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
@@ -602,6 +603,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (!mlMap) return;
 
     mlMap.getCanvas().style.cursor = "";
+    setOverlayDrivenHover(null);
     setVectorHoverFilters(mlMap, null);
     setPointHoverFilter(mlMap, null);
   });

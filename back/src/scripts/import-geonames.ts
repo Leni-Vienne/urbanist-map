@@ -525,30 +525,18 @@ async function updateCityLocalNames(): Promise<void> {
   for (let i = 0; i < entries.length; i += batchSize) {
     const batch = entries.slice(i, i + batchSize);
 
-    // Build a SQL CASE statement for batch update
-    // UPDATE cities SET name_local = CASE
-    //   WHEN id = 123 THEN 'Tokyo'
-    //   WHEN id = 456 THEN 'Moscow'
-    //   ...
-    // END WHERE id IN (123, 456, ...)
-
-    const cityIds = batch.map(([cityId]) => cityId);
-    const caseStatements = batch
-      .map(([cityId, { name }]) => {
-        // Escape single quotes in SQL strings
-        const escapedName = name.replace(/'/g, "''");
-        return `WHEN ${cityId} THEN '${escapedName}'`;
-      })
-      .join(" ");
+    const valuesSql = sql.join(
+      batch.map(([cityId, { name }]) => sql`(${cityId}, ${name})`),
+      sql`, `,
+    );
 
     await db.execute(
-      sql.raw(`
-      UPDATE cities 
-      SET name_local = CASE id 
-        ${caseStatements}
-      END
-      WHERE id IN (${cityIds.join(",")})
-    `),
+      sql`
+      UPDATE cities
+      SET name_local = u.name
+      FROM (VALUES ${valuesSql}) AS u(id, name)
+      WHERE cities.id = u.id::int
+    `,
     );
 
     totalUpdated += batch.length;
@@ -566,22 +554,18 @@ async function updateCityLocalNames(): Promise<void> {
   for (let i = 0; i < englishEntries.length; i += batchSize) {
     const batch = englishEntries.slice(i, i + batchSize);
 
-    const cityIds = batch.map(([cityId]) => cityId);
-    const caseStatements = batch
-      .map(([cityId, name]) => {
-        const escapedName = name.replace(/'/g, "''");
-        return `WHEN ${cityId} THEN '${escapedName}'`;
-      })
-      .join(" ");
+    const valuesSql = sql.join(
+      batch.map(([cityId, name]) => sql`(${cityId}, ${name})`),
+      sql`, `,
+    );
 
     await db.execute(
-      sql.raw(`
-      UPDATE cities 
-      SET name = CASE id 
-        ${caseStatements}
-      END
-      WHERE id IN (${cityIds.join(",")})
-    `),
+      sql`
+      UPDATE cities
+      SET name = u.name
+      FROM (VALUES ${valuesSql}) AS u(id, name)
+      WHERE cities.id = u.id::int
+    `,
     );
 
     totalEnglishUpdated += batch.length;

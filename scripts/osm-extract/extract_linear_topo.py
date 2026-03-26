@@ -451,6 +451,17 @@ class ComponentSet:
                 self._cache[key] = 0
         return self._cache[key]
     
+    def project_status(self, rep_id):
+        key = (rep_id, 'status')
+        if key not in self._cache:
+            construction_count = sum(
+                1 for wid in self.components[rep_id]
+                if get_project_status(self.ways[wid]['tags']) == 'under_construction'
+            )
+            proposed_count = len(self.components[rep_id]) - construction_count
+            self._cache[key] = 'under_construction' if construction_count > proposed_count else 'proposed'
+        return self._cache[key]
+
     def geometry(self, rep_id):
         key = (rep_id, 'geom')
         if key not in self._cache:
@@ -502,9 +513,11 @@ def merge_by_topology(cs):
     for wids in endpoint_to_ways.values():
         wlist = list(wids)
         for i in range(1, len(wlist)):
-            # Only merge same broad type
+            # Only merge same broad type and same project status
             if broad_group(get_transport_type(cs.ways[wlist[0]]['tags'])) == \
-               broad_group(get_transport_type(cs.ways[wlist[i]]['tags'])):
+               broad_group(get_transport_type(cs.ways[wlist[i]]['tags'])) and \
+               get_project_status(cs.ways[wlist[0]]['tags']) == \
+               get_project_status(cs.ways[wlist[i]]['tags']):
                 uf.union(wlist[0], wlist[i])
 
     cs.set_components({root: wids for root, wids in uf.groups().items()})
@@ -532,6 +545,7 @@ def merge_by_ref(cs, max_distance_km=1.0, max_distance_wikidata_km=10.0):
         for i, ri in enumerate(rep_ids):
             for rj in rep_ids[i+1:]:
                 if cs.broad_type(ri) == cs.broad_type(rj) and \
+                   cs.project_status(ri) == cs.project_status(rj) and \
                    bbox_distance_km(cs.bbox(ri), cs.bbox(rj)) <= threshold:
                     uf.union(ri, rj)
 
@@ -560,30 +574,30 @@ def absorb_anonymous(cs, max_distance_km=1.0):
     if not named or not anonymous:
         return before, len(cs.components)
 
-    # Group named components by transport_type and build one STRtree per type.
+    # Group named components by (transport_type, project_status) and build one STRtree per group.
     pad_lon = max_distance_km / 85
     pad_lat = max_distance_km / 111
-    named_by_type = defaultdict(list)
+    named_by_type_status = defaultdict(list)
     for nid in named:
-        named_by_type[cs.transport_type(nid)].append(nid)
+        named_by_type_status[(cs.transport_type(nid), cs.project_status(nid))].append(nid)
 
-    trees = {}   # transport_type -> STRtree
-    idx_maps = {}  # transport_type -> list of rep_ids (index matches tree)
-    for ttype, nids in named_by_type.items():
+    trees = {}   # (transport_type, project_status) -> STRtree
+    idx_maps = {}  # (transport_type, project_status) -> list of rep_ids (index matches tree)
+    for key, nids in named_by_type_status.items():
         geoms = [_bbox_to_box(cs.bbox(nid)) for nid in nids]
-        trees[ttype] = STRtree(geoms)
-        idx_maps[ttype] = nids
+        trees[key] = STRtree(geoms)
+        idx_maps[key] = nids
 
     absorptions = {}
     for uid in anonymous:
-        uid_type = cs.transport_type(uid)
-        if uid_type not in trees:
+        uid_key = (cs.transport_type(uid), cs.project_status(uid))
+        if uid_key not in trees:
             continue
         query_box = _expand_box(cs.bbox(uid), pad_lon, pad_lat)
-        candidates = trees[uid_type].query(query_box)
+        candidates = trees[uid_key].query(query_box)
         best_target, best_dist = None, float('inf')
         for idx in candidates:
-            nid = idx_maps[uid_type][idx]
+            nid = idx_maps[uid_key][idx]
             d = bbox_distance_km(cs.bbox(uid), cs.bbox(nid))
             if d < best_dist:
                 best_dist, best_target = d, nid
@@ -609,10 +623,10 @@ def cluster_anonymous(cs, max_distance_km=0.2):
     pad_lon = max_distance_km / 85
     pad_lat = max_distance_km / 111
 
-    # Group anonymous components by broad_type and build one STRtree per group.
+    # Group anonymous components by (broad_type, project_status) and build one STRtree per group.
     anon_by_btype = defaultdict(list)
     for rid in anonymous:
-        anon_by_btype[cs.broad_type(rid)].append(rid)
+        anon_by_btype[(cs.broad_type(rid), cs.project_status(rid))].append(rid)
 
     uf = UnionFind(anonymous)
 
@@ -677,7 +691,8 @@ def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
             if geom2 is None:
                 continue
             try:
-                if geom1.distance(geom2) <= max_dist_deg:
+                if geom1.distance(geom2) <= max_dist_deg and \
+                   cs.project_status(ri) == cs.project_status(rj):
                     uf.union(ri, rj)
             except:
                 continue
@@ -1041,7 +1056,7 @@ def main():
     print(f"\n[linear] Writing {OUTPUT_FILE}...")
     t = time.time()
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-        json.dump({'type': 'FeatureCollection', 'features': features}, f, ensure_ascii=False, indent=2)
+        json.dump({'type': 'FeatureCollection', 'features': features}, f, ensure_ascii=False, separators=(',', ':'))
     print(f"[linear] Write done in {_fmt(time.time() - t)}")
 
     print("\n[linear] Sample features:")

@@ -23,7 +23,7 @@ const GEOJSON_PATHS = [
   path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_areal.geojson"),
 ];
 
-const BATCH_SIZE = 50;
+const UPSERT_BATCH_SIZE = 200;
 
 // Import source configuration
 const IMPORT_SOURCE_SLUG = "osm_world";
@@ -191,19 +191,21 @@ async function resolveCountryCodes(
     const chunkLats = lats.slice(offset, offset + KNN_CHUNK_SIZE);
     const chunkLngs = lngs.slice(offset, offset + KNN_CHUNK_SIZE);
 
-    const latLiteral = `ARRAY[${chunkLats.join(",")}]::float8[]`;
-    const lngLiteral = `ARRAY[${chunkLngs.join(",")}]::float8[]`;
+    const pointsSql = sql.join(
+      chunkLats.map((lat, i) => sql`(${lat}, ${chunkLngs[i]})`),
+      sql`, `,
+    );
     const rows = (await db.execute(
-      sql.raw(`
+      sql`
       SELECT c.country_code
-      FROM unnest(${latLiteral}, ${lngLiteral}) AS input(lat, lng)
+      FROM (VALUES ${pointsSql}) AS input(lat, lng)
       JOIN LATERAL (
         SELECT country_code
         FROM cities
-        ORDER BY coordinates <-> ST_SetSRID(ST_MakePoint(input.lng, input.lat), 4326)
+        ORDER BY coordinates <-> ST_SetSRID(ST_MakePoint(input.lng::float8, input.lat::float8), 4326)
         LIMIT 1
       ) c ON true
-    `),
+    `,
     )) as Array<{ country_code: string | null }>;
 
     for (let i = 0; i < rows.length; i++) {
@@ -309,180 +311,175 @@ async function main() {
     const countryCodes = await resolveCountryCodes(featureCentroids);
     console.log(`Country code resolution complete.`);
 
-    // Process features individually to handle conflicts and errors gracefully
-    for (let i = 0; i < geojson.features.length; i += BATCH_SIZE) {
-      const batch = geojson.features.slice(i, i + BATCH_SIZE);
-
-      for (let batchOffset = 0; batchOffset < batch.length; batchOffset++) {
-        const feature = batch[batchOffset]!;
-        const featureIndex = i + batchOffset;
-        try {
-          const props = (feature.properties ?? {}) as Record<string, unknown>;
-
-          const name = (props["display_name"] as string | undefined)?.trim() || null;
-          const countryCode = countryCodes[featureIndex] ?? null;
-          if (!countryCode || !validCountryCodes.has(countryCode)) {
-            skipped++;
-            continue;
+    // Flush a batch of rows to the database via a single multi-row upsert.
+    // Falls back to individual inserts if the batch fails (e.g. bad geometry on one row).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
+      if (batch.length === 0) return { ok: 0, fail: 0 };
+      const conflictSet = {
+        name: sql`EXCLUDED.name`,
+        cityId: sql`EXCLUDED.city_id`,
+        countryCode: sql`EXCLUDED.country_code`,
+        timelineStatus: sql`EXCLUDED.timeline_status`,
+        externalProperties: sql`EXCLUDED.external_properties`,
+        externalLastModified: sql`EXCLUDED.external_last_modified`,
+        lastImportedAt: sql`EXCLUDED.last_imported_at`,
+        tags: sql`EXCLUDED.tags`,
+        sourceUrl: sql`EXCLUDED.source_url`,
+        startDate: sql`EXCLUDED.start_date`,
+        startDatePrecision: sql`EXCLUDED.start_date_precision`,
+        endDate: sql`EXCLUDED.end_date`,
+        endDatePrecision: sql`EXCLUDED.end_date_precision`,
+        lat: sql`EXCLUDED.lat`,
+        lng: sql`EXCLUDED.lng`,
+        geometry: sql`EXCLUDED.geometry`,
+        centerCoordinate: sql`EXCLUDED.center_coordinate`,
+      };
+      try {
+        await db
+          .insert(projects)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [projects.importSourceId, projects.externalId],
+            set: conflictSet,
+          });
+        return { ok: batch.length, fail: 0 };
+      } catch {
+        // Batch failed — fall back to individual inserts so one bad row doesn't discard the rest
+        let ok = 0;
+        let fail = 0;
+        for (const row of batch) {
+          try {
+            await db
+              .insert(projects)
+              .values(row)
+              .onConflictDoUpdate({
+                target: [projects.importSourceId, projects.externalId],
+                set: conflictSet,
+              });
+            ok++;
+          } catch (rowErr) {
+            console.error(`Failed to insert/update row:`, rowErr);
+            fail++;
           }
-
-          const tags = extractTags(props);
-
-          // Map OSM project_status to our timeline status
-          const timelineStatus = mapTimelineStatus(props["project_status"] as string | undefined);
-
-          // Extract externalId from feature.id (e.g., "relation/123456" or "way/789")
-          const externalId = feature.id ? String(feature.id) : null;
-
-          // Store all OSM properties as JSON for future use
-          const externalProperties = props;
-
-          // Extract OSM last modified timestamp
-          let osmLastModified: Date | null = null;
-          if (props["osm_last_modified"]) {
-            const parsed = new Date(String(props["osm_last_modified"]));
-            if (!isNaN(parsed.getTime())) {
-              osmLastModified = parsed;
-            }
-          }
-
-          // Source URL: prefer source:url, then website
-          const sourceUrl =
-            (props["source:url"] as string | undefined) ||
-            (props["website"] as string | undefined) ||
-            null;
-
-          // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
-          const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
-          const startParsed =
-            parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
-
-          const startDate = startParsed?.date ?? null;
-          const startDatePrecision = startParsed?.precision ?? null;
-
-          const endDate = endParsed?.date ?? null;
-          const endDatePrecision = endParsed?.precision ?? null;
-
-          // Centroid for lat/lng and center_coordinate
-          const geom = feature.geometry as GeoJSON.Geometry | null;
-          const center = geom ? centroid(geom) : null;
-          const geometry: GeoJSON.GeometryCollection | null = geom
-            ? { type: "GeometryCollection", geometries: [geom] }
-            : null;
-
-          const geometryJson = geometry ? JSON.stringify(geometry) : null;
-
-          const row = {
-            name,
-            cityId: null,
-            countryCode,
-            status: "approved" as const,
-            timelineStatus,
-            importSourceId: importSource.id,
-            externalId,
-            externalProperties,
-            externalLastModified: osmLastModified,
-            lastImportedAt: syncStartTime,
-            tags: tags.length > 0 ? tags : null,
-            sourceUrl,
-            startDate,
-            startDatePrecision,
-            endDate,
-            endDatePrecision,
-            lat: center?.lat ?? null,
-            lng: center?.lng ?? null,
-            geometry: geometryJson
-              ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${geometryJson}), 4326)`
-              : null,
-            centerCoordinate: center
-              ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
-              : null,
-            // Spatial size in meters, used to:
-            //   - decide zoom level when flying to a project
-            //   - progressively hide center-point markers when the shape is large enough
-            //   - drive the size filter slider in the UI
-            //
-            // The cap is GREATEST(bbox_width, bbox_height) -- the longest side of the bounding box.
-            // Using the bbox diagonal instead would inflate areas by up to sqrt(2) (~41%) for square shapes.
-            //
-            // GREATEST(ST_Length, ST_Perimeter) handles both geometry families:
-            //   - LineString/MultiLineString: ST_Length > 0, ST_Perimeter = 0
-            //   - Polygon/MultiPolygon:       ST_Length = 0, ST_Perimeter > 0
-            //
-            // Examples (lines):
-            //   - A20 motorway (170km route, ~200km bbox diagonal): LEAST(170km, 200km) = 170km  correct
-            //   - B96a (675m total, 7200m bbox diagonal):           LEAST(675m,  7200m) = 675m   correct
-            // Examples (polygons):
-            //   - 100x100m parking lot (400m perimeter):            LEAST(400m, 100m)   = 100m   correct
-            //   - Circular park r=500m (3141m perimeter):           LEAST(3141m, 1000m) = 1000m  correct (diameter)
-            //
-            // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
-            // The geometry JSON is parsed once via a scalar subquery to avoid redundant work.
-            geometrySizeM: geometryJson
-              ? sql`(
-                  SELECT CASE
-                    WHEN ST_Area(g) > 0 THEN
-                      LEAST(
-                        ST_Perimeter(g::geography),
-                        GREATEST(
-                          ST_Distance(
-                            ST_MakePoint(ST_XMin(e), ST_YMin(e))::geography,
-                            ST_MakePoint(ST_XMax(e), ST_YMin(e))::geography
-                          ),
-                          ST_Distance(
-                            ST_MakePoint(ST_XMin(e), ST_YMin(e))::geography,
-                            ST_MakePoint(ST_XMin(e), ST_YMax(e))::geography
-                          )
-                        )
-                      )
-                    ELSE
-                      LEAST(
-                        ST_Length(g::geography),
-                        ST_Length(ST_BoundingDiagonal(e)::geography)
-                      )
-                  END
-                  FROM (VALUES (ST_GeomFromGeoJSON(${geometryJson}))) t(g),
-                  LATERAL (SELECT ST_Envelope(t.g)) l(e)
-                )`
-              : null,
-          };
-
-          await db
-            .insert(projects)
-            .values(row)
-            .onConflictDoUpdate({
-              target: [projects.importSourceId, projects.externalId],
-              set: {
-                name: row.name,
-                cityId: row.cityId,
-                countryCode: row.countryCode,
-                timelineStatus: row.timelineStatus,
-                externalProperties: row.externalProperties,
-                externalLastModified: row.externalLastModified,
-                lastImportedAt: row.lastImportedAt,
-                tags: row.tags,
-                sourceUrl: row.sourceUrl,
-                startDate: row.startDate,
-                startDatePrecision: row.startDatePrecision,
-                endDate: row.endDate,
-                endDatePrecision: row.endDatePrecision,
-                lat: row.lat,
-                lng: row.lng,
-                geometry: row.geometry,
-                centerCoordinate: row.centerCoordinate,
-                geometrySizeM: row.geometrySizeM,
-              },
-            });
-          inserted++;
-        } catch (rowErr) {
-          console.error(`Failed to insert/update row:`, rowErr);
-          skipped++;
         }
+        return { ok, fail };
+      }
+    }
+
+    // Build rows and flush in batches.
+    // geometrySizeM is intentionally omitted here — it is computed in a single bulk UPDATE after all
+    // files are processed, which avoids parsing geometryJson twice per row and lets PostGIS pipeline
+    // the geography computations across all rows in one pass.
+    // any[] because SQL<unknown> expressions for geometry/centerCoordinate are valid at runtime
+    // but not assignable to the strict $inferInsert column types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pendingRows: any[] = [];
+
+    for (let i = 0; i < geojson.features.length; i++) {
+      const feature = geojson.features[i]!;
+      try {
+        const props = (feature.properties ?? {}) as Record<string, unknown>;
+
+        const name = (props["display_name"] as string | undefined)?.trim() || null;
+        const countryCode = countryCodes[i] ?? null;
+        if (!countryCode || !validCountryCodes.has(countryCode)) {
+          skipped++;
+          continue;
+        }
+
+        const tags = extractTags(props);
+
+        // Map OSM project_status to our timeline status
+        const timelineStatus = mapTimelineStatus(props["project_status"] as string | undefined);
+
+        // Extract externalId from feature.id (e.g., "relation/123456" or "way/789")
+        const externalId = feature.id ? String(feature.id) : null;
+
+        // Store all OSM properties as JSON for future use
+        const externalProperties = props;
+
+        // Extract OSM last modified timestamp
+        let osmLastModified: Date | null = null;
+        if (props["osm_last_modified"]) {
+          const parsed = new Date(String(props["osm_last_modified"]));
+          if (!isNaN(parsed.getTime())) {
+            osmLastModified = parsed;
+          }
+        }
+
+        // Source URL: prefer source:url, then website
+        const sourceUrl =
+          (props["source:url"] as string | undefined) ||
+          (props["website"] as string | undefined) ||
+          null;
+
+        // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
+        const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
+        const startParsed =
+          parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
+
+        const startDate = startParsed?.date ?? null;
+        const startDatePrecision = startParsed?.precision ?? null;
+
+        const endDate = endParsed?.date ?? null;
+        const endDatePrecision = endParsed?.precision ?? null;
+
+        // Centroid for lat/lng and center_coordinate
+        const geom = feature.geometry as GeoJSON.Geometry | null;
+        const center = geom ? centroid(geom) : null;
+        const geometry: GeoJSON.GeometryCollection | null = geom
+          ? { type: "GeometryCollection", geometries: [geom] }
+          : null;
+
+        const geometryJson = geometry ? JSON.stringify(geometry) : null;
+
+        pendingRows.push({
+          name,
+          cityId: null,
+          countryCode,
+          status: "approved" as const,
+          timelineStatus,
+          importSourceId: importSource.id,
+          externalId,
+          externalProperties,
+          externalLastModified: osmLastModified,
+          lastImportedAt: syncStartTime,
+          tags: tags.length > 0 ? tags : null,
+          sourceUrl,
+          startDate,
+          startDatePrecision,
+          endDate,
+          endDatePrecision,
+          lat: center?.lat ?? null,
+          lng: center?.lng ?? null,
+          geometry: geometryJson
+            ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${geometryJson}), 4326)`
+            : null,
+          centerCoordinate: center
+            ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
+            : null,
+        });
+      } catch (rowErr) {
+        console.error(`Failed to build row for feature ${i}:`, rowErr);
+        skipped++;
       }
 
-      console.log(
-        `Progress: ${Math.min(i + BATCH_SIZE, geojson.features.length)} / ${geojson.features.length}`,
-      );
+      if (pendingRows.length >= UPSERT_BATCH_SIZE) {
+        const { ok, fail } = await flushBatch(pendingRows);
+        inserted += ok;
+        skipped += fail;
+        pendingRows.length = 0;
+        console.log(`Progress: ${i + 1} / ${geojson.features.length}`);
+      }
+    }
+
+    // Flush remaining rows
+    if (pendingRows.length > 0) {
+      const { ok, fail } = await flushBatch(pendingRows);
+      inserted += ok;
+      skipped += fail;
+      pendingRows.length = 0;
     }
 
     globalInserted += inserted;
@@ -493,6 +490,71 @@ async function main() {
   }
 
   console.log(`\nDONE. Total Inserted: ${globalInserted}, Total Skipped: ${globalSkipped}`);
+
+  // Compute geometry_size_m in a single bulk UPDATE across all newly imported/updated rows.
+  // This avoids the double geometryJson parse that would occur inline per row, and lets
+  // PostGIS pipeline geography computations (ST_Length, ST_Perimeter, ST_Distance) across
+  // all rows in one efficient pass.
+  //
+  // Spatial size in meters, used to:
+  //   - decide zoom level when flying to a project
+  //   - progressively hide center-point markers when the shape is large enough
+  //   - drive the size filter slider in the UI
+  //
+  // The cap is GREATEST(bbox_width, bbox_height) -- the longest side of the bounding box.
+  // Using the bbox diagonal instead would inflate areas by up to sqrt(2) (~41%) for square shapes.
+  //
+  // GREATEST(ST_Length, ST_Perimeter) handles both geometry families:
+  //   - LineString/MultiLineString: ST_Length > 0, ST_Perimeter = 0
+  //   - Polygon/MultiPolygon:       ST_Length = 0, ST_Perimeter > 0
+  //
+  // Examples (lines):
+  //   - A20 motorway (170km route, ~200km bbox diagonal): LEAST(170km, 200km) = 170km  correct
+  //   - B96a (675m total, 7200m bbox diagonal):           LEAST(675m,  7200m) = 675m   correct
+  // Examples (polygons):
+  //   - 100x100m parking lot (400m perimeter):            LEAST(400m, 100m)   = 100m   correct
+  //   - Circular park r=500m (3141m perimeter):           LEAST(3141m, 1000m) = 1000m  correct (diameter)
+  //
+  // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
+  console.log(`\nComputing geometry sizes for all imported rows...`);
+  try {
+    await db.execute(sql`
+      UPDATE projects AS p
+      SET geometry_size_m = sizes.size
+      FROM (
+        SELECT id,
+          CASE
+            WHEN ST_Area(geometry) > 0 THEN
+              LEAST(
+                ST_Perimeter(geometry::geography),
+                GREATEST(
+                  ST_Distance(
+                    ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
+                    ST_MakePoint(ST_XMax(env.e), ST_YMin(env.e))::geography
+                  ),
+                  ST_Distance(
+                    ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
+                    ST_MakePoint(ST_XMin(env.e), ST_YMax(env.e))::geography
+                  )
+                )
+              )
+            ELSE
+              LEAST(
+                ST_Length(geometry::geography),
+                ST_Length(ST_BoundingDiagonal(env.e)::geography)
+              )
+          END AS size
+        FROM projects, LATERAL (SELECT ST_Envelope(geometry) AS e) env
+        WHERE import_source_id = ${importSource.id}
+          AND geometry IS NOT NULL
+          AND last_imported_at >= ${syncStartTime}
+      ) AS sizes
+      WHERE p.id = sizes.id
+    `);
+    console.log(`Geometry sizes computed.`);
+  } catch (err) {
+    console.error("Failed to compute geometry sizes (non-fatal):", err);
+  }
 
   // Prune stale projects that were not updated during this sync
   // Projects with overlays are soft-detached (import link severed, geometry cleared, overlays kept).
