@@ -169,7 +169,7 @@ jobs:
 
           # Check if files exist before transfer
           ls -la server.bundle.js docker-compose.yml Dockerfile.bun-sharp alloy-config.alloy
-          ls -la back/src/email
+          ls -la back/src/email back/src/routes
 
           # Transfer files to remote server using password
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
@@ -177,6 +177,7 @@ jobs:
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" -r ./back/src/routes "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
           # Conditionally transfer Caddyfile if reverse proxy deployment is enabled
           if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
@@ -215,10 +216,12 @@ jobs:
             # Remove old alloy config if it's a directory (Docker creates it on failed mount)
             sudo rm -rf ./alloy-config.alloy
             sudo cp /tmp/alloy-config.alloy ./
-            # Copy email templates directory
+            # Copy email templates and routes directories
             sudo mkdir -p ./back/src
             sudo rm -rf ./back/src/email
             sudo cp -r /tmp/email ./back/src/
+            sudo rm -rf ./back/src/routes
+            sudo cp -r /tmp/routes ./back/src/
             
             # Build custom bun-sharp image only if Dockerfile has changed (hash-based detection)
             # Hash computed on runner and injected as literal - /opt/bun-sharp.hash stores last built hash on server
@@ -252,7 +255,7 @@ jobs:
             
             # Clean up temp files
             rm -f /tmp/server.bundle.js /tmp/docker-compose.yml /tmp/Dockerfile.bun-sharp /tmp/alloy-config.alloy /tmp/Caddyfile.host
-            rm -rf /tmp/email
+            rm -rf /tmp/email /tmp/routes
           EOF
 
       - name: Comment on PR with deployment status
