@@ -163,7 +163,13 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
     }
 
     // using the jit=off + work_mem=128MB client
-    const [row] = await tilesSqlClient.file(`${import.meta.dir}/tiles.sql`, [
+    // In Docker prod, import.meta.dir points to /app (bundle location), so use /app/routes
+    // In dev, it points to the source directory where tiles.sql lives
+    const sqlPath =
+      process.env.NODE_ENV === "production"
+        ? "/app/routes/tiles.sql"
+        : `${import.meta.dir}/tiles.sql`;
+    const [row] = await tilesSqlClient.file(sqlPath, [
       z,
       x,
       y,
