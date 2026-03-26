@@ -13,7 +13,7 @@ import {
   type ApprovalStatus,
 } from "./schema";
 import type * as schema from "./schema";
-import type { AppMode } from "@shared/types";
+import type { AppMode, OverlayData } from "@shared/types";
 
 // ============================================================================
 // DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -54,7 +54,7 @@ export async function buildPaginationConditions(
   }
 
   if (filters.countryCode) {
-    conditions.push(eq(cities.countryCode, filters.countryCode));
+    conditions.push(eq(projects.countryCode, filters.countryCode));
   }
 
   // Cursor-based pagination: fetch records after the cursor position
@@ -147,12 +147,12 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
     .select(overlaySelectFields)
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
 // Shared project column selection — add new project fields here only
-const PROJECT_COLUMNS = {
+export const PROJECT_COLUMNS = {
   id: projects.id,
   name: projects.name,
   description: projects.description,
@@ -160,6 +160,12 @@ const PROJECT_COLUMNS = {
   version: projects.version,
   ownerId: projects.ownerId,
   cityId: projects.cityId,
+  timelineStatus: projects.timelineStatus,
+  importSourceId: projects.importSourceId,
+  externalId: projects.externalId,
+  externalProperties: projects.externalProperties,
+  externalLastModified: projects.externalLastModified,
+  lastImportedAt: projects.lastImportedAt,
   lat: projects.lat,
   lng: projects.lng,
   proposalDate: projects.proposalDate,
@@ -172,7 +178,7 @@ const PROJECT_COLUMNS = {
   tags: projects.tags,
   createdAt: projects.createdAt,
   updatedAt: projects.updatedAt,
-  geometry: projects.geometry,
+  geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
   rejectionReason: projects.rejectionReason,
   centerCoordinate: projects.centerCoordinate,
 } as const;
@@ -191,7 +197,7 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
       city: cities,
     })
     .from(projects)
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code));
 }
 
@@ -203,7 +209,7 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
   return database
     .select({
       id: overlays.id,
-      name: sql<string>`coalesce(${overlays.caption}, 'Unnamed')`,
+      caption: overlays.caption,
       filename: overlays.filename,
       status: overlays.status,
       version: overlays.version,
@@ -222,7 +228,7 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code))
     .leftJoin(users, eq(overlays.authorId, users.id));
 }
@@ -243,7 +249,7 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
       countryName: countries.name,
     })
     .from(projects)
-    .innerJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code))
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
@@ -324,11 +330,15 @@ type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
 function toValidCityId(value: unknown): number | null {
   if (!value) return null;
 
-  const stringValue = typeof value === "string" ? value : String(value);
+  if (typeof value === "number") return value;
 
-  if (stringValue === "null" || stringValue === "undefined") return null;
+  if (typeof value === "string") {
+    if (value === "null" || value === "undefined") return null;
+    const parsed = Number(value);
+    return isNaN(parsed) ? null : parsed;
+  }
 
-  return Number(stringValue);
+  return null;
 }
 
 /**
@@ -638,6 +648,196 @@ export function buildProjectHasVisibleContentCondition(
       AND ${overlays.status} = 'approved'
     )
   )`;
+}
+
+// ============================================================================
+// OVERLAY DATA TRANSFORMATION HELPERS
+// ============================================================================
+
+/**
+ * Fetch and group overlay change requests by overlay ID based on mode
+ * Used by viewport and cities routes to get pending change requests
+ *
+ * @param user - The user context from tRPC
+ * @param mode - The map viewing mode
+ * @returns Map of overlay IDs to their change requests
+ */
+export async function fetchOverlayChangeRequests(
+  user: UserContext,
+  mode: AppMode,
+): Promise<
+  Map<
+    string,
+    {
+      id: string;
+      entityType: string;
+      entityId: string;
+      fieldName: string;
+      newValue: unknown;
+      requestedBy: string | null;
+    }[]
+  >
+> {
+  let changeRequestsData: {
+    id: string;
+    entityType: string;
+    entityId: string;
+    fieldName: string;
+    newValue: unknown;
+    requestedBy: string | null;
+  }[] = [];
+
+  if (user) {
+    if (mode === "edit") {
+      changeRequestsData = await db
+        .select({
+          id: changeRequests.id,
+          entityType: changeRequests.entityType,
+          entityId: changeRequests.entityId,
+          fieldName: changeRequests.fieldName,
+          newValue: changeRequests.newValue,
+          requestedBy: changeRequests.requestedBy,
+        })
+        .from(changeRequests)
+        .where(
+          and(
+            eq(changeRequests.requestedBy, user.id),
+            eq(changeRequests.entityType, "overlay"),
+            eq(changeRequests.status, "pending"),
+          ),
+        );
+    } else if (mode === "moderation") {
+      changeRequestsData = await db
+        .select({
+          id: changeRequests.id,
+          entityType: changeRequests.entityType,
+          entityId: changeRequests.entityId,
+          fieldName: changeRequests.fieldName,
+          newValue: changeRequests.newValue,
+          requestedBy: changeRequests.requestedBy,
+        })
+        .from(changeRequests)
+        .where(and(eq(changeRequests.entityType, "overlay"), eq(changeRequests.status, "pending")));
+    }
+  }
+
+  // Group change requests by overlay ID for easy lookup
+  const changeRequestsByOverlay = new Map<string, typeof changeRequestsData>();
+  for (const cr of changeRequestsData) {
+    const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
+    existing.push(cr);
+    changeRequestsByOverlay.set(cr.entityId, existing);
+  }
+
+  return changeRequestsByOverlay;
+}
+
+/**
+ * Transform database overlay rows into OverlayData format with change request metadata
+ * Used by both viewport and cities routes for consistent overlay data structure
+ *
+ * @param overlaysData - Raw overlay data from database query
+ * @param changeRequestsByOverlay - Map of overlay IDs to change requests
+ * @param mode - The map viewing mode
+ * @param userId - The current user's ID (optional)
+ * @returns Array of OverlayData objects ready for frontend
+ */
+export function transformOverlayDataWithChangeRequests(
+  overlaysData: Awaited<ReturnType<typeof fetchOverlaysWithLocation>>,
+  changeRequestsByOverlay: Map<
+    string,
+    {
+      fieldName: string;
+      newValue: unknown;
+      requestedBy: string | null;
+    }[]
+  >,
+  allChangeRequestCounts: Map<string, number>,
+  mode: AppMode,
+  userId?: string,
+): OverlayData[] {
+  return overlaysData.map((row) => {
+    const approvedCorners = row.corners;
+    const centroid = { lat: row.centroidLat, lng: row.centroidLng };
+
+    const overlayChangeRequests = changeRequestsByOverlay.get(row.overlayId) ?? [];
+
+    const cornersChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "corners");
+    const hasPendingCorners = Boolean(cornersChangeRequest);
+    const suggestedCorners =
+      hasPendingCorners && cornersChangeRequest?.newValue
+        ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
+        : null;
+
+    const userHasPendingChanges =
+      mode === "edit" && overlayChangeRequests.some((cr) => cr.requestedBy === userId);
+
+    return {
+      id: row.overlayId,
+      version: row.overlayVersion,
+      filename: row.overlayFilename,
+      caption: row.overlayCaption,
+      status: row.overlayStatus,
+      projectId: row.overlayProjectId,
+      authorId: row.overlayAuthorId,
+      replacesOverlayId: row.overlayReplacesOverlayId,
+      replacedByOverlayId: row.overlayReplacedByOverlayId ?? null,
+      createdAt: row.overlayCreatedAt,
+      updatedAt: row.overlayUpdatedAt,
+      centroid,
+      corners: approvedCorners,
+      suggestedCorners: suggestedCorners ?? undefined,
+      distance: 0,
+      project: {
+        ...row.project,
+        city: row.city,
+      },
+      hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
+      pendingChangeRequestsCount:
+        mode === "moderation" ? (allChangeRequestCounts.get(row.overlayId) ?? 0) : undefined,
+    };
+  });
+}
+
+/**
+ * Fetch overlays with full location hierarchy (overlay -> project -> city)
+ * Extracts PostGIS geometry data and joins with projects and cities
+ *
+ * @param whereConditions - Array of SQL conditions to filter overlays
+ * @returns Array of overlay data with extracted geometry and joined location data
+ */
+export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
+  return await db
+    .select({
+      overlayId: overlays.id,
+      overlayVersion: overlays.version,
+      overlayFilename: overlays.filename,
+      overlayCaption: overlays.caption,
+      overlayStatus: overlays.status,
+      overlayProjectId: overlays.projectId,
+      overlayAuthorId: overlays.authorId,
+      overlayReplacesOverlayId: overlays.replacesOverlayId,
+      overlayReplacedByOverlayId: overlays.replacedByOverlayId,
+      overlayCreatedAt: overlays.createdAt,
+      overlayUpdatedAt: overlays.updatedAt,
+      centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
+      centroidLng: sql<number>`ST_X(${overlays.centroid})`,
+      corners: sql<{ lat: number; lng: number }[]>`(
+        SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
+        FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
+        WHERE path[2] <= 4
+      )`,
+      project: {
+        ...projects,
+        geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
+      },
+      city: cities,
+    })
+    .from(overlays)
+    .innerJoin(projects, eq(projects.id, overlays.projectId))
+    .leftJoin(cities, eq(cities.id, projects.cityId))
+    .where(and(...whereConditions))
+    .orderBy(overlays.createdAt);
 }
 
 // ============================================================================

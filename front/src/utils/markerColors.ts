@@ -1,5 +1,6 @@
 import type { MarkerColor, Project } from "@/types/index";
 import type { ApprovalStatus, AppMode } from "@shared/types";
+import type { TimelineStatus } from "../../../back/src/db/schema";
 
 /**
  * Shared helper for status-based marker colors
@@ -57,26 +58,25 @@ export function getApprovalStatusColor(
 
 /**
  * Shared helper for timeline-based marker colors in view mode
- * Used by both project and overlay marker color functions to eliminate duplication
+ * Maps the timelineStatus field to a specific marker color
  */
-export function getTimelineBasedColor(
-  proposalDate: Date | string | null | undefined,
-  startDate: Date | string | null | undefined,
-  endDate: Date | string | null | undefined,
+export function getTimelineStatusColor(
+  timelineStatus: TimelineStatus | null | undefined,
 ): MarkerColor {
-  // If only proposalDate is set (no start date), it's just a proposal
-  if (proposalDate && !startDate) return "yellow"; // Proposed but not started (nor planned)
-
-  // If no start date but has other dates, consider it not yet scheduled
-  if (!startDate) return "yellow"; // Not yet scheduled
-
-  const now = new Date();
-  const start = new Date(startDate);
-  const end = endDate ? new Date(endDate) : null;
-
-  if (start > now) return "blue"; // Upcoming/planned
-  if (end && end <= now) return "green"; // Completed
-  return "orange"; // Ongoing
+  switch (timelineStatus) {
+    case "proposed":
+      return "yellow";
+    case "planned":
+      return "blue";
+    case "under_construction":
+      return "orange";
+    case "completed":
+      return "green";
+    case "canceled":
+      return "grey";
+    default:
+      return "yellow"; // Default to proposed/yellow if missing
+  }
 }
 
 /**
@@ -101,5 +101,5 @@ export function getProjectMarkerColor(
     return "yellow";
   }
 
-  return getTimelineBasedColor(project.proposalDate, project.startDate, project.endDate);
+  return getTimelineStatusColor(project.timelineStatus);
 }

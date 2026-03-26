@@ -1,5 +1,4 @@
 import { ref, computed, reactive } from "vue";
-import { buildProjectPayload } from "@/services/project/projectMutations";
 import { formDataToProjectFields } from "@/utils/projectFormHelpers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
@@ -7,7 +6,6 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { formatDate } from "@/utils/dateFormat";
 import { createProjectFromUserContribution } from "@/utils/typeFactories";
 import {
   projectSchema,
@@ -21,28 +19,14 @@ import type { ApprovalStatus } from "@shared/types";
 
 // Helper to serialize values for JSONB storage
 // Dates must be converted to ISO strings to prevent double-serialization
-function serializeValue(value: any): any {
+function serializeValue(value: unknown): unknown {
   if (value instanceof Date) {
     return value.toISOString();
   }
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || value === "") {
     return null;
   }
   return value;
-}
-
-// Format value for display in change indicators
-function formatValue(value: any): string {
-  if (value === null || value === undefined || value === "") {
-    return "Not set";
-  }
-  if (value instanceof Date) {
-    return formatDate(value);
-  }
-  if (typeof value === "number") {
-    return value.toFixed(6);
-  }
-  return String(value);
 }
 
 // Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
@@ -161,8 +145,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   // Update city object when cityId changes
-  function getCityObjectForUpdate(currentProject: Project): DBCity {
-    let cityObject: DBCity = currentProject.city;
+  function getCityObjectForUpdate(currentProject: Project): DBCity | null {
+    let cityObject: DBCity | null = currentProject.city;
 
     if (
       formData.cityId &&
@@ -269,7 +253,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       tags: formData.tags,
     };
 
-    await trpc.project.publishProject.mutate(buildProjectPayload(projectData));
+    await trpc.project.publishProject.mutate(projectSchema.parse(projectData));
 
     toast.add({
       severity: "info",
@@ -351,7 +335,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     // Methods
     hasChanged,
     resetChanges,
-    formatValue,
     getFieldClasses,
     showErrorToast,
     submitChanges,

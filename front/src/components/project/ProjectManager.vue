@@ -65,11 +65,7 @@ import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTrigg
 import { createProjectObject } from "@/utils/typeFactories";
 import { getCityProjects } from "@/services/project/projectSelection";
 import type { Project } from "@/types/index";
-import {
-  addSingleCityMarker,
-  addCityMarkersForCountry,
-  citiesWithProjects,
-} from "@/services/map/cityMarkers";
+import { citiesWithProjects } from "@/services/map/cityMarkers";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
 const CreateProjectDialog = defineAsyncComponent(
@@ -92,7 +88,8 @@ const { projects } = storeToRefs(projectStore);
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
 const { projectEditForm } = storeToRefs(uiStore);
 
-// Helper to ensure city markers are properly set up for a project's city
+// Helper to ensure the country/city context is set up for a project's city.
+// The cluster source (mergeProjectPointsForMode) handles map display; no Leaflet city markers needed.
 async function ensureCityMarkersForProject(
   city: {
     id: number;
@@ -120,6 +117,8 @@ async function ensureCityMarkersForProject(
     await loadCitiesForCountry(countryCode);
   }
 
+  mapStore.selectedCountryCode = countryCode;
+
   // Set selectedCity if not already set (or if forced) to prevent overlay disappearance on zoom
   if (forceSetSelectedCity || !mapStore.selectedCity) {
     mapStore.setSelectedCity({
@@ -128,52 +127,6 @@ async function ensureCityMarkersForProject(
       nameLocal: city.nameLocal,
       countryCode: countryCode,
     });
-  }
-
-  mapStore.selectedCountryCode = countryCode;
-
-  // If not a country switch, add the single city marker for immediate feedback
-  // (prepareCountryContext already adds markers, so only do this if we didn't switch countries)
-  if (!isCountrySwitch) {
-    // First add single marker immediately (fast feedback) - mark as unsaved
-    await addSingleCityMarker(
-      {
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        lat: city.coordinates.y,
-        lng: city.coordinates.x,
-        countryCode: countryCode,
-      },
-      true,
-    );
-
-    // Then load all cities for the country (unsaved marker will be preserved)
-    await loadCitiesForCountry(countryCode);
-    const country = projectStore.countries.find((c) => c.code === countryCode);
-
-    if (country?.cities) {
-      addCityMarkersForCountry(
-        country.cities.map((c) => Object.assign({}, c, { projectCount: 0 })),
-      );
-    }
-  } else {
-    // After country switch, add the unsaved city marker if it's not in the backend
-    const country = projectStore.countries.find((c) => c.code === countryCode);
-    const cityExistsInBackend = country?.cities.some((c) => c.id === city.id);
-    if (!cityExistsInBackend) {
-      await addSingleCityMarker(
-        {
-          id: city.id,
-          name: city.name,
-          nameLocal: city.nameLocal,
-          lat: city.coordinates.y,
-          lng: city.coordinates.x,
-          countryCode: countryCode,
-        },
-        true,
-      );
-    }
   }
 }
 
@@ -369,8 +322,7 @@ async function displayProjectMarkerAndPopup(
 ) {
   await ensureCityMarkersForProject(city, true);
 
-  // Load city data to mark it as active in loadedCityIds
-  // This ensures the city's content persists when zooming out (active city preservation)
+  // Load city data so the city's content is fully initialized
   await loadAndRenderCityData(city.id, true);
 
   let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
@@ -434,8 +386,21 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   }
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
-  if (hasNoOverlays && project.lat && project.lng && project.city) {
-    await displayProjectMarkerAndPopup(projectId, project.city);
+  if (hasNoOverlays && project.lat && project.lng) {
+    if (project.city) {
+      await displayProjectMarkerAndPopup(projectId, project.city);
+    } else {
+      // City object not available from form — create marker directly
+      const storedProject = projectStore.projects[projectId];
+      if (storedProject) {
+        addStandaloneProjectMarkerForProject(storedProject);
+        const marker = getStandaloneProjectMarkerByProjectId(projectId);
+        if (marker) {
+          createProjectInfoTeleportTarget(marker);
+          uiStore.openProjectInfoPopup(projectId, storedProject);
+        }
+      }
+    }
     toast.add({
       severity: "success",
       summary: $t("common.success"),

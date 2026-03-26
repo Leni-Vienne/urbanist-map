@@ -55,9 +55,9 @@
         :options="availableCountries"
         option-label="name"
         option-value="code"
-        :placeholder="$t('moderation.chooseCountry')"
+        :placeholder="countriesLoading ? $t('common.loading') : $t('moderation.chooseCountry')"
         :filter="availableCountries.length > 10"
-        :loading="countriesLoading"
+        :disabled="countriesLoading && availableCountries.length === 0"
         @change="handleCountryChange"
         class="flex-1 min-w-50 max-w-75"
       >

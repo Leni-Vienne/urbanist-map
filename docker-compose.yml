@@ -55,6 +55,7 @@ services:
     volumes:
       - ./server.bundle.js:/app/server.bundle.js:ro
       - ./back/src/email:/app/email:ro
+      - ./back/src/routes:/app/routes:ro
       - backend_uploads:/app/uploads
     working_dir: /app
     # Command simplified - sharp is now in the image (global) or node_modules

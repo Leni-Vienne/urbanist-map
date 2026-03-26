@@ -13,8 +13,10 @@ export const projectSchema = z
       .max(2000, "validation.descriptionTooLong")
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
-      .optional(),
-    cityId: z.number({ message: "validation.cityRequired" }),
+      .nullish()
+      .transform((val) => val ?? undefined),
+    cityId: z.number({ message: "validation.cityRequired" }).nullable().optional(),
+    countryCode: z.string().length(3).nullable().optional(),
     lat: z
       .number({ message: "validation.invalidLatitude" })
       .min(-90, "validation.invalidLatitude")
@@ -29,12 +31,17 @@ export const projectSchema = z
     startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
     endDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
     endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+    timelineStatus: z
+      .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
+      .optional()
+      .default("proposed"),
     sourceUrl: z
       .string()
       .url("validation.invalidUrl")
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
-      .optional(),
+      .nullish()
+      .transform((val) => val ?? undefined),
     geometry: GeoJSONGeometryCollectionSchema.nullable().optional(),
     tags: z.array(z.string().max(50)).max(20).optional(),
   })
@@ -48,20 +55,7 @@ export const projectSchema = z
       });
     }
 
-    // Validate project has either proposalDate OR (startDate AND endDate) OR (endDate ONLY for already started)
-    const hasProposalDate = data.proposalDate !== null;
-    const hasPlannedDates =
-      (data.startDate !== null && data.endDate !== null) || data.endDate !== null; // Allow EndDate only (implies already started)
-
-    if (!hasProposalDate && !hasPlannedDates) {
-      ctx.addIssue({
-        code: "custom",
-        message: "validation.timelineRequired",
-        path: ["proposalDate"],
-      });
-    }
-
-    // Validate end date is after start date
+    // Validate end date is after start date (only when both are provided)
     if (data.startDate && data.endDate && data.endDate <= data.startDate) {
       ctx.addIssue({
         code: "custom",
@@ -142,7 +136,10 @@ const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   proposalDatePrecision: z.enum(["year", "month", "day"]).nullable(),
   startDatePrecision: z.enum(["year", "month", "day"]).nullable(),
   endDatePrecision: z.enum(["year", "month", "day"]).nullable(),
-  cityId: z.number().int().positive(),
+  timelineStatus: z
+    .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
+    .optional(),
+  cityId: z.number().int().positive().nullable().optional(),
   geometry: GeoJSONGeometryCollectionSchema.nullable(),
   tags: z.array(z.string().max(50)).max(20).nullable(),
 };

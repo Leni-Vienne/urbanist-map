@@ -10,6 +10,8 @@ import type {
 import type { AppMode } from "@shared/types";
 import { trpc, type RouterOutput } from "@/client";
 import { createProjectObject, createProjectFromUserContribution } from "@/utils/typeFactories";
+import { createLocalOverlayContribution } from "@/utils/projectFactories";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 // Helper function to replace an item in an array immutably at a given index
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -84,6 +86,9 @@ export const useProjectStore = defineStore("project", () => {
 
   // Helper function to extract city metadata from project for user contributions
   function extractCityMetadata(project: Project) {
+    if (!project.city) {
+      return { cityName: null, countryCode: null, countryName: null };
+    }
     const countryCode = project.city.countryCode;
     const country = countries.value.find((c) => c.code === countryCode);
 
@@ -91,33 +96,6 @@ export const useProjectStore = defineStore("project", () => {
       cityName: project.city.name,
       countryCode: countryCode,
       countryName: country?.name ?? null,
-    };
-  }
-
-  // Helper function to create overlay metadata for user contributions
-  function createOverlayMetadata(
-    overlay: OverlayObject,
-    project: Project,
-    filename: string,
-    authorUsername: string | null,
-  ) {
-    return {
-      id: overlay.id,
-      name: overlay.caption ?? "Unnamed",
-      filename: filename,
-      status: "pending" as const,
-      version: 1,
-      projectId: project.id,
-      authorId: overlay.authorId ?? null,
-      authorUsername: authorUsername,
-      authorApprovedCount: null,
-      authorRejectedCount: null,
-      replacesOverlayId: overlay.replacesOverlayId ?? null,
-      replacedByOverlayId: null,
-      updatedAt: new Date(),
-      cityId: project.cityId,
-      imageUrl: overlay.imageUrl, // Pass the full image URL (Data URI or backend URL)
-      ...extractCityMetadata(project),
     };
   }
 
@@ -168,7 +146,11 @@ export const useProjectStore = defineStore("project", () => {
       // Check if overlay already exists in the project
       const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
 
-      const overlayMetadata = createOverlayMetadata(overlay, project, filename, authorUsername);
+      const overlayMetadata = createLocalOverlayContribution(
+        { ...overlay, filename, projectId: project.id, status: "pending" as const, version: 1 },
+        { cityId: project.cityId, ...extractCityMetadata(project) },
+        authorUsername,
+      );
 
       const updatedOverlays =
         existingOverlayIndex !== -1
@@ -204,12 +186,27 @@ export const useProjectStore = defineStore("project", () => {
         return;
       }
 
+      // Include all overlays already loaded in the store for this project (e.g. approved ones),
+      // then add/replace with the newly submitted overlay
+      const overlayStore = useOverlayStore();
+      const cityMeta = extractCityMetadata(project);
+      const existingOverlays = Object.values(overlayStore.overlays)
+        .filter((o) => o.projectId === project.id && o.id !== overlay.id)
+        .map((o) =>
+          createLocalOverlayContribution(o, { ...cityMeta, cityId: project.cityId }, null),
+        );
+      const newOverlayMetadata = createLocalOverlayContribution(
+        { ...overlay, filename, projectId: project.id, status: "pending" as const, version: 1 },
+        { cityId: project.cityId, ...extractCityMetadata(project) },
+        authorUsername,
+      );
+
       const newProject = {
         ...project,
         ...extractCityMetadata(project),
         status: project.status, // Type assertion - null already filtered above
-        overlays: [createOverlayMetadata(overlay, project, filename, authorUsername)],
-        overlayCount: 1,
+        overlays: [...existingOverlays, newOverlayMetadata],
+        overlayCount: existingOverlays.length + 1,
       };
 
       userContributions.value = [newProject, ...userContributions.value];
@@ -597,7 +594,7 @@ export const useProjectStore = defineStore("project", () => {
     for (const project of userProjectsToInclude) {
       if (project.cityId) {
         // Only add to map if not already present
-        if (!localProjectCitiesMap.has(project.cityId)) {
+        if (!localProjectCitiesMap.has(project.cityId) && project.city) {
           localProjectCitiesMap.set(project.cityId, {
             id: project.cityId,
             name: project.city.name,

@@ -6,7 +6,9 @@
     :change-requests="pendingChangeRequests"
     :show-edit-buttons="true"
     :should-switch-to-edit-mode="false"
-    :disable-grouping="showingCityProjects"
+    :pinned-project-id="selectedProjectId"
+    :pinned-external-project="pinnedExternalProject"
+    @external-project-click="handleExternalProjectClick"
     title=""
     panel-class="my-contributions-panel"
     :empty-message="
@@ -21,91 +23,20 @@
     "
   >
     <template #project-actions="{ project }">
-      <!-- 2-column grid for project action buttons -->
-      <div class="grid grid-cols-2 gap-1.5">
-        <!-- Edit button - navigates to project for editing -->
-        <button
-          class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
-          @click.stop="handleEditProjectClick(project)"
-          v-tooltip.top="$t('tooltips.editProject')"
-        >
-          <i class="pi pi-pencil"></i>
-        </button>
-        <!-- Add image button - same icon as in UnifiedProjectPopup -->
-        <button
-          class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
-          @click.stop="handleAddImageToProject(project)"
-          v-tooltip.top="$t('project.addImages')"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M16 5h6" />
-            <path d="M19 2v6" />
-            <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            <circle cx="9" cy="9" r="2" />
-          </svg>
-        </button>
-        <!-- Draw button - same logic as UnifiedProjectPopup / PopupContainer -->
-        <button
-          class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
-          @click.stop="handleDrawShapesClick(project)"
-          v-tooltip.top="$t('shapes.drawShapes')"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="lucide lucide-waypoints"
-          >
-            <path d="m10.586 5.414-5.172 5.172" />
-            <path d="m18.586 13.414-5.172 5.172" />
-            <path d="M6 12h12" />
-            <circle cx="12" cy="20" r="2" />
-            <circle cx="12" cy="4" r="2" />
-            <circle cx="20" cy="12" r="2" />
-            <circle cx="4" cy="12" r="2" />
-          </svg>
-        </button>
-        <!-- Save button - uses send icon, disabled when no changes -->
-        <button
-          class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center transition-all duration-150 text-sm text-green-500"
-          :class="
-            isProjectModified(project.id)
-              ? 'cursor-pointer hover:text-green-600 hover:bg-green-50 hover:border-green-200'
-              : 'opacity-40 cursor-not-allowed pointer-events-none'
-          "
-          :disabled="!isProjectModified(project.id)"
-          @click.stop="handleSaveProjectClick(project)"
-          v-tooltip.top="getProjectSaveTooltip(project)"
-        >
-          <i class="pi pi-send"></i>
-        </button>
-        <!-- Delete button - only for drafts, pending, or rejected -->
-        <button
-          v-if="!project.status || project.status === 'pending' || project.status === 'rejected'"
-          class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
-          @click.stop="handleDeleteProjectClick(project)"
-          v-tooltip.top="$t('contribute.deleteProject')"
-        >
-          <i class="pi pi-trash"></i>
-        </button>
-      </div>
+      <ProjectActionButtons
+        :project="project"
+        show-edit
+        show-add-image
+        show-draw
+        show-save
+        show-delete
+        :is-modified="isProjectModified(project.id)"
+        @edit="handleEditProjectClick"
+        @add-image="handleAddImageToProject"
+        @draw="handleDrawShapesClick"
+        @save="handleSaveProjectClick"
+        @delete="handleDeleteProjectClick"
+      />
     </template>
 
     <template #overlay-actions="{ overlay }">
@@ -140,6 +71,18 @@
       </button>
     </template>
 
+    <template #pinned-external-project-actions="{ project }">
+      <!-- For external (non-owned) selected projects: add image + submit only -->
+      <ProjectActionButtons
+        :project="project"
+        show-add-image
+        show-save
+        :is-modified="isProjectModified(project.id)"
+        @add-image="handleAddImageToProject"
+        @save="handleSaveProjectClick"
+      />
+    </template>
+
     <template #empty-state>
       <p
         v-if="displayedProjects.length === 0"
@@ -150,64 +93,45 @@
     </template>
 
     <template #header-actions>
-      <!-- Wrapper with column layout for two rows -->
-      <div class="flex flex-col gap-3 w-full">
-        <!-- First row - breadcrumb and buttons -->
-        <div class="flex gap-4 items-center justify-between w-full">
-          <span class="flex items-center gap-2 text-base min-w-0 flex-1">
-            <span
-              :class="[
-                'font-semibold shrink-0 transition-all duration-200 py-1 px-2 rounded -my-1 -mx-2',
-                showingCityProjects
-                  ? 'text-primary-color cursor-pointer hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)]'
-                  : 'text-color',
-              ]"
-              @click="showingCityProjects ? handleMyContributionsClick() : null"
-              :title="showingCityProjects ? $t('contribute.viewAllContributions') : ''"
-            >
+      <div class="flex gap-4 items-center justify-between w-full">
+        <div class="flex flex-col gap-3 w-full">
+          <!-- First row - title and buttons -->
+          <div class="flex gap-4 items-center justify-between w-full">
+            <span class="text-base font-semibold text-color">
               {{ $t("contribute.myContributions") }}
             </span>
-            <template v-if="showingCityProjects && lastSelectedCity">
-              <span class="text-muted-color font-normal mx-1 shrink-0">|</span>
-              <span
-                class="font-semibold text-color py-1 px-2 rounded -my-1 -mx-2 overflow-hidden text-ellipsis whitespace-nowrap min-w-0"
+            <div class="flex gap-2">
+              <Button
+                @click="handleAddOverlayClick"
+                severity="primary"
+                size="small"
+                icon="pi pi-plus"
+                :label="$t('common.add')"
+                class="font-semibold"
+                v-tooltip.bottom="$t('dialog.createNewProject')"
+              />
+            </div>
+          </div>
+          <!-- Second row - filters (hidden when no contributions yet) -->
+          <div v-if="displayedProjects.length > 0" class="flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="showPending" inputId="showPending" binary />
+              <label
+                for="showPending"
+                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
               >
-                {{ lastSelectedCity.name }}
-              </span>
-            </template>
-          </span>
-
-          <!-- Buttons on the right -->
-          <div class="flex gap-2">
-            <Button
-              @click="handleAddOverlayClick"
-              severity="primary"
-              size="small"
-              icon="pi pi-plus"
-              :label="$t('common.add')"
-              class="font-semibold"
-              v-tooltip.bottom="$t('dialog.createNewProject')"
-            />
-          </div>
-        </div>
-
-        <!-- Second row - filters (hidden when no contributions yet) -->
-        <div v-if="displayedProjects.length > 0" class="flex items-center gap-4 flex-wrap">
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="showPending" inputId="showPending" binary />
-            <label
-              for="showPending"
-              class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >{{ $t("help.filters.showPending") }}</label
-            >
-          </div>
-          <div class="flex items-center gap-2">
-            <Checkbox v-model="showApproved" inputId="showApproved" binary />
-            <label
-              for="showApproved"
-              class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >{{ $t("help.filters.showApproved") }}</label
-            >
+                {{ $t("help.filters.showPending") }}
+              </label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="showApproved" inputId="showApproved" binary />
+              <label
+                for="showApproved"
+                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
+              >
+                {{ $t("help.filters.showApproved") }}
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -216,34 +140,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
+import { expandAccordionForProject, activeAccordionPanels } from "@/services/layout/accordionState";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { useAuthStore } from "@/stores/authStore";
 import { map } from "@/services/core/map";
+import L from "leaflet";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
-import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import {
+  closeProjectPopupAndResetMarkers,
+  handleShapeProjectClick,
+} from "@/services/map/standaloneProjectMarkers";
 import type { RouterOutput } from "@/client";
 import type {
-  ProjectForModeration,
-  OverlayForModeration,
   Project,
+  ProjectForModeration,
   UserContribution,
   UserContributionOverlay,
+  OverlayForModeration,
 } from "@/types/index";
+import {
+  createOverlayForModeration,
+  createProjectForModerationFromProject,
+} from "@/utils/projectFactories";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
+import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
 
 // Type definition from tRPC backend response for change requests
 type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
@@ -262,9 +194,7 @@ const {
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-const mapStore = useMapStore();
 const pendingModsStore = usePendingModificationsStore();
-const authStore = useAuthStore();
 
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
@@ -296,76 +226,58 @@ const { isMobile } = useIsMobile();
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
   useChangeRequests();
 
-// Watch for city and mode changes to fetch appropriate contributions
-// - Edit mode + city selected: ALL projects in that city (so users can contribute to any project)
-// - Otherwise: User's own contributions from anywhere
-watch(
-  () => ({ cityId: mapStore.selectedCity?.id, mode: mapStore.mode }),
-  ({ cityId, mode }) => {
-    const isEditMode = mode === "edit";
-
-    // Fetch contributions with appropriate scope
-    // includeCityProjects=true returns ALL city projects (not just user's), allowing contributions to any project in the city
-    fetchUserContributions({
-      cityId: isEditMode ? cityId : undefined,
-      includeCityProjects: isEditMode && Boolean(cityId),
-    });
-  },
-  { immediate: true }, // Run on mount
-);
-
 // Just use allContributions directly - backend handles everything!
 const displayedProjects = allContributions;
 
-// Track if we're currently showing city-scoped projects or ALL user contributions
-const showingCityProjects = ref(false);
-// Remember the last selected city even after clearing selection
-const lastSelectedCity = ref<{
-  id: number;
-  name: string;
-  nameLocal: string | null;
-  countryCode?: string;
-} | null>(null);
+// Persists the last selected project so the card stays in ContributePanel even after the popup closes.
+// Only updates when a new project is opened, never clears on close.
+const lastSelectedProject = ref<Project | null>(null);
 
-// Update state based on city selection and mode
+// Update when a standalone project popup opens (shape / vector footprint click)
 watch(
-  () => ({ city: mapStore.selectedCity, mode: mapStore.mode }),
-  ({ city, mode }) => {
-    if (mode === "edit" && city) {
-      // Remember this city and mark as showing city projects
-      lastSelectedCity.value = {
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        countryCode: city.countryCode,
-      };
-      showingCityProjects.value = true;
-    } else if (city) {
-      // In view mode, remember city but not showing city projects
-      lastSelectedCity.value = {
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        countryCode: city.countryCode,
-      };
-    }
-    // Don't clear lastSelectedCity when city is cleared - keep it for breadcrumb
+  () => uiStore.projectInfoPopup.project,
+  (project) => {
+    if (project) lastSelectedProject.value = project;
   },
   { immediate: true },
 );
 
-// Handle "My Contributions" click - switch to show only user's contributions
-function handleMyContributionsClick() {
-  // Switch to user contribution mode
-  showingCityProjects.value = false;
+// Update when an overlay image or marker is clicked (selectOverlay closes projectInfoPopup,
+// so we read the project from the overlay object directly instead)
+watch(
+  () => overlayStore.idSelectedOverlay,
+  (overlayId) => {
+    if (!overlayId) return;
+    const overlay = overlayStore.overlays[overlayId];
+    const project = overlay?.project;
+    if (project) lastSelectedProject.value = project as unknown as Project;
+  },
+  { immediate: true },
+);
 
-  // Clear the selected city to exit city-scoped view
-  mapStore.clearSelectedCity();
+const selectedProjectId = computed(() => lastSelectedProject.value?.id ?? null);
 
-  // Fetch all user contributions (no city scoping)
-  // The cache will prevent redundant calls if we've already fetched this
-  fetchUserContributions();
-}
+// If the selected project is not in the user's contributions, expose it as an external pinned project
+// so ContributePanel can show it at top as a read-only context card
+const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
+  const id = selectedProjectId.value;
+  if (!id) return null;
+  // If it's already in contributions, it will be pinned via pinnedProjectId instead
+  const isOwnContribution = displayedProjects.value.some((p) => p.id === id);
+
+  if (isOwnContribution) return null;
+  const project = lastSelectedProject.value;
+  if (!project) return null;
+  const city = {
+    id: project.cityId ?? 0,
+    name: project.city?.name ?? "",
+    countryCode: project.city?.countryCode,
+  };
+  const overlays = Object.values(overlayStore.overlays)
+    .filter((o) => o.projectId === project.id)
+    .map((o) => createOverlayForModeration(o, city));
+  return createProjectForModerationFromProject(project, overlays);
+});
 
 // Computed filtered projects based on two independent checkboxes
 // Uses displayedProjects which conditionally shows city data or user contributions
@@ -433,7 +345,7 @@ async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
   );
 
   const overlayCount = project?.overlays?.length ?? 0;
-  await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.name);
+  await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.caption);
 }
 
 async function handleDeleteProjectClick(project: ProjectForModeration) {
@@ -484,7 +396,7 @@ function handleEditOverlayClick(overlay: OverlayForModeration) {
   // Only id + caption are needed — openOverlayEditDialog accepts OverlayEditTarget
   uiStore.openOverlayEditDialog({
     id: overlay.id,
-    caption: overlay.name ?? null,
+    caption: overlay.caption,
   });
 }
 
@@ -517,14 +429,6 @@ function isProjectModified(projectId: string): boolean {
   if (!project?.overlays) return false;
 
   return project.overlays.some((overlay: UserContributionOverlay) => isOverlayModified(overlay.id));
-}
-
-// Get save button tooltip based on project status and modification state
-function getProjectSaveTooltip(project: ProjectForModeration): string {
-  if (!isProjectModified(project.id)) {
-    return t("overlay.noChangesToSave");
-  }
-  return t("project.submitChangeRequest");
 }
 
 // Handle save project click - uses shared submission dialog composable
@@ -575,6 +479,15 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   await initShapeEditor(map.value, existingGeometry ?? undefined);
 }
 
+// Navigate to the external pinned project using the same logic as a map click.
+// The ProjectForModeration argument is intentionally ignored: it lacks geometry data.
+// lastSelectedProject holds the full Project with lat/lng/geometry needed for navigation.
+function handleExternalProjectClick(_project: ProjectForModeration) {
+  const fullProject = lastSelectedProject.value;
+  if (!fullProject) return;
+  handleShapeProjectClick(fullProject, L.latLng(fullProject.lat ?? 0, fullProject.lng ?? 0));
+}
+
 // Handle edit project click - opens project edit form
 function handleEditProjectClick(project: ProjectForModeration) {
   // Get the latest project data from displayedProjects (not the potentially stale passed parameter)
@@ -588,8 +501,28 @@ function handleEditProjectClick(project: ProjectForModeration) {
   uiStore.openProjectEditForm(projectToEdit as unknown as Project);
 }
 
+// Auto-expand the pinned project when the selection changes
+watch(
+  selectedProjectId,
+  async (id) => {
+    if (!id) return;
+    await nextTick();
+    const isOwnContribution = displayedProjects.value.some((p) => p.id === id);
+    if (isOwnContribution) {
+      expandAccordionForProject(id, displayedProjects.value as unknown as ProjectForModeration[]);
+    } else {
+      // External pinned project: just push the id into the shared accordion state
+      if (!activeAccordionPanels.value.includes(id)) {
+        activeAccordionPanels.value.push(id);
+      }
+    }
+  },
+  { immediate: true },
+);
+
 // Load initial data
 onMounted(() => {
+  fetchUserContributions();
   // Force user-only mode to show only this user's change requests, even for moderators
   refreshPendingChangeRequests(true);
 });

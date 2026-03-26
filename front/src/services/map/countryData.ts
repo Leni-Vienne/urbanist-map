@@ -1,5 +1,4 @@
 // Country data loading service (no marker rendering)
-import { removeCityMarkers } from "@/services/map/cityMarkers";
 import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { trpc } from "@/client";
@@ -9,29 +8,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import type { Country } from "@/types/index";
-import countryBboxes from "@/assets/country_bboxes.json";
-
-// Type guard to validate country code against countryBboxes keys
-export function isValidCountryCode(code: string): code is keyof typeof countryBboxes {
-  return code in countryBboxes;
-}
-
-export interface CountryInfo {
-  code: string;
-  name: string;
-}
-
-/**
- * Helper to get country name from country code
- */
-export function getCountryName(
-  countryCode: string | null | undefined,
-  countries: CountryInfo[],
-): string | null {
-  if (!countryCode) return null;
-  const country = countries.find((c) => c.code === countryCode);
-  return country?.name ?? null;
-}
 
 /**
  * Load countries with projects from backend
@@ -138,12 +114,8 @@ export async function loadCitiesForCountry(countryCode: string): Promise<void> {
 /**
  * Clear all map content (markers, overlays, cache, and state)
  * This is called when switching between countries or logging out
- * Uses clearAllRenderedContent to ensure viewModeOverlays cache is also cleared
  */
-export function clearAllMapContent(preserveCityMarkers = false): void {
-  if (!preserveCityMarkers) {
-    removeCityMarkers();
-  }
+export function clearAllMapContent(): void {
   clearAllOverlays();
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();

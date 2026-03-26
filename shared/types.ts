@@ -24,7 +24,9 @@ export interface OverlayData {
   };
   corners: { lat: number; lng: number }[];
   suggestedCorners?: { lat: number; lng: number }[];
-  project?: (Omit<DBProject, "status"> & { status: ApprovalStatus | null; city: DBCity }) | null;
+  project?:
+    | (Omit<DBProject, "status"> & { status: ApprovalStatus | null; city: DBCity | null })
+    | null;
   distance?: number;
   isModified?: boolean;
   hasPendingChanges?: boolean;

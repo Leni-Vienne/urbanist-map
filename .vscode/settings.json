@@ -1,18 +1,20 @@
 {
   "oxc.enable": true,
+  "oxc.path.oxlint": "./node_modules/oxlint/dist/cli.js",
+  "oxc.configPath": ".oxlintrc.json",
+  "oxc.fmt.configPath": ".oxfmtrc.json",
   "html.format.wrapAttributes": "force-expand-multiline",
   "terminal.integrated.suggest.enabled": true,
-  "oxc.fmt.configPath": ".oxfmtrc.json",
   "[typescript]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode", // "oxc.oxc-vscode" to enable
+    "editor.defaultFormatter": "oxc.oxc-vscode",
     "editor.formatOnSave": true
   },
   "[vue]": {
     "editor.defaultFormatter": "oxc.oxc-vscode", // replaces Vue.volar
     "editor.formatOnSave": true
   },
-  "typescript.experimental.useTsgo": false,
-  "typescript.validate.enable": true,
-  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  "js/ts.experimental.useTsgo": false,
+  "js/ts.validate.enabled": true,
+  "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
   "diffEditor.ignoreTrimWhitespace": true
 }

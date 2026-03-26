@@ -13,14 +13,12 @@ import type { ProjectForModeration } from "@/types/index";
 // ============================================================================
 
 export const activeAccordionPanels = ref<string[]>([]);
-const expandedCountries = ref<Set<string>>(new Set());
-const expandedCities = ref<Set<string>>(new Set());
 
 // ============================================================================
 // SCROLL REQUESTS
 // ============================================================================
 
-type ScrollRequestType = "city" | "project" | "overlay";
+type ScrollRequestType = "project" | "overlay";
 
 interface ScrollRequest {
   type: ScrollRequestType;
@@ -47,48 +45,6 @@ export function consumeScrollRequest(): ScrollRequest | null {
 }
 
 // ============================================================================
-// COUNTRY METHODS
-// ============================================================================
-
-export function toggleCountryExpanded(
-  countryCode: string,
-  countryGroup?: { cities: { key: string }[] },
-) {
-  if (expandedCountries.value.has(countryCode)) {
-    expandedCountries.value.delete(countryCode);
-  } else {
-    expandedCountries.value.add(countryCode);
-
-    // When expanding a country, also expand all its cities
-    if (countryGroup) {
-      countryGroup.cities.forEach((city) => {
-        expandedCities.value.add(city.key);
-      });
-    }
-  }
-}
-
-export function isCountryExpanded(countryCode: string): boolean {
-  return expandedCountries.value.has(countryCode);
-}
-
-// ============================================================================
-// CITY METHODS
-// ============================================================================
-
-export function toggleCityExpanded(cityKey: string) {
-  if (expandedCities.value.has(cityKey)) {
-    expandedCities.value.delete(cityKey);
-  } else {
-    expandedCities.value.add(cityKey);
-  }
-}
-
-export function isCityExpanded(cityKey: string): boolean {
-  return expandedCities.value.has(cityKey);
-}
-
-// ============================================================================
 // PROJECT METHODS
 // ============================================================================
 
@@ -103,40 +59,20 @@ function expandProjectAccordion(projectId: string) {
 // ============================================================================
 
 /**
- * Auto-expand accordion hierarchy for a specific overlay
- * Expands country -> city -> project to reveal the overlay
+ * Auto-expand the project accordion that contains a specific overlay
  */
 export function expandAccordionForOverlay(
   overlayId: string,
   projects: ProjectForModeration[],
 ): boolean {
-  // Find the project and overlay
   for (const project of projects) {
     const overlay = project.overlays.find((o) => o.id === overlayId);
     if (overlay) {
-      let didExpand = false;
-
-      // Expand country (only if not already expanded)
-      if (project.countryCode && !expandedCountries.value.has(project.countryCode)) {
-        expandedCountries.value.add(project.countryCode);
-        didExpand = true;
-      }
-
-      // Expand city (only if not already expanded)
-      const cityKey = `${project.countryCode}-${project.cityName}`;
-      if (!expandedCities.value.has(cityKey)) {
-        expandedCities.value.add(cityKey);
-        didExpand = true;
-      }
-
-      // Expand project (only if not already expanded)
-      if (!activeAccordionPanels.value.includes(project.id)) {
+      const alreadyExpanded = activeAccordionPanels.value.includes(project.id);
+      if (!alreadyExpanded) {
         activeAccordionPanels.value.push(project.id);
-        didExpand = true;
       }
-
-      // Return true only if we actually expanded something
-      return didExpand;
+      return !alreadyExpanded;
     }
   }
 
@@ -144,8 +80,7 @@ export function expandAccordionForOverlay(
 }
 
 /**
- * Auto-expand accordion hierarchy for a specific project (standalone project)
- * Expands country -> city -> project
+ * Auto-expand the accordion for a specific project
  */
 export function expandAccordionForProject(
   projectId: string,
@@ -154,18 +89,7 @@ export function expandAccordionForProject(
   const project = projects.find((p) => p.id === projectId);
   if (!project) return false;
 
-  // Expand country
-  if (project.countryCode) {
-    expandedCountries.value.add(project.countryCode);
-  }
-
-  // Expand city
-  const cityKey = `${project.countryCode}-${project.cityName}`;
-  expandedCities.value.add(cityKey);
-
-  // Expand project
   expandProjectAccordion(project.id);
-
   return true;
 }
 

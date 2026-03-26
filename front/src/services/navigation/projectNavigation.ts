@@ -1,5 +1,4 @@
 import L from "leaflet";
-import { loadAllCityMarkersGlobally } from "@/services/map/cityMarkers";
 import { selectCity } from "@/services/navigation/locationNavigation";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
@@ -10,13 +9,8 @@ import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavi
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useUiStore } from "@/stores/uiStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import {
-  getStandaloneProjectMarkerByProjectId,
-  updateStandaloneProjectMarkerOpacities,
-} from "@/services/map/standaloneProjectMarkers";
-import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
+import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { requestScrollTo } from "@/services/layout/accordionState";
 
@@ -97,13 +91,8 @@ async function prepareNavigationToCity(
 
       mapStore.selectedCountryCode = countryCode;
 
-      // Load country data for context and ensure global markers are visible
-      // Parallel execution for better performance
-      await Promise.all([
-        loadCitiesForCountry(countryCode),
-        // Always reload ALL global city markers to maintain global context
-        loadAllCityMarkersGlobally(),
-      ]);
+      // Load country data for context
+      await loadCitiesForCountry(countryCode);
     }
   }
 
@@ -332,16 +321,18 @@ export async function navigateToOverlayWithCity(
 export async function navigateToStandaloneProject(
   lat: number,
   lng: number,
-  cityId: number,
-  cityName: string,
+  cityId: number | null | undefined,
+  cityName: string | null | undefined,
   countryCode?: string,
   projectId?: string,
 ): Promise<void> {
   try {
-    await prepareNavigationToCity(cityId, cityName, countryCode);
+    if (cityId && cityName) {
+      await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    // CRITICAL FIX: Load city data to populate mapStore cache
-    await loadAndRenderCityData(cityId, true);
+      // CRITICAL FIX: Load city data to populate mapStore cache
+      await loadAndRenderCityData(cityId, true);
+    }
 
     await new Promise<void>(
       (resolve) =>
@@ -362,20 +353,7 @@ export async function navigateToStandaloneProject(
 
     map.value.once("moveend", () => {
       if (projectId) {
-        const overlayStore = useOverlayStore();
-        const uiStore = useUiStore();
-
-        const marker = getStandaloneProjectMarkerByProjectId(projectId);
-        if (!marker) return;
-
-        createProjectInfoTeleportTarget(marker);
-        updateStandaloneProjectMarkerOpacities(marker);
-
-        if (overlayStore.showInfoPopup) {
-          overlayStore.hideInfoPopup();
-        }
-
-        uiStore.openProjectInfoPopup(projectId);
+        void handleProjectClickFromTile(projectId, L.latLng(lat, lng));
       }
     });
   } catch (error) {

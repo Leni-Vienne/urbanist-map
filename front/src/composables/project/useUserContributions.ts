@@ -9,6 +9,7 @@ import { t } from "@/locales";
 import {
   createLocalOverlayContribution,
   createLocalProjectContribution,
+  createLocalProjectContributionWithOverlays,
 } from "@/utils/projectFactories";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
 
@@ -111,41 +112,22 @@ export function useUserContributions() {
           overlay,
           {
             cityId: localProject.cityId,
-            cityName: localProject.city.name,
-            countryCode: localProject.city.countryCode,
+            cityName: localProject.city?.name ?? null,
+            countryCode: localProject.city?.countryCode ?? null,
             countryName: null,
           },
           user.username ?? null,
         ),
       );
 
-      const newContribution = {
-        id: localProject.id,
-        name: localProject.name,
-        description: localProject.description ?? null,
-        status: null, // Local-only project
-        version: 1,
-        ownerId: localProject.ownerId,
-        ownerUsername: user.username ?? null,
-        ownerApprovedCount: null,
-        ownerRejectedCount: null,
-        cityId: localProject.cityId,
-        cityName: localProject.city.name,
-        countryCode: localProject.city.countryCode,
-        countryName: null,
-        lat: localProject.lat,
-        lng: localProject.lng,
-        proposalDate: localProject.proposalDate,
-        startDate: localProject.startDate,
-        endDate: localProject.endDate,
-        sourceUrl: localProject.sourceUrl ?? null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        overlays: overlayData,
-        overlayCount: overlayData.length,
-      } as unknown as UserContribution;
-
-      contributionsMap.set(localProject.id, newContribution);
+      contributionsMap.set(
+        localProject.id,
+        createLocalProjectContributionWithOverlays(
+          localProject,
+          overlayData,
+          user.username ?? null,
+        ),
+      );
     }
 
     // Convert map back to array and sort by updated date (most recent first)

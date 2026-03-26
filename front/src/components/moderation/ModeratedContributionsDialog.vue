@@ -54,7 +54,7 @@
               >{{ item.caption || item.projectName || $t("overlay.untitled") }}</span
             >
             <Tag
-              :value="$t(`status.${item.status}`)"
+              :value="$t(`approvalStatus.${item.status}`)"
               :severity="
                 item.status === 'rejected'
                   ? 'danger'

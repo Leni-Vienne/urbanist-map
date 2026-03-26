@@ -54,6 +54,7 @@
               <i class="pi pi-calendar text-xs text-muted-color w-3.5 shrink-0"></i>
               <span>{{
                 formatProjectDateRange(
+                  project.timelineStatus,
                   project.startDate,
                   project.endDate,
                   project.proposalDate,
@@ -152,7 +153,7 @@
             <img
               v-if="!imageErrors[overlay.id]"
               :src="overlay.imageUrl || getOverlayImageUrl(overlay.filename, overlay.status)"
-              :alt="overlay.name"
+              :alt="overlay.caption ?? undefined"
               class="w-full h-full object-cover"
               :crossorigin="
                 imageRequiresCredentials(
@@ -173,10 +174,10 @@
               <p
                 :class="[
                   'text-[15px] font-bold m-0 leading-tight flex-1 min-w-0 truncate',
-                  overlay.name ? 'text-color' : 'italic text-muted-color',
+                  overlay.caption ? 'text-color' : 'italic text-muted-color',
                 ]"
               >
-                {{ overlay.name || $t("overlay.untitled") }}
+                {{ overlay.caption || $t("overlay.untitled") }}
               </p>
             </div>
             <div class="text-xs text-muted-color mb-2">
@@ -192,7 +193,7 @@
             <div class="flex items-center gap-2 flex-wrap">
               <Tag
                 v-if="!hideStatusBadges"
-                :value="$t(`status.${overlay.status ?? 'draft'}`)"
+                :value="$t(`approvalStatus.${overlay.status ?? 'draft'}`)"
                 :severity="getStatusSeverity(overlay.status)"
                 class="mr-2 capitalize"
                 rounded
@@ -213,14 +214,6 @@
           <div v-if="$slots['overlay-actions']" class="flex flex-col gap-2" @click.stop>
             <slot name="overlay-actions" :overlay="overlay" :project="project"></slot>
           </div>
-          <button
-            v-else-if="showEditButtons"
-            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
-            @click.stop=""
-            v-tooltip.top="$t('common.edit')"
-          >
-            <i class="pi pi-pencil"></i>
-          </button>
           <i
             v-else
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150 group-hover:text-(--p-text-color-secondary)"
@@ -235,7 +228,7 @@
             :projects="projectsContext"
             :is-my-contributions="isContributePanel"
             :is-overlay-changes="true"
-            :entity-name="overlay.name || $t('overlay.untitled')"
+            :entity-name="overlay.caption || $t('overlay.untitled')"
             :on-navigate-to-overlay="onNavigateToOverlay"
             :show-user-stats-link="showUserStatsLink"
             @show-user-stats="(data) => $emit('show-user-stats', data)"

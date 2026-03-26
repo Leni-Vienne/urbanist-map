@@ -102,7 +102,7 @@ function handleSatelliteMenuChange(isOpen: boolean) {
 const drawerHeight = computed({
   get: () => uiStore.mobileDrawerHeightPercent,
   set: (value) => {
-    uiStore.mobileDrawerHeightPercent = Math.min(90, value);
+    uiStore.mobileDrawerHeightPercent = Math.min(75, value);
   },
 });
 
