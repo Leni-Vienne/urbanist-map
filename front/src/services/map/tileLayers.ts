@@ -386,6 +386,28 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
     return;
   }
 
+  if (fallbackRemovalTimer) {
+    clearTimeout(fallbackRemovalTimer);
+    fallbackRemovalTimer = null;
+  }
+
+  const previousBaseLayer = activeBaseLayer;
+
+  // Immediately remove any stale tile layers that are on the map but are no longer
+  // the active base layer — these are leftovers from previous transitions whose deferred
+  // cleanup was cancelled by the clearTimeout above. Without this, e.g. FRA can stay on
+  // the map during an OSM→QC transition, causing France tile requests for the wrong viewport.
+  map.value.eachLayer((layer) => {
+    if (layer instanceof L.TileLayer && layer !== previousBaseLayer) {
+      map.value.removeLayer(layer);
+    }
+  });
+
+  const newLayer = createTileLayer(resolvedLayerType);
+  newLayer.addTo(map.value);
+
+  activeTileLayer = newLayer;
+  activeBaseLayer = newLayer;
   currentTileLayer.value = resolvedLayerType;
 
   if (resolvedLayerType === "plan") {

@@ -342,7 +342,7 @@ function getPendingGeometry(
     (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
   );
   const geom = cr?.newValue as GeoJSON.GeometryCollection | undefined;
-  return geom?.geometries.length ? geom : null;
+  return geom?.geometries?.length ? geom : null;
 }
 
 type ResolvedGeometry = { geometry: GeoJSON.GeometryCollection; isPending: boolean } | null;
@@ -355,7 +355,7 @@ function resolveProjectGeometry(
   isModeration: boolean,
 ): ResolvedGeometry {
   const approved = (isEditMode ? storedGeometry : null) ?? approvedGeometry;
-  if (approved?.geometries.length) return { geometry: approved, isPending: false };
+  if (approved?.geometries?.length) return { geometry: approved, isPending: false };
   if (!isEditMode && !isModeration) return null;
   const pending = getPendingGeometry(projectId, isModeration);
   return pending ? { geometry: pending, isPending: true } : null;
@@ -446,7 +446,7 @@ function processAndRenderProjectShape(
     !finalGeometry &&
     isEditMode &&
     storedProject?.status === null &&
-    storedProject.geometry?.geometries.length
+    storedProject.geometry?.geometries?.length
   ) {
     finalGeometry = storedProject.geometry;
     isPending = false;
