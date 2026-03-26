@@ -54,7 +54,7 @@ analyze_index_only.cjs
 !geonames-data
 geonames-data/*
 !geonames-data/countries.csv
-
+countryInfo.txt
 
 uploads
 node_modules
