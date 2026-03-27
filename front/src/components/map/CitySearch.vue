@@ -127,18 +127,6 @@ function onSelect(event: { value: CitySearchResult }) {
       lng: city.lng,
     });
 
-    // Show toast if city has no contributions yet
-    if (city.approvedProjectCount === 0) {
-      toast.add({
-        severity: "info",
-        summary: t("search.noCityContributions"),
-        detail: t("search.noCityContributionsDetail", {
-          cityName: city.name,
-        }),
-        life: 5000,
-      });
-    }
-
     // Clear input after navigation
     selectedCity.value = null;
     suggestions.value = [];

@@ -66,7 +66,6 @@
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",
-    "currentLocation": "Sur la carte",
     "onMap": "Sur la carte",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
@@ -77,10 +76,7 @@
     "name": "Nom du projet",
     "location": "Localisation",
     "noLocation": "Aucun emplacement",
-    "cannotNavigateWithoutCity": "Impossible de naviguer sans informations de ville",
     "timelineStatus": "Statut chronologique",
-    "proposedDescription": "Projet non confirmé, dates non fixées",
-    "plannedDescription": "Projet confirmé avec dates programmées",
     "proposalDate": "Date de proposition",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
     "country": "Pays",
@@ -91,17 +87,14 @@
     "yearOnly": "Année uniquement",
     "monthYear": "Mois & Année",
     "fullDate": "Date complète",
-    "proposed": "Proposé",
     "proposedOn": "Proposé le",
     "proposedIn": "Proposé en",
     "startsIn": "Commence en",
     "startsOn": "Commence le",
     "endsIn": "Se termine en",
     "endsOn": "Se termine le",
-    "locationRequired": "La localisation est requise",
     "invalidLocation": "Emplacement invalide sélectionné",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
-    "information": "Informations du projet",
     "edit": "Modifier le projet",
     "publish": "Envoyer",
     "submitChangeRequest": "Envoyer",
@@ -153,18 +146,12 @@
   },
   "contribute": {
     "myContributions": "Mes contributions",
-    "viewAllContributions": "Cliquez pour voir toutes vos contributions",
-    "viewCityProjects": "Cliquez pour voir les projets de cette ville",
     "noProjectsMatchFilter": "Aucun projet ne correspond au filtre actuel.",
     "tryChangingFilters": "Essayez de modifier vos paramètres de filtre.",
     "noProjectsFound": "Aucun projet trouvé.",
     "createFirstProject": "Ajoutez votre premier projet !",
     "selectedProject": "Projet sélectionné",
     "yourContributions": "Vos contributions",
-    "role": {
-      "created": "créé",
-      "contributed": "contribué"
-    },
     "deleteOverlay": "Supprimer l'image",
     "deleteProject": "Supprimer le projet",
     "deleteChangeRequest": "Supprimer la suggestion",
@@ -186,16 +173,6 @@
     "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
     "loadingContributions": "Chargement des contributions..."
   },
-  "currentLocation": {
-    "noLocationSelected": "Aucun Emplacement Sélectionné",
-    "selectLocationPrompt": "Sélectionnez un pays ou une ville sur la carte pour parcourir les projets",
-    "noProjects": "Aucun projet pour cette ville",
-    "noProjectsDetail": "N'hésitez pas à en ajouter un !",
-    "clickToZoomCountry": "Cliquez pour zoomer sur le pays",
-    "noContributionsInCountry": "Aucune contribution dans ce pays",
-    "projectsCount": "{count} projet(s)",
-    "selectCityToExplore": "Sélectionnez une ville pour explorer ses projets"
-  },
   "onMap": {
     "noProjects": "Aucun projet visible",
     "noProjectsDetail": "Zoomez ou déplacez la carte pour trouver des projets",
@@ -203,9 +180,7 @@
     "sortRecent": "Trier par plus récent",
     "sortName": "Trier par nom",
     "sortSize": "Trier par taille",
-    "sortStatus": "Trier par statut chronologique",
-    "sortReverse": "Ordre inverse",
-    "moreProjectsHidden": "+{count} de plus non affichés"
+    "sortStatus": "Trier par statut chronologique"
   },
   "overlay": {
     "overlayImage": "image",
@@ -235,8 +210,6 @@
     "positionOverlayOnMap": "Positionnez maintenant l'image sur la carte",
     "uploadFailed": "Échec du téléchargement",
     "uploadFailedDetail": "Échec du téléchargement du fichier image",
-    "lastOverlayDeleted": "Dernière image supprimée",
-    "projectNowShowsAsMarker": "Le projet apparaît maintenant comme un marqueur sur la carte",
     "noChangesToSave": "Aucune modification à enregistrer",
     "zoomingToProject": "Zoom vers le projet",
     "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
@@ -275,9 +248,7 @@
     }
   },
   "search": {
-    "cities": "Rechercher une ville...",
-    "noCityContributions": "Aucune contribution pour le moment",
-    "noCityContributionsDetail": "{cityName} n'a pas encore de contributions. Ajoutez en une !"
+    "cities": "Rechercher une ville..."
   },
   "auth": {
     "logout": "Déconnexion",
@@ -286,9 +257,7 @@
     "emailAddress": "Adresse e-mail",
     "password": "Mot de passe",
     "username": "Nom d'utilisateur",
-    "enterPassword": "Entrez votre mot de passe",
     "chooseStrongPassword": "Choisissez un mot de passe fort",
-    "chooseUsername": "Choisissez un nom d'utilisateur",
     "displayName": "Ce sera votre nom d'affichage",
     "createAccount": "Créer un compte",
     "dontHaveAccount": "Vous n'avez pas de compte ?",
@@ -296,10 +265,7 @@
     "forgotPassword": "Mot de passe oublié ?",
     "continueWithGoogle": "Continuer avec Google",
     "orContinueWithEmail": "ou continuer avec l'email",
-    "enterEmailAddress": "Entrez votre adresse e-mail",
-    "authenticationRequired": "Authentification requise",
     "moderationAccessRequired": "Accès modérateur requis",
-    "signInMessage": "Veuillez vous connecter en utilisant le bouton dans le coin supérieur droit pour accéder à cette section.",
     "moderationMessage": "Vous avez besoin de privilèges de modérateur pour accéder à cette section.",
     "signedOut": "Déconnecté",
     "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
@@ -534,9 +500,6 @@
     "orClick": "ou cliquez pour parcourir les fichiers",
     "supportedFormats": "Formats supportés : PNG, JPEG, JPG, WebP",
     "changeImage": "Changer l'image"
-  },
-  "metadata": {
-    "notSpecified": "Non spécifié"
   },
   "toast": {
     "validationError": "Erreur de validation",
@@ -839,10 +802,8 @@
     "importGeoJSON": "Importer GeoJSON",
     "importError": "Fichier GeoJSON invalide",
     "importSkippedGeometryTypes": "Types de géométrie non pris en charge ignorés : {types}",
-    "clearAll": "Tout effacer",
     "saveShapes": "Enregistrer les formes",
     "cancel": "Annuler",
-    "savedSuccess": "Formes soumises pour révision",
     "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre",
     "geometrySummary": "{count} forme(s)",
     "viewCurrentShapes": "Voir les formes actuelles",
