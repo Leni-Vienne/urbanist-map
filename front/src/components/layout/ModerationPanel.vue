@@ -239,21 +239,13 @@ onMounted(async () => {
   try {
     // Restore state from Store or Map logic BEFORE fetching countries
     // This ensures markers are loaded immediately if we are returning to the panel
-    const initialCode =
-      mapStore.selectedCountryCode ??
-      moderationStore.selectedCountryCode ??
-      // Only fall back to selectedCity when no prior moderation data exists yet.
-      // If moderationLoaded is true, the user has an existing session context (e.g. an admin
-      // in global view with selectedCountryCode = null) that should not be overridden by
-      // whatever city they last clicked on the map.
-      (moderationStore.moderationLoaded ? null : mapStore.selectedCity?.countryCode);
+    const initialCode = mapStore.selectedCountryCode ?? moderationStore.selectedCountryCode ?? null;
     if (initialCode) {
       const user = authStore.user;
       const canAccess = !user?.moderatedCountries || user.moderatedCountries.includes(initialCode);
       if (canAccess) {
         // Restore markers. useModeration hook (running after this) will see the store value and fetch the list.
-        // Don't fly if we are already zoomed in on a city (selectedCity is set)
-        loadCountryData(initialCode, !mapStore.selectedCity);
+        loadCountryData(initialCode, true);
       }
     }
 
@@ -333,10 +325,6 @@ function loadCountryData(countryCode: string | null, shouldFly = true) {
 
 // Handle country selection change
 async function handleCountryChange() {
-  // Clear city if it belongs to a different country (e.g., stale city from edit mode)
-  if (mapStore.selectedCity?.countryCode !== selectedCountryCode.value) {
-    mapStore.clearSelectedCity();
-  }
   loadCountryData(selectedCountryCode.value);
   await fetchPendingSubmissions();
 }
@@ -463,70 +451,11 @@ watch(
   { deep: true },
 );
 
-// Filter projects based on selected city
-const filteredProjects = computed(() => {
-  if (!mapStore.selectedCity) return projects.value;
-  return projects.value.filter((p) => p.cityId === mapStore.selectedCity?.id);
-});
+// Show all projects for the selected country (no city filtering)
+const filteredProjects = computed(() => projects.value);
 
-// Filter change requests based on selected city
-// Use mapStore cache to verify if entities belong to the selected city
-// This works even for approved entities that aren't in the pending 'projects'/'overlays' lists
-const filteredChangeRequests = computed(() => {
-  const selectedCity = mapStore.selectedCity;
-  if (!selectedCity) return changeRequests.value;
-
-  const cityId = selectedCity.id;
-
-  // Get loaded data for this city in current mode
-  const currentMode = mapStore.mode;
-  const cityOverlays = mapStore.getCityOverlaysAndProjectsCache(cityId, currentMode) ?? [];
-  const cityStandalone = mapStore.getCityStandaloneProjectsCache(cityId, currentMode) ?? [];
-
-  // Build lookups for valid entities in this city
-  const validProjectIds = new Set<string>();
-  const validOverlayIds = new Set<string>();
-
-  // Add overlays and their projects
-  for (const overlay of cityOverlays) {
-    validOverlayIds.add(overlay.id);
-    if (overlay.projectId) {
-      validProjectIds.add(overlay.projectId);
-    }
-  }
-
-  // Add standalone projects
-  for (const project of cityStandalone) {
-    validProjectIds.add(project.id);
-  }
-
-  // Filter change requests that target entities in this city
-  return changeRequests.value.filter((cr) => {
-    if (cr.entityType === "project") return validProjectIds.has(cr.entityId);
-    if (cr.entityType === "overlay") return validOverlayIds.has(cr.entityId);
-    return false;
-  });
-});
-
-// Watch for city selection to auto-switch country if needed
-watch(
-  () => mapStore.selectedCity,
-  async (city) => {
-    if (mapStore.mode !== "moderation") return;
-    if (city && city.countryCode) {
-      // Only switch if different (avoids reload loop)
-      if (selectedCountryCode.value !== city.countryCode) {
-        // Skip country switch if moderator doesn't have access to this country
-        if (!canModerateCountry(city.countryCode)) return;
-        selectedCountryCode.value = city.countryCode;
-        // Handle the country change logic (fetch data)
-        // Suppress fly because we are already centered on the city (or flying to it)
-        loadCountryData(city.countryCode, false);
-        await fetchPendingSubmissions();
-      }
-    }
-  },
-);
+// Show all change requests for the selected country (no city filtering)
+const filteredChangeRequests = computed(() => changeRequests.value);
 
 // Clear pending rejection if report dialog is closed without reporting
 watch(showReportDialog, (isOpen) => {

@@ -1,7 +1,5 @@
 import L from "leaflet";
-import { selectCity } from "@/services/navigation/locationNavigation";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
@@ -95,9 +93,6 @@ async function prepareNavigationToCity(
       await loadCitiesForCountry(countryCode);
     }
   }
-
-  // Set selected city state (overlays are rendered separately via loadAndRenderCityData)
-  selectCity(cityId, cityName, null, countryCode);
 }
 
 /**
@@ -256,7 +251,6 @@ export async function navigateToOverlayWithCity(
   autoSelect = true,
 ): Promise<boolean> {
   try {
-    const mapStore = useMapStore();
     const overlayStore = useOverlayStore();
 
     // Optimization 1: Check if clicking the same overlay again
@@ -264,39 +258,22 @@ export async function navigateToOverlayWithCity(
       return handleSameOverlayNavigation(overlayId, autoSelect);
     }
 
-    // Optimization 2: Check if overlay is from the currently selected city
-    const currentCity = mapStore.selectedCity;
-    const isSameCity = currentCity?.id === cityId;
-
-    if (isSameCity) {
-      // Additional check: verify overlay is actually rendered, not just cached
-      const isOverlayRendered = registry.getLayer(overlayId) !== null;
-
-      if (isOverlayRendered) {
-        const corners = resolveOverlayCorners(overlayId);
-        if (corners !== null) {
-          return zoomToOverlayAndSelect(overlayId, corners, autoSelect);
-        }
+    // Check if overlay is already rendered
+    const isOverlayRendered = registry.getLayer(overlayId) !== null;
+    if (isOverlayRendered) {
+      const corners = resolveOverlayCorners(overlayId);
+      if (corners !== null) {
+        return zoomToOverlayAndSelect(overlayId, corners, autoSelect);
       }
-      // Overlay not rendered (cleared on unzoom), fall through to reload city data
     }
 
-    // Different city - load everything with cross-country flight support
+    // Navigate to city — bbox viewport system handles rendering after the fly
     await prepareNavigationToCity(cityId, cityName, countryCode);
 
-    // CRITICAL FIX: Use loadAndRenderCityData to properly load city data
-    const result = await loadAndRenderCityData(cityId, true);
-
-    const matchingOverlay = result.overlays.find((o) => o.id === overlayId);
-
-    if (!matchingOverlay || matchingOverlay.project?.cityId !== cityId) {
-      console.warn(
-        `Overlay ${overlayId} not found in city ${cityId} or doesn't belong to this city`,
-      );
-    }
-
-    if (matchingOverlay?.corners && matchingOverlay.corners.length === 4) {
-      zoomToOverlayAndSelect(overlayId, matchingOverlay.corners, autoSelect);
+    // Try to use corners from store if available (e.g. from cache)
+    const corners = resolveOverlayCorners(overlayId);
+    if (corners !== null) {
+      zoomToOverlayAndSelect(overlayId, corners, autoSelect);
     } else {
       console.warn(`Cannot navigate to overlay ${overlayId} - missing corners`);
     }
@@ -329,9 +306,6 @@ export async function navigateToStandaloneProject(
   try {
     if (cityId && cityName) {
       await prepareNavigationToCity(cityId, cityName, countryCode);
-
-      // CRITICAL FIX: Load city data to populate mapStore cache
-      await loadAndRenderCityData(cityId, true);
     }
 
     await new Promise<void>(

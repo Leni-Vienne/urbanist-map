@@ -27,9 +27,6 @@
       />
     </div>
   </div>
-
-  <!-- Help button to guide user to click markers -->
-  <MarkerHelpButton />
 </template>
 
 <script setup lang="ts">
@@ -40,7 +37,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import FilterControl from "@/components/map/FilterControl.vue";
-import MarkerHelpButton from "@/components/map/MarkerHelpButton.vue";
 
 const mapStore = useMapStore();
 const uiStore = useUiStore();

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="h-full flex flex-col">
     <div
       ref="scrollAreaRef"
@@ -46,9 +46,13 @@
           <!-- Contribution info -->
           <div class="flex-1 min-w-0">
             <h2
-              class="text-[13px] md:text-sm font-semibold text-color truncate leading-tight mb-0.5"
+              class="text-[13px] md:text-sm font-semibold truncate leading-tight mb-0.5"
+              :class="contribution.name ? 'text-color' : 'text-muted-color italic'"
             >
-              {{ contribution.name }}
+              {{
+                contribution.name ||
+                (contribution.type === "overlay" ? $t("overlay.untitled") : $t("project.unnamed"))
+              }}
             </h2>
             <div class="text-xs text-muted-color truncate mb-0.5">
               {{ getLocationDisplay(contribution) }}
@@ -93,7 +97,6 @@ import { useI18n } from "vue-i18n";
 import {
   canModerateCountry,
   syncModerationCountry,
-  useOverlayClickHandler,
 } from "@/composables/overlay/useOverlayClickHandler";
 import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
@@ -104,11 +107,11 @@ import { useToast } from "@/composables/ui/useToast";
 import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
 const toast = useToast();
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 // Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
@@ -134,7 +137,7 @@ function getLocationDisplay(contribution: LatestContribution): string {
   } else if (contribution.countryName) {
     return contribution.countryName;
   }
-  return t("overlay.unknownLocation");
+  return t("project.noLocation");
 }
 
 // Handle contribution hover - highlight overlay on map if loaded
@@ -169,7 +172,16 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 
   if (contribution.type === "overlay") {
-    await handleOverlayClickNavigation(contribution, false, true);
+    // Most overlay contributions have no cityId (it's optional).
+    // Flying directly to the centroid is the safest path: it works at any zoom level,
+    // never creates a spurious grey marker, and the overlay renders naturally via
+    // vectorTileSync once the map reaches zoom ≥14.
+    if (contribution.centroid) {
+      mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18, {
+        duration: 1.5,
+        easeLinearity: 0.25,
+      });
+    }
   } else if (contribution.type === "standalone") {
     // Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.lat && contribution.lng) {

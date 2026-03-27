@@ -30,7 +30,6 @@ import { removeStandaloneProjectMarkerForProject } from "@/services/map/standalo
 import {
   selectOverlay,
   setupProjectHoverEvents,
-  syncModerationCityFromOverlay,
   applySelectionOutline,
   getCurrentHighlightedProjectId,
   applyProjectHighlightToElement,
@@ -354,10 +353,6 @@ function setupOverlayEventHandlers(
   const overlayStore = useOverlayStore();
 
   overlay.on("select", () => {
-    // In moderation mode, clicking a contribution should load the city context
-    // This ensures clicking the image itself (not just the marker) loads the city
-    syncModerationCityFromOverlay(overlayObject);
-
     // Use centralized selection function for consistent behavior
     selectOverlay(overlayObject.id);
   });

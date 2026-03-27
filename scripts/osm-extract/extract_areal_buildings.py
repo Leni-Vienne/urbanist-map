@@ -22,7 +22,7 @@ from shapely.geometry import mapping, shape
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction areal features from OSM.')
-    parser.add_argument('--source', default='planet-latest_proposed_combined.osm.pbf',
+    parser.add_argument('--source', default='planet-latest_proposed_areal.osm.pbf',
                         help='Filtered areal PBF file')
     parser.add_argument('--output', default='planet-latest_proposed_areal.geojson',
                         help='Output GeoJSON file path')
@@ -161,9 +161,9 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         props['transport_type'] = transport_type
         
         status_check = 'under_construction'
-        if building == 'proposed' or tags.get('state') == 'proposed':
+        if building == 'proposed' or landuse == 'proposed' or tags.get('state') == 'proposed':
             status_check = 'proposed'
-        elif building == 'planned' or (planned and not construction):
+        elif building == 'planned' or landuse == 'planned' or tags.get('state') == 'planned' or (planned and not construction):
             status_check = 'planned'
         props['project_status'] = status_check
         
@@ -348,7 +348,7 @@ def main():
     t = time.time()
     collection = {'type': 'FeatureCollection', 'features': filtered_features}
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-        json.dump(collection, f, ensure_ascii=False, indent=2)
+        json.dump(collection, f, ensure_ascii=False, separators=(',', ':'))
     print(f"[areal] [{_ts()}] Write done in {_fmt(time.time() - t)}")
 
     print("\n[areal] Sample features:")

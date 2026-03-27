@@ -101,31 +101,6 @@ watch(
   },
 );
 
-// Track previous city ID for detecting city changes
-let previousCityId = mapStore.selectedCity?.id;
-watch(
-  () => mapStore.selectedCity,
-  (newCity) => {
-    // Case 1: City was selected (either new or changed from another city)
-    // Switch to Current Location tab only if coming from Latest tab
-    if (newCity && newCity.id !== previousCityId && uiStore.activeTab === "latest") {
-      uiStore.activeTab = "currentLocation";
-    }
-
-    // Case 2: City was cleared (e.g., by clicking the breadcrumb)
-    // Only switch away from Current Location tab if BOTH city AND country are cleared
-    // If country is still selected, stay on Current Location to show city list
-    if (!newCity && previousCityId && uiStore.activeTab === "currentLocation") {
-      // Check if country is still selected - if so, keep showing Current Location panel
-      if (!mapStore.selectedCountryCode) {
-        uiStore.activeTab = "latest";
-      }
-    }
-
-    previousCityId = newCity?.id;
-  },
-);
-
 // Initialize panel tabs synchronization (mode/tab/auth watchers)
 usePanelTabs();
 </script>

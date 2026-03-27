@@ -30,9 +30,9 @@ STALE_THRESHOLD_YEARS = 3  # Features older than this are filtered (unless named
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction linear transport features from OSM.')
-    parser.add_argument('--ways-file', default='planet-latest_proposed_combined.osm.pbf',
+    parser.add_argument('--ways-file', default='planet-latest_proposed_ways.osm.pbf',
                         help='Filtered PBF containing only proposed/construction ways')
-    parser.add_argument('--source-file', default='planet-latest_proposed_combined.osm.pbf',
+    parser.add_argument('--source-file', default='planet-latest_proposed.osm.pbf',
                         help='Original source PBF (used for relation scanning)')
     parser.add_argument('--output', default='planet-latest_proposed_linear.geojson',
                         help='Output GeoJSON file path')

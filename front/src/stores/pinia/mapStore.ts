@@ -4,14 +4,6 @@ import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import type { RouterOutput } from "@/client";
 
-// Type for selected city data (compatible with previous latestClickedCity interface)
-interface SelectedCity {
-  id: number;
-  name: string;
-  nameLocal: string | null;
-  countryCode?: string;
-}
-
 export const useMapStore = defineStore("map", () => {
   // App mode (view, edit, moderation) — lives here alongside the mode-keyed city caches
   const mode = ref<AppMode>("view");
@@ -25,9 +17,6 @@ export const useMapStore = defineStore("map", () => {
     mode.value = "view";
   }
 
-  // Currently selected city state (replaces the old latestClickedCity module variable)
-  const selectedCity = ref<SelectedCity | null>(null);
-
   // Currently selected country code (set when clicking a city marker)
   const selectedCountryCode = ref<string | null>(null);
 
@@ -36,7 +25,9 @@ export const useMapStore = defineStore("map", () => {
 
   // Cities lookup map (cityId → city info) for panel auto-switch
   // Populated when cities are loaded globally, avoids circular dependency
-  const citiesLookup = ref<Map<number, SelectedCity>>(new Map());
+  const citiesLookup = ref<
+    Map<number, { id: number; name: string; nameLocal: string | null; countryCode?: string }>
+  >(new Map());
 
   // City projects cache - mode-aware for smart caching (cityId → mode → data)
   // This allows fast mode switching without backend calls while maintaining data correctness
@@ -46,18 +37,6 @@ export const useMapStore = defineStore("map", () => {
   const cityStandaloneProjectsCache = ref<
     Map<number, Map<AppMode, RouterOutput["project"]["getCityProjects"]>>
   >(new Map());
-
-  // Set the currently selected city
-  function setSelectedCity(city: SelectedCity | null) {
-    // Prevent redundant updates (prevents infinite loops in watchers)
-    if (selectedCity.value?.id === city?.id) return;
-    selectedCity.value = city;
-  }
-
-  // Clear the selected city
-  function clearSelectedCity() {
-    selectedCity.value = null;
-  }
 
   // City cache management - mode-aware
   function getCityOverlaysAndProjectsCache(cityId: number, forMode: AppMode): OverlayData[] | null {
@@ -138,7 +117,6 @@ export const useMapStore = defineStore("map", () => {
   return {
     // State
     mode,
-    selectedCity,
     selectedCountryCode,
     currentCityOverlays,
     citiesLookup,
@@ -148,8 +126,6 @@ export const useMapStore = defineStore("map", () => {
     // Actions
     setMode,
     resetMode,
-    setSelectedCity,
-    clearSelectedCity,
     getCityOverlaysAndProjectsCache,
     setCityProjectsCache,
     getCityStandaloneProjectsCache,

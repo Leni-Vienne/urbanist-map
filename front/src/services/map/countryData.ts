@@ -122,5 +122,4 @@ export function clearAllMapContent(): void {
   clearAllStandaloneProjectMarkers();
   const mapStore = useMapStore();
   mapStore.currentCityOverlays = [];
-  mapStore.clearSelectedCity();
 }

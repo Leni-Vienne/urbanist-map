@@ -5,7 +5,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { selectCity } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes } from "@/services/map/shapeRendering";
@@ -81,14 +80,11 @@ export function useShapeChangeRequestPreview() {
     const bounds = computeBounds(geometry);
     if (!bounds) return;
 
-    // Navigate to the correct city if not already there
-    const alreadyOnCity = mapStore.selectedCity?.id === project.cityId;
-    if (!alreadyOnCity && project.countryCode && project.cityId) {
+    // Navigate to the correct country context if not already there
+    if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
       clearAllMapContent();
       mapStore.selectedCountryCode = project.countryCode;
       await loadCitiesForCountry(project.countryCode);
-      selectCity(project.cityId, project.cityName ?? t("fields.cityId"), null, project.countryCode);
-      // Wait for Vue to flush reactive effects from selectCity before rendering shapes on top.
       await nextTick();
     }
 

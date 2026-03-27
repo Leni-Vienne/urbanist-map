@@ -1,153 +1,93 @@
 #!/usr/bin/env bash
-# Usage: ./filter_combined.sh <source.osm.pbf>
-# Extracts ALL proposed/construction features (linear + areal + route relations) in a single osmium pass.
-# Replaces running filter.sh, filter_areal.sh, and filter_relations.sh separately.
+# Usage:
+#   ./filter_combined.sh <source.osm.pbf>             — full run (steps 1+2+3, ~40min)
+#   ./filter_combined.sh --rederive <source.osm.pbf>  — skip step 1, re-derive ways+areal from
+#                                                        existing *_proposed.osm.pbf (~2min)
+#
+# Outputs:
+#   *_proposed.osm.pbf       — full extract (ways + areas + route relations), used by linear Pass 2
+#   *_proposed_ways.osm.pbf  — transport ways only (~73MB), used by linear Pass 1 (locations=True)
+#   *_proposed_areal.osm.pbf — building/area ways+relations only, used by areal script
 
 set -e
 
-SOURCE="${1:?Usage: $0 <source.osm.pbf>}"
-OUTPUT="${SOURCE/.osm.pbf/_proposed_combined.osm.pbf}"
+REDERIVE=0
+if [ "$1" = "--rederive" ]; then
+    REDERIVE=1
+    shift
+fi
 
-echo "Filtering $SOURCE -> $OUTPUT (single pass, linear + areal)"
+SOURCE="${1:?Usage: $0 [--rederive] <source.osm.pbf>}"
+OUTPUT="${SOURCE/.osm.pbf/_proposed.osm.pbf}"
+WAYS_OUTPUT="${SOURCE/.osm.pbf/_proposed_ways.osm.pbf}"
+AREAL_OUTPUT="${SOURCE/.osm.pbf/_proposed_areal.osm.pbf}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WAY_FILTERS="$SCRIPT_DIR/way_filters.txt"
+AREAL_FILTERS="$SCRIPT_DIR/areal_filters.txt"
+
+function ts() { date '+%H:%M:%S'; }
+function elapsed() { local s=$1; printf "%dm%02ds" $((s / 60)) $((s % 60)); }
+function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
+
+# ---------------------------------------------------------------------------
+if [ "$REDERIVE" -eq 1 ]; then
+    echo ""
+    echo "[$(ts)] STEP 1/3: Skipped (--rederive) — using existing $OUTPUT  ($(filesize "$OUTPUT"))"
+    if [ ! -f "$OUTPUT" ]; then
+        echo "ERROR: $OUTPUT not found. Run without --rederive first."
+        exit 1
+    fi
+else
+    echo ""
+    echo "[$(ts)] STEP 1/3: Full filter (ways + areas + route relations)"
+    echo "  Input:  $SOURCE  ($(filesize "$SOURCE"))"
+    echo "  Output: $OUTPUT"
+    echo "  Reading the full planet PBF — expect ~40 minutes, osmium produces no intermediate output."
+    echo "----------------------------------------------------------"
+    T=$SECONDS
+
+    osmium tags-filter \
+        --overwrite \
+        -o "$OUTPUT" \
+        "$SOURCE" \
+        -e "$WAY_FILTERS" \
+        -e "$AREAL_FILTERS" \
+        r/type=route \
+        r/type=site \
+        r/type=public_transport
+
+    echo "[$(ts)] STEP 1/3 done in $(elapsed $((SECONDS - T))) — output: $(filesize "$OUTPUT")"
+fi
+
+# ---------------------------------------------------------------------------
+echo ""
+echo "[$(ts)] STEP 2/3: Extracting transport ways only (for fast geometry loading)"
+echo "  Input:  $OUTPUT  ($(filesize "$OUTPUT"))"
+echo "  Output: $WAYS_OUTPUT"
+echo "----------------------------------------------------------"
+T=$SECONDS
+
 osmium tags-filter \
     --overwrite \
-    -o "$OUTPUT" \
-    "$SOURCE" \
-    w/railway=proposed \
-    w/railway=construction \
-    w/highway=proposed \
-    w/highway=construction \
-    w/waterway=proposed \
-    w/waterway=construction \
-    w/aerialway=proposed \
-    w/aerialway=construction \
-    w/proposed:railway \
-    w/proposed:highway \
-    w/proposed:waterway \
-    w/proposed:aerialway \
-    w/construction=rail \
-    w/construction=light_rail \
-    w/construction=tram \
-    w/construction=subway \
-    w/construction=narrow_gauge \
-    w/construction=monorail \
-    w/construction=miniature \
-    w/construction=motorway \
-    w/construction=trunk \
-    w/construction=primary \
-    w/construction=secondary \
-    w/construction=tertiary \
-    w/construction=residential \
-    w/construction=unclassified \
-    w/construction=service \
-    w/construction=living_street \
-    w/construction=bus_guideway \
-    w/construction=cycleway \
-    w/construction=footway \
-    w/construction=pedestrian \
-    w/construction=path \
-    w/construction=canal \
-    w/construction=river \
-    w/construction=stream \
-    w/construction=cable_car \
-    w/construction=gondola \
-    w/construction=funicular \
-    w/construction=chair_lift \
-    w/proposed=rail \
-    w/proposed=light_rail \
-    w/proposed=tram \
-    w/proposed=subway \
-    w/proposed=narrow_gauge \
-    w/proposed=monorail \
-    w/proposed=miniature \
-    w/proposed=motorway \
-    w/proposed=trunk \
-    w/proposed=primary \
-    w/proposed=secondary \
-    w/proposed=tertiary \
-    w/proposed=residential \
-    w/proposed=unclassified \
-    w/proposed=service \
-    w/proposed=living_street \
-    w/proposed=bus_guideway \
-    w/proposed=cycleway \
-    w/proposed=footway \
-    w/proposed=pedestrian \
-    w/proposed=path \
-    w/proposed=canal \
-    w/proposed=river \
-    w/proposed=stream \
-    w/proposed=cable_car \
-    w/proposed=gondola \
-    w/proposed=funicular \
-    w/proposed=chair_lift \
-    w/proposed=yes \
-    w/proposed:railway \
-    w/proposed:highway \
-    w/proposed:waterway \
-    w/proposed:aerialway \
-    w/railway=planned \
-    w/highway=planned \
-    w/waterway=planned \
-    w/aerialway=planned \
-    w/planned=rail \
-    w/planned=light_rail \
-    w/planned=tram \
-    w/planned=subway \
-    w/planned=narrow_gauge \
-    w/planned=monorail \
-    w/planned=miniature \
-    w/planned=motorway \
-    w/planned=trunk \
-    w/planned=primary \
-    w/planned=secondary \
-    w/planned=tertiary \
-    w/planned=residential \
-    w/planned=unclassified \
-    w/planned=service \
-    w/planned=living_street \
-    w/planned=bus_guideway \
-    w/planned=cycleway \
-    w/planned=footway \
-    w/planned=pedestrian \
-    w/planned=path \
-    w/planned=canal \
-    w/planned=river \
-    w/planned=stream \
-    w/planned=cable_car \
-    w/planned=gondola \
-    w/planned=funicular \
-    w/planned=chair_lift \
-    w/planned=yes \
-    w/planned:railway \
-    w/planned:highway \
-    w/planned:waterway \
-    w/planned:aerialway \
-    wr/building=construction \
-    wr/building=proposed \
-    wr/landuse=construction \
-    wr/landuse=brownfield \
-    wr/construction=apartments \
-    wr/construction=commercial \
-    wr/construction=office \
-    wr/construction=retail \
-    wr/construction=industrial \
-    wr/construction=yes \
-    wr/proposed=apartments \
-    wr/proposed=commercial \
-    wr/proposed=office \
-    wr/proposed=retail \
-    wr/proposed=industrial \
-    wr/building=planned \
-    wr/landuse=planned \
-    wr/planned=apartments \
-    wr/planned=commercial \
-    wr/planned=office \
-    wr/planned=retail \
-    wr/planned=industrial \
-    wr/planned:building \
-    r/type=route \
-    r/type=site \
-    r/type=public_transport
+    -o "$WAYS_OUTPUT" \
+    "$OUTPUT" \
+    -e "$WAY_FILTERS"
 
-echo "Done: $OUTPUT"
+echo "[$(ts)] STEP 2/3 done in $(elapsed $((SECONDS - T))) — output: $(filesize "$WAYS_OUTPUT")"
+
+# ---------------------------------------------------------------------------
+echo ""
+echo "[$(ts)] STEP 3/3: Extracting building/area features only"
+echo "  Input:  $OUTPUT  ($(filesize "$OUTPUT"))"
+echo "  Output: $AREAL_OUTPUT"
+echo "----------------------------------------------------------"
+T=$SECONDS
+
+osmium tags-filter \
+    --overwrite \
+    -o "$AREAL_OUTPUT" \
+    "$OUTPUT" \
+    -e "$AREAL_FILTERS"
+
+echo "[$(ts)] STEP 3/3 done in $(elapsed $((SECONDS - T))) — output: $(filesize "$AREAL_OUTPUT")"

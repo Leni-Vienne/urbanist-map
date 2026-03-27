@@ -91,9 +91,8 @@ export function usePanelTabs() {
         // Already in a view-compatible tab, don't change it!
         return;
       }
-      // Prefer Current Location if a country OR city is selected, otherwise Latest
-      targetTab =
-        mapStore.selectedCity || mapStore.selectedCountryCode ? "currentLocation" : "latest";
+      // Prefer Current Location if a country is selected, otherwise Latest
+      targetTab = mapStore.selectedCountryCode ? "currentLocation" : "latest";
     } else {
       // For Edit/Moderation, use fixed mapping
       targetTab = modeToDefaultTab(newMode);
@@ -146,39 +145,15 @@ export function usePanelTabs() {
   );
 
   /**
-   * Watch for overlay selection and auto-switch to Current City tab (only in view mode)
+   * Watch for overlay selection and auto-switch to Current Location tab (only in view mode)
    */
   watch(
     () => overlayStore.idSelectedOverlay,
     (overlayId) => {
-      if (overlayId && mapStore.selectedCity && mapStore.mode === "view") {
-        // Explicitly switch to Current City tab
-        // No need to call setActiveTab (which triggers switchMode) because we are already in view mode
-        // But for consistency we can use uiStore directly or our action
+      if (overlayId && mapStore.mode === "view") {
         if (uiStore.activeTab !== "currentLocation") {
           uiStore.activeTab = "currentLocation";
         }
-      }
-    },
-  );
-
-  /**
-   * Watch for city selection and auto-switch to Current Location tab (only in view mode)
-   * This handles standalone project navigation from Latest Contributions panel
-   * Previously only overlays triggered tab switch via idSelectedOverlay watcher
-   */
-  watch(
-    () => mapStore.selectedCity,
-    (selectedCity, previousCity) => {
-      // Only switch tab if a new city is selected (not on clear)
-      // and we're in view mode on a tab that should switch (latest)
-      if (
-        selectedCity &&
-        mapStore.mode === "view" &&
-        uiStore.activeTab === "latest" &&
-        selectedCity.id !== previousCity?.id
-      ) {
-        uiStore.activeTab = "currentLocation";
       }
     },
   );

@@ -35,10 +35,6 @@ import {
   unhighlightProjectShapes,
 } from "@/services/map/shapeRendering";
 import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
-import {
-  fetchCityStandaloneProjectsOrCache,
-  fetchCityOverlaysOrCache,
-} from "@/services/navigation/cityDataLoader";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 // useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
@@ -353,23 +349,6 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
     setOverlayDrivenHover(project.id);
   }
 
-  // Only handle city-related logic if project has an associated city
-  if (project.cityId && project.city) {
-    if (mapStore.selectedCity?.id !== project.city.id) {
-      mapStore.setSelectedCity({
-        id: project.city.id,
-        name: project.city.name,
-        nameLocal: project.city.nameLocal,
-        countryCode: project.city.countryCode,
-      });
-    }
-
-    Promise.all([
-      fetchCityOverlaysOrCache(project.city.id, mapStore.mode),
-      fetchCityStandaloneProjectsOrCache(project.city.id, mapStore.mode),
-    ]).catch(console.error);
-  }
-
   if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
   requestScrollTo("project", project.id);
 
@@ -524,18 +503,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       L.DomEvent.stopPropagation(e);
       const uiStore = useUiStore();
 
-      // In moderation mode, clicking a contribution should load the city context
-      if (mapStore.mode === "moderation" && project.city) {
-        if (mapStore.selectedCity?.id !== project.city.id) {
-          mapStore.setSelectedCity({
-            id: project.city.id,
-            name: project.city.name,
-            nameLocal: project.city.nameLocal,
-            countryCode: project.city.countryCode,
-          });
-        }
-      }
-
       // Check if popup is already open for this project - toggle behavior
       if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
         uiStore.closeProjectInfoPopup();
@@ -545,27 +512,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
       // Open or update project info popup first to ensure state is set (prevents race conditions with SideMenu watcher)
       uiStore.openProjectInfoPopup(project.id, project);
-      // Ensure city context and data are loaded for the panel
-
-      const mode = mapStore.mode;
-
-      // Set city if not already selected (required for currentLocation panel to show data)
-      if (project.city && mapStore.selectedCity?.id !== project.city.id) {
-        mapStore.setSelectedCity({
-          id: project.city.id,
-          name: project.city.name,
-          nameLocal: project.city.nameLocal,
-          countryCode: project.city.countryCode,
-        });
-      }
-
-      // Ensure data is loaded for the panel to work (overlays AND standalone projects)
-      if (project.city) {
-        await Promise.all([
-          fetchCityOverlaysOrCache(project.city.id, mode),
-          fetchCityStandaloneProjectsOrCache(project.city.id, mode),
-        ]).catch(console.error);
-      }
 
       // Force switch to Current Location tab if user is exploring Latest tab
       if (uiStore.activeTab === "latest") {
