@@ -3,7 +3,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
-import { selectCity } from "@/services/navigation/locationNavigation";
 import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
@@ -496,17 +495,6 @@ export function useSubmissionService() {
 
     if (project.cityId) {
       mapStore.clearCityCaches(project.cityId);
-    }
-
-    if (mapStore.selectedCity) {
-      selectCity(
-        mapStore.selectedCity.id,
-        mapStore.selectedCity.name,
-        mapStore.selectedCity.nameLocal,
-        mapStore.selectedCity.countryCode,
-      );
-    } else {
-      selectCity(null, "", null);
     }
 
     if (changeType === "create") {

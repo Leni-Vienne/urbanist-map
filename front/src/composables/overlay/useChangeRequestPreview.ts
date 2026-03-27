@@ -11,7 +11,6 @@ import {
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { selectCity } from "@/services/navigation/locationNavigation";
 import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
@@ -129,14 +128,6 @@ export function useChangeRequestPreview() {
       duration: 1.5,
       easeLinearity: 0.25,
     });
-
-    // Step 5: Set selected city state
-    selectCity(
-      overlayForModeration.cityId,
-      overlayForModeration.cityName ?? "City",
-      null,
-      overlayForModeration.countryCode,
-    );
 
     // Wait for overlays to render
     await new Promise<void>(

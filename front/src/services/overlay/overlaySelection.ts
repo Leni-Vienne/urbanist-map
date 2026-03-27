@@ -11,7 +11,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { getMarker, getLayer } from "@/services/overlay/overlayRenderRegistry";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
@@ -157,7 +156,6 @@ export function selectOverlay(overlayId: string | null): void {
   if (isSelectingOverlay) return;
 
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
 
   // Early exit if already selected
   if (overlayId === overlayStore.idSelectedOverlay) return;
@@ -190,21 +188,6 @@ export function selectOverlay(overlayId: string | null): void {
     const newlySelected = overlayStore.overlays[overlayId];
     if (!newlySelected) return;
 
-    // Set selectedCity to enable panel auto-switch from Latest to Current Location
-    const foundCityId = findCityIdForOverlay(overlayId, mapStore.mode);
-
-    if (foundCityId) {
-      // Look up city info from citiesLookup map (no circular dependency)
-      const city = mapStore.citiesLookup.get(foundCityId);
-
-      if (city) {
-        // Set selectedCity when null/undefined OR when switching to a different city
-        if (!mapStore.selectedCity || mapStore.selectedCity.id !== city.id) {
-          mapStore.setSelectedCity(city);
-        }
-      }
-    }
-
     setupNewSelection(newlySelected, overlayId);
 
     // Request scroll to overlay in accordion panel when selecting from map
@@ -212,38 +195,6 @@ export function selectOverlay(overlayId: string | null): void {
   } finally {
     isSelectingOverlay = false;
   }
-}
-
-/**
- * Helper to find which city an overlay belongs to
- * Searches cache first, then moderation store if applicable
- */
-function findCityIdForOverlay(overlayId: string, mode: string): number | null {
-  const mapStore = useMapStore();
-  let foundCityId: number | null = null;
-
-  // Iterate through all cached cities to find which one contains this overlay
-  for (const [cityId, modeCache] of mapStore.cityProjectsCache.entries()) {
-    for (const overlays of modeCache.values()) {
-      const overlay = overlays.find((o) => o.id === overlayId);
-      if (overlay) {
-        foundCityId = cityId;
-        break;
-      }
-    }
-    if (foundCityId) break;
-  }
-
-  // If not found in cache and in moderation mode, check moderation store
-  if (!foundCityId && mode === "moderation") {
-    const moderationStore = useModerationStore();
-    const modOverlay = moderationStore.overlays.find((o) => o.id === overlayId);
-    if (modOverlay?.cityId) {
-      foundCityId = modOverlay.cityId;
-    }
-  }
-
-  return foundCityId;
 }
 
 export function applySelectionOutline(overlayObject: OverlayObject): void {
@@ -461,25 +412,6 @@ export function setupProjectHoverEvents(
       removeProjectOutlines(overlayObject.projectId);
     }
   });
-}
-
-/**
- * In moderation mode, sync the selected city from the overlay's project context.
- * Called when clicking an overlay marker or image so the side panel shows the right city.
- */
-export function syncModerationCityFromOverlay(overlayObject: OverlayObject): void {
-  const mapStore = useMapStore();
-  if (mapStore.mode !== "moderation" || !overlayObject.project?.city) return;
-
-  const city = overlayObject.project.city;
-  if (mapStore.selectedCity?.id !== city.id) {
-    mapStore.setSelectedCity({
-      id: city.id,
-      name: city.name,
-      nameLocal: city.nameLocal,
-      countryCode: city.countryCode,
-    });
-  }
 }
 
 /**

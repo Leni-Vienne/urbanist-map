@@ -20,7 +20,6 @@ import {
   selectOverlay,
   highlightProjectOverlaysOnHover,
   removeProjectOutlines,
-  syncModerationCityFromOverlay,
 } from "@/services/overlay/overlaySelection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import {
@@ -223,10 +222,6 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
         easeLinearity: 0.25,
       });
     }
-
-    // In moderation mode, clicking a contribution should load the city context (like clicking a city marker)
-    // Check for overlayObject.project which should now be populated by enrichOverlayWithProject
-    syncModerationCityFromOverlay(overlayObject);
 
     // Toggle selection - selectOverlay handles overlay.select() internally
     if (overlayStore.idSelectedOverlay === savedOverlay.id) {

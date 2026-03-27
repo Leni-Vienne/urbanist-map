@@ -4,20 +4,6 @@ This document outlines the granular functional test scenarios required to ensure
 
 ## 1. Map Visualization & Entity Behavior
 
-### 1.1. Zoom-Dependent Rendering (The "Threshold" Test)
-
-- **Scenario**: User zooms in from a high altitude to a street level.
-- **Checks**:
-  1.  At **Low Zoom (Country/Region)**: Verify `CityMarkers` are visible. Verify NO `OverlayMarkers` or `OverlayImages` are visible.
-  2.  At **Mid Zoom (City)**: Verify `CityMarkers` disappear. Verify `OverlayMarkers` (dots/icons) appear.
-  3.  At **High Zoom (Street)**: Verify `OverlayMarkers` are replaced by (or overlaid with) actual `OverlayImages` (distorted images on map).
-- **Regression Focus**:
-  - **Flicker**: Assert DOM elements for markers do not detach and reattach unnecessarily during minor zoom adjustments around the threshold (Visual instability).
-  - **Disappearance**: Zoom out slightly and zoom back in; ensure images re-render immediately without needing a pan interaction.
-  - **Double-marker glitch on low→high crossing**: Zoom from mid zoom (overlay dot markers visible) quickly through `MIN_ZOOM_FOR_OVERLAYS`. Verify that dot markers do NOT visually re-appear/flash before the store-managed marker is placed. The sequence must be: dot markers removed → store marker created (not: store marker created alongside dot markers, then dot markers removed).
-  - **No marker recreation when crossing zoom 14**: Start at zoom ≤ 12 (below `VIEWPORT_LOAD_THRESHOLD`), zoom to 13 (dot markers appear), then zoom to 14 (overlay images appear). Verify in the console that `createSingleMarker` is NOT called (i.e. the `"in overlayMarkers.ts, creating marker"` log does NOT appear). The dot-marker created at zoom 13 must be reused and promoted, not recreated. Repeat the cycle (zoom out to 12, back to 13, back to 14) and confirm the same behaviour.
-  - **No marker recreation when descending then returning**: Zoom to 14 (markers + images visible), zoom down to 13 (images disappear, markers stay), zoom back to 14. Confirm `createSingleMarker` is not called on the return to 14.
-
 ### 1.2. City Marker Logic & Filtering
 
 - **Scenario**: Switch between View, Edit, and Moderation modes.
@@ -1453,26 +1439,3 @@ This document outlines the granular functional test scenarios required to ensure
   3. **Check**: City list updates (may include extra cities with your pending items).
   4. Switch back to **View Mode**.
   5. **Check**: City list returns to approved-only cities.
-
-### 39.4. Cross-Country City Navigation via `prepareNavigationToCity`
-
-- **Scenario**: Deep-link / panel navigation to a city in a different country no longer calls the deleted `loadAllCityMarkersGlobally`.
-- **Steps**:
-  1. Navigate to a project in **Country A** (e.g. France) via "Latest Contributions".
-  2. Navigate to a project in **Country B** (e.g. Switzerland) via "Latest Contributions".
-  3. **Check**: Map flies to Country B's city. No JavaScript error in console (`loadAllCityMarkersGlobally is not defined`).
-  4. **Check**: City list panels update to Country B context.
-  5. **Regression**: Navigate back to Country A. Verify no stale content from Country B remains.
-
-### 39.5. New Project Creation Sets City Context Without Leaflet Markers
-
-- **Scenario**: Creating a new project (standalone) in `ProjectManager.vue` sets the country/city context; the cluster source handles map display (no Leaflet city circle marker needed).
-- **Steps**:
-  1. Enter **Edit Mode**. Place a new standalone project marker in a city not yet active.
-  2. Fill the form and submit.
-  3. **Check**: No JavaScript errors (no call to deleted `addSingleCityMarker`).
-  4. **Check**: The new project's center point appears in the MapLibre cluster source at low zoom.
-  5. **Check**: `mapStore.selectedCity` is set to the new project's city.
-  6. **Check**: The standalone project marker (Leaflet) is visible at street zoom.
-  7. **Regression**: Upload an image to the new project.
-  8. **Check**: `ensureCityMarkersForProject` completes without error; overlay appears on map.

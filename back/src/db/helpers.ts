@@ -1,4 +1,5 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { db } from "../database";
@@ -14,6 +15,8 @@ import {
 } from "./schema";
 import type * as schema from "./schema";
 import type { AppMode, OverlayData } from "@shared/types";
+
+const projectCountries = alias(countries, "project_countries");
 
 // ============================================================================
 // DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -134,8 +137,8 @@ const overlaySelectFields = {
   projectName: projects.name,
   cityName: cities.name,
   cityId: cities.id,
-  countryCode: countries.code,
-  countryName: countries.name,
+  countryCode: sql<string | null>`COALESCE(${countries.code}, ${projectCountries.code})`,
+  countryName: sql<string | null>`COALESCE(${countries.name}, ${projectCountries.name})`,
 };
 
 /**
@@ -148,7 +151,8 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
     .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code));
+    .leftJoin(countries, eq(cities.countryCode, countries.code))
+    .leftJoin(projectCountries, eq(projects.countryCode, projectCountries.code));
 }
 
 // Shared project column selection — add new project fields here only

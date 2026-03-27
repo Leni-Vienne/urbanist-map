@@ -61,11 +61,10 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { addOverlay } from "@/services/overlay/overlayEditing";
 import { createProject } from "@/services/project/projectMutations";
-import { loadAndRenderCityData } from "@/services/navigation/cityNavigationTriggers";
 import { createProjectObject } from "@/utils/typeFactories";
 import { getCityProjects } from "@/services/project/projectSelection";
 import type { Project } from "@/types/index";
-import { citiesWithProjects } from "@/services/map/cityMarkers";
+import { citiesWithProjects } from "@/services/map/citiesState";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
 const CreateProjectDialog = defineAsyncComponent(
@@ -87,48 +86,6 @@ const tempMarker = ref<L.Marker | null>(null);
 const { projects } = storeToRefs(projectStore);
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
 const { projectEditForm } = storeToRefs(uiStore);
-
-// Helper to ensure the country/city context is set up for a project's city.
-// The cluster source (mergeProjectPointsForMode) handles map display; no Leaflet city markers needed.
-async function ensureCityMarkersForProject(
-  city: {
-    id: number;
-    name: string;
-    nameLocal: string | null;
-    countryCode: string;
-    coordinates: { x: number; y: number };
-  },
-  forceSetSelectedCity = false,
-): Promise<void> {
-  const countryCode = city.countryCode;
-
-  if (!countryCode) return;
-
-  // Check if we're switching to a different country
-  const isCountrySwitch = mapStore.selectedCountryCode !== countryCode;
-
-  if (isCountrySwitch) {
-    // Clear old map content only if we are actually switching from another country
-    // If selectedCountryCode is null (neutral state), don't wipe potentially visible viewport content
-    if (mapStore.selectedCountryCode) {
-      clearAllMapContent();
-    }
-    mapStore.selectedCountryCode = countryCode;
-    await loadCitiesForCountry(countryCode);
-  }
-
-  mapStore.selectedCountryCode = countryCode;
-
-  // Set selectedCity if not already set (or if forced) to prevent overlay disappearance on zoom
-  if (forceSetSelectedCity || !mapStore.selectedCity) {
-    mapStore.setSelectedCity({
-      id: city.id,
-      name: city.name,
-      nameLocal: city.nameLocal,
-      countryCode: countryCode,
-    });
-  }
-}
 
 // Try to find project from replacement overlay
 function findProjectFromReplacementOverlay(projectId: string): Project | null {
@@ -220,12 +177,6 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
       } else {
         // Regular overlay addition
         addOverlay(reader.result as string, projectId);
-      }
-
-      // Ensure city markers exist for this overlay's city
-      const project = projectStore.projects[projectId];
-      if (project?.city) {
-        await ensureCityMarkersForProject(project.city);
       }
     } catch (error) {
       console.error("Error handling file upload:", error);
@@ -320,10 +271,15 @@ async function displayProjectMarkerAndPopup(
     coordinates: { x: number; y: number };
   },
 ) {
-  await ensureCityMarkersForProject(city, true);
-
-  // Load city data so the city's content is fully initialized
-  await loadAndRenderCityData(city.id, true);
+  // Ensure country context is set so viewport rendering works
+  const countryCode = city.countryCode;
+  if (countryCode && mapStore.selectedCountryCode !== countryCode) {
+    if (mapStore.selectedCountryCode) {
+      clearAllMapContent();
+    }
+    mapStore.selectedCountryCode = countryCode;
+    await loadCitiesForCountry(countryCode);
+  }
 
   let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
 

@@ -64,7 +64,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // Load countries for breadcrumbs (no marker rendering)
 import { loadCountriesWithProjects } from "@/services/map/countryData";
-import { initializeCitiesData } from "@/services/map/cityMarkers";
+import { initializeCitiesData } from "@/services/map/citiesState";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -99,7 +99,6 @@ watch(
     if (!newUser) {
       clearAllStandaloneProjectMarkers();
       mapStore.setMode("view");
-      mapStore.clearSelectedCity();
     }
   },
 );
