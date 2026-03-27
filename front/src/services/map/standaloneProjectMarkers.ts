@@ -34,6 +34,7 @@ import {
   highlightProjectShapes,
   unhighlightProjectShapes,
 } from "@/services/map/shapeRendering";
+import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 import {
   fetchCityStandaloneProjectsOrCache,
   fetchCityOverlaysOrCache,
@@ -66,9 +67,10 @@ function initializePopupWatcher() {
   watch(
     () => uiStore.projectInfoPopup.visible,
     (isVisible, wasVisible) => {
-      // When popup closes, reset marker opacity
+      // When popup closes, reset marker opacity and release any pinned vector hover.
       if (wasVisible && !isVisible) {
         updateStandaloneProjectMarkerOpacities(null);
+        setOverlayDrivenHover(null);
       }
     },
   );
@@ -329,14 +331,27 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
+  // Ensure the popup-close watcher is always active, even for overlay-only projects that
+  // never go through addStandaloneProjectMarkerForProject (which is the usual init path).
+  initializePopupWatcher();
+
   if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
+    // Toggle off: user clicked the same project again to close the popup.
     uiStore.closeProjectInfoPopup();
     cleanupProjectInfoTeleportTarget();
     unhighlightProjectShapes(project.id);
+    setOverlayDrivenHover(null); // Release the pinned vector highlight immediately.
     return;
   }
 
   uiStore.openProjectInfoPopup(project.id, project);
+
+  // In view mode, pin the vector tile highlight so the overlay footprint / shape stays
+  // highlighted while the popup is open (not just while the mouse is over the feature).
+  // The initializePopupWatcher above clears this when the popup eventually closes.
+  if (mapStore.mode === "view") {
+    setOverlayDrivenHover(project.id);
+  }
 
   // Only handle city-related logic if project has an associated city
   if (project.cityId && project.city) {

@@ -25,6 +25,8 @@ import {
   lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 
+/* oxlint-disable no-unsafe-type-assertion */ // disabled because maplibre-gl is clunky to type
+
 // ── Global Request Deduplication for MapLibre ──────────────────────────────
 // MapLibre's renderWorldCopies means at zoom level < 3, it renders multiple copies
 // of the world to fill horizontal screens. It concurrently fetches identical tiles

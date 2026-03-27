@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Usage: ./run_all.sh <source.osm.pbf>
 # Runs both linear (transport) and areal (building/development) extractions.
-# Uses a single osmium pass for both, then runs Python extraction in parallel.
+# A single osmium pass filters ways + route relations, then both Python extractions run in parallel.
 
 set -e
+
+trap 'trap - INT TERM; echo "Interrupted, killing child processes..."; kill 0; exit 1' INT TERM
 
 SOURCE="${1:?Usage: $0 <source.osm.pbf>}"
 
@@ -14,7 +16,6 @@ fi
 
 BASE="${SOURCE%.osm.pbf}"
 COMBINED_PBF="${BASE}_proposed_combined.osm.pbf"
-RELATIONS_PBF="${BASE}_route_relations.osm.pbf"
 LINEAR_GEOJSON="${BASE}_proposed_linear.geojson"
 AREAL_GEOJSON="${BASE}_proposed_areal.geojson"
 
@@ -24,29 +25,23 @@ function elapsed() {
 }
 
 echo "=========================================================="
-echo " STEP 1/3: Filtering ways (single osmium pass, linear + areal)"
+echo " STEP 1/2: Filtering (single pass: ways + route relations, should take 40 minutes)"
 echo "=========================================================="
 T0=$SECONDS
+
 ./filter_combined.sh "$SOURCE"
+
 echo "  -> Done in $(elapsed $((SECONDS - T0)))"
 
 echo ""
 echo "=========================================================="
-echo " STEP 2/3: Filtering route relations (for linear Pass 2)"
-echo "=========================================================="
-T0=$SECONDS
-./filter_relations.sh "$SOURCE"
-echo "  -> Done in $(elapsed $((SECONDS - T0)))"
-
-echo ""
-echo "=========================================================="
-echo " STEP 3/3: Extracting features (linear + areal in parallel)"
+echo " STEP 2/2: Extracting features (linear + areal, should take 3 minutes)"
 echo "=========================================================="
 T1=$SECONDS
 
 python3 extract_linear_topo.py \
     --ways-file "$COMBINED_PBF" \
-    --source-file "$RELATIONS_PBF" \
+    --source-file "$COMBINED_PBF" \
     --output "$LINEAR_GEOJSON" &
 PID_LINEAR=$!
 
@@ -73,7 +68,6 @@ echo "  - $LINEAR_GEOJSON"
 echo "  - $AREAL_GEOJSON"
 echo "  Intermediate:"
 echo "  - $COMBINED_PBF"
-echo "  - $RELATIONS_PBF"
 echo "=========================================================="
 
 exit $FAILED

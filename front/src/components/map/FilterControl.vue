@@ -194,7 +194,7 @@ watch(sliderPositions, ([minPos, maxPos]) => {
 });
 
 // Date slider: each step is one month, from DATE_SLIDER_ORIGIN_YEAR to current month.
-const DATE_SLIDER_ORIGIN_YEAR = 2010;
+const DATE_SLIDER_ORIGIN_YEAR = 2004;
 const _now = new Date();
 const DATE_SLIDER_MAX = (_now.getFullYear() - DATE_SLIDER_ORIGIN_YEAR) * 12 + _now.getMonth();
 

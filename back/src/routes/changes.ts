@@ -58,15 +58,15 @@ function convertCornersToGeometry(cornersValue: unknown) {
   // SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
   const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
   // oxlint-disable no-non-null-assertion
-  return sql`ST_MakePolygon(
+  return sql`ST_SetSRID(ST_MakePolygon(
     ST_MakeLine(ARRAY[
-      ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${topRight!.lng}, ${topRight!.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${bottomRight!.lng}, ${bottomRight!.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${bottomLeft!.lng}, ${bottomLeft!.lat}), 4326),
-      ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326)
+      ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}),
+      ST_MakePoint(${topRight!.lng}, ${topRight!.lat}),
+      ST_MakePoint(${bottomRight!.lng}, ${bottomRight!.lat}),
+      ST_MakePoint(${bottomLeft!.lng}, ${bottomLeft!.lat}),
+      ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat})
     ])
-  )`;
+  ), 4326)`;
   // oxlint-enable no-non-null-assertion
 }
 
