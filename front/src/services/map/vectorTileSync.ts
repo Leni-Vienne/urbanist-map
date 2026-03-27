@@ -64,25 +64,47 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
   };
 }
 
+// All overlay-footprint line layer IDs that carry overlay features.
+// Each layer has an exclusive filter (completed / proposed / neither) so all three
+// must be queried together to get the full set of approved overlays in view.
+const OVERLAY_FOOTPRINT_LAYERS = [
+  "overlay-footprints",
+  "overlay-footprints-completed",
+  "overlay-footprints-proposed-dashed",
+] as const;
+
 function syncOverlaysFromTiles(mlMap: any): void {
   // During style reloads/HMR, idle can fire before this layer is present.
   if (!mlMap.getLayer("overlay-footprints")) return;
 
   try {
-    // Query features currently rendered in the overlay-footprints layer.
-    // Pass options as the first (and only) argument — MapLibre detects the overloaded
-    // signature by checking for a 'layers' key, so this queries the full viewport.
-    // Do NOT pass undefined explicitly as geometry: MapLibre 5.x throws internally
-    // when it tries to compute tile ranges from an undefined geometry value.
-    // queryRenderedFeatures respects the layer's minzoom (13 MapLibre = Leaflet zoom 14 =
+    // Query features currently rendered in the overlay-footprints layers.
+    // Must pass a geometry (viewport bbox in screen pixels) as the first argument.
+    // Passing options as the first argument silently returns 0 features in MapLibre 5.x —
+    // it interprets the options object as a geometry and finds nothing.
+    // All three sub-layers are queried because each has an exclusive status filter:
+    //   overlay-footprints              → neither completed nor proposed
+    //   overlay-footprints-completed    → completed
+    //   overlay-footprints-proposed-dashed → proposed
+    // queryRenderedFeatures respects each layer's minzoom (13 MapLibre = Leaflet zoom 14 =
     // MIN_ZOOM_FOR_OVERLAYS), so below that threshold this returns an empty array and all
     // approved layers are cleaned up — correct behaviour.
-    const features: any[] = mlMap.queryRenderedFeatures({ layers: ["overlay-footprints"] } as any);
+    const canvas = mlMap.getCanvas();
+    const w = canvas.clientWidth || canvas.width;
+    const h = canvas.clientHeight || canvas.height;
+    const viewportBbox: [[number, number], [number, number]] = [
+      [0, 0],
+      [w, h],
+    ];
+    const features: any[] = mlMap.queryRenderedFeatures(viewportBbox, {
+      layers: [...OVERLAY_FOOTPRINT_LAYERS],
+    });
 
-    // Deduplicate by ID — same overlay can appear in adjacent tiles
+    // Deduplicate by ID — same overlay can appear in adjacent tiles.
+    // With promoteId set on the source, the id may be on feat.id rather than feat.properties.id.
     const featureMap = new Map<string, OverlayData>();
     for (const feat of features) {
-      const id = String(feat.properties?.id ?? "");
+      const id = String(feat.id ?? feat.properties?.id ?? "");
       if (id && !featureMap.has(id)) {
         const data = overlayDataFromFeature(feat);
         if (data) featureMap.set(id, data);
@@ -120,9 +142,11 @@ function syncOverlaysFromTiles(mlMap: any): void {
     const toCreate = [...featureMap.values()];
     if (toCreate.length === 0) return;
 
-    void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
-      renderViewModeOverlays(toCreate, false, false);
-    });
+    import("@/services/overlay/overlayRendering")
+      .then(({ renderViewModeOverlays }) => {
+        renderViewModeOverlays(toCreate, false, false);
+      })
+      .catch((error) => console.error("vectorTileSync: failed to load overlayRendering", error));
   } catch (error) {
     console.error("vectorTileSync idle error:", error);
   }
@@ -137,6 +161,8 @@ export function initVectorTileSync(): void {
     const mlMap = getMlMap();
     if (!mlMap) return;
     mlMap.on("idle", () => syncOverlaysFromTiles(mlMap));
+    // Sync immediately in case the map is already idle (tiles loaded before listener registered)
+    syncOverlaysFromTiles(mlMap);
   });
 }
 

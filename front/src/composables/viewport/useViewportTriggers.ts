@@ -33,9 +33,8 @@ import {
   hydrateOverlayStoreObjects,
 } from "@/services/navigation/cityRenderingCore";
 import { filterByStatus } from "@/services/overlay/statusFilters";
-import { convertOverlayToData } from "@/utils/typeFactories";
+import { convertOverlayToData, createProjectObject } from "@/utils/typeFactories";
 import { trpc } from "@/client";
-import { createProjectObject } from "@/utils/typeFactories";
 import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
