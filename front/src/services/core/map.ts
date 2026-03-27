@@ -92,6 +92,9 @@ export function initializeMap() {
   });
   if (!map.value) throw new Error("No map element found");
 
+  // Remove the default "Leaflet" prefix from the attribution control
+  map.value.attributionControl?.setPrefix(false);
+
   // Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();
 

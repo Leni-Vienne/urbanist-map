@@ -94,6 +94,24 @@ type CountryCode = Exclude<SatelliteLayerType, "esri">;
 export type TileLayerType = "plan" | SatelliteLayerType;
 
 const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const OPENFREEMAP_ATTRIBUTION =
+  '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+
+let currentAttribution = "";
+
+function updateLeafletAttribution(newAttribution: string) {
+  if (!map.value || !map.value.attributionControl) return;
+
+  if (currentAttribution) {
+    map.value.attributionControl.removeAttribution(currentAttribution);
+  }
+
+  if (newAttribution) {
+    map.value.attributionControl.addAttribution(newAttribution);
+  }
+
+  currentAttribution = newAttribution;
+}
 
 // Current active tile layer ("plan" = MapLibre vector basemap)
 export const currentTileLayer = ref<TileLayerType>("plan");
@@ -254,6 +272,12 @@ export function addTileLayer(): void {
     void addTileLayersToMap();
   }
 
+  if (currentTileLayer.value === "plan") {
+    updateLeafletAttribution(OPENFREEMAP_ATTRIBUTION);
+  } else {
+    updateLeafletAttribution(satelliteLayerConfigs[currentTileLayer.value].attribution);
+  }
+
   initEsriMetadataListener(); // Start listening for potential high-res availability
   initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
@@ -390,8 +414,10 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
 
   if (resolvedLayerType === "plan") {
     await switchToStyle(OPENFREEMAP_STYLE_URL);
+    updateLeafletAttribution(OPENFREEMAP_ATTRIBUTION);
   } else {
     await switchToStyle(buildSatelliteStyle(resolvedLayerType));
+    updateLeafletAttribution(satelliteLayerConfigs[resolvedLayerType].attribution);
   }
 
   if (resolvedLayerType === "esri") {

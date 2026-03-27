@@ -66,7 +66,6 @@
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
-    "currentLocation": "On Map",
     "onMap": "On Map",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
@@ -77,10 +76,7 @@
     "name": "Project Name",
     "location": "Location",
     "noLocation": "No Location",
-    "cannotNavigateWithoutCity": "Cannot navigate without city information",
     "timelineStatus": "Timeline Status",
-    "proposedDescription": "Unconfirmed project, dates not yet set",
-    "plannedDescription": "Confirmed project with scheduled dates",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
     "country": "Country",
@@ -91,17 +87,14 @@
     "yearOnly": "Year only",
     "monthYear": "Month & Year",
     "fullDate": "Full date",
-    "proposed": "Proposed",
     "proposedOn": "Proposed on",
     "proposedIn": "Proposed in",
     "startsIn": "Starts in",
     "startsOn": "Starts on",
     "endsIn": "Ends in",
     "endsOn": "Ends on",
-    "locationRequired": "Location is required",
     "invalidLocation": "Invalid location selected",
     "clickMapToPlace": "Click on the map to place your project",
-    "information": "Project Information",
     "edit": "Edit Project",
     "publish": "Submit",
     "submitChangeRequest": "Submit",
@@ -153,18 +146,12 @@
   },
   "contribute": {
     "myContributions": "My Contributions",
-    "viewAllContributions": "Click to view all your contributions",
-    "viewCityProjects": "Click to view this city's projects",
     "noProjectsMatchFilter": "No projects match the current filter.",
     "tryChangingFilters": "Try changing your filter settings.",
     "noProjectsFound": "No projects found.",
     "createFirstProject": "Add your first project!",
     "selectedProject": "Selected project",
     "yourContributions": "Your contributions",
-    "role": {
-      "created": "created",
-      "contributed": "contributed"
-    },
     "deleteOverlay": "Delete image",
     "deleteProject": "Delete project",
     "deleteChangeRequest": "Delete change request",
@@ -186,16 +173,6 @@
     "beFirstToAdd": "Be the first to add a project",
     "loadingContributions": "Loading contributions..."
   },
-  "currentLocation": {
-    "noLocationSelected": "No Location Selected",
-    "selectLocationPrompt": "Select a country or city on the map to browse projects",
-    "noProjects": "No projects for this city",
-    "noProjectsDetail": "Feel free to add one!",
-    "clickToZoomCountry": "Click to zoom to country view",
-    "noContributionsInCountry": "No contributions in this country",
-    "projectsCount": "{count} project(s)",
-    "selectCityToExplore": "Select a city to explore its projects"
-  },
   "onMap": {
     "noProjects": "No projects visible",
     "noProjectsDetail": "Zoom in or pan the map to find projects",
@@ -203,9 +180,7 @@
     "sortRecent": "Sort by most recent",
     "sortName": "Sort by name",
     "sortSize": "Sort by size",
-    "sortStatus": "Sort by timeline status",
-    "sortReverse": "Reverse order",
-    "moreProjectsHidden": "+{count} more not shown"
+    "sortStatus": "Sort by timeline status"
   },
   "overlay": {
     "overlayImage": "image",
@@ -235,8 +210,6 @@
     "positionOverlayOnMap": "Now position the image on the map",
     "uploadFailed": "Upload Failed",
     "uploadFailedDetail": "Failed to upload the image file",
-    "lastOverlayDeleted": "Last Image Deleted",
-    "projectNowShowsAsMarker": "The project now appears as a marker on the map",
     "noChangesToSave": "No changes to save",
     "zoomingToProject": "Zooming to Project",
     "zoomInToSeeOverlay": "Zoom level was too low, automatically zooming in to show the uploaded image",
@@ -275,9 +248,7 @@
     }
   },
   "search": {
-    "cities": "Search cities...",
-    "noCityContributions": "No contributions yet",
-    "noCityContributionsDetail": "{cityName} has no contributions yet. Submit your own!"
+    "cities": "Search cities..."
   },
   "auth": {
     "logout": "Logout",
@@ -286,9 +257,7 @@
     "emailAddress": "Email Address",
     "password": "Password",
     "username": "Username",
-    "enterPassword": "Enter your password",
     "chooseStrongPassword": "Choose a strong password",
-    "chooseUsername": "Choose a username",
     "displayName": "This will be your display name",
     "createAccount": "Create Account",
     "dontHaveAccount": "Don't have an account?",
@@ -296,10 +265,7 @@
     "forgotPassword": "Forgot Password?",
     "continueWithGoogle": "Continue with Google",
     "orContinueWithEmail": "or continue with email",
-    "enterEmailAddress": "Enter your email address",
-    "authenticationRequired": "Authentication Required",
     "moderationAccessRequired": "Moderation Access Required",
-    "signInMessage": "Please sign in using the button in the top-right corner to access this section.",
     "moderationMessage": "You need moderator privileges to access this section.",
     "signedOut": "Signed Out",
     "signedOutMessage": "You have successfully signed out.",
@@ -534,9 +500,6 @@
     "orClick": "or click to browse files",
     "supportedFormats": "Supported formats: PNG, JPEG, JPG, WebP",
     "changeImage": "Change Image"
-  },
-  "metadata": {
-    "notSpecified": "Not specified"
   },
   "toast": {
     "validationError": "Validation Error",
@@ -837,10 +800,8 @@
     "importGeoJSON": "Import GeoJSON",
     "importError": "Invalid GeoJSON file",
     "importSkippedGeometryTypes": "Ignored unsupported geometry types: {types}",
-    "clearAll": "Clear all",
     "saveShapes": "Save shapes",
     "cancel": "Cancel",
-    "savedSuccess": "Shapes submitted for review",
     "savedLocally": "Shapes saved — click Publish to submit",
     "geometrySummary": "{count} shape(s)",
     "viewCurrentShapes": "View Current Shapes",
