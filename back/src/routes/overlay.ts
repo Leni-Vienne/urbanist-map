@@ -169,15 +169,15 @@ export const overlayRouter = router({
       // ST_MakePolygon creates a polygon from a LineString (ring)
       // ST_MakeLine creates a LineString from individual points
       // oxlint-disable no-non-null-assertion
-      const corners = sql`ST_MakePolygon(
+      const corners = sql`ST_SetSRID(ST_MakePolygon(
         ST_MakeLine(ARRAY[
-          ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${topRight!.lng}, ${topRight!.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${bottomRight!.lng}, ${bottomRight!.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${bottomLeft!.lng}, ${bottomLeft!.lat}), 4326),
-          ST_SetSRID(ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}), 4326)
+          ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}),
+          ST_MakePoint(${topRight!.lng}, ${topRight!.lat}),
+          ST_MakePoint(${bottomRight!.lng}, ${bottomRight!.lat}),
+          ST_MakePoint(${bottomLeft!.lng}, ${bottomLeft!.lat}),
+          ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat})
         ])
-      )`;
+      ), 4326)`;
       // oxlint-enable no-non-null-assertion
 
       // Prepare overlay data for insert/update

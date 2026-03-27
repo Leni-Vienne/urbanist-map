@@ -22,9 +22,9 @@ from shapely.geometry import mapping, shape
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction areal features from OSM.')
-    parser.add_argument('--source', default='germany-latest_proposed_areal.osm.pbf',
+    parser.add_argument('--source', default='planet-latest_proposed_combined.osm.pbf',
                         help='Filtered areal PBF file')
-    parser.add_argument('--output', default='germany-latest_proposed_areal.geojson',
+    parser.add_argument('--output', default='planet-latest_proposed_areal.geojson',
                         help='Output GeoJSON file path')
     return parser.parse_args()
 
@@ -107,19 +107,22 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         leisure = tags.get('leisure', '')
         construction = tags.get('construction', '')
         proposed = tags.get('proposed', '')
+        planned = tags.get('planned', '')
 
-        # Determine if this is a park/green space under construction
+        # Determine if this is a park/green space under construction or planned
         is_park_construction = (
             leisure in ('park', 'garden', 'playground', 'recreation_ground', 'sports_centre') and
-            (construction or proposed or tags.get('state') in ('construction', 'proposed'))
+            (construction or proposed or planned or tags.get('state') in ('construction', 'proposed', 'planned'))
         )
-        
-        # Determine if this is a building/development under construction
+
+        # Determine if this is a building/development under construction or planned
         is_building_construction = (
-            building in ('construction', 'proposed') or
-            landuse == 'construction' or
+            building in ('construction', 'proposed', 'planned') or
+            landuse in ('construction', 'planned') or
             construction in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
             proposed in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
+            planned in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
+            tags.get('planned:building') or
             tags.get('state') == 'construction'
         )
 
@@ -127,7 +130,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
             return
 
         # Fast exclusion of obviously small residential stuff based on target tag
-        target_use = tags.get('construction', tags.get('proposed', tags.get('building:use', '')))
+        target_use = tags.get('construction', tags.get('proposed', tags.get('planned', tags.get('building:use', ''))))
         if target_use in EXCLUDE_BUILDINGS:
             return
 
@@ -160,6 +163,8 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         status_check = 'under_construction'
         if building == 'proposed' or tags.get('state') == 'proposed':
             status_check = 'proposed'
+        elif building == 'planned' or (planned and not construction):
+            status_check = 'planned'
         props['project_status'] = status_check
         
         props['display_name'] = create_display_name(props)
@@ -309,23 +314,27 @@ def _fmt(secs):
     return f"{int(secs // 60)}m{int(secs % 60):02d}s"
 
 
+def _ts():
+    return datetime.now().strftime('%H:%M:%S')
+
+
 def main():
     t_total = time.time()
 
-    print(f"[areal] Reading geometries from {SOURCE_FILE}...")
+    print(f"[areal] [{_ts()}] Reading geometries from {SOURCE_FILE}...")
     t = time.time()
     handler = ArealExtractionHandler()
     try:
         handler.apply_file(SOURCE_FILE)
     except Exception as e:
-        print(f"[areal] Error reading file: {e}")
+        print(f"[areal] [{_ts()}] Error reading file: {e}")
         return
-    print(f"[areal] Read done in {_fmt(time.time() - t)} — {len(handler.features):,} features found")
+    print(f"[areal] [{_ts()}] Read done in {_fmt(time.time() - t)} — {len(handler.features):,} features found")
 
-    print(f"\n[areal] Filtering nested buildings...")
+    print(f"\n[areal] [{_ts()}] Filtering nested buildings...")
     t = time.time()
     features, nest_stats = filter_nested_buildings(handler.features, handler.geometries)
-    print(f"[areal] Nesting filter done in {_fmt(time.time() - t)}")
+    print(f"[areal] [{_ts()}] Nesting filter done in {_fmt(time.time() - t)}")
     print(f"  Checked: {nest_stats['checked']:,} buildings")
     print(f"  Removed unnamed containers: {nest_stats['removed_unnamed_containers']:,}")
     print(f"  Removed buildings inside named areas: {nest_stats['removed_contained_buildings']:,}")
@@ -335,12 +344,12 @@ def main():
     filtered_features = features
     print(f"\n[areal] Date filtering: DISABLED (keeping all {len(filtered_features):,} features)")
 
-    print(f"\n[areal] Writing {OUTPUT_FILE}...")
+    print(f"\n[areal] [{_ts()}] Writing {OUTPUT_FILE}...")
     t = time.time()
     collection = {'type': 'FeatureCollection', 'features': filtered_features}
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(collection, f, ensure_ascii=False, indent=2)
-    print(f"[areal] Write done in {_fmt(time.time() - t)}")
+    print(f"[areal] [{_ts()}] Write done in {_fmt(time.time() - t)}")
 
     print("\n[areal] Sample features:")
     for feature in filtered_features[:10]:
@@ -350,7 +359,7 @@ def main():
         transport = props.get('transport_type', '?')
         print(f"  [{transport:10s}] {area:6,d} m² | {name}")
 
-    print(f"\n[areal] Done! Total: {_fmt(time.time() - t_total)}")
+    print(f"\n[areal] [{_ts()}] Done! Total: {_fmt(time.time() - t_total)}")
 
 if __name__ == '__main__':
     main()

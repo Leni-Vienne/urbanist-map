@@ -45,6 +45,8 @@ function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   switch (projectStatus) {
     case "under_construction":
       return "under_construction";
+    case "planned":
+      return "planned";
     case "proposed":
     default:
       return "proposed";
