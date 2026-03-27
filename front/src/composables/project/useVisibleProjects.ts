@@ -6,6 +6,7 @@ import {
   highlightProjectOverlaysOnHover,
   removeProjectOutlines,
 } from "@/services/overlay/overlaySelection";
+import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
@@ -105,7 +106,7 @@ export function useVisibleProjects() {
     return [...named.toSorted(compareBySortMode), ...unnamed.toSorted(compareBySortMode)];
   });
 
-  function refresh() {
+  function doRefresh() {
     const mlMap = getMlMap();
     if (!mlMap) return;
 
@@ -175,31 +176,67 @@ export function useVisibleProjects() {
     rawProjects.value = [...seen.values()];
   }
 
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  // pendingQuery: a one-shot `render` listener has been registered and will call doRefresh()
+  // after the very next paint frame. Using `render` (not a timer) guarantees that
+  // queryRenderedFeatures sees a fully-painted frame with all loaded tile data.
+  let pendingQuery = false;
+
+  function scheduleRefreshAfterRender() {
+    const mlMap = getMlMap();
+    if (!mlMap || pendingQuery) return;
+    pendingQuery = true;
+    mlMap.once("render", () => {
+      pendingQuery = false;
+      doRefresh();
+    });
+  }
+
+  // Fallback debounce for cases where the map stops firing `render` altogether
+  // (e.g. nothing changed after the event). Gives up and queries directly.
+  let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   function scheduleRefresh() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(refresh, 150);
+    scheduleRefreshAfterRender();
+    if (fallbackTimer) clearTimeout(fallbackTimer);
+    fallbackTimer = setTimeout(() => {
+      pendingQuery = false;
+      doRefresh();
+    }, 500);
   }
 
   let idleHandler: (() => void) | null = null;
+  let sourcedataHandler: (() => void) | null = null;
 
   onMlMapReady(() => {
     isReady.value = true;
     const mlMap = getMlMap();
     if (!mlMap) return;
+
+    // `idle` fires when the map stops moving AND all tiles are loaded.
+    // We still piggyback a render-frame defer to guarantee the paint is done.
     idleHandler = scheduleRefresh;
     mlMap.on("idle", idleHandler);
-    refresh();
+
+    // `sourcedata` fires when any source finishes loading tile data. Catching
+    // the moment areTilesLoaded() first becomes true covers the race where the
+    // camera moved so quickly that `idle` fired before tiles were fetched.
+    sourcedataHandler = () => {
+      if (mlMap.areTilesLoaded()) scheduleRefresh();
+    };
+    mlMap.on("sourcedata", sourcedataHandler);
+
+    scheduleRefresh();
   });
 
   // Re-run when the drawer is resized or toggled (map idle won't fire in that case)
   watch(() => [uiStore.mobileDrawerHeightPercent, uiStore.mobileDrawerVisible], scheduleRefresh);
 
   onUnmounted(() => {
-    if (timer) clearTimeout(timer);
+    if (fallbackTimer) clearTimeout(fallbackTimer);
+    pendingQuery = false;
     const mlMap = getMlMap();
-    if (mlMap && idleHandler) {
-      mlMap.off("idle", idleHandler);
+    if (mlMap) {
+      if (idleHandler) mlMap.off("idle", idleHandler);
+      if (sourcedataHandler) mlMap.off("sourcedata", sourcedataHandler);
     }
   });
 
@@ -219,11 +256,40 @@ export function useVisibleProjects() {
       lastHoveredProjectId = projectId;
     } else {
       if (lastHoveredProjectId) {
-        removeProjectOutlines(lastHoveredProjectId);
+        const prevProjectId = lastHoveredProjectId;
         lastHoveredProjectId = null;
+        removeProjectOutlines(prevProjectId);
+
+        // If the popup just opened for this project (user clicked it), keep the vector tile
+        // highlight alive — it acts as a "selected" state until the popup is dismissed.
+        // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
+        const popupPinsHighlight =
+          uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === prevProjectId;
+        if (!popupPinsHighlight) {
+          setOverlayDrivenHover(null);
+        }
       }
     }
   }
 
-  return { projects, sortMode, sortReverse, isReady, refresh, navigateToProject, hoverProject };
+  // When the project info popup closes, release any vector tile hover that was pinned by a click.
+  // This is the counterpart to the popupPinsHighlight guard above.
+  watch(
+    () => uiStore.projectInfoPopup.visible,
+    (isVisible) => {
+      if (!isVisible) {
+        setOverlayDrivenHover(null);
+      }
+    },
+  );
+
+  return {
+    projects,
+    sortMode,
+    sortReverse,
+    isReady,
+    refresh: scheduleRefresh,
+    navigateToProject,
+    hoverProject,
+  };
 }

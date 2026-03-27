@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: ./filter_combined.sh <source.osm.pbf>
-# Extracts ALL proposed/construction features (linear + areal) in a single osmium pass.
-# Replaces running filter.sh and filter_areal.sh separately.
+# Extracts ALL proposed/construction features (linear + areal + route relations) in a single osmium pass.
+# Replaces running filter.sh, filter_areal.sh, and filter_relations.sh separately.
 
 set -e
 
@@ -21,6 +21,10 @@ osmium tags-filter \
     w/waterway=construction \
     w/aerialway=proposed \
     w/aerialway=construction \
+    w/proposed:railway \
+    w/proposed:highway \
+    w/proposed:waterway \
+    w/proposed:aerialway \
     w/construction=rail \
     w/construction=light_rail \
     w/construction=tram \
@@ -77,6 +81,48 @@ osmium tags-filter \
     w/proposed=gondola \
     w/proposed=funicular \
     w/proposed=chair_lift \
+    w/proposed=yes \
+    w/proposed:railway \
+    w/proposed:highway \
+    w/proposed:waterway \
+    w/proposed:aerialway \
+    w/railway=planned \
+    w/highway=planned \
+    w/waterway=planned \
+    w/aerialway=planned \
+    w/planned=rail \
+    w/planned=light_rail \
+    w/planned=tram \
+    w/planned=subway \
+    w/planned=narrow_gauge \
+    w/planned=monorail \
+    w/planned=miniature \
+    w/planned=motorway \
+    w/planned=trunk \
+    w/planned=primary \
+    w/planned=secondary \
+    w/planned=tertiary \
+    w/planned=residential \
+    w/planned=unclassified \
+    w/planned=service \
+    w/planned=living_street \
+    w/planned=bus_guideway \
+    w/planned=cycleway \
+    w/planned=footway \
+    w/planned=pedestrian \
+    w/planned=path \
+    w/planned=canal \
+    w/planned=river \
+    w/planned=stream \
+    w/planned=cable_car \
+    w/planned=gondola \
+    w/planned=funicular \
+    w/planned=chair_lift \
+    w/planned=yes \
+    w/planned:railway \
+    w/planned:highway \
+    w/planned:waterway \
+    w/planned:aerialway \
     wr/building=construction \
     wr/building=proposed \
     wr/landuse=construction \
@@ -91,6 +137,17 @@ osmium tags-filter \
     wr/proposed=commercial \
     wr/proposed=office \
     wr/proposed=retail \
-    wr/proposed=industrial
+    wr/proposed=industrial \
+    wr/building=planned \
+    wr/landuse=planned \
+    wr/planned=apartments \
+    wr/planned=commercial \
+    wr/planned=office \
+    wr/planned=retail \
+    wr/planned=industrial \
+    wr/planned:building \
+    r/type=route \
+    r/type=site \
+    r/type=public_transport
 
 echo "Done: $OUTPUT"

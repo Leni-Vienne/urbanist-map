@@ -30,11 +30,11 @@ STALE_THRESHOLD_YEARS = 3  # Features older than this are filtered (unless named
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction linear transport features from OSM.')
-    parser.add_argument('--ways-file', default='germany-latest_proposed_linear.osm.pbf',
+    parser.add_argument('--ways-file', default='planet-latest_proposed_combined.osm.pbf',
                         help='Filtered PBF containing only proposed/construction ways')
-    parser.add_argument('--source-file', default='germany-latest.osm.pbf',
+    parser.add_argument('--source-file', default='planet-latest_proposed_combined.osm.pbf',
                         help='Original source PBF (used for relation scanning)')
-    parser.add_argument('--output', default='germany-latest_proposed_linear.geojson',
+    parser.add_argument('--output', default='planet-latest_proposed_linear.geojson',
                         help='Output GeoJSON file path')
     return parser.parse_args()
 
@@ -182,31 +182,44 @@ def meters_to_degrees(meters):
 
 def get_transport_type(tags):
     """Derive canonical transport type from OSM tags."""
-    # Check construction=/proposed= first
-    for key in ('construction', 'proposed'):
+    # Check construction=/proposed=/planned= sub-type keys
+    for key in ('construction', 'proposed', 'planned'):
         val = tags.get(key, '')
         if val and val not in ('yes', 'no') and val in _VALUE_TO_TYPE:
             return _VALUE_TO_TYPE[val]
-    
+
+    # Check lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
+    for key, fallback in [('proposed:aerialway', 'cable_car'), ('proposed:railway', 'rail'),
+                          ('proposed:highway', 'road'), ('proposed:waterway', 'waterway'),
+                          ('planned:aerialway', 'cable_car'), ('planned:railway', 'rail'),
+                          ('planned:highway', 'road'), ('planned:waterway', 'waterway')]:
+        val = tags.get(key, '')
+        if val:
+            if val in _VALUE_TO_TYPE:
+                return _VALUE_TO_TYPE[val]
+            return fallback
+
     # Check boolean flags for specific rail types
     for rail_type in ('subway', 'tram', 'light_rail', 'narrow_gauge', 'monorail', 'miniature'):
         if tags.get(rail_type) == 'yes':
             return _VALUE_TO_TYPE[rail_type]
 
     # Check primary keys
-    for key, fallback in [('aerialway', 'cable_car'), ('railway', 'rail'), 
+    for key, fallback in [('aerialway', 'cable_car'), ('railway', 'rail'),
                           ('highway', 'road'), ('waterway', 'waterway')]:
         val = tags.get(key, '')
         if val:
-            # For X=proposed/construction, check proposed:X or construction:X
-            if val in ('proposed', 'construction'):
-                specific = tags.get(f'proposed:{key}', '') or tags.get(f'construction:{key}', '')
+            # For X=proposed/construction/planned, check the matching lifecycle sub-type key
+            if val in ('proposed', 'construction', 'planned'):
+                specific = (tags.get(f'proposed:{key}', '') or
+                            tags.get(f'construction:{key}', '') or
+                            tags.get(f'planned:{key}', ''))
                 if specific in _VALUE_TO_TYPE:
                     return _VALUE_TO_TYPE[specific]
             if val in _VALUE_TO_TYPE:
                 return _VALUE_TO_TYPE[val]
             return fallback
-    
+
     return 'rail'  # fallback
 
 
@@ -224,19 +237,36 @@ def get_project_status(tags):
     return 'proposed'
 
 
+_LIFECYCLE_STATUSES = ('proposed', 'construction', 'planned')
+_PRIMARY_TRANSPORT_KEYS = ('railway', 'highway', 'waterway', 'aerialway')
+
 def is_transport_way(tags):
-    """Return True if way represents proposed/construction transport infrastructure."""
-    # Explicit status on primary keys
-    if any(tags.get(k) in ('proposed', 'construction') 
-           for k in ('railway', 'highway', 'waterway', 'aerialway')):
+    """Return True if way represents proposed/construction/planned transport infrastructure."""
+    # Explicit lifecycle status as primary key value: railway=proposed, highway=planned, etc.
+    if any(tags.get(k) in _LIFECYCLE_STATUSES for k in _PRIMARY_TRANSPORT_KEYS):
         return True
-    
+
+    # Lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
+    if any(tags.get(k) for k in ('proposed:railway', 'proposed:highway',
+                                  'proposed:waterway', 'proposed:aerialway',
+                                  'planned:railway', 'planned:highway',
+                                  'planned:waterway', 'planned:aerialway')):
+        return True
+
+    # Lifecycle modifier (planned=yes / proposed=yes) on a typed transport way.
+    # e.g. aerialway=chairlift + planned=yes, highway=primary + proposed=yes
+    if any(tags.get(lc) == 'yes' for lc in ('planned', 'proposed')):
+        if any(tags.get(k) and tags.get(k) not in _LIFECYCLE_STATUSES
+               for k in _PRIMARY_TRANSPORT_KEYS):
+            return True
+
     # Exclude buildings/landuse with ambiguous construction= tags
     if 'landuse' in tags or tags.get('building', 'no') != 'no':
         return False
-    
-    return tags.get('construction', '') in TRANSPORT_VALUES or \
-           tags.get('proposed', '') in TRANSPORT_VALUES
+
+    return (tags.get('construction', '') in TRANSPORT_VALUES or
+            tags.get('proposed', '') in TRANSPORT_VALUES or
+            tags.get('planned', '') in TRANSPORT_VALUES)
 
 
 # ---------------------------------------------------------------------------
@@ -1012,29 +1042,33 @@ def _fmt(secs):
     return f"{int(secs // 60)}m{int(secs % 60):02d}s"
 
 
+def _ts():
+    return datetime.now().strftime('%H:%M:%S')
+
+
 def main():
     t_total = time.time()
 
-    print(f"[linear] Pass 1: Reading way geometries from {WAYS_FILE}...")
+    print(f"[linear] [{_ts()}] Pass 1: Reading way geometries from {WAYS_FILE}...")
     t = time.time()
     way_handler = WayGeometryHandler()
     way_handler.apply_file(WAYS_FILE, locations=True)
-    print(f"[linear] Pass 1 done in {_fmt(time.time() - t)} — {len(way_handler.ways):,} proposed/construction ways")
+    print(f"[linear] [{_ts()}] Pass 1 done in {_fmt(time.time() - t)} — {len(way_handler.ways):,} proposed/construction ways")
 
     if not way_handler.ways:
         print("[linear] ERROR: No ways found.")
         return
 
-    print(f"\n[linear] Pass 2: Scanning relations in {SOURCE_FILE}...")
+    print(f"\n[linear] [{_ts()}] Pass 2: Scanning relations in {SOURCE_FILE}...")
     t = time.time()
     rel_handler = RelationHandler(set(way_handler.ways.keys()))
     rel_handler.apply_file(SOURCE_FILE)
-    print(f"[linear] Pass 2 done in {_fmt(time.time() - t)} — {len(rel_handler.relations):,} route relations found")
+    print(f"[linear] [{_ts()}] Pass 2 done in {_fmt(time.time() - t)} — {len(rel_handler.relations):,} route relations found")
 
-    print("\n[linear] Building GeoJSON features...")
+    print(f"\n[linear] [{_ts()}] Building GeoJSON features...")
     t = time.time()
     features = build_features(way_handler.ways, rel_handler.relations)
-    print(f"[linear] Build done in {_fmt(time.time() - t)}")
+    print(f"[linear] [{_ts()}] Build done in {_fmt(time.time() - t)}")
 
     in_rel = sum(1 for f in features if f['id'].startswith('relation/'))
     orphan = sum(1 for f in features if f['id'].startswith('way/'))
@@ -1053,11 +1087,11 @@ def main():
     for t_type, n in sorted(type_counts.items(), key=lambda x: -x[1]):
         print(f"    {t_type:20s} {n:,}")
 
-    print(f"\n[linear] Writing {OUTPUT_FILE}...")
+    print(f"\n[linear] [{_ts()}] Writing {OUTPUT_FILE}...")
     t = time.time()
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump({'type': 'FeatureCollection', 'features': features}, f, ensure_ascii=False, separators=(',', ':'))
-    print(f"[linear] Write done in {_fmt(time.time() - t)}")
+    print(f"[linear] [{_ts()}] Write done in {_fmt(time.time() - t)}")
 
     print("\n[linear] Sample features:")
     for feat in features[:8]:
@@ -1065,7 +1099,7 @@ def main():
         print(f"  [{props.get('project_status', '?'):20s}] [{props.get('transport_type', '?'):12s}] "
               f"{(props.get('display_name') or 'Unnamed')[:55]}  ({feat['id']})")
 
-    print(f"\n[linear] Done! Total: {_fmt(time.time() - t_total)}")
+    print(f"\n[linear] [{_ts()}] Done! Total: {_fmt(time.time() - t_total)}")
 
 
 if __name__ == '__main__':
