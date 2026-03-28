@@ -282,12 +282,6 @@ export function useModeration() {
       if (marker) {
         updateStandaloneProjectMarkerTooltip(marker, projectWithNewStatus, mapStore.mode);
       }
-
-      // Invalidate city cache to prevent stale data when reloading the city
-      // This ensures the next city load fetches fresh data from backend with updated status
-      if (projectBeforeApproval.cityId) {
-        mapStore.clearCityStandaloneProjectsCache(projectBeforeApproval.cityId, mapStore.mode);
-      }
     }
 
     return result;

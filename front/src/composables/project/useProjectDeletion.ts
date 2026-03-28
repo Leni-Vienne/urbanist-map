@@ -1,13 +1,11 @@
 import { t } from "@/locales";
 import type { Project } from "@/types/index";
-import { useToast } from "@/composables/ui/useToast";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 
 export function useProjectDeletion() {
-  const toast = useToast();
   const { deleteOverlay, deleteProject } = useUserContributions();
   const projectStore = useProjectStore();
   const uiStore = useUiStore();

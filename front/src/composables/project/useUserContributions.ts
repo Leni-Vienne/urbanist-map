@@ -180,7 +180,6 @@ export function useUserContributions() {
     return deleteOverlayDirect(overlayId, {
       showToast: true,
       updateUserContributions: true,
-      clearCityCaches: true,
     });
   }
 

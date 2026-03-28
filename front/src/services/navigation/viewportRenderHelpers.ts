@@ -6,12 +6,10 @@
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
 import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
-import { filterByStatus } from "@/services/overlay/statusFilters";
 import type { OverlayData } from "@/types/index";
 import {
   createProjectObject,
@@ -94,10 +92,7 @@ function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
   const mapStore = useMapStore();
 
   overlayStore.setViewModeOverlays(overlaysData);
-  mapStore.currentCityOverlays = overlaysData;
-
   hydrateOverlayStoreObjects(overlaysData);
-
   updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
 }
 
@@ -115,27 +110,4 @@ export function renderFullOverlays(overlaysData: OverlayData[]): void {
   }
 
   runViewportRenderLoop();
-}
-
-/**
- * Render overlay markers only (low zoom path).
- * Clears overlays to ensure a clean state, hydrates the store, and
- * creates interactive markers for each overlay.
- */
-export function renderMarkersOnly(overlaysData: OverlayData[]): void {
-  // CRITICAL: Must preserve store data! We only want to remove the image layers from map,
-  // not destroy the reactive objects or clear the marker refs from the registry
-  clearAllOverlays(true);
-
-  hydrateStoreWithOverlays(overlaysData);
-
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-  const mode = mapStore.mode;
-  // Filter on OverlayData (has project field) so getOverlayMarkerColor can compute
-  // the correct timeline-based color in view mode.
-  const visibleIds = new Set(filterByStatus(overlaysData, mode).map((o) => o.id));
-  for (const overlayObject of Object.values(overlayStore.overlays)) {
-    if (visibleIds.has(overlayObject.id)) createSingleMarker(overlayObject);
-  }
 }

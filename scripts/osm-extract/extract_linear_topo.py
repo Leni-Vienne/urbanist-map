@@ -17,7 +17,7 @@ import argparse
 import time
 import osmium
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from shapely.geometry import LineString, mapping, box
 from shapely.ops import linemerge
 from shapely.strtree import STRtree
@@ -25,8 +25,6 @@ from shapely.strtree import STRtree
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-
-STALE_THRESHOLD_YEARS = 3  # Features older than this are filtered (unless named)
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction linear transport features from OSM.')
@@ -220,7 +218,7 @@ def get_transport_type(tags):
                 return _VALUE_TO_TYPE[val]
             return fallback
 
-    return 'rail'  # fallback
+    return ''  # fallback: unknown transport type
 
 
 def broad_group(transport_type):
@@ -229,11 +227,17 @@ def broad_group(transport_type):
 
 
 def get_project_status(tags):
-    """Return 'under_construction' or 'proposed'."""
+    """Return 'under_construction', 'planned', or 'proposed'."""
     if any(tags.get(k) == 'construction' for k in ('railway', 'highway', 'waterway', 'aerialway')):
         return 'under_construction'
     if tags.get('construction', '') not in ('', 'no'):
         return 'under_construction'
+    if any(tags.get(k) == 'planned' for k in ('railway', 'highway', 'waterway', 'aerialway')):
+        return 'planned'
+    if tags.get('planned', '') not in ('', 'no'):
+        return 'planned'
+    if any(tags.get(k) for k in ('planned:railway', 'planned:highway', 'planned:waterway', 'planned:aerialway')):
+        return 'planned'
     return 'proposed'
 
 
@@ -267,33 +271,6 @@ def is_transport_way(tags):
     return (tags.get('construction', '') in TRANSPORT_VALUES or
             tags.get('proposed', '') in TRANSPORT_VALUES or
             tags.get('planned', '') in TRANSPORT_VALUES)
-
-
-# ---------------------------------------------------------------------------
-# Date filtering
-# ---------------------------------------------------------------------------
-
-def get_stale_threshold():
-    """Return datetime threshold for stale features."""
-    return datetime.now(timezone.utc) - timedelta(days=STALE_THRESHOLD_YEARS * 365)
-
-
-def is_stale(timestamp_str, threshold):
-    """Check if timestamp is older than threshold."""
-    if not timestamp_str:
-        return False
-    try:
-        ts = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        return ts < threshold
-    except Exception:
-        return False
-
-
-def has_name(tags):
-    """Check if tags contain a name."""
-    return bool(tags.get('name', '').strip())
 
 
 # ---------------------------------------------------------------------------
@@ -484,12 +461,15 @@ class ComponentSet:
     def project_status(self, rep_id):
         key = (rep_id, 'status')
         if key not in self._cache:
-            construction_count = sum(
-                1 for wid in self.components[rep_id]
-                if get_project_status(self.ways[wid]['tags']) == 'under_construction'
-            )
-            proposed_count = len(self.components[rep_id]) - construction_count
-            self._cache[key] = 'under_construction' if construction_count > proposed_count else 'proposed'
+            statuses = [get_project_status(self.ways[wid]['tags']) for wid in self.components[rep_id]]
+            construction_count = statuses.count('under_construction')
+            planned_count = statuses.count('planned')
+            if construction_count > 0:
+                self._cache[key] = 'under_construction'
+            elif planned_count > len(statuses) - planned_count:
+                self._cache[key] = 'planned'
+            else:
+                self._cache[key] = 'proposed'
         return self._cache[key]
 
     def geometry(self, rep_id):
@@ -786,19 +766,19 @@ def make_relation_feature(rel_id, rel, ways):
     props = {}
     for wtags in member_tags:
         # Pull core transport infrastructure tags from the ways
-        for k in ('construction', 'proposed', 'highway', 'railway', 'waterway', 'aerialway'):
+        for k in ('construction', 'proposed', 'planned', 'highway', 'railway', 'waterway', 'aerialway'):
             if k in wtags and k not in props:
                 props[k] = wtags[k]
-        
-        # Pull specific proposed/construction types (e.g. construction:highway)
+
+        # Pull specific proposed/construction/planned types (e.g. construction:highway, planned:aerialway)
         for k in list(wtags.keys()):
-            if (k.startswith('construction:') or k.startswith('proposed:')) and k not in props:
+            if (k.startswith('construction:') or k.startswith('proposed:') or k.startswith('planned:')) and k not in props:
                 props[k] = wtags[k]
     
     # Determine the transport type early so we know what tags are relevant
     temp_props = dict(props)
-    # Also check relation tags for construction/proposed
-    for k in ('construction', 'proposed'):
+    # Also check relation tags for construction/proposed/planned
+    for k in ('construction', 'proposed', 'planned'):
         if k in rel['tags'] and k not in temp_props:
             temp_props[k] = rel['tags'][k]
     transport = get_transport_type(temp_props)
@@ -810,12 +790,13 @@ def make_relation_feature(rel_id, rel, ways):
                 if k in wtags and k not in props:
                     props[k] = wtags[k]
     
-    # Only copy select relation tags that are relevant for the project
-    # Skip historic/unrelated tags like route=railway on a proposed cycleway
-    relevant_rel_tags = ('name', 'ref', 'description', 'website', 'source', 
-                         'wikidata', 'wikipedia', 'state', 'opening_date',
-                         'construction', 'proposed', 'note', 'operator')
-    for k in relevant_rel_tags:
+    # Relation identity tags always win — the relation is the canonical project record
+    for k in ('name', 'ref', 'wikidata', 'wikipedia', 'description', 'website',
+              'source', 'opening_date', 'note', 'operator'):
+        if k in rel['tags']:
+            props[k] = rel['tags'][k]
+    # Infrastructure type tags from relation only fill gaps (way tags are authoritative)
+    for k in ('construction', 'proposed', 'planned'):
         if k in rel['tags'] and k not in props:
             props[k] = rel['tags'][k]
     
@@ -825,10 +806,12 @@ def make_relation_feature(rel_id, rel, ways):
     props['member_way_count'] = len(member_geoms)
     
     # Determine status
-    is_construction = rel['tags'].get('state') == 'construction'
-    if not is_construction:
-        is_construction = any(get_project_status(t) == 'under_construction' for t in member_tags)
-    props['project_status'] = 'under_construction' if is_construction else 'proposed'
+    if any(get_project_status(t) == 'under_construction' for t in member_tags):
+        props['project_status'] = 'under_construction'
+    elif all(get_project_status(t) == 'planned' for t in member_tags):
+        props['project_status'] = 'planned'
+    else:
+        props['project_status'] = 'proposed'
     props['transport_type'] = get_transport_type(props)
     props['display_name'] = create_display_name(props)
     
@@ -874,7 +857,11 @@ def make_orphan_features(orphan_ways):
         props = {}
         for w in ways_data:
             props.update(w['tags'])
-            
+        # Use best_name_from_tags so the most descriptive name wins, not the last way's
+        best = best_name_from_tags(tags_list)
+        if best:
+            props['name'] = best
+
         # Clean up historic railway tags on non-rail projects
         transport = get_transport_type(props)
         if broad_group(transport) != 'rail':
@@ -885,9 +872,13 @@ def make_orphan_features(orphan_ways):
         props['osm_ids'] = [f'way/{wid}' for wid in way_ids]
         props['osm_ids_count'] = len(way_ids)
         props['osm_way_id'] = way_ids[0]
-        props['project_status'] = 'under_construction' if any(
-            get_project_status(w['tags']) == 'under_construction' for w in ways_data
-        ) else 'proposed'
+        statuses = [get_project_status(w['tags']) for w in ways_data]
+        if 'under_construction' in statuses:
+            props['project_status'] = 'under_construction'
+        elif all(s == 'planned' for s in statuses):
+            props['project_status'] = 'planned'
+        else:
+            props['project_status'] = 'proposed'
         props['transport_type'] = transport
         props['display_name'] = create_display_name(props, tags_list=tags_list)
         
@@ -1015,29 +1006,6 @@ def build_features(ways, relations):
     return features
 
 
-def filter_by_date(features, threshold):
-    """Filter out stale features without names."""
-    kept, stats = [], {'recent': 0, 'named': 0, 'no_ts': 0, 'filtered': 0}
-    
-    for f in features:
-        props = f['properties']
-        ts = props.get('osm_last_modified')
-        
-        if not ts:
-            stats['no_ts'] += 1
-            kept.append(f)
-        elif not is_stale(ts, threshold):
-            stats['recent'] += 1
-            kept.append(f)
-        elif has_name(props):
-            stats['named'] += 1
-            kept.append(f)
-        else:
-            stats['filtered'] += 1
-    
-    return kept, stats
-
-
 def _fmt(secs):
     return f"{int(secs // 60)}m{int(secs % 60):02d}s"
 
@@ -1074,10 +1042,7 @@ def main():
     orphan = sum(1 for f in features if f['id'].startswith('way/'))
     print(f"  Relation features: {in_rel:,}")
     print(f"  Orphan way features (connected components): {orphan:,}")
-    print(f"  Total before filtering: {len(features):,}")
-
-    # Date filtering temporarily disabled for statistics gathering
-    print(f"\n[linear] Date filtering: DISABLED (keeping all {len(features):,} features)")
+    print(f"  Total: {len(features):,}")
 
     # Transport type breakdown
     type_counts = defaultdict(int)
