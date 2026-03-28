@@ -12,6 +12,7 @@ import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMark
 import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
 
 export type SortMode = "recent" | "name" | "size" | "status";
 
@@ -87,8 +88,20 @@ export function useVisibleProjects() {
   const uiStore = useUiStore();
 
   const projects = computed<VisibleProject[]>(() => {
-    const named = rawProjects.value.filter((p) => p.name);
-    const unnamed = rawProjects.value.filter((p) => !p.name);
+    const [minDateMs, maxDateMs] = lastModifiedDateRange.value;
+    const [minSizeM, maxSizeM] = sizeFilterRange.value;
+
+    const filtered = rawProjects.value.filter((p) => {
+      if (p.lastModifiedS > 0) {
+        const dateMs = p.lastModifiedS * 1000;
+        if (dateMs < minDateMs || dateMs > maxDateMs) return false;
+      }
+      if (p.sizeM < minSizeM || p.sizeM > maxSizeM) return false;
+      return true;
+    });
+
+    const named = filtered.filter((p) => p.name);
+    const unnamed = filtered.filter((p) => !p.name);
 
     function compareBySortMode(a: VisibleProject, b: VisibleProject): number {
       let result = 0;

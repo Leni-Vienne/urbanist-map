@@ -571,6 +571,93 @@ function setHoveredProjectId(mlMap: MaplibreMap, projectId: string | null): void
   setPointHoverFilter(mlMap, projectId);
 }
 
+function navigateToLonePoint(
+  props: Record<string, unknown>,
+  lat: number,
+  lng: number,
+  currentZoom: number,
+): void {
+  const hasGeometry: boolean = props.has_geometry === true;
+  const maxSizeM: number = (props.max_size_m as number) ?? 0;
+  const idealZoom = hasGeometry && maxSizeM > 0 ? getZoomForGeometrySize(maxSizeM, lat, lng) : 14;
+  const targetZoom = Math.max(currentZoom, idealZoom);
+  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+  if (targetZoom === currentZoom) {
+    // flyTo zooms out then back in even for pure pans, causing MapLibre canvas flicker.
+    // When no zoom change is needed, use panTo to avoid the zoom-out arc.
+    mobileAwarePanTo([lat, lng], { animate: true, duration });
+  } else {
+    mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+  }
+}
+
+/**
+ * Returns true and zooms if the cluster representative satisfies the active size filter.
+ * Returns false (no zoom) if the representative's own size is outside the filter range,
+ * meaning the cluster only passed because some other project elsewhere in the cell matched —
+ * zooming to the representative's location would land in an empty area.
+ */
+function navigateToCluster(
+  props: Record<string, unknown>,
+  lat: number,
+  lng: number,
+  currentZoom: number,
+): boolean {
+  const [minFilter, maxFilter] = sizeFilterRange.value;
+  const repSize: number | null = (props.geometry_size_m as number) ?? null;
+  const repMatchesSizeFilter =
+    repSize === null || (repSize >= minFilter && (maxFilter === Infinity || repSize <= maxFilter));
+
+  const [minDateMs, maxDateMs] = lastModifiedDateRange.value;
+  const repDateS: number | null = (props.last_modified_s as number) ?? null;
+  const repMatchesDateFilter =
+    repDateS === null ||
+    (repDateS * 1000 >= minDateMs && (maxDateMs === Infinity || repDateS * 1000 <= maxDateMs));
+
+  const repMatchesFilter = repMatchesSizeFilter && repMatchesDateFilter;
+
+  // If the representative doesn't personally match the filter, the cluster only passed because
+  // some other project elsewhere in the cell matched. Flying 3 tiers deep would land in an empty
+  // area. Instead, zoom just 1 tier to break the cluster slightly and give the user feedback,
+  // without committing to the representative's exact location.
+  const tiers = repMatchesFilter ? 3 : 1;
+
+  const targetZoom =
+    tiers === 1 ? currentZoom + 2 : getNextGridZoom(getNextGridZoom(getNextGridZoom(currentZoom)));
+  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+  mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+  return true;
+}
+
+async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng): Promise<void> {
+  const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
+  if (projectId.length === 0) return;
+
+  const coordinates = pointFeature.geometry?.coordinates;
+  let targetLatLng = eventLatLng;
+  let shouldOpenPanel = true;
+
+  if (coordinates && coordinates.length >= 2) {
+    const [lng, lat] = coordinates;
+    const currentZoom = map.value.getZoom();
+    const cellCount: number = pointFeature.properties?.cell_count ?? 2;
+    const props: Record<string, unknown> = pointFeature.properties ?? {};
+
+    targetLatLng = L.latLng(lat, lng);
+
+    if (cellCount === 1) {
+      navigateToLonePoint(props, lat, lng, currentZoom);
+    } else {
+      shouldOpenPanel = false;
+      if (!navigateToCluster(props, lat, lng, currentZoom)) return;
+    }
+  }
+
+  if (shouldOpenPanel) {
+    await handleProjectClickFromTile(projectId, targetLatLng);
+  }
+}
+
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
   registerOverlayHoverCallback((projectId) => {
     const mlMap = mlMapGetter();
@@ -620,9 +707,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       CLICK_QUERY_LAYERS,
       VECTOR_HOVER_HIT_RADIUS_PX,
     );
-    if (!features.length) {
-      return;
-    }
+    if (!features.length) return;
 
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
@@ -634,51 +719,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
-      const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
-      if (projectId.length > 0) {
-        const coordinates = pointFeature.geometry?.coordinates;
-        let targetLatLng = event.latlng;
-        let shouldOpenPanel = true;
-
-        if (coordinates && coordinates.length >= 2) {
-          const [lng, lat] = coordinates;
-          const currentZoom = map.value.getZoom();
-          const cellCount: number = pointFeature.properties?.cell_count ?? 2;
-
-          // Use exact feature coordinates to prevent massive popup offset when zooming in
-          targetLatLng = L.latLng(lat, lng);
-
-          if (cellCount === 1) {
-            // Lone point: it's already rendered and passed all active filters, so open the panel.
-            // Zoom to the appropriate level: shapes zoom (Leaflet 10) for projects with geometry,
-            // or a closer zoom (Leaflet 14) for standalone point-only projects.
-            const hasGeometry: boolean = pointFeature.properties?.has_geometry === true;
-            const maxSizeM: number = pointFeature.properties?.max_size_m ?? 0;
-            const idealZoom =
-              hasGeometry && maxSizeM > 0 ? getZoomForGeometrySize(maxSizeM, lat, lng) : 14;
-            const targetZoom = Math.max(currentZoom, idealZoom);
-            const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-            if (targetZoom === currentZoom) {
-              // flyTo zooms out then back in even for pure pans, causing MapLibre canvas flicker.
-              // When no zoom change is needed, use panTo to avoid the zoom-out arc.
-              mobileAwarePanTo([lat, lng], { animate: true, duration });
-            } else {
-              mobileAwareFlyTo([lat, lng], targetZoom, { duration });
-            }
-          } else {
-            // Cluster: jump three grid tiers to give the cluster a real chance of splitting.
-            // Never open the panel -- the user needs to click the actual visible point after zoom.
-            shouldOpenPanel = false;
-            const targetZoom = getNextGridZoom(getNextGridZoom(getNextGridZoom(currentZoom)));
-            const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-            mobileAwareFlyTo([lat, lng], targetZoom, { duration });
-          }
-        }
-
-        if (shouldOpenPanel) {
-          void handleProjectClickFromTile(projectId, targetLatLng);
-        }
-      }
+      void handlePointFeatureClick(pointFeature, event.latlng);
     }
   });
 }

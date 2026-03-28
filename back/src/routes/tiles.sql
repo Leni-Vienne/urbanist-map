@@ -136,9 +136,9 @@ points AS (
   SELECT ST_AsMVT(q, 'project-points', 4096, 'mvt_geom') AS tile
   FROM (
     -- Step 2: deduplicate — keep one representative project per (grid cell, tag, status) group.
-    -- DISTINCT ON picks the first row per group after ORDER BY; with no tiebreaker beyond the
-    -- group columns, Postgres picks whichever row it happens to encounter first in its scan,
-    -- which is effectively arbitrary and has no geographic bias.
+    -- DISTINCT ON picks the first row per group after ORDER BY.
+    -- Tiebreaker priority: named projects first, then largest geometry, then most recent.
+    -- This makes the representative stable and meaningful rather than arbitrary across zoom transitions.
     -- Window functions compute the size range across ALL projects in the cell, not just the
     -- representative, so the client-side size filter remains accurate for the whole cluster.
     SELECT DISTINCT ON (grid_id, first_tag, timeline_status)
@@ -154,7 +154,13 @@ points AS (
       -- min/max last_modified_s are used for filtering clusters by date on the client
       MIN(last_modified_s) OVER (PARTITION BY grid_id, first_tag, timeline_status) AS min_last_modified_s,
       MAX(last_modified_s) OVER (PARTITION BY grid_id, first_tag, timeline_status) AS max_last_modified_s,
-      -- min_size_m and max_size_m are used for filtering clusters by size on the client
+      -- geometry_size_m is the representative project's own size.
+      -- Used on click to detect when the representative doesn't satisfy the active filter
+      -- (e.g. filter=max 5m but representative=74m), so the click handler can avoid
+      -- zooming to a location that has no matching projects nearby.
+      ROUND(geometry_size_m)::int AS geometry_size_m,
+      -- min_size_m and max_size_m span all projects in the cell, used by the client-side
+      -- MapLibre filter to decide whether the cluster point should be visible at all.
       ROUND(MIN(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS min_size_m,
       ROUND(MAX(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, timeline_status))::int AS max_size_m,
       -- cell_count is used for determining whether to zoom in on a tile (x > 1)or directly open the project panel (cell_count = 1)
@@ -203,7 +209,7 @@ points AS (
       -- At low zoom (<10), hide 'building' markers only in cells that already have non-building projects.
       -- In empty cells (buildings only), show them to avoid blank areas.
       AND ($1 >= 10 OR NOT ('building' = ANY(inner_q.tags)) OR NOT inner_q.cell_has_non_building)
-    ORDER BY grid_id, first_tag, timeline_status
+    ORDER BY grid_id, first_tag, timeline_status, is_named DESC, geometry_size_m DESC NULLS LAST, last_modified_s DESC NULLS LAST
   ) q
 )
 -- Aggregate all three computed tile layers into a single MVT binary payload returned to the client
