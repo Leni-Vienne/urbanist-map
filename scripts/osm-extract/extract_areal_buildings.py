@@ -17,7 +17,7 @@ import re
 import argparse
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from shapely.geometry import mapping, shape
 
 def _parse_args():
@@ -32,9 +32,6 @@ _args = _parse_args()
 SOURCE_FILE = _args.source
 OUTPUT_FILE = _args.output
 
-# Features not modified in OSM for longer than this are filtered out (unless named)
-STALE_THRESHOLD_YEARS = 3
-
 URL_RE = re.compile(r'https?://\S+')
 
 # Tags that typically indicate a trivial/small building, even if large,
@@ -44,32 +41,6 @@ EXCLUDE_BUILDINGS = {
     'shed', 'hut', 'cabin', 'roof', 'terrace', 'carport'
 }
 
-
-# ---------------------------------------------------------------------------
-# Date filtering helpers
-# ---------------------------------------------------------------------------
-
-def get_stale_threshold():
-    """Return the datetime threshold for stale features."""
-    return datetime.now(timezone.utc) - timedelta(days=STALE_THRESHOLD_YEARS * 365)
-
-def is_stale_timestamp(timestamp_str, threshold):
-    """Check if a timestamp string is older than the threshold."""
-    if not timestamp_str:
-        return False  # Can't determine age, keep it
-    try:
-        # Handle ISO format with or without timezone
-        ts_str = timestamp_str.replace('Z', '+00:00')
-        ts = datetime.fromisoformat(ts_str)
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        return ts < threshold
-    except Exception:
-        return False  # Can't parse, keep it
-
-def has_name_tag(props):
-    """Check if props contain a name (keeps feature regardless of age)."""
-    return bool(props.get('name', '').strip())
 
 def clean_description(desc):
     """Strip URLs from a description string. Returns (cleaned_text, first_url_or_None)."""
@@ -112,18 +83,19 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         # Determine if this is a park/green space under construction or planned
         is_park_construction = (
             leisure in ('park', 'garden', 'playground', 'recreation_ground', 'sports_centre') and
-            (construction or proposed or planned or tags.get('state') in ('construction', 'proposed', 'planned'))
+            (construction or proposed or planned)
         )
 
         # Determine if this is a building/development under construction or planned
         is_building_construction = (
             building in ('construction', 'proposed', 'planned') or
-            landuse in ('construction', 'planned') or
+            landuse == 'construction' or
             construction in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
             proposed in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
             planned in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
             tags.get('planned:building') or
-            tags.get('state') == 'construction'
+            (proposed and proposed != 'no') or
+            (planned and planned != 'no')
         )
 
         if not is_park_construction and not is_building_construction:
@@ -134,6 +106,20 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         if target_use in EXCLUDE_BUILDINGS:
             return
 
+        # Exclude roadworks/transport infrastructure mapped as polygons
+        infrastructure_keys = {'highway', 'railway', 'aeroway', 'waterway', 'power', 'telecom', 'public_transport'}
+        if any(k in tags for k in infrastructure_keys):
+            return
+
+        # Exclude features where construction/proposed value is a transport infrastructure type
+        infrastructure_values = {
+            'tram', 'rail', 'railway', 'light_rail', 'subway', 'narrow_gauge', 'train',
+            'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
+            'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel'
+        }
+        if tags.get('construction') in infrastructure_values or tags.get('proposed') in infrastructure_values:
+            return
+
         try:
             wkb = self.wkbfab.create_multipolygon(a)
             geom = shapely.wkb.loads(wkb, hex=True)
@@ -142,7 +128,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
 
         # Calculate approximate area in square meters
         lat = geom.centroid.y
-        area_m2 = geom.area * (111320**2) * (math.cos(math.radians(lat))**2)
+        area_m2 = geom.area * (111320**2) * math.cos(math.radians(lat))
 
         # Determine transport_type and apply size thresholds
         if is_park_construction:
@@ -159,14 +145,20 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         # Build feature properties
         props = dict(tags)
         props['transport_type'] = transport_type
-        
-        status_check = 'under_construction'
-        if building == 'proposed' or landuse == 'proposed' or tags.get('state') == 'proposed':
+
+        # construction= is the strongest signal — check it first
+        if construction and construction not in ('yes', 'no'):
+            status_check = 'under_construction'
+        elif building == 'construction' or tags.get('landuse') == 'construction':
+            status_check = 'under_construction'
+        elif building == 'proposed' or (proposed and proposed != 'no'):
             status_check = 'proposed'
-        elif building == 'planned' or landuse == 'planned' or tags.get('state') == 'planned' or (planned and not construction):
+        elif building == 'planned' or (planned and planned != 'no'):
             status_check = 'planned'
+        else:
+            status_check = 'under_construction'
         props['project_status'] = status_check
-        
+
         props['display_name'] = create_display_name(props)
 
         # Clean URLs from description
@@ -176,22 +168,6 @@ class ArealExtractionHandler(osmium.SimpleHandler):
             props['description'] = clean
             if url and not props.get('source', '').strip():
                 props['source'] = url
-
-        # Exclude roadworks/transport infrastructure mapped as polygons
-        # A robust fix relies on infrastructure tags rather than localized names.
-        infrastructure_keys = {'highway', 'railway', 'aeroway', 'waterway', 'power', 'telecom', 'public_transport'}
-        if any(k in tags for k in infrastructure_keys):
-            return
-            
-        # Check if the construction/proposed type is a transport infrastructure type
-        # rather than a building/landuse type.
-        infrastructure_values = {
-            'tram', 'rail', 'railway', 'light_rail', 'subway', 'narrow_gauge', 'train',
-            'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
-            'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel'
-        }
-        if tags.get('construction') in infrastructure_values or tags.get('proposed') in infrastructure_values:
-            return
 
         # Create geojson feature
         # Pyosmium prefixes area ids with 1 (way) or 2 (relation). 
@@ -340,19 +316,15 @@ def main():
     print(f"  Removed buildings inside named areas: {nest_stats['removed_contained_buildings']:,}")
     print(f"  Kept: {len(features):,}")
 
-    # Date filtering temporarily disabled for statistics gathering
-    filtered_features = features
-    print(f"\n[areal] Date filtering: DISABLED (keeping all {len(filtered_features):,} features)")
-
     print(f"\n[areal] [{_ts()}] Writing {OUTPUT_FILE}...")
     t = time.time()
-    collection = {'type': 'FeatureCollection', 'features': filtered_features}
+    collection = {'type': 'FeatureCollection', 'features': features}
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(collection, f, ensure_ascii=False, separators=(',', ':'))
     print(f"[areal] [{_ts()}] Write done in {_fmt(time.time() - t)}")
 
     print("\n[areal] Sample features:")
-    for feature in filtered_features[:10]:
+    for feature in features[:10]:
         props = feature['properties']
         name = (props.get('display_name') or 'Unnamed')[:50]
         area = props.get('area_sqm', 0)
