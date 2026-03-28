@@ -57,61 +57,6 @@ export async function loadCountriesWithProjects(force = false): Promise<void> {
 }
 
 /**
- * Load cities for a specific country
- */
-export async function loadCitiesForCountry(countryCode: string): Promise<void> {
-  const projectStore = useProjectStore();
-  const country = projectStore.countries.find((c: Country) => c.code === countryCode);
-
-  if (!country) return;
-
-  const mapStore = useMapStore();
-  const authStore = useAuthStore();
-  const queryMode = authStore.isAuthenticated ? mapStore.mode : "view";
-
-  // Check per-country cache first
-  if (projectStore.hasCachedCities(countryCode, queryMode)) {
-    const cachedCities = projectStore.getCachedCities(countryCode, queryMode);
-    if (cachedCities) {
-      country.cities = cachedCities;
-      return;
-    }
-  }
-
-  // OPTIMIZATION: Check global cities cache before making API call
-  // This prevents duplicate getCitiesWithProjects calls when global cities are already loaded
-  const globalCities = await projectStore.fetchCitiesWithProjects(queryMode);
-  if (globalCities.length > 0) {
-    const countryCities = globalCities
-      .filter((city) => city.countryCode === countryCode)
-      .map((city) => Object.assign({}, city, { distance: 0 }));
-
-    if (countryCities.length > 0) {
-      country.cities = countryCities;
-      // Cache the filtered cities for this country + mode
-      projectStore.setCachedCities(countryCode, queryMode, countryCities);
-      return;
-    }
-  }
-
-  // Fallback: If no cities found in global cache, make country-specific API call
-  // This handles edge cases where global cache might be incomplete
-  const citiesData = await withErrorHandling(
-    async () => trpc.cities.getCitiesWithProjects.query({ countryCode, mode: queryMode }),
-    { errorMessage: "Failed to load cities. Please try again." },
-  );
-
-  if (citiesData) {
-    const cities = citiesData.map((city) => {
-      return Object.assign({}, city, { distance: 0 });
-    });
-    country.cities = cities;
-    // Cache the cities for this country + mode
-    projectStore.setCachedCities(countryCode, queryMode, cities);
-  }
-}
-
-/**
  * Clear all map content (markers, overlays, cache, and state)
  * This is called when switching between countries or logging out
  */
@@ -120,6 +65,4 @@ export function clearAllMapContent(): void {
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();
   clearAllStandaloneProjectMarkers();
-  const mapStore = useMapStore();
-  mapStore.currentCityOverlays = [];
 }

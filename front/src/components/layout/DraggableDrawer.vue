@@ -90,7 +90,6 @@ const emit = defineEmits<{
   heightChanged: [value: number];
 }>();
 
-const drawerRef = ref<HTMLElement | null>(null);
 const isDragging = ref(false);
 const startY = ref(0);
 const startHeight = ref(0);

@@ -1,6 +1,6 @@
 import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { overlays, projects, cities, countries, users, type ApprovalStatus } from "../db/schema";
+import { overlays, projects, cities, users, type ApprovalStatus } from "../db/schema";
 import type * as schema from "../db/schema";
 import { sql, eq, and, or, inArray } from "drizzle-orm";
 import { db } from "../database";

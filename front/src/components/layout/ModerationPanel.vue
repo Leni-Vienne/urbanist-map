@@ -169,14 +169,10 @@ import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import {
-  canModerateCountry,
-  useOverlayClickHandler,
-} from "@/composables/overlay/useOverlayClickHandler";
+import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
@@ -195,7 +191,6 @@ const { handleOverlayClickNavigation } = useOverlayClickHandler();
 const authStore = useAuthStore();
 const moderationStore = useModerationStore();
 const mapStore = useMapStore();
-const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 
 // Country selector state - use store's cached countries

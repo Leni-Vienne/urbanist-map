@@ -64,7 +64,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // Load countries for breadcrumbs (no marker rendering)
 import { loadCountriesWithProjects } from "@/services/map/countryData";
-import { initializeCitiesData } from "@/services/map/citiesState";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -124,23 +123,6 @@ async function initializeMapAndOverlays() {
     initializeMap();
     initializeCameraBounds(); // Initialize camera bounds tracking
 
-    // Load countries first (needed for breadcrumbs in Current Location panel)
-    await loadCountriesWithProjects();
-
-    // Load all city data for panels (no Leaflet markers — cluster source handles map display)
-    const cities = await initializeCitiesData();
-
-    // Populate cities lookup map in mapStore for panel auto-switch
-    mapStore.citiesLookup.clear();
-    for (const city of cities) {
-      mapStore.citiesLookup.set(city.id, {
-        id: city.id,
-        name: city.name,
-        nameLocal: city.nameLocal,
-        countryCode: city.countryCode,
-      });
-    }
-
     // Setup viewport manager
     viewportManager.setupEventListeners();
 
@@ -168,6 +150,12 @@ async function initializeMapAndOverlays() {
     viewportManager.setupModeWatcher();
     setupMapClickToDeselect(); // Setup click handler to deselect overlays when clicking map background
     disableLeafletKeyboardEvents();
+
+    // Load countries in the background -- not needed for initial map render.
+    // Countries are needed for breadcrumbs in the Current Location panel.
+    loadCountriesWithProjects().catch((error) => {
+      console.error("[MapView] Error loading countries:", error);
+    });
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toast.add({

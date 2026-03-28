@@ -139,14 +139,12 @@ interface Props {
   showName?: boolean;
   showDescription?: boolean;
   editMode?: boolean;
-  availableCities?: { id: number; name: string; countryCode: string }[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showName: true,
   showDescription: false,
   editMode: false,
-  availableCities: () => [],
 });
 
 function getTagStyle(slug: string): Record<string, string> {
@@ -210,13 +208,6 @@ const projectLocationDisplay = computed(() => {
 
   if (project.city?.name) {
     return `${project.city.name}, ${project.city.countryCode}`;
-  }
-
-  if (props.availableCities) {
-    const city = props.availableCities.find((c) => c.id === project.cityId);
-    if (city) {
-      return `${city.name}, ${city.countryCode}`;
-    }
   }
 
   return "—";

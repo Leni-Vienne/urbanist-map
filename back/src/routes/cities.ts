@@ -1,13 +1,12 @@
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { cities, projects } from "../db/schema";
-import { sql, eq, isNotNull, and } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { db } from "../database";
 import {
   getUserOverlayChangeRequestIds,
   buildProjectVisibilityCondition,
   buildOverlayVisibilityCondition,
-  buildProjectHasVisibleContentCondition,
   fetchOverlayChangeRequests,
   transformOverlayDataWithChangeRequests,
   fetchOverlaysWithLocation,
@@ -146,64 +145,6 @@ export const citiesRouter = router({
       }
     }),
 
-  // Get all cities that have at least one approved project (or user's own pending contributions in edit mode)
-  getCitiesWithProjects: publicProcedure
-    .input(
-      z.object({
-        countryCode: z.string().optional(),
-        mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // Map viewing mode
-      }),
-    )
-    .query(async ({ input, ctx }) => {
-      try {
-        // SECURITY: Reject moderation mode for unauthenticated users
-        if (input.mode === "moderation" && !ctx.user) {
-          throw new Error("Authentication required for moderation mode");
-        }
-
-        // Fetch user's overlay change request IDs if in edit mode
-        const overlayChangeRequestIds =
-          ctx.user && input.mode === "edit"
-            ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
-            : undefined;
-
-        // Build visibility conditions using helper functions
-        const conditions = [
-          isNotNull(projects.cityId),
-          buildProjectVisibilityCondition(ctx.user, input.mode),
-          buildProjectHasVisibleContentCondition(ctx.user, input.mode, overlayChangeRequestIds),
-        ];
-
-        if (input.countryCode) {
-          conditions.push(eq(cities.countryCode, input.countryCode));
-        }
-
-        // Join cities with projects and return cities that have matching projects
-        return await db
-          .selectDistinct({
-            id: cities.id,
-            name: cities.name,
-            nameLocal: cities.nameLocal,
-            countryCode: cities.countryCode,
-            // Extract coordinates from PostGIS point
-            lat: sql<number>`ST_Y(${cities.coordinates})`,
-            lng: sql<number>`ST_X(${cities.coordinates})`,
-            // Count number of matching projects in this city
-            projectCount: sql<number>`COUNT(${projects.id})`,
-          })
-          .from(cities)
-          .innerJoin(projects, eq(cities.id, projects.cityId))
-          .where(and(...conditions))
-          .groupBy(cities.id, cities.name, cities.countryCode, cities.coordinates)
-          .having(sql`COUNT(${projects.id}) > 0`);
-      } catch (error) {
-        console.error("Error fetching cities with projects:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch cities with projects",
-        });
-      }
-    }),
   // Get all approved projects and overlays for a specific city
   getCityOverlaysAndProjects: publicProcedure
     .input(getCityOverlaysAndProjectsSchema)

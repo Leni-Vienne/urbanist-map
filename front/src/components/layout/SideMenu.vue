@@ -60,7 +60,6 @@ import { watch, computed } from "vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
 import { usePanelTabs } from "@/composables/layout/usePanelTabs";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { PanelTab } from "@/types";
@@ -75,7 +74,6 @@ defineEmits<{
 }>();
 
 // Get stores
-const mapStore = useMapStore();
 const uiStore = useUiStore();
 const authStore = useAuthStore();
 
