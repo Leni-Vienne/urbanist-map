@@ -8,7 +8,6 @@ import type {
   UserContributionOverlay,
 } from "@/types/index";
 import type { AppMode } from "@shared/types";
-import { trpc, type RouterOutput } from "@/client";
 import { createProjectObject, createProjectFromUserContribution } from "@/utils/typeFactories";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";

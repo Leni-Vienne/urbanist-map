@@ -242,25 +242,6 @@ export function mobileAwareFlyToBounds(
   return false;
 }
 
-/**
- * Calculate bounding box for a set of locations
- * Used to determine the view for a city including all its projects and overlays
- */
-export function calculateBoundsFromLocations(
-  locations: { lat: number; lng: number }[],
-): L.LatLngBounds | null {
-  if (locations.length === 0) return null;
-
-  try {
-    // Map locations to [lat, lng] array
-    const latLngs = locations.map((loc) => [loc.lat, loc.lng] as [number, number]);
-    return L.latLngBounds(latLngs);
-  } catch (error) {
-    console.error("Error calculating bounds:", error);
-    return null;
-  }
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.accept();

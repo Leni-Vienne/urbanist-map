@@ -171,16 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  computed,
-  watch,
-  nextTick,
-  onMounted,
-  onActivated,
-  onDeactivated,
-  onBeforeUnmount,
-  ref,
-} from "vue";
+import { computed, watch, nextTick, onMounted, onActivated, onDeactivated, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Accordion, AccordionPanel } from "primevue";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
@@ -216,6 +207,7 @@ import {
 import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
+import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useMapStore } from "@/stores/pinia/mapStore";
 
 // Props interface
@@ -267,40 +259,7 @@ const { t } = useI18n();
 const toast = useToast();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
-const scrollAreaRef = ref<HTMLElement | null>(null);
-const contentRef = ref<HTMLElement | null>(null);
-const isScrollable = ref(false);
-
-function updateScrollable() {
-  const el = scrollAreaRef.value;
-  if (el) {
-    isScrollable.value = el.scrollHeight > el.clientHeight;
-  }
-}
-
-// We observe two elements so updateScrollable fires on both:
-// - scrollAreaRef: clientHeight changes when the panel is resized
-// - contentRef: scrollHeight changes as accordions animate or groups expand/collapse
-const scrollObserver = new ResizeObserver(updateScrollable);
-
-onMounted(() => {
-  if (scrollAreaRef.value) scrollObserver.observe(scrollAreaRef.value);
-  updateScrollable();
-});
-
-onActivated(updateScrollable);
-
-onBeforeUnmount(() => scrollObserver.disconnect());
-
-watch(contentRef, (el, oldEl) => {
-  if (oldEl) scrollObserver.unobserve(oldEl);
-  if (el) {
-    scrollObserver.observe(el);
-    updateScrollable();
-  } else {
-    isScrollable.value = false;
-  }
-});
+const { isScrollable } = useScrollFade();
 
 // Watch for new scroll requests (handled reactively)
 // This ensures requests are handled even if projects data matches and doesn't trigger the above watcher

@@ -237,7 +237,7 @@ function handleEditProject(project: Project) {
 }
 
 // Handle overlay editing (overlay mode only)
-function handleEditOverlay(overlay: OverlayObject) {
+function handleEditOverlay() {
   overlayEditorRef.value?.openDialog();
 }
 

@@ -13,57 +13,6 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { requestScrollTo } from "@/services/layout/accordionState";
 
 /**
- * Resolve overlay corners with priority-based fallback
- * Priority order:
- * 1. Live Leaflet instance (if rendered on map - most current)
- * 2. Edit mode cache (if user moved overlay in edit mode)
- * 3. Mode-aware cache (backend data for current mode)
- * 4. OverlayStore overlays object (fallback)
- * @param overlayId - ID of the overlay
- * @returns Corners array or null if overlay not found
- */
-function resolveOverlayCorners(overlayId: string): { lat: number; lng: number }[] | null {
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  // Priority 1: Live Leaflet instance (most accurate, reflects current map state)
-  const overlayObject = overlayStore.overlays[overlayId];
-  const liveLayer = overlayObject ? registry.getLayer(overlayObject.id) : null;
-  if (liveLayer) {
-    const corners = liveLayer.getCorners();
-    if (corners.length === 4) {
-      return corners;
-    }
-  }
-
-  // Priority 2: Edit mode cache (user modifications not yet saved)
-  const editCache = overlayStore.getFromEditModeCache(overlayId);
-  if (editCache?.corners && editCache.corners.length === 4) {
-    return editCache.corners;
-  }
-
-  // Priority 3: Mode-aware cache (backend data for current mode)
-  // Need to search through all cached cities to find this overlay
-  const currentMode = mapStore.mode;
-  for (const modeCache of mapStore.cityProjectsCache.values()) {
-    const cachedData = modeCache.get(currentMode);
-    if (cachedData) {
-      const cachedOverlay = cachedData.find((o) => o.id === overlayId);
-      if (cachedOverlay?.corners && cachedOverlay.corners.length === 4) {
-        return cachedOverlay.corners;
-      }
-    }
-  }
-
-  // Priority 4: Direct overlay object (fallback)
-  if (overlayObject?.corners && overlayObject.corners.length === 4) {
-    return overlayObject.corners;
-  }
-
-  return null;
-}
-
-/**
  * Shared logic for navigating to a city, loading its cities and projects
  * @returns Callback to switch to country layer after flight, or null if not cross-country
  */
@@ -96,7 +45,7 @@ async function prepareNavigationToCity(
  * Zoom to overlay and optionally select it once rendered
  * @param autoSelect - Whether to auto-select the overlay after zoom (default: true)
  */
-function zoomToOverlayAndSelect(
+export function zoomToOverlayAndSelect(
   overlayId: string,
   corners: { lat: number; lng: number }[],
   autoSelect = true,
@@ -217,69 +166,6 @@ function zoomToOverlayAndSelect(
   });
 
   return true;
-}
-
-/**
- * Handle navigation when clicking the same overlay again
- * Uses position resolver to get current corners
- */
-function handleSameOverlayNavigation(overlayId: string, autoSelect: boolean): boolean {
-  const corners = resolveOverlayCorners(overlayId);
-  if (corners !== null) {
-    zoomToOverlayAndSelect(overlayId, corners, autoSelect);
-  }
-  return true;
-}
-
-/**
- * Navigates to an overlay by simulating the complete marker click flow
- * This replicates what happens when clicking a city marker → overlay
- * @param overlayId - The ID of the overlay to navigate to
- * @param cityId - The city ID where the overlay is located
- * @param cityName - The name of the city
- * @param countryCode - The country code for proper tile layer switching
- * @returns boolean indicating whether navigation was successful
- */
-export async function navigateToOverlayWithCity(
-  overlayId: string,
-  cityId: number,
-  cityName: string,
-  countryCode?: string,
-  autoSelect = true,
-): Promise<boolean> {
-  try {
-    const overlayStore = useOverlayStore();
-
-    // Optimization 1: Check if clicking the same overlay again
-    if (overlayStore.idSelectedOverlay === overlayId) {
-      return handleSameOverlayNavigation(overlayId, autoSelect);
-    }
-
-    // Check if overlay is already rendered
-    const isOverlayRendered = registry.getLayer(overlayId) !== null;
-    if (isOverlayRendered) {
-      const corners = resolveOverlayCorners(overlayId);
-      if (corners !== null) {
-        return zoomToOverlayAndSelect(overlayId, corners, autoSelect);
-      }
-    }
-
-    // Navigate to city — bbox viewport system handles rendering after the fly
-    await prepareNavigationToCity(cityId, cityName, countryCode);
-
-    // Try to use corners from store if available (e.g. from cache)
-    const corners = resolveOverlayCorners(overlayId);
-    if (corners !== null) {
-      zoomToOverlayAndSelect(overlayId, corners, autoSelect);
-    } else {
-      console.warn(`Cannot navigate to overlay ${overlayId} - missing corners`);
-    }
-
-    return false;
-  } catch (error) {
-    console.error("Failed to navigate to overlay with city:", error);
-    throw error;
-  }
 }
 
 /**

@@ -104,7 +104,10 @@ import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
-import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
+import {
+  navigateToStandaloneProject,
+  zoomToOverlayAndSelect,
+} from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
@@ -172,11 +175,9 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 
   if (contribution.type === "overlay") {
-    // Most overlay contributions have no cityId (it's optional).
-    // Flying directly to the centroid is the safest path: it works at any zoom level,
-    // never creates a spurious grey marker, and the overlay renders naturally via
-    // vectorTileSync once the map reaches zoom ≥14.
-    if (contribution.centroid) {
+    if (contribution.corners && contribution.corners.length === 4) {
+      zoomToOverlayAndSelect(contribution.id, contribution.corners);
+    } else if (contribution.centroid) {
       mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18, {
         duration: 1.5,
         easeLinearity: 0.25,

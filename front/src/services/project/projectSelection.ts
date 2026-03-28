@@ -42,23 +42,3 @@ export function getCityProjects() {
     projects,
   };
 }
-
-// ============================================================================
-// SELECTED PROJECT
-// ============================================================================
-
-/**
- * Computed ref for managing the globally selected project ID
- * This provides a centralized way to access and modify the selected project
- * across all components, preventing state inconsistencies.
- */
-export function getSelectedProjectId() {
-  const projectStore = useProjectStore();
-
-  return computed({
-    get: () => projectStore.selectedProjectId,
-    set: (value: string | null) => {
-      projectStore.selectedProjectId = value;
-    },
-  });
-}

@@ -11,6 +11,7 @@ import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 
 export type SortMode = "recent" | "name" | "size" | "status";
 
@@ -245,6 +246,18 @@ export function useVisibleProjects() {
       project.lat !== null && project.lng !== null
         ? L.latLng(project.lat, project.lng) // lat, lng order for Leaflet
         : map.value.getCenter();
+
+    // Compute a zoom level that fits the project's footprint.
+    // sizeM is the longest dimension; build a square bounds around the center,
+    // ask Leaflet for the zoom that fits it, then cap at 19.
+    const halfDeg = project.sizeM > 0 ? project.sizeM / 2 / 111_320 : 0.001;
+    const bounds = L.latLngBounds(
+      [latlng.lat - halfDeg, latlng.lng - halfDeg],
+      [latlng.lat + halfDeg, latlng.lng + halfDeg],
+    );
+    const zoom = Math.min(map.value.getBoundsZoom(bounds, false), 19);
+    mobileAwareFlyTo(latlng, zoom, { duration: 1.5, easeLinearity: 0.25 });
+
     void handleProjectClickFromTile(project.id, latlng);
   }
 

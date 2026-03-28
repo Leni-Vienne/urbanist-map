@@ -64,6 +64,7 @@ export const feedRouter = router({
           countryName: o.countryName,
           // Include overlay-specific fields for navigation
           centroid: o.centroid,
+          corners: o.corners,
           status: o.status,
         }));
 
