@@ -510,11 +510,9 @@ watch(
     const isOwnContribution = displayedProjects.value.some((p) => p.id === id);
     if (isOwnContribution) {
       expandAccordionForProject(id, displayedProjects.value as unknown as ProjectForModeration[]);
-    } else {
+    } else if (!activeAccordionPanels.value.includes(id)) {
       // External pinned project: just push the id into the shared accordion state
-      if (!activeAccordionPanels.value.includes(id)) {
-        activeAccordionPanels.value.push(id);
-      }
+      activeAccordionPanels.value.push(id);
     }
   },
   { immediate: true },

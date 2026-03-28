@@ -267,20 +267,18 @@ export function useVisibleProjects() {
     if (projectId) {
       highlightProjectOverlaysOnHover(projectId);
       lastHoveredProjectId = projectId;
-    } else {
-      if (lastHoveredProjectId) {
-        const prevProjectId = lastHoveredProjectId;
-        lastHoveredProjectId = null;
-        removeProjectOutlines(prevProjectId);
+    } else if (lastHoveredProjectId) {
+      const prevProjectId = lastHoveredProjectId;
+      lastHoveredProjectId = null;
+      removeProjectOutlines(prevProjectId);
 
-        // If the popup just opened for this project (user clicked it), keep the vector tile
-        // highlight alive — it acts as a "selected" state until the popup is dismissed.
-        // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
-        const popupPinsHighlight =
-          uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === prevProjectId;
-        if (!popupPinsHighlight) {
-          setOverlayDrivenHover(null);
-        }
+      // If the popup just opened for this project (user clicked it), keep the vector tile
+      // highlight alive — it acts as a "selected" state until the popup is dismissed.
+      // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
+      const popupPinsHighlight =
+        uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === prevProjectId;
+      if (!popupPinsHighlight) {
+        setOverlayDrivenHover(null);
       }
     }
   }

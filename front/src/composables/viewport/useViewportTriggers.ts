@@ -1,6 +1,6 @@
 // Viewport-based content manager
-// View mode: vectorTileSync + cluster source (steps 1-2)
-// Edit/moderation: bbox tRPC fetch replacing city-based loading (step 3)
+// View mode: vectorTileSync + cluster source handle rendering (no data loading)
+// Edit/moderation: bbox tRPC fetch
 import { ref, watch } from "vue";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -144,8 +144,8 @@ export function useViewportTriggers() {
   // ── Main refresh ────────────────────────────────────────────────────────
 
   /**
-   * Main viewport refresh — spatial bbox loading for edit/moderation,
-   * passthrough for view mode (handled by vectorTileSync).
+   * Main viewport refresh — bbox loading for edit/moderation,
+   * passthrough for view mode.
    */
   async function refreshViewport(force = false) {
     try {
@@ -195,14 +195,13 @@ export function useViewportTriggers() {
 
       lastZoomLevel.value = zoom;
 
-      // In view mode, overlays are managed by vectorTileSync (MapLibre idle event) and
-      // the cluster source. No data loading needed — runViewportRenderLoop()
-      // already ran above for local overlay pruning and shape rendering.
+      // View mode: vectorTileSync and the cluster source handle rendering.
+      // runViewportRenderLoop() already ran above for local overlay pruning and shape rendering.
       if (mapStore.mode === "view") {
         return;
       }
 
-      // ── Edit/moderation: bbox-based loading ──
+      // Edit/moderation: bbox-based loading
 
       const bbox = getMapBbox();
       const currentKey = bboxKey(bbox);
@@ -323,8 +322,7 @@ export function useViewportTriggers() {
         // Reset bbox tracking on mode switch to force a fresh fetch
         lastBboxKey = "";
 
-        // ── Switching TO view mode ──
-        // Overlays are handled by vectorTileSync. Clear and let idle sync drive rendering.
+        // Switching TO view mode: clear overlays and let vectorTileSync drive rendering.
         if (newMode === "view") {
           clearAllOverlays(false);
           await updateGlobalPendingPoints("view");
@@ -335,8 +333,7 @@ export function useViewportTriggers() {
           return;
         }
 
-        // ── Switching TO edit or moderation ──
-        // Hide overlays that shouldn't be visible in the new mode
+        // Switching TO edit or moderation: hide overlays not visible in the new mode
         const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
         if (hasLoadedOverlays) {
           const currentUserId = authStore.user?.id;
@@ -347,13 +344,11 @@ export function useViewportTriggers() {
           }
         }
 
-        // If coming from view mode, clear first since view mode data is tiles-only
+        // View mode is tiles-only, so clear before loading bbox data
         if (oldMode === "view") {
           clearAllOverlays(newMode === "edit");
         }
 
-        // Fresh bbox fetch for the new mode
-        // Fetch global pending points for the whole map
         await updateGlobalPendingPoints(newMode);
         await refreshViewport(true);
 
