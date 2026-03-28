@@ -1,7 +1,4 @@
-import {
-  navigateToOverlayWithCity,
-  navigateToStandaloneProject,
-} from "@/services/navigation/projectNavigation";
+import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/overlayActions";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -117,19 +114,7 @@ export function useOverlayClickHandler() {
         );
       }
 
-      // If overlay has city info, navigate via city (loads city markers and overlays first)
-      if (overlay.cityId && overlay.cityName) {
-        await navigateToOverlayWithCity(
-          overlay.id,
-          overlay.cityId,
-          overlay.cityName,
-          overlay.countryCode ?? undefined,
-          autoSelect,
-        );
-      } else {
-        // Fallback to direct navigation if no city info
-        await navigateToOverlay(overlay.id, true, autoSelect);
-      }
+      await navigateToOverlay(overlay.id, true, autoSelect);
 
       // Request scroll to overlay in adjacent panels
       requestScrollTo("overlay", overlay.id);
@@ -183,14 +168,14 @@ async function navigateToReplacedOrRejectedOverlay(
     const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
     const project = contributions.projects.find((p) => p.id === overlay.projectId);
 
-    if (project?.lat && project.lng && project.cityId && project.cityName) {
+    if (project?.lat && project.lng) {
       await navigateToStandaloneProject(
         project.lat,
         project.lng,
-        project.cityId,
-        project.cityName,
         project.countryCode ?? undefined,
         project.id,
+        project.cityId,
+        project.cityName,
       );
     }
   } catch (error) {

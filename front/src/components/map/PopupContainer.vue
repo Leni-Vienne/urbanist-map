@@ -10,7 +10,6 @@
       :viewMode="mapStore.mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
-      :availableCities="availableCities"
       source="overlay"
       @publish-overlay="handlePublishOverlay"
       @publish-project="handlePublishProject"
@@ -31,7 +30,6 @@
       :viewMode="mapStore.mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
-      :availableCities="availableCities"
       source="marker"
       @publish-project="handlePublishProject"
       @edit-project="handleEditProject"
@@ -65,7 +63,6 @@ import { map } from "@/services/core/map";
 import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlayActions";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
-import { citiesWithProjects } from "@/services/map/citiesState";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { getPopupLatLng } from "@/services/map/projectPopupTeleport";
 import type { OverlayObject, Project } from "@/types/index";
@@ -85,7 +82,6 @@ const mapStore = useMapStore();
 const uiStore = useUiStore();
 const { overlays, showInfoPopup, infoPopupOverlayId } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
-const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
 const { t } = useI18n();
@@ -100,15 +96,6 @@ const { isSubmitting, prepareOverlaySubmission, prepareProjectWithOverlaysSubmis
 
 // Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
-
-// Computed for available cities
-const availableCities = computed(() => {
-  return citiesWithProjects.value.map((city) => ({
-    id: city.id,
-    name: city.name,
-    countryCode: city.countryCode,
-  }));
-});
 
 // Track teleport target existence using reactive state (no MutationObserver)
 
@@ -196,13 +183,7 @@ const activeProject = computed(() => {
     const localProject = getEffectiveProject(overlay.projectId);
     if (localProject) return localProject;
 
-    // Try to find backend project data from overlay or city overlays
-    const backendProject =
-      overlay.project?.id === overlay.projectId
-        ? overlay.project
-        : currentCityOverlays.value.find(
-            (cityOverlay) => cityOverlay.project?.id === overlay.projectId,
-          )?.project;
+    const backendProject = overlay.project?.id === overlay.projectId ? overlay.project : null;
 
     if (backendProject)
       return convertAndCacheBackendProject({
@@ -249,7 +230,7 @@ function handleEditProject(project: Project) {
 }
 
 // Handle overlay editing (overlay mode only)
-function handleEditOverlay(overlay: OverlayObject) {
+function handleEditOverlay() {
   overlayEditorRef.value?.openDialog();
 }
 

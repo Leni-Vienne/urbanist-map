@@ -11,7 +11,7 @@ import {
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { clearAllMapContent } from "@/services/map/countryData";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
@@ -116,10 +116,9 @@ export function useChangeRequestPreview() {
       );
     }
 
-    // Step 3: Clear map and load cities for the country
+    // Step 3: Clear map and navigate to the overlay's country
     clearAllMapContent();
     mapStore.selectedCountryCode = overlayForModeration.countryCode;
-    await loadCitiesForCountry(overlayForModeration.countryCode);
 
     // Step 4: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);
@@ -141,28 +140,12 @@ export function useChangeRequestPreview() {
     overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     if (!overlayObject) {
-      // Debug logging for troubleshooting
-      console.error("[useChangeRequestPreview] Overlay not loaded after city projects loaded", {
+      console.error("[useChangeRequestPreview] Overlay not loaded after navigation", {
         overlayId: overlayForModeration.id,
         availableOverlays: Object.keys(overlayStore.overlays),
-        cityOverlays: mapStore.currentCityOverlays.map((o) => ({ id: o.id, status: o.status })),
         mode: mapStore.mode,
         status: overlayForModeration.status,
       });
-
-      // One more attempt with longer wait
-      const overlayInMapStore = mapStore.currentCityOverlays.find(
-        (o) => o.id === overlayForModeration.id,
-      );
-      if (overlayInMapStore) {
-        await new Promise<void>(
-          (resolve) =>
-            void setTimeout(() => {
-              resolve();
-            }, 500),
-        );
-        overlayObject = overlayStore.overlays[overlayForModeration.id];
-      }
     }
 
     if (!overlayObject || registry.getLayer(overlayObject.id) === null) {

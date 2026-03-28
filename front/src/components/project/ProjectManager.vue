@@ -56,7 +56,7 @@ import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
-import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { clearAllMapContent } from "@/services/map/countryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { addOverlay } from "@/services/overlay/overlayEditing";
@@ -64,7 +64,6 @@ import { createProject } from "@/services/project/projectMutations";
 import { createProjectObject } from "@/utils/typeFactories";
 import { getCityProjects } from "@/services/project/projectSelection";
 import type { Project } from "@/types/index";
-import { citiesWithProjects } from "@/services/map/citiesState";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
 const CreateProjectDialog = defineAsyncComponent(
@@ -278,7 +277,6 @@ async function displayProjectMarkerAndPopup(
       clearAllMapContent();
     }
     mapStore.selectedCountryCode = countryCode;
-    await loadCitiesForCountry(countryCode);
   }
 
   let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
@@ -319,27 +317,6 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
     ...project,
     isModified: true,
   });
-
-  // CRITICAL FIX: Add city to citiesWithProjects so viewport manager knows to load it
-  // This ensures standalone markers reappear after zoom out/in cycle
-  if (project.city && project.cityId) {
-    const cityExists = citiesWithProjects.value.some((c) => c.id === project.cityId);
-
-    if (!cityExists) {
-      citiesWithProjects.value = [
-        ...citiesWithProjects.value,
-        {
-          id: project.cityId,
-          name: project.city.name,
-          nameLocal: project.city.nameLocal ?? null,
-          lat: project.city.coordinates.y,
-          lng: project.city.coordinates.x,
-          countryCode: project.city.countryCode,
-          projectCount: 0,
-        },
-      ];
-    }
-  }
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && project.lat && project.lng) {

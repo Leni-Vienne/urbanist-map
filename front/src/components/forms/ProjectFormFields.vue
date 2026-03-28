@@ -234,7 +234,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, toRaw, onMounted } from "vue";
-import { useI18n } from "vue-i18n";
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
 import type CitySelect from "./CitySelect.vue";
@@ -290,9 +289,6 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
-
-// i18n for translations
-const { t } = useI18n();
 
 // Reference to CitySelect component
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);

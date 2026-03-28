@@ -1,7 +1,6 @@
-import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 
 /**
@@ -18,31 +17,14 @@ export async function navigateToCity(
   countryCode: string,
   cityCoords?: { lat: number; lng: number },
 ): Promise<void> {
-  const projectStore = useProjectStore();
-
   // Clear city-specific content before navigating to new city
   clearAllMapContent();
   const mapStore = useMapStore();
   mapStore.selectedCountryCode = countryCode;
-  await loadCitiesForCountry(countryCode);
 
-  // Find the city coordinates (from store or provided coords)
-  let lat: number | undefined = undefined;
-  let lng: number | undefined = undefined;
-
-  if (cityCoords) {
-    // Use provided coordinates (from search result)
-    lat = cityCoords.lat;
-    lng = cityCoords.lng;
-  } else {
-    // Try to find in store (should now be available after prepareCountryContext)
-    const country = projectStore.countries.find((c) => c.code === countryCode);
-    const city = country?.cities.find((c) => c.id === cityId);
-    if (city) {
-      lat = city.lat;
-      lng = city.lng;
-    }
-  }
+  // Use provided coordinates (from search result)
+  const lat = cityCoords?.lat;
+  const lng = cityCoords?.lng;
 
   // Fly to city coordinates if we have them
   if (lat !== undefined && lng !== undefined) {
