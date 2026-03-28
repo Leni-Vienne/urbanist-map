@@ -518,41 +518,63 @@ async function main() {
   //   - Circular park r=500m (3141m perimeter):           LEAST(3141m, 1000m) = 1000m  correct (diameter)
   //
   // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
-  console.log(`\nComputing geometry sizes for all imported rows...`);
+  console.log(`\nComputing geometry sizes for all imported rows (batched)...`);
   try {
-    await db.execute(sql`
-      UPDATE projects AS p
-      SET geometry_size_m = sizes.size
-      FROM (
-        SELECT id,
-          CASE
-            WHEN ST_Area(geometry) > 0 THEN
-              LEAST(
-                ST_Perimeter(geometry::geography),
-                GREATEST(
-                  ST_Distance(
-                    ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
-                    ST_MakePoint(ST_XMax(env.e), ST_YMin(env.e))::geography
-                  ),
-                  ST_Distance(
-                    ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
-                    ST_MakePoint(ST_XMin(env.e), ST_YMax(env.e))::geography
-                  )
-                )
-              )
-            ELSE
-              LEAST(
-                ST_Length(geometry::geography),
-                ST_Length(ST_BoundingDiagonal(env.e)::geography)
-              )
-          END AS size
-        FROM projects, LATERAL (SELECT ST_Envelope(geometry) AS e) env
+    // Fetch IDs of all rows that need updating. This is cheap — no geography ops yet.
+    const idsToUpdate = (
+      await db.execute<{ id: string }>(sql`
+        SELECT id
+        FROM projects
         WHERE import_source_id = ${importSource.id}
           AND geometry IS NOT NULL
           AND last_imported_at >= ${syncStartTime}
-      ) AS sizes
-      WHERE p.id = sizes.id
-    `);
+      `)
+    ).map((r) => r.id);
+
+    console.log(`  ${idsToUpdate.length} rows to process`);
+
+    const GEOMETRY_BATCH_SIZE = 2000;
+    let sizesDone = 0;
+    for (let offset = 0; offset < idsToUpdate.length; offset += GEOMETRY_BATCH_SIZE) {
+      const batchIds = idsToUpdate.slice(offset, offset + GEOMETRY_BATCH_SIZE);
+      const idList = sql.join(
+        batchIds.map((id) => sql`${id}::uuid`),
+        sql`, `,
+      );
+      await db.execute(sql`
+        UPDATE projects AS p
+        SET geometry_size_m = sizes.size
+        FROM (
+          SELECT id,
+            CASE
+              WHEN ST_Area(geometry) > 0 THEN
+                LEAST(
+                  ST_Perimeter(geometry::geography),
+                  GREATEST(
+                    ST_Distance(
+                      ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
+                      ST_MakePoint(ST_XMax(env.e), ST_YMin(env.e))::geography
+                    ),
+                    ST_Distance(
+                      ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
+                      ST_MakePoint(ST_XMin(env.e), ST_YMax(env.e))::geography
+                    )
+                  )
+                )
+              ELSE
+                LEAST(
+                  ST_Length(geometry::geography),
+                  ST_Length(ST_BoundingDiagonal(env.e)::geography)
+                )
+            END AS size
+          FROM projects, LATERAL (SELECT ST_Envelope(geometry) AS e) env
+          WHERE id IN (${idList})
+        ) AS sizes
+        WHERE p.id = sizes.id
+      `);
+      sizesDone += batchIds.length;
+      console.log(`  ${sizesDone} / ${idsToUpdate.length}`);
+    }
     console.log(`Geometry sizes computed.`);
   } catch (err) {
     console.error("Failed to compute geometry sizes (non-fatal):", err);

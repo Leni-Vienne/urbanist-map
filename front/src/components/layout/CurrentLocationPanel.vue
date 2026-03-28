@@ -87,12 +87,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onActivated, onBeforeUnmount, watch } from "vue";
-import { useVisibleProjects } from "@/composables/project/useVisibleProjects";
+import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
-
-import type { SortMode } from "@/composables/project/useVisibleProjects";
+import { useScrollFade } from "@/composables/ui/useScrollFade";
 
 const { projects, sortMode, sortReverse, isReady, navigateToProject, hoverProject } =
   useVisibleProjects();
@@ -131,36 +129,7 @@ function statusStyle(status: string): Record<string, string> {
   return STATUS_STYLES[status] ?? STATUS_STYLES["proposed"]!;
 }
 
-// Scroll-area fade logic (same pattern as LatestContributionsPanel)
-const scrollAreaRef = ref<HTMLElement | null>(null);
-const contentRef = ref<HTMLElement | null>(null);
-const isScrollable = ref(false);
-
-function updateScrollable() {
-  const el = scrollAreaRef.value;
-  if (el) isScrollable.value = el.scrollHeight > el.clientHeight;
-}
-
-const scrollObserver = new ResizeObserver(updateScrollable);
-
-onMounted(() => {
-  if (scrollAreaRef.value) scrollObserver.observe(scrollAreaRef.value);
-  updateScrollable();
-});
-
-onActivated(updateScrollable);
-
-onBeforeUnmount(() => scrollObserver.disconnect());
-
-watch(contentRef, (el, oldEl) => {
-  if (oldEl) scrollObserver.unobserve(oldEl);
-  if (el) {
-    scrollObserver.observe(el);
-    updateScrollable();
-  } else {
-    isScrollable.value = false;
-  }
-});
+const { isScrollable } = useScrollFade();
 </script>
 
 <style scoped>

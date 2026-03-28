@@ -160,30 +160,17 @@ watch(
 function handlePrecisionChange() {
   isTouched.value = true;
 
-  // When switching precision, try to preserve values
   if (internalPrecision.value === "year") {
-    // Clear month, keep year
     selectedMonth.value = null;
-    if (selectedYear.value) {
-      emitValue();
-    }
-  } else if (internalPrecision.value === "month") {
-    // Keep year, set month to current if not set
-    if (!selectedMonth.value) {
-      selectedMonth.value = new Date().getMonth() + 1;
-    }
-    if (selectedYear.value) {
-      emitValue();
-    }
-  } else {
-    // Full date mode - construct date from year/month if available
-    if (selectedYear.value && selectedMonth.value) {
-      fullDateValue.value = new Date(selectedYear.value, selectedMonth.value - 1, 1);
-      emitValue();
-    } else if (selectedYear.value) {
-      fullDateValue.value = new Date(selectedYear.value, 0, 1);
-      emitValue();
-    }
+  } else if (internalPrecision.value === "month" && !selectedMonth.value) {
+    selectedMonth.value = new Date().getMonth() + 1;
+  } else if (selectedYear.value) {
+    const month = selectedMonth.value ?? 1;
+    fullDateValue.value = new Date(selectedYear.value, month - 1, 1);
+  }
+
+  if (selectedYear.value) {
+    emitValue();
   }
 }
 
@@ -213,36 +200,21 @@ function handleFullDateChange(date: Date | Date[] | (Date | null)[] | null | und
 }
 
 function emitValue() {
-  if (internalPrecision.value === "year") {
-    if (selectedYear.value) {
-      emit("update:modelValue", {
-        year: selectedYear.value,
-        precision: "year",
-      });
-    } else {
-      emit("update:modelValue", null);
-    }
-  } else if (internalPrecision.value === "month") {
-    if (selectedYear.value && selectedMonth.value) {
-      emit("update:modelValue", {
-        year: selectedYear.value,
-        month: selectedMonth.value,
-        precision: "month",
-      });
-    } else {
-      emit("update:modelValue", null);
-    }
-  } else {
-    if (fullDateValue.value) {
-      emit("update:modelValue", {
-        year: fullDateValue.value.getFullYear(),
-        month: fullDateValue.value.getMonth() + 1,
-        day: fullDateValue.value.getDate(),
-        precision: "day",
-      });
-    } else {
-      emit("update:modelValue", null);
-    }
+  let value: FlexibleDateInput | null = null;
+
+  if (internalPrecision.value === "year" && selectedYear.value) {
+    value = { year: selectedYear.value, precision: "year" };
+  } else if (internalPrecision.value === "month" && selectedYear.value && selectedMonth.value) {
+    value = { year: selectedYear.value, month: selectedMonth.value, precision: "month" };
+  } else if (internalPrecision.value === "day" && fullDateValue.value) {
+    value = {
+      year: fullDateValue.value.getFullYear(),
+      month: fullDateValue.value.getMonth() + 1,
+      day: fullDateValue.value.getDate(),
+      precision: "day",
+    };
   }
+
+  emit("update:modelValue", value);
 }
 </script>

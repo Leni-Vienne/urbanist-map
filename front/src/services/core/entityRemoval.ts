@@ -3,7 +3,6 @@
 // Extracted from composables to separate business logic from Vue context
 
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
@@ -21,7 +20,6 @@ import { t } from "@/locales";
 interface DeleteOverlayOptions {
   showToast?: boolean;
   updateUserContributions?: boolean;
-  clearCityCaches?: boolean;
 }
 
 /**
@@ -69,11 +67,9 @@ function removeOverlay(
   overlayId: string,
   options: {
     updateUserContributions?: boolean;
-    clearCityCaches?: boolean;
   } = {},
 ) {
   const projectStore = useProjectStore();
-  const mapStore = useMapStore();
   const authStore = useAuthStore();
 
   // 1. Find parent project to update its overlay list
@@ -106,10 +102,6 @@ function removeOverlay(
     projectStore.removeOverlayFromUserContributions(overlayId, authStore.user?.id);
   }
 
-  if (options.clearCityCaches) {
-    mapStore.clearCityCaches();
-  }
-
   // Also remove standalone marker for this specific overlay ID (legacy/edge case support)
   removeProjectMarkerFromMap(overlayId);
 }
@@ -125,7 +117,6 @@ export function removeProject(
   } = {},
 ) {
   const projectStore = useProjectStore();
-  const mapStore = useMapStore();
 
   const project = projectStore.projects[projectId];
 
@@ -151,9 +142,6 @@ export function removeProject(
   if (options.updateUserContributions) {
     projectStore.removeProjectFromUserContributions(projectId);
   }
-
-  // 5. Force cache clear to prevent ghost data
-  mapStore.clearCityCaches();
 }
 
 /**
@@ -165,7 +153,7 @@ export async function deleteOverlayDirect(
   overlayId: string,
   options: DeleteOverlayOptions = {},
 ): Promise<boolean> {
-  const { showToast = false, updateUserContributions = false, clearCityCaches = false } = options;
+  const { showToast = false, updateUserContributions = false } = options;
 
   const overlayStore = useOverlayStore();
   const overlayObject = overlayStore.overlays[overlayId];
@@ -182,7 +170,7 @@ export async function deleteOverlayDirect(
       await trpc.overlay.deleteOverlay.mutate({ id: overlayId });
     }
 
-    removeOverlay(overlayId, { updateUserContributions, clearCityCaches });
+    removeOverlay(overlayId, { updateUserContributions });
 
     if (showToast) {
       const toast = useToast();

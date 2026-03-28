@@ -350,7 +350,6 @@ export const useAuthStore = defineStore("auth", () => {
 
       // Clear map state
       mapStore.resetMode();
-      mapStore.clearCityCaches();
 
       // Clear all project and overlay state
       projectStore.clearAllState();

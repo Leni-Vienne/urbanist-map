@@ -1,5 +1,4 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
@@ -202,7 +201,6 @@ function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
 
 export function useSubmissionService() {
   const projectStore = useProjectStore();
-  const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
   const pendingModsStore = usePendingModificationsStore();
   const { publishOverlay } = useOverlayPublisher();
@@ -465,10 +463,6 @@ export function useSubmissionService() {
 
     projectStore.updateProject(project.id, { isModified: false });
 
-    if (project.cityId) {
-      mapStore.clearCityCaches(project.cityId);
-    }
-
     resetChangeRequestsLoaded();
     await refreshPendingChangeRequests(true);
   }
@@ -491,10 +485,6 @@ export function useSubmissionService() {
       } else {
         updateStandaloneProjectMarkerColor(project.id, updatedProject);
       }
-    }
-
-    if (project.cityId) {
-      mapStore.clearCityCaches(project.cityId);
     }
 
     if (changeType === "create") {
@@ -605,12 +595,6 @@ export function useSubmissionService() {
           });
         }
       }
-    }
-
-    // Invalidate city caches uniformly for both paths
-    const cityId = context.entity.project?.cityId;
-    if (cityId) {
-      mapStore.clearCityCaches(cityId);
     }
   }
 

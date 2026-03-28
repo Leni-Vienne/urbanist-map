@@ -5,7 +5,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { clearAllMapContent } from "@/services/map/countryData";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes } from "@/services/map/shapeRendering";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
@@ -84,7 +84,6 @@ export function useShapeChangeRequestPreview() {
     if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
       clearAllMapContent();
       mapStore.selectedCountryCode = project.countryCode;
-      await loadCitiesForCountry(project.countryCode);
       await nextTick();
     }
 

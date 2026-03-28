@@ -38,10 +38,15 @@ function resolveProjectHexColor(overlayObject: OverlayObject): string {
   if (mode === "edit") {
     return markerColors[getOverlayMarkerColor(overlayObject, mode)];
   }
-  const proj = overlayObject.project;
-  if (!proj) return OVERLAY_OUTLINE_COLOR;
-  const colorKey = getProjectMarkerColor(proj as unknown as Project, mode);
-  return markerColors[colorKey];
+  if (mode === "moderation") {
+    const proj = overlayObject.project;
+    if (!proj) return OVERLAY_OUTLINE_COLOR;
+    const colorKey = getProjectMarkerColor(proj as unknown as Project, mode);
+    return markerColors[colorKey];
+  }
+  // View mode: always use the standard blue selection color.
+  // The vector tile shapes already convey project status; the ring is purely a selection indicator.
+  return OVERLAY_OUTLINE_COLOR;
 }
 
 /**

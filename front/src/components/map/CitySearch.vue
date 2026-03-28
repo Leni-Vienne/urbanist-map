@@ -39,12 +39,7 @@
 import { ref } from "vue";
 import { trpc } from "@/client";
 import { navigateToCity } from "@/services/navigation/locationNavigation";
-import { useToast } from "@/composables/ui/useToast";
-import { useI18n } from "vue-i18n";
 import { map } from "@/services/core/map";
-
-const toast = useToast();
-const { t } = useI18n();
 
 type CitySearchResult = {
   id: number;

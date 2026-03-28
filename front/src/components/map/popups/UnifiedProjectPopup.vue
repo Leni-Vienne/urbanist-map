@@ -96,7 +96,6 @@
           :show-name="false"
           :show-description="true"
           :edit-mode="!viewMode"
-          :available-cities="availableCities"
           @field-click="emit('edit-project', project)"
         />
 
@@ -215,7 +214,6 @@ interface Props {
   viewMode?: boolean;
   publishLoading?: boolean;
   loading?: boolean;
-  availableCities?: { id: number; name: string; countryCode: string }[];
   // Source determines popup positioning - overlay toolbar vs project marker
   source?: "overlay" | "marker";
 }
@@ -225,7 +223,6 @@ const props = withDefaults(defineProps<Props>(), {
   viewMode: false,
   publishLoading: false,
   loading: false,
-  availableCities: () => [],
   source: "overlay",
 });
 

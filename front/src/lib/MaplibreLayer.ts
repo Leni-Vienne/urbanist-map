@@ -78,6 +78,13 @@ const MaplibreLayer = Layer.extend({
       zoomstart: this._zoomStart, // flag starting a zoom to disable panning
       zoomend: this._zoomEnd,
       resize: this._resize,
+      // Forward Leaflet movement onto the MapLibre map as "leaflet-movestart" /
+      // "leaflet-moveend" so consumers can detect Leaflet camera movement via
+      // getMlMap() without knowing about the bridge. Standard "movestart"/"moveend"
+      // names cannot be used: MapLibre fires those itself for every jumpTo() call
+      // (once per throttled drag frame), which would reset any moving flag each frame.
+      movestart: this._forwardMoveStart,
+      moveend: this._forwardMoveEnd,
     };
   },
 
@@ -249,6 +256,13 @@ const MaplibreLayer = Layer.extend({
     const offset = canvasWorldPos.multiplyBy(scale).subtract(newPixelOrigin).subtract(containerPos);
 
     DomUtil.setTransform(this._glMap._actualCanvas, offset, scale);
+  },
+
+  _forwardMoveStart: function _forwardMoveStart(this: any) {
+    this._glMap.fire("leaflet-movestart");
+  },
+  _forwardMoveEnd: function _forwardMoveEnd(this: any) {
+    this._glMap.fire("leaflet-moveend");
   },
 
   _zoomStart: function _zoomStart(_e: any) {},

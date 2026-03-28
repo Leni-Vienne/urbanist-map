@@ -25,7 +25,6 @@ import {
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 
 /**
  * Update overlay editing state based on current mode
@@ -239,11 +238,6 @@ export function addOverlay(
           // Remove standalone project marker when first overlay is added to project
           if (isFirstOverlay) {
             removeStandaloneProjectMarkerForProject(projectId);
-          }
-
-          // Add new overlay to city cache so it persists across zoom changes
-          if (project?.city) {
-            addNewOverlayToCityCache(overlayObject, project.city.id);
           }
 
           // Automatically select the newly created overlay for immediate positioning

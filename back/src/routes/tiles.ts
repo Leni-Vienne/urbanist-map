@@ -28,7 +28,7 @@ function lngLatToTileXY(lng: number, lat: number, z: number): [number, number] {
 }
 
 // Evicts the single tile at each zoom level z0..LOW_ZOOM_MAX that contains the given point.
-export function invalidateTilesForPoint(lat: number, lng: number) {
+function invalidateTilesForPoint(lat: number, lng: number) {
   for (let z = 0; z <= LOW_ZOOM_MAX; z += 1) {
     const [x, y] = lngLatToTileXY(lng, lat, z);
     tileCache.delete(`${z}/${x}/${y}`);

@@ -11,6 +11,8 @@ import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
 
 export type SortMode = "recent" | "name" | "size" | "status";
 
@@ -59,6 +61,65 @@ function collectCoords(geom: GeoJSON.Geometry): number[][] {
   }
 }
 
+function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolean {
+  if (prev.length !== next.length) return true;
+  for (let i = 0; i < next.length; i += 1) {
+    const p = prev[i] as VisibleProject;
+    const n = next[i] as VisibleProject;
+    if (
+      p.id !== n.id ||
+      p.name !== n.name ||
+      p.timelineStatus !== n.timelineStatus ||
+      p.lastModifiedS !== n.lastModifiedS ||
+      p.sizeM !== n.sizeM
+    )
+      return true;
+  }
+  return false;
+}
+
+function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisibleProject[] {
+  const seen = new Map<string, VisibleProject>();
+  for (const f of features) {
+    const props = f.properties ?? {};
+    const sourceLayer = String((f as any).sourceLayer ?? "");
+    const id =
+      sourceLayer === "overlay-footprints"
+        ? String(props.project_id ?? "")
+        : String(props.id ?? "");
+    const name = sourceLayer === "overlay-footprints" ? "" : String(props.name ?? "");
+    if (!id) continue;
+    const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
+    const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
+    if (!seen.has(id)) {
+      seen.set(id, {
+        id,
+        name,
+        firstTag: String(props.first_tag ?? ""),
+        timelineStatus: String(props.timeline_status ?? ""),
+        lastModifiedS: Number(props.last_modified_s ?? 0),
+        sizeM,
+        lat,
+        lng,
+      });
+    } else {
+      const existing = seen.get(id) as VisibleProject;
+      if (name && !existing.name) existing.name = name;
+      if (lat !== null && existing.lat === null) {
+        existing.lat = lat;
+        existing.lng = lng;
+      }
+    }
+  }
+  const result = [...seen.values()];
+  // Sort by id for stable ordering: queryRenderedFeatures returns features in
+  // non-deterministic tile-load order, so without this, projectsChanged() would
+  // see two arrays with identical content but different order as a "change",
+  // causing a spurious rawProjects update and a Vue re-render.
+  result.sort((a, b) => a.id.localeCompare(b.id));
+  return result;
+}
+
 function getBboxCenter(geom: GeoJSON.Geometry | null): [number | null, number | null] {
   if (!geom) return [null, null];
   const coords = collectCoords(geom);
@@ -86,8 +147,20 @@ export function useVisibleProjects() {
   const uiStore = useUiStore();
 
   const projects = computed<VisibleProject[]>(() => {
-    const named = rawProjects.value.filter((p) => p.name);
-    const unnamed = rawProjects.value.filter((p) => !p.name);
+    const [minDateMs, maxDateMs] = lastModifiedDateRange.value;
+    const [minSizeM, maxSizeM] = sizeFilterRange.value;
+
+    const filtered = rawProjects.value.filter((p) => {
+      if (p.lastModifiedS > 0) {
+        const dateMs = p.lastModifiedS * 1000;
+        if (dateMs < minDateMs || dateMs > maxDateMs) return false;
+      }
+      if (p.sizeM < minSizeM || p.sizeM > maxSizeM) return false;
+      return true;
+    });
+
+    const named = filtered.filter((p) => p.name);
+    const unnamed = filtered.filter((p) => !p.name);
 
     function compareBySortMode(a: VisibleProject, b: VisibleProject): number {
       let result = 0;
@@ -102,13 +175,18 @@ export function useVisibleProjects() {
       }
       return sortReverse.value ? -result : result;
     }
-
     return [...named.toSorted(compareBySortMode), ...unnamed.toSorted(compareBySortMode)];
   });
 
+  // We gate doRefresh on this flag to avoid querying on every drag frame.
+  let leafletMoving = false;
+
   function doRefresh() {
     const mlMap = getMlMap();
-    if (!mlMap) return;
+    // Skip if Leaflet is still animating, or if tiles for the current viewport
+    // haven't finished loading yet (e.g. mid-zoom). The idle/sourcedata handlers
+    // will re-trigger once everything is ready.
+    if (!mlMap || leafletMoving || !mlMap.areTilesLoaded()) return;
 
     const canvas = mlMap.getCanvas();
     const dpr = window.devicePixelRatio || 1;
@@ -128,52 +206,8 @@ export function useVisibleProjects() {
     // applying an inset to avoid projects that are at the edge of the screen
     const features = mlMap.queryRenderedFeatures(bbox, { layers: [...QUERY_LAYERS] });
 
-    const seen = new Map<string, VisibleProject>();
-
-    for (const f of features) {
-      const props = f.properties ?? {};
-      const sourceLayer = String((f as any).sourceLayer ?? "");
-
-      let id: string;
-      let name: string;
-
-      if (sourceLayer === "overlay-footprints") {
-        id = String(props.project_id ?? "");
-        name = "";
-      } else {
-        id = String(props.id ?? "");
-        name = String(props.name ?? "");
-      }
-
-      if (!id) continue;
-
-      const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
-
-      // project-points uses max_size_m, project-shapes uses geometry_size_m
-      const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
-
-      if (!seen.has(id)) {
-        seen.set(id, {
-          id,
-          name,
-          firstTag: String(props.first_tag ?? ""),
-          timelineStatus: String(props.timeline_status ?? ""),
-          lastModifiedS: Number(props.last_modified_s ?? 0),
-          sizeM,
-          lat,
-          lng,
-        });
-      } else {
-        const existing = seen.get(id)!;
-        if (name && !existing.name) existing.name = name;
-        if (lat !== null && existing.lat === null) {
-          existing.lat = lat;
-          existing.lng = lng;
-        }
-      }
-    }
-
-    rawProjects.value = [...seen.values()];
+    const newProjects = accumulateFeatures(features);
+    if (projectsChanged(rawProjects.value, newProjects)) rawProjects.value = newProjects;
   }
 
   // pendingQuery: a one-shot `render` listener has been registered and will call doRefresh()
@@ -191,8 +225,9 @@ export function useVisibleProjects() {
     });
   }
 
-  // Fallback debounce for cases where the map stops firing `render` altogether
-  // (e.g. nothing changed after the event). Gives up and queries directly.
+  // Fallback for cases where the mlMap stops firing `render` altogether (e.g. nothing
+  // visually changed after the triggering event). Bypasses the render-frame wait and
+  // queries directly. leafletMoving is rechecked inside doRefresh so this is safe.
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   function scheduleRefresh() {
     scheduleRefreshAfterRender();
@@ -205,11 +240,26 @@ export function useVisibleProjects() {
 
   let idleHandler: (() => void) | null = null;
   let sourcedataHandler: (() => void) | null = null;
+  let sourcedataTimer: ReturnType<typeof setTimeout> | null = null;
+  let moveStartHandler: (() => void) | null = null;
+  let moveEndHandler: (() => void) | null = null;
 
   onMlMapReady(() => {
     isReady.value = true;
     const mlMap = getMlMap();
     if (!mlMap) return;
+
+    // MaplibreLayer forwards Leaflet movestart/moveend onto mlMap, so these fire
+    // correctly during Leaflet drags even though MapLibre itself isn't moving.
+    moveStartHandler = () => {
+      leafletMoving = true;
+    };
+    moveEndHandler = () => {
+      leafletMoving = false;
+      scheduleRefresh();
+    };
+    mlMap.on("leaflet-movestart", moveStartHandler);
+    mlMap.on("leaflet-moveend", moveEndHandler);
 
     // `idle` fires when the map stops moving AND all tiles are loaded.
     // We still piggyback a render-frame defer to guarantee the paint is done.
@@ -219,8 +269,14 @@ export function useVisibleProjects() {
     // `sourcedata` fires when any source finishes loading tile data. Catching
     // the moment areTilesLoaded() first becomes true covers the race where the
     // camera moved so quickly that `idle` fired before tiles were fetched.
+    // Debounced to avoid firing on every individual tile during a pan.
     sourcedataHandler = () => {
-      if (mlMap.areTilesLoaded()) scheduleRefresh();
+      if (!mlMap.areTilesLoaded() || mlMap.isMoving()) return;
+      if (sourcedataTimer) clearTimeout(sourcedataTimer);
+      sourcedataTimer = setTimeout(() => {
+        sourcedataTimer = null;
+        if (mlMap.areTilesLoaded() && !mlMap.isMoving()) scheduleRefresh();
+      }, 150);
     };
     mlMap.on("sourcedata", sourcedataHandler);
 
@@ -232,9 +288,13 @@ export function useVisibleProjects() {
 
   onUnmounted(() => {
     if (fallbackTimer) clearTimeout(fallbackTimer);
+    if (sourcedataTimer) clearTimeout(sourcedataTimer);
     pendingQuery = false;
+    leafletMoving = false;
     const mlMap = getMlMap();
     if (mlMap) {
+      if (moveStartHandler) mlMap.off("leaflet-movestart", moveStartHandler);
+      if (moveEndHandler) mlMap.off("leaflet-moveend", moveEndHandler);
       if (idleHandler) mlMap.off("idle", idleHandler);
       if (sourcedataHandler) mlMap.off("sourcedata", sourcedataHandler);
     }
@@ -245,6 +305,18 @@ export function useVisibleProjects() {
       project.lat !== null && project.lng !== null
         ? L.latLng(project.lat, project.lng) // lat, lng order for Leaflet
         : map.value.getCenter();
+
+    // Compute a zoom level that fits the project's footprint.
+    // sizeM is the longest dimension; build a square bounds around the center,
+    // ask Leaflet for the zoom that fits it, then cap at 19.
+    const halfDeg = project.sizeM > 0 ? project.sizeM / 2 / 111_320 : 0.001;
+    const bounds = L.latLngBounds(
+      [latlng.lat - halfDeg, latlng.lng - halfDeg],
+      [latlng.lat + halfDeg, latlng.lng + halfDeg],
+    );
+    const zoom = Math.min(map.value.getBoundsZoom(bounds, false), 19);
+    mobileAwareFlyTo(latlng, zoom, { duration: 1.5, easeLinearity: 0.25 });
+
     void handleProjectClickFromTile(project.id, latlng);
   }
 
@@ -254,20 +326,18 @@ export function useVisibleProjects() {
     if (projectId) {
       highlightProjectOverlaysOnHover(projectId);
       lastHoveredProjectId = projectId;
-    } else {
-      if (lastHoveredProjectId) {
-        const prevProjectId = lastHoveredProjectId;
-        lastHoveredProjectId = null;
-        removeProjectOutlines(prevProjectId);
+    } else if (lastHoveredProjectId) {
+      const prevProjectId = lastHoveredProjectId;
+      lastHoveredProjectId = null;
+      removeProjectOutlines(prevProjectId);
 
-        // If the popup just opened for this project (user clicked it), keep the vector tile
-        // highlight alive — it acts as a "selected" state until the popup is dismissed.
-        // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
-        const popupPinsHighlight =
-          uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === prevProjectId;
-        if (!popupPinsHighlight) {
-          setOverlayDrivenHover(null);
-        }
+      // If the popup just opened for this project (user clicked it), keep the vector tile
+      // highlight alive — it acts as a "selected" state until the popup is dismissed.
+      // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
+      const popupPinsHighlight =
+        uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === prevProjectId;
+      if (!popupPinsHighlight) {
+        setOverlayDrivenHover(null);
       }
     }
   }

@@ -6,6 +6,9 @@
     "skipLibCheck": true,
     "strict": true,
     "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
     "allowSyntheticDefaultImports": true,
     "useUnknownInCatchVariables": true,
     "noUncheckedIndexedAccess": true, // seems insane not to have it when accessing a record, no ? why is the default false?

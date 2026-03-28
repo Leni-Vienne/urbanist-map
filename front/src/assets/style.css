@@ -72,12 +72,10 @@ body {
 :root {
   --accordion-card-bg: #f8f9fc;
 }
-.dark-mode {
-  --accordion-card-bg: var(--p-content-background);
-}
 
 /* Dark mode overrides */
 .dark-mode {
+  --accordion-card-bg: var(--p-content-background);
   --p-tag-warn-background: #292205 !important;
   --p-tag-warn-color: #fde68a !important;
   --p-message-warn-background: #292205;
