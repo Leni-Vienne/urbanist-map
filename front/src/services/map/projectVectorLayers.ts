@@ -664,7 +664,18 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (mlMap) setHoveredProjectId(mlMap, projectId);
   });
 
+  // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
+  // Leaflet fires mousemove at up to 500+/sec, which would saturate the main thread.
+  // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
+  let _hoverThrottlePending = false;
+
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
+    if (_hoverThrottlePending) return;
+    _hoverThrottlePending = true;
+    setTimeout(() => {
+      _hoverThrottlePending = false;
+    }, 32);
+
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
