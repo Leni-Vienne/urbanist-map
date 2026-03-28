@@ -23,12 +23,6 @@ export const useMapStore = defineStore("map", () => {
   // Current city overlays displayed
   const currentCityOverlays = ref<OverlayData[]>([]);
 
-  // Cities lookup map (cityId → city info) for panel auto-switch
-  // Populated when cities are loaded globally, avoids circular dependency
-  const citiesLookup = ref<
-    Map<number, { id: number; name: string; nameLocal: string | null; countryCode?: string }>
-  >(new Map());
-
   // City projects cache - mode-aware for smart caching (cityId → mode → data)
   // This allows fast mode switching without backend calls while maintaining data correctness
   const cityProjectsCache = ref<Map<number, Map<AppMode, OverlayData[]>>>(new Map());
@@ -119,7 +113,6 @@ export const useMapStore = defineStore("map", () => {
     mode,
     selectedCountryCode,
     currentCityOverlays,
-    citiesLookup,
     cityProjectsCache,
     cityStandaloneProjectsCache,
 

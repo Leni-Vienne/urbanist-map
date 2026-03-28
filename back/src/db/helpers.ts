@@ -559,19 +559,9 @@ export function buildProjectHasVisibleContentCondition(
   overlayChangeRequestIds?: string[],
 ): SQL {
   if (mode === "view") {
-    // View mode: show if no approved overlays OR has approved overlays (all approved projects visible as either basic markers or with overlays)
-    return sql`(
-      NOT EXISTS (
-        SELECT 1 FROM ${overlays}
-        WHERE ${overlays.projectId} = ${projects.id}
-        AND ${overlays.status} = 'approved'
-      )
-      OR EXISTS (
-        SELECT 1 FROM ${overlays}
-        WHERE ${overlays.projectId} = ${projects.id}
-        AND ${overlays.status} = 'approved'
-      )
-    )`;
+    // View mode: all approved projects are visible (either as standalone markers or with overlays).
+    // No additional filtering needed -- the project visibility condition already handles status='approved'.
+    return sql`TRUE`;
   }
 
   if (mode === "edit" && user) {

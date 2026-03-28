@@ -183,13 +183,10 @@ async function handleContributionClick(contribution: LatestContribution) {
       });
     }
   } else if (contribution.type === "standalone") {
-    // Navigate to standalone project using full navigation flow (tile layer, city load, etc.)
     if (contribution.lat && contribution.lng) {
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,
-        contribution.cityId,
-        contribution.cityName ?? "",
         contribution.countryCode ?? undefined,
         contribution.id,
       );

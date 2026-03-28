@@ -23,11 +23,6 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
-// Cities cache management (separate cache per mode)
-function getCitiesCacheKey(countryCode: string, mode: AppMode): string {
-  return `${countryCode}:${mode}`;
-}
-
 // Helper to generate cache key from parameters (exported for use in composables)
 function getUserContributionsCacheKey(options?: {
   cityId?: number;
@@ -43,16 +38,6 @@ export const useProjectStore = defineStore("project", () => {
   const projects = ref<Record<string, Project>>({});
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
-
-  // Cache for cities by country and mode (key format: "countryCode:mode")
-  const citiesCache = ref<
-    Map<string, (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[]>
-  >(new Map());
-
-  // Cache for global cities by mode (no country filter)
-  const globalCitiesCache = ref<Map<AppMode, RouterOutput["cities"]["getCitiesWithProjects"]>>(
-    new Map(),
-  );
 
   // Cache countries separately per mode
   const countriesCache = ref<Map<AppMode, Country[]>>(new Map());
@@ -470,26 +455,6 @@ export const useProjectStore = defineStore("project", () => {
     return didReset;
   }
 
-  function getCachedCities(countryCode: string, mode: AppMode) {
-    return citiesCache.value.get(getCitiesCacheKey(countryCode, mode)) ?? null;
-  }
-
-  function setCachedCities(
-    countryCode: string,
-    mode: AppMode,
-    cities: (RouterOutput["cities"]["getCitiesWithProjects"][number] & { distance: number })[],
-  ): void {
-    citiesCache.value.set(getCitiesCacheKey(countryCode, mode), cities);
-  }
-
-  function hasCachedCities(countryCode: string, mode: AppMode): boolean {
-    return citiesCache.value.has(getCitiesCacheKey(countryCode, mode));
-  }
-
-  function clearCitiesCache(): void {
-    citiesCache.value.clear();
-  }
-
   // Countries cache management - store and retrieve countries per mode
   function getCachedCountries(mode: AppMode): Country[] | null {
     return countriesCache.value.get(mode) ?? null;
@@ -537,88 +502,7 @@ export const useProjectStore = defineStore("project", () => {
     // We only need to clear edit/moderation mode caches
     // For now, we'll clear all caches and let view mode reload
     // (This is safer and cleaner)
-    clearCitiesCache();
     clearCountriesCache();
-  }
-
-  // Fetch global cities with projects (migrated from useCityMarkers)
-  // Uses cache to avoid redundant API calls on mode switches
-  async function fetchCitiesWithProjects(
-    mode: AppMode,
-  ): Promise<RouterOutput["cities"]["getCitiesWithProjects"]> {
-    // Check cache first
-    const cached = globalCitiesCache.value.get(mode);
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      const response = await trpc.cities.getCitiesWithProjects.query({ mode });
-      // Store in cache
-      globalCitiesCache.value.set(mode, response);
-      return response;
-    } catch (error) {
-      console.error("Error fetching cities with projects:", error);
-      throw error;
-    }
-  }
-
-  // Helper to merge backend cities with cities from local/pending projects
-  // extracted from cityMarkers.ts to centralize data logic
-  function getMergedCities(
-    backendCities: RouterOutput["cities"]["getCitiesWithProjects"],
-    currentUserId: string | null,
-  ): RouterOutput["cities"]["getCitiesWithProjects"] {
-    // Include both local (unsaved) and user's pending projects
-    const userProjectsToInclude = Object.values(projects.value).filter((p) => {
-      // Local projects (not yet submitted)
-      if (p.status === null) return true;
-
-      // User's own pending projects (submitted but not approved)
-      if (p.status === "pending" && currentUserId && p.ownerId === currentUserId) return true;
-
-      return false;
-    });
-
-    if (userProjectsToInclude.length === 0) {
-      return backendCities;
-    }
-
-    // Build a map of city IDs from user projects
-    // Explicitly type as Map<number, CityWithProjects>
-    const localProjectCitiesMap = new Map<
-      number,
-      RouterOutput["cities"]["getCitiesWithProjects"][number]
-    >();
-
-    for (const project of userProjectsToInclude) {
-      if (project.cityId) {
-        // Only add to map if not already present
-        if (!localProjectCitiesMap.has(project.cityId) && project.city) {
-          localProjectCitiesMap.set(project.cityId, {
-            id: project.cityId,
-            name: project.city.name,
-            nameLocal: project.city.nameLocal ?? null,
-            lat: project.city.coordinates.y,
-            lng: project.city.coordinates.x,
-            countryCode: project.city.countryCode,
-            projectCount: 0, // Local projects, count doesn't matter for display
-          });
-        }
-      }
-    }
-
-    // Add cities from local projects that aren't already in the city list
-    const existingCityIds = new Set(backendCities.map((c) => c.id));
-    const additionalCities: RouterOutput["cities"]["getCitiesWithProjects"] = [];
-
-    for (const [cityId, cityData] of localProjectCitiesMap) {
-      if (!existingCityIds.has(cityId)) {
-        additionalCities.push(cityData);
-      }
-    }
-
-    return additionalCities.length > 0 ? [...backendCities, ...additionalCities] : backendCities;
   }
 
   return {
@@ -648,19 +532,10 @@ export const useProjectStore = defineStore("project", () => {
     removeOverlayFromUserContributions,
     removeProjectFromUserContributions,
 
-    // Cities cache actions
-    getCachedCities,
-    setCachedCities,
-    hasCachedCities,
-
     // Countries cache actions
     getCachedCountries,
     setCachedCountries,
     hasCachedCountries,
-
-    // New Data Fetching Actions
-    fetchCitiesWithProjects,
-    getMergedCities,
 
     // Comprehensive cleanup
     clearAllState,

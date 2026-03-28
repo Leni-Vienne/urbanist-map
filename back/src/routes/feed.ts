@@ -20,17 +20,17 @@ export const feedRouter = router({
           .orderBy(sql`${overlays.updatedAt} DESC`)
           .limit(input.limit);
 
-        // Fetch projects without overlays (standalone projects) with location info
+        // Fetch standalone projects (no approved overlays) with country info.
+        // Uses NOT EXISTS instead of LEFT JOIN + GROUP BY + HAVING COUNT = 0, which lets
+        // Postgres short-circuit on the first matching overlay (index scan on overlays.projectId).
         const latestStandaloneProjects = await db
           .select({
             id: projects.id,
             name: projects.name,
-            description: projects.description,
             status: projects.status,
             lat: projects.lat,
             lng: projects.lng,
             updatedAt: sql<Date>`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
-            cityId: cities.id,
             cityName: cities.name,
             countryCode: countries.code,
             countryName: countries.name,
@@ -38,13 +38,17 @@ export const feedRouter = router({
           .from(projects)
           .leftJoin(cities, eq(projects.cityId, cities.id))
           .leftJoin(countries, eq(projects.countryCode, countries.code))
-          .leftJoin(
-            overlays,
-            and(eq(overlays.projectId, projects.id), eq(overlays.status, "approved")),
+          .where(
+            and(
+              eq(projects.status, "approved"),
+              sql`${projects.name} is not null`,
+              sql`NOT EXISTS (
+                SELECT 1 FROM ${overlays}
+                WHERE ${overlays.projectId} = ${projects.id}
+                AND ${overlays.status} = 'approved'
+              )`,
+            ),
           )
-          .where(and(eq(projects.status, "approved"), sql`${projects.name} is not null`))
-          .groupBy(projects.id, cities.id, cities.name, countries.code, countries.name)
-          .having(sql`COUNT(${overlays.id}) = 0`)
           .orderBy(sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt}) DESC`)
           .limit(input.limit);
 
@@ -55,7 +59,6 @@ export const feedRouter = router({
           name: o.caption || o.projectName, // fallback to project name if caption is missing or empty
           filename: o.filename,
           updatedAt: o.updatedAt,
-          cityId: o.cityId,
           cityName: o.cityName,
           countryCode: o.countryCode,
           countryName: o.countryName,
@@ -70,7 +73,6 @@ export const feedRouter = router({
           name: d.name,
           filename: null as string | null,
           updatedAt: d.updatedAt,
-          cityId: d.cityId,
           cityName: d.cityName,
           countryCode: d.countryCode,
           countryName: d.countryName,

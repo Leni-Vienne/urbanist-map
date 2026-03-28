@@ -707,10 +707,10 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     await navigateToStandaloneProject(
       project.lat,
       project.lng,
-      project.cityId,
-      project.cityName,
       project.countryCode ?? undefined,
       project.id,
+      project.cityId,
+      project.cityName,
     );
   } catch (error) {
     console.error("Failed to navigate to project:", error);

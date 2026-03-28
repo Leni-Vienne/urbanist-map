@@ -11,7 +11,7 @@ import {
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { clearAllMapContent } from "@/services/map/countryData";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
@@ -116,10 +116,9 @@ export function useChangeRequestPreview() {
       );
     }
 
-    // Step 3: Clear map and load cities for the country
+    // Step 3: Clear map and navigate to the overlay's country
     clearAllMapContent();
     mapStore.selectedCountryCode = overlayForModeration.countryCode;
-    await loadCitiesForCountry(overlayForModeration.countryCode);
 
     // Step 4: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);

@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { loadCitiesForCountry, clearAllMapContent } from "@/services/map/countryData";
+import { clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -88,9 +88,6 @@ async function prepareNavigationToCity(
       }
 
       mapStore.selectedCountryCode = countryCode;
-
-      // Load country data for context
-      await loadCitiesForCountry(countryCode);
     }
   }
 }
@@ -298,10 +295,10 @@ export async function navigateToOverlayWithCity(
 export async function navigateToStandaloneProject(
   lat: number,
   lng: number,
-  cityId: number | null | undefined,
-  cityName: string | null | undefined,
   countryCode?: string,
   projectId?: string,
+  cityId?: number | null,
+  cityName?: string | null,
 ): Promise<void> {
   try {
     if (cityId && cityName) {
