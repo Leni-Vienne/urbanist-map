@@ -1,8 +1,6 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { addNewOverlayToCityCache } from "@/services/overlay/overlayCityCache";
 import { map } from "@/services/core/map";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
@@ -24,7 +22,6 @@ function getCornersFromOverlay(overlay: OverlayObject) {
 export function useOverlayPublisher() {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
 
   // Validate if overlay can be published
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {
@@ -206,17 +203,6 @@ export function useOverlayPublisher() {
 
     // Update cache with new overlay state to refresh marker color (changes from Orange to Yellow)
     // Use robust resolution for cityId as overlay.project might not be fully hydrated
-    const cityId = overlay.project?.cityId ?? project?.cityId;
-
-    if (cityId) {
-      // Update the overlay in the cache to reflect the new status (yellow/pending instead of orange/modified)
-      // This ensures markers at low zoom levels are correct immediately without needing a reload
-      addNewOverlayToCityCache(overlay, cityId);
-
-      // Clear standalone cache to ensure project markers are updated correctly (removed if now has overlays)
-      mapStore.clearCityStandaloneProjectsCache(cityId);
-    }
-
     // Optimistically add overlay to user contributions (no backend fetch needed)
     // Latest overlays won't show pending submissions, so don't refresh that panel
     if (project) {

@@ -140,28 +140,12 @@ export function useChangeRequestPreview() {
     overlayObject = overlayStore.overlays[overlayForModeration.id];
 
     if (!overlayObject) {
-      // Debug logging for troubleshooting
-      console.error("[useChangeRequestPreview] Overlay not loaded after city projects loaded", {
+      console.error("[useChangeRequestPreview] Overlay not loaded after navigation", {
         overlayId: overlayForModeration.id,
         availableOverlays: Object.keys(overlayStore.overlays),
-        cityOverlays: mapStore.currentCityOverlays.map((o) => ({ id: o.id, status: o.status })),
         mode: mapStore.mode,
         status: overlayForModeration.status,
       });
-
-      // One more attempt with longer wait
-      const overlayInMapStore = mapStore.currentCityOverlays.find(
-        (o) => o.id === overlayForModeration.id,
-      );
-      if (overlayInMapStore) {
-        await new Promise<void>(
-          (resolve) =>
-            void setTimeout(() => {
-              resolve();
-            }, 500),
-        );
-        overlayObject = overlayStore.overlays[overlayForModeration.id];
-      }
     }
 
     if (!overlayObject || registry.getLayer(overlayObject.id) === null) {

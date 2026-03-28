@@ -82,7 +82,6 @@ const mapStore = useMapStore();
 const uiStore = useUiStore();
 const { overlays, showInfoPopup, infoPopupOverlayId } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
-const { currentCityOverlays } = storeToRefs(mapStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 const toast = useToast();
 const { t } = useI18n();
@@ -184,13 +183,7 @@ const activeProject = computed(() => {
     const localProject = getEffectiveProject(overlay.projectId);
     if (localProject) return localProject;
 
-    // Try to find backend project data from overlay or city overlays
-    const backendProject =
-      overlay.project?.id === overlay.projectId
-        ? overlay.project
-        : currentCityOverlays.value.find(
-            (cityOverlay) => cityOverlay.project?.id === overlay.projectId,
-          )?.project;
+    const backendProject = overlay.project?.id === overlay.projectId ? overlay.project : null;
 
     if (backendProject)
       return convertAndCacheBackendProject({

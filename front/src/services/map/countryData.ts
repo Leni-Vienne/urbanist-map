@@ -65,6 +65,4 @@ export function clearAllMapContent(): void {
   const overlayStore = useOverlayStore();
   overlayStore.clearViewModeOverlays();
   clearAllStandaloneProjectMarkers();
-  const mapStore = useMapStore();
-  mapStore.currentCityOverlays = [];
 }

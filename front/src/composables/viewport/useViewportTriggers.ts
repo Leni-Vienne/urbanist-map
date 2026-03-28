@@ -31,7 +31,7 @@ import {
   processStandaloneMarkers,
   renderFullOverlays,
   hydrateOverlayStoreObjects,
-} from "@/services/navigation/cityRenderingCore";
+} from "@/services/navigation/viewportRenderHelpers";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import { convertOverlayToData, createProjectObject } from "@/utils/typeFactories";
 import { trpc } from "@/client";

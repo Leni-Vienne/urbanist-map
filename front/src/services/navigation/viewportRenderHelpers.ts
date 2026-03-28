@@ -92,10 +92,7 @@ function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
   const mapStore = useMapStore();
 
   overlayStore.setViewModeOverlays(overlaysData);
-  mapStore.currentCityOverlays = overlaysData;
-
   hydrateOverlayStoreObjects(overlaysData);
-
   updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
 }
 
