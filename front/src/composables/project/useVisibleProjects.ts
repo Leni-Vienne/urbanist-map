@@ -45,15 +45,15 @@ const QUERY_LAYERS = ["project-points", ...VECTOR_QUERY_LAYERS] as const;
 function collectCoords(geom: GeoJSON.Geometry): number[][] {
   switch (geom.type) {
     case "Point":
-      return [geom.coordinates as number[]];
+      return [geom.coordinates];
     case "LineString":
     case "MultiPoint":
-      return geom.coordinates as number[][];
+      return geom.coordinates;
     case "Polygon":
     case "MultiLineString":
-      return (geom.coordinates as number[][][]).flat();
+      return geom.coordinates.flat();
     case "MultiPolygon":
-      return (geom.coordinates as number[][][][]).flat(2);
+      return geom.coordinates.flat(2);
     case "GeometryCollection":
       return geom.geometries.flatMap(collectCoords);
     default:
@@ -64,8 +64,8 @@ function collectCoords(geom: GeoJSON.Geometry): number[][] {
 function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolean {
   if (prev.length !== next.length) return true;
   for (let i = 0; i < next.length; i += 1) {
-    const p = prev[i] as VisibleProject;
-    const n = next[i] as VisibleProject;
+    const p = prev[i]!;
+    const n = next[i]!;
     if (
       p.id !== n.id ||
       p.name !== n.name ||
@@ -81,13 +81,10 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
 function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisibleProject[] {
   const seen = new Map<string, VisibleProject>();
   for (const f of features) {
-    const props = f.properties ?? {};
-    const sourceLayer = String((f as any).sourceLayer ?? "");
-    const id =
-      sourceLayer === "overlay-footprints"
-        ? String(props.project_id ?? "")
-        : String(props.id ?? "");
-    const name = sourceLayer === "overlay-footprints" ? "" : String(props.name ?? "");
+    const props = f.properties;
+    const sourceLayer = String(f.sourceLayer);
+    const id = sourceLayer === "overlay-footprints" ? String(props.project_id) : String(props.id);
+    const name = sourceLayer === "overlay-footprints" ? "" : String(props.name);
     if (!id) continue;
     const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
     const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
@@ -95,15 +92,16 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
       seen.set(id, {
         id,
         name,
-        firstTag: String(props.first_tag ?? ""),
-        timelineStatus: String(props.timeline_status ?? ""),
+        firstTag: String(props.first_tag),
+        timelineStatus: String(props.timeline_status),
         lastModifiedS: Number(props.last_modified_s ?? 0),
         sizeM,
         lat,
         lng,
       });
     } else {
-      const existing = seen.get(id) as VisibleProject;
+      const existing = seen.get(id);
+      if (!existing) continue;
       if (name && !existing.name) existing.name = name;
       if (lat !== null && existing.lat === null) {
         existing.lat = lat;
@@ -219,7 +217,7 @@ export function useVisibleProjects() {
     const mlMap = getMlMap();
     if (!mlMap || pendingQuery) return;
     pendingQuery = true;
-    mlMap.once("render", () => {
+    void mlMap.once("render", () => {
       pendingQuery = false;
       doRefresh();
     });

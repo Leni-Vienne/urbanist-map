@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { Project, OverlayObject } from "@/types/index";
+import type { Project, ProjectForModeration, OverlayObject } from "@/types/index";
 
 // Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
@@ -20,7 +20,7 @@ interface EditFormState {
 interface ProjectInfoPopupState {
   visible: boolean;
   projectId: string | null;
-  project: Project | null;
+  project: Project | ProjectForModeration | null;
 }
 
 interface ImageUploadDialogState {
@@ -141,7 +141,7 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Project info popup actions
-  function openProjectInfoPopup(projectId: string, project?: Project) {
+  function openProjectInfoPopup(projectId: string, project?: Project | ProjectForModeration) {
     projectInfoPopup.value = {
       visible: true,
       projectId,

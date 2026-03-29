@@ -75,7 +75,9 @@ export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
   }
 
   return {
+    //oxlint-disable-next-line no-non-null-assertion
     lat: (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4,
+    //oxlint-disable-next-line no-non-null-assertion
     lng: (corners[0]!.lng + corners[1]!.lng + corners[2]!.lng + corners[3]!.lng) / 4,
   };
 }

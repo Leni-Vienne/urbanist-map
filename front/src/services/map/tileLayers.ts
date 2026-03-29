@@ -153,6 +153,7 @@ async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
 
   countryBorders = countryCodes.map((code) => ({
     code,
+    /* oxlint-disable-next-line no-unsafe-type-assertion */
     geojson: allBorders[code] as FeatureCollection<Polygon | MultiPolygon>,
     bbox: toBoundingBox(countryBboxes[code]),
   }));

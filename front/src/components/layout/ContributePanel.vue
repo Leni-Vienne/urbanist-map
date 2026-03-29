@@ -237,7 +237,7 @@ const lastSelectedProject = ref<Project | null>(null);
 watch(
   () => uiStore.projectInfoPopup.project,
   (project) => {
-    if (project) lastSelectedProject.value = project;
+    if (project && "overlayIds" in project) lastSelectedProject.value = project;
   },
   { immediate: true },
 );
@@ -268,14 +268,9 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   if (isOwnContribution) return null;
   const project = lastSelectedProject.value;
   if (!project) return null;
-  const city = {
-    id: project.cityId ?? 0,
-    name: project.city?.name ?? "",
-    countryCode: project.city?.countryCode,
-  };
   const overlays = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === project.id)
-    .map((o) => createOverlayForModeration(o, city));
+    .map((o) => createOverlayForModeration(o));
   return createProjectForModerationFromProject(project, overlays);
 });
 
@@ -454,9 +449,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
     return;
   }
 
-  // project.geometry may be undefined on UserContribution — coerce to null
-  const fallbackGeometry =
-    (project as { geometry?: GeoJSON.GeometryCollection | null }).geometry ?? null;
+  const fallbackGeometry = project.geometry ?? null;
   const existingGeometry = await resolveShapeEditorGeometry(project.id, fallbackGeometry);
 
   // Close any open popups (overlay popup or standalone project popup) to ensure a clean slate

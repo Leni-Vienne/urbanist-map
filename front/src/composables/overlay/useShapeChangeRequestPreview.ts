@@ -89,21 +89,6 @@ export function useShapeChangeRequestPreview() {
 
     const uiStore = useUiStore();
 
-    // Construct a Project-compatible object from ProjectForModeration for the popup
-    const projectForPopup = {
-      ...project,
-      city: project.city ?? {
-        id: project.cityId ?? 0,
-        name: project.cityName ?? "",
-        nameLocal: null,
-        countryCode: project.countryCode ?? "",
-      },
-      overlayIds: [],
-      geometry: null,
-    };
-
-    // Replace previous preview layer with the new geometry
-    // Also pass projectId so regular shapes are hidden during preview
     renderPreviewShapes(
       geometry,
       map.value,
@@ -111,8 +96,7 @@ export function useShapeChangeRequestPreview() {
       project.id,
       (latlng) => {
         createProjectInfoTeleportTargetAtLatLng(latlng);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        uiStore.openProjectInfoPopup(project.id, projectForPopup as any);
+        uiStore.openProjectInfoPopup(project.id, project);
         requestScrollTo("project", project.id);
       },
     );

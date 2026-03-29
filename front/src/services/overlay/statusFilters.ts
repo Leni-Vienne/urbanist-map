@@ -155,10 +155,8 @@ function matchesNameFilter(name: string | null | undefined): boolean {
  * Get the effective last modified timestamp for a project.
  * Uses externalLastModified if not null, otherwise updated_at.
  */
-function getEffectiveLastModifiedMs(project: Project): number | null {
-  const date = project.externalLastModified ?? project.updatedAt;
-  if (!date) return null;
-  return new Date(date).getTime();
+function getEffectiveLastModifiedMs(project: Project): number {
+  return new Date(project.externalLastModified ?? project.updatedAt).getTime();
 }
 
 /**
@@ -168,7 +166,6 @@ function matchesLastModifiedDateFilter(project: Project): boolean {
   const [minMs, maxMs] = lastModifiedDateRange.value;
   if (minMs === 0 && maxMs === Infinity) return true;
   const ms = getEffectiveLastModifiedMs(project);
-  if (ms === null) return true;
   if (ms < minMs) return false;
   if (maxMs !== Infinity && ms > maxMs) return false;
   return true;

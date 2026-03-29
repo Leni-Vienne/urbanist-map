@@ -33,9 +33,11 @@ export async function resolveShapeEditorGeometry(
       cr.fieldName === "geometry" &&
       cr.status === "pending",
   );
+  // oxlint-disable no-unsafe-type-assertion
   const pendingGeometry = pendingGeometryChange
     ? (pendingGeometryChange.newValue as GeoJSON.GeometryCollection | null)
     : undefined;
+  // oxlint-enable no-unsafe-type-assertion
 
   if (localStoredGeometry !== undefined) return localStoredGeometry;
   if (pendingGeometry !== undefined) return pendingGeometry;

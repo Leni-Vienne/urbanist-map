@@ -1,3 +1,4 @@
+import type { Theme } from "@primeuix/themes";
 import { ref } from "vue";
 
 type Theme = "light" | "dark";
@@ -7,7 +8,7 @@ const DARK_CLASS = "dark-mode";
 
 function getInitialTheme(): Theme {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
     return "light";
   } catch {

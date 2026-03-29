@@ -13,6 +13,7 @@ import {
   overlaySchema,
   getValidationErrorsMap,
   type FieldChange,
+  type OverlayCorners,
 } from "@shared/validation/schemas";
 import { computed } from "vue";
 import { t } from "@/locales";
@@ -114,9 +115,7 @@ function normalizeFieldValue(
   }
   if (fieldStr === "tags") {
     return JSON.stringify(
-      Array.isArray(value)
-        ? (value as string[]).toSorted((a, b) => String(a).localeCompare(String(b)))
-        : [],
+      Array.isArray(value) ? (value as string[]).toSorted((a, b) => a.localeCompare(b)) : [],
     );
   }
   return value ?? "";
@@ -139,7 +138,7 @@ function hasShapes(v: unknown): boolean {
     v !== null &&
     v !== undefined &&
     typeof v === "object" &&
-    ((v as GeoJSON.GeometryCollection).geometries?.length ?? 0) > 0
+    (v as GeoJSON.GeometryCollection).geometries?.length > 0
   );
 }
 
@@ -274,8 +273,8 @@ export function useSubmissionService() {
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
-      const isGeometryField = String(field) === "geometry";
-      const isArrayField = String(field) === "tags";
+      const isGeometryField = field === "geometry";
+      const isArrayField = field === "tags";
 
       const normalizedOld = normalizeFieldValue(
         field,
@@ -316,7 +315,7 @@ export function useSubmissionService() {
 
     // Special handling for geometry - show shape count
     if (fieldName === "geometry" && typeof value === "object") {
-      const count = (value as GeoJSON.GeometryCollection).geometries?.length ?? 0;
+      const count = (value as GeoJSON.GeometryCollection).geometries.length;
       return t("shapes.geometrySummary", { count });
     }
 
@@ -396,10 +395,10 @@ export function useSubmissionService() {
 
     // Project-specific validation with Zod
     if (context.entityType === "project") {
-      const validationData = prepareProjectValidationData(
-        { ...context.entity, name: context.entity.name ?? "", tags: context.entity.tags ?? [] },
-        { lat: context.entity.lat, lng: context.entity.lng },
-      );
+      const validationData = prepareProjectValidationData(context.entity, {
+        lat: context.entity.lat,
+        lng: context.entity.lng,
+      });
 
       const result = projectSchema.safeParse(validationData);
 
@@ -542,7 +541,7 @@ export function useSubmissionService() {
       // Save suggested corners from the change request so "view suggested position" button works immediately
       const cornersChange = changes.find((c) => c.fieldName === "corners");
       if (cornersChange?.newValue) {
-        context.entity.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
+        context.entity.suggestedCorners = cornersChange.newValue as OverlayCorners;
         // User is currently viewing the suggested position (the position they just modified)
         // Set to false so marker shows yellow to indicate pending changes
         context.entity.isViewingApprovedPosition = false;
@@ -551,7 +550,7 @@ export function useSubmissionService() {
       // CRITICAL: Also update the overlay in overlayStore so preview buttons work
       const overlayInStore = overlayStore.overlays[context.entity.id];
       if (overlayInStore && cornersChange?.newValue) {
-        overlayInStore.suggestedCorners = cornersChange.newValue as { lat: number; lng: number }[];
+        overlayInStore.suggestedCorners = cornersChange.newValue as OverlayCorners;
         overlayInStore.hasPendingChanges = true;
         overlayInStore.isViewingApprovedPosition = false;
       }

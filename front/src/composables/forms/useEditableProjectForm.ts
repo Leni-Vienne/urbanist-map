@@ -104,7 +104,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       const fieldName = key as keyof ProjectFormData;
       if (hasChanged(fieldName)) {
         changes.push({
-          fieldName: String(fieldName),
+          fieldName: fieldName,
           oldValue: serializeValue(originalData[fieldName]),
           newValue: serializeValue(formData[fieldName]),
           changeReason: changeReason.value,

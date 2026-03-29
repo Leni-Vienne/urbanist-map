@@ -418,7 +418,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
   // Projects with geometry also render shapes (in addition to the point marker below).
-  if (project.geometry?.geometries?.length) {
+  if (project.geometry?.geometries.length) {
     renderProjectShapes(
       project,
       map.value,
