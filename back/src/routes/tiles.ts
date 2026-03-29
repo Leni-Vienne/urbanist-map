@@ -104,9 +104,10 @@ function shapesMinSizeM(z: number): number | null {
   if (z >= 10) return 200;
   if (z >= 9) return 500;
   if (z >= 8) return 1000;
-  if (z >= 7) return 10000;
-  if (z >= 5) return 50000;
-  return 100000; // z3-z4
+  if (z >= 7) return 10_000;
+  if (z >= 5) return 50_000;
+  return 100_000; // z3-z4
+  // not including lower zoom levels because in dense area like China it gets messy
 }
 
 // Minimum geometry_size_m at which the center-point marker is suppressed because
@@ -117,9 +118,9 @@ function markerSuppressMinSizeM(z: number): number | null {
   if (z >= 13) return 200;
   if (z >= 12) return 500;
   if (z >= 11) return 1000;
-  if (z >= 7) return 10000;
-  if (z >= 5) return 50000;
-  if (z >= 4) return 100000;
+  if (z >= 7) return 10_000;
+  if (z >= 5) return 50_000;
+  if (z >= 4) return 100_000;
   return null;
 }
 
