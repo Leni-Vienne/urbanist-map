@@ -17,6 +17,7 @@ export function prepareProjectValidationData(
     name: formData.name ?? "",
     description: formData.description ?? undefined,
     sourceUrl: formData.sourceUrl ?? undefined,
+    countryCode: formData.countryCode ?? "",
     lat: options?.lat ?? 0,
     lng: options?.lng ?? 0,
     cityId: formData.cityId ?? options?.cityId ?? null,

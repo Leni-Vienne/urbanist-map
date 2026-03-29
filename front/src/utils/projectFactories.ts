@@ -30,7 +30,7 @@ export function createOverlayForModeration(overlayData: OverlayData): OverlayFor
     authorReportCount: undefined,
     cityId: overlayData.project?.cityId ?? null,
     cityName: overlayData.project?.city?.name ?? null,
-    countryCode: overlayData.project?.city?.countryCode ?? null,
+    countryCode: overlayData.project?.city?.countryCode ?? overlayData.project?.countryCode ?? null,
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,
     replacedByOverlayId: overlayData.replacedByOverlayId,
@@ -92,6 +92,7 @@ type LocalProject = {
   description: string | null;
   ownerId: string | null;
   cityId: number | null;
+  countryCode: string;
   city: { name: string; countryCode: string } | null;
   lat: number | null;
   lng: number | null;
@@ -128,7 +129,7 @@ function buildLocalProjectShell(
     ownerRejectedCount: null,
     cityId: localProject.cityId,
     cityName: localProject.city?.name ?? null,
-    countryCode: localProject.city?.countryCode ?? null,
+    countryCode: localProject.countryCode,
     countryName: null,
     lat: localProject.lat,
     lng: localProject.lng,
@@ -190,7 +191,7 @@ export function createLocalProjectContribution(
     {
       cityId: localProject.cityId,
       cityName: localProject.city?.name ?? null,
-      countryCode: localProject.city?.countryCode ?? null,
+      countryCode: localProject.countryCode,
       countryName: null,
     },
     username,
@@ -210,7 +211,7 @@ export function createProjectForModerationFromProject(
     ...project,
     tags: project.tags ?? null,
     cityName: project.city?.name ?? null,
-    countryCode: project.city?.countryCode ?? null,
+    countryCode: project.countryCode,
     countryName: null,
     overlays,
     overlayCount: project.overlayIds?.length ?? 0,

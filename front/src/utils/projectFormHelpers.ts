@@ -60,7 +60,7 @@ export function formDataToProjectFields(f: ProjectFormData): Partial<Project> {
     endDate: f.endDate ?? null,
     endDatePrecision: f.endDatePrecision ?? null,
     cityId: f.cityId ?? undefined,
-    countryCode: f.countryCode,
+    countryCode: f.countryCode ?? undefined,
     sourceUrl: f.sourceUrl ?? null,
     tags: f.tags,
     timelineStatus: f.timelineStatus,

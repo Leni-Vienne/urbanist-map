@@ -316,6 +316,13 @@
       "when": 1774200000000,
       "tag": "0044_missing_spatial_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1774812567230,
+      "tag": "0045_charming_talon",
+      "breakpoints": true
     }
   ]
 }

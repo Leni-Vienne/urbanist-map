@@ -178,10 +178,12 @@ export const projects = pgTable(
       onDelete: "set null",
       onUpdate: "cascade",
     }), // Reference to the city where the project is located (optional for imported projects)
-    countryCode: char("country_code", { length: 3 }).references(() => countries.code, {
-      onDelete: "restrict",
-      onUpdate: "cascade",
-    }), // ISO 3166-1 alpha-3 code (e.g. "DEU"). Required for all projects; auto-assigned from nearest city on creation.
+    countryCode: char("country_code", { length: 3 })
+      .references(() => countries.code, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      })
+      .notNull(), // 3 letter country code, auto-assigned from nearest city on creation.
     // Timeline status - project lifecycle stage
     timelineStatus: text("timeline_status").$type<TimelineStatus>().default("proposed").notNull(),
     // Import source tracking - NULL for user-submitted projects

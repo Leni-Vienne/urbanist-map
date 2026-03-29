@@ -94,7 +94,7 @@ export function useChangeRequestPreview() {
     }
 
     // Need to load - validate we have required data
-    if (!overlayForModeration.cityId || !overlayForModeration.countryCode) {
+    if (!overlayForModeration.countryCode) {
       toast.add({
         severity: "error",
         summary: t("overlay.missingData"),
@@ -128,24 +128,14 @@ export function useChangeRequestPreview() {
       easeLinearity: 0.25,
     });
 
-    // Wait for overlays to render
-    await new Promise<void>(
-      (resolve) =>
-        void setTimeout(() => {
-          resolve();
-        }, 400),
-    );
-
-    // Check if overlay loaded successfully
-    overlayObject = overlayStore.overlays[overlayForModeration.id];
-
-    if (!overlayObject) {
-      console.error("[useChangeRequestPreview] Overlay not loaded after navigation", {
-        overlayId: overlayForModeration.id,
-        availableOverlays: Object.keys(overlayStore.overlays),
-        mode: mapStore.mode,
-        status: overlayForModeration.status,
-      });
+    // Poll until the overlay appears in the store and registry, up to 2s
+    const maxAttempts = 20;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise<void>((resolve) => void setTimeout(resolve, 100));
+      overlayObject = overlayStore.overlays[overlayForModeration.id];
+      if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
+        break;
+      }
     }
 
     if (!overlayObject || registry.getLayer(overlayObject.id) === null) {

@@ -5,6 +5,8 @@
         name || $t("project.unnamed")
       }}</span>
       <div class="flex items-center gap-1.5 shrink-0 mr-2">
+        <!-- Pending change requests badge -->
+        <Badge v-if="(pendingChangeCount ?? 0) > 0" :value="pendingChangeCount" severity="warn" />
         <!-- Status badge -->
         <Tag
           v-if="!hideStatusBadges"
@@ -19,12 +21,13 @@
 </template>
 
 <script setup lang="ts">
-import { AccordionHeader, Tag } from "primevue";
+import { AccordionHeader, Tag, Badge } from "primevue";
 
 interface Props {
   name: string | null;
   status: string | null;
   hideStatusBadges?: boolean;
+  pendingChangeCount?: number;
 }
 
 const props = defineProps<Props>();
