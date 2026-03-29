@@ -135,6 +135,12 @@ export default defineConfig(({ mode }) => ({
       output: {
         codeSplitting: {
           groups: [
+            // Keep maplibre-gl in a single chunk — splitting it causes minified
+            // symbol errors (e.g. "Gi is not defined") in the Web Worker callback.
+            {
+              name: "maplibre",
+              test: (id: string) => id.includes("node_modules/maplibre-gl/"),
+            },
             // Consolidate the ~14 tiny PrimeVue micro-chunks that Rolldown extracts as
             // shared deps of async components. All of these are already page-loaded, so merging
             // reduces HTTP requests without changing load timing or pulling in lazy-only code.
