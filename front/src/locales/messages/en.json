@@ -216,7 +216,6 @@
     "onlyOneOverlayInProject": "This project only has one image"
   },
   "map": {
-    "clickCityMarker": "Click on a city marker",
     "viewMode": "View Mode",
     "editMode": "Edit Mode",
     "viewModeTooltip": "Browse and view projects on the map",
@@ -436,7 +435,7 @@
       "in": "Zoom In",
       "out": "Zoom Out"
     },
-    "filters": "Toggle project filters",
+    "filter": "Filter Projects",
     "language": "Language"
   },
   "tooltips": {

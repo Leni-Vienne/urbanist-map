@@ -216,7 +216,6 @@
     "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image"
   },
   "map": {
-    "clickCityMarker": "Cliquez sur une ville",
     "viewMode": "Mode Consultation",
     "editMode": "Mode Édition",
     "viewModeTooltip": "Consulter les contributions sur la carte",
@@ -436,7 +435,7 @@
       "in": "Zoomer",
       "out": "Dézoomer"
     },
-    "filters": "Basculer les filtres de projets",
+    "filter": "Filtrer les projets",
     "language": "Langue"
   },
   "tooltips": {

@@ -6,7 +6,7 @@
 # A single osmium pass filters ways + route relations, then derives focused files,
 # then both Python extractions run in parallel.
 #
-# --rederive    Skip the ~40min osmium filter, re-derive ways+areal from existing *_proposed.osm.pbf
+# --rederive    Skip the ~55min osmium filter, re-derive ways+areal from existing *_proposed.osm.pbf
 # --output-dir  Where to write output GeoJSON files (default: same dir as source)
 #
 # Note: if your source file is on a Windows drive (/mnt/...), processing works but WSL /mnt/ I/O is slow.

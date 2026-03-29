@@ -1,6 +1,5 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
-import type { PgColumn } from "drizzle-orm/pg-core";
+import { alias, type PgColumn } from "drizzle-orm/pg-core";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { db } from "../database";
 import {
@@ -339,7 +338,7 @@ function toValidCityId(value: unknown): number | null {
   if (typeof value === "string") {
     if (value === "null" || value === "undefined") return null;
     const parsed = Number(value);
-    return isNaN(parsed) ? null : parsed;
+    return Number.isNaN(parsed) ? null : parsed;
   }
 
   return null;
@@ -548,100 +547,6 @@ export function buildOverlayVisibilityCondition(
 
   // Default (anonymous or unrecognized mode): only show approved overlays
   return eq(overlays.status, "approved");
-}
-
-// Build condition to filter projects that have visible content (projects without images OR projects with visible overlays)
-// This ensures all projects are shown whether they have images or not
-// In edit mode, also show user's own projects even if they don't have overlays yet
-export function buildProjectHasVisibleContentCondition(
-  user: UserContext,
-  mode: AppMode,
-  overlayChangeRequestIds?: string[],
-): SQL {
-  if (mode === "view") {
-    // View mode: all approved projects are visible (either as standalone markers or with overlays).
-    // No additional filtering needed -- the project visibility condition already handles status='approved'.
-    return sql`TRUE`;
-  }
-
-  if (mode === "edit" && user) {
-    // Edit mode: show if no approved overlays OR has approved/user overlays OR is owned by user
-    // Use same logic as view mode but also include user's pending overlays
-    if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
-      const idsArray = `{${overlayChangeRequestIds.join(",")}}`;
-      return sql`(
-        NOT EXISTS (
-          SELECT 1 FROM ${overlays}
-          WHERE ${overlays.projectId} = ${projects.id}
-          AND ${overlays.status} = 'approved'
-        )
-        OR ${projects.ownerId} = ${user.id}
-        OR EXISTS (
-          SELECT 1 FROM ${overlays}
-          WHERE ${overlays.projectId} = ${projects.id}
-          AND (
-            ${overlays.status} = 'approved'
-            OR ${overlays.authorId} = ${user.id}
-            OR ${overlays.id} = ANY(${idsArray}::uuid[])
-          )
-        )
-      )`;
-    } else {
-      return sql`(
-        NOT EXISTS (
-          SELECT 1 FROM ${overlays}
-          WHERE ${overlays.projectId} = ${projects.id}
-          AND ${overlays.status} = 'approved'
-        )
-        OR ${projects.ownerId} = ${user.id}
-        OR EXISTS (
-          SELECT 1 FROM ${overlays}
-          WHERE ${overlays.projectId} = ${projects.id}
-          AND (${overlays.status} = 'approved' OR ${overlays.authorId} = ${user.id})
-        )
-      )`;
-    }
-  }
-
-  if (mode === "moderation" && user) {
-    // Moderation mode: only show projects that need moderation
-    // This includes: pending projects OR projects with pending overlays OR projects with pending change requests
-    // Excludes: approved projects with only approved content and no pending changes
-    return sql`(
-      ${projects.status} = 'pending'
-      OR EXISTS (
-        SELECT 1 FROM ${overlays}
-        WHERE ${overlays.projectId} = ${projects.id}
-        AND ${overlays.status} = 'pending'
-      )
-      OR EXISTS (
-        SELECT 1 FROM ${changeRequests}
-        WHERE ${changeRequests.entityType} = 'project'
-        AND ${changeRequests.entityId} = ${projects.id}
-        AND ${changeRequests.status} = 'pending'
-      )
-      OR EXISTS (
-        SELECT 1 FROM ${changeRequests}
-        INNER JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id}
-        WHERE ${changeRequests.entityType} = 'overlay'
-        AND ${overlays.projectId} = ${projects.id}
-        AND ${changeRequests.status} = 'pending'
-      )
-    )`;
-  }
-
-  // Default: same as view mode (check for approved overlays, not any overlays)
-  return sql`(
-    NOT EXISTS (
-      SELECT 1 FROM ${overlays}
-      WHERE ${overlays.projectId} = ${projects.id}
-      AND ${overlays.status} = 'approved'
-    )
-      SELECT 1 FROM ${overlays}
-      WHERE ${overlays.projectId} = ${projects.id}
-      AND ${overlays.status} = 'approved'
-    )
-  )`;
 }
 
 // ============================================================================

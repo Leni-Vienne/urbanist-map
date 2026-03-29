@@ -168,7 +168,7 @@ function centroid(geom: GeoJSON.Geometry): { lat: number; lng: number } | null {
 // ---------------------------------------------------------------------------
 // Batched KNN country code lookup
 // ---------------------------------------------------------------------------
-const KNN_CHUNK_SIZE = 300;
+const KNN_CHUNK_SIZE = 1_000;
 
 async function resolveCountryCodes(
   points: Array<{ lat: number; lng: number } | null>,
@@ -334,11 +334,13 @@ async function main() {
     }
 
     function isTransient(err: unknown): boolean {
-      return (
-        typeof err === "object" &&
-        err !== null &&
-        "errno" in err &&
-        TRANSIENT_PG_CODES.has((err as Record<string, string | undefined>).errno ?? "")
+      const candidates = [err, (err as Record<string, unknown> | null)?.cause];
+      return candidates.some(
+        (e) =>
+          typeof e === "object" &&
+          e !== null &&
+          "errno" in e &&
+          TRANSIENT_PG_CODES.has((e as Record<string, string | undefined>).errno ?? ""),
       );
     }
 

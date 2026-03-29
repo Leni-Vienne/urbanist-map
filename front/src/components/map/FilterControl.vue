@@ -1,18 +1,25 @@
 ﻿<template>
   <!-- Filter Button (View Mode Only) - Opens Popover -->
-  <Button
-    ref="filterButton"
-    @click.stop="toggleFilterPanel"
-    @dblclick.stop
-    raised
-    icon="pi pi-filter"
-    :aria-label="$t('controls.filters')"
-    v-tooltip.right="{
-      value: $t('map.controls.filterProjects'),
-      disabled: isMobile,
-    }"
-    :severity="showFilterPanel ? undefined : 'secondary'"
-  />
+  <div class="relative inline-flex">
+    <span
+      v-if="showFilterHint"
+      class="absolute -bottom-1 -right-0.5 w-3 h-3 bg-red-500 rounded-full pointer-events-none z-10"
+    />
+    <Button
+      ref="filterButton"
+      @click.stop="toggleFilterPanel"
+      @dblclick.stop
+      raised
+      icon="pi pi-filter"
+      v-tooltip.right="{
+        value: $t('controls.filter'),
+        disabled: isMobile,
+      }"
+      :severity="showFilterPanel ? undefined : 'secondary'"
+      :badge="activeFilterCount > 0 ? String(activeFilterCount) : undefined"
+      badge-severity="contrast"
+    />
+  </div>
 
   <!-- Filter Popover (View Mode Only) -->
   <Popover ref="filterPanel" @click.stop @dblclick.stop appendTo="body">
@@ -161,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import {
   selectedStatusFilters,
   selectedProjectTags,
@@ -226,7 +233,7 @@ function handleToggleNameFilter(value: "named" | "unnamed") {
 }
 
 function formatSize(meters: number): string {
-  if (!isFinite(meters)) return "100km+";
+  if (!Number.isFinite(meters)) return "100km+";
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
   return `${meters}m`;
 }
@@ -252,6 +259,21 @@ const { isMobile } = useIsMobile();
 const { theme } = useTheme();
 const allTags = PROJECT_TAGS;
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
+
+const activeFilterCount = computed(() => {
+  let count =
+    selectedStatusFilters.value.length +
+    selectedProjectTags.value.length +
+    selectedNameFilters.value.length;
+  if (Number.isFinite(sizeFilterRange.value[0]) && sizeFilterRange.value[0] > 0) count += 1;
+  if (Number.isFinite(sizeFilterRange.value[1])) count += 1;
+  if (lastModifiedDateRange.value[0] > 0) count += 1;
+  if (Number.isFinite(lastModifiedDateRange.value[1])) count += 1;
+  return count;
+});
+
+const FILTER_HINT_KEY = "filter-control-seen";
+const showFilterHint = ref(localStorage.getItem(FILTER_HINT_KEY) !== "1");
 
 // Panel visibility state
 const showFilterPanel = ref(false);
@@ -297,6 +319,10 @@ function getContrastTextColor(hexColor: string): string {
 
 // Toggle filter panel visibility
 function toggleFilterPanel(event: Event) {
+  if (showFilterHint.value) {
+    showFilterHint.value = false;
+    localStorage.setItem(FILTER_HINT_KEY, "1");
+  }
   filterPanel.value.toggle(event);
   showFilterPanel.value = !showFilterPanel.value;
 }

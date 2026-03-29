@@ -12,7 +12,7 @@ import { sql } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const SNAPSHOT_PATH = path.join(process.cwd(), "scripts/projects-stats-snapshot.json");
+const SNAPSHOT_PATH = path.join(process.cwd(), "back/src/scripts/projects-stats-snapshot.json");
 
 // ---------------------------------------------------------------------------
 // Types
