@@ -324,7 +324,11 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
       // Highlight if this overlay belongs to the currently highlighted project —
       // either via overlay selection or project info popup (shape click).
       const highlightedProjectId = getCurrentHighlightedProjectId();
-      if (highlightedProjectId && highlightedProjectId === overlayObject.projectId) {
+      if (
+        mapStore.mode !== "view" &&
+        highlightedProjectId &&
+        highlightedProjectId === overlayObject.projectId
+      ) {
         applyProjectHighlightToElement(element, overlayObject);
       } else {
         clearSelectionRing(element);
