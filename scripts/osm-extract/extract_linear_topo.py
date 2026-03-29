@@ -393,6 +393,13 @@ class RelationHandler(osmium.SimpleHandler):
 
     def relation(self, r):
         tags = {t.k: t.v for t in r.tags}
+        # Skip relations that document past infrastructure, not future projects
+        _PAST_VALUES = ('historic', 'abandoned', 'razed', 'dismantled', 'disused', 'removed')
+        if any(tags.get(k, '') in _PAST_VALUES
+               for k in ('railway', 'highway', 'waterway', 'aerialway')):
+            return
+        if tags.get('historic') or tags.get('abandoned'):
+            return
         member_way_ids = [m.ref for m in r.members if m.type == 'w']
         if any(wid in self.proposed_way_ids for wid in member_way_ids):
             self.relations[r.id] = {'tags': tags, 'member_way_ids': member_way_ids}
@@ -523,12 +530,21 @@ def merge_by_topology(cs):
     for wids in endpoint_to_ways.values():
         wlist = list(wids)
         for i in range(1, len(wlist)):
+            wa = cs.ways[wlist[0]]
+            wb = cs.ways[wlist[i]]
             # Only merge same broad type and same project status
-            if broad_group(get_transport_type(cs.ways[wlist[0]]['tags'])) == \
-               broad_group(get_transport_type(cs.ways[wlist[i]]['tags'])) and \
-               get_project_status(cs.ways[wlist[0]]['tags']) == \
-               get_project_status(cs.ways[wlist[i]]['tags']):
-                uf.union(wlist[0], wlist[i])
+            if broad_group(get_transport_type(wa['tags'])) != \
+               broad_group(get_transport_type(wb['tags'])):
+                continue
+            if get_project_status(wa['tags']) != get_project_status(wb['tags']):
+                continue
+            # Don't merge two named ways with different names — road/path intersections
+            # are not project continuations
+            name_a = wa['tags'].get('name', '').strip()
+            name_b = wb['tags'].get('name', '').strip()
+            if name_a and name_b and name_a != name_b:
+                continue
+            uf.union(wlist[0], wlist[i])
 
     cs.set_components({root: wids for root, wids in uf.groups().items()})
     return before, len(cs.components)
@@ -620,6 +636,71 @@ def absorb_anonymous(cs, max_distance_km=1.0):
     cs.set_components(new_comps)
     return before, len(cs.components)
 
+
+
+def merge_by_name_proximity(cs, max_distance_m=100):
+    """Merge components sharing the same OSM name tag that are within max_distance_m of each other.
+
+    Uses geometry distance (not bbox) and Union-Find for transitive chain merging:
+    if A is close to B and B is close to C (all same name), A+B+C all merge even if A is
+    far from C directly.
+    """
+    before = len(cs.components)
+
+    max_dist_deg = meters_to_degrees(max_distance_m)
+
+    def osm_names(rep_id):
+        names = set()
+        for wid in cs.components[rep_id]:
+            n = cs.ways[wid]['tags'].get('name', '').strip()
+            if n:
+                names.add(n)
+        return names
+
+    name_to_comps = defaultdict(list)
+    for rep_id in cs.components:
+        for n in osm_names(rep_id):
+            name_to_comps[n].append(rep_id)
+
+    uf = UnionFind(list(cs.components.keys()))
+
+    for name, rep_ids in name_to_comps.items():
+        if len(rep_ids) < 2:
+            continue
+
+        valid_rids = []
+        valid_geoms = []
+        valid_bufs = []
+        for rid in rep_ids:
+            g = cs.geometry(rid)
+            if g is not None:
+                valid_rids.append(rid)
+                valid_geoms.append(g)
+                valid_bufs.append(g.buffer(max_dist_deg))
+
+        if len(valid_rids) < 2:
+            continue
+
+        tree = STRtree(valid_bufs)
+        for i, ri in enumerate(valid_rids):
+            for idx in tree.query(valid_bufs[i]):
+                if idx <= i:
+                    continue
+                rj = valid_rids[idx]
+                if cs.broad_type(ri) != cs.broad_type(rj):
+                    continue
+                try:
+                    if valid_geoms[i].distance(valid_geoms[idx]) <= max_dist_deg:
+                        uf.union(ri, rj)
+                except Exception:
+                    continue
+
+    new_comps = defaultdict(list)
+    for rep_id, way_ids in cs.components.items():
+        new_comps[uf.find(rep_id)].extend(way_ids)
+    cs.set_components(dict(new_comps))
+
+    return before, len(cs.components)
 
 
 def cluster_anonymous(cs, max_distance_km=0.2):
@@ -843,6 +924,8 @@ def make_orphan_features(orphan_ways):
     print(f"  merge_parallel_tracks: {n:,} groups merged")
     n = cluster_anonymous(cs, max_distance_km=0.2)
     print(f"  cluster_anonymous:    {n:,} groups merged")
+    b, a = merge_by_name_proximity(cs, max_distance_m=100)
+    print(f"  merge_by_name_prox:   {b:,} → {a:,} components ({b - a:,} merged)")
     
     features = []
     for rep_id, way_ids in cs.components.items():

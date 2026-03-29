@@ -63,7 +63,6 @@ import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 // Load countries for breadcrumbs (no marker rendering)
-import { loadCountriesWithProjects } from "@/services/map/countryData";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -150,12 +149,6 @@ async function initializeMapAndOverlays() {
     viewportManager.setupModeWatcher();
     setupMapClickToDeselect(); // Setup click handler to deselect overlays when clicking map background
     disableLeafletKeyboardEvents();
-
-    // Load countries in the background -- not needed for initial map render.
-    // Countries are needed for breadcrumbs in the Current Location panel.
-    loadCountriesWithProjects().catch((error) => {
-      console.error("[MapView] Error loading countries:", error);
-    });
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toast.add({

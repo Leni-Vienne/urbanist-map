@@ -168,7 +168,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
 import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
@@ -191,8 +190,6 @@ const { handleOverlayClickNavigation } = useOverlayClickHandler();
 const authStore = useAuthStore();
 const moderationStore = useModerationStore();
 const mapStore = useMapStore();
-const projectStore = useProjectStore();
-
 // Country selector state - use store's cached countries
 const countriesLoading = ref(false);
 const selectedCountryCode = ref<string | null>(moderationStore.selectedCountryCode);
@@ -308,7 +305,7 @@ function loadCountryData(countryCode: string | null, shouldFly = true) {
     mapStore.selectedCountryCode = countryCode;
 
     if (shouldFly) {
-      const country = projectStore.countries.find((c) => c.code === countryCode);
+      const country = moderationStore.allCountries.find((c) => c.code === countryCode);
       if (country) {
         mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, {
           duration: 1.5,
