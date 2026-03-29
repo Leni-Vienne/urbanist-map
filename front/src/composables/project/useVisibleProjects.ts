@@ -18,7 +18,7 @@ export type SortMode = "recent" | "name" | "size" | "status";
 
 interface VisibleProject {
   id: string;
-  name: string;
+  name: string | null;
   firstTag: string;
   timelineStatus: string;
   lastModifiedS: number;
@@ -64,7 +64,9 @@ function collectCoords(geom: GeoJSON.Geometry): number[][] {
 function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolean {
   if (prev.length !== next.length) return true;
   for (let i = 0; i < next.length; i += 1) {
+    //oxlint-disable-next-line no-non-null-assertion
     const p = prev[i]!;
+    //oxlint-disable-next-line no-non-null-assertion
     const n = next[i]!;
     if (
       p.id !== n.id ||
@@ -83,8 +85,8 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
   for (const f of features) {
     const props = f.properties;
     const sourceLayer = String(f.sourceLayer);
-    const id = sourceLayer === "overlay-footprints" ? String(props.project_id) : String(props.id);
-    const name = sourceLayer === "overlay-footprints" ? "" : String(props.name);
+    const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
+    const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
     if (!id) continue;
     const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
     const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
@@ -92,8 +94,8 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
       seen.set(id, {
         id,
         name,
-        firstTag: String(props.first_tag),
-        timelineStatus: String(props.timeline_status),
+        firstTag: props.first_tag ?? "",
+        timelineStatus: props.timeline_status ?? "",
         lastModifiedS: Number(props.last_modified_s ?? 0),
         sizeM,
         lat,
@@ -165,7 +167,7 @@ export function useVisibleProjects() {
       if (sortMode.value === "recent") {
         result = b.lastModifiedS - a.lastModifiedS;
       } else if (sortMode.value === "name") {
-        result = a.name.localeCompare(b.name);
+        result = (a.name ?? "").localeCompare(b.name ?? "");
       } else if (sortMode.value === "size") {
         result = b.sizeM - a.sizeM;
       } else if (sortMode.value === "status") {
@@ -190,12 +192,14 @@ export function useVisibleProjects() {
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
-    const INSET = 50;
+    const INSET = 100; // px inset from edge to avoid listing projects under UI elements
 
     // On mobile, the drawer overlaps the bottom of the map -- exclude that area
-    const drawerOffsetPx = uiStore.mobileDrawerVisible
-      ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight
-      : 0;
+    const isMobile = window.innerWidth <= 768;
+    const drawerOffsetPx =
+      isMobile && uiStore.mobileDrawerVisible
+        ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight
+        : 0;
 
     const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
       [INSET, INSET],
