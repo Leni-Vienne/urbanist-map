@@ -106,6 +106,7 @@
               :name="project.name ?? ''"
               :status="project.status"
               :hide-status-badges="hideStatusBadges"
+              :pending-change-count="getPendingChangeCount(project)"
             />
             <ProjectContent
               :project="project"
@@ -600,6 +601,14 @@ function getProjectChangeRequestsForProject(project: ProjectForModeration): Pend
     return [];
   }
   return projectChangesMap.value.get(project.id) || [];
+}
+
+function getPendingChangeCount(project: ProjectForModeration): number {
+  let count = getProjectChangeRequestsForProject(project).length;
+  for (const overlay of project.overlays || []) {
+    count += overlayChangesMap.value.get(overlay.id)?.length ?? 0;
+  }
+  return count;
 }
 
 async function handleCardClick(project: ProjectForModeration) {

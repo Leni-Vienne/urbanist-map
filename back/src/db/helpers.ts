@@ -226,13 +226,14 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
       updatedAt: overlays.updatedAt,
       cityId: cities.id,
       cityName: cities.name,
-      countryCode: countries.code,
-      countryName: countries.name,
+      countryCode: sql<string | null>`COALESCE(${countries.code}, ${projectCountries.code})`,
+      countryName: sql<string | null>`COALESCE(${countries.name}, ${projectCountries.name})`,
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
     .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(cities.countryCode, countries.code))
+    .leftJoin(projectCountries, eq(projects.countryCode, projectCountries.code))
     .leftJoin(users, eq(overlays.authorId, users.id));
 }
 
