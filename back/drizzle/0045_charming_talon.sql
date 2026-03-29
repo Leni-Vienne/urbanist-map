@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ALTER COLUMN "country_code" SET NOT NULL;

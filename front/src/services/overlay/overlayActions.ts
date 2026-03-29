@@ -1,3 +1,4 @@
+import L from "leaflet";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -126,15 +127,20 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
  * @param includeIntersecting - Whether to fetch intersecting overlays (defaults to true for backward compatibility)
  * @returns true if overlay was loaded successfully
  */
+type LoadOverlayResult = {
+  alreadyInStore: boolean;
+  corners?: { lat: number; lng: number }[];
+};
+
 async function loadOverlay(
   overlayId: string,
   includeIntersecting: boolean = true,
-): Promise<boolean | null> {
+): Promise<LoadOverlayResult | null> {
   const overlayStore = useOverlayStore();
 
   // Check if overlay is already loaded locally
   if (overlayStore.overlays[overlayId]) {
-    return true;
+    return { alreadyInStore: true };
   }
 
   // Overlay not found locally - fetch from backend
@@ -163,8 +169,8 @@ async function loadOverlay(
 
       // NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration
       // is async (happens after image loads) and may not complete if zoom level is too low.
-      // The critical point is that the backend fetch succeeded.
-      return true;
+      // Return corners so the caller can fly to the overlay immediately.
+      return { alreadyInStore: false, corners: result.overlay.corners };
     },
     { errorMessage: "Failed to load overlay", rethrow: true },
   );
@@ -183,10 +189,26 @@ export async function navigateToOverlay(
   includeIntersecting: boolean,
 ): Promise<boolean> {
   // Load the overlay first (fetches from backend if needed)
-  await loadOverlay(overlayId, includeIntersecting);
+  const loadResult = await loadOverlay(overlayId, includeIntersecting);
 
-  // Then navigate to it
-  return selectAndCenterOverlay(overlayId, centerMap);
+  // If the overlay was already in the store, use the standard path
+  if (loadResult?.alreadyInStore) {
+    return selectAndCenterOverlay(overlayId, centerMap);
+  }
+
+  // Overlay was just fetched but registration is async (happens after image loads).
+  // Select the overlay in the store if it registered in time, otherwise fall back to
+  // flying directly to the corners returned from the backend.
+  const navigated = selectAndCenterOverlay(overlayId, centerMap);
+  if (!navigated && centerMap && loadResult?.corners && loadResult.corners.length >= 4) {
+    const bounds = L.latLngBounds(loadResult.corners.map((c) => L.latLng(c.lat, c.lng)));
+    mobileAwareFlyToBounds(bounds, {
+      padding: [50, 50] as [number, number],
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+  }
+  return true;
 }
 
 function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {

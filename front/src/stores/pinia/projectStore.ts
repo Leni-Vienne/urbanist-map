@@ -70,15 +70,10 @@ export const useProjectStore = defineStore("project", () => {
 
   // Helper function to extract city metadata from project for user contributions
   function extractCityMetadata(project: Project) {
-    if (!project.city) {
-      return { cityName: null, countryCode: null, countryName: null };
-    }
-    const countryCode = project.city.countryCode;
-    const country = countries.value.find((c) => c.code === countryCode);
-
+    const country = countries.value.find((c) => c.code === project.countryCode);
     return {
-      cityName: project.city.name,
-      countryCode: countryCode,
+      cityName: project.city?.name ?? null,
+      countryCode: project.countryCode,
       countryName: country?.name ?? null,
     };
   }

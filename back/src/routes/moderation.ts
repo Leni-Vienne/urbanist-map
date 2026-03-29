@@ -5,12 +5,11 @@ import {
   overlays,
   approvalStatusEnum,
   changeRequests,
-  cities,
   users,
   userReports,
   type EntityType,
 } from "../db/schema";
-import { and, eq, or, sql, inArray, ne, isNotNull, type SQL } from "drizzle-orm";
+import { and, eq, or, sql, inArray, ne, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { db, type Database } from "../database";
 import {
@@ -89,11 +88,9 @@ async function checkModeratorCountryPermission(
     return "*"; // Wildcard indicating all countries allowed
   }
 
-  // Get the project's country code via city join
   const projectCountry = await db
-    .select({ countryCode: cities.countryCode })
+    .select({ countryCode: projects.countryCode })
     .from(projects)
-    .innerJoin(cities, eq(projects.cityId, cities.id))
     .where(eq(projects.id, projectId))
     .limit(1);
 
@@ -126,12 +123,10 @@ async function checkModeratorOverlayPermission(
     return "*";
   }
 
-  // Get the overlay's country code via project -> city join
   const overlayCountry = await db
-    .select({ countryCode: cities.countryCode })
+    .select({ countryCode: projects.countryCode })
     .from(overlays)
     .innerJoin(projects, eq(overlays.projectId, projects.id))
-    .innerJoin(cities, eq(projects.cityId, cities.id))
     .where(eq(overlays.id, overlayId))
     .limit(1);
 
@@ -348,12 +343,7 @@ export const moderationRouter = router({
 
         // Step 3: Fetch all moderation data
         const { projectsResult, overlaysResult, overlayChanges, projectChanges } =
-          await fetchModerationData(
-            projectModerationConditions,
-            paginationConditions,
-            sortColumn,
-            limit,
-          );
+          await fetchModerationData(projectModerationConditions, sortColumn, limit);
 
         // Step 4: Process and filter results
         const changeRequestsResult = [...overlayChanges, ...projectChanges].toSorted(
@@ -417,15 +407,12 @@ export const moderationRouter = router({
       const userModeratedCountries = ctx.user.moderatedCountries;
       const isAdmin = ctx.user.role === "admin";
 
-      // Build country filter based on moderator permissions
-      // Use projects.countryCode directly (more reliable than joining via cities.countryCode,
-      // since projects.cityId is nullable and projects without a city would be missed)
-      let countryFilter: SQL | undefined = isNotNull(projects.countryCode);
+      let countryFilter: SQL | undefined = sql`${projects.countryCode} IS NOT NULL`;
       if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
-        countryFilter = and(
-          isNotNull(projects.countryCode),
-          inArray(projects.countryCode, userModeratedCountries),
-        );
+        countryFilter = sql`${projects.countryCode} = ANY(ARRAY[${sql.join(
+          userModeratedCountries.map((c) => sql`${c}`),
+          sql`, `,
+        )}]::text[])`;
       }
 
       // Efficient single-query approach using CASE statements for conditional counting
@@ -1403,21 +1390,27 @@ async function collectPendingProjectIds(): Promise<{
 // Fetch all moderation data in parallel
 async function fetchModerationData(
   projectModerationConditions: (SQL | undefined)[],
-  paginationConditions: (SQL | undefined)[],
   sortColumn: PgColumn,
   limit: number,
 ) {
-  const [projectsResult, overlaysResult, overlayChanges, projectChanges] = await Promise.all([
-    // Projects with pagination
-    buildProjectModerationQuery(db)
-      .where(and(...projectModerationConditions))
-      .orderBy(sortColumn)
-      .limit(limit + 1),
+  // Fetch projects first so we can scope change requests to exact project IDs
+  // This avoids applying COALESCE country conditions to change_requests joins (slow full scans)
+  const projectsResult = await buildProjectModerationQuery(db)
+    .where(and(...projectModerationConditions))
+    .orderBy(sortColumn)
+    .limit(limit + 1);
 
+  const projectIds = projectsResult.map((p) => p.id);
+
+  if (projectIds.length === 0) {
+    return { projectsResult, overlaysResult: [], overlayChanges: [], projectChanges: [] };
+  }
+
+  const [overlaysResult, overlayChanges, projectChanges] = await Promise.all([
     // All overlays from moderation projects (to show in project accordions)
     buildOverlayModerationQuery(db).where(and(...projectModerationConditions)),
 
-    // Overlay change requests with city/country filters
+    // Overlay change requests scoped to the fetched project IDs via overlay join
     db
       .select({
         id: changeRequests.id,
@@ -1434,18 +1427,16 @@ async function fetchModerationData(
       })
       .from(changeRequests)
       .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
-      .leftJoin(projects, eq(overlays.projectId, projects.id))
-      .leftJoin(cities, eq(projects.cityId, cities.id))
       .leftJoin(users, eq(changeRequests.requestedBy, users.id))
       .where(
         and(
           eq(changeRequests.entityType, "overlay"),
           eq(changeRequests.status, "pending"),
-          ...paginationConditions,
+          inArray(overlays.projectId, projectIds),
         ),
       ),
 
-    // Project change requests with city/country filters
+    // Project change requests scoped to the fetched project IDs
     db
       .select({
         id: changeRequests.id,
@@ -1461,14 +1452,12 @@ async function fetchModerationData(
         createdAt: changeRequests.createdAt,
       })
       .from(changeRequests)
-      .leftJoin(projects, eq(changeRequests.entityId, projects.id))
-      .leftJoin(cities, eq(projects.cityId, cities.id))
       .leftJoin(users, eq(changeRequests.requestedBy, users.id))
       .where(
         and(
           eq(changeRequests.entityType, "project"),
           eq(changeRequests.status, "pending"),
-          ...paginationConditions,
+          inArray(changeRequests.entityId, projectIds),
         ),
       ),
   ]);

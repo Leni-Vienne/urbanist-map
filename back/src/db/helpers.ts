@@ -1,5 +1,5 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
-import { alias, type PgColumn } from "drizzle-orm/pg-core";
+import { type PgColumn } from "drizzle-orm/pg-core";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { db } from "../database";
 import {
@@ -14,8 +14,6 @@ import {
 } from "./schema";
 import type * as schema from "./schema";
 import type { AppMode, OverlayData } from "@shared/types";
-
-const projectCountries = alias(countries, "project_countries");
 
 // ============================================================================
 // DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -136,12 +134,12 @@ const overlaySelectFields = {
   projectName: projects.name,
   cityName: cities.name,
   cityId: cities.id,
-  countryCode: sql<string | null>`COALESCE(${countries.code}, ${projectCountries.code})`,
-  countryName: sql<string | null>`COALESCE(${countries.name}, ${projectCountries.name})`,
+  countryCode: projects.countryCode,
+  countryName: countries.name,
 };
 
 /**
- * Build overlay query with full location joins (overlay -> project -> city -> country)
+ * Build overlay query with full location joins (overlay -> project -> country)
  * Returns chainable query that can be extended with .where(), .orderBy(), .limit()
  */
 export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
@@ -150,8 +148,7 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
     .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code))
-    .leftJoin(projectCountries, eq(projects.countryCode, projectCountries.code));
+    .leftJoin(countries, eq(projects.countryCode, countries.code));
 }
 
 // Shared project column selection — add new project fields here only
@@ -195,13 +192,13 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
     .select({
       ...PROJECT_COLUMNS,
       cityName: cities.name,
-      countryCode: countries.code,
+      countryCode: projects.countryCode,
       countryName: countries.name,
       city: cities,
     })
     .from(projects)
     .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code));
+    .leftJoin(countries, eq(projects.countryCode, countries.code));
 }
 
 /**
@@ -226,14 +223,13 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
       updatedAt: overlays.updatedAt,
       cityId: cities.id,
       cityName: cities.name,
-      countryCode: sql<string | null>`COALESCE(${countries.code}, ${projectCountries.code})`,
-      countryName: sql<string | null>`COALESCE(${countries.name}, ${projectCountries.name})`,
+      countryCode: projects.countryCode,
+      countryName: countries.name,
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
     .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code))
-    .leftJoin(projectCountries, eq(projects.countryCode, projectCountries.code))
+    .leftJoin(countries, eq(projects.countryCode, countries.code))
     .leftJoin(users, eq(overlays.authorId, users.id));
 }
 
@@ -249,12 +245,12 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
       ownerApprovedCount: users.approvedCount, // User stats for spam detection
       ownerRejectedCount: users.rejectedCount,
       cityName: cities.name,
-      countryCode: countries.code,
+      countryCode: projects.countryCode,
       countryName: countries.name,
     })
     .from(projects)
     .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(cities.countryCode, countries.code))
+    .leftJoin(countries, eq(projects.countryCode, countries.code))
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
 

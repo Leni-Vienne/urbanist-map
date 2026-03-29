@@ -38,6 +38,9 @@ export const useModerationStore = defineStore("moderation", () => {
 
   function resetModerationLoaded() {
     moderationLoaded.value = false;
+    overlays.value = [];
+    projects.value = [];
+    changeRequests.value = [];
   }
 
   // Remove change requests from local state after approval/rejection
