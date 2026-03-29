@@ -64,3 +64,46 @@ export function formatProjectDateRange(
 
   return "";
 }
+
+/**
+ * Returns a separate label and value for use in labeled UI rows.
+ * The label is descriptive ("Estimated Completion", "Period", etc.)
+ * and the value is just the date/range without a verb prefix.
+ */
+export function formatProjectDateRangeParts(
+  timelineStatus: string | null | undefined,
+  startDate: Date | null | undefined,
+  endDate: Date | null | undefined,
+  proposalDate: Date | null | undefined,
+  startDatePrecision?: "year" | "month" | "day" | null,
+  endDatePrecision?: "year" | "month" | "day" | null,
+  proposalDatePrecision?: "year" | "month" | "day" | null,
+  t = (key: string) => key,
+): { label: string; value: string } | null {
+  if (timelineStatus === "proposed" && proposalDate) {
+    return {
+      label: t("project.proposalDate"),
+      value: formatFlexibleDate(dbToFlexibleDate(proposalDate, proposalDatePrecision)),
+    };
+  }
+
+  const start = startDate
+    ? formatFlexibleDate(dbToFlexibleDate(startDate, startDatePrecision))
+    : null;
+  const end = endDate ? formatFlexibleDate(dbToFlexibleDate(endDate, endDatePrecision)) : null;
+
+  if (start && end) {
+    return { label: t("project.period"), value: `${start} - ${end}` };
+  } else if (start) {
+    return { label: t("project.startDate"), value: start };
+  } else if (end) {
+    return { label: t("project.estimatedCompletion"), value: end };
+  } else if (proposalDate) {
+    return {
+      label: t("project.proposalDate"),
+      value: formatFlexibleDate(dbToFlexibleDate(proposalDate, proposalDatePrecision)),
+    };
+  }
+
+  return null;
+}

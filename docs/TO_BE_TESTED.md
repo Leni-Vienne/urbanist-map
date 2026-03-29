@@ -4,15 +4,6 @@ This document outlines the granular functional test scenarios required to ensure
 
 ## 1. Map Visualization & Entity Behavior
 
-### 1.2. City Marker Logic & Filtering
-
-- **Scenario**: Switch between View, Edit, and Moderation modes.
-- **Checks**:
-  1.  **View Mode**: Ensure cities with _only_ pending items are **hidden**.
-  2.  **Edit Mode**: Ensure cities containing _your_ pending items appear. Cities with _others'_ pending items must remain hidden.
-  3.  **Moderation Mode**: Ensure cities with _anyone's_ pending items appear.
-  4.  **Mixed State**: Determine a city with both Approved and Pending items. Verify it is visible in View mode, but interacting with it shows the correct subset of data.
-
 ### 1.2b. Vector Tile Line Styling by Tag (New)
 
 - **Scenario**: Vector lines are styled from the first project tag in MVT, and proposed timeline items are dashed.
@@ -78,22 +69,6 @@ This document outlines the granular functional test scenarios required to ensure
   6.  **Exit**: Refresh page or "Cancel Editing". Re-enter Edit Mode.
   7.  **Check**: Overlay A should be at the database position (Cache cleared).
 
-### 2.1b. Marker Position After Zoom Out/In Across Mode Switches
-
-- **Scenario**: Marker position desyncs from overlay after zooming out below threshold and back.
-- **Steps**:
-  1.  Enter **Edit Mode** at high zoom. Move Overlay A significantly.
-  2.  Switch to **View Mode**.
-  3.  Zoom out to a **low zoom level** (below city marker threshold).
-  4.  Switch back to **Edit Mode** (still at low zoom).
-  5.  Zoom back in to high zoom (street level).
-- **Checks**:
-  1.  Overlay A should be at the **modified/cached position** from step 1.
-  2.  Overlay A's **marker** should also be at the modified position (same centroid as the overlay corners).
-  3.  Marker and overlay must not be at different positions (marker at backend, overlay at cache).
-  4.  There should only be ONE marker for the overlay, not two.
-- **Regression Focus**: Destruction queue race condition — stale async destructions from a previous frame must not destroy freshly re-created markers. Also, `pruneOverlays` must not create high-zoom markers when `showImages` is false.
-
 ### 2.2. Marker Coloring & Status
 
 - **Scenario**: Identify overlay status via visual cues.
@@ -130,7 +105,7 @@ This document outlines the granular functional test scenarios required to ensure
 - **Scenario**: Admin reviewing content in a specific city.
 - **Steps**:
   1.  Enter **Moderation Mode**.
-  2.  Click a **City Marker** that has pending items.
+  2.  zoom somewhere that has pending items
   3.  **Check 1**: The **Moderation Side Panel** should filter to show _only_ items for that city.
   4.  **Check 2 (Regression)**: The map camera **MUST NOT** jump to the Country center. It should stay focused on the city or bounds.
   5.  **Zoom Behavior**: Zoom in. Verify pending/unapproved overlays are visible on the map (rendered with "Pending" styling).
@@ -144,16 +119,6 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Post-Approval**: Verify image source updates to the R2/Production URL. Verify the overlay remains visible and doesn't disappear during the transition.
 
 ## 4. Navigation & Deep Linking
-
-### 4.1. Panel-to-Map Navigation
-
-- **Scenario**: Using the "Latest Overlays" or "Search" features.
-- **Steps**:
-  1.  Open "Latest Overlays" drawer.
-  2.  Click an item.
-  3.  **Check**: Map pans/zooms to the target.
-  4.  **Regression**: Verify the **City Marker** for that location does NOT disappear during the flight or upon arrival.
-  5.  **Regression**: Verify the target overlay is actually rendered (not culled aggressively).
 
 ### 4.2. Current Location & Zoom Oscillation
 
@@ -173,7 +138,6 @@ This document outlines the granular functional test scenarios required to ensure
 - **Assert**:
   - No "Pending" markers are visible.
   - No "Edit" colored markers are visible.
-  - City markers respect View Mode rules.
   - (Prevents `handleViewportChange` processing stale mode data).
 
 ### 5.2. Duplicate API & Caching
@@ -190,46 +154,7 @@ This document outlines the granular functional test scenarios required to ensure
 - **Scenario**: Development/Preview environment access.
 - **Check**: Verify `Set-Cookie` works across subdomains (e.g., backend on diff domain than frontend). Refresh page protects session.
 
-### 6.2. Standalone Project Marker Interaction (Regression)
-
-- **Scenario**: User clicks a standalone project marker while the city was loaded via zoom (not click).
-- **Steps**:
-  1.  Zoom into a city (without clicking the city marker).
-  2.  Ensure "Latest" tab is active.
-  3.  Click a **Standalone Project Marker**.
-  4.  **Check**:
-      - Project Info Popup opens.
-      - **Side Panel** switches to "Current Location" (Context switch).
-      - **Side Panel** project list is updated.
-      - **Side Panel** the clicked project is selected (accordion opens).
-
-## 7. Active City Content Persistence (Recent Fix - Jan 13)
-
-### 7.1. City Content Remains Loaded When Zooming Out
-
-- **Scenario**: User selects a city and zooms out to view a distant project.
-- **Steps**:
-  1.  Click a **City Marker** to load its overlays and standalone project markers.
-  2.  Zoom out beyond `VIEWPORT_LOAD_THRESHOLD`.
-  3.  **Check**:
-      - Active city's overlay markers and standalone markers remain visible on the map.
-      - City marker for the active city remains visible even at high zoom levels.
-  4.  **Regression**: Pan to a different area.
-  5.  **Check**: Active city content is still loaded and visible (doesn't unload during panning).
-  6.  Click a different city marker that is significantly far from the active city.
-  7.  **Check**: Previous active city content is properly unloaded from the map, new city content loads.
-
-### 7.2. Mode Switch Preserves Active City
-
-- **Scenario**: User switches modes while a city is active.
-- **Steps**:
-  1.  Click a **City Marker** in View Mode.
-  2.  Switch to **Edit Mode**.
-  3.  **Check**: Active city content remains loaded and visible.
-  4.  Switch to **Moderation Mode**.
-  5.  **Check**: Active city content remains loaded with appropriate visibility filtering.
-
-## 8. Standalone Project Marker Persistence (Recent Fix - Jan 13)
+## 8. Standalone Project Marker Persistence
 
 ### 8.1. Markers Persist After Zoom Operations
 
@@ -242,18 +167,7 @@ This document outlines the granular functional test scenarios required to ensure
   5.  Zoom back in.
   6.  **Check**: Standalone markers are still visible and correctly positioned.
 
-### 8.2. City Marker Click Restores Markers
-
-- **Scenario**: Standalone markers reappear when clicking city marker.
-- **Steps**:
-  1.  Enter **Edit Mode**.
-  2.  Load a city with standalone projects.
-  3.  Zoom out and back in.
-  4.  Click the **City Marker** again.
-  5.  **Check**: Standalone markers are correctly restored (no duplicates).
-  6.  **Regression**: Verify marker click handlers still work after restoration.
-
-## 9. Map Zoom Animation Stability (Recent Fix - Jan 13)
+## 9. Map Zoom Animation Stability
 
 ### 9.1. Markers Remain Stable During Zoom
 
@@ -274,19 +188,7 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Check**: Markers animate smoothly during flight (no null reference errors).
   4.  **Check**: Markers are correctly positioned at flight destination.
 
-## 10. Moderation Position Buttons (Recent Fix - Jan 13)
-
-### 10.1. View Suggested Position Works From City Load
-
-- **Scenario**: Position navigation buttons work correctly when city is loaded via city marker click.
-- **Steps**:
-  1.  Enter **Moderation Mode**.
-  2.  Click a **City Marker** to load its overlays.
-  3.  Select an overlay with pending changes to its position from the side panel.
-  4.  Click **"View Suggested Position"** button.
-  5.  **Check**: Overlay moves to suggested position on map.
-  6.  **Check**: Overlay marker updates to show suggested location.
-  7.  **Check**: Overlay marker turns from green to yellow.
+## 10. Moderation Position Buttons
 
 ### 10.2. View Approved Position Works From City Load
 
@@ -299,14 +201,14 @@ This document outlines the granular functional test scenarios required to ensure
   5.  **Check**: Overlay marker turns from yellow to green.
   6.  **Regression**: Test with overlays loaded via side menu (original working case).
 
-## 11. Overlay Visibility Mode Switching (Recent Fix - Jan 13)
+## 11. Overlay Visibility Mode Switching
 
 ### 11.1. Pending Overlays Hide in View Mode
 
 - **Scenario**: Pending overlays are properly hidden when switching from Moderation to View mode.
 - **Steps**:
   1.  Enter **Moderation Mode**.
-  2.  Click a city marker to load pending overlays.
+  2.  zoom to load overlays.
   3.  Verify pending overlays are visible on map.
   4.  Switch to **View Mode**.
   5.  **Check**: All pending overlays are removed from map.
@@ -344,18 +246,7 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Check**: Previously opened accordion remains open.
   4.  **Check**: Computed data (change requests, etc.) doesn't re-initialize unnecessarily.
 
-## 13. Off-Screen Content Cleanup (Recent Fix - Jan 13)
-
-### 13.1. Far Off-Screen Cities Are Unloaded
-
-- **Scenario**: Map maintains good performance by unloading cities that are far outside the viewport.
-- **Steps**:
-  1.  Click multiple city markers to load their content.
-  2.  Pan significantly far away (outside padded viewport bounds).
-  3.  **Check**: Off-screen city overlays and markers are removed from map.
-  4.  **Check**: `loadedCityIds` set is updated (city removed).
-  5.  Pan back to the original city area.
-  6.  **Check**: City content is re-loaded (fresh API call if needed).
+## 13. Off-Screen Content Cleanup
 
 ### 13.2. Nearby Cities Remain Loaded
 
@@ -366,7 +257,7 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Check**: City content remains loaded (no unnecessary reload).
   4.  **Regression**: Verify no performance issues from repeated bounds checks.
 
-## 14. Performance Optimizations (Recent Fixes - Jan 12)
+## 14. Performance Optimizations
 
 ### 14.1. Change Request Map Lookups
 
@@ -388,15 +279,6 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Check**: Flight animation is smooth (60fps or close).
   4.  **Check**: Overlay images only appear AFTER flight completes.
   5.  **Regression**: Verify overlays do eventually render after arrival.
-
-### 15.2. Tile Layer Persistence
-
-- **Scenario**: Selected tile layer persists during map navigation operations.
-- **Steps**:
-  1.  Set a specific tile layer (e.g., satellite view).
-  2.  Navigate to a city marker or contribution.
-  3.  **Check**: Tile layer remains the same (doesn't auto-switch).
-  4.  **Regression**: Manual tile layer switching still works correctly.
 
 ## 16. Overlay Fetching Timing (Recent Fix - Jan 12)
 
@@ -535,7 +417,7 @@ This document outlines the granular functional test scenarios required to ensure
 - **Steps**:
   1.  Enter **Edit Mode** at a city with your pending overlays.
   2.  Ensure overlays are visible.
-  3.  Click city marker or zoom to trigger map animation.
+  3.  start Zooming at it fast to make it appear
   4.  **Immediately** switch to **View Mode** while map is still animating.
   5.  **Check**: NO pending overlay images appear on map after animation.
   6.  **Check**: NO pending overlay markers appear on map.

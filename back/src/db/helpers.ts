@@ -1,5 +1,5 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
-import { type PgColumn } from "drizzle-orm/pg-core";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { db } from "../database";
 import {

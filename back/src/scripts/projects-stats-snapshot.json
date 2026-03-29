@@ -1,0 +1,84 @@
+{
+  "timestamp": "2026-03-29T21:00:13.906Z",
+  "total": 427166,
+  "osm": 427163,
+  "userSubmitted": 3,
+  "detached": 0,
+  "approvalStatus": {
+    "approved": 427165,
+    "pending": 1
+  },
+  "timelineStatus": {
+    "under_construction": 366012,
+    "proposed": 59506,
+    "planned": 1648
+  },
+  "tags": {
+    "building": 253848,
+    "road": 148595,
+    "pedestrian": 9238,
+    "bike": 7362,
+    "rail": 5543,
+    "subway": 1030,
+    "tram": 724,
+    "park": 686,
+    "waterway": 540,
+    "light_rail": 350,
+    "cable_car": 349,
+    "bus": 6,
+    "(no tags)": 1971
+  },
+  "tagsPerProject": {
+    "0": 1969,
+    "1": 422157,
+    "2": 3000,
+    "3": 38,
+    "null": 2
+  },
+  "countries": {
+    "CHN": 47085,
+    "USA": 45841,
+    "RUS": 26237,
+    "POL": 25102,
+    "DEU": 22788,
+    "FRA": 14071,
+    "GBR": 13266,
+    "AUS": 12481,
+    "ITA": 12248,
+    "BRA": 12219,
+    "NLD": 11517,
+    "IND": 10471,
+    "ESP": 8646,
+    "TUR": 8611,
+    "CAN": 8259,
+    "JPN": 7081,
+    "NGA": 6234,
+    "UKR": 5358,
+    "ARG": 4677,
+    "NZL": 4173
+  },
+  "importSources": {
+    "osm_world": 427163,
+    "(user-submitted)": 3
+  },
+  "completeness": {
+    "name": 163123,
+    "geometry": 427164,
+    "lat/lng": 427166,
+    "source_url": 4916
+  },
+  "geometrySize": {
+    "(no geometry)": 2,
+    "< 500m": 348879,
+    "500m-2km": 57968,
+    "2km-10km": 15776,
+    "10km-50km": 3733,
+    "50km-200km": 708,
+    "> 200km": 100
+  },
+  "osmIdTypes": {
+    "way": 420839,
+    "relation": 6324,
+    "(user-submitted)": 3
+  }
+}
