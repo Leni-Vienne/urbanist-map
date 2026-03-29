@@ -130,7 +130,7 @@ export function useChangeRequestPreview() {
 
     // Poll until the overlay appears in the store and registry, up to 2s
     const maxAttempts = 20;
-    for (let i = 0; i < maxAttempts; i++) {
+    for (let i = 0; i < maxAttempts; i += 1) {
       await new Promise<void>((resolve) => void setTimeout(resolve, 100));
       overlayObject = overlayStore.overlays[overlayForModeration.id];
       if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
@@ -256,8 +256,10 @@ export function useChangeRequestPreview() {
 
       const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
 
-      // Step 2: Check if overlay is already loaded
+      // Step 2: Check if overlay is already loaded and if we're toggling an active preview
       const wasAlreadyLoaded = registry.getLayer(change.entityId) !== null;
+      const isTogglingActivePreview =
+        previewState.value.type !== "none" && previewState.value.changeId === change.id;
 
       // Step 3: Ensure overlay is loaded (handles navigation if needed)
       const loaded = await ensureOverlayLoaded(overlayForModeration, latLngs);
@@ -266,7 +268,8 @@ export function useChangeRequestPreview() {
       }
 
       // Step 4: Apply position preview
-      applyPositionPreview(change.entityId, type, wasAlreadyLoaded);
+      // Don't pass previousBounds when toggling — both positions are already visible
+      applyPositionPreview(change.entityId, type, wasAlreadyLoaded && !isTogglingActivePreview);
 
       // Step 5: Update state machine
       if (type === "new") {

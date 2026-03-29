@@ -11,10 +11,8 @@
  * Based on https://github.com/maplibre/maplibre-gl-leaflet (MIT license).
  */
 
-import L from "leaflet";
-import type { LatLngBounds, Layer as LayerType, Point as PointType } from "leaflet";
-import type { Map as MaplibreMap } from "maplibre-gl";
-import maplibre, { type MapOptions } from "maplibre-gl";
+import L, { type LatLngBounds, type Layer as LayerType, type Point as PointType } from "leaflet";
+import maplibre, { type Map as MaplibreMap, type MapOptions } from "maplibre-gl";
 
 const { Layer, setOptions, DomUtil, latLngBounds, Util, extend, Point } = L;
 

@@ -1,8 +1,8 @@
 <template>
   <div class="absolute top-18 left-4 z-1000 flex flex-col gap-3 transition-opacity duration-300">
     <div class="flex flex-col gap-1.5 mb-3">
-      <!-- Filter Control (View Mode Only) -->
-      <FilterControl v-if="mode !== 'edit'" @filter-overlays="handleFilterOverlays" />
+      <!-- Filter Control -->
+      <FilterControl @filter-overlays="handleFilterOverlays" />
     </div>
 
     <!-- Zoom Controls -->
@@ -30,19 +30,14 @@
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from "pinia";
 import L from "leaflet";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { map } from "@/services/core/map";
 import FilterControl from "@/components/map/FilterControl.vue";
 
-const mapStore = useMapStore();
 const uiStore = useUiStore();
 const { isMobile } = useIsMobile();
-
-const { mode } = storeToRefs(mapStore);
 
 // Emit events to parent for complex operations that require access to map state
 const emit = defineEmits<{

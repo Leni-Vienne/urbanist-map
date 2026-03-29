@@ -400,6 +400,11 @@ class RelationHandler(osmium.SimpleHandler):
             return
         if tags.get('historic') or tags.get('abandoned'):
             return
+        # Skip route relations that aren't themselves proposed/construction projects
+        if tags.get('type') == 'route':
+            _LIFECYCLE_KEYS = ('construction', 'proposed', 'planned')
+            if not any(tags.get(k, '') not in ('', 'no') for k in _LIFECYCLE_KEYS):
+                return
         member_way_ids = [m.ref for m in r.members if m.type == 'w']
         if any(wid in self.proposed_way_ids for wid in member_way_ids):
             self.relations[r.id] = {'tags': tags, 'member_way_ids': member_way_ids}

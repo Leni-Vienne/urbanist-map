@@ -99,6 +99,7 @@
     "publish": "Submit",
     "submitChangeRequest": "Submit",
     "period": "Period",
+    "estimatedCompletion": "Estimated Completion",
     "source": "Source",
     "lastModified": "Last Modified",
     "modifyOn": "Modify on {name}",

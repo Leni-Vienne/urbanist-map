@@ -5,8 +5,20 @@
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
 
-    <!-- Timeline Status + Last Modified (inline) -->
-    <div class="flex gap-4">
+    <!-- Description: hidden when null and not editable -->
+    <div
+      v-if="showDescription && (project.description || (editMode && !project.importSourceId))"
+      :class="cls.row"
+    >
+      <span :class="cls.label">{{ $t("common.description") }}</span>
+      <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
+      <button v-else :class="cls.addBtn" @click="emit('field-click')">
+        + {{ $t("common.addField") }}
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+      <!-- Timeline Status -->
       <div :class="cls.row">
         <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
         <div class="flex items-center gap-1.5">
@@ -21,27 +33,15 @@
           }}</span>
         </div>
       </div>
+
+      <!-- Last Modified -->
       <div v-if="project.importSourceId" :class="cls.row">
         <span :class="cls.label">{{ $t("project.lastModified") }}</span>
         <span :class="cls.value">{{
           formatDate(project.externalLastModified ?? project.updatedAt)
         }}</span>
       </div>
-    </div>
 
-    <!-- Description: hidden when null and not editable -->
-    <div
-      v-if="showDescription && (project.description || (editMode && !project.importSourceId))"
-      :class="cls.row"
-    >
-      <span :class="cls.label">{{ $t("common.description") }}</span>
-      <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
-      <button v-else :class="cls.addBtn" @click="emit('field-click')">
-        + {{ $t("common.addField") }}
-      </button>
-    </div>
-
-    <div class="grid grid-cols-2 gap-4">
       <!-- Location: hidden when null and not editable -->
       <div
         v-if="projectLocationDisplay !== '—' || (editMode && !project.importSourceId)"
@@ -57,9 +57,9 @@
       </div>
 
       <!-- Period: hidden when empty -->
-      <div v-if="periodDisplay" :class="cls.row">
-        <span :class="cls.label">{{ $t("project.period") }}</span>
-        <span :class="cls.value">{{ periodDisplay }}</span>
+      <div v-if="periodParts" :class="cls.row">
+        <span :class="cls.label">{{ periodParts.label }}</span>
+        <span :class="cls.value">{{ periodParts.value }}</span>
       </div>
     </div>
 
@@ -115,7 +115,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Project } from "@/types/index";
-import { formatProjectDateRange } from "@/utils/projectDateFormat";
+import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
@@ -172,9 +172,9 @@ function formatDate(date: Date | string | null | undefined): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(date));
 }
 
-const periodDisplay = computed(() => {
-  if (!props.project) return "";
-  return formatProjectDateRange(
+const periodParts = computed(() => {
+  if (!props.project) return null;
+  return formatProjectDateRangeParts(
     props.project.timelineStatus,
     props.project.startDate,
     props.project.endDate,
