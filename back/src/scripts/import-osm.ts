@@ -168,7 +168,7 @@ function centroid(geom: GeoJSON.Geometry): { lat: number; lng: number } | null {
 // ---------------------------------------------------------------------------
 // Batched KNN country code lookup
 // ---------------------------------------------------------------------------
-const KNN_CHUNK_SIZE = 1_000;
+const KNN_CHUNK_SIZE = 300;
 
 async function resolveCountryCodes(
   points: Array<{ lat: number; lng: number } | null>,
@@ -313,8 +313,38 @@ async function main() {
     const countryCodes = await resolveCountryCodes(featureCentroids);
     console.log(`Country code resolution complete.`);
 
+    // Transient Postgres error codes that warrant a retry (DB not yet ready)
+    const TRANSIENT_PG_CODES = new Set(["57P03", "08006", "08001", "08004"]);
+
+    async function waitForDb(maxWaitMs = 120_000): Promise<void> {
+      const start = Date.now();
+      let delay = 2_000;
+      while (Date.now() - start < maxWaitMs) {
+        await new Promise((r) => setTimeout(r, delay));
+        try {
+          await db.execute(sql`SELECT 1`);
+          console.log("Database connection restored.");
+          return;
+        } catch {
+          console.log(`Database still unavailable, retrying in ${delay / 1000}s...`);
+          delay = Math.min(delay * 2, 30_000);
+        }
+      }
+      throw new Error("Database did not become available within the timeout period.");
+    }
+
+    function isTransient(err: unknown): boolean {
+      return (
+        typeof err === "object" &&
+        err !== null &&
+        "errno" in err &&
+        TRANSIENT_PG_CODES.has((err as Record<string, string | undefined>).errno ?? "")
+      );
+    }
+
     // Flush a batch of rows to the database via a single multi-row upsert.
     // Falls back to individual inserts if the batch fails (e.g. bad geometry on one row).
+    // Retries the whole batch if a transient connection error is detected.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
       if (batch.length === 0) return { ok: 0, fail: 0 };
@@ -346,7 +376,12 @@ async function main() {
             set: conflictSet,
           });
         return { ok: batch.length, fail: 0 };
-      } catch {
+      } catch (batchErr) {
+        if (isTransient(batchErr)) {
+          console.warn("Transient DB error on batch, waiting for recovery...");
+          await waitForDb();
+          return flushBatch(batch);
+        }
         // Batch failed — fall back to individual inserts so one bad row doesn't discard the rest
         let ok = 0;
         let fail = 0;
@@ -361,8 +396,26 @@ async function main() {
               });
             ok++;
           } catch (rowErr) {
-            console.error(`Failed to insert/update row:`, rowErr);
-            fail++;
+            if (isTransient(rowErr)) {
+              console.warn("Transient DB error on row, waiting for recovery...");
+              await waitForDb();
+              try {
+                await db
+                  .insert(projects)
+                  .values(row)
+                  .onConflictDoUpdate({
+                    target: [projects.importSourceId, projects.externalId],
+                    set: conflictSet,
+                  });
+                ok++;
+              } catch (retryErr) {
+                console.error(`Failed to insert/update row after retry:`, retryErr);
+                fail++;
+              }
+            } else {
+              console.error(`Failed to insert/update row:`, rowErr);
+              fail++;
+            }
           }
         }
         return { ok, fail };
@@ -533,7 +586,7 @@ async function main() {
 
     console.log(`  ${idsToUpdate.length} rows to process`);
 
-    const GEOMETRY_BATCH_SIZE = 2000;
+    const GEOMETRY_BATCH_SIZE = 500;
     let sizesDone = 0;
     for (let offset = 0; offset < idsToUpdate.length; offset += GEOMETRY_BATCH_SIZE) {
       const batchIds = idsToUpdate.slice(offset, offset + GEOMETRY_BATCH_SIZE);

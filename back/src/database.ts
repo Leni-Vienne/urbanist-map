@@ -11,7 +11,7 @@ const isDev = process.env.NODE_ENV !== "production";
 // so a large dev pool quickly exhausts max_connections after a few reloads.
 const client = new SQL(config.DATABASE_URL, {
   max: isDev ? 3 : 20,
-  idle_timeout: 30,
+  idle_timeout: isDev ? 0 : 300,
   connect_timeout: 30,
   prepare: true,
 });

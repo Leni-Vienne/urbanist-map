@@ -4,6 +4,7 @@ import type { ProjectForModeration, PendingChangeRequest } from "@/types/index";
 import type { RouterOutput } from "@/client";
 
 type PendingOverlay = RouterOutput["moderation"]["getPendingSubmissions"]["overlays"][0];
+type CountryItem = RouterOutput["country"]["getAllCountries"][0];
 
 export const useModerationStore = defineStore("moderation", () => {
   const overlays = ref<PendingOverlay[]>([]);
@@ -16,7 +17,7 @@ export const useModerationStore = defineStore("moderation", () => {
   const selectedCountryCode = ref<string | null>(null);
 
   // Cache all countries to avoid fetching on every panel mount
-  const allCountries = ref<{ code: string; name: string }[]>([]);
+  const allCountries = ref<CountryItem[]>([]);
   const countriesLoaded = ref(false);
 
   // Pending counts per country for dashboard indicators
@@ -48,7 +49,7 @@ export const useModerationStore = defineStore("moderation", () => {
     selectedCountryCode.value = countryCode;
   }
 
-  function setAllCountries(countries: { code: string; name: string }[]) {
+  function setAllCountries(countries: CountryItem[]) {
     allCountries.value = countries;
     countriesLoaded.value = true;
   }

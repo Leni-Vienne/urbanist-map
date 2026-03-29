@@ -34,6 +34,7 @@ interface Snapshot {
   importSources: Distribution;
   completeness: Record<string, number>;
   geometrySize: Distribution;
+  osmIdTypes: Distribution;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +157,23 @@ async function collectSnapshot(): Promise<Snapshot> {
     source_url: Number(comp["has_source_url"]),
   };
 
+  const osmIdTypes = await queryDistribution(
+    sql`
+      SELECT
+        CASE
+          WHEN external_id IS NULL              THEN '(user-submitted)'
+          WHEN external_id LIKE 'relation/%'    THEN 'relation'
+          WHEN external_id LIKE 'way/%'         THEN 'way'
+          ELSE 'other'
+        END AS id_type,
+        COUNT(*) AS count
+      FROM projects
+      GROUP BY id_type
+      ORDER BY count DESC
+    `,
+    "id_type",
+  );
+
   const sizeRows = await db.execute<{ bucket: string; count: string }>(sql`
     SELECT
       CASE
@@ -189,6 +207,7 @@ async function collectSnapshot(): Promise<Snapshot> {
     importSources,
     completeness,
     geometrySize,
+    osmIdTypes,
   };
 }
 
@@ -229,6 +248,7 @@ function printSnapshot(s: Snapshot) {
   printDistribution("Tags per project", s.tagsPerProject, s.total);
   printDistribution("Country distribution (top 20)", s.countries, s.total);
   printDistribution("Import source", s.importSources, s.total);
+  printDistribution("OSM id type (relation vs way)", s.osmIdTypes, s.total);
 
   console.log("\n--- Field completeness ---");
   const maxLen = Math.max(...Object.keys(s.completeness).map((k) => k.length));
@@ -291,6 +311,7 @@ function printDiff(before: Snapshot, after: Snapshot) {
   diffDistribution("Tags per project", before.tagsPerProject, after.tagsPerProject);
   diffDistribution("Country distribution", before.countries, after.countries);
   diffDistribution("Import source", before.importSources, after.importSources);
+  diffDistribution("OSM id type (relation vs way)", before.osmIdTypes, after.osmIdTypes);
 
   const compKeys = new Set([
     ...Object.keys(before.completeness),
