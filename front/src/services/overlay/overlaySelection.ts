@@ -14,7 +14,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
-import type { OverlayObject, Project } from "@/types/index";
+import type { OverlayObject } from "@/types/index";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import {
   markerColors,
@@ -41,7 +41,7 @@ function resolveProjectHexColor(overlayObject: OverlayObject): string {
   if (mode === "moderation") {
     const proj = overlayObject.project;
     if (!proj) return OVERLAY_OUTLINE_COLOR;
-    const colorKey = getProjectMarkerColor(proj as unknown as Project, mode);
+    const colorKey = getProjectMarkerColor(proj, mode);
     return markerColors[colorKey];
   }
   // View mode: always use the standard blue selection color.

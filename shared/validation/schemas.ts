@@ -36,7 +36,6 @@ export const projectSchema = z
       .optional()
       .default("proposed"),
     sourceUrl: z
-      .string()
       .url("validation.invalidUrl")
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
@@ -144,11 +143,15 @@ const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   tags: z.array(z.string().max(50)).max(20).nullable(),
 };
 
+export const overlayCornersSchema = z
+  .array(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
+  .length(4);
+
+export type OverlayCorners = z.infer<typeof overlayCornersSchema>;
+
 const OVERLAY_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   caption: z.string().max(500).or(z.literal("")).nullable(),
-  corners: z
-    .array(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
-    .length(4),
+  corners: overlayCornersSchema,
 };
 
 // Change request validation schema

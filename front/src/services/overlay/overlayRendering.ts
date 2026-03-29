@@ -15,7 +15,7 @@ import { map } from "@/services/core/map";
 // which is required for the CSS rule that sets pointer-events: all on overlay images.
 // Since this chunk loads lazily after map creation, the addInitHook never ran for the
 // existing map — we must apply it manually here.
-if (map.value && !L.DomUtil.hasClass(map.value.getContainer(), "ldi")) {
+if (!L.DomUtil.hasClass(map.value.getContainer(), "ldi")) {
   L.DomUtil.addClass(map.value.getContainer(), "ldi");
 }
 import { useOverlayStore } from "@/stores/pinia/overlayStore";

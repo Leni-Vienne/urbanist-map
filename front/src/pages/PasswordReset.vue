@@ -151,6 +151,7 @@ async function handleResetPassword() {
     if (result.success) {
       // Auto-login after successful password reset — failure is non-fatal
       if (result.email) {
+        // oxlint-disable-next-line no-empty-function
         await authStore.signIn(result.email, newPassword.value).catch(() => {});
       }
 

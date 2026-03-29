@@ -98,7 +98,7 @@ export function renderProjectShapes(
   onProjectLeave?: (projectId: string) => void,
   colorKeyOverride?: keyof typeof markerColors,
 ): void {
-  if (!project.geometry?.geometries?.length) return;
+  if (!project.geometry?.geometries.length) return;
   if (shapeLayerMap.has(project.id)) return;
 
   const mapStore = useMapStore();

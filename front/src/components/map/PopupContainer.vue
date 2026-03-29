@@ -199,7 +199,9 @@ const activeProject = computed(() => {
     if (localProject) return localProject;
 
     // Try project from popup state (for backend projects)
-    if (projectInfoPopup.value.project) return projectInfoPopup.value.project;
+    // Cast: popup state may hold ProjectForModeration (shape preview), which satisfies
+    // the fields the popup actually reads at runtime.
+    if (projectInfoPopup.value.project) return projectInfoPopup.value.project as Project;
   }
 
   return undefined;

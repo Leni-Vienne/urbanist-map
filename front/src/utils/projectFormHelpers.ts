@@ -1,3 +1,4 @@
+import type { TimelineStatus } from "../../../back/src/db/schema";
 import type { Project, ProjectFormData } from "@/types/index";
 
 function toDateObject(value: Date | string | null | undefined): Date | null {
@@ -25,7 +26,7 @@ export function projectToFormData(p: {
   countryCode?: string | null;
   sourceUrl?: string | null;
   tags?: string[] | null;
-  timelineStatus?: string | null;
+  timelineStatus?: TimelineStatus | null;
 }): ProjectFormData {
   return {
     name: p.name ?? "",
@@ -40,13 +41,7 @@ export function projectToFormData(p: {
     countryCode: p.countryCode ?? "",
     sourceUrl: p.sourceUrl || null,
     tags: p.tags ?? [],
-    timelineStatus:
-      (p.timelineStatus as
-        | "proposed"
-        | "planned"
-        | "under_construction"
-        | "completed"
-        | "canceled") ?? "proposed",
+    timelineStatus: p.timelineStatus ?? "proposed",
   };
 }
 

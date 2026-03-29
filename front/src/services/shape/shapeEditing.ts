@@ -196,9 +196,7 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
   })();
 
   if (parsed.type === "FeatureCollection") {
-    const geometries = parsed.features
-      .map((f) => f.geometry)
-      .filter((g): g is GeoJSON.Geometry => g !== null);
+    const geometries = parsed.features.map((f) => f.geometry);
     const featureProperties = parsed.features.map(
       (f) => (f.properties ?? {}) as Record<string, unknown>,
     );
@@ -210,15 +208,15 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
   }
 
   // Single geometry or Feature
-  if (parsed.type === "Feature" && parsed.geometry) {
+  if (parsed.type === "Feature") {
     const featureProperties = parsed.properties
       ? [parsed.properties as Record<string, unknown>]
       : [];
     return filterDrawableGeometries([parsed.geometry], featureProperties);
   }
 
-  if (supportedImportGeometryTypes.has(parsed.type)) {
-    return filterDrawableGeometries([parsed as GeoJSON.Geometry]);
+  if ("coordinates" in parsed) {
+    return filterDrawableGeometries([parsed]);
   }
 
   throw new Error(

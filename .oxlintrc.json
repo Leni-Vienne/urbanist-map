@@ -31,6 +31,7 @@
     "eslint/prefer-rest-params": "off", // issues with leaflet-distortableimage tools
     "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
     "no-continue": "off", // warns about early continues which is odd
+    "no-void": "off", // conflicts with "Promises must be awaited or explicitly marked as void" rule
     "typescript/no-unnecessary-qualifier": "off", // warns about the prefix "L." of leaflet types
     "unicorn/filename-case": "off",
     "eslint/sort-keys": "off",

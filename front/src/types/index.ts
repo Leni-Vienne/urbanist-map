@@ -226,6 +226,7 @@ export type ProjectForModeration = Pick<
   countryName: string | null;
   overlays: OverlayForModeration[];
   overlayCount?: number;
+  geometry?: GeoJSON.GeometryCollection | null;
 };
 
 // PendingOverlay is defined in types/api.ts - import from there if needed
@@ -249,9 +250,13 @@ export type UserContributionOverlay = Omit<
   authorRejectedCount?: number | null;
 };
 
-export type UserContribution = Omit<BackendUserContribution, "status" | "overlays" | "cityId"> & {
+export type UserContribution = Omit<
+  BackendUserContribution,
+  "status" | "overlays" | "cityId" | "city"
+> & {
   status: ApprovalStatus | null;
-  cityId: number | null; // Override: cityId is now nullable for imported projects
+  cityId: number | null;
+  city: DBCity | null;
   overlays: UserContributionOverlay[];
   // Date precision fields
   proposalDatePrecision?: "year" | "month" | "day" | null;

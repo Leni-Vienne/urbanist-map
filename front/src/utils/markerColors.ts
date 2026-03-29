@@ -1,4 +1,4 @@
-import type { MarkerColor, Project } from "@/types/index";
+import type { MarkerColor } from "@/types/index";
 import type { ApprovalStatus, AppMode } from "@shared/types";
 import type { TimelineStatus } from "../../../back/src/db/schema";
 
@@ -84,7 +84,7 @@ export function getTimelineStatusColor(
  * Centralized logic to avoid duplication between city and standalone project markers
  */
 export function getProjectMarkerColor(
-  project: Project,
+  project: { status: ApprovalStatus | null; isModified?: boolean; timelineStatus: TimelineStatus },
   mode: "view" | "edit" | "moderation",
 ): MarkerColor {
   // For edit and moderation modes, use shared status-based logic

@@ -526,7 +526,7 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
 }
 
 function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
-  const sourceLayer = String(feature.sourceLayer ?? "");
+  const sourceLayer = String(feature.sourceLayer);
   const projectId =
     sourceLayer === "overlay-footprints"
       ? getFeaturePropertyAsString(feature, "project_id")
@@ -578,7 +578,7 @@ function navigateToLonePoint(
   currentZoom: number,
 ): void {
   const hasGeometry: boolean = props.has_geometry === true;
-  const maxSizeM: number = (props.max_size_m as number) ?? 0;
+  const maxSizeM: number = (props.max_size_m as number | null) ?? 0;
   const idealZoom = hasGeometry && maxSizeM > 0 ? getZoomForGeometrySize(maxSizeM, lat, lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
@@ -604,12 +604,12 @@ function navigateToCluster(
   currentZoom: number,
 ): boolean {
   const [minFilter, maxFilter] = sizeFilterRange.value;
-  const repSize: number | null = (props.geometry_size_m as number) ?? null;
+  const repSize: number | null = (props.geometry_size_m as number | null) ?? null;
   const repMatchesSizeFilter =
     repSize === null || (repSize >= minFilter && (maxFilter === Infinity || repSize <= maxFilter));
 
   const [minDateMs, maxDateMs] = lastModifiedDateRange.value;
-  const repDateS: number | null = (props.last_modified_s as number) ?? null;
+  const repDateS: number | null = (props.last_modified_s as number | null) ?? null;
   const repMatchesDateFilter =
     repDateS === null ||
     (repDateS * 1000 >= minDateMs && (maxDateMs === Infinity || repDateS * 1000 <= maxDateMs));
@@ -751,15 +751,13 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   // basemap style places fill-extrusion layers after its first symbol layers.
   const layers = mlMap.getStyle().layers;
   let lastExtrusionIndex = -1;
-  if (layers) {
-    for (let i = layers.length - 1; i >= 0; i--) {
-      if (layers[i]?.type === "fill-extrusion") {
-        lastExtrusionIndex = i;
-        break;
-      }
+  for (let i = layers.length - 1; i >= 0; i -= 1) {
+    if (layers[i]?.type === "fill-extrusion") {
+      lastExtrusionIndex = i;
+      break;
     }
   }
-  const firstSymbolLayerId = layers?.find(
+  const firstSymbolLayerId = layers.find(
     (layer, i) => layer.type === "symbol" && i > lastExtrusionIndex,
   )?.id;
 

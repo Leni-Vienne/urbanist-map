@@ -11,20 +11,10 @@ import type {
 } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 
-interface SelectedCity {
-  id: number;
-  name: string;
-  countryCode?: string;
-}
-
 /**
  * Create OverlayForModeration from overlay data
- * Used by currentLocationPanel
  */
-export function createOverlayForModeration(
-  overlayData: OverlayData,
-  selectedCity: SelectedCity,
-): OverlayForModeration {
+export function createOverlayForModeration(overlayData: OverlayData): OverlayForModeration {
   return {
     id: overlayData.id,
     caption: overlayData.caption,
@@ -38,9 +28,9 @@ export function createOverlayForModeration(
     authorId: overlayData.authorId,
     authorUsername: undefined,
     authorReportCount: undefined,
-    cityId: overlayData.project?.cityId ?? selectedCity.id,
-    cityName: overlayData.project?.city?.name ?? selectedCity.name,
-    countryCode: overlayData.project?.city?.countryCode ?? selectedCity.countryCode ?? null,
+    cityId: overlayData.project?.cityId ?? null,
+    cityName: overlayData.project?.city?.name ?? null,
+    countryCode: overlayData.project?.city?.countryCode ?? null,
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,
     replacedByOverlayId: overlayData.replacedByOverlayId,
@@ -142,16 +132,18 @@ function buildLocalProjectShell(
     countryName: null,
     lat: localProject.lat,
     lng: localProject.lng,
-    city: {
-      id: localProject.cityId ?? 0,
-      name: localProject.city?.name ?? "",
-      countryCode: localProject.city?.countryCode ?? "",
-      nameLocal: null,
-      coordinates: { x: 0, y: 0 },
-      approvedProjectCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    city: localProject.cityId
+      ? {
+          id: localProject.cityId,
+          name: localProject.city?.name ?? "",
+          countryCode: localProject.city?.countryCode ?? "",
+          nameLocal: null,
+          coordinates: { x: 0, y: 0 },
+          approvedProjectCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      : null,
     proposalDate: localProject.proposalDate,
     proposalDatePrecision: localProject.proposalDatePrecision ?? null,
     startDate: localProject.startDate,
