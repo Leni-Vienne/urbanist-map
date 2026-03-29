@@ -176,7 +176,7 @@
   "onMap": {
     "noProjects": "Aucun projet visible",
     "noProjectsDetail": "Zoomez ou déplacez la carte pour trouver des projets",
-    "projectsVisible": "{count} projet(s) à l'écran",
+    "projectsVisible": "{count} projet à l'écran | {count} projets à l'écran",
     "sortRecent": "Trier par plus récent",
     "sortName": "Trier par nom",
     "sortSize": "Trier par taille",

@@ -195,8 +195,15 @@ function posToMeters(pos: number): number {
 }
 
 const sliderPositions = ref<[number, number]>([0, 100]);
+const prevSliderPositions = ref<[number, number]>([0, 100]);
 
 watch(sliderPositions, ([minPos, maxPos]) => {
+  if (minPos > maxPos) {
+    const [prevMin] = prevSliderPositions.value;
+    sliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+    return;
+  }
+  prevSliderPositions.value = [minPos, maxPos];
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
 });
 
@@ -206,6 +213,7 @@ const _now = new Date();
 const DATE_SLIDER_MAX = (_now.getFullYear() - DATE_SLIDER_ORIGIN_YEAR) * 12 + _now.getMonth();
 
 const dateSliderPositions = ref<[number, number]>([0, DATE_SLIDER_MAX]);
+const prevDateSliderPositions = ref<[number, number]>([0, DATE_SLIDER_MAX]);
 
 function posToDate(pos: number): Date {
   const totalMonths = DATE_SLIDER_ORIGIN_YEAR * 12 + pos;
@@ -220,6 +228,12 @@ function formatDateSlider(pos: number): string {
 }
 
 watch(dateSliderPositions, ([minPos, maxPos]) => {
+  if (minPos > maxPos) {
+    const [prevMin] = prevDateSliderPositions.value;
+    dateSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+    return;
+  }
+  prevDateSliderPositions.value = [minPos, maxPos];
   const minMs = posToDate(minPos).getTime();
   const maxMs = maxPos >= DATE_SLIDER_MAX ? Infinity : posToDate(maxPos).getTime();
   lastModifiedDateRange.value = [minMs, maxMs];

@@ -17,7 +17,7 @@
       class="px-4 py-2.5 border-b border-surface bg-content-background flex items-center justify-between shrink-0"
     >
       <span class="text-sm text-muted-color">
-        {{ $t("onMap.projectsVisible", { count: projects.length }) }}
+        {{ $t("onMap.projectsVisible", { count: projects.length }, projects.length) }}
       </span>
       <div class="flex gap-1">
         <button

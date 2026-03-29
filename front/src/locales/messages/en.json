@@ -176,7 +176,7 @@
   "onMap": {
     "noProjects": "No projects visible",
     "noProjectsDetail": "Zoom in or pan the map to find projects",
-    "projectsVisible": "{count} project(s) on screen",
+    "projectsVisible": "{count} project on screen | {count} projects on screen",
     "sortRecent": "Sort by most recent",
     "sortName": "Sort by name",
     "sortSize": "Sort by size",
