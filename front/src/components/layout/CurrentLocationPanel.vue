@@ -91,6 +91,7 @@ import { useVisibleProjects, type SortMode } from "@/composables/project/useVisi
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
+import { useTheme } from "@/composables/core/useTheme";
 
 const { projects, sortMode, sortReverse, isReady, navigateToProject, hoverProject } =
   useVisibleProjects();
@@ -117,7 +118,7 @@ function tagColor(firstTag: string): string {
   return PROJECT_TAG_MAP.get(firstTag)?.color ?? DEFAULT_TAG_COLOR;
 }
 
-const STATUS_STYLES: Record<string, { backgroundColor: string; color: string }> = {
+const LIGHT_STATUS_STYLES: Record<string, { backgroundColor: string; color: string }> = {
   proposed: { backgroundColor: "#fef9c3", color: "#854d0e" },
   planned: { backgroundColor: "#dbeafe", color: "#1e40af" },
   under_construction: { backgroundColor: "#ffedd5", color: "#9a3412" },
@@ -125,8 +126,19 @@ const STATUS_STYLES: Record<string, { backgroundColor: string; color: string }> 
   canceled: { backgroundColor: "#f3f4f6", color: "#4b5563" },
 };
 
+const DARK_STATUS_STYLES: Record<string, { backgroundColor: string; color: string }> = {
+  proposed: { backgroundColor: "#292205", color: "#fde68a" },
+  planned: { backgroundColor: "#172554", color: "#93c5fd" },
+  under_construction: { backgroundColor: "#431407", color: "#fdba74" },
+  completed: { backgroundColor: "#052e16", color: "#86efac" },
+  canceled: { backgroundColor: "#1f2937", color: "#9ca3af" },
+};
+
+const { theme } = useTheme();
+
 function statusStyle(status: string): Record<string, string> {
-  return STATUS_STYLES[status] ?? STATUS_STYLES["proposed"]!;
+  const map = theme.value === "dark" ? DARK_STATUS_STYLES : LIGHT_STATUS_STYLES;
+  return (map[status] ?? map["proposed"]) as Record<string, string>;
 }
 
 const { isScrollable } = useScrollFade();
