@@ -117,7 +117,12 @@ function updateLeafletAttribution(newAttribution: string) {
 export const currentTileLayer = ref<TileLayerType>("plan");
 
 /** Reference to the underlying MapLibre map instance. Available after mlMapReadyCallbacks fire. */
-const mlMapRef = { current: null as MaplibreMap | null };
+// During Vite HMR, the module re-executes but the MapLibre instance is still alive on the page.
+// We preserve it via import.meta.hot.data so onMlMapReady callers don't get stuck waiting
+// for a `load` event that will never fire again.
+const mlMapRef = {
+  current: (import.meta.hot?.data.mlMap as MaplibreMap | null) ?? null,
+};
 const mlMapReadyCallbacks: (() => void)[] = [];
 
 export function getMlMap(): MaplibreMap | null {
@@ -621,5 +626,10 @@ function initEsriMetadataListener() {
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
+  // Save the live MapLibre instance before the module is discarded so the
+  // replacement module can restore it and skip the stale `load` event wait.
+  import.meta.hot.dispose((data) => {
+    data.mlMap = mlMapRef.current;
+  });
   import.meta.hot.accept();
 }
