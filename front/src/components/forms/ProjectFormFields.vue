@@ -310,7 +310,7 @@ const localFormData = ref<ProjectFormData>({
   tags: props.formData.tags,
 });
 
-const allTags = PROJECT_TAGS;
+const allTags = PROJECT_TAGS.filter((t) => !t.hidden);
 
 // Countries for the country dropdown
 const countries = ref<{ code: string; name: string }[]>([]);
