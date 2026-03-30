@@ -8,6 +8,7 @@ import {
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
 import {
   getOverlayDrivenHoverId,
   registerOverlayHoverCallback,
@@ -575,6 +576,14 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
     mobileAwarePanTo([latlng.lat, latlng.lng], { animate: true, duration });
   }
 
+  // Prevent the map-level click handler in projectPopupTeleport from closing the
+  // current popup before the new one opens (both fire on the same Leaflet click).
+  suppressPopupCloseForClick();
+
+  // Pin the vector highlight immediately so mousemove cannot clear it during the
+  // async project fetch that happens inside handleProjectClickFromTile.
+  setOverlayDrivenHover(projectId);
+
   void handleProjectClickFromTile(projectId, latlng);
 }
 
@@ -640,7 +649,7 @@ function navigateToLonePoint(
 function getGridCellSizeForTileZoom(tileZoom: number): number {
   if (tileZoom <= 4) return 1024;
   if (tileZoom <= 6) return 512;
-  if (tileZoom <= 10) return 256;
+  if (tileZoom <= 12) return 256;
   return 128;
 }
 
@@ -707,6 +716,8 @@ function navigateToCluster(
 async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng): Promise<void> {
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
+
+  suppressPopupCloseForClick();
 
   const coordinates = pointFeature.geometry?.coordinates;
   let targetLatLng = eventLatLng;
@@ -788,10 +799,14 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (!mlMap) return;
 
     mlMap.getCanvas().style.cursor = "";
-    setOverlayDrivenHover(null);
+    clearHoverPreview();
+
+    // If a project is pinned (popup open from a click), preserve the highlight.
+    // The popup-close watcher in standaloneProjectMarkers/useVisibleProjects handles cleanup.
+    if (getOverlayDrivenHoverId() !== null) return;
+
     setVectorHoverFilters(mlMap, null);
     setPointHoverFilter(mlMap, null);
-    clearHoverPreview();
   });
 
   map.value.on("click", async (event: L.LeafletMouseEvent) => {
@@ -809,13 +824,13 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (!features.length) return;
 
     if (import.meta.env.DEV) {
-      console.log("[vector click] all features:", features);
+      //console.log("[vector click] all features:", features);
     }
 
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
       if (import.meta.env.DEV) {
-        console.log("[vector click] vector feature:", vectorFeature.layer?.id, vectorFeature);
+        //console.log("[vector click] vector feature:", vectorFeature.layer?.id, vectorFeature);
       }
       handleVectorFeatureClick(vectorFeature, event.latlng);
       return;
@@ -826,11 +841,11 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     if (pointFeature) {
       if (import.meta.env.DEV) {
-        console.log(
+        /*console.log(
           "[vector click] point feature:",
           pointFeature.layer?.id,
           pointFeature.properties,
-        );
+        );*/
       }
       void handlePointFeatureClick(pointFeature, event.latlng);
     }

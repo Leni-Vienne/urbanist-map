@@ -53,6 +53,8 @@ shapes AS (
       AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
       AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
+      -- Suppress building shapes below z13 (MapLibre z12), matching the point-layer suppression threshold
+      AND NOT ($1 <= 12 AND 'building' = ANY(p.tags))
 
     UNION ALL
 
@@ -130,7 +132,7 @@ grid_size AS (
   SELECT CASE
     WHEN $1 <= 4 THEN 1024
     WHEN $1 <= 6 THEN 512
-    WHEN $1 <= 10 THEN 256
+    WHEN $1 <= 12 THEN 256
     ELSE 128
   END AS cell_size
 ),

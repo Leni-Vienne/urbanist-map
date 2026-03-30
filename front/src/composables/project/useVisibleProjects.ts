@@ -333,12 +333,11 @@ export function useVisibleProjects() {
       lastHoveredProjectId = null;
       removeProjectOutlines(prevProjectId);
 
-      // If the popup just opened for this project (user clicked it), keep the vector tile
-      // highlight alive — it acts as a "selected" state until the popup is dismissed.
+      // If any popup is open, keep the driven hover alive — it was pinned by a click and
+      // must not be cleared by a sidebar mouseleave (which can fire when the list scrolls
+      // to the newly selected project, triggering mouseleave on the previously hovered card).
       // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
-      const popupPinsHighlight =
-        uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === prevProjectId;
-      if (!popupPinsHighlight) {
+      if (!uiStore.projectInfoPopup.visible) {
         setOverlayDrivenHover(null);
       }
     }

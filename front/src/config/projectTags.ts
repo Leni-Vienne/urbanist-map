@@ -14,18 +14,19 @@ interface ProjectTag {
   hidden?: boolean;
 }
 
+// inspired by OpenRailwayMap's style
 export const PROJECT_TAGS: ProjectTag[] = [
-  { slug: "tram", color: "#ff75d1", textColor: "#ffffff" }, // pink-400
-  { slug: "light_rail", color: "#22c55e", textColor: "#ffffff" }, // same color as park but OSM has none anyway
-  { slug: "rail", color: "#f97316", textColor: "#ffffff" }, // orange-500
-  { slug: "subway", color: "#0202fe", textColor: "#ffffff" }, // deep blue
-  { slug: "bus", color: "#ce4444", textColor: "#ffffff", hidden: true }, // muted dark red
-  { slug: "bike", color: "#16a34a", textColor: "#ffffff" }, // green-600
-  { slug: "road", color: "#dc2626", textColor: "#ffffff" }, // red-600
-  { slug: "waterway", color: "#5be1ff", textColor: "#ffffff" }, // blue-500
-  { slug: "park", color: "#22c55e", textColor: "#ffffff" }, // green-500
+  { slug: "tram", color: "#ff75d1", textColor: "#ffffff" },
+  { slug: "light_rail", color: "#22c55e", textColor: "#ffffff" },
+  { slug: "rail", color: "#f97316", textColor: "#ffffff" },
+  { slug: "subway", color: "#4c4cfc", textColor: "#ffffff" },
+  { slug: "bus", color: "#ce4444", textColor: "#ffffff", hidden: true },
+  { slug: "bike", color: "#60a5fa", textColor: "#ffffff" },
+  { slug: "road", color: "#dc2626", textColor: "#ffffff" },
+  { slug: "waterway", color: "#299eff", textColor: "#ffffff" },
+  { slug: "park", color: "#22c55e", textColor: "#ffffff" },
   { slug: "building", color: "#92400e", textColor: "#ffffff" }, // amber-800 / brown
-  { slug: "pedestrian", color: "#60a5fa", textColor: "#ffffff" }, // blue-400
+  { slug: "pedestrian", color: "#3dd5d7", textColor: "#ffffff" }, // blue-400
 ];
 
 export const PROJECT_TAG_MAP = new Map(PROJECT_TAGS.map((t) => [t.slug, t]));

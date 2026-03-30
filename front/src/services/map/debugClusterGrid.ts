@@ -21,7 +21,7 @@ const LABEL_LAYER_ID = "debug-cluster-grid-labels";
 function getCellSize(tileZoom: number): number {
   if (tileZoom <= 4) return 1024;
   if (tileZoom <= 6) return 512;
-  if (tileZoom <= 10) return 256;
+  if (tileZoom <= 12) return 256;
   return 128;
 }
 

@@ -22,12 +22,18 @@
   </div>
 
   <!-- Filter Popover (View Mode Only) -->
-  <Popover ref="filterPanel" @click.stop @dblclick.stop appendTo="body">
+  <Popover
+    ref="filterPanel"
+    @click.stop
+    @dblclick.stop
+    appendTo="body"
+    pt:root:class="filter-control-popover"
+  >
     <!-- Scrollable content: capped to 65svh so the popover stays below the top-bar button without flipping.
          overflow-x hidden removes the spurious horizontal scrollbar from the sliders. -->
     <div
-      class="min-w-55 overflow-y-auto overflow-x-hidden pr-1"
-      style="max-height: min(520px, 65svh)"
+      class="min-w-55 overflow-y-auto overflow-x-hidden pr-3"
+      style="max-height: min(600px, 70svh)"
     >
       <h3 class="m-0 mb-3 text-[0.95rem] font-semibold text-color">
         {{ $t("map.controls.filterByStatusAndTags") }}
