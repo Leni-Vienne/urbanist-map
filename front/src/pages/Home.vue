@@ -37,6 +37,9 @@
           uiStore.overlayEditDialog.visible
         "
       />
+
+      <!-- Hover preview card — always mounted so it can show before any popup is opened -->
+      <HoverPreviewCard />
     </div>
 
     <!-- Project Management Dialogs -->
@@ -87,6 +90,7 @@ import {
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
+import HoverPreviewCard from "@/components/map/popups/HoverPreviewCard.vue";
 
 // Split PopupContainer into separate chunk - loads when first popup is shown
 const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));

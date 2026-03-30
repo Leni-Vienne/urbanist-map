@@ -13,6 +13,18 @@ import { unhighlightProjectShapes } from "@/services/map/shapeRendering";
 let anchorMarker: L.Marker | null = null;
 let mapClickHandler: (() => void) | null = null;
 
+// Set to true by vector/marker click handlers to suppress the map-level close handler
+// for that same click event (both fire synchronously on the same Leaflet click).
+let suppressNextPopupClose = false;
+
+export function suppressPopupCloseForClick(): void {
+  suppressNextPopupClose = true;
+  // Reset after current event loop so it only applies to this click.
+  setTimeout(() => {
+    suppressNextPopupClose = false;
+  }, 0);
+}
+
 // Inject anchor CSS once — resets Leaflet divIcon defaults and ensures overflow is visible.
 let cssInjected = false;
 function ensureAnchorCSS() {
@@ -43,6 +55,7 @@ function createAnchorMarker(latlng: L.LatLng): L.Marker {
 
 function attachClickHandler() {
   mapClickHandler = () => {
+    if (suppressNextPopupClose) return;
     const uiStore = useUiStore();
     if (uiStore.projectInfoPopup.visible) {
       const projectId = uiStore.projectInfoPopup.projectId;

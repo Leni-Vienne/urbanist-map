@@ -5,7 +5,6 @@ import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import L from "leaflet";
 
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
-const supportedImportGeometryTypes = new Set([...drawableGeometryTypes, "Point", "MultiPoint"]);
 
 // Number of geometries to add per batch before yielding to the browser's event loop.
 const BATCH_SIZE = 20;
@@ -145,7 +144,7 @@ export async function addLayersFromGeometry(
 
   // Process in batches, yielding between each so the browser can repaint and stay responsive.
   // Without this, adding hundreds of Leaflet layers synchronously freezes the main thread.
-  for (let i = 0; i < drawableGeoms.length; i++) {
+  for (let i = 0; i < drawableGeoms.length; i += 1) {
     if (i > 0 && i % BATCH_SIZE === 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
