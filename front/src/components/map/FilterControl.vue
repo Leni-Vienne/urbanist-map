@@ -198,9 +198,22 @@ const sliderPositions = ref<[number, number]>([0, 100]);
 const prevSliderPositions = ref<[number, number]>([0, 100]);
 
 watch(sliderPositions, ([minPos, maxPos]) => {
+  // Clamp crossed handles: collapse to the handle that didn't move.
   if (minPos > maxPos) {
     const [prevMin] = prevSliderPositions.value;
     sliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+    return;
+  }
+  const [prevMin, prevMax] = prevSliderPositions.value;
+  // Enforce single-bound: only one non-default handle allowed at a time.
+  // A two-bound size filter would let a cluster pass even if no project inside matches,
+  // because the tile only carries per-cell min/max, not a full distribution.
+  if (minPos !== prevMin && minPos > 0 && maxPos < 100) {
+    sliderPositions.value = [minPos, 100];
+    return;
+  }
+  if (maxPos !== prevMax && maxPos < 100 && minPos > 0) {
+    sliderPositions.value = [0, maxPos];
     return;
   }
   prevSliderPositions.value = [minPos, maxPos];
@@ -228,9 +241,22 @@ function formatDateSlider(pos: number): string {
 }
 
 watch(dateSliderPositions, ([minPos, maxPos]) => {
+  // Clamp crossed handles: collapse to the handle that didn't move.
   if (minPos > maxPos) {
     const [prevMin] = prevDateSliderPositions.value;
     dateSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+    return;
+  }
+  const [prevMin, prevMax] = prevDateSliderPositions.value;
+  // Enforce single-bound: only one non-default handle allowed at a time.
+  // A two-bound date filter would let a cluster pass even if no project inside actually falls
+  // within the window, because tiles only carry per-cell min/max dates, not a full distribution.
+  if (minPos !== prevMin && minPos > 0 && maxPos < DATE_SLIDER_MAX) {
+    dateSliderPositions.value = [minPos, DATE_SLIDER_MAX];
+    return;
+  }
+  if (maxPos !== prevMax && maxPos < DATE_SLIDER_MAX && minPos > 0) {
+    dateSliderPositions.value = [0, maxPos];
     return;
   }
   prevDateSliderPositions.value = [minPos, maxPos];

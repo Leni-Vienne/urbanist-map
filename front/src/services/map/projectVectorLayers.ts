@@ -768,8 +768,19 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     if (!features.length) return;
 
+    if (import.meta.env.DEV) {
+      console.log("[vector click] all features:", features);
+    }
+
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
+      if (import.meta.env.DEV) {
+        console.log(
+          "[vector click] vector feature:",
+          vectorFeature.layer?.id,
+          vectorFeature.properties,
+        );
+      }
       handleVectorFeatureClick(vectorFeature, event.latlng);
       return;
     }
@@ -778,6 +789,13 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
+      if (import.meta.env.DEV) {
+        console.log(
+          "[vector click] point feature:",
+          pointFeature.layer?.id,
+          pointFeature.properties,
+        );
+      }
       void handlePointFeatureClick(pointFeature, event.latlng);
     }
   });
