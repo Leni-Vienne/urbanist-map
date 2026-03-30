@@ -59,11 +59,24 @@
           @mouseenter="hoverProject(project.id)"
           @mouseleave="hoverProject(null)"
         >
-          <!-- Tag color dot -->
-          <span
-            class="shrink-0 w-2.5 h-2.5 rounded-full"
-            :style="{ backgroundColor: tagColor(project.firstTag) }"
-          ></span>
+          <!-- Dashed line preview matching the map style for this project's status and tag color -->
+          <svg
+            width="28"
+            height="10"
+            class="shrink-0"
+            v-tooltip.right="$t(`timelineStatus.${project.timelineStatus}`, project.timelineStatus)"
+          >
+            <line
+              x1="0"
+              y1="5"
+              x2="28"
+              y2="5"
+              :stroke="tagColor(project.firstTag)"
+              stroke-width="2.5"
+              :stroke-dasharray="statusDasharray(project.timelineStatus)"
+              stroke-linecap="round"
+            />
+          </svg>
 
           <!-- Name -->
           <span
@@ -73,12 +86,23 @@
             {{ project.name || $t("project.unnamed") }}
           </span>
 
-          <!-- Status badge -->
-          <span
-            class="shrink-0 text-[0.7rem] font-semibold px-1.5 py-0.5 rounded"
-            :style="statusStyle(project.timelineStatus)"
-          >
-            {{ $t(`timelineStatus.${project.timelineStatus}`, project.timelineStatus) }}
+          <!-- Tag chips: first tag + overflow count -->
+          <span class="shrink-0 flex items-center gap-1">
+            <span
+              v-if="project.firstTag"
+              class="text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full"
+              :style="tagChipStyle(project.firstTag)"
+            >
+              {{
+                $te(`tags.${project.firstTag}`) ? $t(`tags.${project.firstTag}`) : project.firstTag
+              }}
+            </span>
+            <span
+              v-if="project.tags.length > 1"
+              class="text-[0.65rem] font-semibold text-muted-color"
+            >
+              +{{ project.tags.length - 1 }}
+            </span>
           </span>
         </button>
       </div>
@@ -111,22 +135,30 @@ const SORT_BUTTONS: { mode: SortMode; icon: string; i18nKey: string }[] = [
   { mode: "status", icon: "pi pi-calendar", i18nKey: "onMap.sortStatus" },
 ];
 
-const DEFAULT_TAG_COLOR = "#3b82f6";
+const DEFAULT_TAG_COLOR = "#6b7280";
 
 function tagColor(firstTag: string): string {
   return PROJECT_TAG_MAP.get(firstTag)?.color ?? DEFAULT_TAG_COLOR;
 }
 
-const STATUS_STYLES: Record<string, { backgroundColor: string; color: string }> = {
-  proposed: { backgroundColor: "#fef9c3", color: "#854d0e" },
-  planned: { backgroundColor: "#dbeafe", color: "#1e40af" },
-  under_construction: { backgroundColor: "#ffedd5", color: "#9a3412" },
-  completed: { backgroundColor: "#dcfce7", color: "#166534" },
-  canceled: { backgroundColor: "#f3f4f6", color: "#4b5563" },
+// dasharray values mirror FilterControl's SVG line previews (same stroke-width 2.5px):
+// proposed = short dash, planned/under_construction = long dash, completed = solid
+const STATUS_DASHARRAY: Record<string, string> = {
+  proposed: "3,4",
+  planned: "7,4",
+  under_construction: "7,4",
+  completed: "",
+  canceled: "7,4",
 };
 
-function statusStyle(status: string): Record<string, string> {
-  return STATUS_STYLES[status] ?? STATUS_STYLES["proposed"]!;
+function statusDasharray(status: string): string {
+  return STATUS_DASHARRAY[status] ?? "";
+}
+
+function tagChipStyle(slug: string): Record<string, string> {
+  const tag = PROJECT_TAG_MAP.get(slug);
+  if (!tag) return { backgroundColor: DEFAULT_TAG_COLOR, color: "#ffffff" };
+  return { backgroundColor: tag.color, color: tag.textColor };
 }
 
 const { isScrollable } = useScrollFade();

@@ -8,12 +8,23 @@ import {
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
 import {
   getOverlayDrivenHoverId,
   registerOverlayHoverCallback,
   setOverlayDrivenHover,
 } from "@/services/map/vectorHoverState";
-import { mobileAwareFlyTo, mobileAwarePanTo } from "@/services/map/mapNavigation";
+import {
+  triggerProjectHover,
+  triggerClusterHover,
+  clearHoverPreview,
+  updateHoverPreviewPosition,
+} from "@/services/map/hoverPreviewState";
+import {
+  mobileAwareFlyTo,
+  mobileAwarePanTo,
+  mobileAwareFlyToBounds,
+} from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import {
@@ -91,13 +102,13 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-const SHAPE_LINE_WIDTH = 3;
+const SHAPE_LINE_WIDTH = 2;
 const FOOTPRINT_LINE_WIDTH = 6; // = SHAPE_LINE_WIDTH * 2
 
 const SHAPE_LONG_DASH: [number, number] = [4, 2];
 const SHAPE_SHORT_DASH: [number, number] = [1.5, 2];
 const FOOTPRINT_LONG_DASH: [number, number] = [2, 1]; // = SHAPE_LONG_DASH / 2
-const FOOTPRINT_SHORT_DASH: [number, number] = [0.75, 1]; // = SHAPE_SHORT_DASH / 2
+const FOOTPRINT_SHORT_DASH: [number, number] = [0.25, 1]; // = SHAPE_SHORT_DASH / 2
 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
@@ -267,6 +278,14 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
     [
       "all",
       ["==", ["geometry-type"], "Polygon"],
+      ["!=", ["get", "timeline_status"], "proposed"],
+      getShapeZoomVisibilityFilter(),
+    ] as FilterSpecification,
+  "project-shapes-proposed-fill": () =>
+    [
+      "all",
+      ["==", ["geometry-type"], "Polygon"],
+      getIsProposedFilterExpression(),
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
   "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate: these are small stand-ins, already gated to z8+ by null size_m
@@ -412,11 +431,15 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     if (!mlMap.getLayer(layerId)) continue;
 
     const baseLayerFilter = getBaseLayerFilter();
-    // Points hover keeps points size filter; shapes-derived layers keep shapes size filter
-    const sizeFilter =
-      layerId === "project-points-hover"
-        ? getSizeFilterExpressionForPoints()
-        : getSizeFilterExpressionForShapes();
+    // Points hover keeps points size filter; shape layers keep shapes size filter; overlay footprints have no size filter
+    let sizeFilter: FilterSpecification | null = null;
+    if (layerId === "project-points-hover") {
+      sizeFilter = getSizeFilterExpressionForPoints();
+    } else if (layerId.startsWith("overlay-footprints")) {
+      sizeFilter = null;
+    } else {
+      sizeFilter = getSizeFilterExpressionForShapes();
+    }
     const merged = combineFilters(baseLayerFilter, baseFilter, sizeFilter);
     mlMap.setFilter(layerId, merged ?? baseLayerFilter);
   }
@@ -437,14 +460,6 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
     [lat + halfDegLat, lng + halfDegLng],
   );
   return Math.max(8, Math.min(16, map.value.getBoundsZoom(bounds)));
-}
-
-function getNextGridZoom(currentZoom: number): number {
-  if (currentZoom <= 4) return 5;
-  if (currentZoom <= 6) return 7;
-  if (currentZoom <= 8) return 9;
-  if (currentZoom <= 10) return 11;
-  return currentZoom + 2;
 }
 
 function getMaplibrePointFromLeafletEvent(
@@ -525,6 +540,20 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   return vectorFeature ?? null;
 }
 
+// Returns true if latlng is within EDGE_MARGIN_PX pixels of any viewport edge.
+// Used to decide whether to pan after a click so the popup is not clipped.
+const EDGE_MARGIN_PX = 120;
+function isNearViewportEdge(latlng: L.LatLng): boolean {
+  const mapEl = map.value.getContainer();
+  const point = map.value.latLngToContainerPoint(latlng);
+  return (
+    point.x < EDGE_MARGIN_PX ||
+    point.y < EDGE_MARGIN_PX ||
+    point.x > mapEl.clientWidth - EDGE_MARGIN_PX ||
+    point.y > mapEl.clientHeight - EDGE_MARGIN_PX
+  );
+}
+
 function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
   const sourceLayer = String(feature.sourceLayer);
   const projectId =
@@ -535,6 +564,29 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
   if (projectId.length === 0) {
     return;
   }
+
+  // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
+  // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
+  const currentZoom = map.value.getZoom();
+  const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
+  const idealZoom =
+    geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, latlng.lat, latlng.lng) : 14;
+  const targetZoom = Math.max(currentZoom, idealZoom);
+  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+  if (targetZoom !== currentZoom) {
+    mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
+  } else if (isNearViewportEdge(latlng)) {
+    // Only pan when the click is close to the edge, so the popup has room to open.
+    mobileAwarePanTo([latlng.lat, latlng.lng], { animate: true, duration });
+  }
+
+  // Prevent the map-level click handler in projectPopupTeleport from closing the
+  // current popup before the new one opens (both fire on the same Leaflet click).
+  suppressPopupCloseForClick();
+
+  // Pin the vector highlight immediately so mousemove cannot clear it during the
+  // async project fetch that happens inside handleProjectClickFromTile.
+  setOverlayDrivenHover(projectId);
 
   void handleProjectClickFromTile(projectId, latlng);
 }
@@ -578,8 +630,11 @@ function navigateToLonePoint(
   currentZoom: number,
 ): void {
   const hasGeometry: boolean = props.has_geometry === true;
-  const maxSizeM: number = (props.max_size_m as number | null) ?? 0;
-  const idealZoom = hasGeometry && maxSizeM > 0 ? getZoomForGeometrySize(maxSizeM, lat, lng) : 14;
+  // geometry_size_m is the representative project's own size — not max_size_m, which spans
+  // all projects in the cluster cell and is only meaningful for the client-side size filter.
+  const geometrySizeM: number = (props.geometry_size_m as number | null) ?? 0;
+  const idealZoom =
+    hasGeometry && geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, lat, lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
   if (targetZoom === currentZoom) {
@@ -589,6 +644,25 @@ function navigateToLonePoint(
   } else {
     mobileAwareFlyTo([lat, lng], targetZoom, { duration });
   }
+}
+
+// Mirrors the cell_size lookup in tiles.sql. The tile zoom passed here is MapLibre zoom
+// (= Leaflet zoom - 1). Returns the grid cell side length in MVT tile units (out of 4096).
+// Only powers of 2 that divide 4096 evenly are used — non-power-of-2 values create partial
+// stub cells at tile edges, breaking cross-tile cluster alignment.
+function getGridCellSizeForTileZoom(tileZoom: number): number {
+  if (tileZoom <= 4) return 1024;
+  if (tileZoom <= 6) return 512;
+  if (tileZoom <= 12) return 256;
+  return 128;
+}
+
+// Returns the approximate geographic width of a grid cell in meters at the given latitude.
+// Uses the equatorial tile width scaled by cos(lat) for the Mercator distortion.
+function getGridCellSizeMeters(tileZoom: number, lat: number): number {
+  const cellSize = getGridCellSizeForTileZoom(tileZoom);
+  const tileWidthM = (40_075_016 * Math.cos((lat * Math.PI) / 180)) / 2 ** tileZoom;
+  return (cellSize / 4096) * tileWidthM;
 }
 
 /**
@@ -616,22 +690,38 @@ function navigateToCluster(
 
   const repMatchesFilter = repMatchesSizeFilter && repMatchesDateFilter;
 
-  // If the representative doesn't personally match the filter, the cluster only passed because
-  // some other project elsewhere in the cell matched. Flying 3 tiers deep would land in an empty
-  // area. Instead, zoom just 1 tier to break the cluster slightly and give the user feedback,
-  // without committing to the representative's exact location.
-  const tiers = repMatchesFilter ? 3 : 1;
+  // Leaflet zoom = MapLibre zoom + 1. The cluster cell size is keyed to the tile (MapLibre) zoom.
+  const tileZoom = currentZoom - 1;
+  const cellSizeM = getGridCellSizeMeters(tileZoom, lat);
 
-  const targetZoom =
-    tiers === 1 ? currentZoom + 2 : getNextGridZoom(getNextGridZoom(getNextGridZoom(currentZoom)));
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-  mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+  if (repMatchesFilter) {
+    // Build a bounding box at half the grid cell size so we zoom past the clustering boundary,
+    // not just to it. Fitting the full cell lands at exactly the zoom where sub-clusters appear
+    // but neighboring cluster points are still on screen. Half-cell ensures we're one level deeper.
+    const halfDegLat = cellSizeM / 4 / 111_320;
+    const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
+    const cellBounds = L.latLngBounds(
+      [lat - halfDegLat, lng - halfDegLng],
+      [lat + halfDegLat, lng + halfDegLng],
+    );
+    const boundsZoom = map.value.getBoundsZoom(cellBounds, false);
+    mobileAwareFlyToBounds(cellBounds, { maxZoom: Math.max(currentZoom, boundsZoom) });
+  } else {
+    // Representative doesn't match the active filter — the cluster only passed because some
+    // other project in the cell matched. Nudge in by 2 zoom levels without committing to the
+    // representative's exact location.
+    const targetZoom = currentZoom + 2;
+    const duration = Math.min(0.3 + 2 * 0.25, 1.5);
+    mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+  }
   return true;
 }
 
 async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng): Promise<void> {
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
+
+  suppressPopupCloseForClick();
 
   const coordinates = pointFeature.geometry?.coordinates;
   let targetLatLng = eventLatLng;
@@ -667,9 +757,16 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
   // Leaflet fires mousemove at up to 500+/sec, which would saturate the main thread.
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
+  // Position updates are exempt from throttling so the card follows the cursor smoothly.
   let _hoverThrottlePending = false;
 
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
+    const clientX = event.originalEvent.clientX;
+    const clientY = event.originalEvent.clientY;
+
+    // Always update card position immediately — bypasses Vue render via direct DOM write.
+    updateHoverPreviewPosition(clientX, clientY);
+
     if (_hoverThrottlePending) return;
     _hoverThrottlePending = true;
     setTimeout(() => {
@@ -696,6 +793,9 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (getOverlayDrivenHoverId() === null) {
       setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
     }
+
+    // Hover preview card — only on pointer devices (no touch)
+    updateHoverPreview(features, pointFeature, clientX, clientY);
   });
 
   map.value.on("mouseout", () => {
@@ -703,7 +803,12 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (!mlMap) return;
 
     mlMap.getCanvas().style.cursor = "";
-    setOverlayDrivenHover(null);
+    clearHoverPreview();
+
+    // If a project is pinned (popup open from a click), preserve the highlight.
+    // The popup-close watcher in standaloneProjectMarkers/useVisibleProjects handles cleanup.
+    if (getOverlayDrivenHoverId() !== null) return;
+
     setVectorHoverFilters(mlMap, null);
     setPointHoverFilter(mlMap, null);
   });
@@ -711,6 +816,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   map.value.on("click", async (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
+
+    clearHoverPreview();
 
     const features = queryFeaturesAtLeafletEvent(
       event,
@@ -720,8 +827,15 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     if (!features.length) return;
 
+    if (import.meta.env.DEV) {
+      //console.log("[vector click] all features:", features);
+    }
+
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
+      if (import.meta.env.DEV) {
+        //console.log("[vector click] vector feature:", vectorFeature.layer?.id, vectorFeature);
+      }
       handleVectorFeatureClick(vectorFeature, event.latlng);
       return;
     }
@@ -730,9 +844,54 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
+      if (import.meta.env.DEV) {
+        /*console.log(
+          "[vector click] point feature:",
+          pointFeature.layer?.id,
+          pointFeature.properties,
+        );*/
+      }
       void handlePointFeatureClick(pointFeature, event.latlng);
     }
   });
+}
+
+/**
+ * Determine which hover preview to show based on the features under the cursor.
+ * Extracted to keep the mousemove handler below the complexity limit.
+ */
+function updateHoverPreview(
+  features: RenderedMapFeature[],
+  pointFeature: RenderedMapFeature | undefined,
+  clientX: number,
+  clientY: number,
+): void {
+  if (pointFeature) {
+    const cellCount: number = pointFeature.properties?.cell_count ?? 1;
+    const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
+    if (cellCount > 1) {
+      triggerClusterHover(cellCount, clientX, clientY);
+    } else if (projectId.length > 0) {
+      triggerProjectHover(projectId, clientX, clientY);
+    } else {
+      clearHoverPreview();
+    }
+    return;
+  }
+
+  const vectorFeature = getVectorFeatureFromFeatures(features);
+  if (vectorFeature) {
+    const projectId =
+      String(vectorFeature.sourceLayer) === "overlay-footprints"
+        ? getFeaturePropertyAsString(vectorFeature, "project_id")
+        : getFeaturePropertyAsString(vectorFeature, "id");
+    if (projectId.length > 0) {
+      triggerProjectHover(projectId, clientX, clientY);
+      return;
+    }
+  }
+
+  clearHoverPreview();
 }
 
 function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
@@ -741,11 +900,58 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
   return String(value);
 }
 
+// Gray shades for road types, replacing Liberty's yellow/orange major roads.
+// Minor roads and paths are already white/gray in Liberty and are left unchanged.
+const ROAD_COLOR_OVERRIDES: Record<string, string> = {
+  motorway: "#c0bfbf",
+  trunk: "#d0cfcf",
+  primary: "#e0dfdf",
+  secondary: "#ebebeb",
+  tertiary: "#f0efef",
+};
+
+// Casing (outline) colors — slightly darker than the fill
+const ROAD_CASING_OVERRIDES: Record<string, string> = {
+  motorway: "#a8a8a8",
+  trunk: "#b8b8b8",
+  primary: "#cccccc",
+  secondary: "#d8d8d8",
+  tertiary: "#dedede",
+};
+
 /**
- * Add all project-related MapLibre sources and layers.
+ * Overrides Liberty basemap road colors to a neutral gray palette.
+ * Only runs when the plan (vector) style is active — satellite styles have no road layers.
+ * Matches Liberty layer IDs like "road_trunk", "road_primary_casing", "tunnel_motorway", etc.
+ */
+function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
+  const layers = mlMap.getStyle().layers;
+
+  for (const layer of layers) {
+    if (layer.type !== "line") continue;
+
+    // Only target basemap road/tunnel/bridge layers
+    const id = layer.id;
+    if (!id.startsWith("road") && !id.startsWith("tunnel") && !id.startsWith("bridge")) continue;
+
+    const isCasing = id.includes("casing") || id.includes("outline") || id.includes("border");
+
+    for (const [roadType, color] of Object.entries(
+      isCasing ? ROAD_CASING_OVERRIDES : ROAD_COLOR_OVERRIDES,
+    )) {
+      if (id.includes(roadType)) {
+        mlMap.setPaintProperty(id, "line-color", color);
+        break;
+      }
+    }
+  }
+}
+
+/**
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
+  applyPlanStyleRoadOverrides(mlMap);
   // Find insertion point: after all fill-extrusion (3D buildings) layers but before labels.
   // Inserting before the very first symbol layer risks landing under 3D buildings when the
   // basemap style places fill-extrusion layers after its first symbol layers.
@@ -777,10 +983,32 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
-      filter: ["==", ["geometry-type"], "Polygon"],
+      // Exclude proposed: they get their own fill layer with reduced opacity
+      filter: [
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        ["!=", ["get", "timeline_status"], "proposed"],
+      ],
       paint: {
         "fill-color": getProjectLineColorExpression(),
         "fill-opacity": 0.2,
+      },
+    },
+    firstSymbolLayerId,
+  );
+
+  // Proposed project shapes fill — lower opacity to reduce visual weight
+  mlMap.addLayer(
+    {
+      id: "project-shapes-proposed-fill",
+      type: "fill",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: ["all", ["==", ["geometry-type"], "Polygon"], getIsProposedFilterExpression()],
+      paint: {
+        "fill-color": getProjectLineColorExpression(),
+        "fill-opacity": 0.05,
       },
     },
     firstSymbolLayerId,
@@ -796,6 +1024,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -814,6 +1043,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -822,7 +1052,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // proposed project shapes: short dashes
+  // proposed project shapes: short dashes, reduced opacity to visually de-emphasize speculative projects
   mlMap.addLayer(
     {
       id: "project-shapes-proposed-dashed",
@@ -831,9 +1061,11 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsProposedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
+        "line-opacity": 0.9,
         "line-dasharray": SHAPE_SHORT_DASH,
       },
     },
@@ -865,6 +1097,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH + 1,
@@ -885,6 +1118,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH + 1,
@@ -922,6 +1156,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -940,6 +1175,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: getIsCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -948,7 +1184,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // proposed overlay footprints: short dashes
+  // proposed overlay footprints: short dashes, reduced opacity to visually de-emphasize speculative projects
   mlMap.addLayer(
     {
       id: "overlay-footprints-proposed-dashed",
@@ -957,6 +1193,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: getIsProposedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -974,6 +1211,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -994,6 +1232,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,

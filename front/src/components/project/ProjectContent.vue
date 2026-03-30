@@ -24,6 +24,17 @@
             </span>
           </div>
           <div class="flex flex-col gap-2">
+            <div
+              v-if="project.timelineStatus"
+              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
+            >
+              <i class="pi pi-calendar text-xs text-muted-color w-3.5 shrink-0"></i>
+              <span>{{
+                $te(`timelineStatus.${project.timelineStatus}`)
+                  ? $t(`timelineStatus.${project.timelineStatus}`)
+                  : project.timelineStatus
+              }}</span>
+            </div>
             <div class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)">
               <i class="pi pi-clock text-xs text-muted-color w-3.5 shrink-0"></i>
               <ContributorInfo

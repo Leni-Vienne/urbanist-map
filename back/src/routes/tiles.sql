@@ -53,6 +53,8 @@ shapes AS (
       AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
       AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
+      -- Suppress building shapes below z13 (MapLibre z12), matching the point-layer suppression threshold
+      AND NOT ($1 <= 12 AND 'building' = ANY(p.tags))
 
     UNION ALL
 
@@ -123,16 +125,14 @@ footprints AS (
 ),
 grid_size AS (
   -- Determine the size of the logical grid used for decluttering (clustering) project markers based on zoom level.
-  -- Steps: 1024 → 796 → 512 → 384 → 256 → 192 → 128.
-  -- The z≤5 step (1024, same as z≤4) was added to reduce density at Leaflet z6 (tile z5).
-  -- The main density fix is the status-dimension collapse in the points CTE (see below).
+  -- Only powers of 2 that divide 4096 evenly are valid (128, 256, 512, 1024). Non-power-of-2 values
+  -- produce partial stub cells at tile edges, causing projects near tile boundaries to fail to cluster
+  -- with geographically adjacent projects in the neighbouring tile.
+  -- Steps: 1024 → 512 → 256 → 128.
   SELECT CASE
     WHEN $1 <= 4 THEN 1024
-    WHEN $1 <= 5 THEN 796
     WHEN $1 <= 6 THEN 512
-    WHEN $1 <= 7 THEN 384
-    WHEN $1 <= 8 THEN 256
-    WHEN $1 <= 10 THEN 192
+    WHEN $1 <= 12 THEN 256
     ELSE 128
   END AS cell_size
 ),
