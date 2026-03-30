@@ -308,6 +308,12 @@ async function addTileLayersToMap(): Promise<void> {
       }
       registerHybridInteractionHandlers(getMlMap);
 
+      if (import.meta.env.DEV) {
+        import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
+          (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(mlMap);
+        });
+      }
+
       // Notify all waiting subscribers (e.g. vectorTileSync)
       for (const cb of mlMapReadyCallbacks) cb();
       mlMapReadyCallbacks.length = 0;

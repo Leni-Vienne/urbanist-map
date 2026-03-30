@@ -13,7 +13,11 @@ import {
   registerOverlayHoverCallback,
   setOverlayDrivenHover,
 } from "@/services/map/vectorHoverState";
-import { mobileAwareFlyTo, mobileAwarePanTo } from "@/services/map/mapNavigation";
+import {
+  mobileAwareFlyTo,
+  mobileAwarePanTo,
+  mobileAwareFlyToBounds,
+} from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import {
@@ -439,14 +443,6 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
   return Math.max(8, Math.min(16, map.value.getBoundsZoom(bounds)));
 }
 
-function getNextGridZoom(currentZoom: number): number {
-  if (currentZoom <= 4) return 5;
-  if (currentZoom <= 6) return 7;
-  if (currentZoom <= 8) return 9;
-  if (currentZoom <= 10) return 11;
-  return currentZoom + 2;
-}
-
 function getMaplibrePointFromLeafletEvent(
   event: L.LeafletMouseEvent,
   mlMap: MaplibreMap,
@@ -536,6 +532,22 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
     return;
   }
 
+  // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
+  // Centering on the click latlng also ensures the popup (which opens below the anchor) has room
+  // in the viewport rather than being clipped at the edge.
+  // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
+  const currentZoom = map.value.getZoom();
+  const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
+  const idealZoom =
+    geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, latlng.lat, latlng.lng) : 14;
+  const targetZoom = Math.max(currentZoom, idealZoom);
+  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+  if (targetZoom === currentZoom) {
+    mobileAwarePanTo([latlng.lat, latlng.lng], { animate: true, duration });
+  } else {
+    mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
+  }
+
   void handleProjectClickFromTile(projectId, latlng);
 }
 
@@ -578,8 +590,11 @@ function navigateToLonePoint(
   currentZoom: number,
 ): void {
   const hasGeometry: boolean = props.has_geometry === true;
-  const maxSizeM: number = (props.max_size_m as number | null) ?? 0;
-  const idealZoom = hasGeometry && maxSizeM > 0 ? getZoomForGeometrySize(maxSizeM, lat, lng) : 14;
+  // geometry_size_m is the representative project's own size — not max_size_m, which spans
+  // all projects in the cluster cell and is only meaningful for the client-side size filter.
+  const geometrySizeM: number = (props.geometry_size_m as number | null) ?? 0;
+  const idealZoom =
+    hasGeometry && geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, lat, lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
   if (targetZoom === currentZoom) {
@@ -589,6 +604,25 @@ function navigateToLonePoint(
   } else {
     mobileAwareFlyTo([lat, lng], targetZoom, { duration });
   }
+}
+
+// Mirrors the cell_size lookup in tiles.sql. The tile zoom passed here is MapLibre zoom
+// (= Leaflet zoom - 1). Returns the grid cell side length in MVT tile units (out of 4096).
+// Only powers of 2 that divide 4096 evenly are used — non-power-of-2 values create partial
+// stub cells at tile edges, breaking cross-tile cluster alignment.
+function getGridCellSizeForTileZoom(tileZoom: number): number {
+  if (tileZoom <= 4) return 1024;
+  if (tileZoom <= 6) return 512;
+  if (tileZoom <= 10) return 256;
+  return 128;
+}
+
+// Returns the approximate geographic width of a grid cell in meters at the given latitude.
+// Uses the equatorial tile width scaled by cos(lat) for the Mercator distortion.
+function getGridCellSizeMeters(tileZoom: number, lat: number): number {
+  const cellSize = getGridCellSizeForTileZoom(tileZoom);
+  const tileWidthM = (40_075_016 * Math.cos((lat * Math.PI) / 180)) / 2 ** tileZoom;
+  return (cellSize / 4096) * tileWidthM;
 }
 
 /**
@@ -616,16 +650,30 @@ function navigateToCluster(
 
   const repMatchesFilter = repMatchesSizeFilter && repMatchesDateFilter;
 
-  // If the representative doesn't personally match the filter, the cluster only passed because
-  // some other project elsewhere in the cell matched. Flying 3 tiers deep would land in an empty
-  // area. Instead, zoom just 1 tier to break the cluster slightly and give the user feedback,
-  // without committing to the representative's exact location.
-  const tiers = repMatchesFilter ? 3 : 1;
+  // Leaflet zoom = MapLibre zoom + 1. The cluster cell size is keyed to the tile (MapLibre) zoom.
+  const tileZoom = currentZoom - 1;
+  const cellSizeM = getGridCellSizeMeters(tileZoom, lat);
 
-  const targetZoom =
-    tiers === 1 ? currentZoom + 2 : getNextGridZoom(getNextGridZoom(getNextGridZoom(currentZoom)));
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-  mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+  if (repMatchesFilter) {
+    // Build a bounding box at half the grid cell size so we zoom past the clustering boundary,
+    // not just to it. Fitting the full cell lands at exactly the zoom where sub-clusters appear
+    // but neighboring cluster points are still on screen. Half-cell ensures we're one level deeper.
+    const halfDegLat = cellSizeM / 4 / 111_320;
+    const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
+    const cellBounds = L.latLngBounds(
+      [lat - halfDegLat, lng - halfDegLng],
+      [lat + halfDegLat, lng + halfDegLng],
+    );
+    const boundsZoom = map.value.getBoundsZoom(cellBounds, false);
+    mobileAwareFlyToBounds(cellBounds, { maxZoom: Math.max(currentZoom, boundsZoom) });
+  } else {
+    // Representative doesn't match the active filter — the cluster only passed because some
+    // other project in the cell matched. Nudge in by 2 zoom levels without committing to the
+    // representative's exact location.
+    const targetZoom = currentZoom + 2;
+    const duration = Math.min(0.3 + 2 * 0.25, 1.5);
+    mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+  }
   return true;
 }
 
