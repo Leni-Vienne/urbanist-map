@@ -101,7 +101,7 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-const SHAPE_LINE_WIDTH = 3;
+const SHAPE_LINE_WIDTH = 2;
 const FOOTPRINT_LINE_WIDTH = 6; // = SHAPE_LINE_WIDTH * 2
 
 const SHAPE_LONG_DASH: [number, number] = [4, 2];
@@ -535,6 +535,20 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   return vectorFeature ?? null;
 }
 
+// Returns true if latlng is within EDGE_MARGIN_PX pixels of any viewport edge.
+// Used to decide whether to pan after a click so the popup is not clipped.
+const EDGE_MARGIN_PX = 120;
+function isNearViewportEdge(latlng: L.LatLng): boolean {
+  const mapEl = map.value.getContainer();
+  const point = map.value.latLngToContainerPoint(latlng);
+  return (
+    point.x < EDGE_MARGIN_PX ||
+    point.y < EDGE_MARGIN_PX ||
+    point.x > mapEl.clientWidth - EDGE_MARGIN_PX ||
+    point.y > mapEl.clientHeight - EDGE_MARGIN_PX
+  );
+}
+
 function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
   const sourceLayer = String(feature.sourceLayer);
   const projectId =
@@ -547,8 +561,6 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
   }
 
   // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
-  // Centering on the click latlng also ensures the popup (which opens below the anchor) has room
-  // in the viewport rather than being clipped at the edge.
   // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
   const currentZoom = map.value.getZoom();
   const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
@@ -556,10 +568,11 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
     geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, latlng.lat, latlng.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-  if (targetZoom === currentZoom) {
-    mobileAwarePanTo([latlng.lat, latlng.lng], { animate: true, duration });
-  } else {
+  if (targetZoom !== currentZoom) {
     mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
+  } else if (isNearViewportEdge(latlng)) {
+    // Only pan when the click is close to the edge, so the popup has room to open.
+    mobileAwarePanTo([latlng.lat, latlng.lng], { animate: true, duration });
   }
 
   void handleProjectClickFromTile(projectId, latlng);
@@ -802,11 +815,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
       if (import.meta.env.DEV) {
-        console.log(
-          "[vector click] vector feature:",
-          vectorFeature.layer?.id,
-          vectorFeature.properties,
-        );
+        console.log("[vector click] vector feature:", vectorFeature.layer?.id, vectorFeature);
       }
       handleVectorFeatureClick(vectorFeature, event.latlng);
       return;
@@ -872,11 +881,58 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
   return String(value);
 }
 
+// Gray shades for road types, replacing Liberty's yellow/orange major roads.
+// Minor roads and paths are already white/gray in Liberty and are left unchanged.
+const ROAD_COLOR_OVERRIDES: Record<string, string> = {
+  motorway: "#c0bfbf",
+  trunk: "#d0cfcf",
+  primary: "#e0dfdf",
+  secondary: "#ebebeb",
+  tertiary: "#f0efef",
+};
+
+// Casing (outline) colors — slightly darker than the fill
+const ROAD_CASING_OVERRIDES: Record<string, string> = {
+  motorway: "#a8a8a8",
+  trunk: "#b8b8b8",
+  primary: "#cccccc",
+  secondary: "#d8d8d8",
+  tertiary: "#dedede",
+};
+
 /**
- * Add all project-related MapLibre sources and layers.
+ * Overrides Liberty basemap road colors to a neutral gray palette.
+ * Only runs when the plan (vector) style is active — satellite styles have no road layers.
+ * Matches Liberty layer IDs like "road_trunk", "road_primary_casing", "tunnel_motorway", etc.
+ */
+function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
+  const layers = mlMap.getStyle().layers;
+
+  for (const layer of layers) {
+    if (layer.type !== "line") continue;
+
+    // Only target basemap road/tunnel/bridge layers
+    const id = layer.id;
+    if (!id.startsWith("road") && !id.startsWith("tunnel") && !id.startsWith("bridge")) continue;
+
+    const isCasing = id.includes("casing") || id.includes("outline") || id.includes("border");
+
+    for (const [roadType, color] of Object.entries(
+      isCasing ? ROAD_CASING_OVERRIDES : ROAD_COLOR_OVERRIDES,
+    )) {
+      if (id.includes(roadType)) {
+        mlMap.setPaintProperty(id, "line-color", color);
+        break;
+      }
+    }
+  }
+}
+
+/**
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
+  applyPlanStyleRoadOverrides(mlMap);
   // Find insertion point: after all fill-extrusion (3D buildings) layers but before labels.
   // Inserting before the very first symbol layer risks landing under 3D buildings when the
   // basemap style places fill-extrusion layers after its first symbol layers.
@@ -949,6 +1005,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -967,6 +1024,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -984,6 +1042,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsProposedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -1019,6 +1078,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH + 1,
@@ -1039,6 +1099,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH + 1,
@@ -1076,6 +1137,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1094,6 +1156,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: getIsCompletedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1111,6 +1174,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: getIsProposedFilterExpression(),
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1128,6 +1192,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1148,6 +1213,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
+      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
