@@ -297,6 +297,12 @@ async function addTileLayersToMap(): Promise<void> {
     activeBaseLayer = leafletLayer;
 
     const mlMap = leafletLayer.getMaplibreMap();
+
+    // Add a dummy image to prevent "styleimagemissing" errors for missing cluster icons.
+    mlMap.on("styleimagemissing", (e: { id: string }) => {
+      mlMap.addImage(e.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
+    });
+
     mlMap.on("load", () => {
       mlMapRef.current = mlMap;
 
