@@ -70,9 +70,9 @@ function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
   const lines: GeoJSON.Feature[] = [];
   const labels: GeoJSON.Feature[] = [];
 
-  for (let tx = minTileX - 1; tx <= maxTileX + 1; tx++) {
-    for (let ty = minTileY - 1; ty <= maxTileY + 1; ty++) {
-      for (let cx = 0; cx <= numCells; cx++) {
+  for (let tx = minTileX - 1; tx <= maxTileX + 1; tx += 1) {
+    for (let ty = minTileY - 1; ty <= maxTileY + 1; ty += 1) {
+      for (let cx = 0; cx <= numCells; cx += 1) {
         const px = cx * cellSize;
         const top = tilePxToLngLat(tx, ty, px, 0, z);
         const bottom = tilePxToLngLat(tx, ty, px, 4096, z);
@@ -82,7 +82,7 @@ function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
           properties: {},
         });
       }
-      for (let cy = 0; cy <= numCells; cy++) {
+      for (let cy = 0; cy <= numCells; cy += 1) {
         const py = cy * cellSize;
         const left = tilePxToLngLat(tx, ty, 0, py, z);
         const right = tilePxToLngLat(tx, ty, 4096, py, z);
@@ -93,8 +93,8 @@ function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
         });
       }
       // Cell index label at each cell center
-      for (let cx = 0; cx < numCells; cx++) {
-        for (let cy = 0; cy < numCells; cy++) {
+      for (let cx = 0; cx < numCells; cx += 1) {
+        for (let cy = 0; cy < numCells; cy += 1) {
           const [lng, lat] = tilePxToLngLat(
             tx,
             ty,

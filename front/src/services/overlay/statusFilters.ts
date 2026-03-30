@@ -63,7 +63,7 @@ export const selectedProjectTags = ref<string[]>([]);
 export const UNTAGGED_PROJECT_FILTER = "__untagged__";
 
 // Size filter: [minMeters, maxMeters]. Infinity = no upper bound.
-export const sizeFilterRange = ref<[number, number]>([0, Infinity]);
+export const sizeFilterRange = ref<[number, number]>([15, Infinity]);
 
 // Name filter: "named" = projects with a non-empty name, "unnamed" = projects without a name.
 // Empty array means show all.

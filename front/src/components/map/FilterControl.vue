@@ -149,7 +149,14 @@
           {{ $t("map.controls.filterBySize") }}
         </p>
         <div class="px-1">
-          <Slider v-model="sliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
+          <Slider
+            v-model="sizeSliderPositions"
+            :min="0"
+            :max="100"
+            :step="1"
+            range
+            class="w-full"
+          />
           <div class="flex justify-between mt-2 text-xs text-color-secondary">
             <span>{{ formatSize(sizeFilterRange[0]) }}</span>
             <span>{{ formatSize(sizeFilterRange[1]) }}</span>
@@ -214,29 +221,29 @@ function posToMeters(pos: number): number {
   return Math.round(LOG_SCALE_REF ** (pos / 100) - 1);
 }
 
-const sliderPositions = ref<[number, number]>([0, 100]);
-const prevSliderPositions = ref<[number, number]>([0, 100]);
+const sizeSliderPositions = ref<[number, number]>([20, 100]); // corresponds to 15m
+const prevSizeSliderPositions = ref<[number, number]>([0, 100]);
 
-watch(sliderPositions, ([minPos, maxPos]) => {
+watch(sizeSliderPositions, ([minPos, maxPos]) => {
   // Clamp crossed handles: collapse to the handle that didn't move.
   if (minPos > maxPos) {
-    const [prevMin] = prevSliderPositions.value;
-    sliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+    const [prevMin] = prevSizeSliderPositions.value;
+    sizeSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
     return;
   }
-  const [prevMin, prevMax] = prevSliderPositions.value;
+  const [prevMin, prevMax] = prevSizeSliderPositions.value;
   // Enforce single-bound: only one non-default handle allowed at a time.
   // A two-bound size filter would let a cluster pass even if no project inside matches,
   // because the tile only carries per-cell min/max, not a full distribution.
   if (minPos !== prevMin && minPos > 0 && maxPos < 100) {
-    sliderPositions.value = [minPos, 100];
+    sizeSliderPositions.value = [minPos, 100];
     return;
   }
   if (maxPos !== prevMax && maxPos < 100 && minPos > 0) {
-    sliderPositions.value = [0, maxPos];
+    sizeSliderPositions.value = [0, maxPos];
     return;
   }
-  prevSliderPositions.value = [minPos, maxPos];
+  prevSizeSliderPositions.value = [minPos, maxPos];
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
 });
 

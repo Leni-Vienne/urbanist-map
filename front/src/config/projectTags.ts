@@ -26,7 +26,7 @@ export const PROJECT_TAGS: ProjectTag[] = [
   { slug: "waterway", color: "#299eff", textColor: "#ffffff" },
   { slug: "park", color: "#22c55e", textColor: "#ffffff" },
   { slug: "building", color: "#92400e", textColor: "#ffffff" }, // amber-800 / brown
-  { slug: "pedestrian", color: "#3dd5d7", textColor: "#ffffff" }, // blue-400
+  { slug: "pedestrian", color: "#d8a82e", textColor: "#ffffff" }, // blue-400
 ];
 
 export const PROJECT_TAG_MAP = new Map(PROJECT_TAGS.map((t) => [t.slug, t]));
