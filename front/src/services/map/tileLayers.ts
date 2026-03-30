@@ -142,7 +142,7 @@ export function onMlMapReady(cb: () => void): void {
 let activeBaseLayer: MaplibreGL | null = null;
 
 // Cached after first load — undefined until the user first uses satellite mode
-let countryBorders: CountryBorder[] | undefined;
+let countryBorders: CountryBorder[] | undefined = undefined;
 
 let lastPendingProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
 

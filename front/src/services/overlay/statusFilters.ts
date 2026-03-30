@@ -139,6 +139,7 @@ function matchesSelectedTags(tags: string[] | null | undefined): boolean {
  */
 function matchesNameFilter(name: string | null | undefined): boolean {
   if (selectedNameFilters.value.length === 0) return true;
+  // oxlint-disable-next-line no-implicit-coercion
   const hasName = !!name && name.trim().length > 0;
   if (
     selectedNameFilters.value.includes("named") &&

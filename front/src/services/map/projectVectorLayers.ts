@@ -108,7 +108,7 @@ const FOOTPRINT_LINE_WIDTH = 6; // = SHAPE_LINE_WIDTH * 2
 const SHAPE_LONG_DASH: [number, number] = [4, 2];
 const SHAPE_SHORT_DASH: [number, number] = [1.5, 2];
 const FOOTPRINT_LONG_DASH: [number, number] = [2, 1]; // = SHAPE_LONG_DASH / 2
-const FOOTPRINT_SHORT_DASH: [number, number] = [0.75, 1]; // = SHAPE_SHORT_DASH / 2
+const FOOTPRINT_SHORT_DASH: [number, number] = [0.25, 1]; // = SHAPE_SHORT_DASH / 2
 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
@@ -431,11 +431,15 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     if (!mlMap.getLayer(layerId)) continue;
 
     const baseLayerFilter = getBaseLayerFilter();
-    // Points hover keeps points size filter; shapes-derived layers keep shapes size filter
-    const sizeFilter =
-      layerId === "project-points-hover"
-        ? getSizeFilterExpressionForPoints()
-        : getSizeFilterExpressionForShapes();
+    // Points hover keeps points size filter; shape layers keep shapes size filter; overlay footprints have no size filter
+    let sizeFilter: FilterSpecification | null = null;
+    if (layerId === "project-points-hover") {
+      sizeFilter = getSizeFilterExpressionForPoints();
+    } else if (layerId.startsWith("overlay-footprints")) {
+      sizeFilter = null;
+    } else {
+      sizeFilter = getSizeFilterExpressionForShapes();
+    }
     const merged = combineFilters(baseLayerFilter, baseFilter, sizeFilter);
     mlMap.setFilter(layerId, merged ?? baseLayerFilter);
   }
@@ -757,8 +761,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   let _hoverThrottlePending = false;
 
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
-    const clientX = (event.originalEvent as MouseEvent).clientX;
-    const clientY = (event.originalEvent as MouseEvent).clientY;
+    const clientX = event.originalEvent.clientX;
+    const clientY = event.originalEvent.clientY;
 
     // Always update card position immediately — bypasses Vue render via direct DOM write.
     updateHoverPreviewPosition(clientX, clientY);

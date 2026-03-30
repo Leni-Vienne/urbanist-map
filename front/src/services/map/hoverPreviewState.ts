@@ -8,7 +8,7 @@ import { createProjectObject } from "@/utils/typeFactories";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import type { Project } from "@/types/index";
 
-export type HoverPreviewState =
+type HoverPreviewState =
   | {
       type: "project";
       projectId: string;

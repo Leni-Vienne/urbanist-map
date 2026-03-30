@@ -3,7 +3,7 @@
     <div
       v-if="hoverPreview && !suppress"
       ref="cardEl"
-      class="hover-preview-card pointer-events-none fixed z-[9999] bg-content-background rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.14),0_1px_4px_rgba(0,0,0,0.06)] px-3 py-2 flex flex-col gap-1 max-w-56"
+      class="hover-preview-card pointer-events-none fixed z-9999 bg-content-background rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.14),0_1px_4px_rgba(0,0,0,0.06)] px-3 py-2 flex flex-col gap-1 max-w-56"
     >
       <!-- Cluster tooltip -->
       <template v-if="hoverPreview.type === 'cluster'">
