@@ -117,7 +117,8 @@
     "road": "Route",
     "waterway": "Voie d'eau",
     "park": "Parc / Espace vert",
-    "building": "Bâtiment"
+    "building": "Bâtiment",
+    "pedestrian": "Piéton"
   },
   "approvalStatus": {
     "approved": "Approuvé",
@@ -222,13 +223,15 @@
     "viewModeTooltip": "Consulter les contributions sur la carte",
     "editModeTooltip": "Vous pouvez ajouter et modifier des contributions sur la carte",
     "switchMode": "Changer de mode",
+    "clusterProjects": "{count} projets",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
-      "filterByStatus": "Filtrer par statut",
+      "filterByStatus": "Chronologie",
+      "filterByName": "Nom",
       "filterBySize": "Filtrer par taille",
       "resetSize": "Réinitialiser",
       "filterByStatusAndTags": "Filtres",
-      "filterByTags": "Filtrer par catégories",
+      "filterByTags": "Type",
       "clearTagFilters": "Effacer",
       "untagged": "Sans catégorie",
       "proposed": "Proposé",

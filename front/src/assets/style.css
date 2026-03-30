@@ -101,6 +101,11 @@ body {
   /* Ensure popovers appear above other elements like drawers */
 }
 
+/* Remove right padding from the filter popover content so the scrollbar sits flush with the edge */
+.filter-control-popover .p-popover-content {
+  padding-right: 0;
+}
+
 /* Shared link styling for consistent, accessible links across the app */
 .app-link {
   color: var(--p-primary-color);

@@ -117,7 +117,12 @@ function updateLeafletAttribution(newAttribution: string) {
 export const currentTileLayer = ref<TileLayerType>("plan");
 
 /** Reference to the underlying MapLibre map instance. Available after mlMapReadyCallbacks fire. */
-const mlMapRef = { current: null as MaplibreMap | null };
+// During Vite HMR, the module re-executes but the MapLibre instance is still alive on the page.
+// We preserve it via import.meta.hot.data so onMlMapReady callers don't get stuck waiting
+// for a `load` event that will never fire again.
+const mlMapRef = {
+  current: (import.meta.hot?.data.mlMap as MaplibreMap | null) ?? null,
+};
 const mlMapReadyCallbacks: (() => void)[] = [];
 
 export function getMlMap(): MaplibreMap | null {
@@ -137,7 +142,7 @@ export function onMlMapReady(cb: () => void): void {
 let activeBaseLayer: MaplibreGL | null = null;
 
 // Cached after first load — undefined until the user first uses satellite mode
-let countryBorders: CountryBorder[] | undefined;
+let countryBorders: CountryBorder[] | undefined = undefined;
 
 let lastPendingProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
 
@@ -297,6 +302,12 @@ async function addTileLayersToMap(): Promise<void> {
     activeBaseLayer = leafletLayer;
 
     const mlMap = leafletLayer.getMaplibreMap();
+
+    // Add a dummy image to prevent "styleimagemissing" errors for missing cluster icons.
+    mlMap.on("styleimagemissing", (e: { id: string }) => {
+      mlMap.addImage(e.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
+    });
+
     mlMap.on("load", () => {
       mlMapRef.current = mlMap;
 
@@ -307,6 +318,12 @@ async function addTileLayersToMap(): Promise<void> {
         updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
       }
       registerHybridInteractionHandlers(getMlMap);
+
+      if (import.meta.env.DEV) {
+        import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
+          (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(mlMap);
+        });
+      }
 
       // Notify all waiting subscribers (e.g. vectorTileSync)
       for (const cb of mlMapReadyCallbacks) cb();
@@ -609,5 +626,10 @@ function initEsriMetadataListener() {
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
+  // Save the live MapLibre instance before the module is discarded so the
+  // replacement module can restore it and skip the stale `load` event wait.
+  import.meta.hot.dispose((data) => {
+    data.mlMap = mlMapRef.current;
+  });
   import.meta.hot.accept();
 }

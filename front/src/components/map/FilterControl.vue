@@ -22,14 +22,30 @@
   </div>
 
   <!-- Filter Popover (View Mode Only) -->
-  <Popover ref="filterPanel" @click.stop @dblclick.stop appendTo="body">
-    <div class="min-w-55">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="m-0 text-[0.95rem] font-semibold text-color">
-          {{ $t("map.controls.filterByStatusAndTags") }}
-        </h3>
+  <Popover
+    ref="filterPanel"
+    @click.stop
+    @dblclick.stop
+    appendTo="body"
+    pt:root:class="filter-control-popover"
+  >
+    <!-- Scrollable content: capped to 65svh so the popover stays below the top-bar button without flipping.
+         overflow-x hidden removes the spurious horizontal scrollbar from the sliders. -->
+    <div
+      class="min-w-55 overflow-y-auto overflow-x-hidden pr-3"
+      style="max-height: min(600px, 70svh)"
+    >
+      <h3 class="m-0 mb-3 text-[0.95rem] font-semibold text-color">
+        {{ $t("map.controls.filterByStatusAndTags") }}
+      </h3>
+
+      <!-- Type (tags) section -->
+      <div class="flex items-center justify-between mb-1.5">
+        <p class="m-0 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+          {{ $t("map.controls.filterByTags") }}
+        </p>
         <button
-          v-if="selectedProjectTags.length > 0"
+          v-if="selectedProjectTags.filter((t) => t !== untaggedFilter).length > 0"
           type="button"
           class="text-xs text-color-secondary underline cursor-pointer bg-transparent border-0 p-0"
           @click.stop="clearTagFilters"
@@ -38,69 +54,7 @@
           {{ $t("map.controls.clearTagFilters") }}
         </button>
       </div>
-      <div class="flex flex-wrap gap-2 max-w-70">
-        <button
-          v-for="{ color, labelKey, ariaKey } in filters"
-          :key="color"
-          type="button"
-          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-          :aria-pressed="selectedStatusFilters.includes(color)"
-          :style="getStatusButtonStyle(color)"
-          @click.stop="toggleCompletionFilter(color)"
-          @dblclick.stop
-          :aria-label="$t(ariaKey)"
-        >
-          {{ $t(labelKey) }}
-        </button>
-
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-          :aria-pressed="selectedProjectTags.includes(untaggedFilter)"
-          :style="
-            selectedProjectTags.includes(untaggedFilter)
-              ? {
-                  backgroundColor: 'var(--p-surface-500)',
-                  color: 'var(--p-surface-0)',
-                  borderColor: 'var(--p-surface-500)',
-                }
-              : {
-                  backgroundColor: 'transparent',
-                  color: 'var(--p-text-color-secondary)',
-                  borderColor: 'var(--p-surface-400)',
-                }
-          "
-          @click.stop="toggleTagFilter(untaggedFilter)"
-          @dblclick.stop
-        >
-          {{ $t("map.controls.untagged") }}
-        </button>
-
-        <button
-          v-for="nameVal in nameFilters"
-          :key="nameVal"
-          type="button"
-          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-          :aria-pressed="selectedNameFilters.includes(nameVal)"
-          :style="
-            selectedNameFilters.includes(nameVal)
-              ? {
-                  backgroundColor: 'var(--p-surface-500)',
-                  color: 'var(--p-surface-0)',
-                  borderColor: 'var(--p-surface-500)',
-                }
-              : {
-                  backgroundColor: 'transparent',
-                  color: 'var(--p-text-color-secondary)',
-                  borderColor: 'var(--p-surface-400)',
-                }
-          "
-          @click.stop="handleToggleNameFilter(nameVal)"
-          @dblclick.stop
-        >
-          {{ $t(`map.controls.${nameVal}`) }}
-        </button>
-
+      <div class="flex flex-wrap gap-2 max-w-70 mb-4">
         <button
           v-for="tag in allTags"
           :key="tag.slug"
@@ -125,12 +79,84 @@
         </button>
       </div>
 
-      <div class="mt-4">
-        <h3 class="m-0 mb-2 text-[0.95rem] font-semibold text-color">
+      <!-- Timeline section -->
+      <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+        {{ $t("map.controls.filterByStatus") }}
+      </p>
+      <div class="flex flex-col gap-1 mb-4">
+        <label
+          v-for="{ color, labelKey, ariaKey, dasharray } in filters"
+          :key="color"
+          class="flex items-center gap-2 cursor-pointer text-sm text-color"
+        >
+          <input
+            type="checkbox"
+            :checked="selectedStatusFilters.includes(color)"
+            :aria-label="$t(ariaKey)"
+            @change="toggleCompletionFilter(color)"
+            @click.stop
+          />
+          <!-- SVG line preview matching the map line style for this status.
+               Uses the selected tag color when exactly one type tag is active. -->
+          <svg width="28" height="10" aria-hidden="true" style="flex-shrink: 0">
+            <line
+              x1="0"
+              y1="5"
+              x2="28"
+              y2="5"
+              :stroke="linePreviewColor"
+              stroke-width="2.5"
+              :stroke-dasharray="dasharray"
+              stroke-linecap="round"
+            />
+          </svg>
+          {{ $t(labelKey) }}
+        </label>
+      </div>
+
+      <!-- Name section -->
+      <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+        {{ $t("map.controls.filterByName") }}
+      </p>
+      <div class="flex flex-col gap-1 mb-4">
+        <label
+          v-for="nameVal in nameFilters"
+          :key="nameVal"
+          class="flex items-center gap-2 cursor-pointer text-sm text-color"
+        >
+          <input
+            type="checkbox"
+            :checked="selectedNameFilters.includes(nameVal)"
+            @change="handleToggleNameFilter(nameVal)"
+            @click.stop
+          />
+          {{ $t(`map.controls.${nameVal}`) }}
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
+          <input
+            type="checkbox"
+            :checked="selectedProjectTags.includes(untaggedFilter)"
+            @change="toggleTagFilter(untaggedFilter)"
+            @click.stop
+          />
+          {{ $t("map.controls.untagged") }}
+        </label>
+      </div>
+
+      <!-- Size slider -->
+      <div class="mb-4">
+        <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
           {{ $t("map.controls.filterBySize") }}
-        </h3>
+        </p>
         <div class="px-1">
-          <Slider v-model="sliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
+          <Slider
+            v-model="sizeSliderPositions"
+            :min="0"
+            :max="100"
+            :step="1"
+            range
+            class="w-full"
+          />
           <div class="flex justify-between mt-2 text-xs text-color-secondary">
             <span>{{ formatSize(sizeFilterRange[0]) }}</span>
             <span>{{ formatSize(sizeFilterRange[1]) }}</span>
@@ -138,10 +164,11 @@
         </div>
       </div>
 
-      <div class="mt-4">
-        <h3 class="m-0 mb-2 text-[0.95rem] font-semibold text-color">
+      <!-- Last modified slider -->
+      <div>
+        <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
           {{ $t("map.controls.filterByLastModified") }}
-        </h3>
+        </p>
         <div class="px-1">
           <Slider
             v-model="dateSliderPositions"
@@ -194,16 +221,29 @@ function posToMeters(pos: number): number {
   return Math.round(LOG_SCALE_REF ** (pos / 100) - 1);
 }
 
-const sliderPositions = ref<[number, number]>([0, 100]);
-const prevSliderPositions = ref<[number, number]>([0, 100]);
+const sizeSliderPositions = ref<[number, number]>([20, 100]); // corresponds to 15m
+const prevSizeSliderPositions = ref<[number, number]>([0, 100]);
 
-watch(sliderPositions, ([minPos, maxPos]) => {
+watch(sizeSliderPositions, ([minPos, maxPos]) => {
+  // Clamp crossed handles: collapse to the handle that didn't move.
   if (minPos > maxPos) {
-    const [prevMin] = prevSliderPositions.value;
-    sliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+    const [prevMin] = prevSizeSliderPositions.value;
+    sizeSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
     return;
   }
-  prevSliderPositions.value = [minPos, maxPos];
+  const [prevMin, prevMax] = prevSizeSliderPositions.value;
+  // Enforce single-bound: only one non-default handle allowed at a time.
+  // A two-bound size filter would let a cluster pass even if no project inside matches,
+  // because the tile only carries per-cell min/max, not a full distribution.
+  if (minPos !== prevMin && minPos > 0 && maxPos < 100) {
+    sizeSliderPositions.value = [minPos, 100];
+    return;
+  }
+  if (maxPos !== prevMax && maxPos < 100 && minPos > 0) {
+    sizeSliderPositions.value = [0, maxPos];
+    return;
+  }
+  prevSizeSliderPositions.value = [minPos, maxPos];
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
 });
 
@@ -228,9 +268,22 @@ function formatDateSlider(pos: number): string {
 }
 
 watch(dateSliderPositions, ([minPos, maxPos]) => {
+  // Clamp crossed handles: collapse to the handle that didn't move.
   if (minPos > maxPos) {
     const [prevMin] = prevDateSliderPositions.value;
     dateSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+    return;
+  }
+  const [prevMin, prevMax] = prevDateSliderPositions.value;
+  // Enforce single-bound: only one non-default handle allowed at a time.
+  // A two-bound date filter would let a cluster pass even if no project inside actually falls
+  // within the window, because tiles only carry per-cell min/max dates, not a full distribution.
+  if (minPos !== prevMin && minPos > 0 && maxPos < DATE_SLIDER_MAX) {
+    dateSliderPositions.value = [minPos, DATE_SLIDER_MAX];
+    return;
+  }
+  if (maxPos !== prevMax && maxPos < DATE_SLIDER_MAX && minPos > 0) {
+    dateSliderPositions.value = [0, maxPos];
     return;
   }
   prevDateSliderPositions.value = [minPos, maxPos];
@@ -251,27 +304,59 @@ function formatSize(meters: number): string {
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
   return `${meters}m`;
 }
-import { markerColors } from "@/services/map/markers";
 import type { viewModeMarkerColor } from "@/types/index";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { PROJECT_TAGS } from "@/config/projectTags";
+import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 
-const filters: { color: viewModeMarkerColor; labelKey: string; ariaKey: string }[] = [
-  { color: "yellow", labelKey: "timelineStatus.proposed", ariaKey: "map.controls.toggleProposed" },
-  { color: "blue", labelKey: "timelineStatus.planned", ariaKey: "map.controls.togglePlanned" },
+// dasharray values mirror the map line styles (SVG units, scaled for visibility at 2.5px stroke):
+// proposed = short dash (SHAPE_SHORT_DASH 1.5,2 scaled), others = long dash (SHAPE_LONG_DASH 4,2 scaled), completed = solid
+// "canceled" is intentionally omitted from the UI for now — too confusing for most users.
+const filters: {
+  color: viewModeMarkerColor;
+  labelKey: string;
+  ariaKey: string;
+  dasharray: string;
+}[] = [
+  {
+    color: "yellow",
+    labelKey: "timelineStatus.proposed",
+    ariaKey: "map.controls.toggleProposed",
+    dasharray: "3,4",
+  },
+  {
+    color: "blue",
+    labelKey: "timelineStatus.planned",
+    ariaKey: "map.controls.togglePlanned",
+    dasharray: "7,4",
+  },
   {
     color: "orange",
     labelKey: "timelineStatus.under_construction",
     ariaKey: "map.controls.toggleInProgress",
+    dasharray: "7,4",
   },
-  { color: "green", labelKey: "timelineStatus.completed", ariaKey: "map.controls.toggleCompleted" },
-  { color: "grey", labelKey: "timelineStatus.canceled", ariaKey: "map.controls.toggleCanceled" },
+  {
+    color: "green",
+    labelKey: "timelineStatus.completed",
+    ariaKey: "map.controls.toggleCompleted",
+    dasharray: "",
+  },
 ];
+
+// When exactly one type tag is active, use its color for the line previews so users
+// can see what the map lines would look like for that tag. Otherwise neutral grey.
+const linePreviewColor = computed(() => {
+  const tagSlugs = selectedProjectTags.value.filter((t) => t !== UNTAGGED_PROJECT_FILTER);
+  if (tagSlugs.length === 1) {
+    return PROJECT_TAG_MAP.get(tagSlugs[0] ?? "")?.color ?? "#6b7280";
+  }
+  return "#6b7280";
+});
 
 const { isMobile } = useIsMobile();
 const { theme } = useTheme();
-const allTags = PROJECT_TAGS;
+const allTags = PROJECT_TAGS.filter((t) => !t.hidden);
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
 
 const activeFilterCount = computed(() => {
@@ -299,37 +384,6 @@ const filterPanel = ref();
 const emit = defineEmits<{
   "filter-overlays": [];
 }>();
-
-// Get button style based on selection state
-function getStatusButtonStyle(color: viewModeMarkerColor) {
-  const baseColor = markerColors[color];
-  const isSelected = selectedStatusFilters.value.includes(color);
-
-  if (isSelected) {
-    return {
-      backgroundColor: baseColor,
-      color: getContrastTextColor(baseColor),
-      borderColor: baseColor,
-    };
-  }
-
-  return {
-    backgroundColor: "transparent",
-    color: baseColor,
-    borderColor: baseColor,
-  };
-}
-
-// Determine if text should be white or dark based on background color
-function getContrastTextColor(hexColor: string): string {
-  const hex = hexColor.replace("#", "");
-  const r = Number.parseInt(hex.substring(0, 2), 16);
-  const g = Number.parseInt(hex.substring(2, 4), 16);
-  const b = Number.parseInt(hex.substring(4, 6), 16);
-  // Using relative luminance formula
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? "#1a1a1a" : "#ffffff";
-}
 
 // Toggle filter panel visibility
 function toggleFilterPanel(event: Event) {

@@ -305,6 +305,30 @@ const canDeleteProject = computed(() => {
 </script>
 
 <style scoped>
+/* Entrance animation for overlay-source popup (resting transform: translateY(20px)) */
+@keyframes popup-enter-overlay {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scaleY(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(20px) scaleY(1);
+  }
+}
+
+/* Entrance animation for marker-source popup (resting transform: translateX(-50%) translateY(20px)) */
+@keyframes popup-enter-marker {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px) scaleY(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(20px) scaleY(1);
+  }
+}
+
 /* Arrow pointing to the triggering element */
 .unified-popup::before {
   content: "";
@@ -320,6 +344,8 @@ const canDeleteProject = computed(() => {
 /* Positioning for overlay toolbar source */
 .popup-source-overlay {
   transform: translateY(20px);
+  animation: popup-enter-overlay 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  transform-origin: top left;
 }
 
 .popup-source-overlay::before {
@@ -329,6 +355,8 @@ const canDeleteProject = computed(() => {
 /* Positioning for project marker source */
 .popup-source-marker {
   transform: translateX(-50%) translateY(20px);
+  animation: popup-enter-marker 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  transform-origin: top center;
 }
 
 .popup-source-marker::before {

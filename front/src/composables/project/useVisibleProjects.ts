@@ -20,6 +20,8 @@ interface VisibleProject {
   id: string;
   name: string | null;
   firstTag: string;
+  /** All tags for the project, parsed from the MVT JSON-encoded array property. */
+  tags: string[];
   timelineStatus: string;
   lastModifiedS: number;
   sizeM: number;
@@ -80,6 +82,16 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
   return false;
 }
 
+/** MVT serializes PostgreSQL arrays as JSON strings; parse defensively. */
+function parseMvtTags(raw: unknown): string[] {
+  try {
+    if (Array.isArray(raw)) return raw as string[];
+    return JSON.parse(typeof raw === "string" ? raw : "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
 function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisibleProject[] {
   const seen = new Map<string, VisibleProject>();
   for (const f of features) {
@@ -90,11 +102,13 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
     if (!id) continue;
     const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
     const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
+    const tags = parseMvtTags(props.tags);
     if (!seen.has(id)) {
       seen.set(id, {
         id,
         name,
         firstTag: props.first_tag ?? "",
+        tags,
         timelineStatus: props.timeline_status ?? "",
         lastModifiedS: Number(props.last_modified_s ?? 0),
         sizeM,
@@ -302,6 +316,11 @@ export function useVisibleProjects() {
     }
   });
 
+  // Suppresses hover updates while the camera is flying after a project click.
+  // Cleared on Leaflet's moveend so accidental mouseover on reshuffled rows
+  // doesn't highlight a different project.
+  let suppressHover = false;
+
   function navigateToProject(project: VisibleProject) {
     const latlng =
       project.lat !== null && project.lng !== null
@@ -317,6 +336,18 @@ export function useVisibleProjects() {
       [latlng.lat + halfDeg, latlng.lng + halfDeg],
     );
     const zoom = Math.min(map.value.getBoundsZoom(bounds, false), 19);
+
+    // Block hover events until the list has finished re-rendering after the fly.
+    // moveend fires when the camera stops, but the list updates asynchronously
+    // (MapLibre idle → doRefresh → Vue re-render). A short delay after moveend
+    // ensures the DOM has settled before hover is re-enabled.
+    suppressHover = true;
+    map.value.once("moveend", () => {
+      setTimeout(() => {
+        suppressHover = false;
+      }, 200);
+    });
+
     mobileAwareFlyTo(latlng, zoom, { duration: 1.5, easeLinearity: 0.25 });
 
     void handleProjectClickFromTile(project.id, latlng);
@@ -325,6 +356,7 @@ export function useVisibleProjects() {
   let lastHoveredProjectId: string | null = null;
 
   function hoverProject(projectId: string | null) {
+    if (suppressHover) return;
     if (projectId) {
       highlightProjectOverlaysOnHover(projectId);
       lastHoveredProjectId = projectId;
@@ -333,12 +365,11 @@ export function useVisibleProjects() {
       lastHoveredProjectId = null;
       removeProjectOutlines(prevProjectId);
 
-      // If the popup just opened for this project (user clicked it), keep the vector tile
-      // highlight alive — it acts as a "selected" state until the popup is dismissed.
+      // If any popup is open, keep the driven hover alive — it was pinned by a click and
+      // must not be cleared by a sidebar mouseleave (which can fire when the list scrolls
+      // to the newly selected project, triggering mouseleave on the previously hovered card).
       // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
-      const popupPinsHighlight =
-        uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === prevProjectId;
-      if (!popupPinsHighlight) {
+      if (!uiStore.projectInfoPopup.visible) {
         setOverlayDrivenHover(null);
       }
     }
