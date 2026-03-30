@@ -117,7 +117,8 @@
     "road": "Road",
     "waterway": "Waterway",
     "park": "Park / Green space",
-    "building": "Building"
+    "building": "Building",
+    "pedestrian": "Pedestrian"
   },
   "approvalStatus": {
     "approved": "Approved",
@@ -225,11 +226,12 @@
     "clusterProjects": "{count} projects",
     "controls": {
       "filterProjects": "Filter projects by status",
-      "filterByStatus": "Filter by Status",
+      "filterByStatus": "Timeline",
+      "filterByName": "Name",
       "filterBySize": "Filter by Size",
       "resetSize": "Reset",
       "filterByStatusAndTags": "Filters",
-      "filterByTags": "Filter by Tags",
+      "filterByTags": "Type",
       "clearTagFilters": "Clear",
       "untagged": "Untagged",
       "proposed": "Proposed",

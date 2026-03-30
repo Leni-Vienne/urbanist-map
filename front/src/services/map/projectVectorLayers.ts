@@ -277,6 +277,14 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
     [
       "all",
       ["==", ["geometry-type"], "Polygon"],
+      ["!=", ["get", "timeline_status"], "proposed"],
+      getShapeZoomVisibilityFilter(),
+    ] as FilterSpecification,
+  "project-shapes-proposed-fill": () =>
+    [
+      "all",
+      ["==", ["geometry-type"], "Polygon"],
+      getIsProposedFilterExpression(),
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
   "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate: these are small stand-ins, already gated to z8+ by null size_m
@@ -900,10 +908,32 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
-      filter: ["==", ["geometry-type"], "Polygon"],
+      // Exclude proposed: they get their own fill layer with reduced opacity
+      filter: [
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        ["!=", ["get", "timeline_status"], "proposed"],
+      ],
       paint: {
         "fill-color": getProjectLineColorExpression(),
         "fill-opacity": 0.2,
+      },
+    },
+    firstSymbolLayerId,
+  );
+
+  // Proposed project shapes fill — lower opacity to reduce visual weight
+  mlMap.addLayer(
+    {
+      id: "project-shapes-proposed-fill",
+      type: "fill",
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+      filter: ["all", ["==", ["geometry-type"], "Polygon"], getIsProposedFilterExpression()],
+      paint: {
+        "fill-color": getProjectLineColorExpression(),
+        "fill-opacity": 0.05,
       },
     },
     firstSymbolLayerId,
@@ -945,7 +975,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // proposed project shapes: short dashes
+  // proposed project shapes: short dashes, reduced opacity to visually de-emphasize speculative projects
   mlMap.addLayer(
     {
       id: "project-shapes-proposed-dashed",
@@ -957,6 +987,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
+        "line-opacity": 0.9,
         "line-dasharray": SHAPE_SHORT_DASH,
       },
     },
@@ -1071,7 +1102,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // proposed overlay footprints: short dashes
+  // proposed overlay footprints: short dashes, reduced opacity to visually de-emphasize speculative projects
   mlMap.addLayer(
     {
       id: "overlay-footprints-proposed-dashed",
