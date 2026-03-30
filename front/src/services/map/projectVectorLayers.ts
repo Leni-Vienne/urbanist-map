@@ -14,6 +14,12 @@ import {
   setOverlayDrivenHover,
 } from "@/services/map/vectorHoverState";
 import {
+  triggerProjectHover,
+  triggerClusterHover,
+  clearHoverPreview,
+  updateHoverPreviewPosition,
+} from "@/services/map/hoverPreviewState";
+import {
   mobileAwareFlyTo,
   mobileAwarePanTo,
   mobileAwareFlyToBounds,
@@ -715,9 +721,16 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
   // Leaflet fires mousemove at up to 500+/sec, which would saturate the main thread.
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
+  // Position updates are exempt from throttling so the card follows the cursor smoothly.
   let _hoverThrottlePending = false;
 
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
+    const clientX = (event.originalEvent as MouseEvent).clientX;
+    const clientY = (event.originalEvent as MouseEvent).clientY;
+
+    // Always update card position immediately — bypasses Vue render via direct DOM write.
+    updateHoverPreviewPosition(clientX, clientY);
+
     if (_hoverThrottlePending) return;
     _hoverThrottlePending = true;
     setTimeout(() => {
@@ -744,6 +757,9 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (getOverlayDrivenHoverId() === null) {
       setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
     }
+
+    // Hover preview card — only on pointer devices (no touch)
+    updateHoverPreview(features, pointFeature, clientX, clientY);
   });
 
   map.value.on("mouseout", () => {
@@ -754,11 +770,14 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setOverlayDrivenHover(null);
     setVectorHoverFilters(mlMap, null);
     setPointHoverFilter(mlMap, null);
+    clearHoverPreview();
   });
 
   map.value.on("click", async (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
+
+    clearHoverPreview();
 
     const features = queryFeaturesAtLeafletEvent(
       event,
@@ -799,6 +818,44 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       void handlePointFeatureClick(pointFeature, event.latlng);
     }
   });
+}
+
+/**
+ * Determine which hover preview to show based on the features under the cursor.
+ * Extracted to keep the mousemove handler below the complexity limit.
+ */
+function updateHoverPreview(
+  features: RenderedMapFeature[],
+  pointFeature: RenderedMapFeature | undefined,
+  clientX: number,
+  clientY: number,
+): void {
+  if (pointFeature) {
+    const cellCount: number = pointFeature.properties?.cell_count ?? 1;
+    const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
+    if (cellCount > 1) {
+      triggerClusterHover(cellCount, clientX, clientY);
+    } else if (projectId.length > 0) {
+      triggerProjectHover(projectId, clientX, clientY);
+    } else {
+      clearHoverPreview();
+    }
+    return;
+  }
+
+  const vectorFeature = getVectorFeatureFromFeatures(features);
+  if (vectorFeature) {
+    const projectId =
+      String(vectorFeature.sourceLayer) === "overlay-footprints"
+        ? getFeaturePropertyAsString(vectorFeature, "project_id")
+        : getFeaturePropertyAsString(vectorFeature, "id");
+    if (projectId.length > 0) {
+      triggerProjectHover(projectId, clientX, clientY);
+      return;
+    }
+  }
+
+  clearHoverPreview();
 }
 
 function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {

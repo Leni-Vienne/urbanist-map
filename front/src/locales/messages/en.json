@@ -222,6 +222,7 @@
     "viewModeTooltip": "Browse and view projects on the map",
     "editModeTooltip": "Add and edit image positions on the map",
     "switchMode": "Switch mode",
+    "clusterProjects": "{count} projects",
     "controls": {
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Filter by Status",

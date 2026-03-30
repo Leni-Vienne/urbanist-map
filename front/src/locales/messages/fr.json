@@ -222,6 +222,7 @@
     "viewModeTooltip": "Consulter les contributions sur la carte",
     "editModeTooltip": "Vous pouvez ajouter et modifier des contributions sur la carte",
     "switchMode": "Changer de mode",
+    "clusterProjects": "{count} projets",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
       "filterByStatus": "Filtrer par statut",
