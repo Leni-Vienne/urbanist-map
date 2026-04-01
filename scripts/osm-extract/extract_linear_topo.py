@@ -174,6 +174,29 @@ def meters_to_degrees(meters):
     return meters / 111320
 
 
+def calculate_way_length_km(coords):
+    """Calculate approximate length of a way in kilometers using Haversine formula."""
+    if len(coords) < 2:
+        return 0.0
+    
+    total_km = 0.0
+    for i in range(len(coords) - 1):
+        lon1, lat1 = coords[i]
+        lon2, lat2 = coords[i + 1]
+        
+        # Haversine formula for great circle distance
+        lat1_rad = math.radians(lat1)
+        lat2_rad = math.radians(lat2)
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        
+        a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        total_km += 6371 * c  # Earth radius in km
+    
+    return total_km
+
+
 # ---------------------------------------------------------------------------
 # Transport type detection
 # ---------------------------------------------------------------------------
@@ -386,9 +409,10 @@ class WayGeometryHandler(osmium.SimpleHandler):
 
 
 class RelationHandler(osmium.SimpleHandler):
-    def __init__(self, proposed_way_ids):
+    def __init__(self, proposed_way_ids, way_geometries=None):
         super().__init__()
         self.proposed_way_ids = proposed_way_ids
+        self.way_geometries = way_geometries or {}  # wid -> {'coords': [...], ...}
         self.relations = {}
 
     def relation(self, r):
@@ -403,8 +427,46 @@ class RelationHandler(osmium.SimpleHandler):
         # Skip route relations that aren't themselves proposed/construction projects
         if tags.get('type') == 'route':
             _LIFECYCLE_KEYS = ('construction', 'proposed', 'planned')
-            if not any(tags.get(k, '') not in ('', 'no') for k in _LIFECYCLE_KEYS):
-                return
+            # Also check state= tag (commonly used for route=tracks relations)
+            state_val = tags.get('state', '')
+            has_lifecycle = any(tags.get(k, '') not in ('', 'no') for k in _LIFECYCLE_KEYS)
+            has_construction_state = state_val in ('construction', 'proposed', 'planned')
+            
+            # If no explicit lifecycle tags, check member way construction ratio by LENGTH
+            if not (has_lifecycle or has_construction_state):
+                member_way_ids = [m.ref for m in r.members if m.type == 'w']
+                if member_way_ids:
+                    # Calculate length-based ratio (more accurate than count-based)
+                    construction_length_km = 0.0
+                    total_length_km = 0.0
+                    
+                    for wid in member_way_ids:
+                        way_data = self.way_geometries.get(wid)
+                        if way_data and 'coords' in way_data:
+                            length_km = calculate_way_length_km(way_data['coords'])
+                            total_length_km += length_km
+                            if wid in self.proposed_way_ids:
+                                construction_length_km += length_km
+                    
+                    if total_length_km > 0:
+                        construction_ratio = construction_length_km / total_length_km
+                        
+                        # Use route type to determine threshold:
+                        # - route=tracks (infrastructure): stricter 75% (construction-focused projects)
+                        # - route=train/tram/etc (service): lenient 50% (may have existing connections)
+                        route_type = tags.get('route', '')
+                        if route_type == 'tracks':
+                            threshold = 0.75
+                        else:
+                            threshold = 0.50
+                        
+                        if construction_ratio < threshold:
+                            return
+                    else:
+                        return
+                else:
+                    return
+        
         member_way_ids = [m.ref for m in r.members if m.type == 'w']
         if any(wid in self.proposed_way_ids for wid in member_way_ids):
             self.relations[r.id] = {'tags': tags, 'member_way_ids': member_way_ids}
@@ -891,13 +953,25 @@ def make_relation_feature(rel_id, rel, ways):
     props['osm_ids_count'] = len(member_ids)
     props['member_way_count'] = len(member_geoms)
     
-    # Determine status
-    if any(get_project_status(t) == 'under_construction' for t in member_tags):
-        props['project_status'] = 'under_construction'
-    elif all(get_project_status(t) == 'planned' for t in member_tags):
+    # Determine status using majority vote (not just "any")
+    # Count status of all member ways
+    status_counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
+    for t in member_tags:
+        status = get_project_status(t)
+        status_counts[status] = status_counts.get(status, 0) + 1
+    
+    # Use the most common status
+    # Priority: proposed > planned > under_construction (prefer less certain statuses)
+    # This ensures that if a project is mostly proposed with a few construction segments,
+    # it's marked as proposed (more conservative/accurate)
+    if status_counts['proposed'] >= status_counts['under_construction'] and \
+       status_counts['proposed'] >= status_counts['planned']:
+        props['project_status'] = 'proposed'
+    elif status_counts['planned'] >= status_counts['under_construction']:
         props['project_status'] = 'planned'
     else:
-        props['project_status'] = 'proposed'
+        props['project_status'] = 'under_construction'
+    
     props['transport_type'] = get_transport_type(props)
     props['display_name'] = create_display_name(props)
     
@@ -960,13 +1034,22 @@ def make_orphan_features(orphan_ways):
         props['osm_ids'] = [f'way/{wid}' for wid in way_ids]
         props['osm_ids_count'] = len(way_ids)
         props['osm_way_id'] = way_ids[0]
-        statuses = [get_project_status(w['tags']) for w in ways_data]
-        if 'under_construction' in statuses:
-            props['project_status'] = 'under_construction'
-        elif all(s == 'planned' for s in statuses):
+        
+        # Determine status using majority vote
+        status_counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
+        for w in ways_data:
+            status = get_project_status(w['tags'])
+            status_counts[status] = status_counts.get(status, 0) + 1
+        
+        # Use the most common status (prefer less certain: proposed > planned > under_construction)
+        if status_counts['proposed'] >= status_counts['under_construction'] and \
+           status_counts['proposed'] >= status_counts['planned']:
+            props['project_status'] = 'proposed'
+        elif status_counts['planned'] >= status_counts['under_construction']:
             props['project_status'] = 'planned'
         else:
-            props['project_status'] = 'proposed'
+            props['project_status'] = 'under_construction'
+        
         props['transport_type'] = transport
         props['display_name'] = create_display_name(props, tags_list=tags_list)
         
@@ -1117,7 +1200,7 @@ def main():
 
     print(f"\n[linear] [{_ts()}] Pass 2: Scanning relations in {SOURCE_FILE}...")
     t = time.time()
-    rel_handler = RelationHandler(set(way_handler.ways.keys()))
+    rel_handler = RelationHandler(set(way_handler.ways.keys()), way_handler.ways)
     rel_handler.apply_file(SOURCE_FILE)
     print(f"[linear] [{_ts()}] Pass 2 done in {_fmt(time.time() - t)} — {len(rel_handler.relations):,} route relations found")
 
