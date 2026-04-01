@@ -113,6 +113,8 @@ const FOOTPRINT_SHORT_DASH: [number, number] = [0.25, 1]; // = SHAPE_SHORT_DASH 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
+// Viewport padding for flyToBounds to leave space around cluster cells.
+const CLUSTER_BOUNDS_PADDING_PX = 50;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
@@ -662,12 +664,65 @@ function getGridCellSizeForTileZoom(tileZoom: number): number {
   return 128;
 }
 
-// Returns the approximate geographic width of a grid cell in meters at the given latitude.
-// Uses the equatorial tile width scaled by cos(lat) for the Mercator distortion.
-function getGridCellSizeMeters(tileZoom: number, lat: number): number {
-  const cellSize = getGridCellSizeForTileZoom(tileZoom);
-  const tileWidthM = (40_075_016 * Math.cos((lat * Math.PI) / 180)) / 2 ** tileZoom;
-  return (cellSize / 4096) * tileWidthM;
+// Convert tile coordinates to longitude.
+function tileToLng(x: number, z: number): number {
+  return (x / 2 ** z) * 360 - 180;
+}
+
+// Convert tile coordinates to latitude.
+function tileToLat(y: number, z: number): number {
+  const n = Math.PI - (2 * Math.PI * y) / 2 ** z;
+  return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+}
+
+// Convert a fractional tile position into longitude and latitude.
+function tilePxToLngLat(
+  tileX: number,
+  tileY: number,
+  px: number,
+  py: number,
+  z: number,
+): [number, number] {
+  const lng = tileToLng(tileX + px / 4096, z);
+  const lat = tileToLat(tileY + py / 4096, z);
+  return [lng, lat];
+}
+
+// Map a lat/lng to the tile index and pixel position inside the tile.
+function getTileCoordsForLatLng(
+  lat: number,
+  lng: number,
+  tileZoom: number,
+): { tileX: number; tileY: number; px: number; py: number } {
+  const n = 2 ** tileZoom;
+  const x = ((lng + 180) / 360) * n;
+  const latRad = (lat * Math.PI) / 180;
+  const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
+  const tileX = Math.floor(x);
+  const tileY = Math.floor(y);
+  return { tileX, tileY, px: (x - tileX) * 4096, py: (y - tileY) * 4096 };
+}
+
+// Compute the exact bounds of the cluster cell containing the given point.
+// The cell bounds are tight (no padding) because Leaflet's flyToBounds will add
+// viewport padding controlled by CLUSTER_BOUNDS_PADDING_PX.
+function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.LatLngBounds {
+  const safeZoom = Math.max(0, tileZoom);
+  const { tileX, tileY, px, py } = getTileCoordsForLatLng(lat, lng, safeZoom);
+  const cellSize = getGridCellSizeForTileZoom(safeZoom);
+  const cellX = Math.floor(px / cellSize);
+  const cellY = Math.floor(py / cellSize);
+
+  // Use exact cell boundaries without geographic padding.
+  // Padding will be applied in screen space by flyToBounds.
+  const minPx = cellX * cellSize;
+  const maxPx = (cellX + 1) * cellSize;
+  const minPy = cellY * cellSize;
+  const maxPy = (cellY + 1) * cellSize;
+
+  const nw = tilePxToLngLat(tileX, tileY, minPx, minPy, safeZoom);
+  const se = tilePxToLngLat(tileX, tileY, maxPx, maxPy, safeZoom);
+  return L.latLngBounds([nw[1], nw[0]], [se[1], se[0]]);
 }
 
 /**
@@ -695,22 +750,18 @@ function navigateToCluster(
 
   const repMatchesFilter = repMatchesSizeFilter && repMatchesDateFilter;
 
-  // Leaflet zoom = MapLibre zoom + 1. The cluster cell size is keyed to the tile (MapLibre) zoom.
-  const tileZoom = currentZoom - 1;
-  const cellSizeM = getGridCellSizeMeters(tileZoom, lat);
+  // Leaflet zoom = MapLibre zoom + 1. Use the integer tile zoom to match MVT grid logic.
+  const tileZoom = Math.floor(currentZoom - 1);
 
   if (repMatchesFilter) {
-    // Build a bounding box at half the grid cell size so we zoom past the clustering boundary,
-    // not just to it. Fitting the full cell lands at exactly the zoom where sub-clusters appear
-    // but neighboring cluster points are still on screen. Half-cell ensures we're one level deeper.
-    const halfDegLat = cellSizeM / 4 / 111_320;
-    const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
-    const cellBounds = L.latLngBounds(
-      [lat - halfDegLat, lng - halfDegLng],
-      [lat + halfDegLat, lng + halfDegLng],
-    );
+    // Fly to the exact cluster cell boundaries. The cell bounds are tight (no geographic padding),
+    // and flyToBounds will add viewport padding to keep points away from screen edges.
+    const cellBounds = getClusterCellBounds(lat, lng, tileZoom);
     const boundsZoom = map.value.getBoundsZoom(cellBounds, false);
-    mobileAwareFlyToBounds(cellBounds, { maxZoom: Math.max(currentZoom, boundsZoom) });
+    mobileAwareFlyToBounds(cellBounds, {
+      maxZoom: Math.max(currentZoom, boundsZoom),
+      padding: [CLUSTER_BOUNDS_PADDING_PX, CLUSTER_BOUNDS_PADDING_PX],
+    });
   } else {
     // Representative doesn't match the active filter — the cluster only passed because some
     // other project in the cell matched. Nudge in by 2 zoom levels without committing to the
