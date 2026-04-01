@@ -33,7 +33,6 @@ import {
   applySelectionOutline,
   getCurrentHighlightedProjectId,
   applyProjectHighlightToElement,
-  ensureSelectedOverlayOnTop,
 } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
@@ -136,8 +135,18 @@ export function createLeafletOverlay(
 
         newOverlay.addTo(map.value);
 
-        // Ensure selected overlay stays on top when new overlays are added
-        ensureSelectedOverlayOnTop();
+        // If another overlay is selected, ensure it stays on top of this new overlay
+        const overlayStore = useOverlayStore();
+        if (overlayStore.idSelectedOverlay && overlayStore.idSelectedOverlay !== overlayObject.id) {
+          const selectedLayer = registry.getLayer(overlayStore.idSelectedOverlay);
+          if (selectedLayer) {
+            // Bring selected overlay to front after new overlay is added
+            // This ensures selected overlay stays visible on top of newly loaded overlays
+            requestAnimationFrame(() => {
+              selectedLayer.bringToFront();
+            });
+          }
+        }
       } else {
         // Zoom is too low — layer won't be added. Clear registry ref and release mutex.
         registry.clearLayer(overlayObject.id);

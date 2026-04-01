@@ -9,7 +9,6 @@ import { projectSchema } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
 import { getLayer, renameEntry } from "@/services/overlay/overlayRenderRegistry";
-import { ensureSelectedOverlayOnTop } from "@/services/overlay/overlaySelection";
 
 // Extract corners from overlay object, falling back to stored corners if needed
 function getCornersFromOverlay(overlay: OverlayObject) {
@@ -200,8 +199,17 @@ export function useOverlayPublisher() {
     const layer = getLayer(overlay.id);
     if (layer && !map.value.hasLayer(layer)) {
       layer.addTo(map.value);
-      // Ensure selected overlay stays on top when re-adding layers
-      ensureSelectedOverlayOnTop();
+      // Manage z-index: if this overlay is selected, bring to front; otherwise ensure selected stays on top
+      requestAnimationFrame(() => {
+        if (overlayStore.idSelectedOverlay === overlay.id) {
+          layer.bringToFront();
+        } else if (overlayStore.idSelectedOverlay) {
+          const selectedLayer = getLayer(overlayStore.idSelectedOverlay);
+          if (selectedLayer) {
+            selectedLayer.bringToFront();
+          }
+        }
+      });
     }
 
     // Update cache with new overlay state to refresh marker color (changes from Orange to Yellow)
