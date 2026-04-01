@@ -101,8 +101,13 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
     const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
     if (!id) continue;
     const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
-    const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
+
+    const rawSize = props.geometry_size_m ?? props.max_size_m;
+    const sizeM = rawSize != null ? Number(rawSize) : 0;
     const tags = parseMvtTags(props.tags);
+    const rawLastMod = props.last_modified_s;
+    const lastModifiedS = rawLastMod != null ? Number(rawLastMod) : 0;
+
     if (!seen.has(id)) {
       seen.set(id, {
         id,
@@ -110,7 +115,7 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
         firstTag: props.first_tag ?? "",
         tags,
         timelineStatus: props.timeline_status ?? "",
-        lastModifiedS: Number(props.last_modified_s ?? 0),
+        lastModifiedS,
         sizeM,
         lat,
         lng,
@@ -123,6 +128,14 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
         existing.lat = lat;
         existing.lng = lng;
       }
+      // Use Math.max to guarantee we always capture the real size and date from whichever layer provides it (project geometry vs overlay footprint),
+      // even if the features come in a different order on subsequent queries.
+      existing.sizeM = Math.max(existing.sizeM || 0, sizeM || 0);
+      existing.lastModifiedS = Math.max(existing.lastModifiedS || 0, lastModifiedS || 0);
+      if (tags.length > existing.tags.length) existing.tags = tags;
+      if (props.first_tag && !existing.firstTag) existing.firstTag = props.first_tag;
+      if (props.timeline_status && !existing.timelineStatus)
+        existing.timelineStatus = props.timeline_status;
     }
   }
   const result = [...seen.values()];
@@ -173,14 +186,14 @@ export function useVisibleProjects() {
       return true;
     });
 
-    const named = filtered.filter((p) => p.name);
-    const unnamed = filtered.filter((p) => !p.name);
-
     function compareBySortMode(a: VisibleProject, b: VisibleProject): number {
       let result = 0;
       if (sortMode.value === "recent") {
         result = b.lastModifiedS - a.lastModifiedS;
       } else if (sortMode.value === "name") {
+        // When sorting by name, put unnamed projects at the bottom
+        if (a.name && !b.name) return sortReverse.value ? 1 : -1;
+        if (!a.name && b.name) return sortReverse.value ? -1 : 1;
         result = (a.name ?? "").localeCompare(b.name ?? "");
       } else if (sortMode.value === "size") {
         result = b.sizeM - a.sizeM;
@@ -189,7 +202,7 @@ export function useVisibleProjects() {
       }
       return sortReverse.value ? -result : result;
     }
-    return [...named.toSorted(compareBySortMode), ...unnamed.toSorted(compareBySortMode)];
+    return filtered.toSorted(compareBySortMode);
   });
 
   // We gate doRefresh on this flag to avoid querying on every drag frame.
