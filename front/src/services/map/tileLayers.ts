@@ -100,7 +100,7 @@ const OPENFREEMAP_ATTRIBUTION =
 let currentAttribution = "";
 
 function updateLeafletAttribution(newAttribution: string) {
-  if (!map.value || !map.value.attributionControl) return;
+  if (!map.value?.attributionControl) return;
 
   if (currentAttribution) {
     map.value.attributionControl.removeAttribution(currentAttribution);

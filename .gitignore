@@ -12,6 +12,7 @@ CLAUDE.md
 .mcp.json
 .agent
 *instructions.md
+.github/agents
 .github/instructions
 .serena
 .playwright-mcp

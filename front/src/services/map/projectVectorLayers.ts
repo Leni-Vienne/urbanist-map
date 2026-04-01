@@ -347,17 +347,22 @@ function getSizeFilterExpressionForPoints(): FilterSpecification | null {
 
 /**
  * Build a size filter expression for the project-shapes layer.
- * Standalone shape-points (null geometry_size_m) pass through as size 0.
+ * Standalone shape-points with missing geometry_size_m pass through the size filter.
  */
 function getSizeFilterExpressionForShapes(): FilterSpecification | null {
   const [minSize, maxSize] = sizeFilterRange.value;
   if (minSize === 0 && maxSize === Infinity) return null;
 
-  const conditions: unknown[] = [[">=", ["coalesce", ["get", "geometry_size_m"], 0], minSize]];
+  // Allow missing geometry_size_m to pass through the size filter. (for projects with no geoemtry)
+  const conditions: unknown[] = [[">=", ["get", "geometry_size_m"], minSize]];
   if (maxSize !== Infinity) {
-    conditions.push(["<=", ["coalesce", ["get", "geometry_size_m"], 0], maxSize]);
+    conditions.push(["<=", ["get", "geometry_size_m"], maxSize]);
   }
-  return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
+
+  const rangeFilter = (
+    conditions.length === 1 ? conditions[0] : ["all", ...conditions]
+  ) as FilterSpecification;
+  return ["any", ["==", ["get", "geometry_size_m"], null], rangeFilter] as FilterSpecification;
 }
 
 /**
@@ -1251,7 +1256,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: ["==", ["geometry-type"], "Point"],
       paint: {
         "circle-color": getProjectLineColorExpression(),
-        "circle-radius": 6,
+        "circle-radius": 4,
         "circle-stroke-width": 1.5,
         "circle-stroke-color": "#ffffff",
       },
@@ -1270,7 +1275,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       maxzoom: PROJECT_POINTS_MAX_ZOOM,
       paint: {
         "circle-color": getProjectPointColorExpression(),
-        "circle-radius": 6,
+        "circle-radius": 4,
         "circle-stroke-width": 1.5,
         "circle-stroke-color": "#ffffff",
       },
@@ -1295,7 +1300,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
           "#fb923c", // Tailwind orange-400 (lighter hover)
           getProjectPointColorExpression(),
         ],
-        "circle-radius": 8, // larger to indicate hover
+        "circle-radius": 6, // larger to indicate hover
         "circle-stroke-width": 2,
         "circle-stroke-color": "#ffffff",
       },
@@ -1320,7 +1325,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "pending-project-points-source",
       paint: {
         "circle-color": "#f97316", // Tailwind orange-500
-        "circle-radius": 6,
+        "circle-radius": 4,
         "circle-stroke-width": 1.5,
         "circle-stroke-color": "#ffffff",
       },
@@ -1336,7 +1341,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: ["==", ["get", "id"], HOVER_NONE_ID],
       paint: {
         "circle-color": "#fb923c", // Tailwind orange-400
-        "circle-radius": 8,
+        "circle-radius": 6,
         "circle-stroke-width": 2,
         "circle-stroke-color": "#ffffff",
       },
