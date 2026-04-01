@@ -33,6 +33,7 @@ import {
   applySelectionOutline,
   getCurrentHighlightedProjectId,
   applyProjectHighlightToElement,
+  ensureSelectedOverlayOnTop,
 } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
@@ -134,6 +135,9 @@ export function createLeafletOverlay(
         }
 
         newOverlay.addTo(map.value);
+
+        // Ensure selected overlay stays on top when new overlays are added
+        ensureSelectedOverlayOnTop();
       } else {
         // Zoom is too low — layer won't be added. Clear registry ref and release mutex.
         registry.clearLayer(overlayObject.id);

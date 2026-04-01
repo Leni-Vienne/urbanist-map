@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { selectOverlay, ensureSelectedOverlayOnTop } from "@/services/overlay/overlaySelection";
 import { clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
@@ -158,6 +158,8 @@ export function zoomToOverlayAndSelect(
         const authStore = useAuthStore();
         if (overlayObj && isOverlayVisible(overlayObj, mapStore.mode, authStore.user?.id)) {
           overlayLayer.addTo(map.value);
+          // Ensure selected overlay stays on top when re-adding layers
+          ensureSelectedOverlayOnTop();
         }
       }
     }

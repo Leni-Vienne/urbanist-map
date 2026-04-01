@@ -97,6 +97,8 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   const newLayer = getLayer(newlySelected.id);
   if (newLayer) {
     selectOverlayInLeaflet(newLayer);
+    // Bring selected overlay to front so it stays on top of overlapping images
+    newLayer.bringToFront();
   }
 
   // Apply project highlights (sister overlays) when selecting
@@ -417,6 +419,20 @@ export function setupProjectHoverEvents(
       removeProjectOutlines(overlayObject.projectId);
     }
   });
+}
+
+/**
+ * Ensure the currently selected overlay stays on top of all other overlays.
+ * Call this after adding new overlays to the map to maintain selection z-index priority.
+ */
+export function ensureSelectedOverlayOnTop(): void {
+  const overlayStore = useOverlayStore();
+  if (!overlayStore.idSelectedOverlay) return;
+
+  const selectedLayer = getLayer(overlayStore.idSelectedOverlay);
+  if (selectedLayer) {
+    selectedLayer.bringToFront();
+  }
 }
 
 /**
