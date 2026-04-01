@@ -46,11 +46,9 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   // This ensures marker position doesn't jump when zooming in/out
   const corners = layer.getCorners();
   if (corners.length === 4) {
-    // oxlint-disable-next-line no-non-null-assertion
-    const centroidLat = (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4;
-    // oxlint-disable-next-line no-non-null-assertion
-    const centroidLng = (corners[0]!.lng + corners[1]!.lng + corners[2]!.lng + corners[3]!.lng) / 4;
-    marker.setLatLng([centroidLat, centroidLng]);
+    /* oxlint-disable-next-line no-non-null-assertion */
+    const centroid = calculateCentroidFromCorners(corners)!;
+    marker.setLatLng(L.latLng(centroid.lat, centroid.lng));
   }
 }
 
