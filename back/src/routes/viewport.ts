@@ -85,6 +85,22 @@ export const viewportRouter = router({
           return [];
         }
 
+        // SECURITY: Verify moderator/admin role for moderation mode
+        if (mode === "moderation") {
+          const isAdmin = ctx.user.role === "admin";
+          const isModerator =
+            ctx.user.moderatedCountries !== null &&
+            ctx.user.moderatedCountries !== undefined &&
+            ctx.user.moderatedCountries.length > 0;
+
+          if (!isAdmin && !isModerator) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Moderator or admin access required for moderation mode",
+            });
+          }
+        }
+
         // 1. Pending Projects
         const projectConditions =
           mode === "edit"
@@ -167,6 +183,22 @@ export const viewportRouter = router({
           });
         }
 
+        // SECURITY: Verify moderator/admin role for moderation mode
+        if (mode === "moderation" && ctx.user) {
+          const isAdmin = ctx.user.role === "admin";
+          const isModerator =
+            ctx.user.moderatedCountries !== null &&
+            ctx.user.moderatedCountries !== undefined &&
+            ctx.user.moderatedCountries.length > 0;
+
+          if (!isAdmin && !isModerator) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Moderator or admin access required for moderation mode",
+            });
+          }
+        }
+
         // Fetch user's overlay change request IDs if in edit mode
         const overlayChangeRequestIds =
           ctx.user && mode === "edit"
@@ -241,6 +273,22 @@ export const viewportRouter = router({
             code: "UNAUTHORIZED",
             message: "Authentication required for edit/moderation mode",
           });
+        }
+
+        // SECURITY: Verify moderator/admin role for moderation mode
+        if (mode === "moderation") {
+          const isAdmin = ctx.user.role === "admin";
+          const isModerator =
+            ctx.user.moderatedCountries !== null &&
+            ctx.user.moderatedCountries !== undefined &&
+            ctx.user.moderatedCountries.length > 0;
+
+          if (!isAdmin && !isModerator) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Moderator or admin access required for moderation mode",
+            });
+          }
         }
 
         // Bbox condition on project center_coordinate using &&.
