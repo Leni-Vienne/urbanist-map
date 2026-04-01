@@ -174,7 +174,7 @@ export default defineConfig(({ mode }) => ({
                 /\/front\/src\/utils\/(imageUrl|imageErrorHandler)/.test(id) ||
                 id.includes("/front/src/constants/mapConstants") ||
                 /\/front\/src\/composables\/(ui\/useToast)/.test(id) ||
-                /\/front\/src\/services\/(core\/errorHandling|overlay\/(overlayLifecycle|completionFilters|modeSwitching)|navigation\/locationNavigation|project\/projectSelection)/.test(
+                /\/front\/src\/services\/(core\/errorHandling|overlay\/(overlayLifecycle|completionFilters|modeSwitching)|navigation\/locationNavigation)/.test(
                   id,
                 ),
             },

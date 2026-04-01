@@ -62,7 +62,6 @@ import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { addOverlay } from "@/services/overlay/overlayEditing";
 import { createProject } from "@/services/project/projectMutations";
 import { createProjectObject } from "@/utils/typeFactories";
-import { getCityProjects } from "@/services/project/projectSelection";
 import type { Project } from "@/types/index";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
@@ -105,8 +104,7 @@ function findProjectFromReplacementOverlay(projectId: string): Project | null {
 
 // Try to find project from city projects list
 function findProjectFromCityProjects(projectId: string): Project | null {
-  const { projects: cityProjectsList } = getCityProjects();
-  const cityProject = cityProjectsList.value.find((p: Project) => p.id === projectId);
+  const cityProject = Object.values(projects.value).find((p: Project) => p.id === projectId);
   return cityProject ?? null;
 }
 
