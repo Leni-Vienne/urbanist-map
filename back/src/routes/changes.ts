@@ -233,6 +233,50 @@ export const changesRouter = router({
           });
         }
 
+        // Verify that the entity exists and is approved
+        // Users can only submit change requests for approved content
+        if (input.entityType === "overlay") {
+          const overlayResult = await db
+            .select({ status: overlays.status })
+            .from(overlays)
+            .where(eq(overlays.id, input.entityId))
+            .limit(1);
+
+          if (!overlayResult[0]) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Overlay not found",
+            });
+          }
+
+          if (overlayResult[0].status !== "approved") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Change requests can only be submitted for approved overlays",
+            });
+          }
+        } else if (input.entityType === "project") {
+          const projectResult = await db
+            .select({ status: projects.status })
+            .from(projects)
+            .where(eq(projects.id, input.entityId))
+            .limit(1);
+
+          if (!projectResult[0]) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Project not found",
+            });
+          }
+
+          if (projectResult[0].status !== "approved") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Change requests can only be submitted for approved projects",
+            });
+          }
+        }
+
         // Validate field values before writing to the DB
         for (const change of input.changes) {
           if (input.entityType === "project" && change.fieldName === "geometry") {
