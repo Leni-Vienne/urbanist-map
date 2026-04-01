@@ -74,15 +74,18 @@ const isAdminMiddleware = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-// Middleware to check if user is admin or moderator (has moderatedCountries)
+// Middleware to check if user is admin or moderator (has moderatedCountries set with at least one country)
 const isModeratorOrAdminMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
 
-  // Allow access if user is admin OR has moderatedCountries (is a moderator)
+  // Allow access if user is admin OR has at least one moderated country
   const isAdmin = ctx.user.role === "admin";
-  const isModerator = ctx.user.moderatedCountries !== null;
+  const isModerator =
+    ctx.user.moderatedCountries !== null &&
+    ctx.user.moderatedCountries !== undefined &&
+    ctx.user.moderatedCountries.length > 0;
 
   if (!isAdmin && !isModerator) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Moderator or admin access required" });

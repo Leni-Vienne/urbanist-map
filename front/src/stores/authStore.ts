@@ -119,12 +119,12 @@ export const useAuthStore = defineStore("auth", () => {
 
   // Computed properties
   const isAuthenticated = computed(() => Boolean(user.value));
-  // User is a moderator if they're admin OR have moderatedCountries assigned
-  const isModerator = computed(
-    () =>
-      user.value?.role === "admin" ||
-      (user.value?.moderatedCountries !== null && user.value?.moderatedCountries !== undefined),
-  );
+  // User is a moderator if they're admin OR have at least one moderated country
+  const isModerator = computed(() => {
+    if (!user.value) return false;
+    if (user.value.role === "admin") return true;
+    return (user.value.moderatedCountries?.length ?? 0) > 0;
+  });
 
   // Cached promise so multiple callers share the same in-flight request
   let initPromise: Promise<void> | null = null;
