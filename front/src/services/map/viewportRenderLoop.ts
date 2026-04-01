@@ -55,16 +55,22 @@ function computeCornersBBox(corners: { lat: number; lng: number }[]) {
   /* oxlint-enable no-non-null-assertion */
 }
 
-// Check if a bounding box intersects with viewport bounds
+// Check if a bounding box intersects with viewport bounds using standard AABB intersection test.
+// This correctly handles all cases:
+//   1. Overlay partially visible (some edges in viewport)
+//   2. Overlay fully visible (all edges in viewport)
+//   3. Overlay contains viewport (no edges in viewport) ← Previous bug was here
+//   4. Viewport contains overlay (all edges in viewport)
+// Two rectangles DON'T intersect only if one is completely to the left, right, above, or below the other.
 function intersectsViewport(
   bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
   bounds: L.LatLngBounds,
 ) {
   return (
-    bbox.minLat < bounds.getNorth() &&
-    bbox.maxLat > bounds.getSouth() &&
-    bbox.minLng < bounds.getEast() &&
-    bbox.maxLng > bounds.getWest()
+    bbox.maxLat > bounds.getSouth() && // Overlay's north edge is south of viewport's south edge
+    bbox.minLat < bounds.getNorth() && // Overlay's south edge is north of viewport's north edge
+    bbox.maxLng > bounds.getWest() && // Overlay's east edge is west of viewport's west edge
+    bbox.minLng < bounds.getEast() // Overlay's west edge is east of viewport's east edge
   );
 }
 
