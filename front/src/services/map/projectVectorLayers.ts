@@ -860,6 +860,13 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   let _hoverThrottlePending = false;
 
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
+    if (
+      "pointerType" in event.originalEvent &&
+      (event.originalEvent as PointerEvent).pointerType === "touch"
+    ) {
+      return;
+    }
+
     const clientX = event.originalEvent.clientX;
     const clientY = event.originalEvent.clientY;
 
