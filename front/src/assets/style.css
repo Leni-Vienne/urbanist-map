@@ -48,15 +48,6 @@ body {
   -webkit-user-select: none;
 }
 
-/* Force remove blue box-shadow/outline that appears on image click */
-.ldi .leaflet-interactive:focus,
-.ldi .leaflet-image-layer:focus,
-.leaflet-image-layer,
-.leaflet-interactive:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
 .leaflet-control-attribution a {
   color: #005a7d !important;
   /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */

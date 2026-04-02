@@ -510,13 +510,20 @@ function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
     return { projectId: HOVER_NONE_ID, overlayId: HOVER_NONE_ID };
   }
 
-  const sourceLayer = String((feature as any).sourceLayer ?? "");
-  const projectIdProp = sourceLayer === "overlay-footprints" ? "project_id" : "id";
+  const sourceLayer = (feature as any).sourceLayer;
+  if (sourceLayer === undefined) {
+    return {
+      projectId: getFeaturePropertyAsString(feature, "id") || HOVER_NONE_ID,
+      overlayId: getFeaturePropertyAsString(feature, "overlayId") || HOVER_NONE_ID,
+    };
+  }
+
+  const isFootprint = String(sourceLayer) === "overlay-footprints";
+  const projectIdProp = isFootprint ? "project_id" : "id";
   const projectId = getFeaturePropertyAsString(feature, projectIdProp);
-  const overlayId =
-    sourceLayer === "overlay-footprints"
-      ? getFeaturePropertyAsString(feature, "id")
-      : (getOverlayDrivenHoverOverlayId() ?? HOVER_NONE_ID);
+  const overlayId = isFootprint
+    ? getFeaturePropertyAsString(feature, "id")
+    : (getOverlayDrivenHoverOverlayId() ?? HOVER_NONE_ID);
 
   return {
     projectId: projectId.length > 0 ? projectId : HOVER_NONE_ID,
@@ -881,8 +888,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
     // Set cursor on the Leaflet container instead of the MapLibre canvas
-    // because the vector MapLibre canvas has pointer-events: none
-    map.value.getContainer().style.cursor = features.length > 0 ? "pointer" : "";
+    // Use proper class toggling instead of overwriting inline styles that plugins rely on
+    map.value.getContainer().classList.toggle("cursor-pointer", features.length > 0);
     // Don't override an overlay-driven hover with an empty vector result.
     if (getOverlayDrivenHoverId() === null) {
       setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
@@ -896,7 +903,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    map.value.getContainer().style.cursor = "";
+    map.value.getContainer().classList.remove("cursor-pointer");
     clearHoverPreview();
 
     // If a project is pinned (popup open from a click), preserve the highlight.
@@ -1044,7 +1051,7 @@ export function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
 /**
  * Applies overrides to the Liberty basemap's railway styling to visually
  * differentiate it from our tram project geometries.
- * Makes existing railways gray, slightly dashed, and semi-transparent.
+ * Makes existing railways orange and semi-transparent.
  */
 export function applyRailStyleOverrides(mlMap: MaplibreMap): void {
   const layers = mlMap.getStyle().layers;
