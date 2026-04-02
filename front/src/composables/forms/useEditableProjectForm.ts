@@ -87,6 +87,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
   // Check if any field has changed
   const hasChanges = computed(() => {
+    // oxlint-disable-next-line no-unsafe-type-assertion
     return Object.keys(formData).some((key) => hasChanged(key as keyof ProjectFormData));
   });
 
@@ -101,6 +102,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     const changes: FieldChange[] = [];
 
     for (const key of Object.keys(formData)) {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       const fieldName = key as keyof ProjectFormData;
       if (hasChanged(fieldName)) {
         changes.push({
@@ -236,6 +238,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       cityId: project.cityId,
       lat: project.lat,
       lng: project.lng,
+      timelineStatus: formData.timelineStatus ?? project.timelineStatus,
       proposalDate: formData.proposalDate,
       proposalDatePrecision: formData.proposalDate
         ? (formData.proposalDatePrecision ?? project.proposalDatePrecision)

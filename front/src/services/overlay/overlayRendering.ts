@@ -27,13 +27,7 @@ import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import {
-  selectOverlay,
-  setupProjectHoverEvents,
-  applySelectionOutline,
-  getCurrentHighlightedProjectId,
-  applyProjectHighlightToElement,
-} from "@/services/overlay/overlaySelection";
+import { selectOverlay, setupProjectHoverEvents } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
   getCornersForOverlayWithCache,
@@ -47,7 +41,6 @@ import {
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { clearSelectionRing } from "@/services/overlay/overlayStyle";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
@@ -134,6 +127,19 @@ export function createLeafletOverlay(
         }
 
         newOverlay.addTo(map.value);
+
+        // If another overlay is selected, ensure it stays on top of this new overlay
+        const overlayStore = useOverlayStore();
+        if (overlayStore.idSelectedOverlay && overlayStore.idSelectedOverlay !== overlayObject.id) {
+          const selectedLayer = registry.getLayer(overlayStore.idSelectedOverlay);
+          if (selectedLayer) {
+            // Bring selected overlay to front after new overlay is added
+            // This ensures selected overlay stays visible on top of newly loaded overlays
+            requestAnimationFrame(() => {
+              selectedLayer.bringToFront();
+            });
+          }
+        }
       } else {
         // Zoom is too low — layer won't be added. Clear registry ref and release mutex.
         registry.clearLayer(overlayObject.id);
@@ -323,22 +329,7 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
     if (element) {
       // Highlight if this overlay belongs to the currently highlighted project —
       // either via overlay selection or project info popup (shape click).
-      const highlightedProjectId = getCurrentHighlightedProjectId();
-      if (
-        mapStore.mode !== "view" &&
-        highlightedProjectId &&
-        highlightedProjectId === overlayObject.projectId
-      ) {
-        applyProjectHighlightToElement(element, overlayObject);
-      } else {
-        clearSelectionRing(element);
-      }
     }
-  } else {
-    // Overlay finished loading while already selected (out-of-viewport navigation):
-    // applyOutlineAfterImageLoad ran before the layer existed so no listener was set.
-    // Apply the outline now that the image is fully loaded and in the DOM.
-    applySelectionOutline(overlayObject);
   }
 
   // Invoke the caller's callback now that the overlay is fully initialized

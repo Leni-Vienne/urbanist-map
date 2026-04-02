@@ -5,15 +5,11 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 
 /**
  * Navigate to a city on the map
- * @param cityId - The city ID to navigate to
- * @param cityName - The city name (for display)
  * @param countryCode - The country code where the city is located
  * @param cityCoords - Optional city coordinates (used when city not yet loaded in store)
  * @returns Promise that resolves when navigation is complete
  */
 export async function navigateToCity(
-  cityId: number,
-  cityName: string,
   countryCode: string,
   cityCoords?: { lat: number; lng: number },
 ): Promise<void> {

@@ -2,7 +2,7 @@ name: Deploy and Migrate Split
 
 on:
   push:
-    branches: ["preview", "production"]
+    branches: ["second-maplibre-instance", "preview", "production"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

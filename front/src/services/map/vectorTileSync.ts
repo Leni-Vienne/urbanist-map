@@ -12,6 +12,7 @@
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayData } from "@/types/index";
+import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
 // Stores the last-synced set of OverlayData objects built from tile features.
@@ -42,10 +43,8 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
 
   if (corners.some((c) => Number.isNaN(c.lat) || Number.isNaN(c.lng))) return null;
 
-  const centroid = {
-    lat: (corners[0]!.lat + corners[1]!.lat + corners[2]!.lat + corners[3]!.lat) / 4,
-    lng: (corners[0]!.lng + corners[1]!.lng + corners[2]!.lng + corners[3]!.lng) / 4,
-  };
+  /* oxlint-disable-next-line no-non-null-assertion */
+  const centroid = calculateCentroidFromCorners(corners)!;
 
   return {
     id: String(p.id),
@@ -64,50 +63,69 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
   };
 }
 
-// All overlay-footprint line layer IDs that carry overlay features.
-// Each layer has an exclusive filter (completed / proposed / neither) so all three
-// must be queried together to get the full set of approved overlays in view.
-const OVERLAY_FOOTPRINT_LAYERS = [
-  "overlay-footprints",
-  "overlay-footprints-completed",
-  "overlay-footprints-proposed-dashed",
-] as const;
+/* function used to prevent overlays from being pruned when the viewport is entirely covered by an overlay polygon. */
+function overlayIntersectsViewport(
+  corners: { lat: number; lng: number }[],
+  bounds: { north: number; south: number; east: number; west: number },
+): boolean {
+  /* oxlint-disable-next-line no-non-null-assertion */
+  const firstCorner = corners[0]!;
+  let minLat = firstCorner.lat;
+  let maxLat = firstCorner.lat;
+  let minLng = firstCorner.lng;
+  let maxLng = firstCorner.lng;
+
+  for (let i = 1; i < corners.length; i += 1) {
+    /* oxlint-disable-next-line no-non-null-assertion */
+    const c = corners[i]!;
+    if (c.lat < minLat) minLat = c.lat;
+    if (c.lat > maxLat) maxLat = c.lat;
+    if (c.lng < minLng) minLng = c.lng;
+    if (c.lng > maxLng) maxLng = c.lng;
+  }
+
+  // AABB intersection test - correctly handles viewport inside overlay
+  return (
+    maxLat > bounds.south && minLat < bounds.north && maxLng > bounds.west && minLng < bounds.east
+  );
+}
 
 function syncOverlaysFromTiles(mlMap: any): void {
   // During style reloads/HMR, idle can fire before this layer is present.
   if (!mlMap.getLayer("overlay-footprints")) return;
 
   try {
-    // Query features currently rendered in the overlay-footprints layers.
-    // Must pass a geometry (viewport bbox in screen pixels) as the first argument.
-    // Passing options as the first argument silently returns 0 features in MapLibre 5.x —
-    // it interprets the options object as a geometry and finds nothing.
-    // All three sub-layers are queried because each has an exclusive status filter:
-    //   overlay-footprints              → neither completed nor proposed
-    //   overlay-footprints-completed    → completed
-    //   overlay-footprints-proposed-dashed → proposed
-    // queryRenderedFeatures respects each layer's minzoom (13 MapLibre = Leaflet zoom 14 =
-    // MIN_ZOOM_FOR_OVERLAYS), so below that threshold this returns an empty array and all
-    // approved layers are cleaned up — correct behaviour.
-    const canvas = mlMap.getCanvas();
-    const w = canvas.clientWidth || canvas.width;
-    const h = canvas.clientHeight || canvas.height;
-    const viewportBbox: [[number, number], [number, number]] = [
-      [0, 0],
-      [w, h],
-    ];
-    const features: any[] = mlMap.queryRenderedFeatures(viewportBbox, {
-      layers: [...OVERLAY_FOOTPRINT_LAYERS],
+    // Use querySourceFeatures instead of queryRenderedFeatures to avoid the viewport issue.
+    // queryRenderedFeatures only returns features with visible geometry in the viewport,
+    // which fails when zoomed in so close that all overlay edges are outside the screen.
+    // querySourceFeatures queries the tile data directly based on the source layer,
+    // returning all features in loaded tiles regardless of visual rendering.
+    // This correctly handles the case where viewport is entirely inside an overlay polygon.
+    const allFeatures: any[] = mlMap.querySourceFeatures("project-sources", {
+      sourceLayer: "overlay-footprints",
     });
 
-    // Deduplicate by ID — same overlay can appear in adjacent tiles.
+    // Get viewport bounds to filter features
+    const bounds = mlMap.getBounds();
+    const viewportBounds = {
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      west: bounds.getWest(),
+    };
+
+    // Deduplicate by ID and filter by viewport intersection.
     // With promoteId set on the source, the id may be on feat.id rather than feat.properties.id.
     const featureMap = new Map<string, OverlayData>();
-    for (const feat of features) {
+    for (const feat of allFeatures) {
       const id = String(feat.id ?? feat.properties?.id ?? "");
-      if (id && !featureMap.has(id)) {
-        const data = overlayDataFromFeature(feat);
-        if (data) featureMap.set(id, data);
+
+      if (!id || featureMap.has(id)) continue;
+
+      const data = overlayDataFromFeature(feat);
+      if (data && overlayIntersectsViewport(data.corners, viewportBounds)) {
+        // Only include if it intersects the viewport
+        featureMap.set(id, data);
       }
     }
 

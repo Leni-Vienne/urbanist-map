@@ -21,15 +21,12 @@ export function canModerateCountry(countryCode: string): boolean {
   const authStore = useAuthStore();
   const user = authStore.user;
   if (!user) return false;
-  // Admins (role=admin or moderatedCountries=null) can moderate everything
-  if (
-    user.role === "admin" ||
-    user.moderatedCountries === null ||
-    user.moderatedCountries === undefined
-  ) {
+  // Only role='admin' makes you an admin
+  if (user.role === "admin") {
     return true;
   }
-  return user.moderatedCountries.includes(countryCode);
+  // Country moderators must have the country in their array
+  return user.moderatedCountries?.includes(countryCode) ?? false;
 }
 
 /**

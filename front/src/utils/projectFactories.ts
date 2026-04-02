@@ -120,10 +120,10 @@ function buildLocalProjectShell(
   return {
     id: localProject.id,
     name: localProject.name,
-    description: localProject.description ?? null,
+    description: localProject.description,
     status: null,
     version: 1,
-    ownerId: localProject.ownerId ?? "",
+    ownerId: localProject.ownerId,
     ownerUsername: username,
     ownerApprovedCount: null,
     ownerRejectedCount: null,
@@ -157,7 +157,7 @@ function buildLocalProjectShell(
     externalProperties: localProject.externalProperties ?? null,
     externalLastModified: localProject.externalLastModified ?? null,
     lastImportedAt: localProject.lastImportedAt ?? null,
-    sourceUrl: localProject.sourceUrl ?? null,
+    sourceUrl: localProject.sourceUrl,
     tags: localProject.tags ?? [],
     geometry: null,
     rejectionReason: null,
@@ -209,12 +209,12 @@ export function createProjectForModerationFromProject(
 ): ProjectForModeration {
   return {
     ...project,
-    tags: project.tags ?? null,
+    tags: project.tags,
     cityName: project.city?.name ?? null,
     countryCode: project.countryCode,
     countryName: null,
     overlays,
-    overlayCount: project.overlayIds?.length ?? 0,
+    overlayCount: project.overlayIds.length,
   };
 }
 

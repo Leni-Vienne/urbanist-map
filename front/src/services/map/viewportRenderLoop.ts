@@ -55,16 +55,22 @@ function computeCornersBBox(corners: { lat: number; lng: number }[]) {
   /* oxlint-enable no-non-null-assertion */
 }
 
-// Check if a bounding box intersects with viewport bounds
+// Check if a bounding box intersects with viewport bounds using standard AABB intersection test.
+// This correctly handles all cases:
+//   1. Overlay partially visible (some edges in viewport)
+//   2. Overlay fully visible (all edges in viewport)
+//   3. Overlay contains viewport (no edges in viewport) ← Previous bug was here
+//   4. Viewport contains overlay (all edges in viewport)
+// Two rectangles DON'T intersect only if one is completely to the left, right, above, or below the other.
 function intersectsViewport(
   bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
   bounds: L.LatLngBounds,
 ) {
   return (
-    bbox.minLat < bounds.getNorth() &&
     bbox.maxLat > bounds.getSouth() &&
-    bbox.minLng < bounds.getEast() &&
-    bbox.maxLng > bounds.getWest()
+    bbox.minLat < bounds.getNorth() &&
+    bbox.maxLng > bounds.getWest() &&
+    bbox.minLng < bounds.getEast()
   );
 }
 
@@ -474,6 +480,13 @@ function processAndRenderProjectShape(
  */
 function renderAllProjectShapes(mapInstance: L.Map) {
   const mapStore = useMapStore();
+
+  // In view mode, project shapes are exclusively rendered by MapLibre vector tiles.
+  // Rendering Leaflet shapes here would duplicate and overlap MapLibre geometry.
+  if (mapStore.mode === "view") {
+    return;
+  }
+
   const isEditMode = mapStore.mode === "edit";
   const isModeration = mapStore.mode === "moderation";
 

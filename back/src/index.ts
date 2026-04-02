@@ -327,6 +327,7 @@ async function createGoogleUser(googleUser: { email: string; name: string; googl
           emailVerified: true,
           passwordHash: null,
           googleId: googleUser.googleId,
+          moderatedCountries: [], // Regular users start with no moderated countries; admin status is controlled via the `role` field
         })
         .returning();
       return newUser;
@@ -666,10 +667,9 @@ app.get("/uploads/*", async (c) => {
 
       // Check authorization for pending/rejected images
       const isAuthor = user.id === overlay.authorId;
-      const isAdmin = user.role === "admin" || user.moderatedCountries === null;
-      const isCountryModerator = overlay.countryCode
-        ? user.moderatedCountries?.includes(overlay.countryCode)
-        : false;
+      const isAdmin = user.role === "admin";
+      const isCountryModerator =
+        overlay.countryCode && user.moderatedCountries?.includes(overlay.countryCode);
 
       if (!isAuthor && !isAdmin && !isCountryModerator) {
         return c.json({ error: "Forbidden" }, 403);

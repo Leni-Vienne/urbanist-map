@@ -15,7 +15,10 @@
         "
         :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
         id-prefix="edit"
-        @update:timeline-status="timelineStatus = $event"
+        @update:timeline-status="
+          timelineStatus = $event;
+          form.formData.timelineStatus = $event;
+        "
         @update:form-data="Object.assign(form.formData, $event)"
       />
 

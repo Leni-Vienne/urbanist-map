@@ -23,7 +23,7 @@ export function useProjectFormValidation() {
     citiesLoaded: boolean,
   ): boolean {
     // We optionally have cityId, but if a city is provided it must exist
-    if (formData.cityId && cities.length > 0 && !cities.some((c) => c.id === formData.cityId)) {
+    if (formData.cityId && citiesLoaded && !cities.some((c) => c.id === formData.cityId)) {
       showError(t("project.invalidLocation"));
       return false;
     }
@@ -36,6 +36,13 @@ export function useProjectFormValidation() {
       lng: 0,
       description: formData.description ?? "",
       sourceUrl: formData.sourceUrl ?? "",
+      timelineStatus,
+      proposalDate: timelineStatus === "proposed" ? formData.proposalDate : null,
+      proposalDatePrecision: timelineStatus === "proposed" ? formData.proposalDatePrecision : null,
+      startDate: timelineStatus === "proposed" ? null : formData.startDate,
+      startDatePrecision: timelineStatus === "proposed" ? null : formData.startDatePrecision,
+      endDate: timelineStatus === "proposed" ? null : formData.endDate,
+      endDatePrecision: timelineStatus === "proposed" ? null : formData.endDatePrecision,
     };
     const result = projectSchema.safeParse(validationData);
 

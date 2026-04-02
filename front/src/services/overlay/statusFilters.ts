@@ -71,7 +71,7 @@ export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
 
 // Last modified date filter: [minTimestampMs, maxTimestampMs]. Infinity = no upper bound.
 // Uses externalLastModified if not null, otherwise updated_at.
-export const lastModifiedDateRange = ref<[number, number]>([0, Infinity]);
+export const lastModifiedDateRange = ref([0, Infinity] as [number, number]);
 
 export function toggleNameFilter(value: "named" | "unnamed"): void {
   if (selectedNameFilters.value.includes(value)) {

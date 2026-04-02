@@ -165,6 +165,7 @@ export const authRouter = router({
           username: username ?? email.split("@")[0],
           emailVerificationToken,
           emailVerified: false,
+          moderatedCountries: [],
         })
         .returning();
 

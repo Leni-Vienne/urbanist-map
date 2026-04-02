@@ -584,8 +584,6 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Check**: Camera flies across countries to USA.
   4.  **Check**: No freezing or stuttering during flight.
   5.  **Check**: Correct overlay is selected upon arrival.
-  6.  **Regression**: Try navigating via city markers.
-  7.  **Check**: City marker navigation also works correctly cross-country.
 
 ## 25. Progressive Overlay Queuing (Recent Optimization - Jan 18)
 
@@ -655,17 +653,6 @@ This document outlines the granular functional test scenarios required to ensure
   8.  **Check**: Only approved markers remain visible (pending ones hidden).
 
 ## 27. Event-Driven Accordion Scrolling (Recent Fix - Jan)
-
-### 27.1. Marker Click Triggers Panel Scroll
-
-- **Scenario**: Clicking markers triggers appropriate panel scrolling.
-- **Steps**:
-  1.  Click a **city marker** on map.
-  2.  **Check**: Side panel scrolls to show city accordion.
-  3.  **Check**: City accordion expands.
-  4.  Click a **standalone project marker**.
-  5.  **Check**: Panel scrolls to project within city.
-  6.  **Check**: Project accordion expands.
 
 ### 27.2. Overlay Click Expands and Scrolls
 
@@ -739,37 +726,6 @@ This document outlines the granular functional test scenarios required to ensure
   3. **Check**: Error message code is `auth.error.emailTaken` (or `account_conflict`).
   4. **Check**: Response **DOES NOT** contain raw SQL error text (e.g., `duplicate key value violates unique constraint`).
   5. **Check**: User is shown a clear error message in the UI.
-
-## 30. City Marker Opacity State Management (Recent Fix - Feb 17)
-
-### 30.1. Marker Opacity Resets When Clicking Different City
-
-- **Scenario**: Previously selected city marker returns to default opacity when selecting a new city.
-- **Steps**:
-  1.  Navigate to a country with multiple cities.
-  2.  Click **City Marker A** (marker becomes opaque).
-  3.  **Check**: City Marker A is at max opacity (hover state).
-  4.  Click **City Marker B** (different city).
-  5.  **Check**: City Marker B is now at max opacity.
-  6.  **Check**: City Marker A returns to default (semi-transparent) opacity.
-  7.  **Regression**: Hover over City Marker A.
-  8.  **Check**: Opacity increases on hover, returns to default on mouseout (not stuck at max).
-
-### 30.2. Marker Opacity Updates via CurrentLocationPanel
-
-- **Scenario**: City marker opacity updates correctly when navigating via panel instead of map click.
-- **Steps**:
-  1.  Click a **City Marker** of country with multiple cities to open the CurrentLocationPanel.
-  2.  Click on the blue country name in the panel to show the list of cities in that country.
-  3.  Click on a city from the list of cities.
-  4.  **Check**: Corresponding city marker on map becomes opaque (max opacity).
-  5.  **Check**: Map flies to selected city.
-  6.  Click on the blue country name in the panel again to show the list of cities in that country.
-  7.  Click on another city in the city list.
-  8.  **Check**: New city marker becomes opaque.
-  9.  **Check**: Previous city marker returns to default opacity.
-  10. **Regression**: Mix navigation methods (click marker, then use panel, then marker again).
-  11. **Check**: Opacity updates consistently regardless of navigation method.
 
 ## 31. Automatic Satellite Layer Switching (Recent Feature - Feb 17)
 
@@ -857,16 +813,6 @@ This document outlines the granular functional test scenarios required to ensure
   8. Pan to **Geneva** (France/Switzerland border).
   9. Pan across border into Switzerland.
   10. **Check**: Layer switches to **Switzerland**.
-
-### 31.8. No Manual Country Switching on City Click
-
-- **Scenario**: Clicking city markers no longer triggers satellite layer changes.
-- **Steps**:
-  1. Set to Satellite mode with ESRI layer active.
-  2. Click a **city marker in France**.
-  3. **Check**: Map pans to city.
-  4. **Check**: Layer switches to France **only** when moveend event fires (based on location).
-  5. **Regression**: Verify layer didn't switch immediately on click (before map moved).
 
 ### 31.9. Manual Satellite Preview Toggle (Recent Fix - Feb 18)
 
@@ -1004,17 +950,6 @@ This document outlines the granular functional test scenarios required to ensure
   6.  Zoom in again.
   7.  **Check**: Images re-appear correctly (no blank map).
 
-### 35.2. Navigation Path — City Marker Click
-
-- **Scenario**: Clicking a city marker loads overlays via `cityDataRenderer.loadAndRenderCityData`.
-- **Steps**:
-  1.  At high zoom, click a **City Marker**.
-  2.  **Check**: Overlay images load (`forceFullOverlays = true` path).
-  3.  **Check**: Standalone markers appear for projects with no overlays.
-  4.  At low zoom, click a City Marker.
-  5.  **Check**: Dot markers appear (not images).
-  6.  **Regression**: Verify no circular dependency errors in console.
-
 ### 35.3. Mode Switch Preserves Rendering
 
 - **Scenario**: Switching mode after viewport load re-renders correctly.
@@ -1051,16 +986,6 @@ This document outlines the granular functional test scenarios required to ensure
   5.  At **zoom 14**: **Check** overlay images AND their interactive markers are both visible.
   6.  **Regression**: Unzoom to 12, zoom back to 14. Verify markers still appear.
 
-### 36.3. Upfront Overlay Markers on City Navigation
-
-- **Scenario**: Overlay markers appear instantly and are fully interactive when clicking a city marker, before images load.
-- **Steps**:
-  1.  Click a **City Marker** at zoom 14+.
-  2.  **Check**: Interactive overlay markers appear **immediately** (alongside standalone project markers) and respond to hover.
-  3.  **Check**: Overlay images load in the background and appear after a short delay.
-  4.  **Check**: Once images are loaded, markers remain interactive and visible (no flash/disappearance).
-  5.  **Regression**: Clear browser cache and repeat — verify markers appear before images on slow connection.
-
 ### 36.5. No Stale Country Tile Requests After Plan→Satellite Round-Trip
 
 - **Scenario**: Re-enabling satellite over Quebec after visiting France does not briefly request France tiles.
@@ -1073,16 +998,6 @@ This document outlines the granular functional test scenarios required to ensure
   6.  **Check**: No requests to `data.geopf.fr` appear in the Network tab.
   7.  **Check**: Only Quebec tile requests (`mern.gouv.qc.ca`) are made.
   8.  **Regression**: Verify no console errors about failed tile fetches from wrong tile servers.
-
-### 36.4. Standalone Project Marker Cleanup on City Switch
-
-- **Scenario**: Old standalone project markers are removed instantly when navigating to a new city.
-- **Steps**:
-  1.  Click a **City Marker** for a city that has standalone projects (projects without overlays).
-  2.  Verify standalone project markers appear on the map.
-  3.  Click a **different City Marker**.
-  4.  **Check**: Old standalone project markers disappear **instantly** (no ~500ms delay).
-  5.  **Check**: New city's standalone project markers appear correctly.
 
 ## 37. Vector Tile Backend (Step 1)
 
@@ -1241,23 +1156,6 @@ This document outlines the granular functional test scenarios required to ensure
   3. Projects that are far apart (different grid cells) are all represented — no legitimate points are dropped.
   4. The MapLibre cluster source still renders correctly with the deduplicated data (clusters at low zoom, individual dots at zoom ≥ 10).
 
-### 38.12. Bbox-Based Edit/Moderation Loading (Step 3)
-
-- **Scenario**: In Edit or Moderation mode, overlays and standalone project markers load spatially from the viewport bbox rather than by city boundaries.
-- **Steps**:
-  1. Enter **Edit Mode** while zoomed in to street level (above `VIEWPORT_LOAD_THRESHOLD`).
-  2. Pan the map across a city boundary so that contributions from two cities are in view.
-  3. Observe that overlays and standalone project markers from **both** cities appear without needing to click a city marker.
-  4. Zoom out below `VIEWPORT_LOAD_THRESHOLD`. Overlays and standalone markers should clear.
-  5. Zoom back in. Data should reload via a fresh bbox fetch.
-- **Checks**:
-  1. Overlays from multiple cities appear simultaneously when their corners are within the viewport — no city boundary limitation.
-  2. Standalone project markers (projects with zero overlays) appear for projects whose `center_coordinate` falls within the viewport.
-  3. In Edit mode, the user's own pending/local projects appear alongside approved projects.
-  4. In Moderation mode, all pending projects (from any user) appear.
-  5. Panning a short distance (within the quantized bbox key) does NOT trigger a new backend fetch.
-  6. Panning a longer distance triggers a new fetch and renders the new viewport's data.
-
 ### 38.13. Cluster Source Augmentation in Edit/Moderation
 
 - **Scenario**: The MapLibre cluster source shows both approved projects (from `/api/projects/points`) and pending projects (from the bbox tRPC fetch) when in Edit or Moderation mode.
@@ -1284,40 +1182,3 @@ This document outlines the granular functional test scenarios required to ensure
   1. No flash of empty content during mode transitions (overlays not visible in new mode are hidden before fetch).
   2. Standalone project markers for local (unsaved) projects appear immediately after switching to Edit mode.
   3. The cluster source is restored to base (approved-only) data when returning to View mode.
-
----
-
-## 39. Vector Tile Cleanup — Leaflet City Marker Removal (Step 4)
-
-### 39.1. City List Panels Remain Functional
-
-- **Scenario**: `citiesWithProjects` ref is still populated after the Leaflet city marker layer was removed.
-- **Steps**:
-  1. Open the app. Ensure no login (view mode).
-  2. Open **CurrentLocationPanel** / **MarkerHelpButton** / **PopupContainer**.
-  3. **Check**: City list is populated correctly (cities with approved projects visible).
-  4. Log in and switch to **Edit Mode**.
-  5. **Check**: City list updates to include cities with your own pending items.
-  6. Switch to **Moderation Mode** (if moderator).
-  7. **Check**: City list shows cities with any pending items in your jurisdiction.
-
-### 39.2. `activateCity` / `smartZoomToCity` Still Work
-
-- **Scenario**: Clicking a city entry in the panel triggers the correct city activation flow.
-- **Steps**:
-  1. Open **CurrentLocationPanel** and click a city name.
-  2. **Check**: Map flies to that city's content bounds.
-  3. **Check**: Overlays and standalone markers for the city load (as defined by current mode).
-  4. **Check**: Panel scrolls to show city accordion.
-  5. **Regression**: Click a city in a **different country** from the currently loaded one.
-  6. **Check**: Map flies to the new city; no ghost markers from the old country remain.
-
-### 39.3. Mode Watcher Refreshes City List
-
-- **Scenario**: Switching mode triggers `buildCitiesForCurrentMode` and updates the city list.
-- **Steps**:
-  1. Load map in **View Mode**. Note the number of cities in the panel list.
-  2. Switch to **Edit Mode**.
-  3. **Check**: City list updates (may include extra cities with your pending items).
-  4. Switch back to **View Mode**.
-  5. **Check**: City list returns to approved-only cities.

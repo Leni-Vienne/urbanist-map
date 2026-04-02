@@ -64,14 +64,17 @@ function getMapBbox() {
   };
 }
 
+function roundCoord(v: number): string {
+  return (Math.round(v * 200) / 200).toFixed(3);
+}
+
 /**
  * Quantize a bbox to a coarse grid so nearby viewports produce the same key.
  * Prevents redundant fetches when the user pans a few pixels.
  */
 function bboxKey(bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number }): string {
   // Round to ~0.005° (~500m at equator) — coarse enough to absorb tiny pans
-  const r = (v: number) => (Math.round(v * 200) / 200).toFixed(3);
-  return `${r(bbox.minLng)},${r(bbox.minLat)},${r(bbox.maxLng)},${r(bbox.maxLat)}`;
+  return `${roundCoord(bbox.minLng)},${roundCoord(bbox.minLat)},${roundCoord(bbox.maxLng)},${roundCoord(bbox.maxLat)}`;
 }
 
 /**
@@ -325,6 +328,7 @@ export function useViewportTriggers() {
         // Switching TO view mode: clear overlays and let vectorTileSync drive rendering.
         if (newMode === "view") {
           clearAllOverlays(false);
+          clearAllProjectShapes();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();
