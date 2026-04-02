@@ -7,18 +7,29 @@
 // overlaySelection calls setOverlayDrivenHover() to drive the highlight.
 
 let overlayDrivenHoverId: string | null = null;
-let onChangeCallback: ((projectId: string | null) => void) | null = null;
+let overlayDrivenHoverOverlayId: string | null = null;
+let onChangeCallback: ((projectId: string | null, overlayId: string | null) => void) | null = null;
 
 export function getOverlayDrivenHoverId(): string | null {
   return overlayDrivenHoverId;
 }
 
-export function setOverlayDrivenHover(projectId: string | null): void {
+export function getOverlayDrivenHoverOverlayId(): string | null {
+  return overlayDrivenHoverOverlayId;
+}
+
+export function setOverlayDrivenHover(
+  projectId: string | null,
+  overlayId: string | null = null,
+): void {
   overlayDrivenHoverId = projectId;
-  onChangeCallback?.(projectId);
+  overlayDrivenHoverOverlayId = overlayId;
+  onChangeCallback?.(projectId, overlayId);
 }
 
 /** Called by projectVectorLayers once it has the mlMap instance. */
-export function registerOverlayHoverCallback(fn: (projectId: string | null) => void): void {
+export function registerOverlayHoverCallback(
+  fn: (projectId: string | null, overlayId: string | null) => void,
+): void {
   onChangeCallback = fn;
 }

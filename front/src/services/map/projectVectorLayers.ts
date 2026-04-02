@@ -9,8 +9,12 @@ import {
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
+import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+
 import {
   getOverlayDrivenHoverId,
+  getOverlayDrivenHoverOverlayId,
   registerOverlayHoverCallback,
   setOverlayDrivenHover,
 } from "@/services/map/vectorHoverState";
@@ -498,43 +502,70 @@ function queryFeaturesAtLeafletEvent(
   return mlMap.queryRenderedFeatures([point.x, point.y], { layers: [...layers] });
 }
 
-function getHoveredVectorId(feature: RenderedMapFeature | null): string {
+function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
+  projectId: string;
+  overlayId: string;
+} {
   if (!feature) {
-    return HOVER_NONE_ID;
+    return { projectId: HOVER_NONE_ID, overlayId: HOVER_NONE_ID };
   }
 
-  // Overlay footprint features store their project id in "project_id", not "id"
-  // (id is the overlay's own id). All other layers (shapes, points) use "id" as the project id.
   const sourceLayer = String((feature as any).sourceLayer ?? "");
-  const propKey = sourceLayer === "overlay-footprints" ? "project_id" : "id";
-  const id = getFeaturePropertyAsString(feature, propKey);
-  return id.length > 0 ? id : HOVER_NONE_ID;
+  const projectIdProp = sourceLayer === "overlay-footprints" ? "project_id" : "id";
+  const projectId = getFeaturePropertyAsString(feature, projectIdProp);
+  const overlayId =
+    sourceLayer === "overlay-footprints"
+      ? getFeaturePropertyAsString(feature, "id")
+      : (getOverlayDrivenHoverOverlayId() ?? HOVER_NONE_ID);
+
+  return {
+    projectId: projectId.length > 0 ? projectId : HOVER_NONE_ID,
+    overlayId: overlayId.length > 0 ? overlayId : HOVER_NONE_ID,
+  };
 }
 
 function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature | null): void {
-  const hoveredId = getHoveredVectorId(feature);
+  const { projectId, overlayId } = getHoveredFeatureIds(feature);
 
-  mlMap.setFilter("project-shapes-hover", ["==", ["to-string", ["get", "id"]], hoveredId]);
+  const selectedProjectId = getCurrentHighlightedProjectId() ?? HOVER_NONE_ID;
+  const selectedOverlayId = useOverlayStore().idSelectedOverlay ?? HOVER_NONE_ID;
+
+  mlMap.setFilter("project-shapes-hover", [
+    "any",
+    ["==", ["to-string", ["get", "id"]], projectId],
+    ["==", ["to-string", ["get", "id"]], selectedProjectId],
+  ]);
   mlMap.setFilter("project-shapes-hover-fill", [
     "all",
     ["==", ["geometry-type"], "Polygon"],
-    ["==", ["to-string", ["get", "id"]], hoveredId],
+    [
+      "any",
+      ["==", ["to-string", ["get", "id"]], projectId],
+      ["==", ["to-string", ["get", "id"]], selectedProjectId],
+    ],
   ]);
   mlMap.setFilter("project-shapes-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
-    ["==", ["to-string", ["get", "id"]], hoveredId],
+    [
+      "any",
+      ["==", ["to-string", ["get", "id"]], projectId],
+      ["==", ["to-string", ["get", "id"]], selectedProjectId],
+    ],
   ]);
-  // Footprint layers group by project_id, not the overlay's own id
   mlMap.setFilter("overlay-footprints-hover", [
-    "==",
-    ["to-string", ["get", "project_id"]],
-    hoveredId,
+    "any",
+    ["==", ["to-string", ["get", "id"]], overlayId],
+    ["==", ["to-string", ["get", "id"]], selectedOverlayId],
   ]);
   mlMap.setFilter("overlay-footprints-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
-    ["==", ["to-string", ["get", "project_id"]], hoveredId],
+    [
+      "any",
+      ["==", ["to-string", ["get", "id"]], overlayId],
+      ["==", ["to-string", ["get", "id"]], selectedOverlayId],
+    ],
   ]);
 }
 
@@ -624,9 +655,14 @@ function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | nu
  * Highlight a project by id across all hover layers (shapes, footprints, points).
  * Pass null to clear the highlight.
  */
-function setHoveredProjectId(mlMap: MaplibreMap, projectId: string | null): void {
+function setHoveredProjectId(
+  mlMap: MaplibreMap,
+  projectId: string | null,
+  overlayId: string | null = null,
+): void {
   const id = projectId ?? HOVER_NONE_ID;
-  setVectorHoverFilters(mlMap, projectId ? { properties: { id } } : null);
+  const overlayProp = overlayId ?? HOVER_NONE_ID;
+  setVectorHoverFilters(mlMap, projectId ? { properties: { id, overlayId: overlayProp } } : null);
   setPointHoverFilter(mlMap, projectId);
 }
 
@@ -805,9 +841,9 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
 }
 
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
-  registerOverlayHoverCallback((projectId) => {
+  registerOverlayHoverCallback((projectId, overlayId) => {
     const mlMap = mlMapGetter();
-    if (mlMap) setHoveredProjectId(mlMap, projectId);
+    if (mlMap) setHoveredProjectId(mlMap, projectId, overlayId);
   });
 
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
