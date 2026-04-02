@@ -1,13 +1,15 @@
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import "maplibre-gl/dist/maplibre-gl.css"; // is it of any use ?
 import { maplibreLayer, type MaplibreGL } from "@/lib/MaplibreLayer";
 import { map } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 import {
   addProjectDataToMlMap,
+  applyPlanStyleRoadOverrides,
+  applyRailStyleOverrides,
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
@@ -116,7 +118,7 @@ function updateLeafletAttribution(newAttribution: string) {
 // Current active tile layer ("plan" = MapLibre vector basemap)
 export const currentTileLayer = ref<TileLayerType>("plan");
 
-/** Reference to the underlying MapLibre map instance. Available after mlMapReadyCallbacks fire. */
+/** Reference to the basemap MapLibre map instance (renders below overlays at z-200). */
 // During Vite HMR, the module re-executes but the MapLibre instance is still alive on the page.
 // We preserve it via import.meta.hot.data so onMlMapReady callers don't get stuck waiting
 // for a `load` event that will never fire again.
@@ -125,13 +127,24 @@ const mlMapRef = {
 };
 const mlMapReadyCallbacks: (() => void)[] = [];
 
+/** Reference to the vector overlay MapLibre map instance (renders above overlays at z-450). */
+// This map contains project shapes, overlay footprints, and all project-related vector data.
+const vectorMapRef = {
+  current: (import.meta.hot?.data.vectorMap as MaplibreMap | null) ?? null,
+};
+
+// Export the vector map as the primary mlMap reference since that's where project data lives
 export function getMlMap(): MaplibreMap | null {
+  return vectorMapRef.current;
+}
+
+function getBasemapMlMap(): MaplibreMap | null {
   return mlMapRef.current;
 }
 
-/** Register a callback to be called once (and immediately if already ready) when mlMap is loaded. */
+/** Register a callback to be called once (and immediately if already ready) when vector mlMap is loaded. */
 export function onMlMapReady(cb: () => void): void {
-  if (mlMapRef.current) {
+  if (vectorMapRef.current) {
     cb();
   } else {
     mlMapReadyCallbacks.push(cb);
@@ -295,13 +308,29 @@ export function addTileLayer(): void {
  */
 async function addTileLayersToMap(): Promise<void> {
   try {
-    const leafletLayer = maplibreLayer({
-      style: OPENFREEMAP_STYLE_URL,
-      fadeDuration: 0, // Disable fade animation for symbol layers (cluster counts)
-    }).addTo(map.value);
-    activeBaseLayer = leafletLayer;
+    // Create two MapLibre layers:
+    // 1. Basemap layer at tilePane (z-200) - full style with basemap tiles
+    // 2. Vector overlay layer at vectorPane (z-450) - transparent with only project vectors
+    // This allows project vector geometries to render on top of distortable overlay images.
 
-    const mlMap = leafletLayer.getMaplibreMap();
+    // Create custom pane for vector overlay layer
+    const vectorPane = map.value.createPane("vectorPane");
+    vectorPane.style.zIndex = "450";
+    // CRITICAL: Prevent the vector canvas from capturing pointer events so overlays
+    // underneath (at z-400) can still be clicked, dragged, and interacted with.
+    // The vector layer still receives clicks because Leaflet forwards map-level
+    // pointer events to MapLibre's queryRenderedFeatures.
+    vectorPane.style.pointerEvents = "none";
+
+    // Basemap layer (below overlays) - gets the full OpenFreeMap style
+    const basemapLayer = maplibreLayer({
+      style: OPENFREEMAP_STYLE_URL,
+      fadeDuration: 0,
+      pane: "tilePane", // Default pane at z-200
+    }).addTo(map.value);
+    activeBaseLayer = basemapLayer;
+
+    const mlMap = basemapLayer.getMaplibreMap();
 
     // Add a dummy image to prevent "styleimagemissing" errors for missing cluster icons.
     mlMap.on("styleimagemissing", (e: { id: string }) => {
@@ -311,21 +340,49 @@ async function addTileLayersToMap(): Promise<void> {
     mlMap.on("load", () => {
       mlMapRef.current = mlMap;
 
-      // Sources must exist before subscribers are notified — callbacks like
-      // vectorTileSync call source.setData() immediately.
-      addProjectDataToMlMap(mlMap);
+      // Apply road overrides to basemap
+      applyPlanStyleRoadOverrides(mlMap);
+      applyRailStyleOverrides(mlMap);
+
+      // Don't add project data to basemap layer - it would render below overlays
+      // Project data will be added to the vector overlay layer instead
+
       if (lastPendingProjectPointsGeojson) {
         updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
       }
-      registerHybridInteractionHandlers(getMlMap);
+    });
+
+    // Vector overlay layer (above overlays) - transparent background with only project layers
+    const vectorLayer = maplibreLayer({
+      style: {
+        version: 8,
+        sources: {},
+        layers: [],
+      },
+      fadeDuration: 0,
+      pane: "vectorPane", // Custom pane at z-450
+    }).addTo(map.value);
+
+    const vectorMap = vectorLayer.getMaplibreMap();
+
+    vectorMap.on("styleimagemissing", (e: { id: string }) => {
+      vectorMap.addImage(e.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
+    });
+
+    vectorMap.on("load", () => {
+      vectorMapRef.current = vectorMap;
+
+      // Add project data layers to the vector overlay map
+      addProjectDataToMlMap(vectorMap);
+      registerHybridInteractionHandlers(() => vectorMap);
 
       if (import.meta.env.DEV) {
         import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
-          (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(mlMap);
+          (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(vectorMap);
         });
       }
 
-      // Notify all waiting subscribers (e.g. vectorTileSync)
+      // Notify subscribers that vector map is ready
       for (const cb of mlMapReadyCallbacks) cb();
       mlMapReadyCallbacks.length = 0;
     });
@@ -334,13 +391,13 @@ async function addTileLayersToMap(): Promise<void> {
   }
 }
 
-// Watch for tag and status filter changes and update MVT layers
+// Watch for tag and status filter changes and update MVT layers on the vector overlay map
 watch(
   [selectedProjectTags, visibleStates, sizeFilterRange, selectedNameFilters, lastModifiedDateRange],
   () => {
-    const mlMap = mlMapRef.current;
-    if (mlMap) {
-      applyTagFiltersToVectorLayers(mlMap);
+    const vectorMap = vectorMapRef.current;
+    if (vectorMap) {
+      applyTagFiltersToVectorLayers(vectorMap);
     }
   },
   { deep: true },
@@ -353,10 +410,10 @@ watch(
 export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
   lastPendingProjectPointsGeojson = geojson;
 
-  const mlMap = mlMapRef.current;
-  if (!mlMap) return;
+  const vectorMap = vectorMapRef.current;
+  if (!vectorMap) return;
 
-  const source = mlMap.getSource("pending-project-points-source") as GeoJSONSource | undefined;
+  const source = vectorMap.getSource("pending-project-points-source") as GeoJSONSource | undefined;
   if (source) {
     source.setData(geojson);
   }
@@ -384,21 +441,19 @@ function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification 
 }
 
 /**
- * Switch the MapLibre map to a new style, then re-add project data on top.
- * Temporarily nulls mlMapRef.current so event handlers bail during the transition.
+ * Switch the basemap MapLibre map to a new style.
+ * Project data remains on the separate vector overlay map and doesn't need to be re-added.
  */
 async function switchToStyle(style: StyleSpecification | string): Promise<void> {
   const mlMap = mlMapRef.current;
   if (!mlMap) return;
 
-  mlMapRef.current = null; // Disable event handlers during style transition
-
   await new Promise<void>((resolve) => {
     mlMap.once("style.load", () => {
-      addProjectDataToMlMap(mlMap);
-      mlMapRef.current = mlMap;
-      if (lastPendingProjectPointsGeojson) {
-        updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
+      // Re-apply road/rail overrides to the new style if it's the plan style
+      if (style === OPENFREEMAP_STYLE_URL) {
+        applyPlanStyleRoadOverrides(mlMap);
+        applyRailStyleOverrides(mlMap);
       }
       resolve();
     });
@@ -495,7 +550,7 @@ function applyEsriMaxZoom(zoomLevel: number) {
     esriConfig.maxZoom = zoomLevel;
 
     if (currentTileLayer.value === "esri") {
-      const mlMap = getMlMap();
+      const mlMap = getBasemapMlMap(); // Use basemap since satellite source is there
       if (mlMap) {
         // Since MapLibre GL JS does not officially support hot-swapping maxzoom on a source
         // we'll attempt to update it via undocumented properties.
@@ -626,10 +681,11 @@ function initEsriMetadataListener() {
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
-  // Save the live MapLibre instance before the module is discarded so the
-  // replacement module can restore it and skip the stale `load` event wait.
+  // Save the live MapLibre instances before the module is discarded so the
+  // replacement module can restore them and skip the stale `load` event wait.
   import.meta.hot.dispose((data) => {
     data.mlMap = mlMapRef.current;
+    data.vectorMap = vectorMapRef.current;
   });
   import.meta.hot.accept();
 }

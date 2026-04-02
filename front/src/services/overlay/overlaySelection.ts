@@ -422,20 +422,6 @@ export function setupProjectHoverEvents(
 }
 
 /**
- * Ensure the currently selected overlay stays on top of all other overlays.
- * Call this after adding new overlays to the map to maintain selection z-index priority.
- */
-export function ensureSelectedOverlayOnTop(): void {
-  const overlayStore = useOverlayStore();
-  if (!overlayStore.idSelectedOverlay) return;
-
-  const selectedLayer = getLayer(overlayStore.idSelectedOverlay);
-  if (selectedLayer) {
-    selectedLayer.bringToFront();
-  }
-}
-
-/**
  * Setup map click handler to deselect overlays when clicking the map background
  */
 export function setupMapClickToDeselect(): void {

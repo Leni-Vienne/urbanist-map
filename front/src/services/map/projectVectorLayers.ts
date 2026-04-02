@@ -47,7 +47,7 @@ import {
 
 const pendingTileRequests = new Map<string, Promise<ArrayBuffer>>();
 
-addProtocol("dedupe", async (params, abortController) => {
+addProtocol("dedupe", async (params, _abortController) => {
   const url = params.url.replace("dedupe://", "");
 
   if (pendingTileRequests.has(url)) {
@@ -102,11 +102,11 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-const SHAPE_LINE_WIDTH = 2;
-const FOOTPRINT_LINE_WIDTH = 6; // = SHAPE_LINE_WIDTH * 2
+const SHAPE_LINE_WIDTH = 3;
+const FOOTPRINT_LINE_WIDTH = 2; // hiding it for now since project geometry appears over them
 
 const SHAPE_LONG_DASH: [number, number] = [4, 2];
-const SHAPE_SHORT_DASH: [number, number] = [1.5, 2];
+const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
 const FOOTPRINT_LONG_DASH: [number, number] = [2, 1]; // = SHAPE_LONG_DASH / 2
 const FOOTPRINT_SHORT_DASH: [number, number] = [0.25, 1]; // = SHAPE_SHORT_DASH / 2
 
@@ -844,7 +844,9 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
-    mlMap.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
+    // Set cursor on the Leaflet container instead of the MapLibre canvas
+    // because the vector MapLibre canvas has pointer-events: none
+    map.value.getContainer().style.cursor = features.length > 0 ? "pointer" : "";
     // Don't override an overlay-driven hover with an empty vector result.
     if (getOverlayDrivenHoverId() === null) {
       setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
@@ -858,7 +860,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    mlMap.getCanvas().style.cursor = "";
+    map.value.getContainer().style.cursor = "";
     clearHoverPreview();
 
     // If a project is pinned (popup open from a click), preserve the highlight.
@@ -923,7 +925,7 @@ function updateHoverPreview(
   clientY: number,
 ): void {
   if (pointFeature) {
-    const cellCount: number = pointFeature.properties?.cell_count ?? 1;
+    const cellCount = Number(pointFeature.properties?.cell_count ?? 1);
     const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
     if (cellCount > 1) {
       triggerClusterHover(cellCount, clientX, clientY);
@@ -980,7 +982,7 @@ const ROAD_CASING_OVERRIDES: Record<string, string> = {
  * Only runs when the plan (vector) style is active — satellite styles have no road layers.
  * Matches Liberty layer IDs like "road_trunk", "road_primary_casing", "tunnel_motorway", etc.
  */
-function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
+export function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
   const layers = mlMap.getStyle().layers;
 
   for (const layer of layers) {
@@ -1004,10 +1006,36 @@ function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
 }
 
 /**
+ * Applies overrides to the Liberty basemap's railway styling to visually
+ * differentiate it from our tram project geometries.
+ * Makes existing railways gray, slightly dashed, and semi-transparent.
+ */
+export function applyRailStyleOverrides(mlMap: MaplibreMap): void {
+  const layers = mlMap.getStyle().layers;
+
+  for (const layer of layers) {
+    if (layer.type !== "line") continue;
+
+    const id = layer.id;
+    // Target rail lines (excluding subway/subway-casing if any, though Liberty
+    // usually names them "railway_transit" etc.)
+    //if (!id.startsWith("railway") && !id.includes("rail")) continue;
+    if (id.includes("road_major_rail") || id.includes("bridge_major_rail")) {
+      // Dim the main rail line
+      mlMap.setPaintProperty(id, "line-color", "#f97316");
+      mlMap.setPaintProperty(id, "line-opacity", 0.7);
+    }
+    if (id.includes("tunnel_major_rail")) {
+      mlMap.setPaintProperty(id, "line-color", "#f97316");
+      mlMap.setPaintProperty(id, "line-opacity", 0.5);
+    }
+  }
+}
+
+/**
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
-  applyPlanStyleRoadOverrides(mlMap);
   // Find insertion point: after all fill-extrusion (3D buildings) layers but before labels.
   // Inserting before the very first symbol layer risks landing under 3D buildings when the
   // basemap style places fill-extrusion layers after its first symbol layers.
@@ -1215,7 +1243,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
+        "line-width": 0, // temporary
         "line-dasharray": FOOTPRINT_LONG_DASH,
       },
     },
@@ -1252,7 +1280,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
+        "line-width": 0, // temporary
         "line-dasharray": FOOTPRINT_SHORT_DASH,
       },
     },
@@ -1291,7 +1319,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
+        "line-width": 0, // temporary
       },
     },
     firstSymbolLayerId,
