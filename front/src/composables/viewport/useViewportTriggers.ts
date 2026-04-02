@@ -328,6 +328,7 @@ export function useViewportTriggers() {
         // Switching TO view mode: clear overlays and let vectorTileSync drive rendering.
         if (newMode === "view") {
           clearAllOverlays(false);
+          clearAllProjectShapes();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();

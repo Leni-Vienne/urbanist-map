@@ -480,6 +480,13 @@ function processAndRenderProjectShape(
  */
 function renderAllProjectShapes(mapInstance: L.Map) {
   const mapStore = useMapStore();
+
+  // In view mode, project shapes are exclusively rendered by MapLibre vector tiles.
+  // Rendering Leaflet shapes here would duplicate and overlap MapLibre geometry.
+  if (mapStore.mode === "view") {
+    return;
+  }
+
   const isEditMode = mapStore.mode === "edit";
   const isModeration = mapStore.mode === "moderation";
 
