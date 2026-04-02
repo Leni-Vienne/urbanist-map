@@ -238,6 +238,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       cityId: project.cityId,
       lat: project.lat,
       lng: project.lng,
+      timelineStatus: formData.timelineStatus ?? project.timelineStatus,
       proposalDate: formData.proposalDate,
       proposalDatePrecision: formData.proposalDate
         ? (formData.proposalDatePrecision ?? project.proposalDatePrecision)

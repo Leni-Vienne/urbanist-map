@@ -59,6 +59,12 @@
       :id-prefix="idPrefix"
       @change="handleTimelineStatusChange"
     />
+    <small
+      v-if="showTimelineStatusChangeIndicator"
+      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+    >
+      {{ $t("overlay.changedFrom") }}: "{{ originalData?.timelineStatus || $t("overlay.notSet") }}"
+    </small>
 
     <!-- Start and end date fields (always shown) -->
     <div class="flex flex-col gap-4">
@@ -469,6 +475,10 @@ function getInputClass(fieldName: string) {
 // Computed properties for change indicators to simplify template logic
 const showNameChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("name"),
+);
+
+const showTimelineStatusChangeIndicator = computed(
+  () => props.showChangeIndicators && props.hasChanged?.("timelineStatus"),
 );
 
 const showDescriptionChangeIndicator = computed(
