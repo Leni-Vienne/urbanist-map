@@ -124,7 +124,7 @@ export default defineConfig(({ mode }) => ({
   },
   // External leaflet to prevent bundling
   build: {
-    sourcemap: true,
+    sourcemap: false,
     license: true,
     cssCodeSplit: true, // Extract CSS per chunk for parallel loading
     rolldownOptions: {
