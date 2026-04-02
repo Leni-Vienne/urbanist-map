@@ -55,6 +55,7 @@ function collectCoords(geom: GeoJSON.Geometry): number[][] {
     case "MultiLineString":
       return geom.coordinates.flat();
     case "MultiPolygon":
+      // oxlint-disable-next-line no-magic-array-flat-depth
       return geom.coordinates.flat(2);
     case "GeometryCollection":
       return geom.geometries.flatMap(collectCoords);
@@ -100,9 +101,15 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
     const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
     const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
     if (!id) continue;
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
-    const sizeM = Number(props.geometry_size_m ?? props.max_size_m ?? 0);
+
+    const rawSize = props.geometry_size_m ?? props.max_size_m;
+    const sizeM = rawSize != null ? Number(rawSize) : 0;
     const tags = parseMvtTags(props.tags);
+    const rawLastMod = props.last_modified_s;
+    const lastModifiedS = rawLastMod != null ? Number(rawLastMod) : 0;
+
     if (!seen.has(id)) {
       seen.set(id, {
         id,
@@ -110,7 +117,7 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
         firstTag: props.first_tag ?? "",
         tags,
         timelineStatus: props.timeline_status ?? "",
-        lastModifiedS: Number(props.last_modified_s ?? 0),
+        lastModifiedS,
         sizeM,
         lat,
         lng,
@@ -123,6 +130,14 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
         existing.lat = lat;
         existing.lng = lng;
       }
+      // Use Math.max to guarantee we always capture the real size and date from whichever layer provides it (project geometry vs overlay footprint),
+      // even if the features come in a different order on subsequent queries.
+      existing.sizeM = Math.max(existing.sizeM || 0, sizeM || 0);
+      existing.lastModifiedS = Math.max(existing.lastModifiedS || 0, lastModifiedS || 0);
+      if (tags.length > existing.tags.length) existing.tags = tags;
+      if (props.first_tag && !existing.firstTag) existing.firstTag = props.first_tag;
+      if (props.timeline_status && !existing.timelineStatus)
+        existing.timelineStatus = props.timeline_status;
     }
   }
   const result = [...seen.values()];
@@ -173,14 +188,14 @@ export function useVisibleProjects() {
       return true;
     });
 
-    const named = filtered.filter((p) => p.name);
-    const unnamed = filtered.filter((p) => !p.name);
-
     function compareBySortMode(a: VisibleProject, b: VisibleProject): number {
       let result = 0;
       if (sortMode.value === "recent") {
         result = b.lastModifiedS - a.lastModifiedS;
       } else if (sortMode.value === "name") {
+        // When sorting by name, put unnamed projects at the bottom
+        if (a.name && !b.name) return sortReverse.value ? 1 : -1;
+        if (!a.name && b.name) return sortReverse.value ? -1 : 1;
         result = (a.name ?? "").localeCompare(b.name ?? "");
       } else if (sortMode.value === "size") {
         result = b.sizeM - a.sizeM;
@@ -189,7 +204,7 @@ export function useVisibleProjects() {
       }
       return sortReverse.value ? -result : result;
     }
-    return [...named.toSorted(compareBySortMode), ...unnamed.toSorted(compareBySortMode)];
+    return filtered.toSorted(compareBySortMode);
   });
 
   // We gate doRefresh on this flag to avoid querying on every drag frame.
@@ -208,16 +223,9 @@ export function useVisibleProjects() {
     const h = canvas.height / dpr;
     const INSET = 100; // px inset from edge to avoid listing projects under UI elements
 
-    // On mobile, the drawer overlaps the bottom of the map -- exclude that area
-    const isMobile = window.innerWidth <= 768;
-    const drawerOffsetPx =
-      isMobile && uiStore.mobileDrawerVisible
-        ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight
-        : 0;
-
     const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
       [INSET, INSET],
-      [w - INSET, h - drawerOffsetPx - INSET],
+      [w - INSET, h - INSET],
     ];
     // applying an inset to avoid projects that are at the edge of the screen
     const features = mlMap.queryRenderedFeatures(bbox, { layers: [...QUERY_LAYERS] });
@@ -296,11 +304,9 @@ export function useVisibleProjects() {
     };
     mlMap.on("sourcedata", sourcedataHandler);
 
+    // Refresh initially
     scheduleRefresh();
   });
-
-  // Re-run when the drawer is resized or toggled (map idle won't fire in that case)
-  watch(() => [uiStore.mobileDrawerHeightPercent, uiStore.mobileDrawerVisible], scheduleRefresh);
 
   onUnmounted(() => {
     if (fallbackTimer) clearTimeout(fallbackTimer);

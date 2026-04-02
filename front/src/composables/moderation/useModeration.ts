@@ -271,6 +271,7 @@ export function useModeration() {
     if (result.success && projectBeforeApproval) {
       // Update marker color to reflect new status (pending -> approved/rejected)
       // Use unknown as intermediate type since moderation project may not have all Project fields
+      // oxlint-disable-next-line no-unsafe-type-assertion
       const projectWithNewStatus = createProjectObject({
         ...projectBeforeApproval,
         status,

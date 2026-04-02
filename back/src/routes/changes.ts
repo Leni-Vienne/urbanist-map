@@ -18,6 +18,7 @@ import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
+import { invalidateLatestContributionsCache } from "./feed";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -145,7 +146,7 @@ async function checkModeratorChangeRequestPermission(
   user: { role: string | null; moderatedCountries: string[] | null },
 ): Promise<string> {
   // Admins can moderate any country
-  if (user.role === "admin" || user.moderatedCountries === null) {
+  if (user.role === "admin") {
     return "*";
   }
 
@@ -183,7 +184,7 @@ async function checkModeratorChangeRequestPermission(
   }
 
   // Check if moderator has permission for this country
-  if (!user.moderatedCountries.includes(countryCode)) {
+  if (!user.moderatedCountries?.includes(countryCode)) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "You do not have permission to moderate content in this country",
@@ -231,6 +232,50 @@ export const changesRouter = router({
             code: "TOO_MANY_REQUESTS",
             message: "Too many change requests. Please try again later.",
           });
+        }
+
+        // Verify that the entity exists and is approved
+        // Users can only submit change requests for approved content
+        if (input.entityType === "overlay") {
+          const overlayResult = await db
+            .select({ status: overlays.status })
+            .from(overlays)
+            .where(eq(overlays.id, input.entityId))
+            .limit(1);
+
+          if (!overlayResult[0]) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Overlay not found",
+            });
+          }
+
+          if (overlayResult[0].status !== "approved") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Change requests can only be submitted for approved overlays",
+            });
+          }
+        } else if (input.entityType === "project") {
+          const projectResult = await db
+            .select({ status: projects.status })
+            .from(projects)
+            .where(eq(projects.id, input.entityId))
+            .limit(1);
+
+          if (!projectResult[0]) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Project not found",
+            });
+          }
+
+          if (projectResult[0].status !== "approved") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Change requests can only be submitted for approved projects",
+            });
+          }
         }
 
         // Validate field values before writing to the DB
@@ -532,6 +577,13 @@ export const changesRouter = router({
             await invalidateOverlayTiles(change.entityId);
           }
         }
+
+        // Always invalidate the latest contributions cache when change requests are approved
+        // because it might change the project/overlay details shown in the feed
+        if (changesToApprove.length > 0) {
+          invalidateLatestContributionsCache();
+        }
+
         return { success: true };
       } catch (error) {
         console.error("Error approving change requests:", error);

@@ -7,9 +7,6 @@
 // the other. Callers just say "apply ring" / "clear ring", no CSS leaks out.
 // ============================================================================
 
-import { OVERLAY_OUTLINE_COLOR } from "@/services/map/markers";
-
-const SELECTION_RING_BASE_SIZE = 20; // px, scaled by image resolution
 const WARNING_SHADOW = "0 0 0 2px rgba(239, 68, 68, 0.3)";
 
 type ShadowState = {
@@ -31,46 +28,6 @@ function getState(element: HTMLElement): ShadowState {
 function commit(element: HTMLElement, state: ShadowState): void {
   const parts = [state.selection, state.warning].filter(Boolean);
   element.style.boxShadow = parts.join(", ");
-}
-
-/**
- * Calculate ring thickness proportional to the image's natural resolution.
- * Larger images need thicker rings to appear the same visual weight on screen.
- */
-function calculateRingSize(element: HTMLElement): number {
-  try {
-    const img = element instanceof HTMLImageElement ? element : element.querySelector("img");
-    if (!img) return SELECTION_RING_BASE_SIZE;
-
-    const smaller = Math.min(img.naturalWidth, img.naturalHeight);
-    if (smaller <= 0) return SELECTION_RING_BASE_SIZE;
-
-    const scaled = SELECTION_RING_BASE_SIZE * (smaller / 500);
-    return Math.max(1, Math.min(50, Math.round(scaled)));
-  } catch {
-    return SELECTION_RING_BASE_SIZE;
-  }
-}
-
-// ─── Selection / hover ring ──────────────────────────────────────────────────
-
-/**
- * Apply the selection/hover ring to an overlay element.
- * Also suppresses the browser's native focus outline so they don't stack.
- * @param color - Optional hex color; defaults to OVERLAY_OUTLINE_COLOR (blue).
- */
-export function applySelectionRing(element: HTMLElement, color = OVERLAY_OUTLINE_COLOR): void {
-  const size = calculateRingSize(element);
-  const state = getState(element);
-  state.selection = `0 0 0 ${size}px ${color}`;
-  element.style.outline = "none";
-  commit(element, state);
-}
-
-export function clearSelectionRing(element: HTMLElement): void {
-  const state = getState(element);
-  state.selection = "";
-  commit(element, state);
 }
 
 // ─── Size-warning ring ───────────────────────────────────────────────────────

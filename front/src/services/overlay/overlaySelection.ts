@@ -11,43 +11,15 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { getMarker, getLayer } from "@/services/overlay/overlayRenderRegistry";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { applySelectionRing, clearSelectionRing } from "@/services/overlay/overlayStyle";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
-import { getProjectMarkerColor } from "@/utils/markerColors";
-import {
-  markerColors,
-  OVERLAY_OUTLINE_COLOR,
-  getOverlayMarkerColor,
-  createOverlayIcon,
-} from "@/services/map/markers";
+import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
 import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
-
-/**
- * Resolve the hex color for an overlay's selection outline.
- * In edit mode, uses the overlay's own state color for consistency with the marker.
- * In other modes, uses the project's timeline color to identify project membership.
- */
-function resolveProjectHexColor(overlayObject: OverlayObject): string {
-  const mode = useMapStore().mode;
-  if (mode === "edit") {
-    return markerColors[getOverlayMarkerColor(overlayObject, mode)];
-  }
-  if (mode === "moderation") {
-    const proj = overlayObject.project;
-    if (!proj) return OVERLAY_OUTLINE_COLOR;
-    const colorKey = getProjectMarkerColor(proj, mode);
-    return markerColors[colorKey];
-  }
-  // View mode: always use the standard blue selection color.
-  // The vector tile shapes already convey project status; the ring is purely a selection indicator.
-  return OVERLAY_OUTLINE_COLOR;
-}
 
 /**
  * Clean up previously selected overlay
@@ -58,8 +30,6 @@ function cleanupPreviousSelection(
   newOverlayId: string | null,
 ): void {
   if (previouslySelectedId === newOverlayId) return;
-
-  removeOverlayOutline(previouslySelected);
 
   // Remove project outlines (sister highlights) when deselecting
   if (previouslySelected.projectId) {
@@ -97,15 +67,14 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   const newLayer = getLayer(newlySelected.id);
   if (newLayer) {
     selectOverlayInLeaflet(newLayer);
+    // Bring selected overlay to front so it stays on top of overlapping images
+    newLayer.bringToFront();
   }
 
   // Apply project highlights (sister overlays) when selecting
   if (newlySelected.projectId) {
-    highlightProjectOverlaysOnHover(newlySelected.projectId);
+    highlightProjectOverlaysOnHover(newlySelected.projectId, newlySelected.id);
   }
-
-  // Apply selection outline after image loads
-  applyOutlineAfterImageLoad(newlySelected);
 }
 
 /**
@@ -126,38 +95,11 @@ function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
 }
 
 /**
- * Apply selection outline, waiting for image load if needed
- */
-function applyOutlineAfterImageLoad(overlayObject: OverlayObject): void {
-  const imgElement = getLayer(overlayObject.id)?.getElement();
-
-  if (!(imgElement instanceof HTMLImageElement)) {
-    // Fallback for non-image elements
-    applySelectionOutline(overlayObject);
-    return;
-  }
-
-  if (imgElement.complete && imgElement.naturalWidth > 0) {
-    // Image is already loaded, apply outline immediately
-    applySelectionOutline(overlayObject);
-  } else {
-    // Image not loaded yet, wait for load event
-    imgElement.addEventListener(
-      "load",
-      () => {
-        applySelectionOutline(overlayObject);
-      },
-      { once: true },
-    );
-  }
-}
-
-/**
  * Select an overlay with proper cleanup of previous selection
  * This ensures consistent selection behavior regardless of how selection is triggered
  */
 export function selectOverlay(overlayId: string | null): void {
-  // Prevent recursive calls (library's select event → selectOverlay → overlay.select → select event)
+  // Prevent recursive calls (library's select event -> selectOverlay -> overlay.select -> select event)
   if (isSelectingOverlay) return;
 
   const overlayStore = useOverlayStore();
@@ -199,29 +141,6 @@ export function selectOverlay(overlayId: string | null): void {
     requestScrollTo("overlay", overlayId);
   } finally {
     isSelectingOverlay = false;
-  }
-}
-
-export function applySelectionOutline(overlayObject: OverlayObject): void {
-  const selLayer = getLayer(overlayObject.id);
-  if (!selLayer) return;
-
-  const element = selLayer.getElement();
-  if (element) {
-    applySelectionRing(element, resolveProjectHexColor(overlayObject));
-  }
-}
-
-/**
- * Remove outline from a single overlay
- */
-function removeOverlayOutline(overlayObject: OverlayObject): void {
-  const removeLayer = getLayer(overlayObject.id);
-  if (!removeLayer) return;
-
-  const element = removeLayer.getElement();
-  if (element) {
-    clearSelectionRing(element);
   }
 }
 
@@ -275,6 +194,8 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 
   if (!projectId) return;
 
+  setOverlayDrivenHover(null);
+
   // Don't remove outlines if an overlay in this project is selected or the project popup is open (unless forced)
   if (!force) {
     const selectedOverlay = overlayStore.idSelectedOverlay
@@ -287,79 +208,25 @@ export function removeProjectOutlines(projectId: string, force = false): void {
       return;
   }
 
-  // Remove all outlines from overlays in this project
-  for (const overlayObject of Object.values(overlayStore.overlays)) {
-    if (overlayObject.projectId === projectId) {
-      removeOverlayOutline(overlayObject);
-    }
-  }
-
   // Unhighlight project shapes alongside the overlays (Leaflet layers in edit/moderation, vector tiles in view mode)
   unhighlightProjectShapes(projectId);
-  setOverlayDrivenHover(null);
+  refreshSelectionHighlight();
 }
 
-/**
- * Apply the project highlight ring to a single overlay element.
- * Use this when only one overlay needs styling (e.g. on load) to avoid the O(N)
- * store loop inside highlightProjectOverlaysOnHover.
- * Shapes are intentionally NOT restyles here — they are already highlighted.
- */
-export function applyProjectHighlightToElement(
-  element: HTMLElement,
-  overlayObject: OverlayObject,
-): void {
-  applySelectionRing(element, resolveProjectHexColor(overlayObject));
-}
-
-/**
- * Highlight all overlays (and shapes) from the same project on hover/select.
- * Each overlay uses its own state color so pending overlays keep their yellow
- * outline while approved overlays show green — even when hovered together.
- */
 /**
  * Highlight all overlays (and shapes) from the same project on hover.
- *
- * Two intentionally different strategies depending on mode -- both live here
- * so there is one place to maintain:
- *
- * VIEW MODE: drive the MapLibre vector footprint highlight via setOverlayDrivenHover.
- *   The footprint polygon already carries the project tag color, so no extra color
- *   resolution is needed.  CSS rings are skipped because the tag color is not
- *   available on the OverlayObject in view mode without a separate lookup.
- *
- * EDIT / MODERATION: apply CSS rings colored by modification/approval state.
- *   The blue MapLibre highlight is skipped because it conflicts with the
- *   yellow/orange/green status colors of the rings.
  */
-export function highlightProjectOverlaysOnHover(projectId: string): void {
+export function highlightProjectOverlaysOnHover(projectId: string, overlayId?: string): void {
   if (!projectId) return;
 
-  const mode = useMapStore().mode;
-
-  if (mode === "view") {
-    setOverlayDrivenHover(projectId);
-  } else {
-    const overlayStore = useOverlayStore();
-    for (const overlayObject of Object.values(overlayStore.overlays)) {
-      if (!overlayObject.projectId) continue;
-
-      const hoverLayer = getLayer(overlayObject.id);
-      if (!hoverLayer) continue;
-
-      const element = hoverLayer.getElement();
-      if (element) {
-        applySelectionRing(element, resolveProjectHexColor(overlayObject));
-      }
-    }
-  }
+  setOverlayDrivenHover(projectId, overlayId ?? null);
 
   // Leaflet shape layers (standalone project geometry) exist in all modes
   highlightProjectShapes(projectId);
 }
 
 /**
- * Returns the projectId that is currently "highlighted" — either because an overlay of
+ * Returns the projectId that is currently "highlighted" - either because an overlay of
  * that project is selected, or because the project info popup (shape click) is open.
  */
 export function getCurrentHighlightedProjectId(): string | null {
@@ -388,12 +255,6 @@ export function refreshSelectionHighlight(): void {
 
 /**
  * Setup hover event listeners for project highlighting in edit/moderation mode.
- *
- * In view mode this is intentionally a no-op: the Leaflet overlay image uses a
- * matrix3d CSS transform whose pre-transform layout box does not match the visual
- * polygon, so mouseenter only fires at certain edges.  Instead, the MapLibre
- * mousemove handler drives view-mode hover via the overlay-footprints vector layer,
- * which correctly bounds the visual shape.
  */
 export function setupProjectHoverEvents(
   overlay: L.DistortableImageOverlay,
@@ -405,14 +266,12 @@ export function setupProjectHoverEvents(
   if (!element) return;
 
   element.addEventListener("mouseenter", () => {
-    if (useMapStore().mode === "view") return;
     if (overlayObject.projectId) {
-      highlightProjectOverlaysOnHover(overlayObject.projectId);
+      highlightProjectOverlaysOnHover(overlayObject.projectId, overlayObject.id);
     }
   });
 
   element.addEventListener("mouseleave", () => {
-    if (useMapStore().mode === "view") return;
     if (overlayObject.projectId) {
       removeProjectOutlines(overlayObject.projectId);
     }

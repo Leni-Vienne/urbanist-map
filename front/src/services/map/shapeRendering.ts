@@ -30,6 +30,12 @@ const PREVIEW_COLORS = {
   suggested: "#f59e0b", // amber-500 — matches "warn" severity button
 } as const;
 
+/** Convert a GeoJSON [lng, lat] position to a Leaflet LatLng. */
+function toLatLng(coord: number[]): L.LatLng {
+  const [lng, lat] = coord as [number, number];
+  return L.latLng(lat, lng);
+}
+
 /**
  * Build Leaflet path layers from a GeometryCollection.
  * Lines use `style` directly; polygons add `fillOpacity`.
@@ -37,6 +43,9 @@ const PREVIEW_COLORS = {
  *
  * For line geometries a transparent wide polyline is added as a hit target so lines
  * are easy to click without changing their visual weight.
+ *
+ * LineString is normalised to MultiLineString and Polygon to MultiPolygon before
+ * constructing the Leaflet layer, so each geometry family has a single branch.
  */
 function buildShapeLayers(
   geometries: GeoJSON.Geometry[],
@@ -49,37 +58,24 @@ function buildShapeLayers(
   // Transparent wide polyline used as a click/hover target for lines.
   const hitStyle: L.PathOptions = { opacity: 0, fillOpacity: 0, weight: 20, stroke: true };
 
-  // oxlint-disable no-unsafe-type-assertion
   for (const geom of geometries) {
-    if (geom.type === "LineString") {
-      const coords = (geom.coordinates as [number, number][]).map(
-        ([lng, lat]) => [lat, lng] as L.LatLngTuple,
-      );
-      visual.push(L.polyline(coords, { ...style, interactive: false }));
-      interactive.push(L.polyline(coords, hitStyle));
-    } else if (geom.type === "MultiLineString") {
-      const latlngs = (geom.coordinates as [number, number][][]).map((line) =>
-        line.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
-      );
-      visual.push(L.polyline(latlngs, { ...style, interactive: false }));
-      interactive.push(L.polyline(latlngs, hitStyle));
-    } else if (geom.type === "Polygon") {
-      const rings = (geom.coordinates as [number, number][][]).map((ring) =>
-        ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
-      );
-      const layer = L.polygon(rings, polygonStyle);
-      visual.push(layer);
-      interactive.push(layer); // polygons have a large area, no separate hit layer needed
-    } else if (geom.type === "MultiPolygon") {
-      const polys = (geom.coordinates as [number, number][][][]).map((poly) =>
-        poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as L.LatLngTuple)),
-      );
-      const layer = L.polygon(polys, polygonStyle);
+    if (geom.type === "LineString" || geom.type === "MultiLineString") {
+      const lines =
+        geom.type === "LineString"
+          ? [geom.coordinates.map(toLatLng)]
+          : geom.coordinates.map((line) => line.map(toLatLng));
+      visual.push(L.polyline(lines, { ...style, interactive: false }));
+      interactive.push(L.polyline(lines, hitStyle));
+    } else if (geom.type === "Polygon" || geom.type === "MultiPolygon") {
+      const polys =
+        geom.type === "Polygon"
+          ? [geom.coordinates.map((ring) => ring.map(toLatLng))]
+          : geom.coordinates.map((poly) => poly.map((ring) => ring.map(toLatLng)));
+      const layer = L.polygon(polys, polygonStyle); // polygons have a large area, no separate hit layer needed
       visual.push(layer);
       interactive.push(layer);
     }
   }
-  // oxlint-enable no-unsafe-type-assertion
   return { visual, interactive };
 }
 

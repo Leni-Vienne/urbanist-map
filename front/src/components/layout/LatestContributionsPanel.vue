@@ -31,7 +31,7 @@
                   : undefined
               "
               @error="(event) => handleImageError(event, contribution.id)"
-              @load="(event) => handleImageLoad(event, contribution.id)"
+              @load="() => handleImageLoad(contribution.id)"
             />
             <i
               v-else-if="contribution.type === 'standalone'"

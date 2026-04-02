@@ -1,6 +1,7 @@
 // Lazy chunk — only imported when a user activates the shape editor in edit mode.
 // Same pattern as overlayRendering.ts.
 import "@geoman-io/leaflet-geoman-free";
+// @ts-expect-error Cannot find module or type declarations for side-effect import
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import L from "leaflet";
 

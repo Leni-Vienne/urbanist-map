@@ -17,6 +17,7 @@ import MapSvgDefs from "@/components/map/MapSvgDefs.vue";
 
 if (import.meta.env.VITE_DEBUG) {
   // Log all JS chunks downloaded during the initial page load
+  // oxlint-disable-next-line consistent-function-scoping
   function onLoad() {
     setTimeout(() => {
       const scripts = (

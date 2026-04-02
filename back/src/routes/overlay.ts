@@ -135,9 +135,9 @@ export const overlayRouter = router({
       // Check pending contribution limit for new overlays
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
-      // Check if overlay already exists - approved overlays cannot be directly modified
+      // Check if overlay already exists and verify ownership
       const existingOverlay = await db
-        .select({ status: overlays.status })
+        .select({ status: overlays.status, authorId: overlays.authorId })
         .from(overlays)
         .where(eq(overlays.id, input.id))
         .limit(1);
@@ -149,6 +149,14 @@ export const overlayRouter = router({
           message: "APPROVED_OVERLAY_REQUIRES_CHANGE_REQUEST",
           cause:
             "Modifying an approved overlay requires moderation approval. Please submit a change request instead.",
+        });
+      }
+
+      // Block modification of pending/rejected overlays not owned by current user
+      if (existingOverlay[0] && existingOverlay[0].authorId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not authorized to modify this overlay",
         });
       }
 

@@ -39,13 +39,13 @@ export const useProjectStore = defineStore("project", () => {
   const countries = ref<Country[]>([]);
 
   // Cache countries separately per mode
-  const countriesCache = ref<Map<AppMode, Country[]>>(new Map());
+  const countriesCache = ref(new Map<AppMode, Country[]>());
 
   // User contributions cache - Map-based cache for different parameter combinations
   const userContributions = ref<UserContribution[]>([]);
   const userContributionsLoading = ref(false);
   // Cache key format: "cityId:includeCityProjects" (e.g., "null:false", "3029241:true")
-  const userContributionsCache = ref<Map<string, UserContribution[]>>(new Map());
+  const userContributionsCache = ref(new Map<string, UserContribution[]>());
 
   // Cache original projects for change detection
   // Stores snapshots of projects (from map or contributions) before local modifications
@@ -419,6 +419,7 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     // Get the original value to reset to
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const originalValue = (original as Record<string, unknown>)[fieldName];
 
     let didReset = false;
