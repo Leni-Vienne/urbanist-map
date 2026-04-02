@@ -327,7 +327,7 @@ async function createGoogleUser(googleUser: { email: string; name: string; googl
           emailVerified: true,
           passwordHash: null,
           googleId: googleUser.googleId,
-          moderatedCountries: [], // Regular users get empty array (null is reserved for admins)
+          moderatedCountries: [], // Regular users start with no moderated countries; admin status is controlled via the `role` field
         })
         .returning();
       return newUser;

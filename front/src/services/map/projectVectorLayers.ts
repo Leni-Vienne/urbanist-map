@@ -359,7 +359,7 @@ function getSizeFilterExpressionForShapes(): FilterSpecification | null {
   const [minSize, maxSize] = sizeFilterRange.value;
   if (minSize === 0 && maxSize === Infinity) return null;
 
-  // Allow missing geometry_size_m to pass through the size filter. (for projects with no geoemtry)
+  // Allow missing geometry_size_m to pass through the size filter. (for projects with no geometry)
   const conditions: unknown[] = [[">=", ["get", "geometry_size_m"], minSize]];
   if (maxSize !== Infinity) {
     conditions.push(["<=", ["get", "geometry_size_m"], maxSize]);

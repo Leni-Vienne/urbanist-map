@@ -440,6 +440,7 @@ class RelationHandler(osmium.SimpleHandler):
                     construction_length_km = 0.0
                     total_length_km = 0.0
                     
+                    # Couuuld be worth caching way length but not a bottleneck at all for now
                     for wid in member_way_ids:
                         way_data = self.way_geometries.get(wid)
                         if way_data and 'coords' in way_data:

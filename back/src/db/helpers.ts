@@ -434,6 +434,7 @@ type UserContext =
   | {
       id: string;
       role?: string | null;
+      moderatedCountries?: string[] | null;
     }
   | undefined
   | null;
@@ -734,6 +735,51 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .leftJoin(cities, eq(cities.id, projects.cityId))
     .where(and(...whereConditions))
     .orderBy(overlays.createdAt);
+}
+
+// ============================================================================
+// AUTHORIZATION HELPERS
+// ============================================================================
+import { TRPCError } from "@trpc/server";
+
+/**
+ * Checks if a user has moderator or admin access
+ * Returns true if user is admin OR has at least one moderated country
+ */
+export function isModeratorOrAdmin(user: UserContext): boolean {
+  if (!user) return false;
+
+  const isAdmin = user.role === "admin";
+  const isModerator =
+    user.moderatedCountries !== null &&
+    user.moderatedCountries !== undefined &&
+    user.moderatedCountries.length > 0;
+
+  return isAdmin || isModerator;
+}
+
+/**
+ * Checks if a user has moderator or admin access for moderation mode
+ * Throws TRPCError if user doesn't have required permissions
+ */
+export function requireModeratorAccess(user: UserContext, mode: AppMode): void {
+  if (mode !== "moderation") {
+    return;
+  }
+
+  if (!user) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Authentication required for moderation mode",
+    });
+  }
+
+  if (!isModeratorOrAdmin(user)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Moderator or admin access required for moderation mode",
+    });
+  }
 }
 
 // ============================================================================

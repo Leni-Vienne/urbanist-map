@@ -10,6 +10,7 @@ import {
   fetchOverlayChangeRequests,
   transformOverlayDataWithChangeRequests,
   fetchOverlaysWithLocation,
+  requireModeratorAccess,
 } from "../db/helpers";
 
 const getCitiesNearLocationSchema = z.object({
@@ -31,6 +32,49 @@ const getCityOverlaysAndProjectsSchema = z.object({
 });
 
 export const citiesRouter = router({
+  // Get city details by ID (for navigation purposes)
+  getCityById: publicProcedure
+    .input(
+      z.object({
+        cityId: z.number(),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        const { cityId } = input;
+
+        const result = await db
+          .select({
+            id: cities.id,
+            name: cities.name,
+            nameLocal: cities.nameLocal,
+            countryCode: cities.countryCode,
+            lat: sql<number>`ST_Y(${cities.coordinates})`,
+            lng: sql<number>`ST_X(${cities.coordinates})`,
+          })
+          .from(cities)
+          .where(eq(cities.id, cityId))
+          .limit(1);
+
+        if (result.length === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "City not found",
+          });
+        }
+
+        return result[0];
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Error fetching city by ID:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch city details",
+        });
+      }
+    }),
   // Get cities closest to given coordinates ordered by distance
   getCitiesNearLocation: publicProcedure
     .input(getCitiesNearLocationSchema)
@@ -153,28 +197,7 @@ export const citiesRouter = router({
         const { cityId, mode } = input;
 
         // SECURITY: Reject moderation mode for unauthenticated users
-        if (mode === "moderation" && !ctx.user) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Authentication required for moderation mode",
-          });
-        }
-
-        // SECURITY: Verify moderator/admin role for moderation mode
-        if (mode === "moderation" && ctx.user) {
-          const isAdmin = ctx.user.role === "admin";
-          const isModerator =
-            ctx.user.moderatedCountries !== null &&
-            ctx.user.moderatedCountries !== undefined &&
-            ctx.user.moderatedCountries.length > 0;
-
-          if (!isAdmin && !isModerator) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "Moderator or admin access required for moderation mode",
-            });
-          }
-        }
+        requireModeratorAccess(ctx.user, mode);
 
         // Fetch user's overlay change request IDs if in edit mode
         const overlayChangeRequestIds =

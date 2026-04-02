@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { DBUser } from "./db/schema";
 import type { Context as HonoContext } from "hono";
+import { isModeratorOrAdmin } from "./db/helpers";
 
 export { TRPCError } from "@trpc/server";
 
@@ -80,14 +81,7 @@ const isModeratorOrAdminMiddleware = t.middleware(async ({ ctx, next }) => {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
   }
 
-  // Allow access if user is admin OR has at least one moderated country
-  const isAdmin = ctx.user.role === "admin";
-  const isModerator =
-    ctx.user.moderatedCountries !== null &&
-    ctx.user.moderatedCountries !== undefined &&
-    ctx.user.moderatedCountries.length > 0;
-
-  if (!isAdmin && !isModerator) {
+  if (!isModeratorOrAdmin(ctx.user)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Moderator or admin access required" });
   }
 

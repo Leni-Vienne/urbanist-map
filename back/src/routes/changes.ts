@@ -18,6 +18,7 @@ import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
+import { invalidateLatestContributionsCache } from "./feed";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -576,6 +577,13 @@ export const changesRouter = router({
             await invalidateOverlayTiles(change.entityId);
           }
         }
+
+        // Always invalidate the latest contributions cache when change requests are approved
+        // because it might change the project/overlay details shown in the feed
+        if (changesToApprove.length > 0) {
+          invalidateLatestContributionsCache();
+        }
+
         return { success: true };
       } catch (error) {
         console.error("Error approving change requests:", error);

@@ -67,10 +67,10 @@ function intersectsViewport(
   bounds: L.LatLngBounds,
 ) {
   return (
-    bbox.maxLat > bounds.getSouth() && // Overlay's north edge is south of viewport's south edge
-    bbox.minLat < bounds.getNorth() && // Overlay's south edge is north of viewport's north edge
-    bbox.maxLng > bounds.getWest() && // Overlay's east edge is west of viewport's west edge
-    bbox.minLng < bounds.getEast() // Overlay's west edge is east of viewport's east edge
+    bbox.maxLat > bounds.getSouth() &&
+    bbox.minLat < bounds.getNorth() &&
+    bbox.maxLng > bounds.getWest() &&
+    bbox.minLng < bounds.getEast()
   );
 }
 

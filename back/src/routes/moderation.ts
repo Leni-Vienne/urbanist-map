@@ -1,5 +1,6 @@
 import { moderatorProcedure, adminProcedure, router } from "../trpc";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
+import { invalidateLatestContributionsCache } from "./feed";
 import {
   projects,
   overlays,
@@ -714,6 +715,12 @@ export const moderationRouter = router({
         }
 
         if (result.success) await invalidateProjectTiles(input.id);
+
+        // Invalidate latest contributions cache when approving
+        if (result.success && input.status === "approved") {
+          invalidateLatestContributionsCache();
+        }
+
         return result;
       } catch (error) {
         console.error("Error updating project status with version:", error);
@@ -867,6 +874,12 @@ export const moderationRouter = router({
         }
 
         if (transactionResult.success) await invalidateOverlayTiles(input.id);
+
+        // Invalidate latest contributions cache when approving
+        if (transactionResult.success && input.status === "approved") {
+          invalidateLatestContributionsCache();
+        }
+
         return transactionResult;
       } catch (error) {
         console.error("Error updating overlay status with version:", error);
