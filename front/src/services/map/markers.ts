@@ -16,9 +16,6 @@ import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 const markerSize = 25;
 const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
 
-// Overlay outline color (blue) - used for all overlay outlines regardless of status
-export const OVERLAY_OUTLINE_COLOR = "#007bff";
-
 // Single base color per marker - everything else is generated
 export const markerColors: Record<MarkerColor, string> = {
   blue: "#1E90FF",

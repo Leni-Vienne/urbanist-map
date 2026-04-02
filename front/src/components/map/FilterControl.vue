@@ -54,7 +54,7 @@
           {{ $t("map.controls.clearTagFilters") }}
         </button>
       </div>
-      <div class="flex flex-wrap gap-2 max-w-70 mb-4">
+      <div class="flex flex-wrap gap-2 max-w-75 mb-4">
         <button
           v-for="tag in allTags"
           :key="tag.slug"

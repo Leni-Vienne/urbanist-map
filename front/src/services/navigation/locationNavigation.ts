@@ -12,8 +12,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
  * @returns Promise that resolves when navigation is complete
  */
 export async function navigateToCity(
-  cityId: number,
-  cityName: string,
   countryCode: string,
   cityCoords?: { lat: number; lng: number },
 ): Promise<void> {

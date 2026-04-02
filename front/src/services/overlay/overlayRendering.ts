@@ -330,7 +330,6 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
       // Highlight if this overlay belongs to the currently highlighted project —
       // either via overlay selection or project info popup (shape click).
     }
-  } else {
   }
 
   // Invoke the caller's callback now that the overlay is fully initialized

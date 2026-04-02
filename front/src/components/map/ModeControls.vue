@@ -102,7 +102,7 @@ function handleModeSwitch() {
     isSwitchingMode = true;
     const currentMode = mapStore.mode;
 
-    let newMode: AppMode;
+    let newMode: AppMode = "view";
 
     if (authStore.isModerator) {
       // Moderators cycle through all 3 modes

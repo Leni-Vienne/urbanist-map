@@ -55,6 +55,7 @@ function collectCoords(geom: GeoJSON.Geometry): number[][] {
     case "MultiLineString":
       return geom.coordinates.flat();
     case "MultiPolygon":
+      // oxlint-disable-next-line no-magic-array-flat-depth
       return geom.coordinates.flat(2);
     case "GeometryCollection":
       return geom.geometries.flatMap(collectCoords);
@@ -100,6 +101,7 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
     const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
     const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
     if (!id) continue;
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
 
     const rawSize = props.geometry_size_m ?? props.max_size_m;

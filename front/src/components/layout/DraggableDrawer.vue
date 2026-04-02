@@ -160,9 +160,11 @@ function handleTouchStart(e: TouchEvent) {
   if (!target.closest(".drawer-handle") && !target.closest(".drawer-header")) {
     return;
   }
+  const touch = e.touches[0];
+  if (!touch) return;
 
   isDragging.value = true;
-  startY.value = e.touches[0]!.clientY;
+  startY.value = touch.clientY;
   startHeight.value = currentHeight.value;
   viewportHeight.value = globalThis.innerHeight;
 }
@@ -171,7 +173,10 @@ function handleTouchMove(e: TouchEvent) {
   if (!isDragging.value) return;
   e.preventDefault();
 
-  const deltaY = startY.value - e.touches[0]!.clientY;
+  const touch = e.touches[0];
+  if (!touch) return;
+
+  const deltaY = startY.value - touch.clientY;
   const deltaPercent = (deltaY / viewportHeight.value) * 100;
 
   const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);

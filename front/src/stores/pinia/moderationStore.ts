@@ -21,7 +21,7 @@ export const useModerationStore = defineStore("moderation", () => {
   const countriesLoaded = ref(false);
 
   // Pending counts per country for dashboard indicators
-  const pendingCountsByCountry = ref<Map<string, number>>(new Map());
+  const pendingCountsByCountry = ref(new Map<string, number>());
   const pendingCountsLoaded = ref(false);
 
   function setModerationData(data: {

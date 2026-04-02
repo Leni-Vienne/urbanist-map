@@ -44,7 +44,7 @@ async function handleCityClick() {
   }
 
   try {
-    await navigateToCity(props.cityId, props.cityName, props.countryCode);
+    await navigateToCity(props.countryCode);
   } catch (error) {
     console.error("Failed to navigate to city:", error);
     toast.add({

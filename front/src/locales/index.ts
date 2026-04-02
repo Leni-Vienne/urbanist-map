@@ -37,9 +37,11 @@ export function t(key: string, values?: Record<string, unknown>): string {
 // Only the active locale is fetched on startup; the other loads on demand.
 export async function loadLocaleMessages(locale: Locale): Promise<Record<string, unknown>> {
   if (locale === "fr") {
-    return (await import("./messages/fr.json")).default as Record<string, unknown>;
+    const module = await import("./messages/fr.json");
+    return module.default as Record<string, unknown>;
   }
-  return (await import("./messages/en.json")).default as Record<string, unknown>;
+  const module = await import("./messages/en.json");
+  return module.default as Record<string, unknown>;
 }
 
 // Load and set locale messages, returns true if messages were loaded
@@ -64,11 +66,15 @@ export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
   }
 }
 
+// Type guard for Locale
+function isLocale(code: string | null | undefined): code is Locale {
+  return availableLocales.some((l) => l.code === code);
+}
+
 // Get browser locale or fallback to English
 function getBrowserLocale(): Locale {
   const browserLocale = navigator.language.split("-")[0];
-  const isSupported = availableLocales.some((l) => l.code === browserLocale);
-  return isSupported ? (browserLocale as Locale) : "en";
+  return isLocale(browserLocale) ? browserLocale : "en";
 }
 
 // Store locale in localStorage
@@ -79,8 +85,7 @@ export function saveLocale(locale: Locale): void {
 // Get stored locale or browser locale
 export function getStoredLocale(): Locale {
   const stored = localStorage.getItem("urbanist-map-locale");
-  const isSupported = availableLocales.some((l) => l.code === stored);
-  return isSupported ? (stored as Locale) : getBrowserLocale();
+  return isLocale(stored) ? stored : getBrowserLocale();
 }
 
 // Check if browser's language is supported by our app
