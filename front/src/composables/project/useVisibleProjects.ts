@@ -223,16 +223,9 @@ export function useVisibleProjects() {
     const h = canvas.height / dpr;
     const INSET = 100; // px inset from edge to avoid listing projects under UI elements
 
-    // On mobile, the drawer overlaps the bottom of the map -- exclude that area
-    const isMobile = window.innerWidth <= 768;
-    const drawerOffsetPx =
-      isMobile && uiStore.mobileDrawerVisible
-        ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight
-        : 0;
-
     const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
       [INSET, INSET],
-      [w - INSET, h - drawerOffsetPx - INSET],
+      [w - INSET, h - INSET],
     ];
     // applying an inset to avoid projects that are at the edge of the screen
     const features = mlMap.queryRenderedFeatures(bbox, { layers: [...QUERY_LAYERS] });
@@ -311,11 +304,9 @@ export function useVisibleProjects() {
     };
     mlMap.on("sourcedata", sourcedataHandler);
 
+    // Refresh initially
     scheduleRefresh();
   });
-
-  // Re-run when the drawer is resized or toggled (map idle won't fire in that case)
-  watch(() => [uiStore.mobileDrawerHeightPercent, uiStore.mobileDrawerVisible], scheduleRefresh);
 
   onUnmounted(() => {
     if (fallbackTimer) clearTimeout(fallbackTimer);
