@@ -14,7 +14,7 @@ export function useImageErrors() {
     target.style.display = "none";
   }
 
-  function handleImageLoad(event: Event, id: string) {
+  function handleImageLoad(id: string) {
     imageErrors.value[id] = false;
   }
 

@@ -9,11 +9,11 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   // Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
   type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
-  const editModeOverlayCache = ref<Map<string, EditModeCache>>(new Map());
+  const editModeOverlayCache = ref(new Map<string, EditModeCache>());
 
   // Overlay data for different modes
   const viewModeOverlays = ref<OverlayData[]>([]);
-  const loadedEditOverlays = ref<Set<string>>(new Set());
+  const loadedEditOverlays = ref(new Set<string>());
 
   // UI state
   const replacementOverlayId = ref<string | null>(null);

@@ -104,7 +104,7 @@ export const users = pgTable(
     username: text("username").unique(),
     passwordHash: text("password_hash"), // Now nullable for OAuth users
     role: text("role").default("user"), // Role can be 'user', 'admin', etc.
-    moderatedCountries: text("moderated_countries").array(), // Array of ISO 3-letter country codes this moderator can moderate (null = admin with all countries)
+    moderatedCountries: text("moderated_countries").array(), // Array of ISO 3-letter country codes this moderator can moderate.
     emailVerified: boolean("email_verified").default(false).notNull(),
     emailVerificationToken: text("email_verification_token"),
     passwordResetToken: text("password_reset_token"),

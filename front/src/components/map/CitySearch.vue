@@ -117,7 +117,7 @@ function onSelect(event: { value: CitySearchResult }) {
   const city = event.value;
   if (city) {
     // Navigate to selected city (fly to it) - pass coordinates for cross-country navigation
-    navigateToCity(city.id, city.name, city.countryCode, {
+    navigateToCity(city.countryCode, {
       lat: city.lat,
       lng: city.lng,
     });

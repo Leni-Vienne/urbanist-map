@@ -16,11 +16,7 @@ import { requestScrollTo } from "@/services/layout/accordionState";
  * Shared logic for navigating to a city, loading its cities and projects
  * @returns Callback to switch to country layer after flight, or null if not cross-country
  */
-async function prepareNavigationToCity(
-  cityId: number,
-  cityName: string,
-  countryCode?: string,
-): Promise<void> {
+async function prepareNavigationToCountry(countryCode?: string): Promise<void> {
   if (countryCode) {
     const mapStore = useMapStore();
     // Only clear when switching from one DEFINED country to a DIFFERENT country
@@ -158,6 +154,17 @@ export function zoomToOverlayAndSelect(
         const authStore = useAuthStore();
         if (overlayObj && isOverlayVisible(overlayObj, mapStore.mode, authStore.user?.id)) {
           overlayLayer.addTo(map.value);
+          // Manage z-index: if this overlay is selected, bring to front; otherwise ensure selected stays on top
+          requestAnimationFrame(() => {
+            if (overlayStore.idSelectedOverlay === overlayId) {
+              overlayLayer.bringToFront();
+            } else if (overlayStore.idSelectedOverlay) {
+              const selectedLayer = registry.getLayer(overlayStore.idSelectedOverlay);
+              if (selectedLayer) {
+                selectedLayer.bringToFront();
+              }
+            }
+          });
         }
       }
     }
@@ -188,7 +195,7 @@ export async function navigateToStandaloneProject(
 ): Promise<void> {
   try {
     if (cityId && cityName) {
-      await prepareNavigationToCity(cityId, cityName, countryCode);
+      await prepareNavigationToCountry(countryCode);
     }
 
     await new Promise<void>(

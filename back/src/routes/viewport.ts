@@ -11,6 +11,7 @@ import {
   transformOverlayDataWithChangeRequests,
   fetchOverlaysWithLocation,
   PROJECT_COLUMNS,
+  requireModeratorAccess,
 } from "../db/helpers";
 
 // ── Viewport-specific visibility overrides ──────────────────────────────────
@@ -84,6 +85,9 @@ export const viewportRouter = router({
         if (!ctx.user) {
           return [];
         }
+
+        // SECURITY: Verify moderator/admin role for moderation mode
+        requireModeratorAccess(ctx.user, mode);
 
         // 1. Pending Projects
         const projectConditions =
@@ -160,12 +164,7 @@ export const viewportRouter = router({
         const { bbox, mode } = input;
 
         // SECURITY: Reject moderation mode for unauthenticated users
-        if (mode === "moderation" && !ctx.user) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Authentication required for moderation mode",
-          });
-        }
+        requireModeratorAccess(ctx.user, mode);
 
         // Fetch user's overlay change request IDs if in edit mode
         const overlayChangeRequestIds =
@@ -242,6 +241,9 @@ export const viewportRouter = router({
             message: "Authentication required for edit/moderation mode",
           });
         }
+
+        // SECURITY: Verify moderator/admin role for moderation mode
+        requireModeratorAccess(ctx.user, mode);
 
         // Bbox condition on project center_coordinate using &&.
         const bboxCondition = sql`

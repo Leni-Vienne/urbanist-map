@@ -174,7 +174,7 @@
                   : undefined
               "
               @error="(event) => handleImageError(event, overlay.id)"
-              @load="(event) => handleImageLoad(event, overlay.id)"
+              @load="() => handleImageLoad(overlay.id)"
             />
             <i v-if="imageErrors[overlay.id]" class="pi pi-image text-2xl text-muted-color"></i>
           </div>

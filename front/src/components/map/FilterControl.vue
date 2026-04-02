@@ -32,7 +32,7 @@
     <!-- Scrollable content: capped to 65svh so the popover stays below the top-bar button without flipping.
          overflow-x hidden removes the spurious horizontal scrollbar from the sliders. -->
     <div
-      class="min-w-55 overflow-y-auto overflow-x-hidden pr-3"
+      class="min-w-55 overflow-y-auto overflow-x-hidden pr-1"
       style="max-height: min(600px, 70svh)"
     >
       <h3 class="m-0 mb-3 text-[0.95rem] font-semibold text-color">
@@ -54,7 +54,7 @@
           {{ $t("map.controls.clearTagFilters") }}
         </button>
       </div>
-      <div class="flex flex-wrap gap-2 max-w-70 mb-4">
+      <div class="flex flex-wrap gap-2 max-w-75 mb-4">
         <button
           v-for="tag in allTags"
           :key="tag.slug"

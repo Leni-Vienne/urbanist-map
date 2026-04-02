@@ -45,6 +45,9 @@ function clearTimer(): void {
  * pending position so the card appears at the latest cursor location.
  */
 export function triggerProjectHover(projectId: string, x: number, y: number): void {
+  // Disable hover preview on mobile/touch frames
+  if (globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches) return;
+
   // Card already visible for this project — only update position refs (no content re-render)
   if (hoverPreview.value?.type === "project" && hoverPreview.value.projectId === projectId) {
     hoverPreviewX.value = x;
@@ -97,6 +100,9 @@ export function triggerProjectHover(projectId: string, x: number, y: number): vo
  * Show a cluster count tooltip immediately (no delay — it carries no per-project data).
  */
 export function triggerClusterHover(count: number, x: number, y: number): void {
+  // Disable hover preview on mobile/touch frames
+  if (globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches) return;
+
   clearTimer();
   _pendingId = null;
   hoverPreviewX.value = x;

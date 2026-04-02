@@ -48,8 +48,8 @@ function tilePxToLngLat(
 }
 
 function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
-  const zoom = Math.round(mlMap.getZoom());
-  const tileZoom = zoom; // MapLibre zoom is already tile zoom
+  // Use the integer tile zoom to match the MVT grid used by the backend.
+  const tileZoom = Math.floor(mlMap.getZoom());
   const cellSize = getCellSize(tileZoom);
   const numCells = Math.ceil(4096 / cellSize); // cells per tile axis
 
@@ -162,6 +162,6 @@ export function toggleClusterGrid(mlMap?: MaplibreMap): void {
     _mlMap.on("moveend", _refresh);
     _mlMap.on("zoomend", _refresh);
     _active = true;
-    console.log(`Cluster grid shown — cell_size=${getCellSize(Math.round(_mlMap.getZoom()))}`);
+    console.log(`Cluster grid shown — cell_size=${getCellSize(Math.floor(_mlMap.getZoom()))}`);
   }
 }

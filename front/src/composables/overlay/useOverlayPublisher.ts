@@ -199,6 +199,17 @@ export function useOverlayPublisher() {
     const layer = getLayer(overlay.id);
     if (layer && !map.value.hasLayer(layer)) {
       layer.addTo(map.value);
+      // Manage z-index: if this overlay is selected, bring to front; otherwise ensure selected stays on top
+      requestAnimationFrame(() => {
+        if (overlayStore.idSelectedOverlay === overlay.id) {
+          layer.bringToFront();
+        } else if (overlayStore.idSelectedOverlay) {
+          const selectedLayer = getLayer(overlayStore.idSelectedOverlay);
+          if (selectedLayer) {
+            selectedLayer.bringToFront();
+          }
+        }
+      });
     }
 
     // Update cache with new overlay state to refresh marker color (changes from Orange to Yellow)

@@ -85,6 +85,7 @@ function buildNewOverlayChanges(
   function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
     if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
     if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
+    return undefined;
   }
 
   for (const overlayId of newOverlayIds) {
@@ -186,6 +187,7 @@ function resetOverlayField(
     }
 
     updateMarkerPosition(overlayObject);
+    // oxlint-disable-next-line no-unnecessary-condition
   } else if (field === "caption" && capturedOriginalCaption !== undefined) {
     overlayStore.updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });
   }
@@ -564,6 +566,7 @@ export function useSubmissionDialog() {
 
     // Handle resetting a field modification (geometry is never an overlay field)
     if (overlayObject) {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       const hasRemainingMods = resetOverlayFieldModification(
         overlayId,
         field as ModifiableField,

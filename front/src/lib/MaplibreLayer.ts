@@ -16,7 +16,9 @@ import maplibre, { type Map as MaplibreMap, type MapOptions } from "maplibre-gl"
 
 const { Layer, setOptions, DomUtil, latLngBounds, Util, extend, Point } = L;
 
-type LeafletMaplibreGLOptions = Omit<MapOptions, "container">;
+type LeafletMaplibreGLOptions = Omit<MapOptions, "container"> & {
+  pane?: string;
+};
 
 export interface MaplibreGL extends LayerType {
   getMaplibreMap(): MaplibreMap;

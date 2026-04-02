@@ -1,5 +1,6 @@
 import { moderatorProcedure, adminProcedure, router } from "../trpc";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
+import { invalidateLatestContributionsCache } from "./feed";
 import {
   projects,
   overlays,
@@ -84,7 +85,7 @@ async function checkModeratorCountryPermission(
   user: { role: string | null; moderatedCountries: string[] | null },
 ): Promise<string> {
   // Admins can moderate any country
-  if (user.role === "admin" || user.moderatedCountries === null) {
+  if (user.role === "admin") {
     return "*"; // Wildcard indicating all countries allowed
   }
 
@@ -103,7 +104,7 @@ async function checkModeratorCountryPermission(
   const countryCode = projectData.countryCode;
 
   // Check if moderator has permission for this country
-  if (!user.moderatedCountries.includes(countryCode)) {
+  if (!user.moderatedCountries?.includes(countryCode)) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "You do not have permission to moderate content in this country",
@@ -119,7 +120,7 @@ async function checkModeratorOverlayPermission(
   user: { role: string | null; moderatedCountries: string[] | null },
 ): Promise<string> {
   // Admins can moderate any country
-  if (user.role === "admin" || user.moderatedCountries === null) {
+  if (user.role === "admin") {
     return "*";
   }
 
@@ -138,7 +139,7 @@ async function checkModeratorOverlayPermission(
 
   const countryCode = overlayData.countryCode;
 
-  if (!user.moderatedCountries.includes(countryCode)) {
+  if (!user.moderatedCountries?.includes(countryCode)) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "You do not have permission to moderate content in this country",
@@ -714,6 +715,12 @@ export const moderationRouter = router({
         }
 
         if (result.success) await invalidateProjectTiles(input.id);
+
+        // Invalidate latest contributions cache when approving
+        if (result.success && input.status === "approved") {
+          invalidateLatestContributionsCache();
+        }
+
         return result;
       } catch (error) {
         console.error("Error updating project status with version:", error);
@@ -867,6 +874,12 @@ export const moderationRouter = router({
         }
 
         if (transactionResult.success) await invalidateOverlayTiles(input.id);
+
+        // Invalidate latest contributions cache when approving
+        if (transactionResult.success && input.status === "approved") {
+          invalidateLatestContributionsCache();
+        }
+
         return transactionResult;
       } catch (error) {
         console.error("Error updating overlay status with version:", error);

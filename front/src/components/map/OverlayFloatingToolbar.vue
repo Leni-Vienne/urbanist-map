@@ -201,7 +201,7 @@ let rafId: number | null = null;
 
 function startRAF() {
   if (rafId !== null) return;
-  const tick = () => {
+  function tick() {
     if (anchorMarker && selectedId.value) {
       const latlng = getAnchorLatLng();
       if (latlng) {
@@ -213,7 +213,7 @@ function startRAF() {
       }
     }
     rafId = requestAnimationFrame(tick);
-  };
+  }
   rafId = requestAnimationFrame(tick);
 }
 
@@ -238,11 +238,13 @@ function projectOnAxis(corners: L.LatLng[], axLat: number, axLng: number) {
 
 function quadsOverlap(a: L.LatLng[], b: L.LatLng[]): boolean {
   for (const poly of [a, b]) {
-    for (let i = 0; i < poly.length; i++) {
-      const p1 = poly[i],
-        p2 = poly[(i + 1) % poly.length];
-      const dlat = p2!.lat - p1!.lat,
-        dlng = p2!.lng - p1!.lng;
+    for (let i = 0; i < poly.length; i += 1) {
+      /* oxlint-disable no-non-null-assertion */
+      const p1 = poly[i]!;
+      const p2 = poly[(i + 1) % poly.length]!;
+      /* oxlint-enable no-non-null-assertion */
+      const dlat = p2.lat - p1.lat;
+      const dlng = p2.lng - p1.lng;
       const pa = projectOnAxis(a, -dlng, dlat);
       const pb = projectOnAxis(b, -dlng, dlat);
       if (pa.max < pb.min || pb.max < pa.min) return false;
@@ -312,7 +314,9 @@ function initForSelection() {
   createMarker(latlng);
   opacity.value = readOpacity();
   startRAF();
-  attachCollisionLayer(selectedId.value!);
+  if (selectedId.value) {
+    attachCollisionLayer(selectedId.value);
+  }
   checkCollision();
 }
 
