@@ -15,9 +15,12 @@
           <!-- Left: project name stacked above overlay subtitle -->
           <div class="flex-1 flex flex-col gap-0.5 min-w-0">
             <span
-              class="text-sm font-semibold leading-snug truncate"
-              :class="project?.name ? 'text-color' : 'text-muted-color italic'"
-              v-tooltip.bottom="project?.name || undefined"
+              class="text-sm font-semibold leading-snug"
+              :class="[
+                project?.name ? 'text-color' : 'text-muted-color italic',
+                isMobile ? 'wrap-break-word' : 'truncate',
+              ]"
+              v-tooltip.bottom="!isMobile ? project?.name || undefined : undefined"
             >
               {{ project?.name || $t("project.unnamed") }}
             </span>
