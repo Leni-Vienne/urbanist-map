@@ -67,3 +67,5 @@ dist-ssr
 
 *.osm.pbf
 *.geojson
+*.osc.gz
+*.replication-state

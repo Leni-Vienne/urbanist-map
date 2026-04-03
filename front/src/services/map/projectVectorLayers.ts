@@ -23,6 +23,7 @@ import {
   triggerClusterHover,
   clearHoverPreview,
   updateHoverPreviewPosition,
+  type HoverProjectData,
 } from "@/services/map/hoverPreviewState";
 import {
   mobileAwareFlyTo,
@@ -980,7 +981,7 @@ function updateHoverPreview(
     if (cellCount > 1) {
       triggerClusterHover(cellCount, clientX, clientY);
     } else if (projectId.length > 0) {
-      triggerProjectHover(projectId, clientX, clientY);
+      triggerProjectHover(projectId, getHoverDataFromFeature(pointFeature), clientX, clientY);
     } else {
       clearHoverPreview();
     }
@@ -994,7 +995,7 @@ function updateHoverPreview(
         ? getFeaturePropertyAsString(vectorFeature, "project_id")
         : getFeaturePropertyAsString(vectorFeature, "id");
     if (projectId.length > 0) {
-      triggerProjectHover(projectId, clientX, clientY);
+      triggerProjectHover(projectId, getHoverDataFromFeature(vectorFeature), clientX, clientY);
       return;
     }
   }
@@ -1006,6 +1007,21 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
   const value = feature.properties?.[key];
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+/** Extract hover card data from a vector tile feature's properties. */
+function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData {
+  const name = getFeaturePropertyAsString(feature, "name") || null;
+  const timelineStatus = getFeaturePropertyAsString(feature, "timeline_status") || null;
+  // Tags are encoded as a JSON array string in the tile (e.g. '["building","road"]')
+  let tags: string[] = [];
+  try {
+    const raw = feature.properties?.["tags"];
+    if (typeof raw === "string" && raw.length > 0) tags = JSON.parse(raw) as string[];
+  } catch {
+    // malformed tags — leave empty
+  }
+  return { name, timelineStatus, tags };
 }
 
 // Gray shades for road types, replacing Liberty's yellow/orange major roads.

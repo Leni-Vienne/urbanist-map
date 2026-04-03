@@ -14,34 +14,46 @@
 
       <!-- Single project preview -->
       <template v-else>
-        <!-- Spinner while project data is loading -->
-        <div v-if="!hoverPreview.project" class="flex items-center gap-2">
-          <i class="pi pi-spin pi-spinner text-muted-color text-xs"></i>
-          <span class="text-xs text-muted-color">{{ $t("common.loading") }}</span>
-        </div>
-        <template v-else>
-          <!-- Project name -->
-          <span
-            class="text-sm font-semibold leading-snug"
-            :class="hoverPreview.project.name ? 'text-color' : 'text-muted-color italic'"
-          >
-            {{ hoverPreview.project.name || $t("project.unnamed") }}
+        <!-- Project name -->
+        <span
+          class="text-sm font-semibold leading-snug"
+          :class="hoverPreview.data.name ? 'text-color' : 'text-muted-color italic'"
+        >
+          {{ hoverPreview.data.name || $t("project.unnamed") }}
+        </span>
+        <!-- Timeline status with dashed line preview matching the map vector style -->
+        <div class="flex items-center gap-1.5">
+          <svg width="28" height="10" class="shrink-0">
+            <line
+              x1="0"
+              y1="5"
+              x2="28"
+              y2="5"
+              :stroke="firstTagColor(hoverPreview.data.tags[0])"
+              stroke-width="2.5"
+              :stroke-dasharray="timelineDasharray(hoverPreview.data.timelineStatus)"
+              stroke-linecap="round"
+            />
+          </svg>
+          <span class="text-xs text-muted-color">
+            {{
+              $te(`timelineStatus.${hoverPreview.data.timelineStatus}`)
+                ? $t(`timelineStatus.${hoverPreview.data.timelineStatus}`)
+                : hoverPreview.data.timelineStatus
+            }}
           </span>
-          <!-- Timeline status row -->
-          <div class="flex items-center gap-1.5">
-            <span
-              class="w-2 h-2 rounded-full inline-block shrink-0"
-              :style="{ backgroundColor: statusColor }"
-            ></span>
-            <span class="text-xs text-muted-color">
-              {{
-                $te(`timelineStatus.${hoverPreview.project.timelineStatus}`)
-                  ? $t(`timelineStatus.${hoverPreview.project.timelineStatus}`)
-                  : hoverPreview.project.timelineStatus
-              }}
-            </span>
-          </div>
-        </template>
+        </div>
+        <!-- Tags row -->
+        <div v-if="hoverPreview.data.tags.length > 0" class="flex flex-wrap gap-1 mt-0.5">
+          <span
+            v-for="tag in hoverPreview.data.tags"
+            :key="tag"
+            class="text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full"
+            :style="tagChipStyle(tag)"
+          >
+            {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
+          </span>
+        </div>
       </template>
     </div>
   </Teleport>
@@ -52,10 +64,9 @@ import { computed, ref, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
-import { getTimelineStatusColor } from "@/utils/markerColors";
+import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import type { TimelineStatus } from "../../../../../back/src/db/schema";
 
 const { te: $te, t: $t } = useI18n();
 const uiStore = useUiStore();
@@ -76,23 +87,30 @@ const suppress = computed(() => {
   return false;
 });
 
-// Map MarkerColor keys to CSS colour values (mirrors ProjectMetadataCard)
-const colorMap: Record<string, string> = {
-  yellow: "#eab308",
-  blue: "#3b82f6",
-  orange: "#f97316",
-  green: "#22c55e",
-  grey: "#9ca3af",
-  red: "#ef4444",
+const DEFAULT_TAG_COLOR = "#6b7280";
+
+function tagChipStyle(slug: string): Record<string, string> {
+  const tag = PROJECT_TAG_MAP.get(slug);
+  if (!tag) return { backgroundColor: DEFAULT_TAG_COLOR, color: "#ffffff" };
+  return { backgroundColor: tag.color, color: tag.textColor };
+}
+
+function firstTagColor(slug: string | undefined): string {
+  return PROJECT_TAG_MAP.get(slug ?? "")?.color ?? DEFAULT_TAG_COLOR;
+}
+
+// Dasharray values mirror the map vector line style for each timeline status
+const STATUS_DASHARRAY: Record<string, string> = {
+  proposed: "3,4",
+  planned: "7,4",
+  under_construction: "7,4",
+  completed: "",
+  canceled: "7,4",
 };
 
-const statusColor = computed(() => {
-  if (hoverPreview.value?.type !== "project" || !hoverPreview.value.project) return "transparent";
-  const key = getTimelineStatusColor(
-    hoverPreview.value.project.timelineStatus as TimelineStatus | null,
-  );
-  return colorMap[key] ?? "#9ca3af";
-});
+function timelineDasharray(status: string | null): string {
+  return STATUS_DASHARRAY[status ?? ""] ?? "";
+}
 
 // Position the card near the cursor with a small offset.
 // Updated imperatively via watchEffect so mousemove position changes never trigger a re-render.
@@ -100,7 +118,7 @@ const statusColor = computed(() => {
 const OFFSET = 16;
 const EDGE_GAP = 6;
 const CARD_W = 224; // max-w-56 = 14rem = 224px
-const CARD_H = 64; // approximate height
+const CARD_H = 90; // approximate height (name + status + tags row)
 
 const cardEl = ref<HTMLElement | null>(null);
 
