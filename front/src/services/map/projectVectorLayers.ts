@@ -9,6 +9,7 @@ import {
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
+import { projectPopupPlacement, type PopupPlacement } from "@/services/map/popupState";
 import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
@@ -597,18 +598,31 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   return vectorFeature ?? null;
 }
 
-// Returns true if latlng is within EDGE_MARGIN_PX pixels of any viewport edge.
-// Used to decide whether to pan after a click so the popup is not clipped.
-const EDGE_MARGIN_PX = 120;
-function isNearViewportEdge(latlng: L.LatLng): boolean {
+// Estimated popup dimensions used to decide which direction has enough room.
+// Height includes the 20px translateY offset. Width is a realistic rendered width.
+const POPUP_EST_H = 220;
+const POPUP_EST_W = 280;
+// "up" and "down" center the popup horizontally, so each side needs half the width.
+const POPUP_EST_HALF_W = POPUP_EST_W / 2;
+
+// Picks the popup opening direction that has enough viewport space at latlng.
+// "down" and "up" require horizontal centering room in addition to vertical room.
+// Preference: down → up → right → left (most common cases first).
+// Sets projectPopupPlacement so UnifiedProjectPopup can apply the right CSS.
+export function setPopupPlacementForLatLng(latlng: L.LatLng): void {
   const mapEl = map.value.getContainer();
+  const mapW = mapEl.clientWidth;
+  const mapH = mapEl.clientHeight;
   const point = map.value.latLngToContainerPoint(latlng);
-  return (
-    point.x < EDGE_MARGIN_PX ||
-    point.y < EDGE_MARGIN_PX ||
-    point.x > mapEl.clientWidth - EDGE_MARGIN_PX ||
-    point.y > mapEl.clientHeight - EDGE_MARGIN_PX
-  );
+
+  const hCentered = point.x >= POPUP_EST_HALF_W && mapW - point.x >= POPUP_EST_HALF_W;
+
+  let placement: PopupPlacement = "left";
+  if (hCentered && mapH - point.y >= POPUP_EST_H) placement = "down";
+  else if (hCentered && point.y >= POPUP_EST_H) placement = "up";
+  else if (mapW - point.x >= POPUP_EST_W) placement = "right";
+
+  projectPopupPlacement.value = placement;
 }
 
 function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
@@ -630,11 +644,12 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
     geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, latlng.lat, latlng.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+
   if (targetZoom !== currentZoom) {
     mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
-  } else if (isNearViewportEdge(latlng)) {
-    // Only pan when the click is close to the edge, so the popup has room to open.
-    mobileAwarePanTo([latlng.lat, latlng.lng], { animate: true, duration });
+  } else {
+    // Pick the popup direction that fits within the viewport at the click point.
+    setPopupPlacementForLatLng(latlng);
   }
 
   // Prevent the map-level click handler in projectPopupTeleport from closing the

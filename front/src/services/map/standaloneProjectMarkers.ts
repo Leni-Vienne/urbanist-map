@@ -35,6 +35,7 @@ import {
   unhighlightProjectShapes,
 } from "@/services/map/shapeRendering";
 import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
+import { setPopupPlacementForLatLng } from "@/services/map/projectVectorLayers";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 // useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
@@ -355,6 +356,7 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
   if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
   if (overlayStore.idSelectedOverlay) selectOverlay(null);
 
+  setPopupPlacementForLatLng(latlng);
   createProjectInfoTeleportTargetAtLatLng(latlng);
 }
 
