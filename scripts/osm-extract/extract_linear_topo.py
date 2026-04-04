@@ -336,11 +336,21 @@ def best_name_from_tags(tags_list):
         name = tags.get('name', '').strip()
         if name:
             names.append(name)
-    
+
     if names:
         # Prefer longer names (more descriptive)
         names_sorted = sorted(names, key=len, reverse=True)
         return names_sorted[0]
+
+    # Fall back to localized name tags (name:en first, then any name:*)
+    for tags in tags_list:
+        name_en = tags.get('name:en', '').strip()
+        if name_en:
+            return name_en
+    for tags in tags_list:
+        for k, v in tags.items():
+            if k.startswith('name:') and v.strip():
+                return v.strip()
     
     # Try to extract title from wikipedia tag (language-agnostic)
     for tags in tags_list:
@@ -372,7 +382,14 @@ def create_display_name(props, tags_list=None):
     
     if props.get('name', '').strip():
         return props['name'].strip()
-    
+
+    # Fall back to localized name tags (name:en first, then any name:*)
+    if props.get('name:en', '').strip():
+        return props['name:en'].strip()
+    for k, v in props.items():
+        if k.startswith('name:') and v.strip():
+            return v.strip()
+
     if props.get('description', '').strip():
         cleaned, _ = clean_description(props['description'])
         cleaned = re.sub(r'\s*\([^)]*\)\s*$', '', cleaned).strip()
@@ -383,7 +400,12 @@ def create_display_name(props, tags_list=None):
     if from_tag and to_tag:
         ref = props.get('ref', '').strip()
         return f"{from_tag} – {to_tag} (line {ref})" if ref else f"{from_tag} – {to_tag}"
-    
+
+    # Fall back to ref alone (e.g. "A 154" for a road relation with no name/from/to)
+    ref = props.get('ref', '').strip()
+    if ref:
+        return ref
+
     return None
 
 
