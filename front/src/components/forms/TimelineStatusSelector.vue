@@ -23,7 +23,6 @@
       <template #option="slotProps">
         <div class="flex flex-col py-1">
           <div class="font-medium">{{ slotProps.option.label }}</div>
-          <div class="text-xs text-muted-color">{{ slotProps.option.description }}</div>
         </div>
       </template>
     </Select>
@@ -63,17 +62,14 @@ const statusOptions = computed(() => [
   {
     value: "proposed",
     label: t("timelineStatus.proposed"),
-    description: t("timelineStatus.proposedDescription"),
   },
   {
     value: "planned",
     label: t("timelineStatus.planned"),
-    description: t("timelineStatus.plannedDescription"),
   },
   {
     value: "under_construction",
     label: t("timelineStatus.under_construction"),
-    description: t("timelineStatus.under_constructionDescription"),
   },
 ]);
 

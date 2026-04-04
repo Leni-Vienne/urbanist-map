@@ -130,15 +130,8 @@
   },
   "timelineStatus": {
     "proposed": "Proposed",
-    "proposedDescription": "Unconfirmed project, dates not yet set",
     "planned": "Planned",
-    "plannedDescription": "Confirmed project with scheduled dates",
-    "under_construction": "Under Construction",
-    "under_constructionDescription": "Project is currently being built",
-    "completed": "Completed",
-    "completedDescription": "Construction has finished",
-    "canceled": "Canceled",
-    "canceledDescription": "Project has been canceled"
+    "under_construction": "Under Construction"
   },
   "help": {
     "filters": {
