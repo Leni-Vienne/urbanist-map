@@ -467,10 +467,16 @@ async function main() {
           }
         }
 
-        // Source URL: prefer source:url, then website
+        // Source URL: prefer source:url, then website, then first URL found in source tag
+        const firstUrlInSource =
+          (props["source"] as string | undefined)
+            ?.split(";")
+            .map((s) => s.trim())
+            .find((s) => s.startsWith("http")) ?? null;
         const sourceUrl =
           (props["source:url"] as string | undefined) ||
           (props["website"] as string | undefined) ||
+          firstUrlInSource ||
           null;
 
         // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
