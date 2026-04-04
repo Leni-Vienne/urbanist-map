@@ -248,6 +248,9 @@ const externalEntries = computed<ExternalEntry[]>(() => {
   if (!p) return [];
   const entries: ExternalEntry[] = [];
 
+  const altName = String(p["alt_name"] ?? "").trim();
+  if (altName) entries.push({ key: "alt_name", label: $t("project.altName"), display: altName });
+
   const from = String(p["from"] ?? "").trim();
   if (from) entries.push({ key: "from", label: "From", display: from });
 
