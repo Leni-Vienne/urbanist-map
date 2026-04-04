@@ -74,7 +74,7 @@
     "create": "Créer un projet",
     "unnamed": "Projet sans nom",
     "name": "Nom du projet",
-    "location": "Localisation",
+    "location": "Ville",
     "noLocation": "Aucun emplacement",
     "timelineStatus": "Statut chronologique",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
