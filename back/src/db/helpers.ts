@@ -14,7 +14,7 @@ import {
   type ApprovalStatus,
 } from "./schema";
 import type * as schema from "./schema";
-import type { AppMode, OverlayData } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 // ============================================================================
 // DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -653,7 +653,7 @@ export function transformOverlayDataWithChangeRequests(
   allChangeRequestCounts: Map<string, number>,
   mode: AppMode,
   userId?: string,
-): OverlayData[] {
+) {
   return overlaysData.map((row) => {
     const approvedCorners = row.corners;
     const centroid = { lat: row.centroidLat, lng: row.centroidLng };

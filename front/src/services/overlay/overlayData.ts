@@ -21,7 +21,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   const moderationStore = useModerationStore();
   const mapStore = useMapStore();
 
-  let project = savedOverlay.project;
+  let project: typeof savedOverlay.project | Project = savedOverlay.project ?? null;
 
   if (!project && savedOverlay.projectId) {
     // First check normal project store
@@ -44,7 +44,14 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   // Use factory function but preserve existing data
   return createOverlayObject({
     ...savedOverlay,
-    project: project ? { ...project, city: project.city } : null,
+    project: project
+      ? {
+          ...project,
+          city: project.city,
+          importSource: project.importSource ?? null,
+          status: project.status ?? "pending",
+        }
+      : null,
     corners: savedOverlay.corners,
     // Set isModified flag based on edit mode cache for proper marker color
     isModified: cachedModifications?.isModified ?? savedOverlay.isModified,
