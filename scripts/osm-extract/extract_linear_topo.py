@@ -435,15 +435,24 @@ class RelationHandler(osmium.SimpleHandler):
             state_val = tags.get('state', '')
             has_lifecycle = any(tags.get(k, '') not in ('', 'no') for k in _LIFECYCLE_KEYS)
             has_construction_state = state_val in ('construction', 'proposed', 'planned')
-            
-            # If no explicit lifecycle tags, check member way construction ratio by LENGTH
-            if not (has_lifecycle or has_construction_state):
+
+            # Road-service route types run on existing roads and are never themselves
+            # infrastructure being built. A bus detour through a construction zone doesn't
+            # make the route a project — require an explicit lifecycle tag on the relation.
+            _ROAD_SERVICE_ROUTE_TYPES = ('bus', 'coach', 'trolleybus', 'share_taxi')
+            if tags.get('route', '') in _ROAD_SERVICE_ROUTE_TYPES:
+                if not (has_lifecycle or has_construction_state):
+                    return
+
+            # For all other route types, fall back to a length-based member way ratio
+            # when there are no explicit lifecycle tags on the relation itself.
+            elif not (has_lifecycle or has_construction_state):
                 member_way_ids = [m.ref for m in r.members if m.type == 'w']
                 if member_way_ids:
                     # Calculate length-based ratio (more accurate than count-based)
                     construction_length_km = 0.0
                     total_length_km = 0.0
-                    
+
                     # Couuuld be worth caching way length but not a bottleneck at all for now
                     for wid in member_way_ids:
                         way_data = self.way_geometries.get(wid)
@@ -452,10 +461,10 @@ class RelationHandler(osmium.SimpleHandler):
                             total_length_km += length_km
                             if wid in self.proposed_way_ids:
                                 construction_length_km += length_km
-                    
+
                     if total_length_km > 0:
                         construction_ratio = construction_length_km / total_length_km
-                        
+
                         # Use route type to determine threshold:
                         # - route=tracks (infrastructure): stricter 75% (construction-focused projects)
                         # - route=train/tram/etc (service): lenient 50% (may have existing connections)
@@ -464,7 +473,7 @@ class RelationHandler(osmium.SimpleHandler):
                             threshold = 0.75
                         else:
                             threshold = 0.50
-                        
+
                         if construction_ratio < threshold:
                             return
                     else:
@@ -915,8 +924,10 @@ def make_relation_feature(rel_id, rel, ways):
     except:
         merged = member_geoms[0]
     
-    # Build properties primarily from member ways (the actual proposed/construction features)
-    props = {}
+    # Start with all relation tags so no OSM data is silently dropped
+    props = dict(rel['tags'])
+
+    # Way tags override for core infrastructure keys (the ways are the actual geometry)
     for wtags in member_tags:
         # Pull core transport infrastructure tags from the ways
         for k in ('construction', 'proposed', 'planned', 'highway', 'railway', 'waterway', 'aerialway'):
@@ -945,9 +956,14 @@ def make_relation_feature(rel_id, rel, ways):
     
     # Relation identity tags always win — the relation is the canonical project record
     for k in ('name', 'ref', 'wikidata', 'wikipedia', 'description', 'website',
-              'source', 'opening_date', 'note', 'operator'):
+              'source', 'opening_date', 'note', 'operator',
+              'from', 'to', 'via', 'colour', 'color', 'network', 'short_name'):
         if k in rel['tags']:
             props[k] = rel['tags'][k]
+    # Copy all name:* localised name tags from the relation
+    for k, v in rel['tags'].items():
+        if k.startswith('name:'):
+            props[k] = v
     # Infrastructure type tags from relation only fill gaps (way tags are authoritative)
     for k in ('construction', 'proposed', 'planned'):
         if k in rel['tags'] and k not in props:

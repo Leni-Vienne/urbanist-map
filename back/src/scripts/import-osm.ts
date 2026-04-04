@@ -352,6 +352,7 @@ async function main() {
       if (batch.length === 0) return { ok: 0, fail: 0 };
       const conflictSet = {
         name: sql`EXCLUDED.name`,
+        description: sql`EXCLUDED.description`,
         cityId: sql`EXCLUDED.city_id`,
         countryCode: sql`EXCLUDED.country_code`,
         timelineStatus: sql`EXCLUDED.timeline_status`,
@@ -439,6 +440,7 @@ async function main() {
         const props = (feature.properties ?? {}) as Record<string, unknown>;
 
         const name = (props["display_name"] as string | undefined)?.trim() || null;
+        const description = (props["description"] as string | undefined)?.trim() || null;
         const countryCode = countryCodes[i] ?? null;
         if (!countryCode || !validCountryCodes.has(countryCode)) {
           skipped++;
@@ -493,6 +495,7 @@ async function main() {
 
         pendingRows.push({
           name,
+          description,
           cityId: null,
           countryCode,
           status: "approved" as const,
