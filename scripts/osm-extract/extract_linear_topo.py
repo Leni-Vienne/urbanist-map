@@ -203,11 +203,15 @@ def calculate_way_length_km(coords):
 
 def get_transport_type(tags):
     """Derive canonical transport type from OSM tags."""
-    # Check construction=/proposed=/planned= sub-type keys
+    # Check construction=/proposed=/planned= sub-type keys.
+    # Collect all matched types first so bike can take priority over pedestrian.
+    lifecycle_types = []
     for key in ('construction', 'proposed', 'planned'):
         val = tags.get(key, '')
         if val and val not in ('yes', 'no') and val in _VALUE_TO_TYPE:
-            return _VALUE_TO_TYPE[val]
+            lifecycle_types.append(_VALUE_TO_TYPE[val])
+    if lifecycle_types:
+        return 'bike' if 'bike' in lifecycle_types else lifecycle_types[0]
 
     # Check lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
     for key, fallback in [('proposed:aerialway', 'cable_car'), ('proposed:railway', 'rail'),
