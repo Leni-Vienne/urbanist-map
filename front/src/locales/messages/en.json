@@ -126,7 +126,8 @@
     "pending": "Pending",
     "rejected": "Rejected",
     "replaced": "Replaced",
-    "conflicted": "Conflicted"
+    "conflicted": "Conflicted",
+    "tooltipLabel": "Moderation status"
   },
   "timelineStatus": {
     "proposed": "Proposed",
