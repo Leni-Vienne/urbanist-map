@@ -352,6 +352,7 @@ async function main() {
       if (batch.length === 0) return { ok: 0, fail: 0 };
       const conflictSet = {
         name: sql`EXCLUDED.name`,
+        description: sql`EXCLUDED.description`,
         cityId: sql`EXCLUDED.city_id`,
         countryCode: sql`EXCLUDED.country_code`,
         timelineStatus: sql`EXCLUDED.timeline_status`,
@@ -439,6 +440,7 @@ async function main() {
         const props = (feature.properties ?? {}) as Record<string, unknown>;
 
         const name = (props["display_name"] as string | undefined)?.trim() || null;
+        const description = (props["description"] as string | undefined)?.trim() || null;
         const countryCode = countryCodes[i] ?? null;
         if (!countryCode || !validCountryCodes.has(countryCode)) {
           skipped++;
@@ -465,10 +467,16 @@ async function main() {
           }
         }
 
-        // Source URL: prefer source:url, then website
+        // Source URL: prefer source:url, then website, then first URL found in source tag
+        const firstUrlInSource =
+          (props["source"] as string | undefined)
+            ?.split(";")
+            .map((s) => s.trim())
+            .find((s) => s.startsWith("http")) ?? null;
         const sourceUrl =
           (props["source:url"] as string | undefined) ||
           (props["website"] as string | undefined) ||
+          firstUrlInSource ||
           null;
 
         // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
@@ -493,6 +501,7 @@ async function main() {
 
         pendingRows.push({
           name,
+          description,
           cityId: null,
           countryCode,
           status: "approved" as const,

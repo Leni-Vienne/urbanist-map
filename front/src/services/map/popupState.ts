@@ -13,3 +13,8 @@ export function setOverlayPopupTarget(element: HTMLElement | null) {
 export function setProjectPopupTarget(element: HTMLElement | null) {
   projectPopupTarget.value = element;
 }
+
+// Which direction the project popup opens from the anchor point.
+// Computed at click time based on available viewport space.
+export type PopupPlacement = "down" | "up" | "right" | "left";
+export const projectPopupPlacement = ref<PopupPlacement>("down");

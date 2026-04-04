@@ -74,7 +74,7 @@
     "create": "Create Project",
     "unnamed": "Unnamed project",
     "name": "Project Name",
-    "location": "Location",
+    "location": "City",
     "noLocation": "No Location",
     "timelineStatus": "Timeline Status",
     "proposalDate": "Proposal Date",
@@ -98,11 +98,12 @@
     "edit": "Edit Project",
     "publish": "Submit",
     "submitChangeRequest": "Submit",
-    "period": "Period",
+    "period": "Dates",
     "estimatedCompletion": "Estimated Completion",
     "source": "Source",
     "lastModified": "Last Modified",
     "modifyOn": "Modify on {name}",
+    "altName": "Also known as",
     "addImages": "Add Images",
     "tags": "Tags",
     "additionalDetails": "Additional Details"
@@ -126,19 +127,13 @@
     "pending": "Pending",
     "rejected": "Rejected",
     "replaced": "Replaced",
-    "conflicted": "Conflicted"
+    "conflicted": "Conflicted",
+    "tooltipLabel": "Moderation status"
   },
   "timelineStatus": {
     "proposed": "Proposed",
-    "proposedDescription": "Unconfirmed project, dates not yet set",
     "planned": "Planned",
-    "plannedDescription": "Confirmed project with scheduled dates",
-    "under_construction": "Under Construction",
-    "under_constructionDescription": "Project is currently being built",
-    "completed": "Completed",
-    "completedDescription": "Construction has finished",
-    "canceled": "Canceled",
-    "canceledDescription": "Project has been canceled"
+    "under_construction": "Under Construction"
   },
   "help": {
     "filters": {
@@ -238,11 +233,6 @@
       "planned": "Planned",
       "inProgress": "In Progress",
       "canceled": "Canceled",
-      "toggleProposed": "Toggle proposed projects",
-      "togglePlanned": "Toggle planned projects",
-      "toggleInProgress": "Toggle in progress projects",
-      "toggleCompleted": "Toggle completed projects",
-      "toggleCanceled": "Toggle canceled projects",
       "named": "Named",
       "unnamed": "Unnamed",
       "filterByLastModified": "Filter by Last Modified",

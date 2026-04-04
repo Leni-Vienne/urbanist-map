@@ -105,6 +105,41 @@
         >{{ project.externalId }}</a
       >
     </div>
+
+    <!-- External properties (OSM tags) for imported projects -->
+    <template v-if="project.importSourceId && externalProperties">
+      <!-- Architect, Wikipedia, Wikidata -->
+      <div v-if="externalEntries.length > 0" class="grid grid-cols-2 gap-x-6 gap-y-3">
+        <div v-for="entry in externalEntries" :key="entry.key" class="flex flex-col gap-0.5">
+          <span :class="cls.label">{{ entry.label }}</span>
+          <a
+            v-if="entry.href"
+            :href="entry.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
+            >{{ entry.display }}</a
+          >
+          <span v-else :class="cls.value">{{ entry.display }}</span>
+        </div>
+      </div>
+
+      <!-- OSM image (Wikimedia Commons photo) -->
+      <a
+        v-if="externalImageUrl"
+        :href="externalImageUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="block"
+      >
+        <img
+          :src="externalImageUrl"
+          class="w-full rounded-lg object-cover max-h-36"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        />
+      </a>
+    </template>
   </div>
 </template>
 
@@ -174,6 +209,76 @@ const osmEditUrl = computed(() => {
   const template = project.importSource.urlTemplate;
   if (!template) return null;
   return template.replace("{id}", project.externalId);
+});
+
+interface ExternalEntry {
+  key: string;
+  label: string;
+  display: string;
+  href?: string;
+}
+
+function buildWikipediaUrl(value: string): string {
+  const colonIdx = value.indexOf(":");
+  if (colonIdx === -1) return `https://en.wikipedia.org/wiki/${encodeURIComponent(value)}`;
+  const lang = value.slice(0, colonIdx);
+  const article = value.slice(colonIdx + 1);
+  return `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(article.replace(/ /g, "_"))}`;
+}
+
+function buildWikidataUrl(value: string): string {
+  return `https://www.wikidata.org/wiki/${encodeURIComponent(value)}`;
+}
+
+const externalProperties = computed(() => {
+  const p = props.project?.externalProperties;
+  if (!p || typeof p !== "object") return null;
+  return p as Record<string, unknown>;
+});
+
+const externalImageUrl = computed<string | null>(() => {
+  const p = externalProperties.value;
+  if (!p) return null;
+  const v = String(p["image"] ?? "").trim();
+  return v || null;
+});
+
+const externalEntries = computed<ExternalEntry[]>(() => {
+  const p = externalProperties.value;
+  if (!p) return [];
+  const entries: ExternalEntry[] = [];
+
+  const altName = String(p["alt_name"] ?? "").trim();
+  if (altName) entries.push({ key: "alt_name", label: $t("project.altName"), display: altName });
+
+  const from = String(p["from"] ?? "").trim();
+  if (from) entries.push({ key: "from", label: "From", display: from });
+
+  const to = String(p["to"] ?? "").trim();
+  if (to) entries.push({ key: "to", label: "To", display: to });
+
+  const architect = String(p["architect"] ?? "").trim();
+  if (architect) entries.push({ key: "architect", label: "Architect", display: architect });
+
+  const wikipedia = String(p["wikipedia"] ?? "").trim();
+  if (wikipedia)
+    entries.push({
+      key: "wikipedia",
+      label: "Wikipedia",
+      display: wikipedia,
+      href: buildWikipediaUrl(wikipedia),
+    });
+
+  const wikidata = String(p["wikidata"] ?? "").trim();
+  if (wikidata)
+    entries.push({
+      key: "wikidata",
+      label: "Wikidata",
+      display: wikidata,
+      href: buildWikidataUrl(wikidata),
+    });
+
+  return entries;
 });
 
 const projectLocationDisplay = computed(() => {

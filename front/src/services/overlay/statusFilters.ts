@@ -1,58 +1,34 @@
 import { ref, computed } from "vue";
-import { getOverlayMarkerColor } from "@/services/map/markers";
 import { getProjectMarkerColor } from "@/utils/markerColors";
-import type {
-  Project,
-  OverlayData,
-  OverlayObject,
-  viewModeMarkerColor,
-  MarkerColor,
-} from "@/types/index";
+import type { Project, OverlayData, OverlayObject } from "@/types/index";
 import type { AppMode } from "@shared/types";
+import type { TimelineStatus } from "../../../../back/src/db/schema";
 
-// All possible marker colors (includes edit/moderation mode colors)
-const ALL_MARKER_COLORS: MarkerColor[] = [
-  "yellow",
-  "green",
-  "orange",
-  "grey",
-  "blue",
-  "red",
-  "purple",
+// All timeline statuses used in the filter
+const ALL_TIMELINE_STATUSES: TimelineStatus[] = [
+  "proposed",
+  "planned",
+  "under_construction",
+  "completed",
+  "canceled",
 ];
 
-// Selected status filters. Empty selection means "show all statuses" (same behavior as tags).
-// Colors map to timeline statuses in view mode:
-//   yellow = proposed, blue = planned, orange = under_construction, green = completed, grey = canceled
-export const selectedStatusFilters = ref<viewModeMarkerColor[]>([]);
+// Selected status filters. Empty selection means "show all statuses".
+export const selectedStatusFilters = ref<TimelineStatus[]>([]);
 
-// Computed visibility states for backwards compatibility
+// Computed visibility states keyed by timeline status.
 // When selection is empty, all are visible. Otherwise, only selected are visible.
-// Uses MarkerColor internally to cover edit/moderation mode colors too.
 export const visibleStates = computed(() => {
-  const states: Record<MarkerColor, boolean> = {
-    yellow: false,
-    green: false,
-    orange: false,
-    grey: false,
-    blue: false,
-    red: false,
-    purple: false,
-  };
+  const states = {} as Record<TimelineStatus, boolean>;
 
   if (selectedStatusFilters.value.length === 0) {
-    // Empty selection = show all
-    for (const color of ALL_MARKER_COLORS) {
-      states[color] = true;
+    for (const status of ALL_TIMELINE_STATUSES) {
+      states[status] = true;
     }
   } else {
-    // Only show selected (view mode colors)
-    for (const color of selectedStatusFilters.value) {
-      states[color] = true;
+    for (const status of ALL_TIMELINE_STATUSES) {
+      states[status] = selectedStatusFilters.value.includes(status);
     }
-    // In edit/moderation modes, always show red and purple (user's own content)
-    states.red = true;
-    states.purple = true;
   }
 
   return states;
@@ -174,11 +150,21 @@ function matchesLastModifiedDateFilter(project: Project): boolean {
 
 /**
  * Shared visibility check for standalone project markers.
+ * In edit/moderation modes the timeline status filter does not apply.
  */
 export function shouldShowStandaloneProject(project: Project, mode: AppMode): boolean {
-  const markerColor = getProjectMarkerColor(project, mode);
+  if (mode !== "view") {
+    const markerColor = getProjectMarkerColor(project, mode);
+    // In non-view modes, always show (edit/moderation mode colors are approval-based)
+    return (
+      markerColor !== undefined &&
+      matchesSelectedTags(project.tags) &&
+      matchesNameFilter(project.name) &&
+      matchesLastModifiedDateFilter(project)
+    );
+  }
   return (
-    visibleStates.value[markerColor] &&
+    visibleStates.value[project.timelineStatus] &&
     matchesSelectedTags(project.tags) &&
     matchesNameFilter(project.name) &&
     matchesLastModifiedDateFilter(project)
@@ -186,20 +172,21 @@ export function shouldShowStandaloneProject(project: Project, mode: AppMode): bo
 }
 
 /**
- * Toggle a specific status filter. Empty selection means all statuses are visible.
+ * Toggle a specific timeline status filter. Empty selection means all statuses are visible.
  */
-export function toggleFilter(color: viewModeMarkerColor): void {
-  if (selectedStatusFilters.value.includes(color)) {
-    selectedStatusFilters.value = selectedStatusFilters.value.filter((c) => c !== color);
+export function toggleFilter(status: TimelineStatus): void {
+  if (selectedStatusFilters.value.includes(status)) {
+    selectedStatusFilters.value = selectedStatusFilters.value.filter((s) => s !== status);
     return;
   }
 
-  selectedStatusFilters.value = [...selectedStatusFilters.value, color];
+  selectedStatusFilters.value = [...selectedStatusFilters.value, status];
 }
 
 /**
- * Check if a specific overlay should be visible based on current filters
- * In view mode only, also checks that overlay is not pending
+ * Check if a specific overlay should be visible based on current filters.
+ * In view mode, also filters out pending overlays (only show approved).
+ * In edit/moderation modes, timeline status filter does not apply.
  */
 function shouldShowOverlay(overlay: OverlayObject | OverlayData, mode: AppMode) {
   // In view mode only, hide pending overlays (they are visible in edit and moderation modes)
@@ -211,6 +198,12 @@ function shouldShowOverlay(overlay: OverlayObject | OverlayData, mode: AppMode) 
     return false;
   }
 
-  const statusColor = getOverlayMarkerColor(overlay, mode);
-  return visibleStates.value[statusColor];
+  if (mode !== "view") {
+    return true;
+  }
+
+  // In view mode, filter by the project's timeline status
+  const timelineStatus = overlay.project?.timelineStatus;
+  if (!timelineStatus) return visibleStates.value["proposed"]; // fallback: treat as proposed
+  return visibleStates.value[timelineStatus];
 }

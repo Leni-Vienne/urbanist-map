@@ -38,9 +38,9 @@
           @blur="handleDescriptionBlur"
           @input="handleDescriptionInput"
         />
-        <label for="project-description-input" class="text-(--p-text-color-secondary)"
-          >{{ $t("common.description") }} ({{ $t("project.optionalField") }})</label
-        >
+        <label for="project-description-input" class="text-(--p-text-color-secondary)">{{
+          $t("common.description")
+        }}</label>
       </FloatLabel>
       <small v-if="descriptionError" class="text-red-600 text-xs block">{{
         descriptionError
@@ -109,34 +109,36 @@
       </div>
     </div>
 
-    <!-- Country field -->
-    <div class="flex flex-col gap-1">
-      <FloatLabel class="w-full" variant="in">
-        <Select
-          input-id="country-select"
-          v-model="localFormData.countryCode"
-          :options="countries"
-          option-label="name"
-          option-value="code"
-          :loading="countriesLoading"
-          class="w-full"
-          @update:modelValue="handleCountryCodeUpdate"
-        />
-        <label for="country-select" class="text-(--p-text-color-secondary)">
-          {{ $t("project.country") }}
-        </label>
-      </FloatLabel>
-      <small
-        v-if="showCountryCodeChangeIndicator"
-        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-      >
-        {{ $t("overlay.changedFrom") }}: "{{ originalData?.countryCode || $t("overlay.notSet") }}"
-      </small>
-    </div>
-
     <!-- Additional details section (collapsible) -->
     <Panel :header="$t('project.additionalDetails')" toggleable collapsed>
       <div class="flex flex-col gap-4">
+        <!-- Country field -->
+        <div class="flex flex-col gap-1">
+          <FloatLabel class="w-full" variant="in">
+            <Select
+              input-id="country-select"
+              v-model="localFormData.countryCode"
+              :options="countries"
+              option-label="name"
+              option-value="code"
+              :loading="countriesLoading"
+              class="w-full"
+              @update:modelValue="handleCountryCodeUpdate"
+            />
+            <label for="country-select" class="text-(--p-text-color-secondary)">
+              {{ $t("project.country") }}
+            </label>
+          </FloatLabel>
+          <small
+            v-if="showCountryCodeChangeIndicator"
+            class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+          >
+            {{ $t("overlay.changedFrom") }}: "{{
+              originalData?.countryCode || $t("overlay.notSet")
+            }}"
+          </small>
+        </div>
+
         <!-- Proposal date field -->
         <div class="flex flex-col gap-1">
           <FlexibleDatePicker
@@ -173,9 +175,9 @@
           show-clear
           @update:modelValue="handleCityIdUpdate"
         />
-        <label for="location-select" class="text-(--p-text-color-secondary)"
-          >{{ $t("project.location") }} ({{ $t("project.optionalField") }})</label
-        >
+        <label for="city-select" class="text-(--p-text-color-secondary)">{{
+          $t("project.city")
+        }}</label>
       </FloatLabel>
       <small v-if="cityIdError" class="text-red-600 text-xs block">{{ cityIdError }}</small>
       <small
@@ -199,9 +201,9 @@
           @blur="handleSourceUrlBlur"
           @input="handleSourceUrlInput"
         />
-        <label for="source-url-input" class="text-(--p-text-color-secondary)"
-          >{{ $t("project.sourceUrl") }} ({{ $t("project.optionalField") }})</label
-        >
+        <label for="source-url-input" class="text-(--p-text-color-secondary)">{{
+          $t("project.sourceUrl")
+        }}</label>
       </FloatLabel>
       <small v-if="sourceUrlError" class="text-red-600 text-xs block">{{ sourceUrlError }}</small>
       <small
@@ -215,7 +217,7 @@
     <!-- Tags field -->
     <div class="flex flex-col gap-2">
       <span class="text-sm text-(--p-text-color-secondary)">
-        {{ $t("project.tags") }} ({{ $t("project.optionalField") }})
+        {{ $t("project.tags") }}
       </span>
       <div class="flex flex-wrap gap-2">
         <button

@@ -50,9 +50,6 @@
 
         <template v-if="hasCollision">
           <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-          <button title="Bring to front" :class="btnCls()" @click="stackToFront">
-            <i class="pi pi-arrow-up" />
-          </button>
           <button title="Send to back" :class="btnCls()" @click="stackToBack">
             <i class="pi pi-arrow-down" />
           </button>
@@ -443,13 +440,6 @@ function goToPrevious() {
 }
 function goToNext() {
   overlayCallbacks.focusCameraToOverlay?.("next");
-}
-
-function stackToFront() {
-  const layer = getLayer(selectedId.value ?? "");
-  if (!layer) return;
-  layer.bringToFront();
-  (layer as any).editing._toggledImage = false;
 }
 
 function stackToBack() {

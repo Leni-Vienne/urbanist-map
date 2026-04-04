@@ -38,7 +38,6 @@
           optionLabel="label"
           optionValue="value"
           placeholder="Month"
-          class="w-32"
           :class="{ 'p-invalid': isTouched && Boolean(error) }"
           @change="handleMonthYearChange"
         />
@@ -48,7 +47,6 @@
           optionLabel="label"
           optionValue="value"
           placeholder="Year"
-          class="w-28"
           :class="{ 'p-invalid': isTouched && Boolean(error) }"
           @change="handleMonthYearChange"
         />

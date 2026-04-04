@@ -100,6 +100,7 @@
             <span
               v-if="project.tags.length > 1"
               class="text-[0.65rem] font-semibold text-muted-color"
+              v-tooltip.top="extraTagsTooltip(project.tags)"
             >
               +{{ project.tags.length - 1 }}
             </span>
@@ -111,13 +112,23 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 
+const { t, te } = useI18n();
 const { projects, sortMode, sortReverse, isReady, navigateToProject, hoverProject } =
   useVisibleProjects();
+
+/** Returns translated names of all tags after the first, joined by newlines. */
+function extraTagsTooltip(tags: string[]): string {
+  return tags
+    .slice(1)
+    .map((tag) => (te(`tags.${tag}`) ? t(`tags.${tag}`) : tag))
+    .join("\n");
+}
 
 function onSortClick(mode: SortMode) {
   if (sortMode.value === mode) {
@@ -144,7 +155,7 @@ function tagColor(firstTag: string): string {
 // dasharray values mirror FilterControl's SVG line previews (same stroke-width 2.5px):
 // proposed = short dash, planned/under_construction = long dash, completed = solid
 const STATUS_DASHARRAY: Record<string, string> = {
-  proposed: "3,4",
+  proposed: "0,5",
   planned: "7,4",
   under_construction: "7,4",
   completed: "",
