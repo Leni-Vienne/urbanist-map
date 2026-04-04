@@ -35,8 +35,8 @@ import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import {
   selectedProjectTags,
+  selectedStatusFilters,
   UNTAGGED_PROJECT_FILTER,
-  visibleStates,
   sizeFilterRange,
   selectedNameFilters,
   lastModifiedDateRange,
@@ -142,6 +142,7 @@ const CLUSTER_BOUNDS_PADDING_PX = 50;
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
   "project-shapes-fill",
+  "project-shapes-proposed-fill",
   "project-shapes",
   "project-shapes-completed",
   "project-shapes-proposed-dashed",
@@ -320,30 +321,14 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
  * Build a MapLibre filter expression based on current timeline status selection.
  */
 function getStatusFilterExpression(): FilterSpecification | null {
-  // If all statuses are visible, we don't need a filter
-  const allVisible =
-    visibleStates.value.yellow &&
-    visibleStates.value.blue &&
-    visibleStates.value.orange &&
-    visibleStates.value.green &&
-    visibleStates.value.grey;
+  // Empty selection = all visible, no filter needed
+  if (selectedStatusFilters.value.length === 0) return null;
 
-  if (allVisible) {
-    return null;
-  }
-
-  const allowedStatuses: string[] = [];
-  if (visibleStates.value.yellow) allowedStatuses.push("proposed");
-  if (visibleStates.value.blue) allowedStatuses.push("planned");
-  if (visibleStates.value.orange) allowedStatuses.push("under_construction");
-  if (visibleStates.value.green) allowedStatuses.push("completed");
-  if (visibleStates.value.grey) allowedStatuses.push("canceled");
-
-  if (allowedStatuses.length === 0) {
-    return ["==", 1, 0] as FilterSpecification; // Always false
-  }
-
-  return ["in", ["get", "timeline_status"], ["literal", allowedStatuses]] as FilterSpecification;
+  return [
+    "in",
+    ["get", "timeline_status"],
+    ["literal", selectedStatusFilters.value],
+  ] as FilterSpecification;
 }
 
 /**
