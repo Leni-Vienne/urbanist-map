@@ -917,6 +917,24 @@ def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
 # Feature builders
 # ---------------------------------------------------------------------------
 
+def pick_representative_way(way_ids, ways):
+    """Pick the most tag-rich way as the OSM link target.
+
+    Priority: name > wikidata > ref > description > total tag count > older way ID.
+    """
+    def score(wid):
+        tags = ways[wid]['tags']
+        return (
+            bool(tags.get('name')),
+            bool(tags.get('wikidata')),
+            bool(tags.get('ref')),
+            bool(tags.get('description')),
+            len(tags),
+            -wid,
+        )
+    return max(way_ids, key=score)
+
+
 def get_latest_timestamp(way_ids, ways):
     """Get latest timestamp from a set of ways."""
     latest = None
@@ -1076,7 +1094,7 @@ def make_orphan_features(orphan_ways):
         
         props['osm_ids'] = [f'way/{wid}' for wid in way_ids]
         props['osm_ids_count'] = len(way_ids)
-        props['osm_way_id'] = way_ids[0]
+        props['osm_way_id'] = pick_representative_way(way_ids, orphan_ways)
         
         # Determine status using majority vote
         status_counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
@@ -1104,7 +1122,7 @@ def make_orphan_features(orphan_ways):
         
         features.append({
             'type': 'Feature',
-            'id': f'way/{min(way_ids)}',
+            'id': f'way/{props["osm_way_id"]}',
             'geometry': mapping(merged),
             'properties': props,
         })
