@@ -309,35 +309,30 @@ import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 
-// dasharray values mirror the map line styles (SVG units, scaled for visibility at 2.5px stroke):
-// proposed = short dash (SHAPE_SHORT_DASH 1.5,2 scaled), others = long dash (SHAPE_LONG_DASH 4,2 scaled), completed = solid
+// dasharray values mirror the map line styles (SVG units, with stroke-linecap="round"):
+// proposed = dots (dash=0 so round cap creates circles, gap=5), others = long dash (7,4), completed = solid
 // "canceled" is intentionally omitted from the UI for now — too confusing for most users.
 const filters: {
-  color: viewModeMarkerColor;
   labelKey: string;
   ariaKey: string;
   dasharray: string;
 }[] = [
   {
-    color: "yellow",
     labelKey: "timelineStatus.proposed",
     ariaKey: "map.controls.toggleProposed",
-    dasharray: "3,4",
+    dasharray: "0,5",
   },
   {
-    color: "blue",
     labelKey: "timelineStatus.planned",
     ariaKey: "map.controls.togglePlanned",
-    dasharray: "7,4",
+    dasharray: "7,6",
   },
   {
-    color: "orange",
     labelKey: "timelineStatus.under_construction",
     ariaKey: "map.controls.toggleInProgress",
-    dasharray: "7,4",
+    dasharray: "7,6",
   },
   {
-    color: "green",
     labelKey: "timelineStatus.completed",
     ariaKey: "map.controls.toggleCompleted",
     dasharray: "",

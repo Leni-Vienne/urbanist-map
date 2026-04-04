@@ -107,13 +107,30 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-const SHAPE_LINE_WIDTH = 3;
-const FOOTPRINT_LINE_WIDTH = 2; // hiding it for now since project geometry appears over them
+// Line width scales with zoom to avoid the "blobby" antialiasing artifact at low zoom levels.
+const SHAPE_LINE_WIDTH = ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3] as unknown as number;
+// +1 wider variant for hover/selected states
+const SHAPE_LINE_WIDTH_HOVER = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  2,
+  12,
+  4,
+] as unknown as number;
+const FOOTPRINT_LINE_WIDTH = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  0.7,
+  12,
+  2,
+] as unknown as number; // hiding it for now since project geometry appears over them
 
 const SHAPE_LONG_DASH: [number, number] = [4, 2];
 const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
-const FOOTPRINT_LONG_DASH: [number, number] = [2, 1]; // = SHAPE_LONG_DASH / 2
-const FOOTPRINT_SHORT_DASH: [number, number] = [0.25, 1]; // = SHAPE_SHORT_DASH / 2
 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
@@ -123,9 +140,6 @@ const CLUSTER_BOUNDS_PADDING_PX = 50;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
-  "overlay-footprints",
-  "overlay-footprints-completed",
-  "overlay-footprints-proposed-dashed",
   "project-shapes-fill",
   "project-shapes",
   "project-shapes-completed",
@@ -298,9 +312,6 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
   "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate: these are small stand-ins, already gated to z8+ by null size_m
   "project-shapes-proposed-dashed": () =>
     ["all", getIsProposedFilterExpression(), getShapeZoomVisibilityFilter()] as FilterSpecification,
-  "overlay-footprints": getIsNeitherProposedNorCompletedFilterExpression,
-  "overlay-footprints-completed": getIsCompletedFilterExpression,
-  "overlay-footprints-proposed-dashed": getIsProposedFilterExpression,
   "project-points-hover": () => ["==", ["get", "id"], HOVER_NONE_ID] as FilterSpecification,
 };
 
@@ -1174,10 +1185,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3],
         "line-dasharray": SHAPE_LONG_DASH,
       },
     },
@@ -1193,7 +1203,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -1211,7 +1221,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsProposedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -1247,10 +1257,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH + 1,
+        "line-width": SHAPE_LINE_WIDTH_HOVER,
       },
     },
     firstSymbolLayerId,
@@ -1268,10 +1278,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH + 1,
+        "line-width": SHAPE_LINE_WIDTH_HOVER,
       },
     },
     firstSymbolLayerId,
@@ -1294,10 +1304,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // Overlay footprints — permanent border outline replacing CSS box-shadow hack
-  // Width is 6 (double project-shapes) because half the stroke is covered by the overlay image.
-  // Dasharray values are halved vs project-shapes so physical dash/gap sizes stay identical.
-  // under_construction / planned / canceled: long dashes
+  // Invisible sentinel layer — no status filter needed since all footprints trigger overlay loading.
+  // vectorTileSync.ts checks for this layer by name to confirm the map is ready.
   mlMap.addLayer(
     {
       id: "overlay-footprints",
@@ -1305,50 +1313,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: getIsNeitherProposedNorCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": 0, // temporary
-        "line-dasharray": FOOTPRINT_LONG_DASH,
-      },
-    },
-    firstSymbolLayerId,
-  );
-
-  // completed overlay footprints: solid line
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-completed",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: getIsCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
-      },
-    },
-    firstSymbolLayerId,
-  );
-
-  // proposed overlay footprints: short dashes, reduced opacity to visually de-emphasize speculative projects
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-proposed-dashed",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: getIsProposedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": 0, // temporary
-        "line-dasharray": FOOTPRINT_SHORT_DASH,
-      },
+      paint: { "line-width": 0 },
     },
     firstSymbolLayerId,
   );
@@ -1361,7 +1326,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1382,10 +1347,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 0, // temporary
+        "line-width": FOOTPRINT_LINE_WIDTH,
       },
     },
     firstSymbolLayerId,

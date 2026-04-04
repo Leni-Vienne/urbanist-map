@@ -1,22 +1,22 @@
 {
-  "timestamp": "2026-04-01T11:00:36.728Z",
-  "total": 431659,
+  "timestamp": "2026-04-03T15:22:20.882Z",
+  "total": 431660,
   "osm": 431656,
-  "userSubmitted": 3,
+  "userSubmitted": 4,
   "detached": 0,
   "approvalStatus": {
-    "approved": 431658,
+    "approved": 431659,
     "pending": 1
   },
   "timelineStatus": {
     "under_construction": 368822,
     "proposed": 61165,
-    "planned": 1672
+    "planned": 1673
   },
   "tags": {
-    "building": 253846,
+    "building": 253847,
     "road": 152308,
-    "pedestrian": 9376,
+    "pedestrian": 9377,
     "bike": 7082,
     "rail": 5963,
     "subway": 1104,
@@ -31,7 +31,7 @@
   "tagsPerProject": {
     "0": 1969,
     "1": 426973,
-    "2": 2684,
+    "2": 2685,
     "3": 31,
     "null": 2
   },
@@ -41,7 +41,7 @@
     "RUS": 26407,
     "POL": 25663,
     "DEU": 23162,
-    "FRA": 14110,
+    "FRA": 14111,
     "GBR": 13462,
     "AUS": 12500,
     "ITA": 12342,
@@ -59,17 +59,17 @@
   },
   "importSources": {
     "osm_world": 431656,
-    "(user-submitted)": 3
+    "(user-submitted)": 4
   },
   "completeness": {
-    "name": 164709,
-    "geometry": 431657,
-    "lat/lng": 431659,
+    "name": 164710,
+    "geometry": 431658,
+    "lat/lng": 431660,
     "source_url": 5544
   },
   "geometrySize": {
     "(no geometry)": 2,
-    "< 500m": 351772,
+    "< 500m": 351773,
     "500m-2km": 59413,
     "2km-10km": 15925,
     "10km-50km": 3703,
@@ -79,6 +79,6 @@
   "osmIdTypes": {
     "way": 416045,
     "relation": 15611,
-    "(user-submitted)": 3
+    "(user-submitted)": 4
   }
 }

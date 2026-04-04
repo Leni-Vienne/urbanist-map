@@ -101,7 +101,7 @@ function firstTagColor(slug: string | undefined): string {
 
 // Dasharray values mirror the map vector line style for each timeline status
 const STATUS_DASHARRAY: Record<string, string> = {
-  proposed: "3,4",
+  proposed: "0,5",
   planned: "7,4",
   under_construction: "7,4",
   completed: "",
