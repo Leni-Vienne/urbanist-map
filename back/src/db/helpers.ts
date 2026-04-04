@@ -10,6 +10,7 @@ import {
   changeRequests,
   users,
   userReports,
+  importSources,
   type ApprovalStatus,
 } from "./schema";
 import type * as schema from "./schema";
@@ -688,6 +689,7 @@ export function transformOverlayDataWithChangeRequests(
       project: {
         ...row.project,
         city: row.city,
+        importSource: row.importSource,
       },
       hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
       pendingChangeRequestsCount:
@@ -729,10 +731,12 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
         geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
       },
       city: cities,
+      importSource: importSources,
     })
     .from(overlays)
     .innerJoin(projects, eq(projects.id, overlays.projectId))
     .leftJoin(cities, eq(cities.id, projects.cityId))
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
     .where(and(...whereConditions))
     .orderBy(overlays.createdAt);
 }

@@ -1,5 +1,5 @@
 // Shared types used by both frontend and backend
-import type { DBProject, DBCity, ApprovalStatus } from "../back/src/db/schema";
+import type { DBProject, DBCity, DBImportSource, ApprovalStatus } from "../back/src/db/schema";
 export type { ApprovalStatus } from "../back/src/db/schema";
 
 // Type for map viewing modes (used by both frontend and backend)
@@ -25,7 +25,11 @@ export interface OverlayData {
   corners: { lat: number; lng: number }[];
   suggestedCorners?: { lat: number; lng: number }[];
   project?:
-    | (Omit<DBProject, "status"> & { status: ApprovalStatus | null; city: DBCity | null })
+    | (Omit<DBProject, "status"> & {
+        status: ApprovalStatus | null;
+        city: DBCity | null;
+        importSource?: DBImportSource | null;
+      })
     | null;
   distance?: number;
   isModified?: boolean;
