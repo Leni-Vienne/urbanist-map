@@ -216,9 +216,8 @@ function fetch_seq_timestamp() {
 
 # Convert an ISO-8601 timestamp to epoch seconds (portable: works with GNU date or BSD date)
 function ts_to_epoch() {
-    local ts="${1/\\/}" # remove any backslashes that curl/grep might leave
-    # OSM timestamps use backslash-escaped colons in state.txt: 2025-03-31T00\:00\:00Z
-    ts="${ts//\\/}"
+    # OSM state.txt timestamps use backslash-escaped colons: 2025-03-31T00\:00\:00Z
+    local ts="${1//\\/}"
     date -d "$ts" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" +%s 2>/dev/null || echo 0
 }
 

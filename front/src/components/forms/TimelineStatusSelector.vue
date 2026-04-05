@@ -46,10 +46,7 @@ interface Props {
   idPrefix?: string;
 }
 
-interface Emits {
-  (e: "update:modelValue", value: TimelineStatus): void;
-  (e: "change", value: TimelineStatus): void;
-}
+type Emits = (e: "update:modelValue" | "change", value: TimelineStatus) => void;
 
 const props = withDefaults(defineProps<Props>(), {
   idPrefix: "timeline",

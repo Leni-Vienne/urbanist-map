@@ -309,7 +309,7 @@ import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 
 // dasharray values mirror the map line styles (SVG units, with stroke-linecap="round"):
-// proposed = dots (dash=0 so round cap creates circles, gap=5), others = long dash (7,4), completed = solid
+// proposed = dots,  planned and under_construction = long dash, completed = solid
 // "canceled" is intentionally omitted from the UI for now — too confusing for most users.
 const filters: {
   timelineStatus: TimelineStatus;

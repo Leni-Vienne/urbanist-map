@@ -305,7 +305,7 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   const layer = registry.getLayer(overlay.id);
   if (layer) {
     const actualCorners = layer.getCorners();
-    if (actualCorners?.length === 4) {
+    if (actualCorners.length === 4) {
       return L.latLngBounds(actualCorners);
     }
   }
@@ -339,7 +339,7 @@ export function checkOverlaySizeAndWarn(
   const corners = overlay.getCorners();
 
   // Guard clause - corners can be undefined for newly created overlays
-  if (corners?.length !== 4) {
+  if (corners.length !== 4) {
     return;
   }
 

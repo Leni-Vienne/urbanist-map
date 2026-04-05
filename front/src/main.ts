@@ -111,9 +111,9 @@ document.addEventListener("visibilitychange", () => {
 // Normal back navigation happens in seconds; "came back next day" is hours.
 window.addEventListener("pageshow", (event) => {
   if (!event.persisted) return;
-  const lastHidden = Number(sessionStorage.getItem("lastHidden") ?? 0);
+  const lastHidden = Number(sessionStorage.getItem("lastHidden"));
   const sixHours = 6 * 60 * 60 * 1000;
-  if (Date.now() - lastHidden > sixHours) globalThis.location.reload();
+  if (lastHidden > 0 && Date.now() - lastHidden > sixHours) globalThis.location.reload();
 });
 
 app.use(router);

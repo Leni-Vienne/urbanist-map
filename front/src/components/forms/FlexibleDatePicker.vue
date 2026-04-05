@@ -117,7 +117,7 @@ const yearOptions = computed(() => {
   const minYear = props.minDate?.getFullYear() ?? 1900;
   const maxYear = props.maxDate?.getFullYear() ?? new Date().getFullYear() + 30;
   const years = [];
-  for (let y = maxYear; y >= minYear; y--) {
+  for (let y = maxYear; y >= minYear; y -= 1) {
     years.push({ label: String(y), value: y });
   }
   return years;

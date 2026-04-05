@@ -44,14 +44,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   // Use factory function but preserve existing data
   return createOverlayObject({
     ...savedOverlay,
-    project: project
-      ? {
-          ...project,
-          city: project.city,
-          importSource: project.importSource ?? null,
-          status: project.status ?? "pending",
-        }
-      : null,
+    project: project ?? null,
     corners: savedOverlay.corners,
     // Set isModified flag based on edit mode cache for proper marker color
     isModified: cachedModifications?.isModified ?? savedOverlay.isModified,

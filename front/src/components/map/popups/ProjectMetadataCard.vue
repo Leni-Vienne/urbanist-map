@@ -239,8 +239,8 @@ const externalProperties = computed(() => {
 const externalImageUrl = computed<string | null>(() => {
   const p = externalProperties.value;
   if (!p) return null;
-  const v = String(p["image"] ?? "").trim();
-  return v || null;
+  // image URLs are sanitized at import time to http/https only
+  return String(p["image"] ?? "").trim() || null;
 });
 
 const externalEntries = computed<ExternalEntry[]>(() => {

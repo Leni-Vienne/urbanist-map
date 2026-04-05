@@ -45,10 +45,26 @@ function isSupportedEntityType(type: string): type is EntityType {
   return type === "project" || type === "overlay";
 }
 
+type Coord = { lat: number; lng: number };
+
+// Type guard for a single coordinate object
+function isCoord(obj: unknown): obj is Coord {
+  return (
+    obj !== null &&
+    typeof obj === "object" &&
+    typeof (obj as Coord).lat === "number" &&
+    typeof (obj as Coord).lng === "number"
+  );
+}
+
+// Type guard for an array of exactly 4 coordinates
+function isCornersArray(value: unknown): value is [Coord, Coord, Coord, Coord] {
+  return Array.isArray(value) && value.length === 4 && value.every(isCoord);
+}
+
 // Helper function to convert corners JSON array to PostGIS polygon geometry
 function convertCornersToGeometry(cornersValue: unknown) {
-  const cornersArray = cornersValue as { lat: number; lng: number }[];
-  if (!Array.isArray(cornersArray) || cornersArray.length !== 4) {
+  if (!isCornersArray(cornersValue)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "Corners must be an array of 4 coordinate objects",
@@ -57,31 +73,28 @@ function convertCornersToGeometry(cornersValue: unknown) {
 
   // Build polygon using parameterized PostGIS functions to prevent SQL injection
   // SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
-  const [topLeft, topRight, bottomRight, bottomLeft] = cornersArray;
-  // oxlint-disable no-non-null-assertion
+  const [topLeft, topRight, bottomRight, bottomLeft] = cornersValue;
   return sql`ST_SetSRID(ST_MakePolygon(
     ST_MakeLine(ARRAY[
-      ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat}),
-      ST_MakePoint(${topRight!.lng}, ${topRight!.lat}),
-      ST_MakePoint(${bottomRight!.lng}, ${bottomRight!.lat}),
-      ST_MakePoint(${bottomLeft!.lng}, ${bottomLeft!.lat}),
-      ST_MakePoint(${topLeft!.lng}, ${topLeft!.lat})
+      ST_MakePoint(${topLeft.lng}, ${topLeft.lat}),
+      ST_MakePoint(${topRight.lng}, ${topRight.lat}),
+      ST_MakePoint(${bottomRight.lng}, ${bottomRight.lat}),
+      ST_MakePoint(${bottomLeft.lng}, ${bottomLeft.lat}),
+      ST_MakePoint(${topLeft.lng}, ${topLeft.lat})
     ])
   ), 4326)`;
-  // oxlint-enable no-non-null-assertion
 }
 
 // Helper function to convert coordinate object to PostGIS point geometry
 function convertCoordinateToGeometry(coordValue: unknown) {
-  const coordObj = coordValue as { lat: number; lng: number };
-  if (!coordObj || typeof coordObj.lat !== "number" || typeof coordObj.lng !== "number") {
+  if (!isCoord(coordValue)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "Coordinate must be an object with lat and lng properties",
     });
   }
 
-  return sql`ST_SetSRID(ST_MakePoint(${coordObj.lng}, ${coordObj.lat}), 4326)`;
+  return sql`ST_SetSRID(ST_MakePoint(${coordValue.lng}, ${coordValue.lat}), 4326)`;
 }
 
 // Helper function to build update data with proper geometry handling

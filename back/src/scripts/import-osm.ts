@@ -455,8 +455,10 @@ async function main() {
         // Extract externalId from feature.id (e.g., "relation/123456" or "way/789")
         const externalId = feature.id ? String(feature.id) : null;
 
-        // Store all OSM properties as JSON for future use
-        const externalProperties = props;
+        // Store all OSM properties as JSON, stripping any image URL that isn't http/https
+        const rawImage = (props["image"] as string | undefined)?.trim() ?? "";
+        const externalProperties =
+          rawImage && /^https?:\/\//.test(rawImage) ? props : { ...props, image: undefined };
 
         // Extract OSM last modified timestamp
         let osmLastModified: Date | null = null;

@@ -78,7 +78,7 @@ After an initial full run, use `update_weekly.sh` to apply OSM weekly diffs inst
 ./update_weekly.sh --dry-run planet-latest_proposed.osm.pbf
 ```
 
-The script reads the `osmosis_replication_timestamp` from the PBF header (set automatically when filtering from an official planet download), binary-searches the daily replication feed at `planet.openstreetmap.org/replication/day/` to find the matching sequence, downloads and chains all daily diffs since that point, then calls `run_all.sh --rederive` on the result.
+The script reads the `osmosis_replication_timestamp` from the PBF header (set automatically when filtering from an official planet download), binary-searches the daily replication feed at `planet.openstreetmap.org/replication/day/` to find the matching sequence, downloads and chains all daily diffs since that point, then calls `filter_combined.sh --rederive` on the result.
 
 Note: planet.osm.org publishes weekly full planet dumps (`.osm.bz2`) but OSC change files are only available at daily granularity. Running after 3 weeks of inactivity chains 21 daily diffs (~50-100MB each).
 

@@ -54,11 +54,11 @@ interface Props {
   visible: boolean;
 }
 
-interface Emits {
+type Emits = {
   (e: "update:visible", value: boolean): void;
   (e: "marker-coordinates", coordinates: { lat: number; lng: number }): void;
   (e: "marker-mode-enabled"): void;
-}
+};
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();

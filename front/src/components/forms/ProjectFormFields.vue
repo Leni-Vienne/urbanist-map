@@ -282,11 +282,11 @@ interface Props {
   hasChanged?: (fieldName: string) => boolean;
 }
 
-interface Emits {
+type Emits = {
   (e: "update:formData", value: ProjectFormData): void;
   (e: "update:timelineStatus", value: TimelineStatus): void;
   (e: "cityChange", cityId: number | null): void;
-}
+};
 
 const props = withDefaults(defineProps<Props>(), {
   showChangeIndicators: false,
