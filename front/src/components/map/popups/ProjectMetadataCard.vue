@@ -257,8 +257,13 @@ const externalEntries = computed<ExternalEntry[]>(() => {
   const to = String(p["to"] ?? "").trim();
   if (to) entries.push({ key: "to", label: "To", display: to });
 
+  const website = String(p["website"] ?? "").trim();
+  if (website)
+    entries.push({ key: "website", label: $t("project.website"), display: website, href: website });
+
   const architect = String(p["architect"] ?? "").trim();
-  if (architect) entries.push({ key: "architect", label: "Architect", display: architect });
+  if (architect)
+    entries.push({ key: "architect", label: $t("project.architect"), display: architect });
 
   const wikipedia = String(p["wikipedia"] ?? "").trim();
   if (wikipedia)

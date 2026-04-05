@@ -369,6 +369,9 @@ async function main() {
         lng: sql`EXCLUDED.lng`,
         geometry: sql`EXCLUDED.geometry`,
         centerCoordinate: sql`EXCLUDED.center_coordinate`,
+        // Reset geometry_size_m to NULL when geometry changes so it gets recomputed below.
+        // Keeps the existing value when geometry is unchanged to avoid redundant PostGIS work.
+        geometrySizeM: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
       };
       try {
         await db
@@ -469,7 +472,8 @@ async function main() {
           }
         }
 
-        // Source URL: prefer source:url, then website, then first URL found in source tag
+        // Source URL: prefer source:url, then first URL in source tag, then website as fallback.
+        // website is always preserved in externalProperties, so both are accessible downstream.
         const firstUrlInSource =
           (props["source"] as string | undefined)
             ?.split(";")
@@ -477,8 +481,8 @@ async function main() {
             .find((s) => s.startsWith("http")) ?? null;
         const sourceUrl =
           (props["source:url"] as string | undefined) ||
-          (props["website"] as string | undefined) ||
           firstUrlInSource ||
+          (props["website"] as string | undefined) ||
           null;
 
         // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
@@ -593,6 +597,7 @@ async function main() {
         FROM projects
         WHERE import_source_id = ${importSource.id}
           AND geometry IS NOT NULL
+          AND geometry_size_m IS NULL
           AND last_imported_at >= ${syncStartTime}
       `)
     ).map((r) => r.id);
@@ -646,7 +651,7 @@ async function main() {
     console.error("Failed to compute geometry sizes (non-fatal):", err);
   }
 
-  // Prune stale projects that were not updated during this sync
+  // Prune stale projects that were not updated during this sync.
   // Projects with overlays are soft-detached (import link severed, geometry cleared, overlays kept).
   // Projects without overlays are hard-deleted.
   console.log(`\nPruning stale projects not seen since ${syncStartTime.toISOString()}...`);

@@ -104,6 +104,8 @@
     "lastModified": "Last Modified",
     "modifyOn": "Modify on {name}",
     "altName": "Also known as",
+    "website": "Website",
+    "architect": "Architect",
     "addImages": "Add Images",
     "tags": "Tags",
     "additionalDetails": "Additional Details"
