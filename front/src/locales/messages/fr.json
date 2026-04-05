@@ -104,6 +104,8 @@
     "lastModified": "Dernière modification",
     "modifyOn": "Modifier sur {name}",
     "altName": "Autre nom",
+    "website": "Site web",
+    "architect": "Architecte",
     "addImages": "Ajouter",
     "tags": "Catégories",
     "additionalDetails": "Détails supplémentaires"
