@@ -229,39 +229,51 @@ fi
 
 echo "  PBF timestamp epoch: $PBF_EPOCH"
 
-# Binary search for the first sequence number whose timestamp >= PBF timestamp
-echo "  Binary-searching for matching sequence number..."
+# If the sidecar recorded the last applied sequence number, start from the next one directly.
+# Otherwise binary-search to find the last sequence whose timestamp <= PBF timestamp,
+# then start from seq+1 (OSM state timestamps represent the state *after* that sequence,
+# so starting at that sequence would re-apply already-included changes).
+if [[ -n "${LAST_SEQNUM:-}" ]]; then
+    FOUND_SEQ="$LAST_SEQNUM"
+    FOUND_TS=$(fetch_seq_timestamp "$FOUND_SEQ")
+    echo "  Resuming from sidecar sequence: $FOUND_SEQ  ($FOUND_TS)"
+else
+    echo "  Binary-searching for matching sequence number..."
 
-LO=1
-HI="$CURRENT_SEQNUM"
-FOUND_SEQ=""
+    LO=1
+    HI="$CURRENT_SEQNUM"
+    FOUND_SEQ=""
 
-while [[ "$LO" -le "$HI" ]]; do
-    MID=$(( (LO + HI) / 2 ))
-    MID_TS=$(fetch_seq_timestamp "$MID")
-    if [[ -z "$MID_TS" ]]; then
-        # Sequence might not exist yet, move left
-        HI=$(( MID - 1 ))
-        continue
+    while [[ "$LO" -le "$HI" ]]; do
+        MID=$(( (LO + HI) / 2 ))
+        MID_TS=$(fetch_seq_timestamp "$MID")
+        if [[ -z "$MID_TS" ]]; then
+            # Sequence might not exist yet, move left
+            HI=$(( MID - 1 ))
+            continue
+        fi
+        MID_EPOCH=$(ts_to_epoch "$MID_TS") || true
+        # Find the last sequence whose timestamp <= PBF timestamp
+        if [[ "$MID_EPOCH" -le "$PBF_EPOCH" ]]; then
+            FOUND_SEQ="$MID"
+            LO=$(( MID + 1 ))
+        else
+            HI=$(( MID - 1 ))
+        fi
+    done
+
+    if [[ -z "$FOUND_SEQ" ]]; then
+        echo "ERROR: Could not find a replication sequence <= PBF timestamp."
+        echo "The PBF may be older than the oldest available daily diff."
+        exit 1
     fi
-    MID_EPOCH=$(ts_to_epoch "$MID_TS") || true
-    if [[ "$MID_EPOCH" -ge "$PBF_EPOCH" ]]; then
-        FOUND_SEQ="$MID"
-        HI=$(( MID - 1 ))
-    else
-        LO=$(( MID + 1 ))
-    fi
-done
 
-if [[ -z "$FOUND_SEQ" ]]; then
-    echo "ERROR: Could not find a replication sequence >= PBF timestamp."
-    echo "The PBF may be newer than the latest available weekly diff."
-    exit 1
+    FOUND_TS=$(fetch_seq_timestamp "$FOUND_SEQ")
+    echo "  Matched sequence: $FOUND_SEQ  ($FOUND_TS)"
 fi
 
-FOUND_TS=$(fetch_seq_timestamp "$FOUND_SEQ")
-echo "  Matched sequence: $FOUND_SEQ  ($FOUND_TS)"
-echo "  Will apply sequences $FOUND_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - FOUND_SEQ + 1)) diffs)"
+START_SEQ=$(( FOUND_SEQ + 1 ))
+echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - START_SEQ + 1)) diffs)"
 
 # ---------------------------------------------------------------------------
 # Step 3: Download and apply each OSC diff
@@ -275,7 +287,7 @@ echo "=========================================================="
 WORK_DIR="$(dirname "$FILTERED_PBF")"
 CURRENT_PBF="$FILTERED_PBF"
 
-for SEQ in $(seq "$FOUND_SEQ" "$CURRENT_SEQNUM"); do
+for SEQ in $(seq "$START_SEQ" "$CURRENT_SEQNUM"); do
     PADDED=$(printf "%09d" "$SEQ")
     P1="${PADDED:0:3}"
     P2="${PADDED:3:3}"

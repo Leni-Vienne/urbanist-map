@@ -52,8 +52,8 @@ function isCoord(obj: unknown): obj is Coord {
   return (
     obj !== null &&
     typeof obj === "object" &&
-    typeof (obj as Coord).lat === "number" &&
-    typeof (obj as Coord).lng === "number"
+    Number.isFinite((obj as Coord).lat) &&
+    Number.isFinite((obj as Coord).lng)
   );
 }
 

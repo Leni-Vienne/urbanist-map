@@ -4,7 +4,7 @@ import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import { validateOverlaySize } from "../overlayValidation";
 
 // From Zod doc, way safer than plain z.url(). https://zod.dev/api?id=urls
-const safeUrl = z.url({ protocol: /^https?$/ });
+const safeUrl = z.url({ protocol: /^https?$/, message: "validation.invalidUrl" });
 
 // Project validation schema
 export const projectSchema = z

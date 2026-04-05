@@ -53,7 +53,8 @@ declare module "leaflet" {
       addTool: (tool: InstanceType<DistortableAction>) => void;
       removeTool: (tool: InstanceType<DistortableAction>) => void;
     };
-    getCorners: () => L.LatLng[];
+    // Returns undefined if the layer hasn't been added to the map yet (_corners is set in onAdd)
+    getCorners: () => L.LatLng[] | undefined;
     setCorners: (corners: L.LatLng[] | { lat: number; lng: number }[]) => void;
     setOptions: (options: Partial<DistortableImageOverlayOptions>) => void;
     bindTooltip: (content: string, options?: L.TooltipOptions) => this;
