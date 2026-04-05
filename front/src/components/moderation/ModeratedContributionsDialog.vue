@@ -127,10 +127,10 @@ interface Props {
   visible: boolean;
 }
 
-interface Emits {
+type Emits = {
   (e: "update:visible", value: boolean): void;
   (e: "close"): void;
-}
+};
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();

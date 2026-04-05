@@ -74,7 +74,7 @@
     "create": "Créer un projet",
     "unnamed": "Projet sans nom",
     "name": "Nom du projet",
-    "location": "Localisation",
+    "city": "Ville",
     "noLocation": "Aucun emplacement",
     "timelineStatus": "Statut chronologique",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
@@ -97,12 +97,13 @@
     "edit": "Modifier le projet",
     "publish": "Envoyer",
     "submitChangeRequest": "Envoyer",
-    "period": "Période",
+    "period": "Dates",
     "estimatedCompletion": "Fin estimée",
     "proposalDate": "Date de proposition",
     "source": "Source",
     "lastModified": "Dernière modification",
     "modifyOn": "Modifier sur {name}",
+    "altName": "Autre nom",
     "addImages": "Ajouter",
     "tags": "Catégories",
     "additionalDetails": "Détails supplémentaires"
@@ -126,19 +127,13 @@
     "pending": "En attente",
     "rejected": "Rejeté",
     "replaced": "Remplacé",
-    "conflicted": "En conflit"
+    "conflicted": "En conflit",
+    "tooltipLabel": "Statut de modération"
   },
   "timelineStatus": {
     "proposed": "Proposé",
-    "proposedDescription": "Projet non confirmé, dates non fixées",
     "planned": "Planifié",
-    "plannedDescription": "Projet confirmé avec dates programmées",
-    "under_construction": "En construction",
-    "under_constructionDescription": "Le projet est en cours de construction",
-    "completed": "Terminé",
-    "completedDescription": "La construction est terminée",
-    "canceled": "Annulé",
-    "canceledDescription": "Le projet a été annulé"
+    "under_construction": "En construction"
   },
   "help": {
     "filters": {
@@ -238,11 +233,6 @@
       "planned": "Planifié",
       "inProgress": "En cours",
       "canceled": "Annulé",
-      "toggleProposed": "Afficher/masquer les projets proposés",
-      "togglePlanned": "Afficher/masquer les projets planifiés",
-      "toggleInProgress": "Afficher/masquer les projets en cours",
-      "toggleCompleted": "Afficher/masquer les projets terminés",
-      "toggleCanceled": "Afficher/masquer les projets annulés",
       "named": "Nommé",
       "unnamed": "Sans nom",
       "filterByLastModified": "Filtrer par date de modification",

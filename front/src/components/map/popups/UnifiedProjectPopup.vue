@@ -1,6 +1,10 @@
 ﻿<template>
   <div
-    :class="['unified-popup', `popup-source-${props.source}`]"
+    :class="[
+      'unified-popup',
+      `popup-source-${props.source}`,
+      props.source === 'marker' ? `popup-placement-${projectPopupPlacement}` : '',
+    ]"
     class="w-max min-w-60 max-w-80 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
     @click.stop
     @mousedown.stop
@@ -15,9 +19,12 @@
           <!-- Left: project name stacked above overlay subtitle -->
           <div class="flex-1 flex flex-col gap-0.5 min-w-0">
             <span
-              class="text-sm font-semibold leading-snug truncate"
-              :class="project?.name ? 'text-color' : 'text-muted-color italic'"
-              v-tooltip.bottom="project?.name || undefined"
+              class="text-sm font-semibold leading-snug"
+              :class="[
+                project?.name ? 'text-color' : 'text-muted-color italic',
+                isMobile ? 'wrap-break-word' : 'truncate',
+              ]"
+              v-tooltip.bottom="!isMobile ? project?.name || undefined : undefined"
             >
               {{ project?.name || $t("project.unnamed") }}
             </span>
@@ -196,6 +203,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { projectPopupPlacement } from "@/services/map/popupState";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
@@ -317,28 +325,12 @@ const canDeleteProject = computed(() => {
   }
 }
 
-/* Entrance animation for marker-source popup (resting transform: translateX(-50%) translateY(20px)) */
-@keyframes popup-enter-marker {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px) scaleY(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(20px) scaleY(1);
-  }
-}
-
 /* Arrow pointing to the triggering element */
 .unified-popup::before {
   content: "";
   position: absolute;
-  top: -8px;
   width: 0;
   height: 0;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-bottom: 10px solid var(--p-content-background);
 }
 
 /* Positioning for overlay toolbar source */
@@ -349,18 +341,112 @@ const canDeleteProject = computed(() => {
 }
 
 .popup-source-overlay::before {
+  top: -8px;
   left: 10px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid var(--p-content-background);
 }
 
-/* Positioning for project marker source */
-.popup-source-marker {
+/* --- Marker source: placement-aware positioning --- */
+
+/* down: popup opens below anchor, arrow at top center */
+@keyframes popup-enter-down {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px) scaleY(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(20px) scaleY(1);
+  }
+}
+.popup-source-marker.popup-placement-down {
   transform: translateX(-50%) translateY(20px);
-  animation: popup-enter-marker 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: popup-enter-down 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
   transform-origin: top center;
 }
-
-.popup-source-marker::before {
+.popup-source-marker.popup-placement-down::before {
+  top: -8px;
   left: 50%;
   transform: translateX(-50%);
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid var(--p-content-background);
+}
+
+/* up: popup opens above anchor, arrow at bottom center */
+@keyframes popup-enter-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(calc(-100% - 20px)) scaleY(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(calc(-100% - 20px)) scaleY(1);
+  }
+}
+.popup-source-marker.popup-placement-up {
+  transform: translateX(-50%) translateY(calc(-100% - 20px));
+  animation: popup-enter-up 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  transform-origin: bottom center;
+}
+.popup-source-marker.popup-placement-up::before {
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid var(--p-content-background);
+}
+
+/* right: popup opens to the right of anchor, arrow on left side */
+@keyframes popup-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px) translateY(-50%) scaleX(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(20px) translateY(-50%) scaleX(1);
+  }
+}
+.popup-source-marker.popup-placement-right {
+  transform: translateX(20px) translateY(-50%);
+  animation: popup-enter-right 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  transform-origin: left center;
+}
+.popup-source-marker.popup-placement-right::before {
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid var(--p-content-background);
+}
+
+/* left: popup opens to the left of anchor, arrow on right side */
+@keyframes popup-enter-left {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-100% - 20px)) translateY(-50%) scaleX(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(calc(-100% - 20px)) translateY(-50%) scaleX(1);
+  }
+}
+.popup-source-marker.popup-placement-left {
+  transform: translateX(calc(-100% - 20px)) translateY(-50%);
+  animation: popup-enter-left 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  transform-origin: right center;
+}
+.popup-source-marker.popup-placement-left::before {
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 10px solid var(--p-content-background);
 }
 </style>

@@ -62,3 +62,24 @@ If the source file is on a Windows drive (`/mnt/d/...`), the script works but WS
 | ---------------------- | ------------------------------------------------------------------ | ----------------- |
 | 1 — osmium filter      | `filter_combined.sh`                                               | ~40 min           |
 | 2 — feature extraction | `extract_linear_topo.py` + `extract_areal_buildings.py` (parallel) | ~3-5 min          |
+
+## Weekly incremental updates
+
+After an initial full run, use `update_weekly.sh` to apply OSM weekly diffs instead of re-filtering the full planet. This cuts the update cycle from ~45min to ~10-15min.
+
+```bash
+# Extract + import in one go
+./update_weekly.sh --import planet-latest_proposed.osm.pbf
+
+# Extract only (run import manually afterwards)
+./update_weekly.sh planet-latest_proposed.osm.pbf
+
+# Preview what would happen
+./update_weekly.sh --dry-run planet-latest_proposed.osm.pbf
+```
+
+The script reads the `osmosis_replication_timestamp` from the PBF header (set automatically when filtering from an official planet download), binary-searches the daily replication feed at `planet.openstreetmap.org/replication/day/` to find the matching sequence, downloads and chains all daily diffs since that point, then calls `filter_combined.sh --rederive` on the result.
+
+Note: planet.osm.org publishes weekly full planet dumps (`.osm.bz2`) but OSC change files are only available at daily granularity. Running after 3 weeks of inactivity chains 21 daily diffs (~50-100MB each).
+
+**Recommended cadence**: run `update_weekly.sh` weekly, and do a full `run_all.sh` on a fresh planet download once a month to correct any geometry drift (elements that gained proposed tags for the first time may have incomplete node data in the incremental path).

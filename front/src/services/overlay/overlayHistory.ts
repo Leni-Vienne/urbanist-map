@@ -107,6 +107,7 @@ export function saveOverlayModificationsToCache(
   const layer = getLayer(overlayObject.id);
   if ((mapStore.mode !== "edit" && forceMode !== "edit") || !layer) return;
   const corners = layer.getCorners();
+  if (!corners) return;
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
 

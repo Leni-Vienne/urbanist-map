@@ -100,6 +100,22 @@ window.addEventListener("beforeunload", (event) => {
   if (hasUnsavedChanges()) event.preventDefault();
 });
 
+// Record when the page was last hidden, so we can detect long absences on bfcache restore
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    sessionStorage.setItem("lastHidden", String(Date.now()));
+  }
+});
+
+// On bfcache restore, reload if the page was hidden for more than 6 hours.
+// Normal back navigation happens in seconds; "came back next day" is hours.
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  const lastHidden = Number(sessionStorage.getItem("lastHidden"));
+  const sixHours = 6 * 60 * 60 * 1000;
+  if (lastHidden > 0 && Date.now() - lastHidden > sixHours) globalThis.location.reload();
+});
+
 app.use(router);
 app.use(i18n);
 

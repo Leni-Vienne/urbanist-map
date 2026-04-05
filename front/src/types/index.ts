@@ -14,7 +14,6 @@ export type RemovableChange = ModifiableField | "new_overlay" | "geometry";
 
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
-export type viewModeMarkerColor = "yellow" | "orange" | "blue" | "green" | "grey";
 
 // Interface for camera bounds used in view mode
 export interface CameraBounds {
@@ -54,7 +53,8 @@ declare module "leaflet" {
       addTool: (tool: InstanceType<DistortableAction>) => void;
       removeTool: (tool: InstanceType<DistortableAction>) => void;
     };
-    getCorners: () => L.LatLng[];
+    // Returns undefined if the layer hasn't been added to the map yet (_corners is set in onAdd)
+    getCorners: () => L.LatLng[] | undefined;
     setCorners: (corners: L.LatLng[] | { lat: number; lng: number }[]) => void;
     setOptions: (options: Partial<DistortableImageOverlayOptions>) => void;
     bindTooltip: (content: string, options?: L.TooltipOptions) => this;
@@ -138,11 +138,33 @@ export interface ProjectFormData {
   timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled";
 }
 
-// Import shared overlay data type
-import type { OverlayData } from "@shared/types";
-export type { OverlayData } from "@shared/types";
+// Wire format from backend API - derived automatically from tRPC route output
+export type ApiOverlayData = RouterOutput["viewport"]["getOverlaysInViewport"][number];
 
-// Frontend overlay type - extends backend OverlayData with UI state
+// Frontend overlay data type - extends API type with:
+// - null status for local overlays not yet submitted to the backend
+// - nullable project for local overlays constructed without a project join
+// - optional fields that are absent on locally-constructed overlays
+// - isModified for UI tracking of user-moved overlays in the current session
+export type OverlayData = Omit<
+  ApiOverlayData,
+  | "status"
+  | "project"
+  | "distance"
+  | "suggestedCorners"
+  | "hasPendingChanges"
+  | "pendingChangeRequestsCount"
+> & {
+  status: ApprovalStatus | null;
+  project?: ApiOverlayData["project"] | Project | null;
+  distance?: number;
+  suggestedCorners?: { lat: number; lng: number }[];
+  hasPendingChanges?: boolean;
+  pendingChangeRequestsCount?: number;
+  isModified?: boolean;
+};
+
+// Frontend overlay type - extends OverlayData with editor state
 // Leaflet layer references (image overlay + marker) live in overlayRenderRegistry,
 // not on this type. OverlayObject is pure domain data.
 export interface OverlayObject extends OverlayData {

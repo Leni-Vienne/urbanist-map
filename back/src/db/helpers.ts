@@ -10,10 +10,11 @@ import {
   changeRequests,
   users,
   userReports,
+  importSources,
   type ApprovalStatus,
 } from "./schema";
 import type * as schema from "./schema";
-import type { AppMode, OverlayData } from "@shared/types";
+import type { AppMode } from "@shared/types";
 
 // ============================================================================
 // DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
@@ -652,7 +653,7 @@ export function transformOverlayDataWithChangeRequests(
   allChangeRequestCounts: Map<string, number>,
   mode: AppMode,
   userId?: string,
-): OverlayData[] {
+) {
   return overlaysData.map((row) => {
     const approvedCorners = row.corners;
     const centroid = { lat: row.centroidLat, lng: row.centroidLng };
@@ -688,6 +689,7 @@ export function transformOverlayDataWithChangeRequests(
       project: {
         ...row.project,
         city: row.city,
+        importSource: row.importSource,
       },
       hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
       pendingChangeRequestsCount:
@@ -729,10 +731,12 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
         geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
       },
       city: cities,
+      importSource: importSources,
     })
     .from(overlays)
     .innerJoin(projects, eq(projects.id, overlays.projectId))
     .leftJoin(cities, eq(cities.id, projects.cityId))
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
     .where(and(...whereConditions))
     .orderBy(overlays.createdAt);
 }
