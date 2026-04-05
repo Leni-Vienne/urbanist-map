@@ -110,7 +110,11 @@ import {
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { requestScrollTo } from "@/services/layout/accordionState";
+import { map } from "@/services/core/map";
+import L from "leaflet";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
@@ -184,7 +188,25 @@ async function handleContributionClick(contribution: LatestContribution) {
       });
     }
   } else if (contribution.type === "standalone") {
-    if (contribution.lat && contribution.lng) {
+    if (contribution.geometryBbox) {
+      // Fly to the actual geometry bounds instead of the project center point
+      const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
+      const bounds = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
+      mobileAwareFlyToBounds(bounds, {
+        padding: [50, 50],
+        maxZoom: 18,
+        duration: 1.5,
+        easeLinearity: 0.25,
+      });
+      requestScrollTo("project", contribution.id);
+      // Use a point on the geometry itself so the popup anchors on the actual vector
+      const popupLatLng = contribution.geometryPoint
+        ? L.latLng(contribution.geometryPoint.lat, contribution.geometryPoint.lng)
+        : L.latLng((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+      map.value.once("moveend", () => {
+        void handleProjectClickFromTile(contribution.id, popupLatLng);
+      });
+    } else if (contribution.lat && contribution.lng) {
       await navigateToStandaloneProject(
         contribution.lat,
         contribution.lng,
