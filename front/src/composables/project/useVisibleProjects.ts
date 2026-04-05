@@ -83,7 +83,7 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
   return false;
 }
 
-/** MVT serializes PostgreSQL arrays as JSON strings; parse defensively. */
+/** Tags are encoded as JSON strings in the SQL via array_to_json()::text; parse them back here. */
 function parseMvtTags(raw: unknown): string[] {
   try {
     if (Array.isArray(raw)) return raw as string[];

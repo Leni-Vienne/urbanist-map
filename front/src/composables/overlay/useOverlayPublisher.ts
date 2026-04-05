@@ -10,11 +10,12 @@ import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
 import { getLayer, renameEntry } from "@/services/overlay/overlayRenderRegistry";
 
-// Extract corners from overlay object, falling back to stored corners if needed
+// Extract corners from overlay object, falling back to stored corners if layer isn't ready
 function getCornersFromOverlay(overlay: OverlayObject) {
   const layer = getLayer(overlay.id);
   if (layer) {
-    return layer.getCorners();
+    const corners = layer.getCorners();
+    if (corners) return corners;
   }
   return overlay.corners;
 }

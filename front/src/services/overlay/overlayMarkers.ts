@@ -45,7 +45,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   // Calculate centroid from corners (average of all 4 corners) to match backend calculation
   // This ensures marker position doesn't jump when zooming in/out
   const corners = layer.getCorners();
-  if (corners.length === 4) {
+  if (corners?.length === 4) {
     /* oxlint-disable-next-line no-non-null-assertion */
     const centroid = calculateCentroidFromCorners(corners)!;
     marker.setLatLng(L.latLng(centroid.lat, centroid.lng));
@@ -339,7 +339,7 @@ export function checkOverlaySizeAndWarn(
   const corners = overlay.getCorners();
 
   // Guard clause - corners can be undefined for newly created overlays
-  if (corners?.length !== 4) {
+  if (!corners || corners.length !== 4) {
     return;
   }
 

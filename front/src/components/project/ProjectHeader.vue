@@ -7,9 +7,10 @@
       <div class="flex items-center gap-1.5 shrink-0 mr-2">
         <!-- Pending change requests badge -->
         <Badge v-if="(pendingChangeCount ?? 0) > 0" :value="pendingChangeCount" severity="warn" />
-        <!-- Status badge -->
+        <!-- Moderation status badge with tooltip clarifying it is not a timeline status -->
         <Tag
           v-if="!hideStatusBadges"
+          v-tooltip.bottom="$t('approvalStatus.tooltipLabel')"
           :value="$t(`approvalStatus.${status ?? 'draft'}`)"
           :severity="getStatusSeverity(status)"
           class="capitalize"

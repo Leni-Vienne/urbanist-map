@@ -3,17 +3,19 @@
 // feature in the vector tile layer (desktop only — touch has no mousemove).
 
 import { ref } from "vue";
-import { trpc } from "@/client";
-import { createProjectObject } from "@/utils/typeFactories";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import type { Project } from "@/types/index";
+
+// Inline data sourced directly from vector tile feature properties — no backend call needed.
+export type HoverProjectData = {
+  name: string | null;
+  timelineStatus: string | null;
+  tags: string[];
+};
 
 type HoverPreviewState =
   | {
       type: "project";
       projectId: string;
-      /** null while the project data is still loading from the API */
-      project: Project | null;
+      data: HoverProjectData;
     }
   | {
       type: "cluster";
@@ -25,7 +27,7 @@ export const hoverPreview = ref<HoverPreviewState | null>(null);
 export const hoverPreviewX = ref(0);
 export const hoverPreviewY = ref(0);
 
-/** The project ID that was requested last — used to discard stale async results. */
+/** The project ID that was requested last — used to discard stale position updates. */
 let _pendingId: string | null = null;
 let _pendingX = 0;
 let _pendingY = 0;
@@ -40,11 +42,17 @@ function clearTimer(): void {
 
 /**
  * Trigger a hover preview for a single project after a short delay.
+ * All display data comes directly from tile feature properties — no backend call.
  * If the same project is already shown, only updates the cursor position.
  * If the timer is already running for the same project, only updates the
  * pending position so the card appears at the latest cursor location.
  */
-export function triggerProjectHover(projectId: string, x: number, y: number): void {
+export function triggerProjectHover(
+  projectId: string,
+  data: HoverProjectData,
+  x: number,
+  y: number,
+): void {
   // Disable hover preview on mobile/touch frames
   if (globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches) return;
 
@@ -67,32 +75,13 @@ export function triggerProjectHover(projectId: string, x: number, y: number): vo
   _pendingX = x;
   _pendingY = y;
 
-  _timer = setTimeout(async () => {
+  _timer = setTimeout(() => {
     _timer = null;
     if (_pendingId !== projectId) return;
 
     hoverPreviewX.value = _pendingX;
     hoverPreviewY.value = _pendingY;
-
-    const projectStore = useProjectStore();
-    const cached = projectStore.projects[projectId];
-    if (cached) {
-      hoverPreview.value = { type: "project", projectId, project: cached };
-      return;
-    }
-
-    // Show the card in a loading state right away so the user sees immediate feedback
-    hoverPreview.value = { type: "project", projectId, project: null };
-
-    try {
-      const result = await trpc.project.getById.query({ id: projectId });
-      if (!result || _pendingId !== projectId) return;
-      const project = createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] });
-      projectStore.updateProject(projectId, project);
-      hoverPreview.value = { type: "project", projectId, project };
-    } catch {
-      hoverPreview.value = null;
-    }
+    hoverPreview.value = { type: "project", projectId, data };
   }, 300);
 }
 

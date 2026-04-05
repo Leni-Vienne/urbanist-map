@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="p-6 max-sm:p-4">
+  <div class="pt-0 p-6 max-sm:p-4">
     <form @submit.prevent="form.submitChanges" class="flex flex-col gap-4">
       <ProjectFormFields
         ref="formFieldsRef"

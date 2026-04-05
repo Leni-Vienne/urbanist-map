@@ -9,8 +9,10 @@ import {
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
+import { projectPopupPlacement, type PopupPlacement } from "@/services/map/popupState";
 import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useUiStore } from "@/stores/uiStore";
 
 import {
   getOverlayDrivenHoverId,
@@ -23,6 +25,7 @@ import {
   triggerClusterHover,
   clearHoverPreview,
   updateHoverPreviewPosition,
+  type HoverProjectData,
 } from "@/services/map/hoverPreviewState";
 import {
   mobileAwareFlyTo,
@@ -33,8 +36,8 @@ import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import {
   selectedProjectTags,
+  selectedStatusFilters,
   UNTAGGED_PROJECT_FILTER,
-  visibleStates,
   sizeFilterRange,
   selectedNameFilters,
   lastModifiedDateRange,
@@ -106,13 +109,30 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-const SHAPE_LINE_WIDTH = 3;
-const FOOTPRINT_LINE_WIDTH = 2; // hiding it for now since project geometry appears over them
+// Line width scales with zoom to avoid the "blobby" antialiasing artifact at low zoom levels.
+const SHAPE_LINE_WIDTH = ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3] as unknown as number;
+// +1 wider variant for hover/selected states
+const SHAPE_LINE_WIDTH_HOVER = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  2,
+  12,
+  4,
+] as unknown as number;
+const FOOTPRINT_LINE_WIDTH = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  0.7,
+  12,
+  2,
+] as unknown as number; // hiding it for now since project geometry appears over them
 
 const SHAPE_LONG_DASH: [number, number] = [4, 2];
 const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
-const FOOTPRINT_LONG_DASH: [number, number] = [2, 1]; // = SHAPE_LONG_DASH / 2
-const FOOTPRINT_SHORT_DASH: [number, number] = [0.25, 1]; // = SHAPE_SHORT_DASH / 2
 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
@@ -122,10 +142,8 @@ const CLUSTER_BOUNDS_PADDING_PX = 50;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
-  "overlay-footprints",
-  "overlay-footprints-completed",
-  "overlay-footprints-proposed-dashed",
   "project-shapes-fill",
+  "project-shapes-proposed-fill",
   "project-shapes",
   "project-shapes-completed",
   "project-shapes-proposed-dashed",
@@ -297,9 +315,6 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
   "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate: these are small stand-ins, already gated to z8+ by null size_m
   "project-shapes-proposed-dashed": () =>
     ["all", getIsProposedFilterExpression(), getShapeZoomVisibilityFilter()] as FilterSpecification,
-  "overlay-footprints": getIsNeitherProposedNorCompletedFilterExpression,
-  "overlay-footprints-completed": getIsCompletedFilterExpression,
-  "overlay-footprints-proposed-dashed": getIsProposedFilterExpression,
   "project-points-hover": () => ["==", ["get", "id"], HOVER_NONE_ID] as FilterSpecification,
 };
 
@@ -307,30 +322,14 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
  * Build a MapLibre filter expression based on current timeline status selection.
  */
 function getStatusFilterExpression(): FilterSpecification | null {
-  // If all statuses are visible, we don't need a filter
-  const allVisible =
-    visibleStates.value.yellow &&
-    visibleStates.value.blue &&
-    visibleStates.value.orange &&
-    visibleStates.value.green &&
-    visibleStates.value.grey;
+  // Empty selection = all visible, no filter needed
+  if (selectedStatusFilters.value.length === 0) return null;
 
-  if (allVisible) {
-    return null;
-  }
-
-  const allowedStatuses: string[] = [];
-  if (visibleStates.value.yellow) allowedStatuses.push("proposed");
-  if (visibleStates.value.blue) allowedStatuses.push("planned");
-  if (visibleStates.value.orange) allowedStatuses.push("under_construction");
-  if (visibleStates.value.green) allowedStatuses.push("completed");
-  if (visibleStates.value.grey) allowedStatuses.push("canceled");
-
-  if (allowedStatuses.length === 0) {
-    return ["==", 1, 0] as FilterSpecification; // Always false
-  }
-
-  return ["in", ["get", "timeline_status"], ["literal", allowedStatuses]] as FilterSpecification;
+  return [
+    "in",
+    ["get", "timeline_status"],
+    ["literal", selectedStatusFilters.value],
+  ] as FilterSpecification;
 }
 
 /**
@@ -585,18 +584,45 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   return vectorFeature ?? null;
 }
 
-// Returns true if latlng is within EDGE_MARGIN_PX pixels of any viewport edge.
-// Used to decide whether to pan after a click so the popup is not clipped.
-const EDGE_MARGIN_PX = 120;
-function isNearViewportEdge(latlng: L.LatLng): boolean {
+// Estimated popup dimensions used to decide which direction has enough room.
+// Height includes the 20px translateY offset. Width is a realistic rendered width.
+const POPUP_EST_H = 220;
+const POPUP_EST_W = 280;
+// "up" and "down" center the popup horizontally, so each side needs half the width.
+const POPUP_EST_HALF_W = POPUP_EST_W / 2;
+
+// Height (px) blocked at the bottom of the map by the mobile drawer + mode controls above it.
+// The ModeControls button sits up to 110px above the drawer top, so we add that as a buffer.
+const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
+
+// Picks the popup opening direction that has enough viewport space at latlng.
+// "down" and "up" require horizontal centering room in addition to vertical room.
+// On mobile, the bottom drawer and mode controls reduce available downward space.
+// Preference: down → up → right → left (most common cases first).
+// Sets projectPopupPlacement so UnifiedProjectPopup can apply the right CSS.
+export function setPopupPlacementForLatLng(latlng: L.LatLng): void {
   const mapEl = map.value.getContainer();
+  const mapW = mapEl.clientWidth;
+  const mapH = mapEl.clientHeight;
   const point = map.value.latLngToContainerPoint(latlng);
-  return (
-    point.x < EDGE_MARGIN_PX ||
-    point.y < EDGE_MARGIN_PX ||
-    point.x > mapEl.clientWidth - EDGE_MARGIN_PX ||
-    point.y > mapEl.clientHeight - EDGE_MARGIN_PX
-  );
+
+  // On mobile, subtract the drawer height + mode controls buffer from available bottom space.
+  const uiStore = useUiStore();
+  const mobileBlockedPx =
+    window.innerWidth < 768
+      ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight +
+        MOBILE_DRAWER_CONTROLS_BUFFER
+      : 0;
+
+  const hCentered = point.x >= POPUP_EST_HALF_W && mapW - point.x >= POPUP_EST_HALF_W;
+  const availableBelow = mapH - point.y - mobileBlockedPx;
+
+  let placement: PopupPlacement = "left";
+  if (hCentered && availableBelow >= POPUP_EST_H) placement = "down";
+  else if (hCentered && point.y >= POPUP_EST_H) placement = "up";
+  else if (mapW - point.x >= POPUP_EST_W) placement = "right";
+
+  projectPopupPlacement.value = placement;
 }
 
 function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
@@ -618,11 +644,12 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
     geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, latlng.lat, latlng.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+
   if (targetZoom !== currentZoom) {
     mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
-  } else if (isNearViewportEdge(latlng)) {
-    // Only pan when the click is close to the edge, so the popup has room to open.
-    mobileAwarePanTo([latlng.lat, latlng.lng], { animate: true, duration });
+  } else {
+    // Pick the popup direction that fits within the viewport at the click point.
+    setPopupPlacementForLatLng(latlng);
   }
 
   // Prevent the map-level click handler in projectPopupTeleport from closing the
@@ -980,7 +1007,7 @@ function updateHoverPreview(
     if (cellCount > 1) {
       triggerClusterHover(cellCount, clientX, clientY);
     } else if (projectId.length > 0) {
-      triggerProjectHover(projectId, clientX, clientY);
+      triggerProjectHover(projectId, getHoverDataFromFeature(pointFeature), clientX, clientY);
     } else {
       clearHoverPreview();
     }
@@ -994,7 +1021,7 @@ function updateHoverPreview(
         ? getFeaturePropertyAsString(vectorFeature, "project_id")
         : getFeaturePropertyAsString(vectorFeature, "id");
     if (projectId.length > 0) {
-      triggerProjectHover(projectId, clientX, clientY);
+      triggerProjectHover(projectId, getHoverDataFromFeature(vectorFeature), clientX, clientY);
       return;
     }
   }
@@ -1006,6 +1033,21 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
   const value = feature.properties?.[key];
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+/** Extract hover card data from a vector tile feature's properties. */
+function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData {
+  const name = getFeaturePropertyAsString(feature, "name") || null;
+  const timelineStatus = getFeaturePropertyAsString(feature, "timeline_status") || null;
+  // Tags are encoded as a JSON array string in the tile (e.g. '["building","road"]')
+  let tags: string[] = [];
+  try {
+    const raw = feature.properties?.["tags"];
+    if (typeof raw === "string" && raw.length > 0) tags = JSON.parse(raw) as string[];
+  } catch {
+    // malformed tags — leave empty
+  }
+  return { name, timelineStatus, tags };
 }
 
 // Gray shades for road types, replacing Liberty's yellow/orange major roads.
@@ -1158,10 +1200,9 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3],
         "line-dasharray": SHAPE_LONG_DASH,
       },
     },
@@ -1177,7 +1218,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -1195,7 +1236,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: getIsProposedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
@@ -1231,10 +1272,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH + 1,
+        "line-width": SHAPE_LINE_WIDTH_HOVER,
       },
     },
     firstSymbolLayerId,
@@ -1252,10 +1293,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH + 1,
+        "line-width": SHAPE_LINE_WIDTH_HOVER,
       },
     },
     firstSymbolLayerId,
@@ -1278,10 +1319,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // Overlay footprints — permanent border outline replacing CSS box-shadow hack
-  // Width is 6 (double project-shapes) because half the stroke is covered by the overlay image.
-  // Dasharray values are halved vs project-shapes so physical dash/gap sizes stay identical.
-  // under_construction / planned / canceled: long dashes
+  // Invisible sentinel layer — no status filter needed since all footprints trigger overlay loading.
+  // vectorTileSync.ts checks for this layer by name to confirm the map is ready.
   mlMap.addLayer(
     {
       id: "overlay-footprints",
@@ -1289,50 +1328,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: getIsNeitherProposedNorCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": 0, // temporary
-        "line-dasharray": FOOTPRINT_LONG_DASH,
-      },
-    },
-    firstSymbolLayerId,
-  );
-
-  // completed overlay footprints: solid line
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-completed",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: getIsCompletedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
-      },
-    },
-    firstSymbolLayerId,
-  );
-
-  // proposed overlay footprints: short dashes, reduced opacity to visually de-emphasize speculative projects
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-proposed-dashed",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: getIsProposedFilterExpression(),
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": 0, // temporary
-        "line-dasharray": FOOTPRINT_SHORT_DASH,
-      },
+      paint: { "line-width": 0 },
     },
     firstSymbolLayerId,
   );
@@ -1345,7 +1341,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1366,10 +1362,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         getIsProposedFilterExpression(),
         ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       ],
-      layout: { "line-join": "round", "line-cap": "round" },
+      layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": 0, // temporary
+        "line-width": FOOTPRINT_LINE_WIDTH,
       },
     },
     firstSymbolLayerId,

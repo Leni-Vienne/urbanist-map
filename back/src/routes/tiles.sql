@@ -30,6 +30,8 @@ shapes AS (
   --   z9  (Lft z10): >= 500 m  (shapes visible; marker suppressed only at z11+)
   --   z10 (Lft z11): >= 200 m  (shapes visible; marker suppressed only at z12+)
   --   z11+(Lft z12+): all      (shapes visible; marker suppressed only at z13+)
+  -- Building shapes are additionally suppressed below z13, EXCEPT buildings >= 1 km which follow
+  -- normal size-based rules (so large structures like airports are visible at lower zooms).
   SELECT ST_AsMVT(q, 'project-shapes', 4096, 'mvt_geom') AS tile
   FROM (
     -- First part: retrieve projects that have an explicitly drawn geometry (polygon or line)
@@ -41,7 +43,7 @@ shapes AS (
       ) AS mvt_geom,
       p.id,
       p.name,
-      COALESCE(p.tags, ARRAY[]::text[]) AS tags,
+      array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
       ROUND(p.geometry_size_m)::int AS geometry_size_m,
@@ -53,8 +55,10 @@ shapes AS (
       AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
       AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
-      -- Suppress building shapes below z13 (MapLibre z12), matching the point-layer suppression threshold
-      AND NOT ($1 <= 12 AND 'building' = ANY(p.tags))
+      -- Suppress building shapes below z13 (MapLibre z12), matching the point-layer suppression threshold.
+      -- Exception: large buildings (>= 1 km) are allowed to render at their normal size-based zoom level,
+      -- so that large structures like airports are visible before the user has to zoom all the way in.
+      AND NOT ($1 <= 12 AND 'building' = ANY(p.tags) AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000))
 
     UNION ALL
 
@@ -70,7 +74,7 @@ shapes AS (
       ) AS mvt_geom,
       p.id,
       p.name,
-      COALESCE(p.tags, ARRAY[]::text[]) AS tags,
+      array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
       NULL::int AS geometry_size_m,
@@ -103,6 +107,7 @@ footprints AS (
       o.filename,
       o.caption,
       o.project_id,
+      array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
       -- Extract the four individual corner latitude and longitude coordinates for rendering the overlay map image on the client
@@ -156,7 +161,7 @@ points AS (
       mvt_geom,
       id,
       name,
-      tags,
+      array_to_json(tags)::text AS tags,
       first_tag, -- used for the points/vectors color
       timeline_status,
       has_geometry,

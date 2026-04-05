@@ -85,15 +85,14 @@
       </p>
       <div class="flex flex-col gap-1 mb-4">
         <label
-          v-for="{ color, labelKey, ariaKey, dasharray } in filters"
-          :key="color"
+          v-for="{ timelineStatus, labelKey, dasharray } in filters"
+          :key="timelineStatus"
           class="flex items-center gap-2 cursor-pointer text-sm text-color"
         >
           <input
             type="checkbox"
-            :checked="selectedStatusFilters.includes(color)"
-            :aria-label="$t(ariaKey)"
-            @change="toggleCompletionFilter(color)"
+            :checked="selectedStatusFilters.includes(timelineStatus)"
+            @change="toggleCompletionFilter(timelineStatus)"
             @click.stop
           />
           <!-- SVG line preview matching the map line style for this status.
@@ -304,43 +303,33 @@ function formatSize(meters: number): string {
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
   return `${meters}m`;
 }
-import type { viewModeMarkerColor } from "@/types/index";
+import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 
-// dasharray values mirror the map line styles (SVG units, scaled for visibility at 2.5px stroke):
-// proposed = short dash (SHAPE_SHORT_DASH 1.5,2 scaled), others = long dash (SHAPE_LONG_DASH 4,2 scaled), completed = solid
+// dasharray values mirror the map line styles (SVG units, with stroke-linecap="round"):
+// proposed = dots,  planned and under_construction = long dash, completed = solid
 // "canceled" is intentionally omitted from the UI for now — too confusing for most users.
 const filters: {
-  color: viewModeMarkerColor;
+  timelineStatus: TimelineStatus;
   labelKey: string;
-  ariaKey: string;
   dasharray: string;
 }[] = [
   {
-    color: "yellow",
+    timelineStatus: "proposed",
     labelKey: "timelineStatus.proposed",
-    ariaKey: "map.controls.toggleProposed",
-    dasharray: "3,4",
+    dasharray: "0,5",
   },
   {
-    color: "blue",
+    timelineStatus: "planned",
     labelKey: "timelineStatus.planned",
-    ariaKey: "map.controls.togglePlanned",
-    dasharray: "7,4",
+    dasharray: "7,6",
   },
   {
-    color: "orange",
+    timelineStatus: "under_construction",
     labelKey: "timelineStatus.under_construction",
-    ariaKey: "map.controls.toggleInProgress",
-    dasharray: "7,4",
-  },
-  {
-    color: "green",
-    labelKey: "timelineStatus.completed",
-    ariaKey: "map.controls.toggleCompleted",
-    dasharray: "",
+    dasharray: "7,6",
   },
 ];
 
@@ -396,8 +385,8 @@ function toggleFilterPanel(event: Event) {
 }
 
 // Toggle completion status filter
-function toggleCompletionFilter(color: viewModeMarkerColor) {
-  toggleFilter(color);
+function toggleCompletionFilter(status: TimelineStatus) {
+  toggleFilter(status);
   emit("filter-overlays");
 }
 

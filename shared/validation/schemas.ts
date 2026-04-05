@@ -3,6 +3,9 @@ import * as z from "zod";
 import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import { validateOverlaySize } from "../overlayValidation";
 
+// From Zod doc, way safer than plain z.url(). https://zod.dev/api?id=urls
+const safeUrl = z.url({ protocol: /^https?$/, message: "validation.invalidUrl" });
+
 // Project validation schema
 export const projectSchema = z
   .object({
@@ -35,8 +38,7 @@ export const projectSchema = z
       .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
       .optional()
       .default("proposed"),
-    sourceUrl: z
-      .url("validation.invalidUrl")
+    sourceUrl: safeUrl
       .or(z.literal(""))
       .transform((val) => (val === "" ? undefined : val))
       .nullish()
@@ -128,7 +130,7 @@ export const resetPasswordSchema = z.object({
 const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   name: z.string().min(1).max(35),
   description: z.string().max(2000).or(z.literal("")).nullable(),
-  sourceUrl: z.url().or(z.literal("")).nullable(),
+  sourceUrl: safeUrl.or(z.literal("")).nullable(),
   proposalDate: z.coerce.date().nullable(),
   startDate: z.coerce.date().nullable(),
   endDate: z.coerce.date().nullable(),
