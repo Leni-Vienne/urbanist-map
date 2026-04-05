@@ -85,6 +85,26 @@ export const feedRouter = router({
             status: projects.status,
             lat: projects.lat,
             lng: projects.lng,
+            // Bounding box of project geometry for flying to the right area when clicked
+            geometryBboxMinLat: sql<
+              number | null
+            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+            geometryBboxMaxLat: sql<
+              number | null
+            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+            geometryBboxMinLng: sql<
+              number | null
+            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+            geometryBboxMaxLng: sql<
+              number | null
+            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+            // A point guaranteed to lie on the geometry itself (midpoint of a line, surface point of a polygon)
+            geometryPointLat: sql<
+              number | null
+            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_Y(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
+            geometryPointLng: sql<
+              number | null
+            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_X(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
           })
           .from(projects)
           .leftJoin(cities, eq(projects.cityId, cities.id))
@@ -140,6 +160,24 @@ export const feedRouter = router({
           lat: p.lat,
           lng: p.lng,
           status: p.status,
+          // Geometry bbox for flying to the right bounds when the project has vector shapes
+          geometryBbox:
+            p.geometryBboxMinLat !== null &&
+            p.geometryBboxMaxLat !== null &&
+            p.geometryBboxMinLng !== null &&
+            p.geometryBboxMaxLng !== null
+              ? {
+                  minLat: p.geometryBboxMinLat,
+                  maxLat: p.geometryBboxMaxLat,
+                  minLng: p.geometryBboxMinLng,
+                  maxLng: p.geometryBboxMaxLng,
+                }
+              : null,
+          // A point on the geometry itself for popup placement (not a computed center)
+          geometryPoint:
+            p.geometryPointLat !== null && p.geometryPointLng !== null
+              ? { lat: p.geometryPointLat, lng: p.geometryPointLng }
+              : null,
         }));
 
         // Combine and sort by updatedAt descending

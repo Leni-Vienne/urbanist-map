@@ -11,7 +11,7 @@ import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
 
 export type SortMode = "recent" | "name" | "size" | "status";
@@ -19,6 +19,8 @@ export type SortMode = "recent" | "name" | "size" | "status";
 interface VisibleProject {
   id: string;
   name: string | null;
+  /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
+  bbox: L.LatLngBounds | null;
   firstTag: string;
   /** All tags for the project, parsed from the MVT JSON-encoded array property. */
   tags: string[];
@@ -93,51 +95,72 @@ function parseMvtTags(raw: unknown): string[] {
   }
 }
 
+/** Parse a single MVT feature into a VisibleProject entry. */
+function featureToProject(f: maplibregl.MapGeoJSONFeature): VisibleProject | null {
+  const props = f.properties;
+  const sourceLayer = String(f.sourceLayer);
+  const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
+  if (!id) return null;
+  const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  const geom = f.geometry as GeoJSON.Geometry | null;
+  const [bboxLng, bboxLat, bbox] = getGeomBbox(geom);
+  // popup_lat/popup_lng come from center_coordinate (ST_PointOnSurface) in the project-shapes tile,
+  // guaranteed to lie on the geometry even after tile clipping. Fall back to bbox center.
+  const lat =
+    props.popup_lat !== null && props.popup_lat !== undefined ? Number(props.popup_lat) : bboxLat;
+  const lng =
+    props.popup_lng !== null && props.popup_lng !== undefined ? Number(props.popup_lng) : bboxLng;
+  const rawSize = props.geometry_size_m ?? props.max_size_m;
+  return {
+    id,
+    name,
+    bbox,
+    firstTag: props.first_tag ?? "",
+    tags: parseMvtTags(props.tags),
+    timelineStatus: props.timeline_status ?? "",
+    lastModifiedS:
+      props.last_modified_s !== null && props.last_modified_s !== undefined
+        ? Number(props.last_modified_s)
+        : 0,
+    sizeM: rawSize !== null && rawSize !== undefined ? Number(rawSize) : 0,
+    lat,
+    lng,
+  };
+}
+
+/** Merge a subsequent feature for the same project id into the existing entry. */
+function mergeIntoExisting(
+  existing: VisibleProject,
+  f: maplibregl.MapGeoJSONFeature,
+  incoming: VisibleProject,
+): void {
+  const props = f.properties;
+  if (incoming.name && !existing.name) existing.name = incoming.name;
+  if (incoming.lat !== null && existing.lat === null) {
+    existing.lat = incoming.lat;
+    existing.lng = incoming.lng;
+  }
+  // Use Math.max to guarantee we always capture the real size and date from whichever layer
+  // provides it (project geometry vs overlay footprint), regardless of feature arrival order.
+  existing.sizeM = Math.max(existing.sizeM || 0, incoming.sizeM || 0);
+  existing.lastModifiedS = Math.max(existing.lastModifiedS || 0, incoming.lastModifiedS || 0);
+  if (incoming.tags.length > existing.tags.length) existing.tags = incoming.tags;
+  if (props.first_tag && !existing.firstTag) existing.firstTag = props.first_tag;
+  if (props.timeline_status && !existing.timelineStatus)
+    existing.timelineStatus = props.timeline_status;
+}
+
 function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisibleProject[] {
   const seen = new Map<string, VisibleProject>();
   for (const f of features) {
-    const props = f.properties;
-    const sourceLayer = String(f.sourceLayer);
-    const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
-    const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
-    if (!id) continue;
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    const [lng, lat] = getBboxCenter(f.geometry as GeoJSON.Geometry | null);
-
-    const rawSize = props.geometry_size_m ?? props.max_size_m;
-    const sizeM = rawSize != null ? Number(rawSize) : 0;
-    const tags = parseMvtTags(props.tags);
-    const rawLastMod = props.last_modified_s;
-    const lastModifiedS = rawLastMod != null ? Number(rawLastMod) : 0;
-
-    if (!seen.has(id)) {
-      seen.set(id, {
-        id,
-        name,
-        firstTag: props.first_tag ?? "",
-        tags,
-        timelineStatus: props.timeline_status ?? "",
-        lastModifiedS,
-        sizeM,
-        lat,
-        lng,
-      });
+    const incoming = featureToProject(f);
+    if (!incoming) continue;
+    const existing = seen.get(incoming.id);
+    if (!existing) {
+      seen.set(incoming.id, incoming);
     } else {
-      const existing = seen.get(id);
-      if (!existing) continue;
-      if (name && !existing.name) existing.name = name;
-      if (lat !== null && existing.lat === null) {
-        existing.lat = lat;
-        existing.lng = lng;
-      }
-      // Use Math.max to guarantee we always capture the real size and date from whichever layer provides it (project geometry vs overlay footprint),
-      // even if the features come in a different order on subsequent queries.
-      existing.sizeM = Math.max(existing.sizeM || 0, sizeM || 0);
-      existing.lastModifiedS = Math.max(existing.lastModifiedS || 0, lastModifiedS || 0);
-      if (tags.length > existing.tags.length) existing.tags = tags;
-      if (props.first_tag && !existing.firstTag) existing.firstTag = props.first_tag;
-      if (props.timeline_status && !existing.timelineStatus)
-        existing.timelineStatus = props.timeline_status;
+      mergeIntoExisting(existing, f, incoming);
     }
   }
   const result = [...seen.values()];
@@ -149,10 +172,13 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
   return result;
 }
 
-function getBboxCenter(geom: GeoJSON.Geometry | null): [number | null, number | null] {
-  if (!geom) return [null, null];
+/** Returns [centerLng, centerLat, bounds] from the geometry's coordinate bbox. */
+function getGeomBbox(
+  geom: GeoJSON.Geometry | null,
+): [number | null, number | null, L.LatLngBounds | null] {
+  if (!geom) return [null, null, null];
   const coords = collectCoords(geom);
-  if (coords.length === 0) return [null, null];
+  if (coords.length === 0) return [null, null, null];
   let minX = Infinity,
     maxX = -Infinity,
     minY = Infinity,
@@ -165,7 +191,8 @@ function getBboxCenter(geom: GeoJSON.Geometry | null): [number | null, number | 
     if (y < minY) minY = y;
     if (y > maxY) maxY = y;
   }
-  return [(minX + maxX) / 2, (minY + maxY) / 2];
+  const bounds = L.latLngBounds([minY, minX], [maxY, maxX]);
+  return [(minX + maxX) / 2, (minY + maxY) / 2, bounds];
 }
 
 export function useVisibleProjects() {
@@ -333,16 +360,6 @@ export function useVisibleProjects() {
         ? L.latLng(project.lat, project.lng) // lat, lng order for Leaflet
         : map.value.getCenter();
 
-    // Compute a zoom level that fits the project's footprint.
-    // sizeM is the longest dimension; build a square bounds around the center,
-    // ask Leaflet for the zoom that fits it, then cap at 19.
-    const halfDeg = project.sizeM > 0 ? project.sizeM / 2 / 111_320 : 0.001;
-    const bounds = L.latLngBounds(
-      [latlng.lat - halfDeg, latlng.lng - halfDeg],
-      [latlng.lat + halfDeg, latlng.lng + halfDeg],
-    );
-    const zoom = Math.min(map.value.getBoundsZoom(bounds, false), 19);
-
     // Block hover events until the list has finished re-rendering after the fly.
     // moveend fires when the camera stops, but the list updates asynchronously
     // (MapLibre idle → doRefresh → Vue re-render). A short delay after moveend
@@ -354,7 +371,24 @@ export function useVisibleProjects() {
       }, 200);
     });
 
-    mobileAwareFlyTo(latlng, zoom, { duration: 1.5, easeLinearity: 0.25 });
+    if (project.bbox) {
+      // Fly to the actual geometry bounds so the full shape stays on screen.
+      mobileAwareFlyToBounds(project.bbox, {
+        padding: [50, 50],
+        maxZoom: 18,
+        duration: 1.5,
+        easeLinearity: 0.25,
+      });
+    } else {
+      // Standalone point: no geometry, fly to center at a zoom derived from sizeM.
+      const halfDeg = project.sizeM > 0 ? project.sizeM / 2 / 111_320 : 0.001;
+      const approxBounds = L.latLngBounds(
+        [latlng.lat - halfDeg, latlng.lng - halfDeg],
+        [latlng.lat + halfDeg, latlng.lng + halfDeg],
+      );
+      const zoom = Math.min(map.value.getBoundsZoom(approxBounds, false), 19);
+      mobileAwareFlyTo(latlng, zoom, { duration: 1.5, easeLinearity: 0.25 });
+    }
 
     void handleProjectClickFromTile(project.id, latlng);
   }

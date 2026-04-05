@@ -48,7 +48,10 @@ shapes AS (
       p.timeline_status,
       ROUND(p.geometry_size_m)::int AS geometry_size_m,
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
-      EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s
+      EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
+      -- Stable popup anchor: a point on the geometry itself, unaffected by tile clipping
+      ST_Y(p.center_coordinate) AS popup_lat,
+      ST_X(p.center_coordinate) AS popup_lng
     FROM projects p, tile_env te
     WHERE $1 >= 4
       AND p.status = 'approved'
@@ -79,7 +82,9 @@ shapes AS (
       p.timeline_status,
       NULL::int AS geometry_size_m,
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
-      EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s
+      EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
+      ST_Y(p.center_coordinate) AS popup_lat,
+      ST_X(p.center_coordinate) AS popup_lng
     FROM projects p, tile_env te
     WHERE $1 >= 8
       AND p.status = 'approved'

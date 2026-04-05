@@ -96,13 +96,16 @@ function extractTags(props: Record<string, unknown>): string[] {
     }
   }
 
-  // Clean up contradictory tags
-  // Many bike paths are mapped on OSM as highway=path, which triggers the pedestrian rule above
-  if (found.has("bike") && props["transport_type"] === "bike") {
-    found.delete("pedestrian");
+  // Many bike paths are mapped on OSM as highway=path, which triggers the pedestrian rule.
+  // Ensure "bike" always precedes "pedestrian" in the output array when both are present.
+  const tags = [...found];
+  const bikeIdx = tags.indexOf("bike");
+  const pedIdx = tags.indexOf("pedestrian");
+  if (bikeIdx !== -1 && pedIdx !== -1 && bikeIdx > pedIdx) {
+    tags.splice(bikeIdx, 1);
+    tags.splice(pedIdx, 0, "bike");
   }
-
-  return [...found];
+  return tags;
 }
 
 // ---------------------------------------------------------------------------
@@ -649,6 +652,27 @@ async function main() {
     console.log(`Geometry sizes computed.`);
   } catch (err) {
     console.error("Failed to compute geometry sizes (non-fatal):", err);
+  }
+
+  // Replace the JS arithmetic centroid with ST_PointOnSurface so that lat/lng and
+  // center_coordinate land on the geometry itself (e.g. the midpoint of a railroad line)
+  // rather than the average of all coordinates, which can fall off curved or asymmetric shapes.
+  // This is the anchor used for popup placement and tile-based navigation.
+  console.log(`\nUpdating center coordinates to ST_PointOnSurface...`);
+  try {
+    await db.execute(sql`
+      UPDATE projects
+      SET
+        lat               = ST_Y(ST_PointOnSurface(geometry)),
+        lng               = ST_X(ST_PointOnSurface(geometry)),
+        center_coordinate = ST_PointOnSurface(geometry)
+      WHERE import_source_id = ${importSource.id}
+        AND geometry IS NOT NULL
+        AND last_imported_at >= ${syncStartTime}
+    `);
+    console.log(`Center coordinates updated.`);
+  } catch (err) {
+    console.error("Failed to update center coordinates (non-fatal):", err);
   }
 
   // Prune stale projects that were not updated during this sync.
