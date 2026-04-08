@@ -88,8 +88,8 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
 /** Tags are encoded as JSON strings in the SQL via array_to_json()::text; parse them back here. */
 function parseMvtTags(raw: unknown): string[] {
   try {
-    if (Array.isArray(raw)) return raw as string[];
-    return JSON.parse(typeof raw === "string" ? raw : "[]") as string[];
+    if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === "string");
+    return JSON.parse(typeof raw === "string" ? raw : "[]") as unknown as string[];
   } catch {
     return [];
   }
@@ -184,8 +184,8 @@ function getGeomBbox(
     minY = Infinity,
     maxY = -Infinity;
   for (const coord of coords) {
-    const x = coord[0]!;
-    const y = coord[1]!;
+    const x = coord[0] ?? 0;
+    const y = coord[1] ?? 0;
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
     if (y < minY) minY = y;
@@ -227,6 +227,7 @@ export function useVisibleProjects() {
       } else if (sortMode.value === "size") {
         result = b.sizeM - a.sizeM;
       } else if (sortMode.value === "status") {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         result = (STATUS_RANK[a.timelineStatus] ?? 99) - (STATUS_RANK[b.timelineStatus] ?? 99);
       }
       return sortReverse.value ? -result : result;

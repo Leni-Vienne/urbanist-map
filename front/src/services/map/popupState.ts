@@ -19,7 +19,7 @@ export function setProjectPopupTarget(element: HTMLElement | null) {
 
 // Which direction the project popup opens from the anchor point.
 // Computed at click time based on available viewport space.
-export type PopupPlacement = "down" | "up" | "right" | "left";
+type PopupPlacement = "down" | "up" | "right" | "left";
 export const projectPopupPlacement = ref<PopupPlacement>("down");
 
 // Maximum height (px) the popup content area is allowed to grow to.

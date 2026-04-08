@@ -36,8 +36,8 @@ function invalidateTilesForPoint(lat: number, lng: number) {
 }
 
 function getCachedTile(key: string): Buffer | null | undefined {
-  if (!tileCache.has(key)) return undefined;
-  const val = tileCache.get(key)!;
+  const val = tileCache.get(key);
+  if (val === undefined) return undefined;
   // Promote to end (most recently used)
   tileCache.delete(key);
   tileCache.set(key, val);
@@ -46,7 +46,8 @@ function getCachedTile(key: string): Buffer | null | undefined {
 
 function setCachedTile(key: string, val: Buffer | null) {
   if (tileCache.size >= TILE_CACHE_MAX) {
-    tileCache.delete(tileCache.keys().next().value!);
+    const firstKey = tileCache.keys().next().value;
+    if (firstKey !== undefined) tileCache.delete(firstKey);
   }
   tileCache.set(key, val);
 }
@@ -58,12 +59,7 @@ export async function invalidateProjectTiles(projectId: string) {
       .from(projects)
       .where(eq(projects.id, projectId))
       .limit(1);
-    if (
-      row?.lat !== null &&
-      row?.lat !== undefined &&
-      row?.lng !== null &&
-      row?.lng !== undefined
-    ) {
+    if (row !== undefined && row.lat !== null && row.lng !== null) {
       invalidateTilesForPoint(row.lat, row.lng);
     } else {
       clearTileCache();
@@ -81,12 +77,7 @@ export async function invalidateOverlayTiles(overlayId: string) {
       .innerJoin(projects, eq(overlays.projectId, projects.id))
       .where(eq(overlays.id, overlayId))
       .limit(1);
-    if (
-      row?.lat !== null &&
-      row?.lat !== undefined &&
-      row?.lng !== null &&
-      row?.lng !== undefined
-    ) {
+    if (row !== undefined && row.lat !== null && row.lng !== null) {
       invalidateTilesForPoint(row.lat, row.lng);
     } else {
       clearTileCache();
@@ -178,7 +169,8 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
       markerSuppressMinSizeM(z),
     ]);
 
-    const tileData = row?.tile as Buffer | undefined;
+    const rawTile = row?.tile;
+    const tileData = Buffer.isBuffer(rawTile) ? rawTile : undefined;
 
     if (!tileData || tileData.length === 0) {
       if (useCache) setCachedTile(cacheKey, null);

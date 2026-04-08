@@ -52,8 +52,8 @@ function isCoord(obj: unknown): obj is Coord {
   return (
     obj !== null &&
     typeof obj === "object" &&
-    Number.isFinite((obj as Coord).lat) &&
-    Number.isFinite((obj as Coord).lng)
+    Number.isFinite((obj as Record<string, unknown>)["lat"]) &&
+    Number.isFinite((obj as Record<string, unknown>)["lng"])
   );
 }
 
@@ -269,7 +269,7 @@ export const changesRouter = router({
               message: "Change requests can only be submitted for approved overlays",
             });
           }
-        } else if (input.entityType === "project") {
+        } else {
           const projectResult = await db
             .select({ status: projects.status })
             .from(projects)
@@ -502,7 +502,7 @@ export const changesRouter = router({
           return { success: true };
         }
 
-        const moderatorUserId = ctx.user?.id;
+        const moderatorUserId = ctx.user.id;
         if (!moderatorUserId) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
         }
@@ -524,7 +524,7 @@ export const changesRouter = router({
 
             if (change.entityType === "project") {
               await tx.update(projects).set(updateData).where(eq(projects.id, change.entityId));
-            } else if (change.entityType === "overlay") {
+            } else {
               await tx.update(overlays).set(updateData).where(eq(overlays.id, change.entityId));
             }
 
@@ -586,7 +586,7 @@ export const changesRouter = router({
           seen.add(key);
           if (change.entityType === "project") {
             await invalidateProjectTiles(change.entityId);
-          } else if (change.entityType === "overlay") {
+          } else {
             await invalidateOverlayTiles(change.entityId);
           }
         }
@@ -615,7 +615,7 @@ export const changesRouter = router({
           return { success: true };
         }
 
-        const moderatorUserId = ctx.user?.id;
+        const moderatorUserId = ctx.user.id;
         if (!moderatorUserId) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
         }

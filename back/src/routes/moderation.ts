@@ -261,7 +261,7 @@ export const moderationRouter = router({
           newOverlayFilename: overlayRecord.filename,
           newOverlayCaption: overlayRecord.caption,
           pendingChangeRequests: pendingChanges,
-          competingReplacements: competingReplacements,
+          competingReplacements,
           hasConflicts: pendingChanges.length > 0 || competingReplacements.length > 0,
         };
       } catch (error) {
@@ -422,11 +422,11 @@ export const moderationRouter = router({
         .select({
           countryCode: projects.countryCode,
           // Count distinct pending projects
-          pendingProjects: sql<number>`COUNT(DISTINCT CASE WHEN ${projects.status} = 'pending' THEN ${projects.id} END)`,
+          pendingProjects: sql<string>`COUNT(DISTINCT CASE WHEN ${projects.status} = 'pending' THEN ${projects.id} END)`,
           // Count distinct pending overlays
-          pendingOverlays: sql<number>`COUNT(DISTINCT CASE WHEN ${overlays.status} = 'pending' THEN ${overlays.id} END)`,
+          pendingOverlays: sql<string>`COUNT(DISTINCT CASE WHEN ${overlays.status} = 'pending' THEN ${overlays.id} END)`,
           // Count distinct pending change requests (for both project and overlay changes)
-          pendingChanges: sql<number>`COUNT(DISTINCT CASE WHEN ${changeRequests.status} = 'pending' THEN ${changeRequests.id} END)`,
+          pendingChanges: sql<string>`COUNT(DISTINCT CASE WHEN ${changeRequests.status} = 'pending' THEN ${changeRequests.id} END)`,
         })
         .from(projects)
         .leftJoin(overlays, eq(overlays.projectId, projects.id))
@@ -873,10 +873,10 @@ export const moderationRouter = router({
           queueR2Migration(overlayFilename);
         }
 
-        if (transactionResult.success) await invalidateOverlayTiles(input.id);
+        await invalidateOverlayTiles(input.id);
 
         // Invalidate latest contributions cache when approving
-        if (transactionResult.success && input.status === "approved") {
+        if (input.status === "approved") {
           invalidateLatestContributionsCache();
         }
 
@@ -928,7 +928,7 @@ export const moderationRouter = router({
 
         // Get total report count for this user
         const reportCount = await db
-          .select({ count: sql<number>`COUNT(*)` })
+          .select({ count: sql<string>`COUNT(*)` })
           .from(userReports)
           .where(eq(userReports.reportedUserId, input.userId));
 
@@ -1015,7 +1015,7 @@ export const moderationRouter = router({
         const reportCounts = await db
           .select({
             reportedUserId: userReports.reportedUserId,
-            count: sql<number>`COUNT(*)`,
+            count: sql<string>`COUNT(*)`,
           })
           .from(userReports)
           .where(inArray(userReports.reportedUserId, input.userIds))
@@ -1484,7 +1484,8 @@ function filterContentByReportedUsers<
 >(items: T[], hiddenUserIds: Set<string>, userIdField: keyof T): T[] {
   return items.filter((item) => {
     const userId = item[userIdField];
-    return !userId || !hiddenUserIds.has(userId as string);
+    if (typeof userId !== "string") return true;
+    return !hiddenUserIds.has(userId);
   });
 }
 
@@ -1524,7 +1525,7 @@ async function enrichWithReportCounts(
   const reportCounts = await db
     .select({
       reportedUserId: userReports.reportedUserId,
-      count: sql<number>`COUNT(*)`,
+      count: sql<string>`COUNT(*)`,
     })
     .from(userReports)
     .where(inArray(userReports.reportedUserId, [...userIds]))
