@@ -106,7 +106,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       const fieldName = key as keyof ProjectFormData;
       if (hasChanged(fieldName)) {
         changes.push({
-          fieldName: fieldName,
+          fieldName,
           oldValue: serializeValue(originalData[fieldName]),
           newValue: serializeValue(formData[fieldName]),
           changeReason: changeReason.value,
@@ -238,7 +238,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       cityId: project.cityId,
       lat: project.lat,
       lng: project.lng,
-      timelineStatus: formData.timelineStatus ?? project.timelineStatus,
+      timelineStatus: formData.timelineStatus,
       proposalDate: formData.proposalDate,
       proposalDatePrecision: formData.proposalDate
         ? (formData.proposalDatePrecision ?? project.proposalDatePrecision)

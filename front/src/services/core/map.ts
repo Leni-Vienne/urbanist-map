@@ -4,7 +4,7 @@ import { ref, customRef } from "vue";
 
 // Parse #map=zoom/lat/lng from the URL hash
 function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
-  const hash = globalThis.location?.hash;
+  const hash = globalThis.location.hash;
   if (!hash) return null;
   const match = /^#map=([0-9.]+)\/([-0-9.]+)\/([-0-9.]+)$/.exec(hash);
   if (!match) return null;
@@ -34,6 +34,7 @@ export const map = customRef<L.Map>((track, trigger) => ({
       // Returning null here allows `if (map.value)` to work safely (falsy),
       // but TypeScript will think it's always L.Map.
       // This is a "safe lie". Runtime checks work, Compile checks are silenced.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       return null as unknown as L.Map;
     }
     return _map;
@@ -44,7 +45,7 @@ export const map = customRef<L.Map>((track, trigger) => ({
   },
 }));
 // Reactive zoom level tracking
-export const currentZoomLevel = ref<number>(13);
+export const currentZoomLevel = ref(13);
 
 // Create a debounced version of invalidateSize to handle window resizing
 const debouncedInvalidateSize = debounce(() => {
@@ -91,10 +92,8 @@ export function initializeMap() {
     fadeAnimation: true,
     markerZoomAnimation: true,
   });
-  if (!map.value) throw new Error("No map element found");
-
   // Remove the default "Leaflet" prefix from the attribution control
-  map.value.attributionControl?.setPrefix(false);
+  map.value.attributionControl.setPrefix(false);
 
   // Initialize reactive zoom level with Leaflet's default
   currentZoomLevel.value = map.value.getZoom();

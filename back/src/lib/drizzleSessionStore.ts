@@ -9,7 +9,7 @@ export class DrizzleSessionStore {
 
   constructor() {
     // Run cleanup immediately on startup to clear sessions from previous runs
-    this.cleanupExpiredSessions();
+    void this.cleanupExpiredSessions();
     this.startCleanupInterval();
   }
 
@@ -93,12 +93,12 @@ export class DrizzleSessionStore {
     }
   }
 
-  private prepareSessionForPersistence(data: any): { shouldPersist: boolean; expiresAt: Date } {
+  private prepareSessionForPersistence(data: unknown): { shouldPersist: boolean; expiresAt: Date } {
     // hono-sessions stores user data in _data property
     const typedData = data as {
       _data?: { user?: unknown; expiresAt?: string | number | Date };
     };
-    const userData = typedData?._data?.user;
+    const userData = typedData._data?.user;
 
     // Skip persisting empty sessions (anonymous visitors)
     // Only logged-in users need database-backed sessions
@@ -107,7 +107,7 @@ export class DrizzleSessionStore {
     }
 
     // Safely parse expiry date, fallback to 30 days if invalid
-    const rawExpiry = typedData?._data?.expiresAt;
+    const rawExpiry = typedData._data?.expiresAt;
     const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     let expiresAt = defaultExpiry;
 
@@ -125,8 +125,8 @@ export class DrizzleSessionStore {
   private startCleanupInterval() {
     // Run cleanup every hour
     this.cleanupInterval = setInterval(
-      async () => {
-        await this.cleanupExpiredSessions();
+      () => {
+        void this.cleanupExpiredSessions();
       },
       60 * 60 * 1000,
     );

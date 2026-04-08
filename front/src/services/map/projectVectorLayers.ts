@@ -61,13 +61,13 @@ addProtocol("dedupe", async (params, _abortController) => {
     // ArrayBuffers are transferred to WebWorkers by MapLibre, which detaches them.
     // If multiple tile requests wait on the same promise, we MUST clone the ArrayBuffer
     // before handing it to MapLibre, otherwise the 2nd worker gets a detached buffer error.
-    if (data) return { data: data.slice(0) };
+    if (data) return { data: structuredClone(data) };
   }
 
   const promise = (async () => {
     try {
       const response = await fetch(url, {
-        headers: params.headers as any,
+        headers: params.headers,
         // Intentionally not passing abortController.signal.
         // If multiple world copies (wrap 0, wrap 1) wait on this same promise,
         // and one copy gets aborted (e.g. goes off screen), we don't want to cancel
@@ -80,14 +80,16 @@ addProtocol("dedupe", async (params, _abortController) => {
       return await response.arrayBuffer();
     } finally {
       // Keep it in the map briefly to catch simultaneous world copy requests
-      setTimeout(() => pendingTileRequests.delete(url), 200);
+      setTimeout(() => {
+        pendingTileRequests.delete(url);
+      }, 200);
     }
   })();
 
   pendingTileRequests.set(url, promise);
 
   const data = await promise;
-  return { data: data.slice(0) };
+  return { data: structuredClone(data) };
 });
 
 const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
@@ -444,9 +446,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     let sizeFilter: FilterSpecification | null = null;
     if (layerId === "project-points-hover") {
       sizeFilter = getSizeFilterExpressionForPoints();
-    } else if (layerId.startsWith("overlay-footprints")) {
-      sizeFilter = null;
-    } else {
+    } else if (!layerId.startsWith("overlay-footprints")) {
       sizeFilter = getSizeFilterExpressionForShapes();
     }
     const merged = combineFilters(baseLayerFilter, baseFilter, sizeFilter);
@@ -906,7 +906,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setPointHoverFilter(mlMap, null);
   });
 
-  map.value.on("click", async (event: L.LeafletMouseEvent) => {
+  map.value.on("click", (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
@@ -1000,7 +1000,7 @@ function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData 
   // Tags are encoded as a JSON array string in the tile (e.g. '["building","road"]')
   let tags: string[] = [];
   try {
-    const raw = feature.properties?.["tags"];
+    const raw = feature.properties?.tags;
     if (typeof raw === "string" && raw.length > 0) tags = JSON.parse(raw) as string[];
   } catch {
     // malformed tags — leave empty

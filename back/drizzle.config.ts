@@ -7,7 +7,8 @@ export default defineConfig({
   dialect: "postgresql",
   extensionsFilters: ["postgis"], // To prevent drizzle migrations from trying to delete 'spatial_ref_sys' table
   dbCredentials: {
-    url: process.env.DATABASE_URL as string,
+    // oxlint-disable-next-line no-non-null-assertion
+    url: process.env.DATABASE_URL!,
     ssl: {
       rejectUnauthorized: false,
     },
