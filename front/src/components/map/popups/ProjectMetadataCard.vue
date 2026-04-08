@@ -5,13 +5,18 @@
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
 
-    <!-- Description: hidden when null and not editable -->
+    <!-- Description: prefer OSM description, fall back to Wikidata description, hidden when both null and not editable -->
     <div
-      v-if="showDescription && (project.description || (editMode && !project.importSourceId))"
+      v-if="
+        showDescription &&
+        (project.description || wikidataDescription || (editMode && !project.importSourceId))
+      "
       :class="cls.row"
     >
       <span :class="cls.label">{{ $t("common.description") }}</span>
-      <span v-if="project.description" :class="cls.value">{{ project.description }}</span>
+      <span v-if="project.description || wikidataDescription" :class="cls.value">{{
+        project.description || wikidataDescription
+      }}</span>
       <button v-else :class="cls.addBtn" @click="emit('field-click')">
         + {{ $t("common.addField") }}
       </button>
@@ -150,18 +155,9 @@ import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 
 const { t: $t } = useI18n();
-
-const emit = defineEmits<{ "field-click": [] }>();
-
-const cls = {
-  row: "flex flex-col gap-0.5",
-  label: "text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color",
-  value: "text-[13px] text-color wrap-break-word",
-  addBtn:
-    "text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none text-left",
-};
 
 interface Props {
   project: Project | null;
@@ -175,6 +171,25 @@ const props = withDefaults(defineProps<Props>(), {
   showDescription: false,
   editMode: false,
 });
+
+const wikidataId = computed(() => {
+  const p = props.project?.externalProperties;
+  if (!p || typeof p !== "object") return null;
+  const id = (p as Record<string, unknown>)["wikidata"];
+  return typeof id === "string" ? id : null;
+});
+const { entity: wikidataEntityData } = useWikidataEntity(wikidataId);
+const wikidataDescription = computed(() => wikidataEntityData.value?.description ?? null);
+
+const emit = defineEmits<{ "field-click": [] }>();
+
+const cls = {
+  row: "flex flex-col gap-0.5",
+  label: "text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color",
+  value: "text-[13px] text-color wrap-break-word",
+  addBtn:
+    "text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none text-left",
+};
 
 function getTagStyle(slug: string): Record<string, string> {
   const tag = PROJECT_TAG_MAP.get(slug);

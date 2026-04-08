@@ -143,7 +143,6 @@ export function getOverlayMarkerColor(
 ): MarkerColor {
   // Extract overlay-specific properties (not present on all overlay types)
   const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
-  const isTooBig = "isTooBig" in overlayData ? overlayData.isTooBig : false;
   const hasPendingChanges =
     "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
   const isViewingApprovedPosition =
@@ -155,7 +154,7 @@ export function getOverlayMarkerColor(
   // These rules are unique to overlays and don't apply to projects
 
   // Size validation error (only for local overlays - submitted ones passed backend validation)
-  if (mode === "edit" && isTooBig && hasBeenModified) return "red";
+  if (mode === "edit" && "isTooBig" in overlayData && hasBeenModified) return "red";
 
   // Local replacement overlay (before submission) - show purple
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";

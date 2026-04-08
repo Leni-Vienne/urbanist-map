@@ -268,10 +268,13 @@ function checkCollision() {
   }
   try {
     const corners = layer.getCorners();
+    if (!corners) return;
     hasCollision.value = getAllLayers().some(([otherId, other]) => {
       if (otherId === id) return false;
       try {
-        return quadsOverlap(corners, other.getCorners());
+        const otherCorners = other.getCorners();
+        if (!otherCorners) return false;
+        return quadsOverlap(corners, otherCorners);
       } catch {
         return false;
       }

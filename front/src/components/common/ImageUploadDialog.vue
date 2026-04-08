@@ -207,7 +207,7 @@ function handleDragOver(event: DragEvent) {
 }
 
 // Handle drag leave event
-function handleDragLeave(event: DragEvent) {
+function handleDragLeave() {
   // Optional: Could add visual feedback here
 }
 

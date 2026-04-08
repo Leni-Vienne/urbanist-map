@@ -12,22 +12,40 @@
     <div v-if="loading" class="flex justify-center items-center h-50 p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
-    <div v-else>
+    <div
+      v-else
+      class="flex flex-col overflow-hidden"
+      :style="
+        props.source === 'marker'
+          ? { maxHeight: projectPopupMaxHeight + 'px' }
+          : { maxHeight: '31.25rem' }
+      "
+    >
       <!-- Project header: project name + action buttons -->
-      <div class="px-4 pt-3 pb-2 border-b border-surface">
+      <div class="px-4 pt-3 pb-2 border-b border-surface shrink-0">
         <div :class="['flex gap-2', overlay ? 'items-start' : 'items-center']">
           <!-- Left: project name stacked above overlay subtitle -->
           <div class="flex-1 flex flex-col gap-0.5 min-w-0">
-            <span
-              class="text-sm font-semibold leading-snug"
-              :class="[
-                project?.name ? 'text-color' : 'text-muted-color italic',
-                isMobile ? 'wrap-break-word' : 'truncate',
-              ]"
-              v-tooltip.bottom="!isMobile ? project?.name || undefined : undefined"
-            >
-              {{ project?.name || $t("project.unnamed") }}
-            </span>
+            <div class="flex items-center gap-1.5 min-w-0">
+              <!-- Wikidata logo (e.g. metro line badge) shown when available -->
+              <img
+                v-if="wikidataEntity?.logoUrl"
+                :src="wikidataEntity.logoUrl"
+                class="w-5 h-5 object-contain shrink-0"
+                referrerpolicy="no-referrer"
+                loading="eager"
+              />
+              <span
+                class="text-sm font-semibold leading-snug"
+                :class="[
+                  project?.name ? 'text-color' : 'text-muted-color italic',
+                  isMobile ? 'wrap-break-word' : 'truncate',
+                ]"
+                v-tooltip.bottom="!isMobile ? project?.name || undefined : undefined"
+              >
+                {{ project?.name || $t("project.unnamed") }}
+              </span>
+            </div>
             <!-- Overlay subtitle: image name or untitled + text "modifier" link -->
             <div v-if="overlay" class="flex items-baseline gap-1.5">
               <span class="text-xs italic text-muted-color leading-snug">
@@ -96,8 +114,8 @@
         </div>
       </div>
 
-      <!-- Project fields + overlay section -->
-      <div class="px-4 pt-3 pb-4">
+      <!-- Project fields + overlay section — wheel.stop prevents map zoom while scrolling -->
+      <div class="px-4 pt-3 pb-4 overflow-y-auto" @wheel.stop>
         <ProjectMetadataCard
           :project="project"
           :show-name="false"
@@ -105,6 +123,16 @@
           :edit-mode="!viewMode"
           @field-click="emit('edit-project', project)"
         />
+
+        <!-- Wikidata main image (P18) shown at the bottom of the metadata section -->
+        <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">
+          <img
+            :src="wikidataEntity.imageUrl"
+            class="w-full rounded-lg object-cover max-h-48"
+            referrerpolicy="no-referrer"
+            loading="lazy"
+          />
+        </div>
 
         <!-- Show view original button for pending replacements -->
         <div
@@ -203,7 +231,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { projectPopupPlacement } from "@/services/map/popupState";
+import { projectPopupPlacement, projectPopupMaxHeight } from "@/services/map/popupState";
+import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
@@ -249,6 +278,15 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
+
+// Wikidata entity for the current project (logo, description, height)
+const wikidataId = computed(() => {
+  const p = props.project?.externalProperties;
+  if (!p || typeof p !== "object") return null;
+  const id = (p as Record<string, unknown>)["wikidata"];
+  return typeof id === "string" ? id : null;
+});
+const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
 
 // Import pending modifications store for unified change detection
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";

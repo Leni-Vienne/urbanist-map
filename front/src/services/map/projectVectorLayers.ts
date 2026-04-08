@@ -9,10 +9,9 @@ import {
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
-import { projectPopupPlacement, type PopupPlacement } from "@/services/map/popupState";
+import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useUiStore } from "@/stores/uiStore";
 
 import {
   getOverlayDrivenHoverId,
@@ -582,47 +581,6 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   });
 
   return vectorFeature ?? null;
-}
-
-// Estimated popup dimensions used to decide which direction has enough room.
-// Height includes the 20px translateY offset. Width is a realistic rendered width.
-const POPUP_EST_H = 220;
-const POPUP_EST_W = 280;
-// "up" and "down" center the popup horizontally, so each side needs half the width.
-const POPUP_EST_HALF_W = POPUP_EST_W / 2;
-
-// Height (px) blocked at the bottom of the map by the mobile drawer + mode controls above it.
-// The ModeControls button sits up to 110px above the drawer top, so we add that as a buffer.
-const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
-
-// Picks the popup opening direction that has enough viewport space at latlng.
-// "down" and "up" require horizontal centering room in addition to vertical room.
-// On mobile, the bottom drawer and mode controls reduce available downward space.
-// Preference: down → up → right → left (most common cases first).
-// Sets projectPopupPlacement so UnifiedProjectPopup can apply the right CSS.
-export function setPopupPlacementForLatLng(latlng: L.LatLng): void {
-  const mapEl = map.value.getContainer();
-  const mapW = mapEl.clientWidth;
-  const mapH = mapEl.clientHeight;
-  const point = map.value.latLngToContainerPoint(latlng);
-
-  // On mobile, subtract the drawer height + mode controls buffer from available bottom space.
-  const uiStore = useUiStore();
-  const mobileBlockedPx =
-    window.innerWidth < 768
-      ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight +
-        MOBILE_DRAWER_CONTROLS_BUFFER
-      : 0;
-
-  const hCentered = point.x >= POPUP_EST_HALF_W && mapW - point.x >= POPUP_EST_HALF_W;
-  const availableBelow = mapH - point.y - mobileBlockedPx;
-
-  let placement: PopupPlacement = "left";
-  if (hCentered && availableBelow >= POPUP_EST_H) placement = "down";
-  else if (hCentered && point.y >= POPUP_EST_H) placement = "up";
-  else if (mapW - point.x >= POPUP_EST_W) placement = "right";
-
-  projectPopupPlacement.value = placement;
 }
 
 function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {

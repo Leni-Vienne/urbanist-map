@@ -30,8 +30,12 @@
         <UserMenu class="shrink-0" />
       </div>
 
-      <!-- Map Controls Component -->
-      <MapControls @filter-overlays="filterOverlaysByCompletionStatus" />
+      <!-- Filter control -->
+      <div
+        class="absolute top-18 left-4 z-1000 flex flex-col gap-3 transition-opacity duration-300"
+      >
+        <FilterControl @filter-overlays="filterOverlaysByCompletionStatus" />
+      </div>
 
       <!-- Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
       <div
@@ -75,7 +79,7 @@ const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),
 );
 const mapUIBundle = import("@/components/map/mapUIBundle");
-const MapControls = defineAsyncComponent(() => mapUIBundle.then((m) => m.MapControls));
+const FilterControl = defineAsyncComponent(() => mapUIBundle.then((m) => m.FilterControl));
 const UserMenu = defineAsyncComponent(() => mapUIBundle.then((m) => m.UserMenu));
 const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySearch));
 
