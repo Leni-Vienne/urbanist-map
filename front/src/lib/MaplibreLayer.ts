@@ -18,6 +18,7 @@ const { Layer, setOptions, DomUtil, latLngBounds, Util, extend, Point } = L;
 
 type LeafletMaplibreGLOptions = Omit<MapOptions, "container"> & {
   pane?: string;
+  padding?: number;
 };
 
 export interface MaplibreGL extends LayerType {

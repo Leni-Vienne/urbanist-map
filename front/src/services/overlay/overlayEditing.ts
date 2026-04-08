@@ -224,7 +224,7 @@ export function addOverlay(
       L.DomEvent.on(element, "load", () => {
         if (element.complete && element.naturalWidth > 0) {
           registry.setLayer(overlayObject.id, newOverlay);
-          overlayObject.corners = newOverlay.getCorners();
+          overlayObject.corners = newOverlay.getCorners() ?? [];
 
           // Store reference and initialize with proper reactivity
           overlayStore.addOverlay(id, overlayObject);
