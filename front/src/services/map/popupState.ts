@@ -36,11 +36,16 @@ const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
 // Picks the popup opening direction that maximises available height, then sets
 // projectPopupMaxHeight so the popup CSS can clamp itself to exactly that space.
 // Preference: down → up → right → left (most common cases first).
-export function setPopupPlacementForLatLng(latlng: L.LatLng): void {
+//
+// Pass atCenter=true when the map is about to fly/pan to the latlng: after the
+// animation the point will be centered in the viewport, so we compute placement
+// from the center rather than the current (pre-flight) screen position, avoiding
+// a placement jump when moveend fires.
+export function setPopupPlacementForLatLng(latlng: L.LatLng, atCenter = false): void {
   const mapEl = map.value.getContainer();
   const mapW = mapEl.clientWidth;
   const mapH = mapEl.clientHeight;
-  const point = map.value.latLngToContainerPoint(latlng);
+  const point = atCenter ? { x: mapW / 2, y: mapH / 2 } : map.value.latLngToContainerPoint(latlng);
 
   // On mobile, subtract the drawer height + mode controls buffer from available bottom space.
   const uiStore = useUiStore();
@@ -58,13 +63,19 @@ export function setPopupPlacementForLatLng(latlng: L.LatLng): void {
   let placement: PopupPlacement = "left";
   let maxHeight = availableRight;
 
-  if (hCentered && availableBelow >= POPUP_MIN_H) {
-    placement = "down";
-    maxHeight = availableBelow;
-  } else if (hCentered && availableAbove >= POPUP_MIN_H) {
-    placement = "up";
-    maxHeight = availableAbove;
-  } else if (mapW - point.x >= POPUP_EST_W) {
+  if (hCentered) {
+    // Pick whichever vertical direction has more usable space, as long as it meets the minimum.
+    const downOk = availableBelow >= POPUP_MIN_H;
+    const upOk = availableAbove >= POPUP_MIN_H;
+    if (downOk && (!upOk || availableBelow >= availableAbove)) {
+      placement = "down";
+      maxHeight = availableBelow;
+    } else if (upOk) {
+      placement = "up";
+      maxHeight = availableAbove;
+    }
+  }
+  if (placement === "left" && mapW - point.x >= POPUP_EST_W) {
     placement = "right";
     maxHeight = availableRight;
   }
