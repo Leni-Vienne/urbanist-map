@@ -9,7 +9,6 @@ import {
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
-import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
@@ -603,11 +602,9 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
   const targetZoom = Math.max(currentZoom, idealZoom);
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
 
-  if (targetZoom !== currentZoom) {
+  const willFly = targetZoom !== currentZoom;
+  if (willFly) {
     mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
-  } else {
-    // Pick the popup direction that fits within the viewport at the click point.
-    setPopupPlacementForLatLng(latlng);
   }
 
   // Prevent the map-level click handler in projectPopupTeleport from closing the
@@ -618,7 +615,7 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
   // async project fetch that happens inside handleProjectClickFromTile.
   setOverlayDrivenHover(projectId);
 
-  void handleProjectClickFromTile(projectId, latlng);
+  void handleProjectClickFromTile(projectId, latlng, willFly);
 }
 
 function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | null): void {
@@ -810,6 +807,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
   const coordinates = pointFeature.geometry?.coordinates;
   let targetLatLng = eventLatLng;
   let shouldOpenPanel = true;
+  let willFly = false;
 
   if (coordinates && coordinates.length >= 2) {
     const [lng, lat] = coordinates;
@@ -820,6 +818,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
     targetLatLng = L.latLng(lat, lng);
 
     if (cellCount === 1) {
+      willFly = true;
       navigateToLonePoint(props, lat, lng, currentZoom);
     } else {
       shouldOpenPanel = false;
@@ -828,7 +827,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
   }
 
   if (shouldOpenPanel) {
-    await handleProjectClickFromTile(projectId, targetLatLng);
+    await handleProjectClickFromTile(projectId, targetLatLng, willFly);
   }
 }
 

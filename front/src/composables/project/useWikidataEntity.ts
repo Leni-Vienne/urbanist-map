@@ -23,33 +23,50 @@ function commonsUrl(filename: string): string {
   );
 }
 
-function getStringClaim(claims: Record<string, unknown[]>, property: string): string | null {
-  const snak = (claims[property]?.[0] as Record<string, unknown> | undefined)?.mainsnak as
-    | Record<string, unknown>
-    | undefined;
-  if (snak?.snaktype !== "value") return null;
-  const dv = snak.datavalue as Record<string, unknown> | undefined;
-  if (dv?.type !== "string") return null;
-  return (dv.value as string) ?? null;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getHeightMetres(claims: Record<string, unknown[]>): number | null {
-  const snak = (claims["P2048"]?.[0] as Record<string, unknown> | undefined)?.mainsnak as
-    | Record<string, unknown>
-    | undefined;
-  if (snak?.snaktype !== "value") return null;
-  const dv = snak.datavalue as Record<string, unknown> | undefined;
-  if (dv?.type !== "quantity") return null;
-  const qty = dv.value as Record<string, unknown>;
-  const amount = Number.parseFloat(qty.amount as string);
+// Wikidata data model, simplified:
+//   entity.claims  — object keyed by property ID (e.g. "P18"), each value is an array of statements
+//   statement.mainsnak  — the "snak" (property + value pair) that holds the actual data
+//   snak.snaktype  — "value" | "novalue" | "somevalue"; we only care about "value"
+//   snak.datavalue — { type: "string" | "quantity" | "wikibase-entityid" | …, value: … }
+
+// P154 = logo image (Wikimedia Commons filename)
+// P18  = main image (Wikimedia Commons filename)
+// P2048 = height of structure
+function getStringClaim(claims: Record<string, unknown>, property: string): string | null {
+  const arr = claims[property];
+  const statement = Array.isArray(arr) ? arr[0] : undefined;
+  if (!isRecord(statement)) return null;
+  const snak = statement.mainsnak;
+  if (!isRecord(snak) || snak.snaktype !== "value") return null;
+  const dv = snak.datavalue;
+  if (!isRecord(dv) || dv.type !== "string") return null;
+  return typeof dv.value === "string" ? dv.value : null;
+}
+
+function getHeightMetres(claims: Record<string, unknown>): number | null {
+  const arr = claims.P2048; // P2048 = height of structure
+  const statement = Array.isArray(arr) ? arr[0] : undefined;
+  if (!isRecord(statement)) return null;
+  const snak = statement.mainsnak;
+  if (!isRecord(snak) || snak.snaktype !== "value") return null;
+  const dv = snak.datavalue;
+  if (!isRecord(dv) || dv.type !== "quantity") return null;
+  // quantity datavalue: { amount: "+42.5", unit: "http://www.wikidata.org/entity/Q11573", … }
+  const qty = dv.value;
+  if (!isRecord(qty)) return null;
+  const amount = Number.parseFloat(String(qty.amount));
   if (Number.isNaN(amount)) return null;
 
-  // Convert to metres based on unit (identified by trailing Wikidata entity ID)
-  const unit = (qty.unit as string) ?? "";
-  if (unit.endsWith("Q11573")) return amount; // metre
-  if (unit.endsWith("Q174728")) return amount / 100; // centimetre
-  if (unit.endsWith("Q3710")) return amount * 0.3048; // foot
-  if (unit.endsWith("Q218593")) return amount * 0.0254; // inch
+  // unit is a full entity URL; we match by the trailing Q-id
+  const unit = typeof qty.unit === "string" ? qty.unit : "";
+  if (unit.endsWith("Q11573")) return amount; // Q11573  = metre
+  if (unit.endsWith("Q174728")) return amount / 100; // Q174728 = centimetre
+  if (unit.endsWith("Q3710")) return amount * 0.3048; // Q3710   = foot
+  if (unit.endsWith("Q218593")) return amount * 0.0254; // Q218593 = inch
   if (unit === "1") return amount; // dimensionless — assume metres
   return null;
 }
@@ -62,20 +79,19 @@ async function fetchEntity(id: string, lang: string): Promise<WikidataEntity | n
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    const data = (await res.json()) as Record<string, unknown>;
-    const entities = data.entities as Record<string, Record<string, unknown>> | undefined;
-    const entity = entities?.[id];
-    if (!entity || "missing" in entity) return null;
+    const data: unknown = await res.json();
+    if (!isRecord(data) || !isRecord(data.entities)) return null;
+    const entity = data.entities[id];
+    if (!isRecord(entity) || "missing" in entity) return null;
 
-    const descriptions = (entity.descriptions ?? {}) as Record<
-      string,
-      { value: string } | undefined
-    >;
-    const description = (descriptions[lang]?.value ?? descriptions["en"]?.value ?? null) as
-      | string
-      | null;
+    const descriptions = isRecord(entity.descriptions) ? entity.descriptions : {};
+    const descEntry = descriptions[lang];
+    const descEnEntry = descriptions.en;
+    const description =
+      (isRecord(descEntry) && typeof descEntry.value === "string" ? descEntry.value : null) ??
+      (isRecord(descEnEntry) && typeof descEnEntry.value === "string" ? descEnEntry.value : null);
 
-    const claims = (entity.claims ?? {}) as Record<string, unknown[]>;
+    const claims = isRecord(entity.claims) ? entity.claims : {};
     const logoFilename = getStringClaim(claims, "P154");
     const imageFilename = getStringClaim(claims, "P18");
 
@@ -122,7 +138,7 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
       }
 
       loading.value = true;
-      const promise = fetchEntity(id, lang as string);
+      const promise = fetchEntity(id, lang);
       pending.set(cacheKey, promise);
       try {
         const result = await promise;

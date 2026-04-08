@@ -323,7 +323,11 @@ function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null)
  * Handle a click on a project shape layer — opens the project info popup.
  * Passed as a callback to renderProjectShapes so shapeRendering stays dependency-free.
  */
-export function handleShapeProjectClick(project: Project, latlng: L.LatLng): void {
+export function handleShapeProjectClick(
+  project: Project,
+  latlng: L.LatLng,
+  atCenter = false,
+): void {
   const uiStore = useUiStore();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -356,7 +360,7 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
   if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
   if (overlayStore.idSelectedOverlay) selectOverlay(null);
 
-  setPopupPlacementForLatLng(latlng);
+  setPopupPlacementForLatLng(latlng, atCenter);
   createProjectInfoTeleportTargetAtLatLng(latlng);
 }
 
@@ -368,6 +372,7 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
 export async function handleProjectClickFromTile(
   projectId: string,
   latlng: L.LatLng,
+  atCenter = false,
 ): Promise<void> {
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
@@ -406,7 +411,7 @@ export async function handleProjectClickFromTile(
       }
     }
   }
-  handleShapeProjectClick(project, latlng);
+  handleShapeProjectClick(project, latlng, atCenter);
 }
 
 /**
