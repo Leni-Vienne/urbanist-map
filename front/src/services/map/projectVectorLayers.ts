@@ -458,7 +458,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
  * within `targetFraction` of the map's shorter viewport dimension.
  * Uses the Web Mercator ground resolution formula adjusted for latitude.
  */
-function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): number {
+export function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): number {
   // Approximate a square bounding box centered on the point.
   // 111320m per degree latitude is a standard geodesic constant.
   const halfDegLat = sizeMeters / 2 / 111_320;
