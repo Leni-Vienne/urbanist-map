@@ -9,9 +9,9 @@ import {
 import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
-import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
+import { VECTOR_QUERY_LAYERS, getZoomForGeometrySize } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
 
 export type SortMode = "recent" | "name" | "size" | "status";
@@ -21,6 +21,9 @@ interface VisibleProject {
   name: string | null;
   /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
   bbox: L.LatLngBounds | null;
+  /** Middle vertex of the clipped tile geometry — guaranteed on the drawn line, used as popup anchor. */
+  midLat: number | null;
+  midLng: number | null;
   firstTag: string;
   /** All tags for the project, parsed from the MVT JSON-encoded array property. */
   tags: string[];
@@ -88,15 +91,19 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
 /** Tags are encoded as JSON strings in the SQL via array_to_json()::text; parse them back here. */
 function parseMvtTags(raw: unknown): string[] {
   try {
-    if (Array.isArray(raw)) return raw as string[];
-    return JSON.parse(typeof raw === "string" ? raw : "[]") as string[];
+    if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === "string");
+    return JSON.parse(typeof raw === "string" ? raw : "[]") as unknown as string[];
   } catch {
     return [];
   }
 }
 
 /** Parse a single MVT feature into a VisibleProject entry. */
-function featureToProject(f: maplibregl.MapGeoJSONFeature): VisibleProject | null {
+function featureToProject(
+  f: maplibregl.MapGeoJSONFeature,
+  centerLat: number,
+  centerLng: number,
+): VisibleProject | null {
   const props = f.properties;
   const sourceLayer = String(f.sourceLayer);
   const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
@@ -105,8 +112,9 @@ function featureToProject(f: maplibregl.MapGeoJSONFeature): VisibleProject | nul
   // oxlint-disable-next-line no-unsafe-type-assertion
   const geom = f.geometry as GeoJSON.Geometry | null;
   const [bboxLng, bboxLat, bbox] = getGeomBbox(geom);
-  // popup_lat/popup_lng come from center_coordinate (ST_PointOnSurface) in the project-shapes tile,
-  // guaranteed to lie on the geometry even after tile clipping. Fall back to bbox center.
+  const [midLat, midLng] = getGeomClosestToCenter(geom, centerLat, centerLng);
+  // popup_lat/popup_lng are ST_PointOnSurface of the full unclipped geometry — used as fallback
+  // for standalone points that have no clipped geometry midpoint.
   const lat =
     props.popup_lat !== null && props.popup_lat !== undefined ? Number(props.popup_lat) : bboxLat;
   const lng =
@@ -126,6 +134,8 @@ function featureToProject(f: maplibregl.MapGeoJSONFeature): VisibleProject | nul
     sizeM: rawSize !== null && rawSize !== undefined ? Number(rawSize) : 0,
     lat,
     lng,
+    midLat,
+    midLng,
   };
 }
 
@@ -151,10 +161,14 @@ function mergeIntoExisting(
     existing.timelineStatus = props.timeline_status;
 }
 
-function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisibleProject[] {
+function accumulateFeatures(
+  features: maplibregl.MapGeoJSONFeature[],
+  centerLat: number,
+  centerLng: number,
+): VisibleProject[] {
   const seen = new Map<string, VisibleProject>();
   for (const f of features) {
-    const incoming = featureToProject(f);
+    const incoming = featureToProject(f, centerLat, centerLng);
     if (!incoming) continue;
     const existing = seen.get(incoming.id);
     if (!existing) {
@@ -172,6 +186,35 @@ function accumulateFeatures(features: maplibregl.MapGeoJSONFeature[]): VisiblePr
   return result;
 }
 
+/** Returns [lat, lng] of the geometry vertex closest to (centerLat, centerLng).
+ * For a linestring this is always a point on the drawn line and is likely on screen,
+ * since it's the part of the clipped tile geometry nearest to the viewport center.
+ * Returns [null, null] if the geometry has no coordinates.
+ */
+function getGeomClosestToCenter(
+  geom: GeoJSON.Geometry | null,
+  centerLat: number,
+  centerLng: number,
+): [number | null, number | null] {
+  if (!geom) return [null, null];
+  const coords = collectCoords(geom);
+  if (coords.length === 0) return [null, null];
+  let bestLat = coords[0]?.[1] ?? null;
+  let bestLng = coords[0]?.[0] ?? null;
+  let bestDist = Infinity;
+  for (const coord of coords) {
+    const lat = coord[1] ?? 0;
+    const lng = coord[0] ?? 0;
+    const dist = (lat - centerLat) ** 2 + (lng - centerLng) ** 2;
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestLat = lat;
+      bestLng = lng;
+    }
+  }
+  return [bestLat, bestLng];
+}
+
 /** Returns [centerLng, centerLat, bounds] from the geometry's coordinate bbox. */
 function getGeomBbox(
   geom: GeoJSON.Geometry | null,
@@ -184,8 +227,8 @@ function getGeomBbox(
     minY = Infinity,
     maxY = -Infinity;
   for (const coord of coords) {
-    const x = coord[0]!;
-    const y = coord[1]!;
+    const x = coord[0] ?? 0;
+    const y = coord[1] ?? 0;
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
     if (y < minY) minY = y;
@@ -227,6 +270,7 @@ export function useVisibleProjects() {
       } else if (sortMode.value === "size") {
         result = b.sizeM - a.sizeM;
       } else if (sortMode.value === "status") {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         result = (STATUS_RANK[a.timelineStatus] ?? 99) - (STATUS_RANK[b.timelineStatus] ?? 99);
       }
       return sortReverse.value ? -result : result;
@@ -257,7 +301,8 @@ export function useVisibleProjects() {
     // applying an inset to avoid projects that are at the edge of the screen
     const features = mlMap.queryRenderedFeatures(bbox, { layers: [...QUERY_LAYERS] });
 
-    const newProjects = accumulateFeatures(features);
+    const center = map.value.getCenter();
+    const newProjects = accumulateFeatures(features, center.lat, center.lng);
     if (projectsChanged(rawProjects.value, newProjects)) rawProjects.value = newProjects;
   }
 
@@ -355,10 +400,20 @@ export function useVisibleProjects() {
   let suppressHover = false;
 
   function navigateToProject(project: VisibleProject) {
-    const latlng =
-      project.lat !== null && project.lng !== null
-        ? L.latLng(project.lat, project.lng) // lat, lng order for Leaflet
-        : map.value.getCenter();
+    // Use the middle vertex of the clipped geometry as anchor — it's on the drawn line.
+    // Fall back to popup_lat/popup_lng (ST_PointOnSurface of full geometry) for standalone points.
+    // Use the middle vertex of the clipped geometry as anchor — it's on the drawn line.
+    // Fall back to popup_lat/popup_lng (ST_PointOnSurface of full geometry) for standalone points.
+    function resolveAnchor(): L.LatLng {
+      if (project.midLat !== null && project.midLng !== null) {
+        return L.latLng(project.midLat, project.midLng);
+      }
+      if (project.lat !== null && project.lng !== null) {
+        return L.latLng(project.lat, project.lng);
+      }
+      return map.value.getCenter();
+    }
+    const latlng = resolveAnchor();
 
     // Block hover events until the list has finished re-rendering after the fly.
     // moveend fires when the camera stops, but the list updates asynchronously
@@ -371,26 +426,17 @@ export function useVisibleProjects() {
       }, 200);
     });
 
-    if (project.bbox) {
-      // Fly to the actual geometry bounds so the full shape stays on screen.
-      mobileAwareFlyToBounds(project.bbox, {
-        padding: [50, 50],
-        maxZoom: 18,
-        duration: 1.5,
-        easeLinearity: 0.25,
-      });
-    } else {
-      // Standalone point: no geometry, fly to center at a zoom derived from sizeM.
-      const halfDeg = project.sizeM > 0 ? project.sizeM / 2 / 111_320 : 0.001;
-      const approxBounds = L.latLngBounds(
-        [latlng.lat - halfDeg, latlng.lng - halfDeg],
-        [latlng.lat + halfDeg, latlng.lng + halfDeg],
-      );
-      const zoom = Math.min(map.value.getBoundsZoom(approxBounds, false), 19);
-      mobileAwareFlyTo(latlng, zoom, { duration: 1.5, easeLinearity: 0.25 });
+    const currentZoom = map.value.getZoom();
+    const idealZoom =
+      project.sizeM > 0 ? getZoomForGeometrySize(project.sizeM, latlng.lat, latlng.lng) : 14;
+    const targetZoom = Math.max(currentZoom, idealZoom);
+    const needsZoom = targetZoom !== currentZoom;
+    if (needsZoom) {
+      const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+      mobileAwareFlyTo(latlng, targetZoom, { duration });
     }
 
-    void handleProjectClickFromTile(project.id, latlng);
+    void handleProjectClickFromTile(project.id, latlng, needsZoom);
   }
 
   let lastHoveredProjectId: string | null = null;

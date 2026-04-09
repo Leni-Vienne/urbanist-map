@@ -322,10 +322,13 @@ async function addTileLayersToMap(): Promise<void> {
     // pointer events to MapLibre's queryRenderedFeatures.
     vectorPane.style.pointerEvents = "none";
 
-    // Basemap layer (below overlays) - gets the full OpenFreeMap style
+    // Basemap layer (below overlays) - gets the full OpenFreeMap style.
+    // padding: 0.1 extends the rendered canvas 10% beyond the viewport in each direction,
+    // pre-fetching tiles outside the view to prevent edges from filickering while panning.
     const basemapLayer = maplibreLayer({
       style: OPENFREEMAP_STYLE_URL,
       fadeDuration: 0,
+      padding: 0.1,
       pane: "tilePane", // Default pane at z-200
     }).addTo(map.value);
     activeBaseLayer = basemapLayer;
@@ -357,6 +360,7 @@ async function addTileLayersToMap(): Promise<void> {
       style: {
         version: 8,
         sources: {},
+        // Transparent background prevents grey canvas edges from showing during pan
         layers: [],
       },
       fadeDuration: 0,

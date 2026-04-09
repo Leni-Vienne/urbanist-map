@@ -35,7 +35,7 @@ import {
   unhighlightProjectShapes,
 } from "@/services/map/shapeRendering";
 import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
-import { setPopupPlacementForLatLng } from "@/services/map/projectVectorLayers";
+import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 // useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
@@ -323,7 +323,11 @@ function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null)
  * Handle a click on a project shape layer — opens the project info popup.
  * Passed as a callback to renderProjectShapes so shapeRendering stays dependency-free.
  */
-export function handleShapeProjectClick(project: Project, latlng: L.LatLng): void {
+export function handleShapeProjectClick(
+  project: Project,
+  latlng: L.LatLng,
+  atCenter = false,
+): void {
   const uiStore = useUiStore();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -356,7 +360,7 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
   if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
   if (overlayStore.idSelectedOverlay) selectOverlay(null);
 
-  setPopupPlacementForLatLng(latlng);
+  setPopupPlacementForLatLng(latlng, atCenter);
   createProjectInfoTeleportTargetAtLatLng(latlng);
 }
 
@@ -368,6 +372,7 @@ export function handleShapeProjectClick(project: Project, latlng: L.LatLng): voi
 export async function handleProjectClickFromTile(
   projectId: string,
   latlng: L.LatLng,
+  atCenter = false,
 ): Promise<void> {
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
@@ -406,7 +411,7 @@ export async function handleProjectClickFromTile(
       }
     }
   }
-  handleShapeProjectClick(project, latlng);
+  handleShapeProjectClick(project, latlng, atCenter);
 }
 
 /**

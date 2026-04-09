@@ -10,10 +10,17 @@
  * Usage: bun run back/src/scripts/import-osm.ts
  */
 
-import { db } from "../database";
+// Use postgres.js instead of Bun's native SQL client: Bun double-encodes jsonb parameters
+// (https://github.com/oven-sh/bun/issues/28819), which corrupts externalProperties on insert.
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgresJs from "postgres";
 import { clearTileCache } from "../routes/tiles";
 import { projects, importSources, countries, type TimelineStatus } from "../db/schema";
 import { sql, eq } from "drizzle-orm";
+import { config } from "../config";
+
+const pgClient = postgresJs(config.DATABASE_URL);
+const db = drizzle({ client: pgClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { EXTENDED_OSM_RULES } from "@shared/osmRules";
@@ -601,7 +608,7 @@ async function main() {
         WHERE import_source_id = ${importSource.id}
           AND geometry IS NOT NULL
           AND geometry_size_m IS NULL
-          AND last_imported_at >= ${syncStartTime}
+          AND last_imported_at >= ${syncStartTime.toISOString()}
       `)
     ).map((r) => r.id);
 
@@ -668,7 +675,7 @@ async function main() {
         center_coordinate = ST_PointOnSurface(geometry)
       WHERE import_source_id = ${importSource.id}
         AND geometry IS NOT NULL
-        AND last_imported_at >= ${syncStartTime}
+        AND last_imported_at >= ${syncStartTime.toISOString()}
     `);
     console.log(`Center coordinates updated.`);
   } catch (err) {
@@ -679,7 +686,7 @@ async function main() {
   // Projects with overlays are soft-detached (import link severed, geometry cleared, overlays kept).
   // Projects without overlays are hard-deleted.
   console.log(`\nPruning stale projects not seen since ${syncStartTime.toISOString()}...`);
-  const staleCondition = sql`import_source_id = ${importSource.id} AND (last_imported_at IS NULL OR last_imported_at < ${syncStartTime})`;
+  const staleCondition = sql`import_source_id = ${importSource.id} AND (last_imported_at IS NULL OR last_imported_at < ${syncStartTime.toISOString()})`;
   const hasOverlays = sql`EXISTS (SELECT 1 FROM overlays WHERE project_id = projects.id)`;
 
   try {
@@ -732,6 +739,7 @@ async function main() {
 
   clearTileCache();
   console.log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
+  await pgClient.end();
 }
 
 main().catch((err) => {

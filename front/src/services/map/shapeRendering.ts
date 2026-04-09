@@ -32,8 +32,7 @@ const PREVIEW_COLORS = {
 
 /** Convert a GeoJSON [lng, lat] position to a Leaflet LatLng. */
 function toLatLng(coord: number[]): L.LatLng {
-  const [lng, lat] = coord as [number, number];
-  return L.latLng(lat, lng);
+  return L.latLng(coord[1] ?? 0, coord[0] ?? 0);
 }
 
 /**
@@ -115,7 +114,10 @@ export function renderProjectShapes(
     layer.on("mouseover", () => {
       highlightProjectShapes(project.id);
       onProjectHover?.(project.id);
-      (layer.getElement() as HTMLElement | undefined)?.style.setProperty("cursor", "pointer");
+      (layer.getElement() as unknown as HTMLElement | undefined)?.style.setProperty(
+        "cursor",
+        "pointer",
+      );
     });
     layer.on("mouseout", () => {
       // Don't unhighlight if this project is currently persistently highlighted
@@ -134,7 +136,7 @@ export function renderProjectShapes(
 
       unhighlightProjectShapes(project.id);
       onProjectLeave?.(project.id);
-      (layer.getElement() as HTMLElement | undefined)?.style.removeProperty("cursor");
+      (layer.getElement() as unknown as HTMLElement | undefined)?.style.removeProperty("cursor");
     });
     if (onProjectClick) {
       layer.on("click", (e: L.LeafletMouseEvent) => {
@@ -203,7 +205,7 @@ export function getProjectShapeBounds(projectId: string): L.LatLngBounds | null 
   if (!entry || entry.layers.length === 0) return null;
   let bounds: L.LatLngBounds | null = null;
   for (const layer of entry.layers) {
-    const layerBounds = (layer as L.Polyline).getBounds?.();
+    const layerBounds = layer instanceof L.Polyline ? layer.getBounds() : undefined;
     if (layerBounds?.isValid()) {
       bounds = bounds ? bounds.extend(layerBounds) : layerBounds;
     }
@@ -269,14 +271,18 @@ export function renderPreviewShapes(
     // for polygons they are the same object.
     for (const [k, hitLayer] of interactive.entries()) {
       const visualLayer = visual[k];
-      if (!hitLayer || !visualLayer) continue;
       hitLayer.on("mouseover", () => {
-        visualLayer.setStyle(hoverStyle);
-        (hitLayer.getElement() as HTMLElement | undefined)?.style.setProperty("cursor", "pointer");
+        visualLayer?.setStyle(hoverStyle);
+        (hitLayer.getElement() as unknown as HTMLElement | undefined)?.style.setProperty(
+          "cursor",
+          "pointer",
+        );
       });
       hitLayer.on("mouseout", () => {
-        visualLayer.setStyle(baseStyle);
-        (hitLayer.getElement() as HTMLElement | undefined)?.style.removeProperty("cursor");
+        visualLayer?.setStyle(baseStyle);
+        (hitLayer.getElement() as unknown as HTMLElement | undefined)?.style.removeProperty(
+          "cursor",
+        );
       });
       hitLayer.on("click", (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e);

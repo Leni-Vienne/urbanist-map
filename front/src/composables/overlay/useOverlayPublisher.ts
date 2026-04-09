@@ -255,7 +255,7 @@ export function useOverlayPublisher() {
       const corners = getCornersFromOverlay(overlay);
       const payload = {
         id: overlay.id,
-        filename: filename,
+        filename,
         caption: overlay.caption ?? undefined,
         projectId: overlay.projectId,
         replacesOverlayId: overlay.replacesOverlayId ?? undefined,

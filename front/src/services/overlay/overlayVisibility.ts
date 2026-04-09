@@ -24,30 +24,25 @@ export function isOverlayVisible(
   }
 
   // Edit mode: Show approved + user's own pending/local
-  if (mode === "edit") {
-    // Hide rejected
-    if (overlay.status === "rejected") {
-      return false;
-    }
-
-    // Show approved
-    if (overlay.status === "approved") {
-      return true;
-    }
-
-    // Show local (null status) - implies it's being created/edited by user
-    if (overlay.status === null) {
-      return true;
-    }
-
-    // Show pending ONLY if it belongs to current user
-    if (overlay.status === "pending") {
-      return overlay.authorId === currentUserId;
-    }
-
+  // Hide rejected
+  if (overlay.status === "rejected") {
     return false;
   }
 
-  // Default fallback (should not happen)
+  // Show approved
+  if (overlay.status === "approved") {
+    return true;
+  }
+
+  // Show local (null status) - implies it's being created/edited by user
+  if (overlay.status === null) {
+    return true;
+  }
+
+  // Show pending ONLY if it belongs to current user
+  if (overlay.status === "pending") {
+    return overlay.authorId === currentUserId;
+  }
+
   return false;
 }
