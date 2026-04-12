@@ -1,4 +1,3 @@
-import type { Theme } from "@primeuix/themes";
 import { ref } from "vue";
 
 type Theme = "light" | "dark";
@@ -16,11 +15,10 @@ function getInitialTheme(): Theme {
   }
 }
 
-function applyTheme(t: Theme) {
-  document.documentElement.classList.toggle(DARK_CLASS, t === "dark");
+function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle(DARK_CLASS, theme === "dark");
 }
 
-// Module-level reactive state shared across all composable instances
 const theme = ref<Theme>(getInitialTheme());
 applyTheme(theme.value);
 

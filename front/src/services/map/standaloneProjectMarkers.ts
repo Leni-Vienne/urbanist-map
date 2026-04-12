@@ -38,7 +38,7 @@ import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
-// useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
+// t() is imported directly since useI18n() is only available inside component setup().
 import { t } from "@/locales";
 
 // Layer group for standalone projects (standalone project markers)
@@ -53,10 +53,7 @@ let selectedStandaloneProjectMarker: L.Marker | null = null;
 // Track if watcher has been initialized (lazy initialization to avoid Pinia issues)
 let isWatcherInitialized = false;
 
-/**
- * Initialize watchers for standalone markers (lazy initialization)
- * Called once when first marker is added to avoid Pinia initialization issues
- */
+/** Initialize watchers for standalone markers. Called once on first use to avoid Pinia initialization issues. */
 function initializePopupWatcher() {
   if (isWatcherInitialized) return;
 
@@ -73,7 +70,7 @@ function initializePopupWatcher() {
   );
 
   // Watch filter changes: refresh standalone markers AND sync overlay marker visibility.
-  // runViewportRenderLoop is NOT called — it runs on the next map event and handles proper
+  // runViewportRenderLoop is NOT called, it runs on the next map event and handles proper
   // destruction; here we only need an immediate show/hide pass that works at all zoom levels.
   watch(
     () => ({
@@ -105,16 +102,12 @@ function initializePopupWatcher() {
   isWatcherInitialized = true;
 }
 
-/**
- * Get standalone project marker by project ID
- */
+/** Returns the standalone project marker for a given project ID. */
 export function getStandaloneProjectMarkerByProjectId(projectId: string): L.Marker | undefined {
   return standaloneProjectMarkerMap.get(projectId);
 }
 
-/**
- * Scale up a standalone project marker for hover highlight (e.g. from side panel).
- */
+/** Scale up a standalone project marker on hover. */
 export function highlightStandaloneProjectMarker(projectId: string): void {
   const marker = standaloneProjectMarkerMap.get(projectId);
   if (!marker) return;
@@ -129,9 +122,7 @@ export function highlightStandaloneProjectMarker(projectId: string): void {
   el.style.zIndex = "1000";
 }
 
-/**
- * Reset the scale of a standalone project marker after hover leave.
- */
+/** Reset a standalone project marker scale after hover leave. */
 export function unhighlightStandaloneProjectMarker(projectId: string): void {
   const marker = standaloneProjectMarkerMap.get(projectId);
   if (!marker) return;
@@ -144,45 +135,32 @@ export function unhighlightStandaloneProjectMarker(projectId: string): void {
   el.style.zIndex = "";
 }
 
-/**
- * Remove standalone project marker for a specific project
- * This is called when the first overlay is added to a standalone project
- */
+/** Remove the standalone project marker for a given project (called when the first overlay is added). */
 export function removeStandaloneProjectMarkerForProject(projectId: string): void {
   const marker = standaloneProjectMarkerMap.get(projectId);
   if (!marker) return;
 
-  // Close project info popup if it's showing info for this project
   const uiStore = useUiStore();
   if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId) {
     uiStore.closeProjectInfoPopup();
   }
 
-  // Remove marker from map
   if (standaloneProjectsLayer?.hasLayer(marker)) {
     standaloneProjectsLayer.removeLayer(marker);
   }
 
-  // Remove marker from map
   standaloneProjectMarkerMap.delete(projectId);
 }
 
-/**
- * Clear all standalone project markers from the map
- * This is called when switching cities to prevent marker accumulation
- */
+/** Remove all standalone project markers from the map. */
 export function clearAllStandaloneProjectMarkers(): void {
-  // Properly remove all markers and their event listeners
   for (const marker of standaloneProjectMarkerMap.values()) {
-    // Remove all event listeners before removing from map
     marker.off();
-    // Remove from layer if it exists
     if (standaloneProjectsLayer?.hasLayer(marker)) {
       standaloneProjectsLayer.removeLayer(marker);
     }
   }
 
-  // Now remove the layer from map
   if (standaloneProjectsLayer) {
     map.value.removeLayer(standaloneProjectsLayer);
     standaloneProjectsLayer = null;
@@ -193,49 +171,36 @@ export function clearAllStandaloneProjectMarkers(): void {
   clearAllProjectShapes();
 }
 
-/**
- * Refresh all standalone markers visibility based on current completion filters
- * This is called when completion filters change
- */
+/** Show/hide standalone markers based on the current completion filters. */
 function refreshAllStandaloneMarkers(): void {
   if (!standaloneProjectsLayer) return;
 
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
 
-  // Iterate through all existing markers
   for (const [projectId, marker] of standaloneProjectMarkerMap.entries()) {
     const project = projectStore.projects[projectId];
     if (!project) continue;
 
-    // Get marker color for this project
-    // Check if this marker should be visible
     const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
 
-    // Show or hide the marker based on filter
     if (shouldBeVisible && !standaloneProjectsLayer.hasLayer(marker)) {
-      // Add to layer if not already there
       standaloneProjectsLayer.addLayer(marker);
     } else if (!shouldBeVisible && standaloneProjectsLayer.hasLayer(marker)) {
-      // Remove from layer if it's there
       standaloneProjectsLayer.removeLayer(marker);
     }
   }
 }
 
 /**
- * Update standalone project marker tooltip based on project status
- * Only shows tooltips in edit and moderation modes (similar to overlay markers)
- * @param marker - The marker to update
- * @param project - The project data
- * @param mode - Current map mode
+ * Bind or update the tooltip on a standalone marker.
+ * Tooltips are only shown in edit and moderation modes.
  */
 export function updateStandaloneProjectMarkerTooltip(
   marker: L.Marker,
   project: Project,
   mode: "view" | "edit" | "moderation",
 ): void {
-  // Only show tooltips in edit and moderation modes (view mode doesn't need them)
   if (mode === "view") {
     if (marker.getTooltip()) {
       marker.unbindTooltip();
@@ -247,7 +212,6 @@ export function updateStandaloneProjectMarkerTooltip(
   let modifierText = "";
 
   if (mode === "moderation") {
-    // Moderation mode: Show approval status
     switch (project.status) {
       case "pending":
         tooltipText = t("markerTooltip.project.pendingApproval");
@@ -262,7 +226,6 @@ export function updateStandaloneProjectMarkerTooltip(
         tooltipText = t("markerTooltip.project.newProject");
     }
   } else if (mode === "edit") {
-    // Edit mode: Show status with modified state
     const hasBeenModified = project.isModified ?? false;
     const status = project.status;
 
@@ -285,10 +248,8 @@ export function updateStandaloneProjectMarkerTooltip(
     }
   }
 
-  // Assemble final tooltip text with modifier in parentheses if present
   const finalTooltipText = modifierText ? `${tooltipText} (${modifierText})` : tooltipText;
 
-  // Update tooltip content if it exists, otherwise bind new one
   if (marker.getTooltip()) {
     marker.setTooltipContent(finalTooltipText);
   } else {
@@ -300,9 +261,7 @@ export function updateStandaloneProjectMarkerTooltip(
   }
 }
 
-/**
- * Update standalone project marker opacities based on selected marker
- */
+/** Dim all standalone markers except the selected one. */
 function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
   if (!standaloneProjectsLayer) return;
 
@@ -320,7 +279,7 @@ function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null)
 }
 
 /**
- * Handle a click on a project shape layer — opens the project info popup.
+ * Handle a click on a project shape layer.
  * Passed as a callback to renderProjectShapes so shapeRendering stays dependency-free.
  */
 export function handleShapeProjectClick(
@@ -332,12 +291,10 @@ export function handleShapeProjectClick(
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
-  // Ensure the popup-close watcher is always active, even for overlay-only projects that
-  // never go through addStandaloneProjectMarkerForProject (which is the usual init path).
+  // Ensure the popup-close watcher is active even for overlay-only projects.
   initializePopupWatcher();
 
   if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-    // Toggle off: user clicked the same project again to close the popup.
     uiStore.closeProjectInfoPopup();
     cleanupProjectInfoTeleportTarget();
     unhighlightProjectShapes(project.id);
@@ -347,9 +304,7 @@ export function handleShapeProjectClick(
 
   uiStore.openProjectInfoPopup(project.id, project);
 
-  // In view mode, pin the vector tile highlight so the overlay footprint / shape stays
-  // highlighted while the popup is open (not just while the mouse is over the feature).
-  // The initializePopupWatcher above clears this when the popup eventually closes.
+  // In view mode, pin the vector tile highlight while the popup is open.
   if (mapStore.mode === "view") {
     setOverlayDrivenHover(project.id);
   }
@@ -365,9 +320,8 @@ export function handleShapeProjectClick(
 }
 
 /**
- * Handle a click on a MapLibre tile layer feature by project ID.
- * Looks up the project from the store; if found delegates to handleShapeProjectClick.
- * Used by tile layer click handlers that only have the project ID available.
+ * Handle a MapLibre tile click given only a project ID.
+ * Looks up the project from the store or fetches it, then delegates to handleShapeProjectClick.
  */
 export async function handleProjectClickFromTile(
   projectId: string,
@@ -414,17 +368,12 @@ export async function handleProjectClickFromTile(
   handleShapeProjectClick(project, latlng, atCenter);
 }
 
-/**
- * Add standalone project marker for a specific project
- * This is called when the last overlay is deleted from a project
- */
+/** Add a standalone project marker (called when the last overlay of a project is removed). */
 export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (!project.lat || !project.lng) return;
 
-  // Don't add if marker already exists
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
-  // Projects with geometry also render shapes (in addition to the point marker below).
   if (project.geometry?.geometries.length) {
     renderProjectShapes(
       project,
@@ -435,23 +384,20 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     );
   }
 
-  // Initialize popup watcher on first marker addition (lazy initialization)
   initializePopupWatcher();
 
-  // Get marker color and check if it should be visible based on current filter
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const markerColor = getProjectMarkerColor(project, mapStore.mode);
   const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
 
-  // Ensure standalone project layer exists
   if (!standaloneProjectsLayer) {
     standaloneProjectsLayer = L.layerGroup();
     standaloneProjectsLayer.addTo(map.value);
   }
 
-  // CRITICAL: Store project in projectStore so it can be found later for color updates
-  // This is necessary for viewport-loaded markers where projects aren't loaded via loadCityStandaloneProjects
+  // Store project in projectStore so color updates can find it later
+  // (viewport-loaded markers aren't always loaded via the city fetch path).
   const projectStore = useProjectStore();
   if (!projectStore.projects[project.id]) {
     projectStore.projects = {
@@ -468,26 +414,22 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     opacity: MARKER_OPACITY.standalone.default,
   });
 
-  // Store marker in map BEFORE adding to layer (so refresh function can find it)
+  // Store marker before adding to layer so refreshAllStandaloneMarkers can find it.
   standaloneProjectMarkerMap.set(project.id, marker);
 
-  // Only add to layer if it passes the completion filter
   if (shouldBeVisible) {
     standaloneProjectsLayer.addLayer(marker);
   }
 
-  // Prevent double-click zoom on markers
   marker.on("dblclick", (e) => {
     L.DomEvent.stopPropagation(e);
   });
 
-  // Add mouseover event to increase marker opacity and highlight shapes
   marker.on("mouseover", () => {
     marker.setOpacity(MARKER_OPACITY.standalone.hover);
     highlightProjectShapes(project.id);
   });
 
-  // Add mouseout event to reset marker opacity and unhighlight shapes (unless persistently highlighted)
   marker.on("mouseout", () => {
     if (selectedStandaloneProjectMarker === marker) {
       marker.setOpacity(MARKER_OPACITY.standalone.hover);
@@ -495,14 +437,13 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       marker.setOpacity(MARKER_OPACITY.standalone.default);
     }
     const uiStore = useUiStore();
-    const isPersistentlyHighlighted =
+    const popupIsOpenForThis =
       uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id;
-    if (!isPersistentlyHighlighted) {
+    if (!popupIsOpenForThis) {
       unhighlightProjectShapes(project.id);
     }
   });
 
-  // Add tooltip to show project status in edit/moderation modes
   updateStandaloneProjectMarkerTooltip(marker, project, mapStore.mode);
 
   marker.on("click", (e) => {
@@ -510,53 +451,40 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
       L.DomEvent.stopPropagation(e);
       const uiStore = useUiStore();
 
-      // Check if popup is already open for this project - toggle behavior
       if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
         uiStore.closeProjectInfoPopup();
         updateStandaloneProjectMarkerOpacities(null);
         return;
       }
 
-      // Open or update project info popup first to ensure state is set (prevents race conditions with SideMenu watcher)
       uiStore.openProjectInfoPopup(project.id, project);
 
-      // Force switch to Current Location tab if user is exploring Latest tab
       if (uiStore.activeTab === "latest") {
         uiStore.activeTab = "currentLocation";
       }
 
-      // Request scroll to project after data is loaded and tab is switched
       requestScrollTo("project", project.id);
 
-      // Close overlay popup if it's open (only one popup at a time)
       if (overlayStore.showInfoPopup) {
         overlayStore.hideInfoPopup();
       }
 
-      // Deselect any selected overlay (mutual exclusivity between overlay and standalone project selection)
       if (overlayStore.idSelectedOverlay) {
         selectOverlay(null);
       }
 
-      // Create/update teleport target at marker position
       createProjectInfoTeleportTarget(marker);
-
-      // Update marker opacities (make this one fully opaque)
       updateStandaloneProjectMarkerOpacities(marker);
     })();
   });
 }
 
-/**
- * Get the standalone project marker map (for external access)
- */
+/** Returns the internal standalone marker map. */
 export function getStandaloneProjectMarkerMap(): Map<string, L.Marker> {
   return standaloneProjectMarkerMap;
 }
 
-/**
- * Update standalone project marker color for a specific project
- */
+/** Update the icon color of a standalone project marker. */
 export function updateStandaloneProjectMarkerColor(projectId: string, project: Project): void {
   const marker = getStandaloneProjectMarkerByProjectId(projectId);
   if (!marker) return;
@@ -567,13 +495,10 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   marker.setIcon(markerIcon);
 }
 
-/**
- * Close project popup and reset standalone project marker opacities
- * This extends the base cleanup with marker opacity reset specific to standalone markers
- */
+/** Close the project popup and reset all marker opacities. */
 export function closeProjectPopupAndResetMarkers() {
   cleanupProjectInfoTeleportTarget();
-  updateStandaloneProjectMarkerOpacities(null); // Reset marker opacities when popup closes
+  updateStandaloneProjectMarkerOpacities(null);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

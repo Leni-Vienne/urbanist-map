@@ -114,7 +114,7 @@
         </div>
       </div>
 
-      <!-- Project fields + overlay section — wheel.stop prevents map zoom while scrolling -->
+      <!-- Project fields + overlay section, wheel.stop prevents map zoom while scrolling -->
       <div class="px-4 pt-3 pb-4 overflow-y-auto" @wheel.stop>
         <ProjectMetadataCard
           :project="project"
@@ -234,16 +234,19 @@ import { computed } from "vue";
 import { projectPopupPlacement, projectPopupMaxHeight } from "@/services/map/popupState";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { storeToRefs } from "pinia";
-import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import type { OverlayObject, Project } from "@/types/index";
+import { useAuthStore } from "@/stores/authStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
 const { t: $t } = useI18n();
 const toast = useToast();
 const { isMobile } = useIsMobile();
+const pendingModsStore = usePendingModificationsStore();
 
 interface Props {
   project: Project;
@@ -287,10 +290,6 @@ const wikidataId = computed(() => {
   return typeof id === "string" ? id : null;
 });
 const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
-
-// Import pending modifications store for unified change detection
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-const pendingModsStore = usePendingModificationsStore();
 
 function handleDrawShapesClick() {
   if (isMobile.value) {

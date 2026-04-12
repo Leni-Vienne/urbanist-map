@@ -2,9 +2,9 @@
  * Snapshot stats for the projects table, with before/after diff support.
  *
  * Usage:
- *   bun run back/src/scripts/projects-stats.ts          — print current stats
- *   bun run back/src/scripts/projects-stats.ts save     — save snapshot to disk
- *   bun run back/src/scripts/projects-stats.ts diff     — diff current state against saved snapshot
+ *   bun run back/src/scripts/projects-stats.ts         , print current stats
+ *   bun run back/src/scripts/projects-stats.ts save    , save snapshot to disk
+ *   bun run back/src/scripts/projects-stats.ts diff    , diff current state against saved snapshot
  */
 
 import { db } from "../database";
@@ -234,7 +234,7 @@ function printDistribution(title: string, dist: Distribution, total: number) {
 
 function printSnapshot(s: Snapshot) {
   console.log("=".repeat(60));
-  console.log("  projects table snapshot — " + s.timestamp);
+  console.log("  projects table snapshot, " + s.timestamp);
   console.log("=".repeat(60));
 
   console.log(`\nTOTAL ROWS: ${s.total}`);

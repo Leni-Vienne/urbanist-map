@@ -75,7 +75,7 @@ OUTPUT_DIR="${OUTPUT_DIR_OVERRIDE:-$(dirname "$SOURCE_ABS")}"
 
 if [[ "$SOURCE_ABS" == /mnt/* ]]; then
     echo ""
-    echo "Note: source file is on a Windows drive. Processing in-place — this works but WSL /mnt/ I/O is slow."
+    echo "Note: source file is on a Windows drive. Processing in-place, this works but WSL /mnt/ I/O is slow."
     echo "      For better performance, copy the file to the WSL filesystem first (stored on C: by default)."
     echo ""
 fi
@@ -106,9 +106,9 @@ T0=$SECONDS
 
 echo ""
 echo "[$(ts)] PHASE 1 done in $(elapsed $((SECONDS - T0)))"
-echo "  $COMBINED_PBF  — $(filesize "$COMBINED_PBF")"
-echo "  $WAYS_PBF      — $(filesize "$WAYS_PBF")"
-echo "  $AREAL_PBF     — $(filesize "$AREAL_PBF")"
+echo "  $COMBINED_PBF , $(filesize "$COMBINED_PBF")"
+echo "  $WAYS_PBF     , $(filesize "$WAYS_PBF")"
+echo "  $AREAL_PBF    , $(filesize "$AREAL_PBF")"
 
 # ---------------------------------------------------------------------------
 echo ""
@@ -139,13 +139,13 @@ wait $PID_AREAL  || { echo "[$(ts)] ERROR: areal extraction failed  (PID $PID_AR
 
 echo ""
 echo "[$(ts)] PHASE 2 done in $(elapsed $((SECONDS - T1)))"
-echo "  $LINEAR_GEOJSON  — $(filesize "$LINEAR_GEOJSON")"
-echo "  $AREAL_GEOJSON   — $(filesize "$AREAL_GEOJSON")"
+echo "  $LINEAR_GEOJSON , $(filesize "$LINEAR_GEOJSON")"
+echo "  $AREAL_GEOJSON  , $(filesize "$AREAL_GEOJSON")"
 
 # ---------------------------------------------------------------------------
 echo ""
 echo "=========================================================="
-echo "[$(ts)] ALL DONE — total: $(elapsed $((SECONDS - T_TOTAL)))"
+echo "[$(ts)] ALL DONE, total: $(elapsed $((SECONDS - T_TOTAL)))"
 echo "=========================================================="
 
 exit $FAILED

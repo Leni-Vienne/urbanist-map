@@ -6,6 +6,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
+import { t } from "@/locales";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
 import { requestScrollTo } from "@/services/layout/accordionState";
@@ -14,24 +15,21 @@ import { requestScrollTo } from "@/services/layout/accordionState";
 type NavigableOverlay = OverlayForModeration | LatestContribution;
 
 /**
- * Check if current user can moderate a given country
- * Admins can moderate all countries, moderators only their assigned ones
+ * Check if the current user can moderate a given country.
+ * Admins can moderate all countries; moderators only their assigned ones.
  */
 export function canModerateCountry(countryCode: string): boolean {
   const authStore = useAuthStore();
   const user = authStore.user;
   if (!user) return false;
-  // Only role='admin' makes you an admin
   if (user.role === "admin") {
     return true;
   }
-  // Country moderators must have the country in their array
   return user.moderatedCountries?.includes(countryCode) ?? false;
 }
 
 /**
- * Auto-select a country in the moderation store (if not already selected)
- * Called when clicking a contribution in moderation mode
+ * Auto-select a country in the moderation store if not already selected.
  */
 export function syncModerationCountry(countryCode: string): void {
   const moderationStore = useModerationStore();
@@ -41,19 +39,15 @@ export function syncModerationCountry(countryCode: string): void {
 }
 
 /**
- * Shared composable for handling overlay clicks from moderation/contribution panels
- * Handles pending overlay visibility and proper navigation flow
+ * Shared composable for handling overlay clicks from moderation/contribution panels.
  */
 export function useOverlayClickHandler() {
   const toast = useToast();
 
   /**
-   * Navigate to an overlay, handling all necessary state changes
-   * - Switches to edit mode if in view mode (required to see pending overlays)
-   * - In moderation mode, don't switch modes (pending overlays already visible)
-   * - Clears city cache to force reload
-   * - Uses city-aware navigation when possible for better UX
-   * @param autoSelect - Whether to auto-select overlay after navigation (default: true)
+   * Navigate to an overlay, handling all necessary state changes.
+   * Switches to edit mode when in view mode (required to see pending overlays).
+   * In moderation mode, pending overlays are already visible so mode is kept.
    */
   async function handleOverlayClickNavigation(
     overlay: NavigableOverlay,
@@ -77,8 +71,8 @@ export function useOverlayClickHandler() {
         if (!canModerateCountry(overlay.countryCode)) {
           toast.add({
             severity: "warn",
-            summary: "Moderation",
-            detail: "You do not have permission to moderate this country.",
+            summary: t("moderation.title"),
+            detail: t("moderation.noAccessToThisCountry"),
             life: 4000,
           });
           return;
@@ -96,8 +90,8 @@ export function useOverlayClickHandler() {
         if (overlay.status === "pending") {
           toast.add({
             severity: "info",
-            summary: "Switched to Edit Mode",
-            detail: "Pending overlays are only visible in edit mode",
+            summary: t("moderation.switchedToEditMode"),
+            detail: t("moderation.pendingOverlaysOnlyInEditMode"),
             life: 3000,
           });
         }
@@ -119,8 +113,8 @@ export function useOverlayClickHandler() {
       console.error("Failed to navigate to overlay:", error);
       toast.add({
         severity: "error",
-        summary: "Navigation Failed",
-        detail: error instanceof Error ? error.message : "Failed to navigate to overlay",
+        summary: t("location.navigationFailed"),
+        detail: error instanceof Error ? error.message : t("overlay.failedToNavigate"),
         life: 3000,
       });
     }
@@ -132,8 +126,8 @@ export function useOverlayClickHandler() {
 }
 
 /**
- * Handle navigation for replaced or rejected overlays
- * Tries to use overlay centroid from store, falls back to project center
+ * Navigate to a replaced or rejected overlay.
+ * Tries to use the overlay centroid from the store, then falls back to the project centre.
  */
 async function navigateToReplacedOrRejectedOverlay(
   overlay: NavigableOverlay,

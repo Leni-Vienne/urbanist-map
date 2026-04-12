@@ -69,7 +69,7 @@ export async function checkPendingLimitForNewContribution(
         return;
       }
       // If it's NOT pending (e.g. rejected or approved), and we're submitting it
-      // It will become 'pending' again, so we must check the limit!
+      // It will become 'pending' again, so we must check the limit
     }
   }
 

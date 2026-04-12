@@ -116,7 +116,7 @@ function extractTags(props: Record<string, unknown>): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Date parsing — OSM dates can be "YYYY", "YYYY-MM", or "YYYY-MM-DD"
+// Date parsing, OSM dates can be "YYYY", "YYYY-MM", or "YYYY-MM-DD"
 // ---------------------------------------------------------------------------
 function parseOsmDate(value: unknown): { date: Date; precision: "year" | "month" | "day" } | null {
   if (!value || typeof value !== "string") return null;
@@ -146,7 +146,7 @@ function parseOsmDate(value: unknown): { date: Date; precision: "year" | "month"
 }
 
 // ---------------------------------------------------------------------------
-// Geometry centroid — average of all coordinates in any GeoJSON geometry
+// Geometry centroid, average of all coordinates in any GeoJSON geometry
 // ---------------------------------------------------------------------------
 function flatCoords(geom: GeoJSON.Geometry): number[][] {
   switch (geom.type) {
@@ -229,6 +229,124 @@ async function resolveCountryCodes(
   }
 
   return results;
+}
+
+// ---------------------------------------------------------------------------
+// Batch upsert helpers
+// ---------------------------------------------------------------------------
+
+const TRANSIENT_PG_CODES = new Set(["57P03", "08006", "08001", "08004"]);
+
+function isTransient(err: unknown): boolean {
+  const candidates = [err, (err as Record<string, unknown> | null)?.cause];
+  return candidates.some(
+    (e) =>
+      typeof e === "object" &&
+      e !== null &&
+      "errno" in e &&
+      TRANSIENT_PG_CODES.has((e as Record<string, string | undefined>).errno ?? ""),
+  );
+}
+
+async function waitForDb(maxWaitMs = 120_000): Promise<void> {
+  const start = Date.now();
+  let delay = 2_000;
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise((r) => setTimeout(r, delay));
+    try {
+      await db.execute(sql`SELECT 1`);
+      console.log("Database connection restored.");
+      return;
+    } catch {
+      console.log(`Database still unavailable, retrying in ${delay / 1000}s...`);
+      delay = Math.min(delay * 2, 30_000);
+    }
+  }
+  throw new Error("Database did not become available within the timeout period.");
+}
+
+// Flush a batch of rows to the database via a single multi-row upsert.
+// Falls back to individual inserts if the batch fails (e.g. bad geometry on one row).
+// Retries the whole batch if a transient connection error is detected.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
+  if (batch.length === 0) return { ok: 0, fail: 0 };
+  const conflictSet = {
+    name: sql`EXCLUDED.name`,
+    description: sql`EXCLUDED.description`,
+    cityId: sql`EXCLUDED.city_id`,
+    countryCode: sql`EXCLUDED.country_code`,
+    timelineStatus: sql`EXCLUDED.timeline_status`,
+    externalProperties: sql`EXCLUDED.external_properties`,
+    externalLastModified: sql`EXCLUDED.external_last_modified`,
+    lastImportedAt: sql`EXCLUDED.last_imported_at`,
+    tags: sql`EXCLUDED.tags`,
+    sourceUrl: sql`EXCLUDED.source_url`,
+    startDate: sql`EXCLUDED.start_date`,
+    startDatePrecision: sql`EXCLUDED.start_date_precision`,
+    endDate: sql`EXCLUDED.end_date`,
+    endDatePrecision: sql`EXCLUDED.end_date_precision`,
+    lat: sql`EXCLUDED.lat`,
+    lng: sql`EXCLUDED.lng`,
+    geometry: sql`EXCLUDED.geometry`,
+    centerCoordinate: sql`EXCLUDED.center_coordinate`,
+    // Reset geometry_size_m to NULL when geometry changes so it gets recomputed below.
+    // Keeps the existing value when geometry is unchanged to avoid redundant PostGIS work.
+    geometrySizeM: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
+  };
+  try {
+    await db
+      .insert(projects)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: [projects.importSourceId, projects.externalId],
+        set: conflictSet,
+      });
+    return { ok: batch.length, fail: 0 };
+  } catch (batchErr) {
+    if (isTransient(batchErr)) {
+      console.warn("Transient DB error on batch, waiting for recovery...");
+      await waitForDb();
+      return flushBatch(batch);
+    }
+    // Batch failed, fall back to individual inserts so one bad row doesn't discard the rest
+    let ok = 0;
+    let fail = 0;
+    for (const row of batch) {
+      try {
+        await db
+          .insert(projects)
+          .values(row)
+          .onConflictDoUpdate({
+            target: [projects.importSourceId, projects.externalId],
+            set: conflictSet,
+          });
+        ok++;
+      } catch (rowErr) {
+        if (isTransient(rowErr)) {
+          console.warn("Transient DB error on row, waiting for recovery...");
+          await waitForDb();
+          try {
+            await db
+              .insert(projects)
+              .values(row)
+              .onConflictDoUpdate({
+                target: [projects.importSourceId, projects.externalId],
+                set: conflictSet,
+              });
+            ok++;
+          } catch (retryErr) {
+            console.error(`Failed to insert/update row after retry:`, retryErr);
+            fail++;
+          }
+        } else {
+          console.error(`Failed to insert/update row:`, rowErr);
+          fail++;
+        }
+      }
+    }
+    return { ok, fail };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -323,123 +441,8 @@ async function main() {
     const countryCodes = await resolveCountryCodes(featureCentroids);
     console.log(`Country code resolution complete.`);
 
-    // Transient Postgres error codes that warrant a retry (DB not yet ready)
-    const TRANSIENT_PG_CODES = new Set(["57P03", "08006", "08001", "08004"]);
-
-    async function waitForDb(maxWaitMs = 120_000): Promise<void> {
-      const start = Date.now();
-      let delay = 2_000;
-      while (Date.now() - start < maxWaitMs) {
-        await new Promise((r) => setTimeout(r, delay));
-        try {
-          await db.execute(sql`SELECT 1`);
-          console.log("Database connection restored.");
-          return;
-        } catch {
-          console.log(`Database still unavailable, retrying in ${delay / 1000}s...`);
-          delay = Math.min(delay * 2, 30_000);
-        }
-      }
-      throw new Error("Database did not become available within the timeout period.");
-    }
-
-    function isTransient(err: unknown): boolean {
-      const candidates = [err, (err as Record<string, unknown> | null)?.cause];
-      return candidates.some(
-        (e) =>
-          typeof e === "object" &&
-          e !== null &&
-          "errno" in e &&
-          TRANSIENT_PG_CODES.has((e as Record<string, string | undefined>).errno ?? ""),
-      );
-    }
-
-    // Flush a batch of rows to the database via a single multi-row upsert.
-    // Falls back to individual inserts if the batch fails (e.g. bad geometry on one row).
-    // Retries the whole batch if a transient connection error is detected.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
-      if (batch.length === 0) return { ok: 0, fail: 0 };
-      const conflictSet = {
-        name: sql`EXCLUDED.name`,
-        description: sql`EXCLUDED.description`,
-        cityId: sql`EXCLUDED.city_id`,
-        countryCode: sql`EXCLUDED.country_code`,
-        timelineStatus: sql`EXCLUDED.timeline_status`,
-        externalProperties: sql`EXCLUDED.external_properties`,
-        externalLastModified: sql`EXCLUDED.external_last_modified`,
-        lastImportedAt: sql`EXCLUDED.last_imported_at`,
-        tags: sql`EXCLUDED.tags`,
-        sourceUrl: sql`EXCLUDED.source_url`,
-        startDate: sql`EXCLUDED.start_date`,
-        startDatePrecision: sql`EXCLUDED.start_date_precision`,
-        endDate: sql`EXCLUDED.end_date`,
-        endDatePrecision: sql`EXCLUDED.end_date_precision`,
-        lat: sql`EXCLUDED.lat`,
-        lng: sql`EXCLUDED.lng`,
-        geometry: sql`EXCLUDED.geometry`,
-        centerCoordinate: sql`EXCLUDED.center_coordinate`,
-        // Reset geometry_size_m to NULL when geometry changes so it gets recomputed below.
-        // Keeps the existing value when geometry is unchanged to avoid redundant PostGIS work.
-        geometrySizeM: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
-      };
-      try {
-        await db
-          .insert(projects)
-          .values(batch)
-          .onConflictDoUpdate({
-            target: [projects.importSourceId, projects.externalId],
-            set: conflictSet,
-          });
-        return { ok: batch.length, fail: 0 };
-      } catch (batchErr) {
-        if (isTransient(batchErr)) {
-          console.warn("Transient DB error on batch, waiting for recovery...");
-          await waitForDb();
-          return flushBatch(batch);
-        }
-        // Batch failed — fall back to individual inserts so one bad row doesn't discard the rest
-        let ok = 0;
-        let fail = 0;
-        for (const row of batch) {
-          try {
-            await db
-              .insert(projects)
-              .values(row)
-              .onConflictDoUpdate({
-                target: [projects.importSourceId, projects.externalId],
-                set: conflictSet,
-              });
-            ok++;
-          } catch (rowErr) {
-            if (isTransient(rowErr)) {
-              console.warn("Transient DB error on row, waiting for recovery...");
-              await waitForDb();
-              try {
-                await db
-                  .insert(projects)
-                  .values(row)
-                  .onConflictDoUpdate({
-                    target: [projects.importSourceId, projects.externalId],
-                    set: conflictSet,
-                  });
-                ok++;
-              } catch (retryErr) {
-                console.error(`Failed to insert/update row after retry:`, retryErr);
-                fail++;
-              }
-            } else {
-              console.error(`Failed to insert/update row:`, rowErr);
-              fail++;
-            }
-          }
-        }
-        return { ok, fail };
-      }
-    }
-
     // Build rows and flush in batches.
-    // geometrySizeM is intentionally omitted here — it is computed in a single bulk UPDATE after all
+    // geometrySizeM is intentionally omitted here, it is computed in a single bulk UPDATE after all
     // files are processed, which avoids parsing geometryJson twice per row and lets PostGIS pipeline
     // the geography computations across all rows in one pass.
     // any[] because SQL<unknown> expressions for geometry/centerCoordinate are valid at runtime
@@ -600,7 +603,7 @@ async function main() {
   // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
   console.log(`\nComputing geometry sizes for all imported rows (batched)...`);
   try {
-    // Fetch IDs of all rows that need updating. This is cheap — no geography ops yet.
+    // Fetch IDs of all rows that need updating. This is cheap, no geography ops yet.
     const idsToUpdate = (
       await db.execute<{ id: string }>(sql`
         SELECT id

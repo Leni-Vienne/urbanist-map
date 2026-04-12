@@ -2,7 +2,7 @@
 // Used by both viewport-based loading (useViewportContentManager) and
 // navigation-triggered loading (cityDataRenderer / projectNavigation).
 // This module has no circular dependency risk: it only imports from stores,
-// map primitives, and utility services — none of which import from this file.
+// map primitives, and utility services, none of which import from this file.
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -18,10 +18,7 @@ import {
 } from "@/utils/typeFactories";
 
 /**
- * Add standalone project markers for projects that have no visible overlays.
- * Unified version of the near-identical functions that existed in both
- * useViewportContentManager and cityDataRenderer.
- * Also unifies the 3-branch overlayCount type narrowing into one place.
+ * Add standalone project markers for projects with no visible overlays.
  */
 export function processStandaloneMarkers(
   standaloneProjects: StandaloneProject[],
@@ -57,9 +54,7 @@ export function processStandaloneMarkers(
   }
 }
 
-/**
- * Helper to hydrate the store with a list of overlays and update their reactive properties
- */
+/** Hydrate the store with a list of overlays and update reactive properties. */
 export function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   const updates: Record<string, Partial<OverlayData>> = {};
@@ -83,10 +78,6 @@ export function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   }
 }
 
-/**
- * Shared utility to hydrate the Pinia store with fresh backend data.
- * Used by both full overlay rendering and marker-only rendering.
- */
 function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -96,11 +87,7 @@ function hydrateStoreWithOverlays(overlaysData: OverlayData[]): void {
   updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
 }
 
-/**
- * Render full overlay images (high zoom path).
- * Hydrates the store with fresh backend data, updates marker colors, then
- * delegates actual positioning to the pruning service.
- */
+/** Hydrate the store then run the viewport render loop to position overlay images. */
 export function renderFullOverlays(overlaysData: OverlayData[]): void {
   hydrateStoreWithOverlays(overlaysData);
 

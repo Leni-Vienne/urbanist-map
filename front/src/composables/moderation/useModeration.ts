@@ -18,7 +18,7 @@ import { t } from "@/locales";
 import type { Project } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
 
-// Result types for approval operations
+// Result type for approval operations
 type ApprovalResult = {
   success: boolean;
   error?: "not_found" | "version_conflict" | "unknown";
@@ -80,14 +80,13 @@ export function useModeration() {
       expectedVersion: number;
       status: "approved" | "rejected";
       handleReplacementConflicts?: boolean;
-      rejectionReason?: string; // New parameter for rejection feedback
-      rejectAllOverlays?: boolean; // New parameter for cascading rejection to overlays
+      rejectionReason?: string;
+      rejectAllOverlays?: boolean;
     }) => Promise<{ success: boolean }>,
     handleReplacementConflicts?: boolean,
-    rejectionReason?: string, // Pass rejection reason to API
-    rejectAllOverlays?: boolean, // Pass cascade flag to API
+    rejectionReason?: string,
+    rejectAllOverlays?: boolean,
   ): Promise<ApprovalResult> {
-    // Find item by ID and validate existence
     const item = items.find((i) => i.id === id);
     if (!item) {
       return {
@@ -97,13 +96,11 @@ export function useModeration() {
       };
     }
 
-    // Derive error messages from itemType and status
     const failureMessageKey =
       status === "approved"
         ? `moderation.${itemType}ApprovalFailed`
         : `moderation.${itemType}RejectionFailed`;
 
-    // Use version-aware approval endpoint with error handling
     const result = await withErrorHandling(
       async () =>
         apiCall({
@@ -111,8 +108,8 @@ export function useModeration() {
           expectedVersion: item.version,
           status,
           handleReplacementConflicts,
-          rejectionReason, // Pass rejection reason to backend
-          rejectAllOverlays, // Pass cascade flag to backend
+          rejectionReason,
+          rejectAllOverlays,
         }),
       { errorMessage: `${t(failureMessageKey)}. Please try again.` },
     );
@@ -126,7 +123,6 @@ export function useModeration() {
     }
 
     if (!result.success) {
-      // Handle version conflicts - refresh data and return conflict info
       resetModerationLoaded();
       await fetchPendingSubmissions();
       return {
@@ -144,17 +140,15 @@ export function useModeration() {
     };
   }
 
-  // Helper function to set overlay approval status using the generic handler
   async function setOverlayStatus(
     id: string,
     status: "approved" | "rejected",
     handleReplacementConflicts?: boolean,
-    rejectionReason?: string, // New parameter for rejection feedback
+    rejectionReason?: string,
   ): Promise<ApprovalResult> {
     const overlayStore = useOverlayStore();
     const mapStore = useMapStore();
 
-    // Get the overlay's replacesOverlayId before approval (for cleanup after)
     const overlay = overlays.value.find((o) => o.id === id);
     const replacesOverlayId = overlay?.replacesOverlayId;
 
@@ -165,31 +159,22 @@ export function useModeration() {
       overlays.value,
       trpc.moderation.setOverlayApprovalStatusWithVersion.mutate,
       handleReplacementConflicts,
-      rejectionReason, // Pass rejection reason through
+      rejectionReason,
     );
 
-    // Update overlay status in overlay store if approval succeeded and overlay is currently rendered
     if (result.success) {
       const overlayObject = overlayStore.overlays[id];
 
       if (overlayObject) {
-        // Update the status in the overlay store
         overlayStore.updateOverlay(id, { status });
-
-        // Update marker tooltip to reflect new status
         updateMarkerTooltip(overlayObject);
-
-        // Update all marker colors to reflect status changes
         updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
       }
 
-      // If this was a replacement overlay approval with conflict handling, remove the original and competing overlays from map
+      // If a replacement overlay was approved, remove the original and any competing replacements
       if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
-        // Remove the original overlay that was replaced
         removeOverlayFromMapAndStore(replacesOverlayId);
 
-        // Remove competing replacement overlays from the map
-        // Find all overlays that tried to replace the same original overlay
         const competingReplacements = Object.values(overlayStore.overlays).filter(
           (o) => o.replacesOverlayId === replacesOverlayId && o.id !== id,
         );
@@ -221,9 +206,6 @@ export function useModeration() {
 
     if (!user) return;
 
-    // Sync moderation store country with map store country on mount
-    // This ensures we don't use stale state from previous sessions
-    // BUT only if the map store country is valid for this user
     const mapCountryCode = mapStore.selectedCountryCode;
     const canAccessMapCountry =
       !user.moderatedCountries ||
@@ -232,8 +214,7 @@ export function useModeration() {
     if (mapCountryCode && canAccessMapCountry) {
       moderationStore.setSelectedCountryCode(mapCountryCode);
     }
-    // If map country is null (global view), we preserve the existing moderation store selection
-    // This allows users to return to their previous moderation context
+    // Preserve the existing moderation store country if the map is in global view
 
     const isAdmin = user.role === "admin";
     const hasSelectedCountry = moderationStore.selectedCountryCode !== null;
@@ -244,16 +225,14 @@ export function useModeration() {
     }
   });
 
-  // Helper function to set project approval status using the generic handler
   async function setProjectStatus(
     id: string,
     status: "approved" | "rejected",
-    rejectionReason?: string, // New parameter for rejection feedback
-    rejectAllOverlays?: boolean, // New parameter for cascading rejection
+    rejectionReason?: string,
+    rejectAllOverlays?: boolean,
   ): Promise<ApprovalResult> {
     const mapStore = useMapStore();
 
-    // Get project data BEFORE approval (it will be removed from pending list after)
     const projectBeforeApproval = projects.value.find((p) => p.id === id);
 
     const result = await setApprovalStatus(
@@ -262,15 +241,12 @@ export function useModeration() {
       "project",
       projects.value,
       trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
-      undefined, // HandleReplacementConflicts not used for projects
-      rejectionReason, // Pass rejection reason through
-      rejectAllOverlays, // Pass cascade flag through
+      undefined,
+      rejectionReason,
+      rejectAllOverlays,
     );
 
-    // Update marker visuals if project approval succeeded and project has a standalone marker
     if (result.success && projectBeforeApproval) {
-      // Update marker color to reflect new status (pending -> approved/rejected)
-      // Use unknown as intermediate type since moderation project may not have all Project fields
       // oxlint-disable-next-line no-unsafe-type-assertion
       const projectWithNewStatus = createProjectObject({
         ...projectBeforeApproval,
@@ -278,7 +254,6 @@ export function useModeration() {
       } as unknown as Partial<Project>);
       updateStandaloneProjectMarkerColor(id, projectWithNewStatus);
 
-      // Update marker tooltip to reflect new status
       const marker = getStandaloneProjectMarkerByProjectId(id);
       if (marker) {
         updateStandaloneProjectMarkerTooltip(marker, projectWithNewStatus, mapStore.mode);

@@ -1,6 +1,6 @@
 // Type definitions for globalThis extensions
 declare global {
-  // Cloudflareturnstile types
+  // Cloudflare Turnstile types
   var turnstile:
     | {
         render: (container: string | HTMLElement, options: any) => string;

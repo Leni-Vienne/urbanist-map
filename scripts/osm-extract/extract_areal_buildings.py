@@ -34,8 +34,7 @@ OUTPUT_FILE = _args.output
 
 URL_RE = re.compile(r'https?://\S+')
 
-# Tags that typically indicate a trivial/small building, even if large,
-# we might want to skip them if they are just sheds. But we rely primarily on area.
+# Tags that indicate small/residential structures filtered out by type regardless of area.
 EXCLUDE_BUILDINGS = {
     'house', 'detached', 'semidetached_house', 'garage', 'garages',
     'shed', 'hut', 'cabin', 'roof', 'terrace', 'carport'
@@ -68,7 +67,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         super().__init__()
         self.wkbfab = osmium.geom.WKBFactory()
         self.features = []
-        self.geometries = {}  # Store shapely geometries by feature id for containment check
+        self.geometries = {}  # feature_id -> shapely geometry, for containment checks
 
     def area(self, a):
         tags = {t.k: t.v for t in a.tags}
@@ -80,13 +79,11 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         proposed = tags.get('proposed', '')
         planned = tags.get('planned', '')
 
-        # Determine if this is a park/green space under construction or planned
         is_park_construction = (
             leisure in ('park', 'garden', 'playground', 'recreation_ground', 'sports_centre') and
             (construction or proposed or planned)
         )
 
-        # Determine if this is a building/development under construction or planned
         is_building_construction = (
             building in ('construction', 'proposed', 'planned') or
             landuse == 'construction' or
@@ -101,7 +98,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         if not is_park_construction and not is_building_construction:
             return
 
-        # Fast exclusion of obviously small residential stuff based on target tag
+        # Exclude small residential building types
         target_use = tags.get('construction', tags.get('proposed', tags.get('planned', tags.get('building:use', ''))))
         if target_use in EXCLUDE_BUILDINGS:
             return
@@ -126,27 +123,22 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         except Exception:
             return
 
-        # Calculate approximate area in square meters
         lat = geom.centroid.y
         area_m2 = geom.area * (111320**2) * math.cos(math.radians(lat))
 
-        # Determine transport_type and apply size thresholds
         if is_park_construction:
-            # Parks can be smaller
             if area_m2 < 200:
                 return
-            transport_type = 'park'
+            feature_kind = 'park'
         else:
-            # Buildings/development areas need to be larger
             if area_m2 < 400:
                 return
-            transport_type = 'building'
+            feature_kind = 'building'
 
-        # Build feature properties
         props = dict(tags)
-        props['transport_type'] = transport_type
+        props['transport_type'] = feature_kind
 
-        # construction= is the strongest signal — check it first
+        # construction= is the strongest signal, check it first
         if construction and construction not in ('yes', 'no'):
             status_check = 'under_construction'
         elif building == 'construction' or tags.get('landuse') == 'construction':
@@ -169,14 +161,10 @@ class ArealExtractionHandler(osmium.SimpleHandler):
             if url and not props.get('source', '').strip():
                 props['source'] = url
 
-        # Create geojson feature
-        # Pyosmium prefixes area ids with 1 (way) or 2 (relation). 
-        # a.orig_id() gives the true OSM ID.
+        # Pyosmium prefixes area ids: 1 for ways, 2 for relations; a.orig_id() gives the true OSM ID.
         feature_id = f"{'way' if a.from_way() else 'relation'}/{a.orig_id()}"
         props['osm_ids'] = [feature_id]
         props['area_sqm'] = round(area_m2)
-        
-        # Extract last modified date from OSM
         if hasattr(a, 'timestamp') and a.timestamp:
             props['osm_last_modified'] = a.timestamp.isoformat()
 
@@ -186,8 +174,6 @@ class ArealExtractionHandler(osmium.SimpleHandler):
             'geometry': mapping(geom),
             'properties': props
         })
-        
-        # Store geometry for containment check
         self.geometries[feature_id] = geom
 
 
@@ -201,7 +187,6 @@ def filter_nested_buildings(features, geometries):
     """
     from shapely.strtree import STRtree
     
-    # Only process buildings (not parks)
     buildings = [f for f in features if f['properties'].get('transport_type') == 'building']
     non_buildings = [f for f in features if f['properties'].get('transport_type') != 'building']
     
@@ -222,8 +207,7 @@ def filter_nested_buildings(features, geometries):
         return features, {'checked': 0, 'removed_unnamed_containers': 0, 'removed_contained_buildings': 0}
     
     tree = STRtree(building_geoms)
-    
-    # Track which features to remove
+
     to_remove = set()
     removed_unnamed_containers = 0
     removed_contained_buildings = 0
@@ -238,9 +222,8 @@ def filter_nested_buildings(features, geometries):
         has_name = bool(props.get('name', '').strip())
         area = props.get('area_sqm', 0)
         
-        # Find potential containments (features this one might contain)
         candidates = tree.query(geom)
-        
+
         for j in candidates:
             if i == j or j in to_remove:
                 continue
@@ -305,7 +288,7 @@ def main():
     except Exception as e:
         print(f"[areal] [{_ts()}] Error reading file: {e}")
         return
-    print(f"[areal] [{_ts()}] Read done in {_fmt(time.time() - t)} — {len(handler.features):,} features found")
+    print(f"[areal] [{_ts()}] Read done in {_fmt(time.time() - t)}, {len(handler.features):,} features found")
 
     print(f"\n[areal] [{_ts()}] Filtering nested buildings...")
     t = time.time()

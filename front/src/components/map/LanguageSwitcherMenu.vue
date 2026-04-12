@@ -1,6 +1,5 @@
 ﻿<template>
   <div :class="{ 'w-full': displayMode === 'list-item' }">
-    <!-- Language Menu Toggle Button -->
     <button
       v-if="displayMode === 'icon'"
       type="button"
@@ -26,7 +25,6 @@
       <span class="ml-auto text-sm text-muted-color">{{ currentLocale.toUpperCase() }}</span>
     </button>
 
-    <!-- Language selection popover -->
     <Popover ref="languagePopover">
       <div class="flex flex-col w-40">
         <button
@@ -84,19 +82,16 @@ onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
 });
 
-// Close menu on window resize
 function handleResize() {
   if (languagePopover.value?.visible) {
     languagePopover.value.hide();
   }
 }
 
-// Toggle language menu visibility using Popover
 function toggleMenu(event: Event) {
   languagePopover.value.toggle(event);
 }
 
-// Change language with async loading and persist preference
 async function changeLocale(newLocale: Locale): Promise<void> {
   if (isLoading.value || newLocale === currentLocale.value) return;
 
@@ -104,7 +99,6 @@ async function changeLocale(newLocale: Locale): Promise<void> {
   loadingLocale.value = newLocale;
 
   try {
-    // Load locale messages if not already loaded
     const loaded = await loadAndSetLocale(newLocale);
     if (!loaded) {
       console.error(`Failed to load locale: ${newLocale}`);
@@ -116,7 +110,6 @@ async function changeLocale(newLocale: Locale): Promise<void> {
     saveLocale(newLocale);
     languagePopover.value.hide();
 
-    // Update HTML lang attribute and translation settings intelligently
     updateTranslationSettings(newLocale);
   } finally {
     isLoading.value = false;

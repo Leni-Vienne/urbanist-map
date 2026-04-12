@@ -208,13 +208,11 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc, type RouterOutput } from "@/client";
 
-// Use tRPC types from RouterOutput
 type ReportedUser = RouterOutput["moderation"]["getReportedUsers"][number];
 
 const { t } = useI18n();
 const toast = useToast();
 
-// State with proper tRPC types
 const reportedUsers = ref<ReportedUser[]>([]);
 const isLoading = ref(true);
 const isPruning = ref(false);
@@ -224,7 +222,6 @@ const banReason = ref("");
 const deleteContent = ref(false);
 const isBanning = ref(false);
 
-// Run scheduled image deletions on demand
 async function handlePruneImages() {
   isPruning.value = true;
   try {
@@ -251,7 +248,6 @@ async function handlePruneImages() {
   }
 }
 
-// Load reported users
 async function loadReportedUsers() {
   try {
     isLoading.value = true;
@@ -268,7 +264,6 @@ async function loadReportedUsers() {
   }
 }
 
-// Clear reports for a user
 async function clearReports(user: ReportedUser) {
   try {
     await trpc.moderation.clearUserReports.mutate({ userId: user.userId });
@@ -280,7 +275,6 @@ async function clearReports(user: ReportedUser) {
       }),
       life: 5000,
     });
-    // Reload the list
     await loadReportedUsers();
   } catch (error) {
     console.error("Error clearing reports:", error);
@@ -292,7 +286,6 @@ async function clearReports(user: ReportedUser) {
   }
 }
 
-// Open ban dialog
 function openBanDialog(user: ReportedUser) {
   selectedUser.value = user;
   banReason.value = "";
@@ -300,7 +293,6 @@ function openBanDialog(user: ReportedUser) {
   showBanDialog.value = true;
 }
 
-// Close ban dialog
 function closeBanDialog() {
   showBanDialog.value = false;
   selectedUser.value = null;
@@ -308,7 +300,6 @@ function closeBanDialog() {
   deleteContent.value = false;
 }
 
-// Confirm ban
 async function confirmBan() {
   if (!selectedUser.value || !banReason.value.trim()) return;
 
@@ -343,7 +334,6 @@ async function confirmBan() {
   }
 }
 
-// Load data on mount
 onMounted(() => {
   loadReportedUsers();
 });

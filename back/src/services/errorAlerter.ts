@@ -21,7 +21,6 @@ class ErrorAlerter {
   private lastAlertTime = 0;
   private intervalId?: NodeJS.Timeout;
 
-  // Add error to circular buffer
   addError(error: ErrorEntry): void {
     this.errors.push(error);
     // Keep only last 100 errors to prevent memory leak

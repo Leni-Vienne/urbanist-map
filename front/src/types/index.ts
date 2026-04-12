@@ -65,7 +65,7 @@ declare module "leaflet" {
 
   interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
     actions?: DistortableAction[];
-    // resizeRotate is the most conveniant mode (tool) for the site
+    // resizeRotate is the most convenient mode for this site
     mode:
       | "drag"
       | "scale"
@@ -114,7 +114,7 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   // Computed fields for all contexts
   city: DBCity | null;
   overlayIds: string[];
-  // Always an array on the frontend — null coerced to [] at DB boundary
+  // Always an array on the frontend, null coerced to [] at DB boundary
   tags: string[];
   // Joined import source details (null for user-created projects)
   importSource?: DBImportSource | null;
@@ -250,8 +250,6 @@ export type ProjectForModeration = Pick<
   overlayCount?: number;
   geometry?: GeoJSON.GeometryCollection | null;
 };
-
-// PendingOverlay is defined in types/api.ts - import from there if needed
 
 // Centralized UserContribution types handling local (nullable status) and backend data
 type BackendUserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];

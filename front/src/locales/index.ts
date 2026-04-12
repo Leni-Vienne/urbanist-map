@@ -16,16 +16,13 @@ type I18nInstance = I18n<
   false
 >;
 
-// Reference to the i18n instance, set during app initialization
 let i18nInstance: I18nInstance | null = null;
 
-// Set the i18n instance reference for use in async loading
 export function setI18nInstance(instance: I18nInstance): void {
   i18nInstance = instance;
 }
 
 // Global translation function for use outside of Vue components
-// Supports interpolation values for pluralization, named parameters, etc.
 export function t(key: string, values?: Record<string, unknown>): string {
   if (!i18nInstance) {
     return key;
@@ -34,7 +31,6 @@ export function t(key: string, values?: Record<string, unknown>): string {
 }
 
 // Lazy-load locale messages via dynamic import for chunk splitting.
-// Only the active locale is fetched on startup; the other loads on demand.
 export async function loadLocaleMessages(locale: Locale): Promise<Record<string, unknown>> {
   if (locale === "fr") {
     const module = await import("./messages/fr.json");
@@ -44,7 +40,6 @@ export async function loadLocaleMessages(locale: Locale): Promise<Record<string,
   return module.default as Record<string, unknown>;
 }
 
-// Load and set locale messages, returns true if messages were loaded
 export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
   if (!i18nInstance) {
     console.error("i18n instance not set");
@@ -66,46 +61,36 @@ export async function loadAndSetLocale(locale: Locale): Promise<boolean> {
   }
 }
 
-// Type guard for Locale
 function isLocale(code: string | null | undefined): code is Locale {
   return availableLocales.some((l) => l.code === code);
 }
 
-// Get browser locale or fallback to English
 function getBrowserLocale(): Locale {
   const browserLocale = navigator.language.split("-")[0];
   return isLocale(browserLocale) ? browserLocale : "en";
 }
 
-// Store locale in localStorage
 export function saveLocale(locale: Locale): void {
   localStorage.setItem("urbanist-map-locale", locale);
 }
 
-// Get stored locale or browser locale
 export function getStoredLocale(): Locale {
   const stored = localStorage.getItem("urbanist-map-locale");
   return isLocale(stored) ? stored : getBrowserLocale();
 }
 
-// Check if browser's language is supported by our app
 function isBrowserLanguageSupported(): boolean {
   const browserLocale = navigator.language.split("-")[0];
   return availableLocales.some((l) => l.code === browserLocale);
 }
 
-// Set HTML translation attributes based on language support
 export function updateTranslationSettings(currentLocale: Locale): void {
   const isSupported = isBrowserLanguageSupported();
 
-  // Set the HTML lang attribute
   document.documentElement.lang = currentLocale;
 
-  // Only prevent translation if we support the user's browser language
-  // If we don't support their language, allow browser translation
   if (isSupported) {
     document.documentElement.setAttribute("translate", "no");
-    // Add or update the Google Chrome no-translate meta tag
     let metaTag = document.querySelector('meta[name="google"]');
     metaTag ??= document.createElement("meta");
     if (!metaTag.hasAttribute("name")) {
@@ -114,7 +99,6 @@ export function updateTranslationSettings(currentLocale: Locale): void {
     }
     metaTag.setAttribute("content", "notranslate");
   } else {
-    // Remove translation prevention for unsupported languages
     document.documentElement.removeAttribute("translate");
     const metaTag = document.querySelector('meta[name="google"]');
     if (metaTag) {

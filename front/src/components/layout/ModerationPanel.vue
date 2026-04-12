@@ -91,19 +91,15 @@
         :projects="filteredProjects"
         :change-requests="filteredChangeRequests"
         :is-loading="isLoading"
-        title="Pending Projects"
+        :title="$t('moderation.pendingProjects')"
         panel-class="moderation-panel"
-        empty-message="All projects reviewed!"
-        empty-sub-message="No pending projects to moderate."
+        :empty-message="$t('moderation.allReviewed')"
+        :empty-sub-message="$t('moderation.noPendingItems')"
         :show-user-stats-link="true"
         :disable-auto-mode-switch="true"
         @show-user-stats="handleShowUserStats"
         :on-overlay-click="handleViewOverlayPosition"
       >
-        <template #header-actions>
-          <!-- Header button slot - reserved for future actions -->
-        </template>
-
         <template #project-actions="{ project }">
           <!-- Show moderation buttons for pending projects -->
           <ModerationActionButtons
@@ -182,7 +178,6 @@ import UserStatsDialog from "@/components/moderation/UserStatsDialog.vue";
 import ModerationActionButtons from "@/components/moderation/ModerationActionButtons.vue";
 import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 
-// Use i18n for translations
 const { t } = useI18n();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
@@ -287,7 +282,7 @@ onMounted(async () => {
 });
 
 // Load data for a specific country (stores, fly-to)
-// City markers are managed globally by the mode watcher — no need to reload per country
+// City markers are managed globally by the mode watcher, no need to reload per country
 function loadCountryData(countryCode: string | null, shouldFly = true) {
   // Sync local ref if needed (e.g. when called from watcher/mounted)
   if (selectedCountryCode.value !== countryCode) {
@@ -621,8 +616,6 @@ function handleShowUserStats(data: {
   showUserStatsDialog.value = true;
 }
 
-// Handle when a user is reported from the old ReportUserDialog (legacy path)
-// Note: This is now mostly unused since reporting is handled in the RejectionDialog
 async function handleUserReported() {
   // Just refresh the moderation data
   moderationStore.resetModerationLoaded();

@@ -9,6 +9,7 @@ import {
   type EntityType,
   users,
   cities,
+  userReports,
 } from "../db/schema";
 import { eq, and, inArray, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -219,7 +220,10 @@ const changeRequestSelectFields = {
   status: changeRequests.status,
   requestedBy: changeRequests.requestedBy,
   requestedByUsername: users.username,
-  requestedByReportCount: sql<number>`0`.as("requestedByReportCount"),
+  requestedByReportCount:
+    sql<number>`(SELECT COUNT(DISTINCT ${userReports.reportedBy})::int FROM ${userReports} WHERE ${userReports.reportedUserId} = ${changeRequests.requestedBy})`.as(
+      "requestedByReportCount",
+    ),
   createdAt: changeRequests.createdAt,
 } as const;
 
@@ -336,12 +340,6 @@ export const changesRouter = router({
         return { success: true };
       } catch (error) {
         console.error("Error submitting change request:", error);
-        // Log detailed error information for debugging
-        if (error instanceof Error) {
-          console.error("Error message:", error.message);
-          console.error("Error stack:", error.stack);
-        }
-        console.error("Input data:", JSON.stringify(input, null, 2));
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to submit change request",

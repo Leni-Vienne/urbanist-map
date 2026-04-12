@@ -1,7 +1,5 @@
 // Leaflet overlay rendering and DOM manipulation
-// Extracted from useOverlay.ts to separate rendering concerns from business logic
 // Handles all Leaflet-specific overlay creation, loading, and event binding
-
 import L from "leaflet";
 // leaflet-toolbar must be imported before leaflet-distortableimage because
 // the distortableimage IIFE uses L.Toolbar2.Action at module evaluation time (t[280]).
@@ -14,7 +12,7 @@ import { map } from "@/services/core/map";
 // leaflet-distortableimage's addInitHook adds the 'ldi' class to the map container,
 // which is required for the CSS rule that sets pointer-events: all on overlay images.
 // Since this chunk loads lazily after map creation, the addInitHook never ran for the
-// existing map — we must apply it manually here.
+// existing map, we must apply it manually here.
 if (!L.DomUtil.hasClass(map.value.getContainer(), "ldi")) {
   L.DomUtil.addClass(map.value.getContainer(), "ldi");
 }
@@ -67,7 +65,7 @@ export function createLeafletOverlay(
       ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
       : undefined;
     const isEditMode = mapStore.mode === "edit";
-    // Suppress the built-in leaflet-toolbar popup — OverlayFloatingToolbar.vue handles the UI.
+    // Suppress the built-in leaflet-toolbar popup, OverlayFloatingToolbar.vue handles the UI.
     // Keep mode actions so editing handles (resize/distort) still work in edit mode.
     const newOverlay = L.distortableImageOverlay(imageUrl, {
       editable: true,
@@ -141,7 +139,7 @@ export function createLeafletOverlay(
           }
         }
       } else {
-        // Zoom is too low — layer won't be added. Clear registry ref and release mutex.
+        // Zoom is too low, layer won't be added. Clear registry ref and release mutex.
         registry.clearLayer(overlayObject.id);
         registry.cancelCreation(overlayObject.id);
       }
@@ -299,7 +297,6 @@ function setupOverlayLoadHandler(
  * Handle all logic when overlay finishes loading
  */
 function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): void {
-  const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const layer = registry.getLayer(overlayObject.id);
   if (!layer) return;
@@ -322,15 +319,6 @@ function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): vo
   // This must be called here (not in setupOverlayEventHandlers) because overlay.getElement()
   // returns null until the overlay is added to the map and the image loads
   setupOverlayMovementTracking(layer, overlayObject);
-
-  // Ensure new overlays start with the correct ring state
-  if (overlayStore.idSelectedOverlay !== overlayObject.id) {
-    const element = layer.getElement();
-    if (element) {
-      // Highlight if this overlay belongs to the currently highlighted project —
-      // either via overlay selection or project info popup (shape click).
-    }
-  }
 
   // Invoke the caller's callback now that the overlay is fully initialized
   if (onReady) {
@@ -367,7 +355,7 @@ function setupOverlayEventHandlers(
 
   // Listens to the map being moved
   overlay.on("dragend", () => {
-    // Re-validate size after drag — isTooBig may be stale from a previous edit/undo
+    // Re-validate size after drag, isTooBig may be stale from a previous edit/undo
     checkOverlaySizeAndWarn(overlay, overlayObject);
     saveToHistory(overlayObject);
   });
@@ -563,7 +551,7 @@ function renderSingleOverlay(
 
   const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
 
-  // onOverlayFullyLoaded is passed as a callback but only fires asynchronously — after
+  // onOverlayFullyLoaded is passed as a callback but only fires asynchronously, after
   // the image has loaded and Leaflet has completed its setup. It is intentionally defined
   // after createLeafletOverlay() to keep the reading order logical (caller before callback);
   // hoisting makes it available to pass as an argument above its definition.
@@ -596,7 +584,7 @@ function renderSingleOverlay(
     }
 
     // When createMarkers=false (view mode, vectorTileSync path) the lifecycle is managed
-    // by the idle diff loop — no marker to check. When createMarkers=true (normal path)
+    // by the idle diff loop, no marker to check. When createMarkers=true (normal path)
     // use marker presence as the "is the overlay still needed?" gate.
     if (createMarkers) {
       const marker = registry.getMarker(cdnOverlay.id);
@@ -634,7 +622,7 @@ function renderSingleOverlay(
     onReady?.();
   }
 
-  // Creation was successfully started — onReady is wired; caller should NOT fall back to polling.
+  // Creation was successfully started, onReady is wired; caller should NOT fall back to polling.
   return true;
 }
 

@@ -9,9 +9,9 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
  * Resolves the best available geometry to pre-load into the shape editor.
  *
  * Priority:
- * 1. Local store geometry — reflects same-session edits.
- * 2. Pending change request geometry — the user's last submitted value (post page reload).
- * 3. fallbackGeometry — caller-supplied approved geometry from the backend.
+ * 1. Local store geometry, reflects same-session edits.
+ * 2. Pending change request geometry, the user's last submitted value (post page reload).
+ * 3. fallbackGeometry, caller-supplied approved geometry from the backend.
  */
 export async function resolveShapeEditorGeometry(
   projectId: string,
@@ -22,9 +22,9 @@ export async function resolveShapeEditorGeometry(
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
-  // Use undefined (not null) as "not found" sentinel so that an explicit null
-  // (e.g. "delete all shapes") is preserved rather than falling through.
-  const localStoredGeometry = projectStore.projects[projectId]?.geometry; // undefined if project absent, null if explicitly cleared
+  // Use undefined (not null) as sentinel: an explicit null means "delete all shapes"
+  // and must be preserved rather than fallen through.
+  const localStoredGeometry = projectStore.projects[projectId]?.geometry;
   const pendingGeometryChange = getPendingChangeRequests().find(
     (cr) =>
       cr.requestedBy === authStore.user?.id &&

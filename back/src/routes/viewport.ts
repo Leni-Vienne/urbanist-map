@@ -29,7 +29,7 @@ import {
 /**
  * Build the overlay visibility WHERE condition for the viewport bbox endpoint
  * in edit mode: ONLY the user's own pending overlays + overlays they have
- * change requests on. Approved overlays are intentionally excluded here —
+ * change requests on. Approved overlays are intentionally excluded here,
  * they are delivered to the frontend via MVT tiles / vectorTileSync.
  */
 function buildEditModeViewportOverlayCondition(
@@ -50,7 +50,7 @@ function buildEditModeViewportOverlayCondition(
  * Build the project JOIN condition for the overlay viewport query in edit mode.
  * We need to join projects that are either approved (overlays on approved projects)
  * or owned by the user (overlays on the user's own pending projects). This is
- * broader than the overlay condition on purpose — it covers the project JOIN
+ * broader than the overlay condition on purpose, it covers the project JOIN
  * rather than filtering which projects appear as standalone markers.
  */
 function buildEditModeViewportProjectJoinCondition(userId: string): ReturnType<typeof sql> {
@@ -271,13 +271,11 @@ export const viewportRouter = router({
             importSource: importSources,
           })
           .from(projects)
-          .innerJoin(cities, eq(cities.id, projects.cityId))
+          .leftJoin(cities, eq(cities.id, projects.cityId))
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
           .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
           .where(and(...whereConditions))
-          // GROUP BY primary keys only — PostgreSQL's functional dependency optimization
-          // covers all other columns of both tables (projects.id and cities.id are PKs).
-          // Avoids B-tree equality requirement on projects.geometry (PostGIS type).
+          // projects.geometry (PostGIS) can't be used in B-tree equality, so group by PKs only.
           .groupBy(projects.id, cities.id, importSources.id);
 
         return projectsData;

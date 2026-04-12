@@ -16,8 +16,7 @@ import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 
-// Composable to handle change request position preview
-// Combines state management + navigation logic for previewing change request positions
+// Composable to handle change request position preview on the map
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
@@ -59,8 +58,7 @@ export function useChangeRequestPreview() {
     return Array.isArray(value) && value.length > 0 && value.every(isCoordinate);
   }
 
-  // Parse geometry value into corner coordinates
-  // Handles both single coordinate and coordinate arrays from JSONB fields
+  // Parse geometry value into corner coordinates (single coord or coordinate array from JSONB)
   function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
     if (!geometryValue || typeof geometryValue !== "object") {
       return [];
@@ -79,7 +77,6 @@ export function useChangeRequestPreview() {
     return [];
   }
 
-  // Ensure overlay is loaded into the map (handles navigation if needed)
   async function ensureOverlayLoaded(
     overlayForModeration: OverlayForModeration,
     targetCorners: LatLng[],
@@ -88,12 +85,10 @@ export function useChangeRequestPreview() {
 
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
-    // Already loaded, nothing to do
     if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
       return true;
     }
 
-    // Need to load - validate we have required data
     if (!overlayForModeration.countryCode) {
       toast.add({
         severity: "error",
@@ -104,7 +99,7 @@ export function useChangeRequestPreview() {
       return false;
     }
 
-    // Step 1: Switch to edit mode if needed (pending overlays only visible in edit mode)
+    // Pending overlays are only visible in edit mode
     const needsEditMode = mapStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
       mapStore.setMode("edit");
@@ -116,7 +111,7 @@ export function useChangeRequestPreview() {
       );
     }
 
-    // Step 3: Clear map and navigate to the overlay's country
+    // Clear map and navigate to the overlay's country
     clearAllMapContent();
     mapStore.selectedCountryCode = overlayForModeration.countryCode;
 
@@ -128,7 +123,7 @@ export function useChangeRequestPreview() {
       easeLinearity: 0.25,
     });
 
-    // Poll until the overlay appears in the store and registry, up to 2s
+    // Poll until the overlay appears in the store and registry (up to 2s)
     const maxAttempts = 20;
     for (let i = 0; i < maxAttempts; i += 1) {
       await new Promise<void>((resolve) => void setTimeout(resolve, 100));
@@ -151,7 +146,7 @@ export function useChangeRequestPreview() {
     return true;
   }
 
-  // Navigate to position with smooth bounds transition
+  // Navigate to position, combining new and previous bounds for a smooth unzoom effect
   function navigateToPosition(
     targetLatLngs: L.LatLng[],
     previousBounds: L.LatLngBounds | null,
@@ -159,8 +154,7 @@ export function useChangeRequestPreview() {
   ): void {
     const newBounds = L.latLngBounds(targetLatLngs);
 
-    // If we have previous bounds, create combined bounds to show both positions
-    // This creates a smooth unzoom effect instead of jarring camera jump
+    // Extend with previous bounds so both positions stay visible during transition
     const targetBounds = previousBounds ? newBounds.extend(previousBounds) : newBounds;
 
     mobileAwareFlyToBounds(targetBounds, {
@@ -175,7 +169,6 @@ export function useChangeRequestPreview() {
     });
   }
 
-  // Get target corners based on preview type
   function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): L.LatLng[] | null {
     if (type === "new") {
       // Show suggested position
@@ -194,7 +187,6 @@ export function useChangeRequestPreview() {
     return overlayObject.corners.map((c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng));
   }
 
-  // Apply position preview to loaded overlay
   function applyPositionPreview(
     overlayId: string,
     type: "old" | "new",
@@ -206,8 +198,7 @@ export function useChangeRequestPreview() {
       return;
     }
 
-    // Capture the current bounds BEFORE switching positions
-    // This allows us to show both old and new positions after the switch
+    // Capture current bounds before switching, so we can show both positions
     let previousBounds: L.LatLngBounds | null = null;
     if (wasAlreadyLoaded) {
       previousBounds = getOverlayBounds(overlayObject);
@@ -236,12 +227,10 @@ export function useChangeRequestPreview() {
     navigateToPosition(targetLatLngs, previousBounds, overlayId);
   }
 
-  // Main function to preview geometry change
   async function previewGeometry(options: PreviewGeometryOptions): Promise<void> {
     const { change, overlayForModeration, geometryValue, type } = options;
 
     try {
-      // Step 1: Parse geometry
       const corners = parseGeometry(geometryValue);
 
       if (corners.length === 0) {
@@ -256,22 +245,19 @@ export function useChangeRequestPreview() {
 
       const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
 
-      // Step 2: Check if overlay is already loaded and if we're toggling an active preview
       const wasAlreadyLoaded = registry.getLayer(change.entityId) !== null;
       const isTogglingActivePreview =
         previewState.value.type !== "none" && previewState.value.changeId === change.id;
 
-      // Step 3: Ensure overlay is loaded (handles navigation if needed)
       const loaded = await ensureOverlayLoaded(overlayForModeration, latLngs);
       if (!loaded) {
         return;
       }
 
-      // Step 4: Apply position preview
-      // Don't pass previousBounds when toggling — both positions are already visible
+      // Don't pass previousBounds when toggling, both positions are already visible
       applyPositionPreview(change.entityId, type, wasAlreadyLoaded && !isTogglingActivePreview);
 
-      // Step 5: Update state machine
+      // Update state machine
       if (type === "new") {
         previewState.value = {
           type: "suggested",

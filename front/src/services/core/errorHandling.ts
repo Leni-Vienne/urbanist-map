@@ -49,8 +49,7 @@ export async function withErrorHandling<T>(
   try {
     const result = await fn();
 
-    // Show success toast if provided
-    if (successMessage != undefined) {
+    if (successMessage !== undefined) {
       toast.add({
         severity: "success",
         summary: successSummary,
@@ -59,19 +58,16 @@ export async function withErrorHandling<T>(
       });
     }
 
-    // Call custom success handler
     if (onSuccess) {
       onSuccess(result);
     }
 
     return result;
   } catch (error) {
-    // Log error to console
     if (logError) {
       console.error(errorMessage ?? "Error occurred:", error);
     }
 
-    // Show error toast
     if (errorMessage) {
       toast.add({
         severity: "error",
@@ -81,12 +77,10 @@ export async function withErrorHandling<T>(
       });
     }
 
-    // Call custom error handler
     if (onError) {
       onError(error);
     }
 
-    // Rethrow if requested
     if (rethrow) {
       throw error;
     }

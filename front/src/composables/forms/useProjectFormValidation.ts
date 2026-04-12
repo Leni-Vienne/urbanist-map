@@ -3,7 +3,6 @@ import { useToast } from "@/composables/ui/useToast";
 import type { ProjectFormData } from "@/types/index";
 import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
 
-// Shared validation logic for project forms using Zod
 export function useProjectFormValidation() {
   const toast = useToast();
 
@@ -22,14 +21,14 @@ export function useProjectFormValidation() {
     cities: { id: number }[],
     citiesLoaded: boolean,
   ): boolean {
-    // We optionally have cityId, but if a city is provided it must exist
+    // cityId is optional, but if provided it must match a loaded city
     if (formData.cityId && citiesLoaded && !cities.some((c) => c.id === formData.cityId)) {
       showError(t("project.invalidLocation"));
       return false;
     }
 
-    // Validate with Zod schema (use dummy lat/lng for form-level validation)
-    // Transform null values to empty strings to match schema expectations
+    // Use dummy lat/lng since this is form-level validation (no coordinates yet)
+    // Null values are coerced to empty strings to match schema expectations
     const validationData = {
       ...formData,
       lat: 0,
@@ -47,7 +46,6 @@ export function useProjectFormValidation() {
     const result = projectSchema.safeParse(validationData);
 
     if (!result.success) {
-      // Get first error and show it
       const errors = getValidationErrorsMap(result.error);
       const firstError = Object.values(errors)[0];
       if (!firstError) {

@@ -10,17 +10,19 @@ import type { StorageInterface } from "./types";
 // ============================================================================
 
 function createR2Storage(): R2StorageS3 {
-  return new R2StorageS3({
-    endpoint: process.env.R2_ENDPOINT!,
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    bucketName: process.env.R2_BUCKET_NAME!,
-  });
+  const endpoint = process.env.R2_ENDPOINT;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const bucketName = process.env.R2_BUCKET_NAME;
+  if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
+    throw new Error("Missing R2 configuration environment variables");
+  }
+  return new R2StorageS3({ endpoint, accessKeyId, secretAccessKey, bucketName });
 }
 
 /**
  * Delete full image and/or thumbnail from a single storage backend.
- * Failures are logged but not thrown — storage.delete() handles its own error swallowing.
+ * Failures are logged but not thrown, storage.delete() handles its own error swallowing.
  * Returns the list of filenames that could not be deleted.
  */
 async function deleteFilesFromStorage(
@@ -55,7 +57,7 @@ async function deleteFilesFromStorage(
 async function appendOrphanLog(failedFiles: string[]): Promise<void> {
   if (failedFiles.length === 0) return;
   const entry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(", ")}\n`;
-  await appendFile("./orphaned_files.txt", entry).catch((error) => {
+  await appendFile("./orphaned_files.txt", entry).catch((error: unknown) => {
     console.error("Failed to write to orphaned files log:", error);
   });
 }
@@ -81,13 +83,8 @@ export async function scheduleImageCleanup(
 
 /**
  * Execute pending deletions (run by background job/cron).
- * Deletes from both local and R2 storage — rejected/replaced overlay thumbnails are always local,
+ * Deletes from both local and R2 storage, rejected/replaced overlay thumbnails are always local,
  * approved overlay images are in R2.
- *
- * Note: storage.delete() currently swallows its own errors internally, so the failed counter
- * only catches errors thrown before or after the storage calls (e.g. DB errors).
- * For accurate per-file failure tracking, storage.delete() would need to throw on real errors
- * and return/throw only on genuine failures (not missing-file 404s).
  */
 export async function executePendingDeletions(): Promise<{ deleted: number; failed: number }> {
   const now = new Date();
@@ -100,6 +97,8 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
     .where(lte(scheduledDeletions.deletionDate, now));
 
   console.log(`Found ${pendingDeletions.length} pending deletions to process`);
+  // TODO: storage.delete() swallows its own errors, so `failed` only captures DB-level failures.
+  // For accurate per-file tracking, storage.delete() should throw on real errors (not 404s).
 
   const localStorage = new LocalFileStorage();
   const isProduction = process.env.NODE_ENV === "production";
@@ -107,7 +106,7 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
 
   for (const item of pendingDeletions) {
     try {
-      // Full images may be in local (pending overlays) or R2 (approved overlays) — try both.
+      // Full images may be in local (pending overlays) or R2 (approved overlays), try both.
       // Thumbnails are always local (not migrated to R2).
       const fullOrBoth = item.deletionType === "full" || item.deletionType === "both";
       const thumbnailOrBoth = item.deletionType === "thumbnail" || item.deletionType === "both";

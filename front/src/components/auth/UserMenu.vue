@@ -26,7 +26,6 @@
       data-testid="user-menu"
       @click.stop="toggleMenu"
       @dblclick.stop
-      ref="userMenuRef"
     >
       <span
         class="relative w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs max-md:bg-transparent max-md:text-(--p-text-color-secondary) max-md:text-base"
@@ -101,14 +100,14 @@
       </div>
     </Popover>
 
-    <!-- Auth Modal — v-if prevents mounting (and async loading) until actually needed -->
+    <!-- Auth Modal, v-if prevents mounting (and async loading) until actually needed -->
     <AuthModal
       v-if="uiStore.authModalVisible"
       v-model:visible="uiStore.authModalVisible"
       :initial-mode="uiStore.authModalInitialMode"
     />
 
-    <!-- Moderated Contributions Dialog — same pattern as AuthModal -->
+    <!-- Moderated Contributions Dialog, same pattern as AuthModal -->
     <ModeratedContributionsDialog
       v-if="uiStore.moderatedContributionsDialogVisible"
       v-model:visible="uiStore.moderatedContributionsDialogVisible"
@@ -126,7 +125,7 @@ import { useI18n } from "vue-i18n";
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 import { useTheme } from "@/composables/core/useTheme";
 
-// Lazy-load AuthModal for chunk splitting — avoids pulling primevue's password
+// Lazy-load AuthModal for chunk splitting, avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
 const ModeratedContributionsDialog = defineAsyncComponent(
   () => import("@/components/moderation/ModeratedContributionsDialog.vue"),

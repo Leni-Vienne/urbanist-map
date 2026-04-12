@@ -127,7 +127,7 @@ app.use(PrimeVue, {
     preset: UrbanistmapPreset,
     options: {
       prefix: "p",
-      darkModeSelector: ".dark-mode", // .dark-mode
+      darkModeSelector: ".dark-mode",
       cssLayer: false,
     },
   },

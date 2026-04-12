@@ -102,7 +102,7 @@ export const users = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     email: text("email").unique().notNull(),
     username: text("username").unique(),
-    passwordHash: text("password_hash"), // Now nullable for OAuth users
+    passwordHash: text("password_hash"), // nullable because OAuth users don't have one
     role: text("role").default("user"), // Role can be 'user', 'admin', etc.
     moderatedCountries: text("moderated_countries").array(), // Array of ISO 3-letter country codes this moderator can moderate.
     emailVerified: boolean("email_verified").default(false).notNull(),

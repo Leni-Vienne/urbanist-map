@@ -16,11 +16,10 @@ interface R2MigrationJob {
 const migrationQueue: R2MigrationJob[] = [];
 const MAX_RETRIES = 3;
 const CONCURRENT_MIGRATIONS = 3;
-const POLL_INTERVAL_MS = 1000; // Check queue every second
+const POLL_INTERVAL_MS = 1000;
 
 let isProcessing = false;
 
-// Queue a migration job (non-blocking)
 export function queueR2Migration(filename: string): void {
   // Avoid duplicate jobs
   const exists = migrationQueue.some((job) => job.filename === filename);
@@ -38,7 +37,6 @@ export function queueR2Migration(filename: string): void {
   logger.info({ filename, queueSize: migrationQueue.length }, "Queued R2 migration");
 }
 
-// Migrate single file to R2 with parallel uploads (optimization #2)
 async function migrateFileToR2(filename: string): Promise<void> {
   const endpoint = process.env.R2_ENDPOINT;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -57,7 +55,6 @@ async function migrateFileToR2(filename: string): Promise<void> {
     bucketName,
   });
 
-  // Fetch both files in parallel
   const [localFile, thumbnailFile] = await Promise.all([
     localStorage.get(filename),
     localStorage.get(getThumbnailFilename(filename)),
@@ -67,13 +64,11 @@ async function migrateFileToR2(filename: string): Promise<void> {
     throw new Error(`Local file not found: ${filename}`);
   }
 
-  // Convert to buffers in parallel
   const [imageBuffer, thumbnailBuffer] = await Promise.all([
     streamToBuffer(localFile.body),
     thumbnailFile ? streamToBuffer(thumbnailFile.body) : Promise.resolve(null),
   ]);
 
-  // Upload both to R2 in parallel
   const uploadPromises = [r2Storage.put(filename, imageBuffer.buffer as ArrayBuffer)];
 
   if (thumbnailBuffer) {
@@ -87,7 +82,6 @@ async function migrateFileToR2(filename: string): Promise<void> {
 
   await Promise.all(uploadPromises);
 
-  // Delete local files after successful migration
   try {
     await localStorage.delete(filename);
     if (thumbnailFile) {
@@ -99,7 +93,6 @@ async function migrateFileToR2(filename: string): Promise<void> {
   }
 }
 
-// Process jobs from the queue
 async function processQueue(): Promise<void> {
   if (isProcessing || migrationQueue.length === 0) {
     return;
@@ -108,7 +101,6 @@ async function processQueue(): Promise<void> {
   isProcessing = true;
 
   try {
-    // Process up to CONCURRENT_MIGRATIONS jobs in parallel
     const batch = migrationQueue.splice(0, CONCURRENT_MIGRATIONS);
 
     await Promise.allSettled(
@@ -121,7 +113,6 @@ async function processQueue(): Promise<void> {
           job.retryCount += 1;
 
           if (job.retryCount < MAX_RETRIES) {
-            // Re-queue with exponential backoff delay
             logger.warn(
               { error, filename: job.filename, retryCount: job.retryCount },
               "R2 migration failed, retrying",
@@ -141,13 +132,11 @@ async function processQueue(): Promise<void> {
   }
 }
 
-// Start the background worker
 export function startR2MigrationService(): void {
   logger.info("Starting R2 migration service...");
 
-  // Process queue periodically
   setInterval(() => {
-    processQueue().catch((error) => {
+    processQueue().catch((error: unknown) => {
       logger.error({ error }, "Error in R2 migration worker");
     });
   }, POLL_INTERVAL_MS);

@@ -3,7 +3,6 @@ import { sessions, users, projects, overlays } from "../db/schema";
 import { lt, and, eq } from "drizzle-orm";
 import { logger } from "./logger";
 
-// Run cleanup every 24 hours
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 // Keep rejected submissions for 90 days to allow appeals/review
@@ -11,13 +10,13 @@ const REJECTED_RETENTION_DAYS = 90;
 
 export function startCleanupJob() {
   // Run immediately on startup
-  runCleanup().catch((error) => {
+  runCleanup().catch((error: unknown) => {
     logger.error({ error }, "Initial cleanup failed");
   });
 
   // Schedule periodic cleanup
   setInterval(() => {
-    runCleanup().catch((error) => {
+    runCleanup().catch((error: unknown) => {
       logger.error({ error }, "Scheduled cleanup failed");
     });
   }, CLEANUP_INTERVAL_MS);
@@ -28,7 +27,6 @@ async function runCleanup() {
 
   try {
     // 1. Clean up expired sessions
-    // Delete sessions where expires_at < NOW
     const deletedSessions = await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
 
     // 2. Clean up unverified users older than 24 hours

@@ -27,7 +27,6 @@ export async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array
   return buffer;
 }
 
-// Centralized thumbnail generation function for consistency across storage implementations
 // Generates 120x120 WebP thumbnail with cover fit (maintains aspect ratio, crops to fill)
 // 120x120 chosen over 60x60 for better quality on high-DPI screens while staying small (~2-5KB)
 export async function generateThumbnail(buffer: ArrayBuffer): Promise<ArrayBuffer> {
@@ -110,10 +109,6 @@ export class LocalFileStorage implements StorageInterface {
       return;
     }
 
-    // Generate thumbnail for image files
-    // Thumbnails stored in ./uploads/thumbnails/ for better organization
-    // Not stored in DB, derived from filename
-    // Two-phase strategy: Stays local during moderation (prevent R2 abuse), migrates to R2 on approval
     try {
       // Ensure thumbnails directory exists
       await mkdir("./uploads/thumbnails", { recursive: true });
@@ -121,14 +116,6 @@ export class LocalFileStorage implements StorageInterface {
       const thumbnailBuffer = await generateThumbnail(buffer);
       const thumbnailPath = `./uploads/thumbnails/${filename}`;
       await Bun.write(thumbnailPath, thumbnailBuffer);
-
-      // Verify thumbnail file exists and is readable before returning
-      // Prevents race condition where frontend tries to load thumbnail before it's fully available
-      const thumbnailFile = Bun.file(thumbnailPath);
-      const exists = await thumbnailFile.exists();
-      if (!exists) {
-        throw new Error(`Thumbnail file was written but is not accessible: ${thumbnailPath}`);
-      }
     } catch (error) {
       // Re-throw thumbnail errors to prevent returning success when thumbnail creation fails
       // This ensures frontend won't try to display a non-existent thumbnail
@@ -181,7 +168,6 @@ export class R2StorageS3 implements StorageInterface {
     secretAccessKey: string;
     bucketName: string;
   }) {
-    // Create S3 client using Bun's S3Client API
     this.client = new S3Client({
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
@@ -195,10 +181,7 @@ export class R2StorageS3 implements StorageInterface {
     buffer: ArrayBuffer,
     options?: { skipThumbnail?: boolean },
   ): Promise<void> {
-    // Get lazy reference to S3 file
     const s3file = this.client.file(filename);
-
-    // Upload to R2 using write method
     await s3file.write(buffer, {
       type: "image/webp",
     });
@@ -228,11 +211,7 @@ export class R2StorageS3 implements StorageInterface {
 
   async get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
     try {
-      // Get lazy reference to S3 file
       const s3file = this.client.file(filename);
-
-      // S3File extends Blob and lazily fetches on first access
-      // If file doesn't exist, accessing properties will throw
       return {
         body: s3file.stream(),
         contentType: s3file.type ?? "application/octet-stream",
@@ -254,9 +233,6 @@ export class R2StorageS3 implements StorageInterface {
   }
 }
 
-// Helper function to derive thumbnail path from original filename
-// Thumbnails stored in separate folder for better organization
-// Used to request thumbnails without storing in DB (e.g., image.webp -> thumbnails/image.webp)
 export function getThumbnailFilename(filename: string): string {
   return `thumbnails/${filename}`;
 }

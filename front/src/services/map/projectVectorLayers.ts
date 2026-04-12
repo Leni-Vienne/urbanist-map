@@ -99,7 +99,7 @@ const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project points disappear because shapes take over */
 const PROJECT_POINTS_MAX_ZOOM = 15;
 /** Zoom level at which project shapes (MVT) become visible.
- *  Large shapes appear earlier via getShapeZoomVisibilityFilter — see that function for the full table. */
+ *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
 const PROJECT_SHAPES_MIN_ZOOM = 3;
 /** Zoom level at which overlay footprints and point geometries become visible */
 const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
@@ -129,7 +129,7 @@ const FOOTPRINT_LINE_WIDTH = [
   0.7,
   12,
   2,
-] as unknown as number; // hiding it for now since project geometry appears over them
+] as unknown as number;
 
 const SHAPE_LONG_DASH: [number, number] = [4, 2];
 const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
@@ -662,7 +662,7 @@ function navigateToLonePoint(
   currentZoom: number,
 ): void {
   const hasGeometry: boolean = props.has_geometry === true;
-  // geometry_size_m is the representative project's own size — not max_size_m, which spans
+  // geometry_size_m is the representative project's own size, not max_size_m, which spans
   // all projects in the cluster cell and is only meaningful for the client-side size filter.
   const geometrySizeM: number = (props.geometry_size_m as number | null) ?? 0;
   const idealZoom =
@@ -680,7 +680,7 @@ function navigateToLonePoint(
 
 // Mirrors the cell_size lookup in tiles.sql. The tile zoom passed here is MapLibre zoom
 // (= Leaflet zoom - 1). Returns the grid cell side length in MVT tile units (out of 4096).
-// Only powers of 2 that divide 4096 evenly are used — non-power-of-2 values create partial
+// Only powers of 2 that divide 4096 evenly are used, non-power-of-2 values create partial
 // stub cells at tile edges, breaking cross-tile cluster alignment.
 function getGridCellSizeForTileZoom(tileZoom: number): number {
   if (tileZoom <= 4) return 1024;
@@ -753,7 +753,7 @@ function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.Lat
 /**
  * Returns true and zooms if the cluster representative satisfies the active size filter.
  * Returns false (no zoom) if the representative's own size is outside the filter range,
- * meaning the cluster only passed because some other project elsewhere in the cell matched —
+ * meaning the cluster only passed because some other project elsewhere in the cell matched,
  * zooming to the representative's location would land in an empty area.
  */
 function navigateToCluster(
@@ -788,7 +788,7 @@ function navigateToCluster(
       padding: [CLUSTER_BOUNDS_PADDING_PX, CLUSTER_BOUNDS_PADDING_PX],
     });
   } else {
-    // Representative doesn't match the active filter — the cluster only passed because some
+    // Representative doesn't match the active filter, the cluster only passed because some
     // other project in the cell matched. Nudge in by 2 zoom levels without committing to the
     // representative's exact location.
     const targetZoom = currentZoom + 2;
@@ -854,7 +854,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const clientX = event.originalEvent.clientX;
     const clientY = event.originalEvent.clientY;
 
-    // Always update card position immediately — bypasses Vue render via direct DOM write.
+    // Always update card position immediately, bypasses Vue render via direct DOM write.
     updateHoverPreviewPosition(clientX, clientY);
 
     if (_hoverThrottlePending) return;
@@ -886,7 +886,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
     }
 
-    // Hover preview card — only on pointer devices (no touch)
+    // Hover preview card, only on pointer devices (no touch)
     updateHoverPreview(features, pointFeature, clientX, clientY);
   });
 
@@ -920,13 +920,14 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     if (!features.length) return;
 
     if (import.meta.env.DEV) {
-      //console.log("[vector click] all features:", features);
+      // Uncomment to debug vector click features:
+      // console.log("[vector click] all features:", features);
     }
 
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
       if (import.meta.env.DEV) {
-        //console.log("[vector click] vector feature:", vectorFeature.layer?.id, vectorFeature);
+        // console.log("[vector click] vector feature:", vectorFeature.layer?.id, vectorFeature);
       }
       handleVectorFeatureClick(vectorFeature, event.latlng);
       return;
@@ -937,11 +938,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     if (pointFeature) {
       if (import.meta.env.DEV) {
-        /*console.log(
-          "[vector click] point feature:",
-          pointFeature.layer?.id,
-          pointFeature.properties,
-        );*/
+        // console.log("[vector click] point feature:", pointFeature.layer?.id, pointFeature.properties);
       }
       void handlePointFeatureClick(pointFeature, event.latlng);
     }
@@ -1002,7 +999,7 @@ function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData 
     const raw = feature.properties?.tags;
     if (typeof raw === "string" && raw.length > 0) tags = JSON.parse(raw) as string[];
   } catch {
-    // malformed tags — leave empty
+    // malformed tags, leave empty
   }
   return { name, timelineStatus, tags };
 }
@@ -1017,7 +1014,7 @@ const ROAD_COLOR_OVERRIDES: Record<string, string> = {
   tertiary: "#f0efef",
 };
 
-// Casing (outline) colors — slightly darker than the fill
+// Casing (outline) colors, slightly darker than the fill
 const ROAD_CASING_OVERRIDES: Record<string, string> = {
   motorway: "#a8a8a8",
   trunk: "#b8b8b8",
@@ -1028,7 +1025,7 @@ const ROAD_CASING_OVERRIDES: Record<string, string> = {
 
 /**
  * Overrides Liberty basemap road colors to a neutral gray palette.
- * Only runs when the plan (vector) style is active — satellite styles have no road layers.
+ * Only runs when the plan (vector) style is active, satellite styles have no road layers.
  * Matches Liberty layer IDs like "road_trunk", "road_primary_casing", "tunnel_motorway", etc.
  */
 export function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
@@ -1066,9 +1063,7 @@ export function applyRailStyleOverrides(mlMap: MaplibreMap): void {
     if (layer.type !== "line") continue;
 
     const id = layer.id;
-    // Target rail lines (excluding subway/subway-casing if any, though Liberty
-    // usually names them "railway_transit" etc.)
-    //if (!id.startsWith("railway") && !id.includes("rail")) continue;
+    // Target rail lines
     if (id.includes("road_major_rail") || id.includes("bridge_major_rail")) {
       // Dim the main rail line
       mlMap.setPaintProperty(id, "line-color", "#f97316");
@@ -1130,7 +1125,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // Proposed project shapes fill — lower opacity to reduce visual weight
+  // Proposed project shapes fill, lower opacity to reduce visual weight
   mlMap.addLayer(
     {
       id: "project-shapes-proposed-fill",
@@ -1147,7 +1142,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // Project geometry shapes (lines/polygons) — visible from zoom 9
+  // Project geometry shapes (lines/polygons), visible from zoom 9
   // under_construction / planned / canceled: long dashes
   mlMap.addLayer(
     {
@@ -1276,7 +1271,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // Invisible sentinel layer — no status filter needed since all footprints trigger overlay loading.
+  // Invisible sentinel layer, no status filter needed since all footprints trigger overlay loading.
   // vectorTileSync.ts checks for this layer by name to confirm the map is ready.
   mlMap.addLayer(
     {

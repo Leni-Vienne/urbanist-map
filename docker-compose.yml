@@ -3,7 +3,6 @@
 # Or with: docker compose --env-file .env.preview up -d
 
 services:
-  # PostGIS database service
   postgres:
     image: postgis/postgis:17-3.5-alpine
     container_name: ${COMPOSE_PROJECT_NAME}-db
@@ -66,9 +65,6 @@ services:
       - ./back/src/routes:/app/routes:ro
       - backend_uploads:/app/uploads
     working_dir: /app
-    # Command simplified - sharp is now in the image (global) or node_modules
-    # We still rely on local node_modules for other deps, but sharp is the critical native one
-    # Ideally we would bundle everything, but for now this removes the build step
     command: ["bun", "./server.bundle.js"]
     ports:
       # Expose backend to host for Caddy reverse proxy access

@@ -1,9 +1,3 @@
-// ============================================================================
-// OVERLAY DATA - Data enrichment and transformation
-// ============================================================================
-// Extracted from overlayMarkers.ts to handle data hydration and enrichment
-// ============================================================================
-
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
@@ -12,8 +6,7 @@ import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 
 /**
- * Enrich overlay with project data
- * Pure function - only uses stores and factory utilities
+ * Enrich overlay with project data, falling back to moderation store in moderation mode.
  */
 export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
   const projectStore = useProjectStore();
@@ -41,7 +34,6 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   const cachedModifications =
     mapStore.mode === "edit" ? overlayStore.getFromEditModeCache(savedOverlay.id) : undefined;
 
-  // Use factory function but preserve existing data
   return createOverlayObject({
     ...savedOverlay,
     project: project ?? null,

@@ -120,7 +120,6 @@ jobs:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
           REMOTE_PORT: ${{ secrets.REMOTE_PORT || '22' }}
-          REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
@@ -139,14 +138,12 @@ jobs:
 
         run: |
 
-          # Install sshpass for password authentication if not present
-          if ! command -v sshpass &> /dev/null; then
-             sudo apt-get update && sudo apt-get install -y sshpass
-          fi
-
-          # Setup SSH to skip host key checking
+          # Setup SSH key authentication
           mkdir -p ~/.ssh
-          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # -p is required: ssh-keyscan defaults to port 22 and silently scans the wrong host if omitted
+          ssh-keyscan -p "$REMOTE_PORT" "$REMOTE_HOST" >> ~/.ssh/known_hosts
 
           # Determine environment-specific values
           if [ "${{ env.DEPLOY_TARGET }}" = "production" ]; then
@@ -171,24 +168,24 @@ jobs:
           ls -la server.bundle.js docker-compose.yml Dockerfile.bun-sharp alloy-config.alloy
           ls -la back/src/email back/src/routes
 
-          # Transfer files to remote server using password
-          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./docker-compose.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
-          sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" -r ./back/src/routes "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          # Transfer files to remote server
+          scp -P "$REMOTE_PORT" ./server.bundle.js "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          scp -P "$REMOTE_PORT" ./docker-compose.yml "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          scp -P "$REMOTE_PORT" ./Dockerfile.bun-sharp "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          scp -P "$REMOTE_PORT" ./alloy-config.alloy "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          scp -P "$REMOTE_PORT" -r ./back/src/email "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+          scp -P "$REMOTE_PORT" -r ./back/src/routes "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
           # Conditionally transfer Caddyfile if reverse proxy deployment is enabled
           if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
-            sshpass -p "$REMOTE_PASSWORD" scp -P "$REMOTE_PORT" ./Caddyfile.host "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+            scp -P "$REMOTE_PORT" ./Caddyfile.host "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
           fi
 
           # Compute Dockerfile hash on runner (before SSH) so it can be injected as a literal into the heredoc
           DOCKERFILE_HASH=$(md5sum ./Dockerfile.bun-sharp | cut -d' ' -f1)
 
           # Deploy with docker compose on remote server
-          sshpass -p "$REMOTE_PASSWORD" ssh -p "$REMOTE_PORT" "${REMOTE_USER}@${REMOTE_HOST}" <<EOF
+          ssh -p "$REMOTE_PORT" "${REMOTE_USER}@${REMOTE_HOST}" <<EOF
             # Conditionally install and configure Caddy if reverse proxy is enabled
             if [ "${{ vars.INCLUDE_REVERSE_PROXY }}" = "true" ]; then
               if ! command -v caddy &> /dev/null; then

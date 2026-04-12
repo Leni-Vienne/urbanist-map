@@ -94,7 +94,6 @@ import Textarea from "primevue/textarea";
 import Select from "primevue/select";
 import { useI18n } from "vue-i18n";
 
-// Props
 interface Props {
   visible: boolean;
   userId?: string | null;
@@ -110,7 +109,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { t } = useI18n();
 
-// Emits
 const emit = defineEmits<{
   "update:visible": [value: boolean];
   confirm: [
@@ -124,7 +122,6 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
-// Rejection reasons
 const rejectionReasons = computed(() => [
   {
     label: t("moderation.rejectionReason.low_quality"),
@@ -146,19 +143,16 @@ const rejectionReasons = computed(() => [
   { label: t("moderation.rejectionReason.spam"), value: "spam" },
 ]);
 
-// Local state
 const isVisible = ref(props.visible);
 const rejectionReason = ref("");
 const rejectAllOverlays = ref(false);
 const reportUser = ref(false);
 const reportReason = ref("");
 
-// Watch for external visibility changes
 watch(
   () => props.visible,
   (newValue) => {
     isVisible.value = newValue;
-    // Reset state when dialog opens
     if (newValue) {
       rejectionReason.value = "";
       rejectAllOverlays.value = false;
@@ -168,7 +162,6 @@ watch(
   },
 );
 
-// Handle visibility change from dialog
 function handleVisibilityChange(value: boolean) {
   emit("update:visible", value);
   if (!value) {
@@ -176,13 +169,11 @@ function handleVisibilityChange(value: boolean) {
   }
 }
 
-// Handle cancel button
 function handleCancel() {
   emit("update:visible", false);
   emit("cancel");
 }
 
-// Handle confirm button
 function handleConfirm() {
   emit("confirm", {
     rejectionReason: rejectionReason.value,

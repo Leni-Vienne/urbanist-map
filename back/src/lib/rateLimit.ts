@@ -14,10 +14,6 @@ class RateLimiter {
   /**
    * Check if an IP has exceeded the limit within the window.
    * Returns true if allowed, false if limit exceeded.
-   */
-  /**
-   * Check if an IP has exceeded the limit within the window.
-   * Returns true if allowed, false if limit exceeded.
    * @param key - The identifier (e.g. IP address).
    * @param action - The specific action (e.g. 'login', 'upload'). If provided, limits are isolated per action.
    */
@@ -51,11 +47,6 @@ class RateLimiter {
 
   private cleanup() {
     const now = Date.now();
-    // Rate limiters usually have a max window of 1 hour, so we can safely remove anything older than that
-    // To be safe, let's say 24 hours (86400000 ms) as a global cleanup threshold or just check emptiness
-    // Actually, we can just iterate and remove empty arrays or very old entries.
-    // A simple heuristic: if the array is empty or all timestamps are notably old.
-    // Let's assume a safe max window of 1 hour for cleanup logic simplicity for now.
     const MAX_WINDOW = 3600 * 1000;
 
     for (const [key, timestamps] of this.hits.entries()) {
@@ -74,5 +65,4 @@ class RateLimiter {
   }
 }
 
-// Export a singleton or allow instantiation? Let's export the class so we can have different limiters.
 export const globalRateLimiter = new RateLimiter();

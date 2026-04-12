@@ -280,6 +280,7 @@ export const authRouter = router({
           },
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Email verification error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -536,8 +537,7 @@ export const authRouter = router({
           // OAuth-only users (no password) cannot self-delete via API
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message:
-              "Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@urbanistmap.org to request account deletion.",
+            message: `Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@urbanistmap.org to request account deletion.`,
           });
         }
 

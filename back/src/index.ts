@@ -759,7 +759,7 @@ const imageFileSchema = z.object({
 
 // Generate missing thumbnails on startup
 // This runs asynchronously and doesn't block server startup
-generateMissingThumbnails().catch((error) => {
+generateMissingThumbnails().catch((error: unknown) => {
   console.error("Failed to generate missing thumbnails:", error);
 });
 
@@ -772,6 +772,5 @@ export type { AppRouter } from "./routes";
 
 export default {
   port: appConfig.PORT,
-  // Hostname: '0.0.0.0', //useful for testing on another device in dev, but breaks healthcheck in prod
   fetch: app.fetch,
 };

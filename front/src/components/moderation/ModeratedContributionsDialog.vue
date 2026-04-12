@@ -143,12 +143,11 @@ const { moderatedContributions, isLoading, fetchModeratedContributions, acknowle
 const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);
 
-// Fetch on mount — dialog is always mounted with visible=true due to v-if in parent
+// Fetch on mount, dialog is always mounted with visible=true due to v-if in parent
 onMounted(() => {
   fetchModeratedContributions();
 });
 
-// Sync visibility with prop (re-fetch if dialog is shown again without unmounting)
 watch(
   () => props.visible,
   (newVal) => {
@@ -159,7 +158,6 @@ watch(
   },
 );
 
-// Update parent when visibility changes
 watch(isVisible, (newVal) => {
   emit("update:visible", newVal);
   if (!newVal) {
@@ -167,7 +165,6 @@ watch(isVisible, (newVal) => {
   }
 });
 
-// Handle acknowledge all button
 async function handleAcknowledgeAll() {
   isAcknowledging.value = true;
   try {

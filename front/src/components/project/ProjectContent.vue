@@ -287,7 +287,7 @@ interface Props {
   projectChanges: PendingChangeRequest[];
   allChangeRequests: PendingChangeRequest[];
   overlayChangesMap?: Map<string, PendingChangeRequest[]>;
-  projectsContext: ProjectForModeration[]; // Needed for context in change requests
+  projectsContext: ProjectForModeration[];
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
   hideStatusBadges?: boolean;
@@ -371,19 +371,11 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 }
 
 function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
-  // Use O(1) map lookup if available
   if (props.overlayChangesMap) {
     return props.overlayChangesMap.get(overlayId) || [];
   }
 
-  // Logic copied from parent
-  let overlay: OverlayForModeration | null = null;
-  // Search in local project's overlays first (optimization)
-  overlay = props.project.overlays?.find((o) => o.id === overlayId) || null;
-
-  if (!overlay) {
-    // Fallback search in context if needed, but here we iterate project overlays so it should be there
-  }
+  const overlay = props.project.overlays?.find((o) => o.id === overlayId) || null;
 
   if (!overlay || overlay.status === "pending") {
     return [];

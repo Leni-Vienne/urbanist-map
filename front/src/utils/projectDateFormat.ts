@@ -19,7 +19,6 @@ export function formatProjectDateRange(
   proposalDatePrecision?: "year" | "month" | "day" | null,
   t = (key: string) => key,
 ): string {
-  // If it's proposed or canceled, the proposal date is most relevant
   if (timelineStatus === "proposed" && proposalDate) {
     const proposalDateStr = formatFlexibleDate(
       dbToFlexibleDate(proposalDate, proposalDatePrecision),
@@ -51,7 +50,6 @@ export function formatProjectDateRange(
       endDatePrecision === "day" || endDatePrecision === null ? "project.endsOn" : "project.endsIn";
     return `${t(endsKey)} ${end}`;
   } else if (proposalDate) {
-    // Fallback if we only have proposal date but status is not proposed
     const proposalDateStr = formatFlexibleDate(
       dbToFlexibleDate(proposalDate, proposalDatePrecision),
     );

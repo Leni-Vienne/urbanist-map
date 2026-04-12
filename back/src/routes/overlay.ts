@@ -1,5 +1,5 @@
 import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
-import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod";
 import { overlays, projects, cities, users, type ApprovalStatus } from "../db/schema";
 import type * as schema from "../db/schema";
 import { sql, eq, and, or, inArray } from "drizzle-orm";
@@ -34,8 +34,6 @@ const updateOverlaySchema = z.object({
     .transform((val) => (val === "" ? undefined : val))
     .optional(), // Allow updating caption
 });
-
-// Shared select fields and query builder moved to back/src/db/queryBuilders.ts to eliminate duplication
 
 // Find overlays that intersect with a given overlay using PostGIS spatial queries
 async function findIntersectingOverlays(

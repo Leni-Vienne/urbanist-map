@@ -73,7 +73,7 @@ function roundCoord(v: number): string {
  * Prevents redundant fetches when the user pans a few pixels.
  */
 function bboxKey(bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number }): string {
-  // Round to ~0.005° (~500m at equator) — coarse enough to absorb tiny pans
+  // Round to ~0.005° (~500m at equator), coarse enough to absorb tiny pans
   return `${roundCoord(bbox.minLng)},${roundCoord(bbox.minLat)},${roundCoord(bbox.maxLng)},${roundCoord(bbox.maxLat)}`;
 }
 
@@ -147,7 +147,7 @@ export function useViewportTriggers() {
   // ── Main refresh ────────────────────────────────────────────────────────
 
   /**
-   * Main viewport refresh — bbox loading for edit/moderation,
+   * Main viewport refresh, bbox loading for edit/moderation,
    * passthrough for view mode.
    */
   async function refreshViewport(force = false) {

@@ -1,5 +1,5 @@
 <template>
-  <!-- Teleport into the Leaflet marker icon — Leaflet owns pan/zoom positioning -->
+  <!-- Teleport into the Leaflet marker icon, Leaflet owns pan/zoom positioning -->
   <Teleport :to="markerIconEl" v-if="markerIconEl">
     <div
       class="absolute -translate-x-1/2 -translate-y-[calc(100%+20px)] pointer-events-auto flex flex-col items-center gap-1 font-sans"
@@ -132,7 +132,7 @@ const { mode } = storeToRefs(mapStore);
 const selectedId = idSelectedOverlay;
 const isEditMode = computed(() => mode.value === "edit");
 
-// markerIconEl is the Leaflet marker's _icon div — we teleport our toolbar content inside it.
+// markerIconEl is the Leaflet marker's _icon div, we teleport our toolbar content inside it.
 // Leaflet handles pan + zoom animation via CSS transforms on the marker pane automatically.
 const markerIconEl = ref<HTMLElement | null>(null);
 const opacity = ref(100);
@@ -205,7 +205,7 @@ function startRAF() {
         anchorMarker.setLatLng(latlng);
       } else {
         // Layer removed from registry while still selected (e.g. zoom-out unload with
-        // preserveStoreData=true — idSelectedOverlay is not cleared in that path).
+        // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
         overlayStore.idSelectedOverlay = null;
       }
     }
@@ -378,8 +378,8 @@ const overlayIndex = computed(() => {
   if (!id) return null;
   const overlay = overlayStore.overlays[id];
   if (!overlay?.projectId) return null;
-  // Derive siblings from already-loaded overlays — avoids depending on projectStore.overlayIds
-  // which is only populated when the info popup is opened (backend fetch).
+  // Derive siblings from already-loaded overlays
+  // to avoid depending on projectStore.overlayIds (only populated on popup open).
   const siblings = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === overlay.projectId)
     .map((o) => o.id);
@@ -512,7 +512,7 @@ function btnCls(opts?: { active?: boolean; danger?: boolean }): string {
 </script>
 
 <style>
-/* Global: reset Leaflet's default DivIcon styles on our anchor marker */
+/* Reset Leaflet DivIcon styles on the anchor marker */
 .overlay-toolbar-anchor {
   background: none !important;
   border: none !important;

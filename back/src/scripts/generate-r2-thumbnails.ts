@@ -64,10 +64,8 @@ async function generateR2Thumbnails() {
         continue;
       }
 
-      // Read image into buffer
       const imageBuffer = await streamToBuffer(originalImage.body);
 
-      // Generate 120x120 thumbnail using sharp
       const thumbnailBuffer = await sharp(Buffer.from(imageBuffer))
         .resize(120, 120, {
           fit: "cover",
@@ -76,7 +74,7 @@ async function generateR2Thumbnails() {
         .webp()
         .toBuffer();
 
-      // Upload thumbnail to R2 with skipThumbnail option to prevent recursive thumbnail generation
+      // skipThumbnail prevents recursive thumbnail generation
       await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, {
         skipThumbnail: true,
       });
@@ -84,7 +82,7 @@ async function generateR2Thumbnails() {
       console.log(`Generated and uploaded thumbnail for ${overlay.filename}`);
       processedCount += 1;
 
-      // Add small delay to avoid overwhelming R2 (optional, adjust as needed)
+      // Small delay to avoid overwhelming R2
       await Bun.sleep(100);
     } catch (error) {
       console.error(`Failed to process ${overlay.filename}:`, error);
@@ -99,7 +97,6 @@ async function generateR2Thumbnails() {
   console.log(`Total overlays: ${approvedOverlays.length}`);
 }
 
-// Run the script
 generateR2Thumbnails()
   .then(() => {
     console.log("Script completed successfully");

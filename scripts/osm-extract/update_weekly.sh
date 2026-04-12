@@ -12,7 +12,7 @@
 # Note: planet.osm.org publishes weekly full planet dumps (.osm.bz2) but OSC
 # change files are only available at daily (and finer) granularity. Running
 # this script after 3 weeks of inactivity will download and chain 21 daily
-# diffs (~50-100MB each, ~1.5GB total) — still much less than re-downloading
+# diffs (~50-100MB each, ~1.5GB total), still much less than re-downloading
 # the planet.
 #
 # Total expected time per week of catchup: ~5min (~10-15min for a typical run).
@@ -126,7 +126,7 @@ function run() {
 #
 # Priority order:
 #   1. Sidecar state file <pbf>.replication-state  (written by this script after each run;
-#      most authoritative — tracks the last successfully applied sequence)
+#      most authoritative, tracks the last successfully applied sequence)
 #   2. REPL_TIMESTAMP env var (bootstrap for the very first run when no sidecar exists)
 #   3. osmosis_replication_timestamp header in the PBF (present on fresh planet downloads,
 #      lost after osmium apply-changes)

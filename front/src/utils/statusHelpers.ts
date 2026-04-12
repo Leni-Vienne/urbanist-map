@@ -1,7 +1,3 @@
-/**
- * Get badge severity based on status
- * Shared utility for ProjectHeader and ProjectContent
- */
 export function getStatusSeverity(
   status: string | null | undefined,
 ): "success" | "danger" | "warn" | "secondary" | "info" {
@@ -21,7 +17,7 @@ export function getStatusSeverity(
     case null:
     case undefined: {
       return "info";
-    } // Unsubmitted local projects
+    }
     default: {
       return "info";
     }

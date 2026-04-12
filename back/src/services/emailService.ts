@@ -20,7 +20,6 @@ class EmailService {
 
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     try {
-      // Use nodemailer for SMTP connection
       const transportConfig: SMTPTransport.Options = {
         host: this.config.host,
         port: this.config.port,
@@ -39,9 +38,9 @@ class EmailService {
 
       const mailOptions = {
         from: this.config.from,
-        to: to,
-        subject: subject,
-        html: html,
+        to,
+        subject,
+        html,
       };
 
       const result = await transporter.sendMail(mailOptions);

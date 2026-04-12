@@ -12,8 +12,7 @@
     <div
       class="w-full h-full relative overflow-hidden rounded-lg bg-content-background border-2 border-black"
     >
-      <!-- Using static images for preview to avoid loading actual tiles -->
-      <!-- Plan Preview (shown when in Satellite mode) -->
+      <!-- Plan preview (shown when in satellite mode) -->
       <div v-if="isSatellite" class="w-full h-full flex items-end justify-center relative">
         <img
           src="https://tile.openstreetmap.org/12/2048/1365.png"
@@ -26,7 +25,7 @@
         >
       </div>
 
-      <!-- Satellite Preview (shown when in Plan mode) -->
+      <!-- Satellite preview (shown when in plan mode) -->
       <div v-else class="w-full h-full flex items-end justify-center relative">
         <img
           src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1365/2048"
@@ -52,35 +51,24 @@ const props = defineProps<{
 
 const lastSatelliteLayer = ref<Exclude<TileLayerType, "plan">>("esri");
 
-// Track last selected satellite layer to remember user preference
 watch(currentTileLayer, (newVal) => {
   if (newVal !== "plan") {
     lastSatelliteLayer.value = newVal;
   }
 });
 
-// Check if current layer is a satellite-type layer
 const isSatellite = computed(() => {
   return currentTileLayer.value !== "plan";
 });
 
-// Cooldown state to prevent spamming switches
 const isToggling = ref(false);
 
 async function toggleLayer() {
-  // Prevent spamming: If already toggling (cooldown), ignore click
   if (isToggling.value) return;
-
-  // Apply cooldown lock immediately
   isToggling.value = true;
-
-  // Release cooldown after 500ms
   setTimeout(() => {
     isToggling.value = false;
   }, 500);
-
-  // Smart toggle: If satellite, go to plan. If plan, go to last used satellite.
-  // Switching immediately to provide instant feedback (no debounce)
   if (isSatellite.value) {
     await switchTileLayer("plan");
   } else {

@@ -162,6 +162,6 @@ export function toggleClusterGrid(mlMap?: MaplibreMap): void {
     _mlMap.on("moveend", _refresh);
     _mlMap.on("zoomend", _refresh);
     _active = true;
-    console.log(`Cluster grid shown — cell_size=${getCellSize(Math.floor(_mlMap.getZoom()))}`);
+    console.log(`Cluster grid shown, cell_size=${getCellSize(Math.floor(_mlMap.getZoom()))}`);
   }
 }

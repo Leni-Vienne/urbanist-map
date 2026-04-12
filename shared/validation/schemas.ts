@@ -1,4 +1,4 @@
-// Shared Zod validation schemas for frontend and backend
+// Shared Zod validation schemas
 import * as z from "zod";
 import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import { validateOverlaySize } from "../overlayValidation";
@@ -47,7 +47,6 @@ export const projectSchema = z
     tags: z.array(z.string().max(50)).max(20).optional(),
   })
   .superRefine((data, ctx) => {
-    // Validate proposal date is not in the future
     if (data.proposalDate && data.proposalDate > new Date()) {
       ctx.addIssue({
         code: "custom",
@@ -56,7 +55,6 @@ export const projectSchema = z
       });
     }
 
-    // Validate end date is after start date (only when both are provided)
     if (data.startDate && data.endDate && data.endDate <= data.startDate) {
       ctx.addIssue({
         code: "custom",
@@ -98,7 +96,6 @@ export const overlaySchema = z
       .length(4, "validation.cornersRequired"),
   })
   .superRefine((data, ctx) => {
-    // Validate overlay size constraints (max dimensions in meters)
     const sizeValidation = validateOverlaySize(data.corners);
     if (!sizeValidation.isValid) {
       ctx.addIssue({
@@ -114,7 +111,7 @@ export const registerSchema = z.object({
   email: z.string().email("validation.invalidEmail"),
   password: z.string().min(8, "validation.passwordTooShort"),
   username: z.string().min(3, "validation.usernameTooShort").max(50, "validation.usernameTooLong"),
-  captchaToken: z.string().optional(), // Optional Cloudflare Turnstile token
+  captchaToken: z.string().optional(),
 });
 
 export const resetPasswordRequestSchema = z.object({
@@ -207,10 +204,9 @@ export const submitChangeRequestSchema = z
 // Validation error with i18n key and parameters
 export interface ValidationError {
   key: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 }
 
-// Helper function to extract i18n key and params from ZodError
 export function getValidationError(error: z.ZodError, fieldPath?: string): ValidationError {
   const issues = fieldPath
     ? error.issues.filter((issue) => issue.path.join(".") === fieldPath)
@@ -222,8 +218,7 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   }
   const key = issue?.message.startsWith("validation.") ? issue.message : "validation.genericError";
 
-  // Extract constraint values from Zod issue for dynamic i18n parameters
-  const params: Record<string, any> = {};
+  const params: Record<string, unknown> = {};
 
   if (issue.code === "too_small") {
     params.min = issue.minimum;
@@ -236,7 +231,7 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   return { key, params: Object.keys(params).length > 0 ? params : undefined };
 }
 
-// Helper function to get all validation errors as a map of field -> ValidationError
+// Map of field path -> ValidationError for all validation errors in a ZodError
 export function getValidationErrorsMap(error: z.ZodError): Record<string, ValidationError> {
   const errorMap: Record<string, ValidationError> = {};
 
@@ -246,9 +241,8 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
       const key = issue?.message.startsWith("validation.")
         ? issue.message
         : "validation.genericError";
-      const params: Record<string, any> = {};
+      const params: Record<string, unknown> = {};
 
-      // Extract constraint values from Zod issue
       if (issue.code === "too_small") {
         params.min = issue.minimum;
         params.expected = issue.minimum;
@@ -264,6 +258,5 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
   return errorMap;
 }
 
-// Type exports for TypeScript inference
 export type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
 export type FieldChange = SubmitChangeRequestInput["changes"][number];

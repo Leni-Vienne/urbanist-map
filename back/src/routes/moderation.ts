@@ -32,9 +32,6 @@ import { incrementCityProjectCount, decrementCityProjectCount } from "../db/upda
 import { queueR2Migration } from "../services/r2MigrationService";
 import * as z from "zod";
 
-// Helper functions to update user moderation stats
-// These are called within transactions to ensure atomicity
-// Using Pick to accept both db and transaction objects
 type DbOrTx = Pick<typeof db, "update">;
 
 const THUMBNAIL_RETENTION_DAYS = 15;
@@ -71,8 +68,7 @@ async function decrementRejectedCount(tx: DbOrTx, userId: string | null): Promis
     .where(eq(users.id, userId));
 }
 
-// Schema for legacy approval endpoints - supports arrays but frontend only sends single items
-// Used only for undo functionality in the frontend
+// Schema for legacy undo approval endpoints
 const setApprovalStatusSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(approvalStatusEnum.enumValues),
@@ -84,7 +80,6 @@ async function checkModeratorCountryPermission(
   projectId: string,
   user: { role: string | null; moderatedCountries: string[] | null },
 ): Promise<string> {
-  // Admins can moderate any country
   if (user.role === "admin") {
     return "*"; // Wildcard indicating all countries allowed
   }
@@ -103,7 +98,6 @@ async function checkModeratorCountryPermission(
 
   const countryCode = projectData.countryCode;
 
-  // Check if moderator has permission for this country
   if (!user.moderatedCountries?.includes(countryCode)) {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -119,7 +113,6 @@ async function checkModeratorOverlayPermission(
   overlayId: string,
   user: { role: string | null; moderatedCountries: string[] | null },
 ): Promise<string> {
-  // Admins can moderate any country
   if (user.role === "admin") {
     return "*";
   }
@@ -150,24 +143,20 @@ async function checkModeratorOverlayPermission(
 }
 
 // Schema for version-aware approval to prevent race conditions
-// Supports arrays but frontend only sends single items for individual approval/rejection
 const setApprovalStatusWithVersionSchema = z.object({
   id: z.string().uuid(),
   expectedVersion: z.number().int(),
   status: z.enum(approvalStatusEnum.enumValues),
-  rejectionReason: z.string().max(500).optional(), // Moderator-selected rejection reason
-  rejectAllOverlays: z.boolean().optional(), // Whether to also reject all pending overlays when rejecting a project
+  rejectionReason: z.string().max(500).optional(),
+  rejectAllOverlays: z.boolean().optional(),
 });
 
 export const moderationRouter = router({
-  // Check for conflicts when approving a replacement overlay
   checkReplacementConflicts: moderatorProcedure
     .input(z.object({ overlayId: z.string().uuid() }))
     .query(async ({ input, ctx }) => {
       try {
-        // Verify moderator has permission for this overlay's country
         await checkModeratorOverlayPermission(input.overlayId, ctx.user);
-        // Get the overlay being approved
         const overlay = await db
           .select({
             id: overlays.id,
@@ -196,7 +185,6 @@ export const moderationRouter = router({
           };
         }
 
-        // Get the original overlay being replaced
         const originalOverlay = await db
           .select({
             id: overlays.id,
@@ -216,7 +204,6 @@ export const moderationRouter = router({
           });
         }
 
-        // Find pending change requests on the original overlay
         const pendingChanges = await db
           .select({
             id: changeRequests.id,
@@ -291,7 +278,6 @@ export const moderationRouter = router({
         const sortColumn = input.sortBy === "updatedAt" ? projects.updatedAt : projects.createdAt;
         const limit = input.limit ?? 50;
 
-        // Country-scoped moderation - moderators can only see their assigned countries
         const userModeratedCountries = ctx.user.moderatedCountries;
         const isAdmin = ctx.user.role === "admin";
         const moderatorId = ctx.user.id;
@@ -400,9 +386,6 @@ export const moderationRouter = router({
       }
     }),
 
-  // Get pending item counts per country for moderation dashboard
-  // Returns total pending count (projects + overlays + change requests) for each country
-  // Respects moderator country permissions (only shows counts for assigned countries)
   getPendingCountsByCountry: moderatorProcedure.query(async ({ ctx }) => {
     try {
       const userModeratedCountries = ctx.user.moderatedCountries;
@@ -416,16 +399,11 @@ export const moderationRouter = router({
         )}]::text[])`;
       }
 
-      // Efficient single-query approach using CASE statements for conditional counting
-      // This prevents N+1 queries and uses database indexes optimally
       const result = await db
         .select({
           countryCode: projects.countryCode,
-          // Count distinct pending projects
           pendingProjects: sql<string>`COUNT(DISTINCT CASE WHEN ${projects.status} = 'pending' THEN ${projects.id} END)`,
-          // Count distinct pending overlays
           pendingOverlays: sql<string>`COUNT(DISTINCT CASE WHEN ${overlays.status} = 'pending' THEN ${overlays.id} END)`,
-          // Count distinct pending change requests (for both project and overlay changes)
           pendingChanges: sql<string>`COUNT(DISTINCT CASE WHEN ${changeRequests.status} = 'pending' THEN ${changeRequests.id} END)`,
         })
         .from(projects)
@@ -440,7 +418,6 @@ export const moderationRouter = router({
         .where(countryFilter)
         .groupBy(projects.countryCode);
 
-      // Calculate total pending items per country and filter out countries with zero counts
       const countsWithTotals = result
         .filter((row): row is typeof row & { countryCode: string } => row.countryCode !== null)
         .map((row) => ({
@@ -448,7 +425,7 @@ export const moderationRouter = router({
           total:
             Number(row.pendingProjects) + Number(row.pendingOverlays) + Number(row.pendingChanges),
         }))
-        .filter((row) => row.total > 0); // Only return countries with pending items
+        .filter((row) => row.total > 0);
 
       return countsWithTotals;
     } catch (error) {
@@ -460,18 +437,13 @@ export const moderationRouter = router({
     }
   }),
 
-  // Undo project approval - restores project to previous status (typically pending)
-  // Frontend always sends single ID wrapped in array: ids: [singleId]
   undoProjectApprovalStatus: moderatorProcedure
     .input(setApprovalStatusSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        // Verify moderator has permission for this project's country
         await checkModeratorCountryPermission(input.id, ctx.user);
 
-        // Use transaction to atomically update project and decrement user stats
         await db.transaction(async (tx) => {
-          // Get current status and ownerId before updating
           const currentProject = await tx
             .select({ status: projects.status, ownerId: projects.ownerId })
             .from(projects)
@@ -487,10 +459,8 @@ export const moderationRouter = router({
           const previousStatus = projectRecord.status;
           const ownerId = projectRecord.ownerId;
 
-          // Update project status
           await tx.update(projects).set({ status: input.status }).where(eq(projects.id, input.id));
 
-          // Decrement the appropriate counter based on previous status
           if (previousStatus === "approved") {
             await decrementApprovedCount(tx, ownerId);
           } else if (previousStatus === "rejected") {
@@ -510,18 +480,13 @@ export const moderationRouter = router({
       }
     }),
 
-  // Undo overlay approval - restores overlay to previous status (typically pending)
-  // Frontend always sends single ID wrapped in array: ids: [singleId]
   undoOverlayApprovalStatus: moderatorProcedure
     .input(setApprovalStatusSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        // Verify moderator has permission for this overlay's country
         await checkModeratorOverlayPermission(input.id, ctx.user);
 
-        // Use transaction to atomically update overlay and decrement user stats
         await db.transaction(async (tx) => {
-          // Get current status and authorId before updating
           const currentOverlay = await tx
             .select({ status: overlays.status, authorId: overlays.authorId })
             .from(overlays)
@@ -537,10 +502,8 @@ export const moderationRouter = router({
           const previousStatus = overlayRecord.status;
           const authorId = overlayRecord.authorId;
 
-          // Update overlay status
           await tx.update(overlays).set({ status: input.status }).where(eq(overlays.id, input.id));
 
-          // Decrement the appropriate counter based on previous status
           if (previousStatus === "approved") {
             await decrementApprovedCount(tx, authorId);
           } else if (previousStatus === "rejected") {
@@ -560,29 +523,22 @@ export const moderationRouter = router({
       }
     }),
 
-  // Version-aware project approval to prevent race conditions
-  // Frontend always sends single item wrapped in array: items: [{ id, expectedVersion }]
   setProjectApprovalStatusWithVersion: moderatorProcedure
     .input(setApprovalStatusWithVersionSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        // Verify moderator has permission for this project's country
         await checkModeratorCountryPermission(input.id, ctx.user);
 
-        // Allow updating pending projects (any action) OR approved projects
         const statusCondition =
           input.status === "rejected"
             ? or(eq(projects.status, "pending"), eq(projects.status, "approved"))
             : eq(projects.status, "pending");
 
-        // Use transaction to atomically update project and user stats
         const result = await db.transaction(async (tx) => {
-          // Atomic update with version check and status check in WHERE clause
           const updateResult = await tx
             .update(projects)
             .set({
               status: input.status,
-              // Save rejection reason when rejecting, clear it when approving
               rejectionReason: input.status === "rejected" ? (input.rejectionReason ?? null) : null,
             })
             .where(
@@ -631,14 +587,12 @@ export const moderationRouter = router({
             }
           }
 
-          // Increment user's approval/rejection count
           const ownerId = updatedProject.ownerId;
           if (input.status === "approved") {
             await incrementApprovedCount(tx, ownerId);
           } else if (input.status === "rejected") {
             await incrementRejectedCount(tx, ownerId);
 
-            // Optionally cascade rejection to all pending overlays
             let rejectedOverlayFilenames: string[] = [];
             if (input.rejectAllOverlays) {
               const pendingOverlays = await tx
@@ -651,13 +605,11 @@ export const moderationRouter = router({
                 .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
 
               if (pendingOverlays.length > 0) {
-                // Reject all pending overlays
                 await tx
                   .update(overlays)
                   .set({ status: "rejected", rejectionReason: input.rejectionReason ?? null })
                   .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
 
-                // Increment rejection counts for overlay authors
                 for (const overlay of pendingOverlays) {
                   await incrementRejectedCount(tx, overlay.authorId);
                 }
@@ -676,14 +628,12 @@ export const moderationRouter = router({
           return { success: true as const, cityId: updatedProject.cityId };
         });
 
-        // Update city project count after transaction succeeds
-        // This is done outside transaction for performance - counts are eventually consistent
+        // City counts are updated outside the transaction (eventually consistent)
         if (result.success && result.cityId) {
           try {
             if (input.status === "approved") {
               await incrementCityProjectCount(result.cityId);
             } else if (input.status === "rejected") {
-              // Decrement count (already rejected in transaction above)
               await decrementCityProjectCount(result.cityId);
             }
           } catch (error) {
@@ -692,7 +642,6 @@ export const moderationRouter = router({
           }
         }
 
-        // Clean up rejected overlay images if cascade rejection was used
         if (
           result.success &&
           result.rejectedOverlayFilenames &&
@@ -716,7 +665,6 @@ export const moderationRouter = router({
 
         if (result.success) await invalidateProjectTiles(input.id);
 
-        // Invalidate latest contributions cache when approving
         if (result.success && input.status === "approved") {
           invalidateLatestContributionsCache();
         }
@@ -731,8 +679,6 @@ export const moderationRouter = router({
       }
     }),
 
-  // Version-aware overlay approval to prevent race conditions
-  // Frontend always sends single item wrapped in array: items: [{ id, expectedVersion }]
   setOverlayApprovalStatusWithVersion: moderatorProcedure
     .input(
       setApprovalStatusWithVersionSchema.extend({
@@ -741,10 +687,8 @@ export const moderationRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        // Verify moderator has permission for this overlay's country
         await checkModeratorOverlayPermission(input.id, ctx.user);
 
-        // Get overlay data for processing
         const overlayData = await db
           .select({
             id: overlays.id,
@@ -767,20 +711,17 @@ export const moderationRouter = router({
         const replacesOverlayId = overlay.replacesOverlayId;
         const authorId = overlay.authorId;
 
-        // Handle rejection
         if (input.status === "rejected") {
           return await handleOverlayRejection(
             input.id,
             input.expectedVersion,
             authorId,
             overlayFilename,
-            input.rejectionReason, // Pass rejection reason from input
+            input.rejectionReason,
           );
         }
 
-        // Handle approval (more complex, especially for replacements)
         const transactionResult = await db.transaction(async (tx) => {
-          // Lock and verify the overlay hasn't changed
           const currentOverlay = await tx
             .select({
               id: overlays.id,
@@ -798,7 +739,6 @@ export const moderationRouter = router({
             return { success: false, error: "Overlay not found" };
           }
 
-          // Version and status checks
           if (overlayRecord.version !== input.expectedVersion) {
             return {
               success: false,
@@ -816,7 +756,6 @@ export const moderationRouter = router({
             };
           }
 
-          // Handle replacement conflicts if needed
           let competingReplacements: { id: string; filename: string; authorId: string | null }[] =
             [];
           if (replacesOverlayId && input.handleReplacementConflicts) {
@@ -834,7 +773,6 @@ export const moderationRouter = router({
             competingReplacements = replacementResult.competingReplacements;
           }
 
-          // Approve the overlay
           const approvalResult = await handleOverlayApproval(tx, input.id, authorId);
 
           if (!approvalResult.success) {
@@ -847,12 +785,10 @@ export const moderationRouter = router({
           };
         });
 
-        // Return early if transaction failed
         if (!transactionResult.success) {
           return transactionResult;
         }
 
-        // Handle image cleanup for replacement workflow
         if (
           replacesOverlayId &&
           input.handleReplacementConflicts &&
@@ -864,7 +800,6 @@ export const moderationRouter = router({
           );
         }
 
-        // Queue R2 migration in production (non-blocking for instant response)
         if (
           input.status === "approved" &&
           overlayFilename &&
@@ -875,7 +810,6 @@ export const moderationRouter = router({
 
         await invalidateOverlayTiles(input.id);
 
-        // Invalidate latest contributions cache when approving
         if (input.status === "approved") {
           invalidateLatestContributionsCache();
         }
@@ -890,8 +824,6 @@ export const moderationRouter = router({
       }
     }),
 
-  // Report a user for spam/harmful content
-  // Rules: 1 report = hide for that moderator, 2+ reports = warning for all, 3+ or admin = global hide
   reportUser: moderatorProcedure
     .input(
       z.object({
@@ -903,7 +835,6 @@ export const moderationRouter = router({
       try {
         const moderatorId = ctx.user.id;
 
-        // Check if already reported by this moderator
         const existingReport = await db
           .select({ id: userReports.id })
           .from(userReports)
@@ -919,14 +850,12 @@ export const moderationRouter = router({
           return { success: true, alreadyReported: true };
         }
 
-        // Create the report
         await db.insert(userReports).values({
           reportedUserId: input.userId,
           reportedBy: moderatorId,
           reason: input.reason,
         });
 
-        // Get total report count for this user
         const reportCount = await db
           .select({ count: sql<string>`COUNT(*)` })
           .from(userReports)
@@ -943,7 +872,6 @@ export const moderationRouter = router({
       }
     }),
 
-  // Remove a report for a user (if moderator changes their mind)
   unreportUser: moderatorProcedure
     .input(
       z.object({
@@ -970,7 +898,6 @@ export const moderationRouter = router({
       }
     }),
 
-  // Get list of users reported by the current moderator
   getMyReportedUsers: moderatorProcedure.query(async ({ ctx }) => {
     try {
       const moderatorId = ctx.user.id;
@@ -995,7 +922,6 @@ export const moderationRouter = router({
     }
   }),
 
-  // Get report counts for users (for displaying warning badges in moderation UI)
   getUserReportCounts: moderatorProcedure
     .input(
       z.object({
@@ -1011,7 +937,6 @@ export const moderationRouter = router({
         const moderatorId = ctx.user.id;
         const isAdmin = ctx.user.role === "admin";
 
-        // Get report counts for each user
         const reportCounts = await db
           .select({
             reportedUserId: userReports.reportedUserId,
@@ -1021,7 +946,6 @@ export const moderationRouter = router({
           .where(inArray(userReports.reportedUserId, input.userIds))
           .groupBy(userReports.reportedUserId);
 
-        // Check which users are reported by the current moderator
         const myReports = await db
           .select({ reportedUserId: userReports.reportedUserId })
           .from(userReports)
@@ -1034,13 +958,12 @@ export const moderationRouter = router({
 
         const myReportedUserIds = new Set(myReports.map((r) => r.reportedUserId));
 
-        // Build result map with visibility rules
         const result: Record<
           string,
           {
             totalReports: number;
             reportedByMe: boolean;
-            isHidden: boolean; // Whether this user's content should be hidden for the current moderator
+            isHidden: boolean;
           }
         > = {};
 
@@ -1048,10 +971,7 @@ export const moderationRouter = router({
           const count = reportCounts.find((report) => report.reportedUserId === userId);
           const totalReports = Number(count?.count ?? 0);
           const reportedByMe = myReportedUserIds.has(userId);
-
-          // Visibility rules:
-          // - 1 report by me = hidden for me
-          // - 3+ reports total OR admin report = hidden for all (handled in getPendingSubmissions)
+          // 1 report by me = hidden for me; 3+ total = hidden for all
           const isHidden = reportedByMe || (isAdmin && totalReports >= 1) || totalReports >= 3;
 
           result[userId] = {
@@ -1071,11 +991,8 @@ export const moderationRouter = router({
       }
     }),
 
-  // Get reported users for admin review
-  // Returns users with 2+ reports (threshold from config)
   getReportedUsers: adminProcedure.query(async () => {
     try {
-      // Get report threshold from config
       const configResult = await db
         .select({ reportThreshold: sql<number>`coalesce(report_threshold, 2)` })
         .from(sql`config`)
@@ -1083,7 +1000,6 @@ export const moderationRouter = router({
 
       const threshold = configResult[0]?.reportThreshold ?? 2;
 
-      // Get users with report counts >= threshold
       const reportedUsers = await db
         .select({
           userId: userReports.reportedUserId,
@@ -1106,10 +1022,8 @@ export const moderationRouter = router({
         )
         .having(sql`count(distinct ${userReports.reportedBy}) >= ${threshold}`);
 
-      // For each reported user, get detailed report info and content counts
       const enrichedUsers = await Promise.all(
         reportedUsers.map(async (user) => {
-          // Get reporter details and reasons
           const reports = await db
             .select({
               reporterId: userReports.reportedBy,
@@ -1122,7 +1036,6 @@ export const moderationRouter = router({
             .leftJoin(users, eq(userReports.reportedBy, users.id))
             .where(eq(userReports.reportedUserId, user.userId));
 
-          // Get pending and rejected content counts
           const [projectCounts, overlayCounts] = await Promise.all([
             db
               .select({
@@ -1167,7 +1080,6 @@ export const moderationRouter = router({
     }
   }),
 
-  // Clear all reports for a user (unblock them)
   clearUserReports: adminProcedure
     .input(z.object({ userId: z.string().uuid() }))
     .mutation(async ({ input }) => {
@@ -1183,7 +1095,6 @@ export const moderationRouter = router({
       }
     }),
 
-  // Ban user and optionally delete all their content
   banUser: adminProcedure
     .input(
       z.object({
@@ -1195,7 +1106,6 @@ export const moderationRouter = router({
     .mutation(async ({ input, ctx }) => {
       try {
         await db.transaction(async (tx) => {
-          // Mark user as banned
           await tx
             .update(users)
             .set({
@@ -1206,9 +1116,7 @@ export const moderationRouter = router({
             })
             .where(eq(users.id, input.userId));
 
-          // Delete content if requested
           if (input.deleteContent) {
-            // Get all pending and rejected overlay filenames for cleanup
             const overlaysToDelete = await tx
               .select({ filename: overlays.filename })
               .from(overlays)
@@ -1219,7 +1127,6 @@ export const moderationRouter = router({
                 ),
               );
 
-            // Delete pending and rejected projects
             await tx
               .delete(projects)
               .where(
@@ -1229,7 +1136,6 @@ export const moderationRouter = router({
                 ),
               );
 
-            // Delete pending and rejected overlays
             await tx
               .delete(overlays)
               .where(
@@ -1239,9 +1145,6 @@ export const moderationRouter = router({
                 ),
               );
 
-            // Clean up images after transaction commits
-            // This is done outside transaction to avoid holding lock during I/O
-            // If cleanup fails, images are orphaned but database is consistent
             for (const overlay of overlaysToDelete) {
               try {
                 await deleteLocalImages(overlay.filename, "both");
@@ -1252,7 +1155,6 @@ export const moderationRouter = router({
             }
           }
 
-          // Clear all reports (no longer needed after ban)
           await tx.delete(userReports).where(eq(userReports.reportedUserId, input.userId));
         });
 
@@ -1266,18 +1168,15 @@ export const moderationRouter = router({
       }
     }),
 
-  // Admin-only endpoint to permanently delete an overlay (including approved ones)
-  // This removes the database record AND cleans up images from R2/local storage
   adminDeleteOverlay: adminProcedure
     .input(
       z.object({
         id: z.uuid(),
-        reason: z.string().max(500).optional(), // Optional reason for audit purposes
+        reason: z.string().max(500).optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        // Get overlay data before deletion for cleanup
         const overlayData = await db
           .select({
             id: overlays.id,
@@ -1295,23 +1194,16 @@ export const moderationRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         }
 
-        // Delete overlay from database
         await db.delete(overlays).where(eq(overlays.id, input.id));
 
-        // Log deletion for audit trail
         console.log(
           `Admin ${ctx.user.id} deleted overlay ${input.id} (status: ${overlay.status})${input.reason ? ` - Reason: ${input.reason}` : ""}`,
         );
 
-        // Clean up images
-        // Approved overlays have images in R2, pending/rejected in local storage
-        // The deleteImages function handles both based on environment
         try {
           await deleteImages(overlay.filename, "both");
-          console.log(`Deleted images for overlay ${input.id}: ${overlay.filename}`);
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
-          // Don't fail the request if image cleanup fails - database is already updated
         }
 
         return {
@@ -1330,10 +1222,6 @@ export const moderationRouter = router({
     }),
 });
 
-// Helper functions for getPendingSubmissions refactoring
-
-// Build set of user IDs that should be hidden from the moderator
-// Rules: reported by me = hidden for me, 3+ reports = hidden for all
 async function buildHiddenUserIdsSet(moderatorId: string): Promise<Set<string>> {
   const allReports = await db
     .select({
@@ -1364,19 +1252,15 @@ async function buildHiddenUserIdsSet(moderatorId: string): Promise<Set<string>> 
   return hiddenUserIds;
 }
 
-// Collect all project IDs that need moderation
 async function collectPendingProjectIds(): Promise<{
   pendingOverlayProjectIds: string[];
   pendingChangeProjectIds: string[];
 }> {
   const [projectsWithPendingOverlays, projectsWithPendingChanges] = await Promise.all([
-    // Projects with pending overlay submissions
     db
       .selectDistinct({ projectId: overlays.projectId })
       .from(overlays)
       .where(eq(overlays.status, "pending")),
-
-    // Projects with pending change requests (on project or overlay)
     db
       .selectDistinct({
         projectId: sql<string>`CASE
@@ -1400,14 +1284,13 @@ async function collectPendingProjectIds(): Promise<{
   return { pendingOverlayProjectIds, pendingChangeProjectIds };
 }
 
-// Fetch all moderation data in parallel
 async function fetchModerationData(
   projectModerationConditions: (SQL | undefined)[],
   sortColumn: PgColumn,
   limit: number,
 ) {
-  // Fetch projects first so we can scope change requests to exact project IDs
-  // This avoids applying COALESCE country conditions to change_requests joins (slow full scans)
+  // Fetch projects first to scope change request queries to exact project IDs,
+  // avoiding slow full-table scans via COALESCE country conditions on the join
   const projectsResult = await buildProjectModerationQuery(db)
     .where(and(...projectModerationConditions))
     .orderBy(sortColumn)
@@ -1420,10 +1303,8 @@ async function fetchModerationData(
   }
 
   const [overlaysResult, overlayChanges, projectChanges] = await Promise.all([
-    // All overlays from moderation projects (to show in project accordions)
     buildOverlayModerationQuery(db).where(and(...projectModerationConditions)),
-
-    // Overlay change requests scoped to the fetched project IDs via overlay join
+    // Overlay change requests scoped to the fetched project IDs
     db
       .select({
         id: changeRequests.id,
@@ -1449,7 +1330,6 @@ async function fetchModerationData(
         ),
       ),
 
-    // Project change requests scoped to the fetched project IDs
     db
       .select({
         id: changeRequests.id,
@@ -1478,7 +1358,6 @@ async function fetchModerationData(
   return { projectsResult, overlaysResult, overlayChanges, projectChanges };
 }
 
-// Filter content by reported users
 function filterContentByReportedUsers<
   T extends { ownerId?: string | null; authorId?: string | null; requestedBy?: string | null },
 >(items: T[], hiddenUserIds: Set<string>, userIdField: keyof T): T[] {
@@ -1489,8 +1368,6 @@ function filterContentByReportedUsers<
   });
 }
 
-// Enrich entities with report counts
-// Proper types inferred from query builder return types
 async function enrichWithReportCounts(
   filteredProjects: Awaited<ReturnType<ReturnType<typeof buildProjectModerationQuery>["execute"]>>,
   filteredOverlays: Awaited<ReturnType<ReturnType<typeof buildOverlayModerationQuery>["execute"]>>,
@@ -1509,7 +1386,6 @@ async function enrichWithReportCounts(
     hasConflict: boolean;
   }[],
 ) {
-  // Collect all user IDs
   const userIds = new Set<string>();
   for (const project of filteredProjects) {
     if (project.ownerId) userIds.add(project.ownerId);
@@ -1521,7 +1397,6 @@ async function enrichWithReportCounts(
     if (change.requestedBy) userIds.add(change.requestedBy);
   }
 
-  // Fetch report counts for all users
   const reportCounts = await db
     .select({
       reportedUserId: userReports.reportedUserId,
@@ -1531,7 +1406,6 @@ async function enrichWithReportCounts(
     .where(inArray(userReports.reportedUserId, [...userIds]))
     .groupBy(userReports.reportedUserId);
 
-  // Build map of user ID to report count
   const reportCountMap = new Map<string, number>();
   for (const row of reportCounts) {
     reportCountMap.set(row.reportedUserId, Number(row.count));
@@ -1562,26 +1436,21 @@ async function enrichWithReportCounts(
   return { projectsWithOverlays, overlaysWithReports, changeRequestsWithReports };
 }
 
-// Helper functions for setOverlayApprovalStatusWithVersion refactoring
-
-// Handle overlay rejection workflow
 async function handleOverlayRejection(
   overlayId: string,
   expectedVersion: number,
   authorId: string | null,
   filename: string,
-  rejectionReason?: string, // Optional rejection reason from moderator
+  rejectionReason?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Use transaction to atomically update overlay and user stats
     const rejectionResult = await db.transaction(async (tx) => {
-      // Atomic update with version check
       const result = await tx
         .update(overlays)
         .set({
           status: "rejected",
           version: sql`${overlays.version} + 1`,
-          rejectionReason: rejectionReason ?? null, // Save rejection reason
+          rejectionReason: rejectionReason ?? null,
         })
         .where(
           and(
@@ -1596,7 +1465,6 @@ async function handleOverlayRejection(
         return { success: false as const, error: "Version mismatch or already processed" };
       }
 
-      // Increment author's rejection count
       await incrementRejectedCount(tx, authorId);
 
       return { success: true as const };
@@ -1606,10 +1474,8 @@ async function handleOverlayRejection(
       return rejectionResult;
     }
 
-    // Delete images for rejected overlays (outside transaction)
+    // Images are always local for pending overlays (not yet migrated to R2)
     try {
-      // For rejected overlays: delete full immediately, keep thumbnail for THUMBNAIL_RETENTION_DAYS
-      // Uses deleteLocalImages since pending overlays are always stored locally (not in R2)
       await deleteLocalImages(filename, "full");
       await scheduleImageCleanup(
         overlayId,
@@ -1629,8 +1495,6 @@ async function handleOverlayRejection(
   }
 }
 
-// Handle replacement conflict resolution
-// Transaction type: Parameters<Parameters<Database['transaction']>[0]>[0]
 async function handleReplacementConflicts(
   tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
   replacesOverlayId: string,
@@ -1642,7 +1506,6 @@ async function handleReplacementConflicts(
   competingReplacements: { id: string; filename: string; authorId: string | null }[];
 }> {
   try {
-    // Lock the original overlay
     const originalOverlay = await tx
       .select({
         id: overlays.id,
@@ -1664,7 +1527,6 @@ async function handleReplacementConflicts(
       };
     }
 
-    // Mark original as 'replaced'
     await tx
       .update(overlays)
       .set({
@@ -1674,7 +1536,6 @@ async function handleReplacementConflicts(
       })
       .where(eq(overlays.id, replacesOverlayId));
 
-    // Mark all pending change requests as 'conflicted'
     await tx
       .update(changeRequests)
       .set({
@@ -1690,7 +1551,6 @@ async function handleReplacementConflicts(
         ),
       );
 
-    // Find and reject competing replacement overlays
     const competingReplacements = await tx
       .select({ id: overlays.id, filename: overlays.filename, authorId: overlays.authorId })
       .from(overlays)
@@ -1716,7 +1576,6 @@ async function handleReplacementConflicts(
           ),
         );
 
-      // Increment rejection count for each competing replacement author
       for (const competing of competingReplacements) {
         await incrementRejectedCount(tx, competing.authorId);
       }
@@ -1733,21 +1592,17 @@ async function handleReplacementConflicts(
   }
 }
 
-// Handle overlay approval
-// Transaction type: Parameters<Parameters<Database['transaction']>[0]>[0]
 async function handleOverlayApproval(
   tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
   overlayId: string,
   authorId: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Approve the overlay
     const result = await tx
       .update(overlays)
       .set({
         status: "approved",
         version: sql`${overlays.version} + 1`,
-        // Clear replacesOverlayId - once approved, it's no longer a "replacement"
         replacesOverlayId: null,
       })
       .where(eq(overlays.id, overlayId))
@@ -1757,7 +1612,6 @@ async function handleOverlayApproval(
       return { success: false, error: "Failed to approve overlay" };
     }
 
-    // Increment author's approval count
     await incrementApprovedCount(tx, authorId);
 
     return { success: true };
@@ -1767,13 +1621,11 @@ async function handleOverlayApproval(
   }
 }
 
-// Cleanup images for replaced overlays and competing replacements
 async function cleanupReplacementImages(
   competingReplacements: { id: string; filename: string }[],
   replacesOverlayId: string,
 ): Promise<void> {
   try {
-    // Delete images for competing replacements (pending overlays = local storage)
     for (const competing of competingReplacements) {
       try {
         await deleteLocalImages(competing.filename, "full");
@@ -1788,7 +1640,6 @@ async function cleanupReplacementImages(
       }
     }
 
-    // Handle cleanup for replaced overlay images
     const originalOverlayData = await db
       .select({ filename: overlays.filename })
       .from(overlays)
@@ -1808,6 +1659,5 @@ async function cleanupReplacementImages(
     }
   } catch (error) {
     console.error("Failed to cleanup replacement images:", error);
-    // Non-throwing - just log errors
   }
 }

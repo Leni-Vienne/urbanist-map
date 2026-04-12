@@ -30,6 +30,7 @@ playwright/.cache/
 .env.test.local
 tests/auth-state.json
 
+.bundle-report
 junk
 components.d.ts
 *report.md

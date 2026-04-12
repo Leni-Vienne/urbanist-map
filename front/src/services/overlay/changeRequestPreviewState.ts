@@ -16,12 +16,9 @@ type PreviewState =
 
 export const previewState = ref<PreviewState>({ type: "none" });
 
-// Store reference to all change requests for syncing preview state on navigation
 let allChangeRequestsRef: PendingChangeRequest[] = [];
 
-/**
- * Set change requests reference for preview state syncing.
- */
+/** Set the change requests reference used by syncPreviewStateOnNavigation. */
 export function setChangeRequestsForPreview(changeRequests: PendingChangeRequest[]): void {
   allChangeRequestsRef = changeRequests;
 }

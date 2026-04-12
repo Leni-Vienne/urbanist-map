@@ -12,7 +12,6 @@ function shouldAlertOnPath(path: string): boolean {
   return ALERTABLE_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
-// Extract Cloudflare headers from request
 function getCloudflareHeaders(c: Context) {
   return {
     cfConnectingIp: c.req.header("CF-Connecting-IP"),
@@ -21,7 +20,6 @@ function getCloudflareHeaders(c: Context) {
   };
 }
 
-// Get user ID from session if available
 function getUserId(c: Context): number | undefined {
   try {
     // Session is stored in c.get('session') by Hono session middleware
@@ -32,11 +30,8 @@ function getUserId(c: Context): number | undefined {
   }
 }
 
-// Request logging middleware
 export async function requestLogger(c: Context, next: Next) {
   const startTime = Date.now();
-
-  // Extract request details
   const method = c.req.method;
   const path = c.req.path;
 
@@ -53,15 +48,12 @@ export async function requestLogger(c: Context, next: Next) {
   const cloudflare = getCloudflareHeaders(c);
 
   try {
-    // Continue to next middleware/handler
     await next();
 
-    // Calculate duration
     const duration = Date.now() - startTime;
     const status = c.res.status;
     const userId = getUserId(c);
 
-    // Log request
     logger.info({
       method,
       path,
@@ -85,7 +77,6 @@ export async function requestLogger(c: Context, next: Next) {
       });
     }
   } catch (error) {
-    // Log error and re-throw
     const duration = Date.now() - startTime;
     const status = c.res.status ?? 500;
 

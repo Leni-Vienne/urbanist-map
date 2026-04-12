@@ -38,7 +38,7 @@
         "
       />
 
-      <!-- Hover preview card — always mounted so it can show before any popup is opened -->
+      <!-- Hover preview card, always mounted so it can show before any popup is opened -->
       <HoverPreviewCard />
     </div>
 
@@ -108,8 +108,7 @@ const SubmissionDialogWrapper = defineAsyncComponent(
   () => import("@/components/submission/SubmissionDialogWrapper.vue"),
 );
 
-// Create refs to track app state
-const desktopSideMenuOpen = ref(true); // Open by default on desktop
+const desktopSideMenuOpen = ref(true);
 const infoBannerDismissed = ref(false);
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
@@ -120,9 +119,8 @@ const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
 
-// Discard in-progress shape edits when leaving edit mode (e.g. switching to view mode).
-// The mode watcher in useViewportTriggers handles overlay cleanup but has no access to
-// the lazy shapeEditing chunk — so we handle it here where the other shape callbacks live.
+// Discard in-progress shape edits when leaving edit mode.
+// Handled here rather than in useViewportTriggers since that composable has no access to the lazy shapeEditing chunk.
 watch(
   () => mapStore.mode,
   async (newMode, oldMode) => {
@@ -134,7 +132,6 @@ watch(
   },
 );
 
-// Use mobile drawer state from UI store
 const mobileSideMenuOpen = computed({
   get: () => uiStore.mobileDrawerVisible,
   set: (value) => {
@@ -142,11 +139,9 @@ const mobileSideMenuOpen = computed({
   },
 });
 
-// Mobile detection for responsive drawer behavior
 const windowWidth = ref(typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024);
 const isMobile = computed(() => windowWidth.value <= 768);
 
-// Update window width on resize
 function updateWindowWidth() {
   windowWidth.value = globalThis.innerWidth;
 
@@ -167,17 +162,15 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditor.project;
   const reopenAt = uiStore.shapeEditor.reopenAt;
   if (!project) return;
-  // Ensure the project is in the store before the targeted update — it may only exist in
-  // popup state (e.g. approved-shape projects opened via shape click, never stored locally).
-  // Without this, updateProject falls back to createProjectObject which defaults status to null.
+  // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
   if (!projectStore.projects[project.id]) {
     projectStore.projects = { ...projectStore.projects, [project.id]: project };
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
   const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
   destroyShapeEditor(map.value);
-  // Re-render updated shapes immediately. Geoman layers were just removed by destroyShapeEditor,
-  // and the viewport loop only covers backend overlays — pending/local shapes need explicit rendering.
+  // Re-render updated shapes immediately (Geoman layers were just removed by destroyShapeEditor,
+  // and the viewport loop only covers backend overlays).
   clearProjectShapes(project.id);
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
@@ -222,21 +215,16 @@ async function handleShapesCancel() {
 }
 
 onMounted(async () => {
-  // Add window resize listener for mobile detection
   globalThis.addEventListener("resize", updateWindowWidth);
 
-  // Preload PopupContainer chunk on page load. Not needed on page load but improves responsiveness when first popup is shown
-  //import("@/components/map/PopupContainer.vue");
-
-  // Prevent page scrolling on mobile to avoid viewport issues
+  // Prevent page scrolling on mobile
   if (isMobile.value) {
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     document.body.style.height = "100vh";
-    document.body.style.height = "100dvh"; // Use dynamic viewport where supported
+    document.body.style.height = "100dvh";
   }
 
-  // Update overlayStore to use the new UI store for dialog control
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
 
   try {
@@ -264,7 +252,7 @@ onMounted(async () => {
   }
 });
 
-// Get user-friendly error messages
+// Get error message for auth query param codes
 function getErrorMessage(error: string): string {
   switch (error) {
     case "auth_failed":
@@ -281,7 +269,6 @@ function getErrorMessage(error: string): string {
 onUnmounted(() => {
   globalThis.removeEventListener("resize", updateWindowWidth);
 
-  // Restore normal overflow behavior when component unmounts
   document.documentElement.style.overflow = "";
   document.body.style.overflow = "";
   document.body.style.height = "";

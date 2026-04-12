@@ -8,19 +8,19 @@ The application uses a **dual-stack deployment** architecture supporting both **
 
 ```
 Cloudflare DNS
-├── api.urbanistmap.org → REDACTED:80/443
-└── preview-api.urbanistmap.org → REDACTED:80/443
+├── api.urbanistmap.org → YOUR_SERVER_IP:80/443
+└── preview-api.urbanistmap.org → YOUR_SERVER_IP:80/443
                     ↓
             Host-level Caddy (port 80/443)
                     ├── api.urbanistmap.org → localhost:3000
                     └── preview-api.urbanistmap.org → localhost:3001
                                     ↓
                     Docker Containers
-                    ├── Production Stack (/opt/construction-map-prod/)
+                    ├── Production Stack (/opt/urbanist-map-prod/)
                     │   ├── Backend (port 3000)
                     │   ├── PostgreSQL (port 5432)
                     │   └── Grafana Alloy (port 12345)
-                    └── Preview Stack (/opt/construction-map-preview/)
+                    └── Preview Stack (/opt/urbanist-map-preview/)
                         ├── Backend (port 3001)
                         ├── PostgreSQL (port 5433)
                         └── Grafana Alloy (port 12346)
@@ -30,7 +30,7 @@ Cloudflare DNS
 
 1. **Single `docker-compose.yml`**: Environment-agnostic with variable substitution
 2. **Host-level Caddy**: Reverse proxy running outside Docker to avoid port conflicts
-3. **Separate directories**: `/opt/construction-map-prod/` and `/opt/construction-map-preview/`
+3. **Separate directories**: `/opt/urbanist-map-prod/` and `/opt/urbanist-map-preview/`
 4. **Separate databases**: `construction_map` (prod) and `construction_map_preview`
 5. **Separate R2 buckets**: `construction-map-production` and `construction-map-preview`
 
@@ -59,8 +59,8 @@ If you have a layered proxy setup (e.g., host nginx → VM → Docker):
 
 1. Set GitHub variable `INCLUDE_REVERSE_PROXY=false` (or leave unset)
 2. Manually configure your reverse proxy to route:
-   - `api.constructionmap.org` → port 3000 (production)
-   - `preview-api.constructionmap.org` → port 3001 (preview)
+   - `api.urbanistmap.org` → port 3000 (production)
+   - `preview-api.urbanistmap.org` → port 3001 (preview)
 3. Use `Caddyfile.host` as a reference for configuration
 
 **Manual Caddy installation** (if needed):
@@ -77,12 +77,12 @@ sudo systemctl start caddy
 
 #### 2. Configure Cloudflare DNS
 
-Add two A records pointing to your server IP (`REDACTED`):
+Add two A records pointing to your server IP:
 
-| Type | Name        | Content       | Proxy Status |
-| ---- | ----------- | ------------- | ------------ |
-| A    | api         | REDACTED | Proxied ☁️   |
-| A    | preview-api | REDACTED | Proxied ☁️   |
+| Type | Name        | Content        | Proxy Status |
+| ---- | ----------- | -------------- | ------------ |
+| A    | api         | YOUR_SERVER_IP | Proxied ☁️   |
+| A    | preview-api | YOUR_SERVER_IP | Proxied ☁️   |
 
 #### 3. Configure Cloudflare SSL/TLS
 
@@ -93,8 +93,8 @@ In Cloudflare dashboard → SSL/TLS:
 #### 4. Create Deployment Directories
 
 ```bash
-sudo mkdir -p /opt/construction-map-prod
-sudo mkdir -p /opt/construction-map-preview
+sudo mkdir -p /opt/urbanist-map-prod
+sudo mkdir -p /opt/urbanist-map-preview
 ```
 
 #### 5. Configure GitHub Runners (Self-Hosted)
@@ -106,7 +106,7 @@ If using multiple self-hosted runners on different servers, configure them with 
 ```bash
 # On your production server
 cd /path/to/actions-runner
-./config.sh --url https://github.com/YOUR_ORG/construction-map \
+./config.sh --url https://github.com/YOUR_ORG/YOUR_REPO \
   --token YOUR_TOKEN \
   --name production-runner \
   --labels self-hosted,production-server
@@ -116,12 +116,12 @@ cd /path/to/actions-runner
 # Or install as service: sudo ./svc.sh install && sudo ./svc.sh start
 ```
 
-**Preview Server Runner (optional, e.g., friend's server):**
+**Preview Server Runner (optional):**
 
 ```bash
 # On preview/test server
 cd /path/to/actions-runner
-./config.sh --url https://github.com/YOUR_ORG/construction-map \
+./config.sh --url https://github.com/YOUR_ORG/YOUR_REPO \
   --token YOUR_TOKEN \
   --name preview-runner \
   --labels self-hosted,preview-server
@@ -166,7 +166,7 @@ Configure these in GitHub repository settings:
 **Secrets:**
 
 - `REMOTE_USER` - SSH username for server
-- `REMOTE_HOST` - Server IP address (REDACTED)
+- `REMOTE_HOST` - Server IP address
 - `REMOTE_PASSWORD` - SSH password
 - `POSTGRES_PASSWORD` - PostgreSQL password (same for both envs or separate)
 - `JWT_SECRET` - JWT signing secret
@@ -199,21 +199,18 @@ Configure these in GitHub repository settings:
 ### Deploy Production
 
 ```bash
-# On your local machine
-cd /path/to/construction-map
-
 # Build backend
 bun run build-back
 
 # Transfer to server
-scp server.bundle.js docker-compose.yml Caddyfile.host Dockerfile.bun-sharp alloy-config.alloy user@server:/tmp/
-scp -r back/src/email user@server:/tmp/
+scp server.bundle.js docker-compose.yml Caddyfile.host Dockerfile.bun-sharp alloy-config.alloy user@your-server:/tmp/
+scp -r back/src/email user@your-server:/tmp/
 
 # SSH to server
-ssh user@server
+ssh user@your-server
 
 # Deploy
-cd /opt/construction-map-prod
+cd /opt/urbanist-map-prod
 sudo cp /tmp/server.bundle.js ./
 sudo cp /tmp/docker-compose.yml ./
 sudo cp /tmp/Dockerfile.bun-sharp ./
@@ -227,7 +224,7 @@ sudo docker compose up -d
 
 ### Deploy Preview
 
-Same as production but use `/opt/construction-map-preview/` and `.env.preview`.
+Same as production but use `/opt/urbanist-map-preview/` and `.env.preview`.
 
 ## Environment Configuration
 
@@ -263,11 +260,11 @@ R2_BUCKET_NAME=construction-map-preview
 
 ```bash
 # Production
-cd /opt/construction-map-prod
+cd /opt/urbanist-map-prod
 sudo docker compose ps
 
 # Preview
-cd /opt/construction-map-preview
+cd /opt/urbanist-map-preview
 sudo docker compose ps
 ```
 
@@ -275,11 +272,11 @@ sudo docker compose ps
 
 ```bash
 # Production backend logs
-cd /opt/construction-map-prod
+cd /opt/urbanist-map-prod
 sudo docker compose logs -f backend
 
 # Preview backend logs
-cd /opt/construction-map-preview
+cd /opt/urbanist-map-preview
 sudo docker compose logs -f backend
 
 # Caddy logs
@@ -290,10 +287,10 @@ sudo journalctl -u caddy -f
 
 ```bash
 # Production health
-curl https://api.constructionmap.org/api/health
+curl https://api.urbanistmap.org/api/health
 
 # Preview health
-curl https://preview-api.constructionmap.org/api/health
+curl https://preview-api.urbanistmap.org/api/health
 ```
 
 ### Common Issues
@@ -319,7 +316,7 @@ sudo netstat -tlnp | grep :3000  # Production
 sudo netstat -tlnp | grep :3001  # Preview
 
 # Check Docker network
-cd /opt/construction-map-prod
+cd /opt/urbanist-map-prod
 sudo docker compose exec backend nc -zv localhost 3000
 ```
 
@@ -327,7 +324,7 @@ sudo docker compose exec backend nc -zv localhost 3000
 
 ```bash
 # Check PostgreSQL
-cd /opt/construction-map-prod
+cd /opt/urbanist-map-prod
 sudo docker compose exec postgres pg_isready -U postgres
 
 # View database logs
@@ -373,7 +370,7 @@ The preview environment is available for testing changes before they reach produ
 
 - Preview deploys when pushing to any non-production branch
 - Preview uses separate database and R2 bucket (isolated from production)
-- Preview backend accessible at `preview-api.constructionmap.org`
+- Preview backend accessible at `preview-api.urbanistmap.org`
 
 **Note:** Workflow for external PR testing is not yet finalized.
 

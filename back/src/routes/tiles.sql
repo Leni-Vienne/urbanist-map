@@ -150,7 +150,7 @@ points AS (
   -- Generate the 'project-points' vector tile layer containing center markers for projects.
   SELECT ST_AsMVT(q, 'project-points', 4096, 'mvt_geom') AS tile
   FROM (
-    -- Step 2: deduplicate — keep one representative project per (grid cell, tag, status) group.
+    -- Step 2: deduplicate, keep one representative project per (grid cell, tag, status) group.
     -- DISTINCT ON picks the first row per group after ORDER BY.
     -- Tiebreaker priority: named projects first, then largest geometry, then most recent.
     -- This makes the representative stable and meaningful rather than arbitrary across zoom transitions.

@@ -11,7 +11,7 @@ const isLoading = ref(false);
  * authStore triggers the dialog on login by checking the count directly via trpc.
  */
 export function useModeratedContributions() {
-  // Always fetches fresh — no cache, avoids stale data if a different user logs in
+  // Always fetches fresh, no cache, avoids stale data if a different user logs in
   async function fetchModeratedContributions() {
     isLoading.value = true;
     try {

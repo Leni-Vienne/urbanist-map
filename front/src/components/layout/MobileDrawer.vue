@@ -1,5 +1,4 @@
 ﻿<template>
-  <!-- Mobile Bottom Drawer - Custom Draggable Implementation -->
   <DraggableDrawer
     v-model:visible="isVisible"
     v-model:height-percent="drawerHeight"
@@ -32,7 +31,6 @@
       </div>
     </template>
 
-    <!-- Custom header with title and tab navigation -->
     <template #header>
       <div class="flex flex-col gap-1">
         <div class="title-container ml-4">
@@ -44,12 +42,10 @@
           </p>
         </div>
 
-        <!-- Tab navigation inside fixed header -->
         <PanelTabs v-model:active-tab="activeTab" variant="mobile" />
       </div>
     </template>
 
-    <!-- Scrollable content area -->
     <PanelContent
       :active-tab="activeTab"
       content-container-class="flex-1 flex flex-col min-h-0 bg-content-hover-background"
@@ -88,7 +84,6 @@ import PanelTabs from "./PanelTabs.vue";
 import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
-// Get store
 const uiStore = useUiStore();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
@@ -110,11 +105,9 @@ function handleHeightChanged(height: number) {
   uiStore.mobileDrawerHeightPercent = Math.min(90, height);
 }
 
-// Use uiStore.activeTab as single source of truth (shared with SideMenu)
-// Computed with getter/setter for v-model compatibility
+// Computed with getter/setter for v-model compatibility, uiStore.activeTab shared with SideMenu
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  // Use the explicit action from usePanelTabs to handle mode syncing securely
   set: (value) => setActiveTab(value),
 });
 

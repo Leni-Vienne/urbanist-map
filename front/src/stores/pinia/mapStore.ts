@@ -3,7 +3,6 @@ import { ref } from "vue";
 import type { AppMode } from "@shared/types";
 
 export const useMapStore = defineStore("map", () => {
-  // App mode (view, edit, moderation)
   const mode = ref<AppMode>("view");
 
   function setMode(newMode: AppMode) {
@@ -15,15 +14,11 @@ export const useMapStore = defineStore("map", () => {
     mode.value = "view";
   }
 
-  // Currently selected country code (set when switching countries)
   const selectedCountryCode = ref<string | null>(null);
 
   return {
-    // State
     mode,
     selectedCountryCode,
-
-    // Actions
     setMode,
     resetMode,
   };

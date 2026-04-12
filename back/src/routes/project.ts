@@ -81,7 +81,7 @@ export const projectRouter = router({
         geometry: input.geometry
           ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326)`
           : null,
-        // Bbox diagonal in meters — used to exclude large-geometry projects from the cluster GeoJSON source
+        // Bbox diagonal in meters, used to exclude large-geometry projects from the cluster GeoJSON source
         geometrySizeM: input.geometry
           ? sql`ST_Length(ST_BoundingDiagonal(ST_Envelope(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)})))::geography)`
           : null,
@@ -318,7 +318,6 @@ export const projectRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
-        // NEW: If includeCityProjects + cityId provided, return ALL city projects in UserContribution format
         if (input.includeCityProjects && input.cityId) {
           // Query ALL projects in the city (approved OR user's pending)
           const cityProjects = await buildProjectWithLocationQuery(db)
@@ -365,7 +364,6 @@ export const projectRouter = router({
           };
         }
 
-        // EXISTING: Return user's own contributions
         const sortColumn = input.sortBy === "createdAt" ? projects.createdAt : projects.updatedAt;
 
         // Build pagination conditions using shared helper

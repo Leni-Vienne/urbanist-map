@@ -1,8 +1,15 @@
-## What's needed
+## Adding a New Tile Layer
 
-- the URL to the tilelayer service
-- all the relevant stuff like maxNativeZoom and attribution
-- having check that the ESRI tile layer doesn't already supply it
-- the country borders, that should be simplified.
+### Requirements
 
-To get the country borders json, go to https://gadm.org/download_world.html then use mapshaper.org to simplify it. check what the borders look like near cities. Aim for a file that is a few 10s of kb at best. If the country has only a single border with another country, you can extract that border on mapshaper.org by using the rectangle tool then "clip" then drawing the polygon yourself.
+- The URL to the tile layer service
+- Relevant configuration: `maxNativeZoom`, attribution
+- Verify the ESRI tile layer does not already cover the area at sufficient resolution
+- Country border GeoJSON, simplified for web use
+
+### Getting the Country Border
+
+1. Download the country's administrative boundary from [GADM](https://gadm.org/download_world.html)
+2. Simplify it at [mapshaper.org](https://mapshaper.org/) and verify the result near city boundaries
+3. Target a file size of a few tens of kilobytes
+4. For countries with a single long shared border, use mapshaper's rectangle selection tool, then **Clip**, and redraw the border polygon manually

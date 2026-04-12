@@ -11,36 +11,36 @@ const routes = [
   {
     path: "/verify",
     name: "EmailVerification",
-    component: async () => import("@/pages/EmailVerification.vue"), // Lazy load
+    component: async () => import("@/pages/EmailVerification.vue"),
   },
   {
     path: "/reset-password",
     name: "PasswordReset",
-    component: async () => import("@/pages/PasswordReset.vue"), // Lazy load
+    component: async () => import("@/pages/PasswordReset.vue"),
   },
   {
     path: "/legal",
     name: "Legal",
-    component: async () => import("@/pages/Legal.vue"), // Lazy load
+    component: async () => import("@/pages/Legal.vue"),
   },
   {
     path: "/contact",
     name: "Contact",
-    component: async () => import("@/pages/Contact.vue"), // Lazy load
+    component: async () => import("@/pages/Contact.vue"),
   },
   {
     path: "/admin/reports",
     name: "AdminReports",
-    component: async () => import("@/pages/AdminReportsPage.vue"), // Lazy load
+    component: async () => import("@/pages/AdminReportsPage.vue"),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: "/admin/user/:userId",
     name: "AdminUserContributions",
-    component: async () => import("@/pages/AdminUserContributionsPage.vue"), // Lazy load
+    component: async () => import("@/pages/AdminUserContributionsPage.vue"),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
-  // Catch-all route — redirect unknown paths to home
+  // Catch-all route, redirect unknown paths to home
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 

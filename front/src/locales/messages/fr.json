@@ -333,7 +333,10 @@
     "updateOverlays": "Mettre à jour les images",
     "removeChange": "Retirer cette modification",
     "noChangesToSubmit": "Aucune modification à soumettre",
-    "newOverlay": "Nouvelle image"
+    "newOverlay": "Nouvelle image",
+    "createAction": "Nouvelle soumission",
+    "updatePendingAction": "Mettre à jour la soumission",
+    "updateApprovedAction": "Suggérer des modifications"
   },
   "pages": {
     "home": {
@@ -532,7 +535,9 @@
   "errors": {
     "projectNotFound": "Projet introuvable",
     "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
-    "checkConflictsFailed": "Échec de la vérification des conflits"
+    "checkConflictsFailed": "Échec de la vérification des conflits",
+    "noChangesDetected": "Aucune modification détectée à soumettre",
+    "preparingSubmission": "Échec de la préparation de la soumission"
   },
   "moderation": {
     "title": "Modération",
@@ -551,6 +556,7 @@
     "overlayRejected": "Image rejetée",
     "overlayRejectedDetail": "L'image a été rejetée",
     "switchedToEditMode": "Mode édition activé",
+    "pendingOverlaysOnlyInEditMode": "Les images en attente ne sont visibles qu'en mode édition",
     "switchedToViewMode": "Mode consultation activé",
     "switchedToModerationMode": "Mode modération activé",
     "clickAgainToAdd": "Cliquez à nouveau sur le bouton pour ajouter une image",
@@ -602,6 +608,9 @@
     "chooseCountry": "Choisissez un pays...",
     "failedToLoadCountries": "Échec du chargement de la liste des pays",
     "pleaseSelectCountry": "Veuillez sélectionner un pays pour voir les contributions en attente",
+    "pendingProjects": "Projets en attente",
+    "allReviewed": "Toutes les soumissions ont été examinées",
+    "noPendingItems": "Aucune soumission en attente à modérer",
     "conflictResolved": "Modification approuvée",
     "conflictResolvedDetail": "La modification sélectionnée a été approuvée. Les autres suggestions pour ce champ ont été marquées comme non sélectionnées.",
     "conflictsRejected": "Toutes les modifications rejetées",
@@ -799,7 +808,7 @@
     "importSkippedGeometryTypes": "Types de géométrie non pris en charge ignorés : {types}",
     "saveShapes": "Enregistrer les formes",
     "cancel": "Annuler",
-    "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre",
+    "savedLocally": "Formes enregistrées, cliquez sur Publier pour soumettre",
     "geometrySummary": "{count} forme(s)",
     "viewCurrentShapes": "Voir les formes actuelles",
     "viewSuggestedShapes": "Voir les formes suggérées",

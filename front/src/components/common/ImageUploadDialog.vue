@@ -14,12 +14,11 @@
     @hide="handleClose"
   >
     <div class="flex flex-col gap-4 py-2">
-      <!-- Instructions Section - always visible -->
       <p class="text-sm text-(--p-text-color-secondary) leading-relaxed m-0">
         {{ $t("imageUpload.uploadDescription") }}
       </p>
 
-      <!-- PDF Extraction Section with TokenTool Link - always visible -->
+      <!-- PDF Extraction Section -->
       <div class="flex flex-col gap-1">
         <h3 class="text-base font-semibold text-color m-0">
           {{ $t("imageUpload.pdfExtraction") }}
@@ -52,7 +51,6 @@
         "
         @drop.prevent="handleDrop"
         @dragover.prevent="handleDragOver"
-        @dragleave="handleDragLeave"
       >
         <input
           ref="fileInputRef"
@@ -154,7 +152,7 @@ const selectedFile = ref<File | null>(null);
 const selectedFileName = ref("");
 const imagePreviewUrl = ref("");
 const imageDataUrl = ref("");
-const fileSizeError = ref(""); // Inline error message for file validation
+const fileSizeError = ref("");
 
 const isReplacementMode = computed(() => Boolean(overlayStore.replacementOverlayId));
 
@@ -184,12 +182,10 @@ watch(
   },
 );
 
-// Trigger file input when drop zone is clicked
 function triggerFileInput() {
   fileInputRef.value?.click();
 }
 
-// Handle file selection from input
 function handleFileInputChange(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -199,19 +195,12 @@ function handleFileInputChange(event: Event) {
   processFile(file);
 }
 
-// Handle drag over event
 function handleDragOver(event: DragEvent) {
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = "copy";
   }
 }
 
-// Handle drag leave event
-function handleDragLeave() {
-  // Optional: Could add visual feedback here
-}
-
-// Handle drop event
 function handleDrop(event: DragEvent) {
   const file = event.dataTransfer?.files?.[0];
   if (!file) return;
@@ -224,17 +213,14 @@ function handleDrop(event: DragEvent) {
   processFile(file);
 }
 
-// Process file (shared logic for input change and drop)
 function processFile(file: File) {
   try {
-    // Clear any previous error
     fileSizeError.value = "";
 
-    // Validate file size before processing (10MB limit matches backend)
+    // Validate file size (10MB limit matches backend)
     const MAX_FILE_SIZE_MB = 10;
     const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      // Show inline error instead of toast
       fileSizeError.value = t("upload.fileTooLarge", {
         maxSize: MAX_FILE_SIZE_MB,
       });
@@ -245,16 +231,14 @@ function processFile(file: File) {
       return;
     }
 
-    // Store file and filename
     selectedFile.value = file;
     selectedFileName.value = file.name;
 
-    // Read file to create preview and data URL
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       const dataUrl = reader.result as string;
       imageDataUrl.value = dataUrl;
-      imagePreviewUrl.value = dataUrl; // Use same URL for preview
+      imagePreviewUrl.value = dataUrl;
     });
     reader.readAsDataURL(file);
   } catch (error) {
@@ -268,11 +252,9 @@ function processFile(file: File) {
   }
 }
 
-// Handle confirm - create overlay and close dialog
 async function handleConfirm() {
   if (!selectedFile.value || !imageDataUrl.value) return;
 
-  // Get project ID from store
   const projectId = uiStore.imageUploadDialog.projectId;
   if (!projectId) {
     toast.add({
@@ -285,13 +267,10 @@ async function handleConfirm() {
   }
 
   try {
-    // Check if this is a replacement overlay
     const replacementId = overlayStore.replacementOverlayId;
 
-    // Create overlay for this project (with or without replacement)
     addOverlay(imageDataUrl.value, projectId, replacementId ?? undefined);
 
-    // Show appropriate success toast
     if (replacementId) {
       toast.add({
         severity: "success",
@@ -323,7 +302,6 @@ async function handleConfirm() {
   }
 }
 
-// Handle dialog close
 function handleClose() {
   uiStore.closeImageUploadDialog();
 }

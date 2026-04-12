@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Usage:
-#   ./filter_combined.sh <source.osm.pbf>             — full run (steps 1+2+3)
-#   ./filter_combined.sh --rederive <source.osm.pbf>  — skip step 1, re-derive ways+areal from
+#   ./filter_combined.sh <source.osm.pbf>            , full run (steps 1+2+3)
+#   ./filter_combined.sh --rederive <source.osm.pbf> , skip step 1, re-derive ways+areal from
 #                                                        existing *_proposed.osm.pbf (~2min)
 #
 # Outputs:
-#   *_proposed.osm.pbf       — full extract (ways + areas + route relations), used by linear Pass 2
-#   *_proposed_ways.osm.pbf  — transport ways only (~73MB), used by linear Pass 1 (locations=True)
-#   *_proposed_areal.osm.pbf — building/area ways+relations only, used by areal script
+#   *_proposed.osm.pbf      , full extract (ways + areas + route relations), used by linear Pass 2
+#   *_proposed_ways.osm.pbf , transport ways only (~73MB), used by linear Pass 1 (locations=True)
+#   *_proposed_areal.osm.pbf, building/area ways+relations only, used by areal script
 #
 # Speed notes:
 #   Step 1 uses all CPU cores for PBF decompression and lz4 for intermediate output.
@@ -39,7 +39,7 @@ function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
 # ---------------------------------------------------------------------------
 if [ "$REDERIVE" -eq 1 ]; then
     echo ""
-    echo "[$(ts)] STEP 1/3: Skipped (--rederive) — using existing $OUTPUT  ($(filesize "$OUTPUT"))"
+    echo "[$(ts)] STEP 1/3: Skipped (--rederive), using existing $OUTPUT  ($(filesize "$OUTPUT"))"
     if [ ! -f "$OUTPUT" ]; then
         echo "ERROR: $OUTPUT not found. Run without --rederive first."
         exit 1
@@ -50,7 +50,7 @@ else
     echo "  Input:  $SOURCE  ($(filesize "$SOURCE"))"
     echo "  Output: $OUTPUT"
     echo "  Threads: $NPROC  |  Output compression: lz4"
-    echo "  Reading the full planet PBF — osmium produces no intermediate output."
+    echo "  Reading the full planet PBF, osmium produces no intermediate output."
     echo "----------------------------------------------------------"
     T=$SECONDS
 
@@ -69,7 +69,7 @@ else
 
     rm -f "$COMBINED_FILTERS"
     trap - EXIT
-    echo "[$(ts)] STEP 1/3 done in $(elapsed $((SECONDS - T))) — output: $(filesize "$OUTPUT")"
+    echo "[$(ts)] STEP 1/3 done in $(elapsed $((SECONDS - T))), output: $(filesize "$OUTPUT")"
 fi
 
 # ---------------------------------------------------------------------------
@@ -99,5 +99,5 @@ wait $PID_WAYS  || { echo "ERROR: ways filter failed"; exit 1; }
 wait $PID_AREAL || { echo "ERROR: areal filter failed"; exit 1; }
 
 echo "[$(ts)] STEP 2+3 done in $(elapsed $((SECONDS - T)))"
-echo "  $WAYS_OUTPUT   — $(filesize "$WAYS_OUTPUT")"
-echo "  $AREAL_OUTPUT  — $(filesize "$AREAL_OUTPUT")"
+echo "  $WAYS_OUTPUT  , $(filesize "$WAYS_OUTPUT")"
+echo "  $AREAL_OUTPUT , $(filesize "$AREAL_OUTPUT")"

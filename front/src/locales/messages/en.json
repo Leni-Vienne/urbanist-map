@@ -333,7 +333,10 @@
     "updateOverlays": "Update Images",
     "removeChange": "Remove this change",
     "noChangesToSubmit": "No changes to submit",
-    "newOverlay": "New image"
+    "newOverlay": "New image",
+    "createAction": "New submission",
+    "updatePendingAction": "Update submission",
+    "updateApprovedAction": "Suggest changes"
   },
   "pages": {
     "home": {
@@ -532,7 +535,9 @@
   "errors": {
     "projectNotFound": "Project not found",
     "projectRequired": "Project Required: A project must be selected to add an image",
-    "checkConflictsFailed": "Failed to check for conflicts"
+    "checkConflictsFailed": "Failed to check for conflicts",
+    "noChangesDetected": "No changes detected to submit",
+    "preparingSubmission": "Failed to prepare submission"
   },
   "moderation": {
     "title": "Moderation",
@@ -549,6 +554,7 @@
     "overlayRejected": "Image Rejected",
     "overlayRejectedDetail": "The image has been rejected",
     "switchedToEditMode": "Switched to Edit Mode",
+    "pendingOverlaysOnlyInEditMode": "Pending images are only visible in edit mode",
     "switchedToViewMode": "Switched to View Mode",
     "switchedToModerationMode": "Switched to Moderation Mode",
     "clickAgainToAdd": "Click the button again to add an image",
@@ -600,6 +606,9 @@
     "chooseCountry": "Choose a country...",
     "failedToLoadCountries": "Failed to load countries list",
     "pleaseSelectCountry": "Please select a country to view pending submissions",
+    "pendingProjects": "Pending Projects",
+    "allReviewed": "All submissions reviewed",
+    "noPendingItems": "No pending submissions to moderate",
     "conflictResolved": "Change Approved",
     "conflictResolvedDetail": "The selected change has been approved. Other suggestions for this field were marked as not selected.",
     "conflictsRejected": "All Changes Rejected",
@@ -684,7 +693,7 @@
   },
   "replacementOverlay": {
     "uploadFailed": "Upload Failed",
-    "uploadFailedDetail": "Failed to process the image image"
+    "uploadFailedDetail": "Failed to process the image"
   },
   "projectSelector": {
     "suggestChanges": "Suggest Changes"
@@ -797,7 +806,7 @@
     "importSkippedGeometryTypes": "Ignored unsupported geometry types: {types}",
     "saveShapes": "Save shapes",
     "cancel": "Cancel",
-    "savedLocally": "Shapes saved — click Publish to submit",
+    "savedLocally": "Shapes saved, click Publish to submit",
     "geometrySummary": "{count} shape(s)",
     "viewCurrentShapes": "View Current Shapes",
     "viewSuggestedShapes": "View Suggested Shapes",

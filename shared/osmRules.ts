@@ -204,13 +204,6 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   },
 ];
 
-/**
- * Extract project tag slugs from a collection of GeoJSON feature property objects
- * Uses the base OSM rules for tag detection
- *
- * @param featureProperties - Array of property objects from GeoJSON features
- * @returns Array of unique tag slugs
- */
 export function extractTagsFromOsmProperties(
   featureProperties: Record<string, unknown>[],
 ): string[] {

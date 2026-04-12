@@ -46,8 +46,8 @@ export async function generateMissingThumbnails(): Promise<void> {
       // Generate thumbnail directly without re-saving main image
       try {
         const imagePath = join(uploadsDir, imageFile);
-        const imageFile_blob = Bun.file(imagePath);
-        const buffer = await imageFile_blob.arrayBuffer();
+        const imageFileBlob = Bun.file(imagePath);
+        const buffer = await imageFileBlob.arrayBuffer();
 
         // Generate and save thumbnail using centralized function
         const thumbnailBuffer = await generateThumbnail(buffer);

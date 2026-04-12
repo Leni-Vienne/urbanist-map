@@ -12,34 +12,28 @@ export function isOverlayVisible(
 ): boolean {
   // View mode: Only show approved overlays
   if (mode === "view") {
-    // Hide: local-only (null/undefined), pending, rejected
     return overlay.status === "approved";
   }
 
   // Moderation mode: Show approved + pending from all users
   if (mode === "moderation") {
-    // Hide: local-only (null/undefined), rejected
-    // Show: approved, pending
     return overlay.status === "approved" || overlay.status === "pending";
   }
 
-  // Edit mode: Show approved + user's own pending/local
-  // Hide rejected
   if (overlay.status === "rejected") {
     return false;
   }
 
-  // Show approved
   if (overlay.status === "approved") {
     return true;
   }
 
-  // Show local (null status) - implies it's being created/edited by user
+  // Local (null status) -- the overlay is being created by the user
   if (overlay.status === null) {
     return true;
   }
 
-  // Show pending ONLY if it belongs to current user
+  // Pending: only visible to the author
   if (overlay.status === "pending") {
     return overlay.authorId === currentUserId;
   }

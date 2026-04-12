@@ -32,7 +32,7 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
   return gc as GeoJSON.GeometryCollection;
 }
 
-// Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
+// Point/MultiPoint intentionally excluded, city boundaries are always line/polygon geometry.
 function collectLatLngs(geom: GeoJSON.Geometry, out: L.LatLng[]): void {
   // oxlint-disable no-unsafe-type-assertion
   function add(lng: number, lat: number) {

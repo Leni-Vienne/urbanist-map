@@ -2,11 +2,7 @@ import { db } from "../database";
 import { cities } from "./schema";
 import { eq, sql } from "drizzle-orm";
 
-/**
- * Increment a city's approved project count atomically
- * Used when approving a project
- * @param cityId - The city ID to update
- */
+// Used when approving a project
 export async function incrementCityProjectCount(cityId: number): Promise<void> {
   await db
     .update(cities)
@@ -14,11 +10,7 @@ export async function incrementCityProjectCount(cityId: number): Promise<void> {
     .where(eq(cities.id, cityId));
 }
 
-/**
- * Decrement a city's approved project count atomically
- * Used when rejecting an approved project
- * @param cityId - The city ID to update
- */
+// Used when rejecting an approved project
 export async function decrementCityProjectCount(cityId: number): Promise<void> {
   await db
     .update(cities)
