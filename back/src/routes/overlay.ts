@@ -14,6 +14,7 @@ import {
   checkTotalContributionLimit,
 } from "../db/contributionHelpers";
 import { overlaySchema } from "@shared/validation/schemas";
+import { notifyNewSubmission } from "../services/discordNotifier";
 
 // Use shared overlay schema for validation
 const publishOverlaySchema = overlaySchema;
@@ -229,11 +230,24 @@ export const overlayRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to upsert overlay" });
       }
 
+      const wasUpdate = upsertedOverlay.createdAt !== upsertedOverlay.updatedAt;
+      if (!wasUpdate) {
+        void notifyNewSubmission({
+          kind: "overlay",
+          author: { email: ctx.user.email, username: ctx.user.username },
+          overlayId: upsertedOverlay.id,
+          caption: input.caption ?? null,
+          projectId: input.projectId,
+          lat: centroid.lat,
+          lng: centroid.lng,
+        });
+      }
+
       return {
         id: upsertedOverlay.id,
         status: upsertedOverlay.status,
         authorId: upsertedOverlay.authorId,
-        exists: upsertedOverlay.createdAt !== upsertedOverlay.updatedAt, // Determine if it was update or insert
+        exists: wasUpdate,
       };
     } catch (error) {
       // Re-throw TRPCErrors as-is to preserve error codes and messages

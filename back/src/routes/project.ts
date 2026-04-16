@@ -18,6 +18,7 @@ import {
 } from "../db/contributionHelpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { projectSchema } from "@shared/validation/schemas";
+import { notifyNewSubmission } from "../services/discordNotifier";
 
 function normalizePrecisionForStorage(
   date: Date | null | undefined,
@@ -175,6 +176,17 @@ export const projectRouter = router({
           message: "Failed to publish project",
         });
       }
+
+      void notifyNewSubmission({
+        kind: "project",
+        author: { email: ctx.user.email, username: ctx.user.username },
+        projectId: resultRow.id,
+        projectName: resultRow.name,
+        countryCode: resultRow.countryCode ?? null,
+        lat: resultRow.lat,
+        lng: resultRow.lng,
+      });
+
       return {
         id: resultRow.id,
         exists: false,

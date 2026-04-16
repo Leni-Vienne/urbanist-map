@@ -20,6 +20,7 @@ import { globalRateLimiter } from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
 import { invalidateLatestContributionsCache } from "./feed";
+import { notifyNewSubmission } from "../services/discordNotifier";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -253,9 +254,15 @@ export const changesRouter = router({
 
         // Verify that the entity exists and is approved
         // Users can only submit change requests for approved content
+        let entityLat: number | null = null;
+        let entityLng: number | null = null;
         if (input.entityType === "overlay") {
           const overlayResult = await db
-            .select({ status: overlays.status })
+            .select({
+              status: overlays.status,
+              lat: sql<number>`ST_Y(${overlays.centroid})`,
+              lng: sql<number>`ST_X(${overlays.centroid})`,
+            })
             .from(overlays)
             .where(eq(overlays.id, input.entityId))
             .limit(1);
@@ -273,9 +280,12 @@ export const changesRouter = router({
               message: "Change requests can only be submitted for approved overlays",
             });
           }
+
+          entityLat = overlayResult[0].lat;
+          entityLng = overlayResult[0].lng;
         } else {
           const projectResult = await db
-            .select({ status: projects.status })
+            .select({ status: projects.status, lat: projects.lat, lng: projects.lng })
             .from(projects)
             .where(eq(projects.id, input.entityId))
             .limit(1);
@@ -293,6 +303,9 @@ export const changesRouter = router({
               message: "Change requests can only be submitted for approved projects",
             });
           }
+
+          entityLat = projectResult[0].lat;
+          entityLng = projectResult[0].lng;
         }
 
         // Validate field values before writing to the DB
@@ -335,6 +348,16 @@ export const changesRouter = router({
               status: "pending",
             });
           }
+        });
+
+        void notifyNewSubmission({
+          kind: "change_request",
+          author: { email: ctx.user.email, username: ctx.user.username },
+          entityType: input.entityType,
+          entityId: input.entityId,
+          fieldNames: input.changes.map((change) => change.fieldName),
+          lat: entityLat,
+          lng: entityLng,
         });
 
         return { success: true };
