@@ -15,7 +15,7 @@ const LOW_ZOOM_MAX = 6;
 // Map insertion order = LRU order (oldest first)
 const tileCache = new Map<string, Buffer | null>();
 
-export function clearTileCache() {
+function clearTileCache() {
   tileCache.clear();
 }
 

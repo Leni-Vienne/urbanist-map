@@ -151,7 +151,9 @@ elif [[ -n "${REPL_TIMESTAMP:-}" ]]; then
     echo "  timestamp: $REPL_TIMESTAMP"
 else
     # Fall back to the PBF header (present on fresh planet downloads)
-    FILEINFO=$(osmium fileinfo -e "$FILTERED_PBF" 2>/dev/null)
+    # osmium fileinfo (without -e) reads only PBF headers. The -e flag would
+    # scan every object in the file, which on a multi-GB planet is ~2min wasted.
+    FILEINFO=$(osmium fileinfo "$FILTERED_PBF" 2>/dev/null)
     REPL_TIMESTAMP=$(echo "$FILEINFO" | grep -i "osmosis_replication_timestamp" | sed 's/.*= *//' | tr -d '[:space:]' || true)
     echo "  Source: PBF header"
     echo "  osmosis_replication_timestamp: ${REPL_TIMESTAMP:-(not found)}"
@@ -276,7 +278,16 @@ START_SEQ=$(( FOUND_SEQ + 1 ))
 echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - START_SEQ + 1)) diffs)"
 
 # ---------------------------------------------------------------------------
-# Step 3: Download and apply each OSC diff
+# Step 3: Download and apply OSC diffs
+#
+# All OSCs in the sequence range are downloaded first, then applied to the
+# filtered PBF in a single osmium apply-changes call. Batching avoids a full
+# re-read + re-write of the multi-GB PBF for each daily diff on catch-up runs.
+# OSCs must be passed in chronological order; the seq-ordered list below is.
+#
+# Cancellation safety: $FILTERED_PBF is not modified in this step. Output goes
+# to a separate _updated.osm.pbf, and the sidecar is only written on success,
+# so an interrupted run is safe to re-invoke (stale files are cleared below).
 # ---------------------------------------------------------------------------
 
 echo ""
@@ -285,8 +296,19 @@ echo "[$(ts)] STEP 3: Downloading and applying OSC diffs"
 echo "=========================================================="
 
 WORK_DIR="$(dirname "$FILTERED_PBF")"
-CURRENT_PBF="$FILTERED_PBF"
+FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
 
+# Clear intermediates from any previously-interrupted run.
+# _seq*.osm.pbf covers files left behind by older per-sequence versions of this script.
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    rm -f "${WORK_DIR}/daily_diff_"*.osc.gz
+    rm -f "${FILTERED_PBF%.osm.pbf}_seq"*.osm.pbf
+    rm -f "$FINAL_PBF"
+fi
+
+# Phase 1: download every OSC in range.
+OSC_FILES=()
+TOTAL_DIFFS=$(( CURRENT_SEQNUM - START_SEQ + 1 ))
 for SEQ in $(seq "$START_SEQ" "$CURRENT_SEQNUM"); do
     PADDED=$(printf "%09d" "$SEQ")
     P1="${PADDED:0:3}"
@@ -295,9 +317,8 @@ for SEQ in $(seq "$START_SEQ" "$CURRENT_SEQNUM"); do
     OSC_URL="${REPL_BASE_URL}/${P1}/${P2}/${P3}.osc.gz"
     OSC_FILE="${WORK_DIR}/daily_diff_${PADDED}.osc.gz"
 
-    echo ""
-    echo "[$(ts)] Sequence $SEQ / $CURRENT_SEQNUM"
-    echo "  Downloading $OSC_URL"
+    echo "[$(ts)] Downloading sequence $SEQ / $CURRENT_SEQNUM"
+    echo "  $OSC_URL"
     run curl -sfL -o "$OSC_FILE" "$OSC_URL" || {
         echo "ERROR: Failed to download $OSC_URL"
         exit 1
@@ -305,32 +326,26 @@ for SEQ in $(seq "$START_SEQ" "$CURRENT_SEQNUM"); do
     if [[ "$DRY_RUN" -eq 0 ]]; then
         echo "  Downloaded: $(filesize "$OSC_FILE")"
     fi
-
-    UPDATED_PBF="${WORK_DIR}/$(basename "${FILTERED_PBF%.osm.pbf}")_seq${PADDED}.osm.pbf"
-
-    echo "  Applying diff: $CURRENT_PBF + $OSC_FILE -> $UPDATED_PBF"
-    run osmium apply-changes \
-        --overwrite \
-        --output-format=pbf,pbf_compression=lz4 \
-        -o "$UPDATED_PBF" \
-        "$CURRENT_PBF" \
-        "$OSC_FILE"
-
-    # Remove the intermediate PBF from the previous iteration (keep disk usage low),
-    # but never delete the original input file supplied by the caller.
-    if [[ "$DRY_RUN" -eq 0 ]] && [[ "$CURRENT_PBF" != "$FILTERED_PBF" ]]; then
-        rm -f "$CURRENT_PBF"
-    fi
-    run rm -f "$OSC_FILE"
-
-    CURRENT_PBF="$UPDATED_PBF"
+    OSC_FILES+=("$OSC_FILE")
 done
 
-# Rename the final chained PBF back to the canonical _proposed.osm.pbf name.
-FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
-run mv "$CURRENT_PBF" "$FINAL_PBF"
+# Phase 2: apply all diffs in one osmium call.
 echo ""
-echo "[$(ts)] Final updated PBF: $FINAL_PBF  ($(filesize "$FINAL_PBF"))"
+echo "[$(ts)] Applying $TOTAL_DIFFS diff(s) to $FILTERED_PBF"
+echo "  Output: $FINAL_PBF"
+run osmium apply-changes \
+    --overwrite \
+    --output-format=pbf,pbf_compression=lz4 \
+    -o "$FINAL_PBF" \
+    "$FILTERED_PBF" \
+    "${OSC_FILES[@]}"
+
+# Phase 3: clean up the OSCs now that they're baked into $FINAL_PBF.
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    rm -f "${OSC_FILES[@]}"
+    echo ""
+    echo "[$(ts)] Final updated PBF: $FINAL_PBF  ($(filesize "$FINAL_PBF"))"
+fi
 
 # Write sidecar state file so the next run knows where to resume.
 # osmium apply-changes does not preserve the replication header, so we track
@@ -358,13 +373,12 @@ echo "=========================================================="
 echo "[$(ts)] STEP 4: Re-deriving ways/areal + Python extraction"
 echo "=========================================================="
 
-# Overwrite the canonical filtered PBF in place with the updated one.
+# Swap the updated PBF into place. Atomic rename on the same filesystem,
+# so readers see the old or new file but never a half-written one.
 if [[ "$DRY_RUN" -eq 0 ]]; then
-    cp "$FINAL_PBF" "$FILTERED_PBF"
-    rm -f "$FINAL_PBF"
+    mv -f "$FINAL_PBF" "$FILTERED_PBF"
 else
-    echo "[dry-run] cp $FINAL_PBF $FILTERED_PBF"
-    echo "[dry-run] rm $FINAL_PBF"
+    echo "[dry-run] mv $FINAL_PBF $FILTERED_PBF"
 fi
 
 # Derive paths the same way run_all.sh would, given the original source name.

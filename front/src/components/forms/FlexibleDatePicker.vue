@@ -57,7 +57,8 @@
         v-else
         v-model="fullDateValue"
         dateFormat="dd/mm/yy"
-        class="flex-1 min-w-48"
+        fluid
+        class="flex-1 max-w-64"
         :class="{ 'p-invalid': isTouched && Boolean(error) }"
         :maxDate="maxDate"
         :minDate="minDate"

@@ -14,7 +14,6 @@
 // (https://github.com/oven-sh/bun/issues/28819), which corrupts externalProperties on insert.
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgresJs from "postgres";
-import { clearTileCache } from "../routes/tiles";
 import { projects, importSources, countries, type TimelineStatus } from "../db/schema";
 import { sql, eq } from "drizzle-orm";
 import { config } from "../config";
@@ -740,7 +739,6 @@ async function main() {
     console.error("ANALYZE failed (non-fatal):", err);
   }
 
-  clearTileCache();
   console.log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
   await pgClient.end();
 }
