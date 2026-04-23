@@ -24,6 +24,18 @@
         {{ authStore.infoMessage }}
       </Message>
 
+      <!-- Scheduled maintenance banner (daily 4:00 UTC, ~1 min downtime) -->
+      <Message
+        v-if="maintenanceBannerText && !maintenanceBannerDismissed"
+        severity="warn"
+        :closable="true"
+        @close="maintenanceBannerDismissed = true"
+        class="shrink-0 m-0 rounded-none!"
+        icon="pi pi-exclamation-triangle"
+      >
+        {{ maintenanceBannerText }}
+      </Message>
+
       <!-- Map container that fills remaining space -->
       <div class="flex-1 relative overflow-hidden">
         <MapView />
@@ -110,6 +122,10 @@ const SubmissionDialogWrapper = defineAsyncComponent(
 
 const desktopSideMenuOpen = ref(true);
 const infoBannerDismissed = ref(false);
+const maintenanceBannerDismissed = ref(false);
+const now = ref(new Date());
+let maintenanceTickInterval: ReturnType<typeof globalThis.setInterval> | undefined = undefined;
+
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
@@ -118,6 +134,38 @@ const projectStore = useProjectStore();
 const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
+
+// Window: 30 min before 4:00 UTC through the end of the 15 min maintenance
+const MAINTENANCE_START_MIN = 4 * 60;
+const MAINTENANCE_END_MIN = MAINTENANCE_START_MIN + 15;
+const MAINTENANCE_WINDOW_OPEN_MIN = MAINTENANCE_START_MIN - 30;
+const MAINTENANCE_WINDOW_CLOSE_MIN = MAINTENANCE_END_MIN;
+
+function formatMaintenanceEndTime(reference: Date): string {
+  const end = new Date(reference);
+  const endHours = Math.floor(MAINTENANCE_END_MIN / 60);
+  const endMinutes = MAINTENANCE_END_MIN % 60;
+  end.setUTCHours(endHours, endMinutes, 0, 0);
+  return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(end);
+}
+
+const maintenanceBannerText = computed(() => {
+  const n = now.value;
+  const utcMin = n.getUTCHours() * 60 + n.getUTCMinutes();
+  if (utcMin < MAINTENANCE_WINDOW_OPEN_MIN || utcMin >= MAINTENANCE_WINDOW_CLOSE_MIN) {
+    return null;
+  }
+  const minutesUntil = MAINTENANCE_START_MIN - utcMin;
+  if (minutesUntil > 0) {
+    return t("pages.home.maintenance.upcoming", { minutes: minutesUntil });
+  }
+  return t("pages.home.maintenance.ongoing", { endTime: formatMaintenanceEndTime(n) });
+});
+
+// Reset dismissal once the window closes so the banner re-appears the next day
+watch(maintenanceBannerText, (value) => {
+  if (value === null) maintenanceBannerDismissed.value = false;
+});
 
 // Discard in-progress shape edits when leaving edit mode.
 // Handled here rather than in useViewportTriggers since that composable has no access to the lazy shapeEditing chunk.
@@ -216,6 +264,9 @@ async function handleShapesCancel() {
 
 onMounted(async () => {
   globalThis.addEventListener("resize", updateWindowWidth);
+  maintenanceTickInterval = globalThis.setInterval(() => {
+    now.value = new Date();
+  }, 30_000);
 
   // Prevent page scrolling on mobile
   if (isMobile.value) {
@@ -268,6 +319,9 @@ function getErrorMessage(error: string): string {
 
 onUnmounted(() => {
   globalThis.removeEventListener("resize", updateWindowWidth);
+  if (maintenanceTickInterval !== undefined) {
+    globalThis.clearInterval(maintenanceTickInterval);
+  }
 
   document.documentElement.style.overflow = "";
   document.body.style.overflow = "";

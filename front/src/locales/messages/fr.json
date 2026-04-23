@@ -343,6 +343,10 @@
       "signInSuccess": "Connexion réussie !",
       "authenticationError": "Erreur d'authentification",
       "loadingMapAndData": "Chargement de la carte et des données...",
+      "maintenance": {
+        "upcoming": "Maintenance planifiée dans ~{minutes} min. Le site sera indisponible pendant environ 15 minutes.",
+        "ongoing": "Maintenance en cours jusqu'à ~{endTime}, le site peut être indisponible."
+      },
       "errors": {
         "authenticationFailed": "L'authentification a échoué. Veuillez réessayer.",
         "signInCancelled": "La connexion a été annulée ou a échoué.",

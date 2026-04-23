@@ -343,6 +343,10 @@
       "signInSuccess": "Successfully signed in!",
       "authenticationError": "Authentication Error",
       "loadingMapAndData": "Loading map and data...",
+      "maintenance": {
+        "upcoming": "Scheduled maintenance in ~{minutes} min. The site will be unavailable for about 15 minutes.",
+        "ongoing": "Maintenance in progress until ~{endTime}, the site may be unavailable."
+      },
       "errors": {
         "authenticationFailed": "Authentication failed. Please try again.",
         "signInCancelled": "Sign in was cancelled or failed.",

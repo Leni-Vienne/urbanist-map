@@ -277,6 +277,14 @@ fi
 START_SEQ=$(( FOUND_SEQ + 1 ))
 echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - START_SEQ + 1)) diffs)"
 
+# Nothing to do: PBF is already at the latest published sequence.
+# Exit cleanly so systemd records success and skips the dependent restart.
+if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
+    echo ""
+    echo "[$(ts)] Already up to date (sequence $CURRENT_SEQNUM). Nothing to apply."
+    exit 0
+fi
+
 # ---------------------------------------------------------------------------
 # Step 3: Download and apply OSC diffs
 #
