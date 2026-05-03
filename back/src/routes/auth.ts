@@ -144,7 +144,7 @@ export const authRouter = router({
 
           throw new TRPCError({
             code: "CONFLICT",
-            message: "auth.error.emailAlreadyExists",
+            message: "auth.error.registrationFailed",
           });
         }
       }
@@ -571,7 +571,9 @@ export const authRouter = router({
           await tx.delete(users).where(eq(users.id, userId));
         });
 
-        // Session invalidation handled by Hono middleware on logout
+        // Invalidate the active session so the deleted user is immediately logged out
+        const session = ctx.hono.get("session");
+        session.deleteSession();
 
         // Audit log: Confirm successful deletion
         console.log(`[GDPR] Account ${userId} (${user.email}) successfully deleted`);

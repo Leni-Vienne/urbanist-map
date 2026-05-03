@@ -242,8 +242,8 @@ function isTransient(err: unknown): boolean {
     (e) =>
       typeof e === "object" &&
       e !== null &&
-      "errno" in e &&
-      TRANSIENT_PG_CODES.has((e as Record<string, string | undefined>).errno ?? ""),
+      "code" in e &&
+      TRANSIENT_PG_CODES.has((e as Record<string, string | undefined>).code ?? ""),
   );
 }
 
@@ -292,6 +292,24 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
     // Reset geometry_size_m to NULL when geometry changes so it gets recomputed below.
     // Keeps the existing value when geometry is unchanged to avoid redundant PostGIS work.
     geometrySizeM: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
+    // Override Drizzle's $onUpdate auto-bump so updated_at only moves when a meaningful field
+    // actually changed. Without this, every daily run would touch updated_at on every row.
+    // last_imported_at is intentionally excluded (it's bumped every sync by design).
+    updatedAt: sql`CASE WHEN (
+      projects.name, projects.description, projects.country_code,
+      projects.timeline_status, projects.external_properties,
+      projects.external_last_modified, projects.tags, projects.source_url,
+      projects.start_date, projects.start_date_precision,
+      projects.end_date, projects.end_date_precision,
+      projects.geometry
+    ) IS DISTINCT FROM (
+      EXCLUDED.name, EXCLUDED.description, EXCLUDED.country_code,
+      EXCLUDED.timeline_status, EXCLUDED.external_properties,
+      EXCLUDED.external_last_modified, EXCLUDED.tags, EXCLUDED.source_url,
+      EXCLUDED.start_date, EXCLUDED.start_date_precision,
+      EXCLUDED.end_date, EXCLUDED.end_date_precision,
+      EXCLUDED.geometry
+    ) THEN NOW() ELSE projects.updated_at END`,
   };
   try {
     await db

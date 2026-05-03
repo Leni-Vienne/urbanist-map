@@ -8,7 +8,6 @@ import {
   changeHistory,
   type EntityType,
   users,
-  cities,
   userReports,
 } from "../db/schema";
 import { eq, and, inArray, sql, or } from "drizzle-orm";
@@ -136,19 +135,16 @@ async function getEntityCountryCode(
   entityType: EntityType,
   entityId: string,
 ): Promise<string | undefined> {
-  // Build query based on entity type - projects join city directly, overlays via projects
   const query =
     entityType === "project"
       ? db
-          .select({ countryCode: cities.countryCode })
+          .select({ countryCode: projects.countryCode })
           .from(projects)
-          .innerJoin(cities, eq(projects.cityId, cities.id))
           .where(eq(projects.id, entityId))
       : db
-          .select({ countryCode: cities.countryCode })
+          .select({ countryCode: projects.countryCode })
           .from(overlays)
           .innerJoin(projects, eq(overlays.projectId, projects.id))
-          .innerJoin(cities, eq(projects.cityId, cities.id))
           .where(eq(overlays.id, entityId));
 
   const result = await query.limit(1);

@@ -31,7 +31,7 @@ import {
 
 // Unified submission types for consolidated workflow
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
-export type SubmissionEntityType = "project" | "overlay";
+type SubmissionEntityType = "project" | "overlay";
 
 // Submission context interface
 export type SubmissionContext =

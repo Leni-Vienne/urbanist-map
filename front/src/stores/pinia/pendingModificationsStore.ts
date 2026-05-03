@@ -3,12 +3,12 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import type { ApprovalStatus } from "@shared/types";
 
-export type CornersChange = {
+type CornersChange = {
   current: { lat: number; lng: number }[];
   original: { lat: number; lng: number }[];
 };
 
-export type CaptionChange = {
+type CaptionChange = {
   current: string | null;
   original: string | null;
 };

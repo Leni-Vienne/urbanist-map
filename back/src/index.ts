@@ -19,7 +19,7 @@ import { globalRateLimiter } from "./lib/rateLimit";
 import { getClientIp } from "./utils/ip";
 import { logger } from "./services/logger";
 import { db } from "./database";
-import { users, config, overlays, projects, cities } from "./db/schema";
+import { users, config, overlays, projects } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifyGoogleToken } from "./utils/googleAuth";
 import { startCleanupJob } from "./services/cleanupService";
@@ -57,7 +57,7 @@ app.use(
     origin: (origin) => {
       if (!origin) return null;
 
-      if (process.env.NODE_ENV !== "production") {
+      if (process.env.NODE_ENV === "development") {
         return origin; // Allow all origins in development
       }
 
@@ -123,8 +123,8 @@ app.use(
     cookieOptions: {
       httpOnly: true,
       // secure must be true when sameSite is 'None' for cross-site cookies
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: process.env.NODE_ENV !== "development",
+      sameSite: process.env.NODE_ENV !== "development" ? "None" : "Lax",
       // No domain restriction to allow the cookie to work with the backend domain
       path: "/",
     },
@@ -633,11 +633,10 @@ app.get("/uploads/*", async (c) => {
       .select({
         authorId: overlays.authorId,
         status: overlays.status,
-        countryCode: cities.countryCode,
+        countryCode: projects.countryCode,
       })
       .from(overlays)
       .innerJoin(projects, eq(overlays.projectId, projects.id))
-      .leftJoin(cities, eq(projects.cityId, cities.id))
       .where(eq(overlays.filename, actualFilename))
       .limit(1);
 
@@ -680,24 +679,36 @@ app.get("/uploads/*", async (c) => {
     const file = await storage.get(validatedFilename);
 
     if (file) {
-      // Get origin from request for CORS (must match exact origin to allow credentials)
       const origin = c.req.header("Origin");
-      const allowedOrigin = origin ?? "*"; // Fallback to * if no origin header
+      const isAllowedOrigin =
+        origin &&
+        allowedDomains.some(
+          (domain) => origin === `https://${domain}` || origin.endsWith(`.${domain}`),
+        );
 
-      return new Response(file.body, {
-        headers: {
-          "Content-Type": file.contentType ?? "application/octet-stream",
-          "Cache-Control": "public, max-age=31536000, must-revalidate",
-          ETag: `"${filename}-${Date.now()}"`,
-          // CRITICAL: Must use specific origin (not *) to allow credentials (session cookies)
-          "Access-Control-Allow-Origin": allowedOrigin,
-          "Access-Control-Allow-Credentials": "true",
-          "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-          // Allow cross-origin resource loading (overrides secureHeaders middleware)
-          "Cross-Origin-Resource-Policy": "cross-origin",
-        },
-      });
+      const corsHeaders: Record<string, string> = {
+        "Content-Type": file.contentType ?? "application/octet-stream",
+        "Cache-Control": "public, max-age=31536000, must-revalidate",
+        ETag: `"${filename}-${Date.now()}"`,
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+      };
+
+      if (process.env.NODE_ENV !== "development" && isAllowedOrigin) {
+        corsHeaders["Access-Control-Allow-Origin"] = origin;
+        corsHeaders["Access-Control-Allow-Credentials"] = "true";
+      } else if (process.env.NODE_ENV !== "development") {
+        corsHeaders["Access-Control-Allow-Origin"] = allowedDomains[0]
+          ? `https://${allowedDomains[0]}`
+          : "";
+      } else {
+        // Development: allow any origin
+        corsHeaders["Access-Control-Allow-Origin"] = origin ?? "*";
+        corsHeaders["Access-Control-Allow-Credentials"] = "true";
+      }
+
+      return new Response(file.body, { headers: corsHeaders });
     }
 
     return c.json({ error: "File not found" }, 404);

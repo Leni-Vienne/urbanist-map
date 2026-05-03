@@ -91,15 +91,12 @@ declare module "leaflet" {
   ): DistortableImageOverlay;
 }
 
-// tRPC-inferred types from backend API (for transformed data)
-export type City = RouterOutput["cities"]["getCitiesNearLocation"][number];
-
 // Extended Country type for frontend use with additional properties
 export interface Country extends DBCountry {
   lat: number;
   lng: number;
   projectCount: number;
-  cities: City[];
+  cities: RouterOutput["cities"]["getCitiesNearLocation"];
 }
 
 export type PendingChangeRequest =
@@ -139,7 +136,7 @@ export interface ProjectFormData {
 }
 
 // Wire format from backend API - derived automatically from tRPC route output
-export type ApiOverlayData = RouterOutput["viewport"]["getOverlaysInViewport"][number];
+type ApiOverlayData = RouterOutput["viewport"]["getOverlaysInViewport"][number];
 
 // Frontend overlay data type - extends API type with:
 // - null status for local overlays not yet submitted to the backend
