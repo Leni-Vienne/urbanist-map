@@ -3,7 +3,7 @@ import { trpc, type RouterOutput, type RouterInput } from "@/client";
 import type { FieldChange } from "@shared/validation/schemas";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { withErrorHandling, withErrorToast } from "@/services/core/errorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
@@ -228,14 +228,14 @@ export function useChangeRequests() {
     entityId: string,
     fieldChanges: FieldChange[],
   ) {
-    return withErrorToast(
+    return withErrorHandling(
       async () =>
         submitChangeRequest({
           entityType,
           entityId,
           changes: fieldChanges,
         }),
-      "Failed to submit multiple field changes",
+      { errorMessage: "Failed to submit multiple field changes", rethrow: true },
     );
   }
 

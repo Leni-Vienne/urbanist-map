@@ -232,7 +232,7 @@ function closeProjectInfoPopup() {
 
 async function handleViewOriginalOverlay(originalOverlayId: string) {
   try {
-    const success = await navigateToOverlay(originalOverlayId, true, true);
+    const success = await navigateToOverlay(originalOverlayId, true);
 
     if (!success) {
       toast.add({

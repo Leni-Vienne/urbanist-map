@@ -247,8 +247,9 @@ function isTransient(err: unknown): boolean {
   );
 }
 
-async function waitForDb(maxWaitMs = 120_000): Promise<void> {
+async function waitForDb(): Promise<void> {
   const start = Date.now();
+  const maxWaitMs = 120_000;
   let delay = 2_000;
   while (Date.now() - start < maxWaitMs) {
     await new Promise((r) => setTimeout(r, delay));

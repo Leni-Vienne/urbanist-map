@@ -88,20 +88,3 @@ export async function withErrorHandling<T>(
     return null;
   }
 }
-
-/**
- * Execute a sync or async function with error toast notification (always returns result or throws)
- * Use this when you want the error to propagate but still show a toast
- *
- * @example
- * const result = await withErrorToast(
- *   () => trpc.project.delete.mutate(id),
- *   'Failed to delete project'
- * )
- */
-export async function withErrorToast<T>(
-  fn: () => T | Promise<T>,
-  errorMessage: string,
-): Promise<T> {
-  return withErrorHandling(fn, { errorMessage, rethrow: true }) as Promise<T>;
-}

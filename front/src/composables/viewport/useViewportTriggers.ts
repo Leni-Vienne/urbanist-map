@@ -319,7 +319,7 @@ export function useViewportTriggers() {
 
         // Save modified overlays before leaving edit mode
         if (oldMode === "edit") {
-          saveAllOverlaysToCache("edit");
+          saveAllOverlaysToCache();
         }
 
         // Reset bbox tracking on mode switch to force a fresh fetch

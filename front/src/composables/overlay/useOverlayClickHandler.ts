@@ -105,7 +105,7 @@ export function useOverlayClickHandler() {
         );
       }
 
-      await navigateToOverlay(overlay.id, true, autoSelect);
+      await navigateToOverlay(overlay.id, autoSelect);
 
       // Request scroll to overlay in adjacent panels
       requestScrollTo("overlay", overlay.id);

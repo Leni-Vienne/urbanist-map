@@ -170,19 +170,18 @@ async function loadOverlay(
  */
 export async function navigateToOverlay(
   overlayId: string,
-  centerMap: boolean,
   includeIntersecting: boolean,
 ): Promise<boolean> {
   const loadResult = await loadOverlay(overlayId, includeIntersecting);
 
   if (loadResult?.alreadyInStore) {
-    return selectAndCenterOverlay(overlayId, centerMap);
+    return selectAndCenterOverlay(overlayId);
   }
 
   // Overlay was just fetched -- registration is async (happens after image loads).
   // Select now if it registered in time, otherwise fly directly to the backend corners.
-  const navigated = selectAndCenterOverlay(overlayId, centerMap);
-  if (!navigated && centerMap && loadResult?.corners && loadResult.corners.length >= 4) {
+  const navigated = selectAndCenterOverlay(overlayId);
+  if (!navigated && loadResult?.corners && loadResult.corners.length >= 4) {
     const bounds = L.latLngBounds(loadResult.corners.map((c) => L.latLng(c.lat, c.lng)));
     mobileAwareFlyToBounds(bounds, {
       padding: [50, 50] as [number, number],
@@ -193,7 +192,7 @@ export async function navigateToOverlay(
   return true;
 }
 
-function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
+function selectAndCenterOverlay(overlayId: string) {
   const overlayStore = useOverlayStore();
 
   const overlay = overlayStore.overlays[overlayId];
@@ -202,11 +201,8 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
     return false;
   }
 
-  // selectOverlay handles overlay.select() internally
   selectOverlay(overlayId);
-  if (centerMap) {
-    zoomToOverlayBounds(overlay);
-  }
+  zoomToOverlayBounds(overlay);
 
   return true;
 }

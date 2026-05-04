@@ -105,11 +105,11 @@ export async function updateOverlayEditingState(): Promise<void> {
  * Save all modified overlays to edit mode cache
  * Used before mode switches or bulk updates to prevent data loss
  */
-export function saveAllOverlaysToCache(forceMode?: "edit") {
+export function saveAllOverlaysToCache() {
   const overlayStore = useOverlayStore();
   Object.values(overlayStore.overlays).forEach((overlayObject) => {
     if (overlayObject.isModified || overlayObject.history.length > 1) {
-      saveOverlayModificationsToCache(overlayObject, forceMode);
+      saveOverlayModificationsToCache(overlayObject, "edit");
     }
   });
 }

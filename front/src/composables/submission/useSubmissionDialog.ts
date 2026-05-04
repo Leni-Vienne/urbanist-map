@@ -227,7 +227,6 @@ function resetOverlayFieldModification(
 function checkRequiresModeration(
   overlayMods: PendingOverlayModification[],
   projectStatus: string | null,
-  overlayStatus?: string | null,
   newOverlayIds?: string[],
 ): boolean {
   // New overlays always require moderation
@@ -235,9 +234,7 @@ function checkRequiresModeration(
     return true;
   }
   return (
-    overlayMods.some((mod) => mod.overlayStatus === "approved") ||
-    projectStatus === "approved" ||
-    overlayStatus === "approved"
+    overlayMods.some((mod) => mod.overlayStatus === "approved") || projectStatus === "approved"
   );
 }
 
@@ -323,7 +320,6 @@ export function useSubmissionDialog() {
       const requiresModeration = checkRequiresModeration(
         pendingMods,
         project.status,
-        null,
         newOverlayIds,
       );
       const projectIsNew = project.status === null;

@@ -44,12 +44,11 @@ interface Snapshot {
 async function queryDistribution(
   query: ReturnType<typeof sql>,
   labelCol: string,
-  countCol = "count",
 ): Promise<Distribution> {
   const rows = await db.execute<Record<string, string>>(query);
   const out: Distribution = {};
   for (const row of rows) {
-    out[row[labelCol]!] = Number(row[countCol]);
+    out[row[labelCol]!] = Number(row.count);
   }
   return out;
 }
@@ -268,11 +267,11 @@ function printSnapshot(s: Snapshot) {
 // Diff
 // ---------------------------------------------------------------------------
 
-function diffNumber(label: string, before: number, after: number, indent = "  ") {
+function diffNumber(label: string, before: number, after: number) {
   const delta = after - before;
   if (delta === 0) return;
   const sign = delta > 0 ? "+" : "";
-  console.log(`${indent}${label}: ${before} -> ${after}  (${sign}${delta})`);
+  console.log(`  ${label}: ${before} -> ${after}  (${sign}${delta})`);
 }
 
 function diffDistribution(title: string, before: Distribution, after: Distribution) {
