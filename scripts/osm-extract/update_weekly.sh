@@ -278,11 +278,19 @@ START_SEQ=$(( FOUND_SEQ + 1 ))
 echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - START_SEQ + 1)) diffs)"
 
 # Nothing to do: PBF is already at the latest published sequence.
-# Exit cleanly so systemd records success and skips the dependent restart.
+# But verify that extraction artifacts from the previous run are intact — an OOM
+# in step 4 can leave the ways PBF empty while the sidecar is already advanced.
+# In that case fall through and re-run step 4 without re-applying any diffs.
 if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
+    _WAYS_PBF_CHECK="${FILTERED_PBF%_proposed.osm.pbf}_proposed_ways.osm.pbf"
+    if [[ -s "$_WAYS_PBF_CHECK" ]]; then
+        echo ""
+        echo "[$(ts)] Already up to date (sequence $CURRENT_SEQNUM). Nothing to apply."
+        exit 0
+    fi
     echo ""
-    echo "[$(ts)] Already up to date (sequence $CURRENT_SEQNUM). Nothing to apply."
-    exit 0
+    echo "[$(ts)] Sequence is current ($CURRENT_SEQNUM) but ways PBF is missing or empty."
+    echo "         A previous step 4 likely failed (e.g. OOM). Skipping diff application and re-running extraction."
 fi
 
 # ---------------------------------------------------------------------------
@@ -338,32 +346,38 @@ for SEQ in $(seq "$START_SEQ" "$CURRENT_SEQNUM"); do
 done
 
 # Phase 2: apply all diffs in one osmium call.
-echo ""
-echo "[$(ts)] Applying $TOTAL_DIFFS diff(s) to $FILTERED_PBF"
-echo "  Output: $FINAL_PBF"
-run osmium apply-changes \
-    --overwrite \
-    --output-format=pbf,pbf_compression=lz4 \
-    -o "$FINAL_PBF" \
-    "$FILTERED_PBF" \
-    "${OSC_FILES[@]}"
-
-# Phase 3: clean up the OSCs now that they're baked into $FINAL_PBF.
-if [[ "$DRY_RUN" -eq 0 ]]; then
-    rm -f "${OSC_FILES[@]}"
+# Skipped when falling through from the "already up to date but extraction
+# incomplete" path — no new diffs exist, so there is nothing to merge.
+if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     echo ""
-    echo "[$(ts)] Final updated PBF: $FINAL_PBF  ($(filesize "$FINAL_PBF"))"
-fi
+    echo "[$(ts)] Applying $TOTAL_DIFFS diff(s) to $FILTERED_PBF"
+    echo "  Output: $FINAL_PBF"
+    run osmium apply-changes \
+        --overwrite \
+        --output-format=pbf,pbf_compression=lz4 \
+        -o "$FINAL_PBF" \
+        "$FILTERED_PBF" \
+        "${OSC_FILES[@]}"
 
-# Write sidecar state file so the next run knows where to resume.
-# osmium apply-changes does not preserve the replication header, so we track
-# the sequence number and its timestamp ourselves.
-FINAL_SEQ_TS=$(fetch_seq_timestamp "$CURRENT_SEQNUM")
-if [[ "$DRY_RUN" -eq 0 ]]; then
-    printf "sequenceNumber=%s\ntimestamp=%s\n" "$CURRENT_SEQNUM" "$FINAL_SEQ_TS" > "$STATE_FILE"
-    echo "[$(ts)] Saved replication state to $STATE_FILE (seq=$CURRENT_SEQNUM, ts=$FINAL_SEQ_TS)"
+    # Phase 3: clean up the OSCs now that they're baked into $FINAL_PBF.
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+        rm -f "${OSC_FILES[@]}"
+        echo ""
+        echo "[$(ts)] Final updated PBF: $FINAL_PBF  ($(filesize "$FINAL_PBF"))"
+    fi
+
+    # Write sidecar state file so the next run knows where to resume.
+    # osmium apply-changes does not preserve the replication header, so we track
+    # the sequence number and its timestamp ourselves.
+    FINAL_SEQ_TS=$(fetch_seq_timestamp "$CURRENT_SEQNUM")
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+        printf "sequenceNumber=%s\ntimestamp=%s\n" "$CURRENT_SEQNUM" "$FINAL_SEQ_TS" > "$STATE_FILE"
+        echo "[$(ts)] Saved replication state to $STATE_FILE (seq=$CURRENT_SEQNUM, ts=$FINAL_SEQ_TS)"
+    else
+        echo "[dry-run] write $STATE_FILE: sequenceNumber=$CURRENT_SEQNUM timestamp=$FINAL_SEQ_TS"
+    fi
 else
-    echo "[dry-run] write $STATE_FILE: sequenceNumber=$CURRENT_SEQNUM timestamp=$FINAL_SEQ_TS"
+    echo "[$(ts)] No new diffs to apply — re-running extraction from existing PBF."
 fi
 
 # ---------------------------------------------------------------------------
@@ -383,10 +397,13 @@ echo "=========================================================="
 
 # Swap the updated PBF into place. Atomic rename on the same filesystem,
 # so readers see the old or new file but never a half-written one.
-if [[ "$DRY_RUN" -eq 0 ]]; then
-    mv -f "$FINAL_PBF" "$FILTERED_PBF"
-else
-    echo "[dry-run] mv $FINAL_PBF $FILTERED_PBF"
+# Skipped when no diffs were applied (FINAL_PBF was never created).
+if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+        mv -f "$FINAL_PBF" "$FILTERED_PBF"
+    else
+        echo "[dry-run] mv $FINAL_PBF $FILTERED_PBF"
+    fi
 fi
 
 # Derive paths the same way run_all.sh would, given the original source name.

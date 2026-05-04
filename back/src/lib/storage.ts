@@ -95,7 +95,8 @@ export async function compressImageIfNeeded(
   }
 }
 
-// Local filesystem storage implementation for development
+// Local filesystem storage implementation for development.
+/* oxlint-disable class-methods-use-this */
 export class LocalFileStorage implements StorageInterface {
   async put(
     filename: string,
@@ -156,6 +157,7 @@ export class LocalFileStorage implements StorageInterface {
     }
   }
 }
+/* oxlint-enable class-methods-use-this */
 
 // Cloudflare R2 storage implementation using Bun's built-in S3 client
 // Used for production when backend runs on dedicated server

@@ -15,7 +15,7 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import { addConflictFlags, enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
-import { globalRateLimiter } from "../lib/rateLimit";
+import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
 import { invalidateLatestContributionsCache } from "./feed";
@@ -241,7 +241,7 @@ export const changesRouter = router({
 
         // Rate limit: 20 change requests per IP per hour
         const ip = getClientIp(ctx.hono);
-        if (!globalRateLimiter.check(ip, 20, 60 * 60 * 1000)) {
+        if (!rateLimit.check(ip, 20, 60 * 60 * 1000)) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "Too many change requests. Please try again later.",

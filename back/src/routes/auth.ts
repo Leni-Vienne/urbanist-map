@@ -1,6 +1,6 @@
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { TRPCError } from "@trpc/server";
-import { globalRateLimiter } from "../lib/rateLimit";
+import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import crypto from "node:crypto";
 import { eq, gt } from "drizzle-orm";
@@ -12,7 +12,7 @@ import {
   resetPasswordRequestSchema,
   resetPasswordSchema,
 } from "../../../shared/validation/schemas";
-import { getEmailService } from "../services/emailService";
+import { sendEmail } from "../services/emailService";
 import { verifyTurnstileToken } from "../utils/captcha";
 import { renderEmailTemplate } from "../email/templateRenderer";
 
@@ -29,7 +29,6 @@ async function sendVerificationEmail(
   locale: "en" | "fr" = "en",
 ): Promise<void> {
   try {
-    const emailService = getEmailService();
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
 
     // Use template renderer with i18n support
@@ -39,7 +38,7 @@ async function sendVerificationEmail(
       locale,
     );
 
-    await emailService.sendEmail(email, subject, html);
+    await sendEmail(email, subject, html);
     console.log(`Verification email sent successfully to ${email}`);
   } catch (error) {
     console.error("Failed to send verification email:", error);
@@ -59,13 +58,12 @@ async function sendPasswordResetEmail(
   locale: "en" | "fr" = "en",
 ): Promise<void> {
   try {
-    const emailService = getEmailService();
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
     // Use template renderer with i18n support
     const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl }, locale);
 
-    await emailService.sendEmail(email, subject, html);
+    await sendEmail(email, subject, html);
     console.log(`Password reset email sent successfully to ${email}`);
   } catch (error) {
     console.error("Failed to send password reset email:", error);
@@ -87,7 +85,7 @@ export const authRouter = router({
 
       // Rate limit: 5 registrations per IP per hour
       const ip = getClientIp(ctx.hono);
-      if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
           code: "TOO_MANY_REQUESTS",
           message: "auth.error.tooManyRequests",
@@ -211,7 +209,7 @@ export const authRouter = router({
       try {
         // Rate limit: 5 verify attempts per IP per hour (brute force protection)
         const ip = getClientIp(ctx.hono);
-        if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+        if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "auth.error.tooManyRequests",
@@ -297,7 +295,7 @@ export const authRouter = router({
 
       // Rate limit: 5 password reset requests per IP per hour
       const ip = getClientIp(ctx.hono);
-      if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
           code: "TOO_MANY_REQUESTS",
           message: "auth.error.tooManyRequests",
@@ -423,7 +421,7 @@ export const authRouter = router({
 
       // Rate limit: 5 data exports per hour per user (prevent abuse)
       const ip = getClientIp(ctx.hono);
-      if (!globalRateLimiter.check(`export:${userId}`, 5, 60 * 60 * 1000)) {
+      if (!rateLimit.check(`export:${userId}`, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
           code: "TOO_MANY_REQUESTS",
           message: "Too many data export requests. Please try again later.",
@@ -506,7 +504,7 @@ export const authRouter = router({
 
         // Rate limit: 3 deletion attempts per hour per IP (prevent brute force)
         const ip = getClientIp(ctx.hono);
-        if (!globalRateLimiter.check(`delete:${ip}`, 3, 60 * 60 * 1000)) {
+        if (!rateLimit.check(`delete:${ip}`, 3, 60 * 60 * 1000)) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "Too many deletion attempts. Please try again later.",

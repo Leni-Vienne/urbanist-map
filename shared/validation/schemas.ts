@@ -142,7 +142,7 @@ const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   tags: z.array(z.string().max(50)).max(20).nullable(),
 };
 
-export const overlayCornersSchema = z
+const overlayCornersSchema = z
   .array(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
   .length(4);
 
@@ -258,5 +258,5 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
   return errorMap;
 }
 
-export type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
+type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
 export type FieldChange = SubmitChangeRequestInput["changes"][number];

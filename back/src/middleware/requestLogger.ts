@@ -1,6 +1,6 @@
 import type { Context, Next } from "hono";
 import { logger } from "../services/logger";
-import { errorAlerter } from "../services/errorAlerter";
+import { addError } from "../services/errorAlerter";
 import { getClientIp } from "../utils/ip";
 
 // Only alert on errors from routes that the app actually serves
@@ -68,7 +68,7 @@ export async function requestLogger(c: Context, next: Next) {
 
     // Track errors for alerting (4xx and 5xx), but only for routes we serve
     if (status >= 400 && shouldAlertOnPath(path)) {
-      errorAlerter.addError({
+      addError({
         timestamp: Date.now(),
         method,
         path,
@@ -94,7 +94,7 @@ export async function requestLogger(c: Context, next: Next) {
 
     // Track error for alerting, but only for routes we serve
     if (shouldAlertOnPath(path)) {
-      errorAlerter.addError({
+      addError({
         timestamp: Date.now(),
         method,
         path,

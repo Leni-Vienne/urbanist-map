@@ -14,8 +14,8 @@ import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { generateMissingThumbnails } from "./lib/startup";
 import { DrizzleSessionStore } from "./lib/drizzleSessionStore";
 import { requestLogger } from "./middleware/requestLogger";
-import { errorAlerter } from "./services/errorAlerter";
-import { globalRateLimiter } from "./lib/rateLimit";
+import { startErrorAlerter } from "./services/errorAlerter";
+import * as rateLimit from "./lib/rateLimit";
 import { getClientIp } from "./utils/ip";
 import { logger } from "./services/logger";
 import { db } from "./database";
@@ -158,7 +158,7 @@ app.post("/api/login", async (c) => {
   try {
     // Rate limit: 10 attempts per IP per minute
     const ip = getClientIp(c);
-    if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
+    if (!rateLimit.check(ip, 10, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" }, 429);
     }
 
@@ -409,7 +409,7 @@ app.post("/api/google-login", async (c) => {
   try {
     // Rate limit: 20 attempts per IP per minute (slightly higher for OAuth)
     const ip = getClientIp(c);
-    if (!globalRateLimiter.check(ip, 20, 60 * 1000)) {
+    if (!rateLimit.check(ip, 20, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" }, 429);
     }
 
@@ -504,7 +504,7 @@ app.post("/api/upload-image", async (c) => {
   try {
     // Rate limit: 10 uploads per IP per minute
     const ip = getClientIp(c);
-    if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
+    if (!rateLimit.check(ip, 10, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" } as FileUploadError, 429);
     }
 
@@ -775,7 +775,7 @@ generateMissingThumbnails().catch((error: unknown) => {
 });
 
 // Start error alerting service
-errorAlerter.start();
+startErrorAlerter();
 startCleanupJob();
 startR2MigrationService();
 

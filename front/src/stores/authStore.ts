@@ -17,6 +17,10 @@ interface User {
   emailVerified: boolean;
 }
 
+type AuthResult = { success: boolean; user: User | null; error: string | null };
+
+type OAuthProvider = "google";
+
 async function loadGoogleIdentityScript() {
   return new Promise<void>((resolve, reject) => {
     if (globalThis.google) {
@@ -68,39 +72,28 @@ async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean)
   return data.user ?? null;
 }
 
-function handleGoogleAuthSuccess(newUser: User | null) {
-  if (newUser?.email) {
-    localStorage.setItem(`lastLoginMethod:${newUser.email}`, "google");
-  }
-
-  return {
-    success: true,
-    user: newUser,
-    error: null,
-  };
-}
-
-function createGoogleCallbackHandler(
-  rememberMe: boolean,
-  userRef: { value: User | null },
-  resolve: (value: { success: boolean; user: User | null; error: string | null }) => void,
-  clearTimeoutFn: () => void,
-) {
-  return (response: { credential: string }) => {
-    clearTimeoutFn();
-
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    (async () => {
+// Wraps a provider-specific token-exchange call into an OAuth SDK callback.
+// The returned handler clears the pending timeout, awaits the exchange, and resolves
+// the outer promise with a uniform AuthResult shape regardless of provider.
+function createOAuthCallbackHandler<TResponse>(options: {
+  provider: OAuthProvider;
+  exchangeToken: (response: TResponse) => Promise<User | null>;
+  timeoutId: ReturnType<typeof setTimeout>;
+  resolve: (value: AuthResult) => void;
+}) {
+  return (response: TResponse) => {
+    clearTimeout(options.timeoutId);
+    void (async () => {
       try {
-        const newUser = await sendGoogleTokenToBackend(response.credential, rememberMe);
-        userRef.value = newUser;
-        resolve(handleGoogleAuthSuccess(newUser));
+        const newUser = await options.exchangeToken(response);
+        options.resolve({ success: true, user: newUser, error: null });
       } catch (error: unknown) {
-        console.error("Google OAuth error:", error);
-        resolve({
+        console.error(`${options.provider} OAuth error:`, error);
+        options.resolve({
           success: false,
           user: null,
-          error: error instanceof Error ? error.message : "Google authentication failed",
+          error:
+            error instanceof Error ? error.message : `${options.provider} authentication failed`,
         });
       }
     })();
@@ -234,66 +227,41 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function signInWithOAuth(
-    provider: "google",
-    rememberMe = false,
-  ): Promise<{ success: boolean; user: User | null; error: string | null }> {
-    if (provider !== "google") {
-      return {
-        success: false,
-        user: null,
-        error: "Only Google OAuth is currently supported",
-      };
-    }
-
+  async function signInWithOAuth(provider: OAuthProvider, rememberMe = false): Promise<AuthResult> {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      return {
-        success: false,
-        user: null,
-        error: "Google Client ID not configured",
-      };
+      return { success: false, user: null, error: "Google Client ID not configured" };
     }
 
     try {
-      // Load Google Identity Services script if not already loaded
       if (!globalThis.google) {
         await loadGoogleIdentityScript();
       }
-
       if (!globalThis.google) {
-        return {
-          success: false,
-          user: null,
-          error: "Google Identity Services not loaded",
-        };
+        return { success: false, user: null, error: "Google Identity Services not loaded" };
       }
 
-      return await new Promise((resolve) => {
+      const result = await new Promise<AuthResult>((resolve) => {
         const timeout = setTimeout(() => {
-          resolve({
-            success: false,
-            user: null,
-            error: "Google authentication timed out",
-          });
+          resolve({ success: false, user: null, error: "Google authentication timed out" });
         }, 60_000);
-
-        function clearTimeout_() {
-          clearTimeout(timeout);
-        }
 
         globalThis.google?.accounts.id.initialize({
           client_id: clientId,
-          callback: createGoogleCallbackHandler(rememberMe, user, resolve, clearTimeout_),
+          callback: createOAuthCallbackHandler<{ credential: string }>({
+            provider,
+            exchangeToken: (response) => sendGoogleTokenToBackend(response.credential, rememberMe),
+            timeoutId: timeout,
+            resolve,
+          }),
           auto_select: false,
           cancel_on_tap_outside: true,
         });
 
-        // Prompt the user to sign in
         // @ts-ignore -- Google Identity Services prompt() types are incomplete
         globalThis.google?.accounts.id.prompt((notification: any) => {
           if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
-            clearTimeout_();
+            clearTimeout(timeout);
             resolve({
               success: false,
               user: null,
@@ -302,12 +270,20 @@ export const useAuthStore = defineStore("auth", () => {
           }
         });
       });
+
+      if (result.success) {
+        user.value = result.user;
+        if (result.user?.email) {
+          localStorage.setItem(`lastLoginMethod:${result.user.email}`, provider);
+        }
+      }
+      return result;
     } catch (error: unknown) {
-      console.error("Google OAuth error:", error);
+      console.error(`${provider} OAuth error:`, error);
       return {
         success: false,
         user: null,
-        error: error instanceof Error ? error.message : "Google authentication failed",
+        error: error instanceof Error ? error.message : `${provider} authentication failed`,
       };
     }
   }

@@ -22,6 +22,10 @@ if [ "$1" = "--rederive" ]; then
 fi
 
 SOURCE="${1:?Usage: $0 [--rederive] <source.osm.pbf>}"
+if [ "$REDERIVE" -eq 0 ] && [ ! -f "$SOURCE" ]; then
+    echo "Error: source file not found: $SOURCE"
+    exit 1
+fi
 OUTPUT="${SOURCE/.osm.pbf/_proposed.osm.pbf}"
 WAYS_OUTPUT="${SOURCE/.osm.pbf/_proposed_ways.osm.pbf}"
 AREAL_OUTPUT="${SOURCE/.osm.pbf/_proposed_areal.osm.pbf}"
@@ -84,19 +88,14 @@ osmium tags-filter \
     --input-format=pbf,num_threads="$NPROC" \
     -o "$WAYS_OUTPUT" \
     "$OUTPUT" \
-    -e "$WAY_FILTERS" &
-PID_WAYS=$!
+    -e "$WAY_FILTERS" || { echo "ERROR: ways filter failed"; exit 1; }
 
 osmium tags-filter \
     --overwrite \
     --input-format=pbf,num_threads="$NPROC" \
     -o "$AREAL_OUTPUT" \
     "$OUTPUT" \
-    -e "$AREAL_FILTERS" &
-PID_AREAL=$!
-
-wait $PID_WAYS  || { echo "ERROR: ways filter failed"; exit 1; }
-wait $PID_AREAL || { echo "ERROR: areal filter failed"; exit 1; }
+    -e "$AREAL_FILTERS" || { echo "ERROR: areal filter failed"; exit 1; }
 
 echo "[$(ts)] STEP 2+3 done in $(elapsed $((SECONDS - T)))"
 echo "  $WAYS_OUTPUT  , $(filesize "$WAYS_OUTPUT")"

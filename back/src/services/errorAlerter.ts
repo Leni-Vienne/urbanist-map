@@ -1,6 +1,5 @@
-import { getEmailService } from "./emailService";
+import { sendEmail } from "./emailService";
 
-// Error entry structure
 interface ErrorEntry {
   timestamp: number;
   method: string;
@@ -10,66 +9,48 @@ interface ErrorEntry {
   ip?: string;
 }
 
-// Error alerter configuration
-const THRESHOLD_COUNT = 5; // Number of errors to trigger alert
-const THRESHOLD_WINDOW = 5 * 60 * 1000; // 5 minutes in milliseconds
-const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
-const COOLDOWN_PERIOD = 30 * 60 * 1000; // 30 minutes - don't send duplicate alerts
+const THRESHOLD_COUNT = 5;
+const THRESHOLD_WINDOW = 5 * 60 * 1000; // 5 minutes
+const CHECK_INTERVAL = 5 * 60 * 1000;
+const COOLDOWN_PERIOD = 30 * 60 * 1000;
 
-class ErrorAlerter {
-  private readonly errors: ErrorEntry[] = [];
-  private lastAlertTime = 0;
-  private intervalId?: NodeJS.Timeout;
+const errors: ErrorEntry[] = [];
+let lastAlertTime = 0;
+let intervalId: NodeJS.Timeout | undefined;
 
-  addError(error: ErrorEntry): void {
-    this.errors.push(error);
-    // Keep only last 100 errors to prevent memory leak
-    if (this.errors.length > 100) {
-      this.errors.shift();
-    }
+export function addError(error: ErrorEntry): void {
+  errors.push(error);
+  // Cap at 100 entries to prevent memory leak
+  if (errors.length > 100) {
+    errors.shift();
   }
+}
 
-  // Check if threshold is exceeded and send alert
-  private async checkThreshold(): Promise<void> {
-    const now = Date.now();
-    const recentErrors = this.errors.filter((error) => now - error.timestamp < THRESHOLD_WINDOW);
-
-    // If threshold exceeded and not in cooldown period
-    if (recentErrors.length >= THRESHOLD_COUNT && now - this.lastAlertTime > COOLDOWN_PERIOD) {
-      await this.sendAlert(recentErrors);
-      this.lastAlertTime = now;
+async function sendAlert(recentErrors: ErrorEntry[]): Promise<void> {
+  try {
+    const alertEmail = process.env.ALERT_EMAIL;
+    if (!alertEmail) {
+      console.warn("ALERT_EMAIL not configured, skipping error alert");
+      return;
     }
-  }
 
-  // Send email alert
-  private async sendAlert(recentErrors: ErrorEntry[]): Promise<void> {
-    try {
-      const alertEmail = process.env.ALERT_EMAIL;
-      if (!alertEmail) {
-        console.warn("ALERT_EMAIL not configured, skipping error alert");
-        return;
-      }
+    // Uses COMPOSE_PROJECT_NAME which is already set per-environment (e.g., construction-map-prod, construction-map-preview)
+    const envName = process.env.COMPOSE_PROJECT_NAME ?? process.env.NODE_ENV ?? "unknown";
 
-      // Get environment name for identification in alerts
-      // Uses COMPOSE_PROJECT_NAME which is already set per-environment (e.g., construction-map-prod, construction-map-preview)
-      const envName = process.env.COMPOSE_PROJECT_NAME ?? process.env.NODE_ENV ?? "unknown";
+    const errorsByPath: Record<string, number> = {};
+    for (const error of recentErrors) {
+      const key = `${error.method} ${error.path}`;
+      errorsByPath[key] = (errorsByPath[key] ?? 0) + 1;
+    }
 
-      // Group errors by path for summary
-      const errorsByPath: Record<string, number> = {};
-      for (const error of recentErrors) {
-        const key = `${error.method} ${error.path}`;
-        errorsByPath[key] = (errorsByPath[key] ?? 0) + 1;
-      }
+    const errorList = Object.entries(errorsByPath)
+      .map(([endpoint, count]) => `<li><strong>${endpoint}</strong>: ${count} errors</li>`)
+      .join("");
 
-      // Build HTML email content
-      const errorList = Object.entries(errorsByPath)
-        .map(([endpoint, count]) => `<li><strong>${endpoint}</strong>: ${count} errors</li>`)
-        .join("");
-
-      const recentErrorsList = recentErrors
-        .slice(-5) // Show last 5 errors
-        .map(
-          (error) => `
+    const recentErrorsList = recentErrors
+      .slice(-5)
+      .map(
+        (error) => `
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd;">${new Date(error.timestamp).toISOString()}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">${error.method} ${error.path}</td>
@@ -77,10 +58,10 @@ class ErrorAlerter {
             <td style="padding: 8px; border: 1px solid #ddd;">${error.message ?? "N/A"}</td>
           </tr>
         `,
-        )
-        .join("");
+      )
+      .join("");
 
-      const html = `
+    const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -92,17 +73,17 @@ class ErrorAlerter {
   <div style="background-color: #f44336; color: white; padding: 20px; border-radius: 5px;">
     <h1 style="margin: 0;">⚠️ Error Alert - ${envName.toUpperCase()}</h1>
   </div>
-  
+
   <div style="background-color: #f9f9f9; padding: 20px; margin-top: 20px; border-radius: 5px;">
     <h2 style="color: #f44336; margin-top: 0;">Error Threshold Exceeded</h2>
     <p><strong>Environment:</strong> ${envName}</p>
     <p><strong>${recentErrors.length} errors</strong> detected in the last <strong>5 minutes</strong>.</p>
-    
+
     <h3>Errors by Endpoint:</h3>
     <ul>
       ${errorList}
     </ul>
-    
+
     <h3>Recent Errors:</h3>
     <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
       <thead>
@@ -117,13 +98,13 @@ class ErrorAlerter {
         ${recentErrorsList}
       </tbody>
     </table>
-    
+
     <p style="margin-top: 20px; color: #666;">
       This alert was triggered because more than ${THRESHOLD_COUNT} errors occurred within ${THRESHOLD_WINDOW / 60_000} minutes.
       You will not receive another alert for 30 minutes to prevent spam.
     </p>
   </div>
-  
+
   <div style="margin-top: 20px; padding: 20px; background-color: #f0f0f0; border-radius: 5px;">
     <p style="margin: 0; font-size: 12px; color: #666;">
       This is an automated alert from Urbanist Map (${envName}). To stop receiving these alerts, update the ALERT_EMAIL environment variable.
@@ -133,44 +114,39 @@ class ErrorAlerter {
 </html>
       `;
 
-      const emailService = getEmailService();
-      await emailService.sendEmail(
-        alertEmail,
-        `[Urbanist Map] [${envName.toUpperCase()}] Error Alert - ${recentErrors.length} errors detected`,
-        html,
-      );
-
-      console.log(`Error alert sent to ${alertEmail} for ${recentErrors.length} errors`);
-    } catch (error) {
-      console.error("Failed to send error alert:", error);
-    }
-  }
-
-  // Start background monitoring
-  start(): void {
-    if (this.intervalId) {
-      console.warn("ErrorAlerter already started");
-      return;
-    }
-
-    this.intervalId = setInterval(() => {
-      void this.checkThreshold();
-    }, CHECK_INTERVAL);
-
-    console.log(
-      `ErrorAlerter started - monitoring for ${THRESHOLD_COUNT} errors in ${THRESHOLD_WINDOW / 60_000} minutes`,
+    await sendEmail(
+      alertEmail,
+      `[Urbanist Map] [${envName.toUpperCase()}] Error Alert - ${recentErrors.length} errors detected`,
+      html,
     );
-  }
 
-  // Stop background monitoring
-  stop(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = undefined;
-      console.log("ErrorAlerter stopped");
-    }
+    console.log(`Error alert sent to ${alertEmail} for ${recentErrors.length} errors`);
+  } catch (error) {
+    console.error("Failed to send error alert:", error);
   }
 }
 
-// Singleton instance
-export const errorAlerter = new ErrorAlerter();
+async function checkThreshold(): Promise<void> {
+  const now = Date.now();
+  const recentErrors = errors.filter((error) => now - error.timestamp < THRESHOLD_WINDOW);
+
+  if (recentErrors.length >= THRESHOLD_COUNT && now - lastAlertTime > COOLDOWN_PERIOD) {
+    await sendAlert(recentErrors);
+    lastAlertTime = now;
+  }
+}
+
+export function startErrorAlerter(): void {
+  if (intervalId) {
+    console.warn("ErrorAlerter already started");
+    return;
+  }
+
+  intervalId = setInterval(() => {
+    void checkThreshold();
+  }, CHECK_INTERVAL);
+
+  console.log(
+    `ErrorAlerter started - monitoring for ${THRESHOLD_COUNT} errors in ${THRESHOLD_WINDOW / 60_000} minutes`,
+  );
+}
