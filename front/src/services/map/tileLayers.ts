@@ -361,7 +361,7 @@ async function addTileLayersToMap(): Promise<void> {
       registerHybridInteractionHandlers(() => vectorMap);
 
       if (import.meta.env.DEV) {
-        import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
+        void import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
           (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(vectorMap);
         });
       }
@@ -429,7 +429,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
   if (!mlMap) return;
 
   await new Promise<void>((resolve) => {
-    mlMap.once("style.load", () => {
+    void mlMap.once("style.load", () => {
       // Re-apply road/rail overrides if switching back to the plan style.
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);

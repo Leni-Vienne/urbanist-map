@@ -472,25 +472,17 @@ function setupOverlayMovementTracking(
 export function renderViewModeOverlays(
   viewModeOverlays: OverlayData[],
   createMarkers = true,
-  forceRerender = false,
   onReady?: () => void,
 ): boolean {
   const overlayStore = useOverlayStore();
 
-  let overlaysToRender: OverlayData[] = [];
-
-  if (forceRerender) {
-    // Force re-render all overlays (for city switching)
-    overlaysToRender = viewModeOverlays;
-  } else {
-    // Render overlays that either:
-    // 1. Don't exist in the store yet (new overlays)
-    // 2. Exist but have null Leaflet layer (need re-rendering after zoom out)
-    overlaysToRender = viewModeOverlays.filter((cdnOverlay) => {
-      if (!overlayStore.overlays[cdnOverlay.id]) return true; // New overlay
-      return !registry.hasReadyLayer(cdnOverlay.id); // Needs re-rendering after zoom out
-    });
-  }
+  // Render overlays that either:
+  // 1. Don't exist in the store yet (new overlays)
+  // 2. Exist but have null Leaflet layer (need re-rendering after zoom out)
+  const overlaysToRender = viewModeOverlays.filter((cdnOverlay) => {
+    if (!overlayStore.overlays[cdnOverlay.id]) return true;
+    return !registry.hasReadyLayer(cdnOverlay.id);
+  });
 
   let anyStarted = false;
   for (const cdnOverlay of overlaysToRender) {

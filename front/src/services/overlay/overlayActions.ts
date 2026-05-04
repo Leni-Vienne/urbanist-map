@@ -150,10 +150,10 @@ async function loadOverlay(
 
       const { renderViewModeOverlays } = await import("@/services/overlay/overlayRendering");
 
-      renderViewModeOverlays([result.overlay], true, false);
+      renderViewModeOverlays([result.overlay], true);
 
       if (includeIntersecting && result.intersectingOverlays.length > 0) {
-        renderViewModeOverlays(result.intersectingOverlays, true, false);
+        renderViewModeOverlays(result.intersectingOverlays, true);
       }
 
       // Don't check overlayStore.overlays[overlayId] here: overlay registration is async

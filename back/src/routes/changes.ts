@@ -53,8 +53,8 @@ function isCoord(obj: unknown): obj is Coord {
   return (
     obj !== null &&
     typeof obj === "object" &&
-    Number.isFinite((obj as Record<string, unknown>)["lat"]) &&
-    Number.isFinite((obj as Record<string, unknown>)["lng"])
+    Number.isFinite((obj as Record<string, unknown>).lat) &&
+    Number.isFinite((obj as Record<string, unknown>).lng)
   );
 }
 

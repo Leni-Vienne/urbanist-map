@@ -250,7 +250,8 @@ export const useAuthStore = defineStore("auth", () => {
           client_id: clientId,
           callback: createOAuthCallbackHandler<{ credential: string }>({
             provider,
-            exchangeToken: (response) => sendGoogleTokenToBackend(response.credential, rememberMe),
+            exchangeToken: async (response) =>
+              sendGoogleTokenToBackend(response.credential, rememberMe),
             timeoutId: timeout,
             resolve,
           }),

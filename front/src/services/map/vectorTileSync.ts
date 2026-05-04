@@ -155,7 +155,7 @@ function syncOverlaysFromTiles(mlMap: any): void {
 
     import("@/services/overlay/overlayRendering")
       .then(({ renderViewModeOverlays }) => {
-        renderViewModeOverlays(toCreate, false, false);
+        renderViewModeOverlays(toCreate, false);
       })
       .catch((error: unknown) =>
         console.error("vectorTileSync: failed to load overlayRendering", error),

@@ -107,7 +107,6 @@ export function zoomToOverlayAndSelect(
         const ourRenderStarted = renderViewModeOverlays(
           [overlayObj],
           true,
-          false,
           autoSelect
             ? () => {
                 selectOverlay(overlayId);

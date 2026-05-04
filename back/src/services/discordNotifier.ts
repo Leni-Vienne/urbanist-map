@@ -50,9 +50,9 @@ type SubmissionNotification = SubmissionLocation &
       }
   );
 
-const COLOR_PROJECT = 0x3b82f6;
-const COLOR_OVERLAY = 0x10b981;
-const COLOR_CHANGE = 0xf59e0b;
+const COLOR_PROJECT = 0x3b_82_f6;
+const COLOR_OVERLAY = 0x10_b9_81;
+const COLOR_CHANGE = 0xf5_9e_0b;
 
 function buildShareUrl(frontendUrl: string, lat: number | null, lng: number | null): string {
   if (lat === null || lng === null) return frontendUrl;

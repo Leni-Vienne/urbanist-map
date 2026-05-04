@@ -61,6 +61,6 @@ router.beforeEach(async (to) => {
     if (to.meta.requiresAdmin && authStore.user?.role !== "admin") return { name: "Home" };
   } else {
     // Fire auth check in background without blocking navigation for public routes
-    authStore.initialize();
+    void authStore.initialize();
   }
 });

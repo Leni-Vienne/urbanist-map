@@ -164,6 +164,6 @@ function shouldShowOverlay(overlay: OverlayObject | OverlayData, mode: AppMode) 
 
   // In view mode, filter by the project's timeline status
   const timelineStatus = overlay.project?.timelineStatus;
-  if (!timelineStatus) return visibleStates.value["proposed"]; // fallback: treat as proposed
+  if (!timelineStatus) return visibleStates.value.proposed; // fallback: treat as proposed
   return visibleStates.value[timelineStatus];
 }

@@ -47,7 +47,7 @@ export async function renderEmailTemplate(
     const templatePath =
       process.env.NODE_ENV === "production"
         ? join("/app/email/templates", `${kebabCaseName}-email.html`)
-        : join(__dirname, "templates", `${kebabCaseName}-email.html`);
+        : join(import.meta.dirname, "templates", `${kebabCaseName}-email.html`);
 
     const templateFile = Bun.file(templatePath);
 

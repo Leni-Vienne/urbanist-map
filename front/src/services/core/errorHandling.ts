@@ -17,7 +17,7 @@ interface ErrorHandlingOptions {
   /** Custom error handler function */
   onError?: (error: unknown) => void;
   /** Custom success handler function */
-  onSuccess?: <T>(result: T) => void;
+  onSuccess?: (result: unknown) => void;
 }
 
 /**

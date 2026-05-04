@@ -232,7 +232,7 @@ function pruneBackendOverlays(
   if (overlaysToRender.length > 0) {
     // Dynamic import keeps leaflet-distortableimage out of the initial bundle
     void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
-      renderViewModeOverlays(overlaysToRender, true, false);
+      renderViewModeOverlays(overlaysToRender, true);
     });
   }
 }

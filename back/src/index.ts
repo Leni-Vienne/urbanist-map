@@ -12,7 +12,7 @@ import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config as appConfig } from "./config";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { generateMissingThumbnails } from "./lib/startup";
-import { DrizzleSessionStore } from "./lib/drizzleSessionStore";
+import { sessionStore, startSessionCleanup } from "./lib/drizzleSessionStore";
 import { requestLogger } from "./middleware/requestLogger";
 import { startErrorAlerter } from "./services/errorAlerter";
 import * as rateLimit from "./lib/rateLimit";
@@ -110,13 +110,11 @@ app.route("/api/tiles", tilesApp);
 const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
 const SESSION_DURATION_LONG = 30 * 24 * 60 * 60; // 30 days for "Remember Me"
 
-const store = new DrizzleSessionStore();
-
 app.use(
   "*",
   sessionMiddleware({
-    // @ts-ignore hono doesn't like DrizzleSessionStore's type for some reason
-    store,
+    // @ts-ignore hono doesn't like the session store's type for some reason
+    store: sessionStore,
     sessionCookieName: "session",
     encryptionKey: process.env.COOKIE_SECRET ?? "fallback-secret-key-for-dev-at-least-32-chars",
     expireAfterSeconds: SESSION_DURATION_LONG, // Max duration, actual duration set per login
@@ -597,9 +595,9 @@ app.post("/api/upload-image", async (c) => {
 
     return c.json({
       success: true,
-      filename: filename,
+      filename,
       url: imageUrl,
-      thumbnailUrl: thumbnailUrl,
+      thumbnailUrl,
     } as FileUploadResult);
   } catch (error) {
     console.error("Error uploading file:", error);
@@ -778,6 +776,7 @@ generateMissingThumbnails().catch((error: unknown) => {
 startErrorAlerter();
 startCleanupJob();
 startR2MigrationService();
+startSessionCleanup();
 
 export type { AppRouter } from "./routes";
 

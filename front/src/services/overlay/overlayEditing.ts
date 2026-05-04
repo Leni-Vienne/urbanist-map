@@ -251,10 +251,10 @@ export function addOverlay(
 
     // Wait for zoom to complete before creating overlay
     map.value.once("zoomend", () => {
-      createAndSetupOverlay();
+      void createAndSetupOverlay();
     });
   } else {
-    createAndSetupOverlay();
+    void createAndSetupOverlay();
   }
 
   return id;

@@ -11,6 +11,7 @@
  * Based on https://github.com/maplibre/maplibre-gl-leaflet (MIT license).
  */
 
+/* oxlint-disable no-underscore-dangle */
 import L, { type LatLngBounds, type Layer as LayerType, type Point as PointType } from "leaflet";
 import maplibre, { type Map as MaplibreMap, type MapOptions } from "maplibre-gl";
 

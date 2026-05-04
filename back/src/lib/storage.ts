@@ -98,7 +98,7 @@ export async function compressImageIfNeeded(
 // Local filesystem storage implementation for development.
 /* oxlint-disable class-methods-use-this */
 export class LocalFileStorage implements StorageInterface {
-  async put(
+  public async put(
     filename: string,
     buffer: ArrayBuffer,
     options?: { skipThumbnail?: boolean },
@@ -125,7 +125,9 @@ export class LocalFileStorage implements StorageInterface {
     }
   }
 
-  async get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
+  public async get(
+    filename: string,
+  ): Promise<{ body: ReadableStream; contentType?: string } | null> {
     try {
       // File path already includes full path from request (e.g., "thumbnails/image.webp" or "image.webp")
       const filePath = `./uploads/${filename}`;
@@ -148,7 +150,7 @@ export class LocalFileStorage implements StorageInterface {
 
   // Delete a single file - does NOT automatically delete related thumbnails
   // Callers are responsible for deciding what files to delete (see deleteLocalImages in imageCleanup.ts)
-  async delete(filename: string): Promise<void> {
+  public async delete(filename: string): Promise<void> {
     try {
       await unlink(`./uploads/${filename}`);
     } catch (error) {
@@ -164,7 +166,7 @@ export class LocalFileStorage implements StorageInterface {
 export class R2StorageS3 implements StorageInterface {
   private readonly client: S3Client;
 
-  constructor(config: {
+  public constructor(config: {
     endpoint: string;
     accessKeyId: string;
     secretAccessKey: string;
@@ -178,7 +180,7 @@ export class R2StorageS3 implements StorageInterface {
     });
   }
 
-  async put(
+  public async put(
     filename: string,
     buffer: ArrayBuffer,
     options?: { skipThumbnail?: boolean },
@@ -211,7 +213,9 @@ export class R2StorageS3 implements StorageInterface {
     }
   }
 
-  async get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
+  public async get(
+    filename: string,
+  ): Promise<{ body: ReadableStream; contentType?: string } | null> {
     try {
       const s3file = this.client.file(filename);
       return {
@@ -225,7 +229,7 @@ export class R2StorageS3 implements StorageInterface {
 
   // Delete a single file - does NOT automatically delete related thumbnails
   // Callers are responsible for deciding what files to delete (see deleteImages in imageCleanup.ts)
-  async delete(filename: string): Promise<void> {
+  public async delete(filename: string): Promise<void> {
     try {
       await this.client.delete(filename);
     } catch (error) {
