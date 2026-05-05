@@ -23,20 +23,10 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-async function sendVerificationEmail(
-  email: string,
-  token: string,
-  locale: "en" | "fr" = "en",
-): Promise<void> {
+async function sendVerificationEmail(email: string, token: string): Promise<void> {
   try {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
-
-    // Use template renderer with i18n support
-    const { subject, html } = await renderEmailTemplate(
-      "verification",
-      { verificationUrl },
-      locale,
-    );
+    const { subject, html } = await renderEmailTemplate("verification", { verificationUrl });
 
     await sendEmail(email, subject, html);
     console.log(`Verification email sent successfully to ${email}`);
@@ -52,16 +42,10 @@ async function sendVerificationEmail(
   }
 }
 
-async function sendPasswordResetEmail(
-  email: string,
-  token: string,
-  locale: "en" | "fr" = "en",
-): Promise<void> {
+async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
   try {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-
-    // Use template renderer with i18n support
-    const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl }, locale);
+    const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl });
 
     await sendEmail(email, subject, html);
     console.log(`Password reset email sent successfully to ${email}`);

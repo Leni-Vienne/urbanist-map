@@ -32,13 +32,11 @@ function renderTemplate(template: string, data: Record<string, string>): string 
 export async function renderEmailTemplate(
   templateName: TemplateName,
   variables: Record<string, string>,
-  locale: Locale = "en",
 ): Promise<{ subject: string; html: string }> {
   try {
-    const translation = translations[locale]?.[templateName];
-    if (!translation) {
-      throw new Error(`Translation not found for template: ${templateName}, locale: ${locale}`);
-    }
+    // Locale is hardcoded to "en" until callers can plumb a user-preferred locale through.
+    // The `fr` translations exist for that future wiring.
+    const translation = translations.en[templateName];
 
     // Convert camelCase template name to kebab-case for file lookup
     const kebabCaseName = templateName.replaceAll(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();

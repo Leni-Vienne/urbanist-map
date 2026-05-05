@@ -16,8 +16,8 @@ import { db, type Database } from "../database";
 import {
   deleteImages,
   deleteLocalImages,
-  scheduleImageCleanup,
-  daysFromNow,
+  cleanupRejectedPendingOverlay,
+  cleanupReplacedApprovedOverlay,
 } from "../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import {
@@ -33,8 +33,6 @@ import { queueR2Migration } from "../services/r2MigrationService";
 import * as z from "zod";
 
 type DbOrTx = Pick<typeof db, "update">;
-
-const THUMBNAIL_RETENTION_DAYS = 15;
 
 async function incrementApprovedCount(tx: DbOrTx, userId: string | null): Promise<void> {
   if (!userId) return;
@@ -649,13 +647,8 @@ export const moderationRouter = router({
         ) {
           for (const filename of result.rejectedOverlayFilenames) {
             try {
-              await deleteLocalImages(filename, "full");
-              await scheduleImageCleanup(
-                input.id, // Use project ID as identifier
-                filename,
-                daysFromNow(THUMBNAIL_RETENTION_DAYS),
-                "thumbnail",
-              );
+              // Use project ID as identifier (no per-overlay ID available here)
+              await cleanupRejectedPendingOverlay(input.id, filename);
             } catch (error) {
               console.error(`Failed to cleanup rejected overlay: ${filename}`, error);
               // Don't fail the request if cleanup fails
@@ -1474,15 +1467,8 @@ async function handleOverlayRejection(
       return rejectionResult;
     }
 
-    // Images are always local for pending overlays (not yet migrated to R2)
     try {
-      await deleteLocalImages(filename, "full");
-      await scheduleImageCleanup(
-        overlayId,
-        filename,
-        daysFromNow(THUMBNAIL_RETENTION_DAYS),
-        "thumbnail",
-      );
+      await cleanupRejectedPendingOverlay(overlayId, filename);
     } catch (error) {
       console.error("Failed to cleanup rejected overlay images:", error);
       // Don't fail the rejection if cleanup fails
@@ -1628,13 +1614,7 @@ async function cleanupReplacementImages(
   try {
     for (const competing of competingReplacements) {
       try {
-        await deleteLocalImages(competing.filename, "full");
-        await scheduleImageCleanup(
-          competing.id,
-          competing.filename,
-          daysFromNow(THUMBNAIL_RETENTION_DAYS),
-          "thumbnail",
-        );
+        await cleanupRejectedPendingOverlay(competing.id, competing.filename);
       } catch (error) {
         console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
       }
@@ -1649,13 +1629,7 @@ async function cleanupReplacementImages(
     const originalRecord = originalOverlayData[0];
 
     if (originalRecord) {
-      await deleteImages(originalRecord.filename, "full");
-      await scheduleImageCleanup(
-        replacesOverlayId,
-        originalRecord.filename,
-        daysFromNow(THUMBNAIL_RETENTION_DAYS),
-        "thumbnail",
-      );
+      await cleanupReplacedApprovedOverlay(replacesOverlayId, originalRecord.filename);
     }
   } catch (error) {
     console.error("Failed to cleanup replacement images:", error);

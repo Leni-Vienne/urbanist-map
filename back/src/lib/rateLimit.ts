@@ -4,15 +4,13 @@ const MAX_WINDOW_MS = 3600 * 1000;
 const hits = new Map<string, number[]>();
 
 /**
- * Check if an IP has exceeded the limit within the window.
+ * Check if an identifier has exceeded the limit within the window.
  * Returns true if allowed, false if limit exceeded.
- * @param ip - The identifier (e.g. IP address).
- * @param action - The specific action (e.g. 'login', 'upload'). If provided, limits are isolated per action.
+ * Callers isolate scopes by prefixing the identifier (e.g. `delete:${ip}`, `export:${userId}`).
  */
-export function check(ip: string, limit: number, windowMs: number, action = "default"): boolean {
-  const key = `${ip}:${action}`;
+export function check(identifier: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
-  const timestamps = hits.get(key) ?? [];
+  const timestamps = hits.get(identifier) ?? [];
 
   const validTimestamps = timestamps.filter((ts) => now - ts < windowMs);
 
@@ -21,7 +19,7 @@ export function check(ip: string, limit: number, windowMs: number, action = "def
   }
 
   validTimestamps.push(now);
-  hits.set(key, validTimestamps);
+  hits.set(identifier, validTimestamps);
   return true;
 }
 

@@ -5,6 +5,8 @@ import { appendFile } from "node:fs/promises";
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from "./storage";
 import type { StorageInterface } from "./types";
 
+const THUMBNAIL_RETENTION_DAYS = 15;
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -62,23 +64,48 @@ async function appendOrphanLog(failedFiles: string[]): Promise<void> {
   });
 }
 
+function daysFromNow(days: number): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+async function scheduleThumbnailDeletion(overlayId: string, filename: string): Promise<void> {
+  const deletionDate = daysFromNow(THUMBNAIL_RETENTION_DAYS);
+  await db
+    .insert(scheduledDeletions)
+    .values({ overlayId, filename, deletionDate, deletionType: "thumbnail" });
+  console.log(`Scheduled thumbnail deletion for ${filename} on ${deletionDate.toISOString()}`);
+}
+
 // ============================================================================
 // PUBLIC API
 // ============================================================================
 
 /**
- * Schedule image deletion for a future date (used for replaced/rejected overlays).
+ * Cleanup after a pending overlay was rejected.
+ * Pending overlays are never migrated to R2, so the full image lives only in local storage.
+ * The thumbnail is retained for a grace period (visible in the user's "rejected" view).
  */
-export async function scheduleImageCleanup(
+export async function cleanupRejectedPendingOverlay(
   overlayId: string,
   filename: string,
-  deletionDate: Date,
-  deletionType: "full" | "thumbnail" | "both",
 ): Promise<void> {
-  await db.insert(scheduledDeletions).values({ overlayId, filename, deletionDate, deletionType });
-  console.log(
-    `Scheduled ${deletionType} deletion for ${filename} on ${deletionDate.toISOString()}`,
-  );
+  await deleteLocalImages(filename, "full");
+  await scheduleThumbnailDeletion(overlayId, filename);
+}
+
+/**
+ * Cleanup after an approved overlay was replaced by a new approved overlay.
+ * The original full image lives in R2 (production) or local (dev), the thumbnail is always local.
+ * The thumbnail is retained briefly so any in-flight client renders don't 404.
+ */
+export async function cleanupReplacedApprovedOverlay(
+  overlayId: string,
+  filename: string,
+): Promise<void> {
+  await deleteImages(filename, "full");
+  await scheduleThumbnailDeletion(overlayId, filename);
 }
 
 /**
@@ -155,13 +182,4 @@ export async function deleteImages(
     process.env.NODE_ENV === "production" ? createR2Storage() : new LocalFileStorage();
   const failed = await deleteFilesFromStorage(storage, filename, deleteType);
   await appendOrphanLog(failed);
-}
-
-/**
- * Return a Date N days from now.
- */
-export function daysFromNow(days: number): Date {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date;
 }
