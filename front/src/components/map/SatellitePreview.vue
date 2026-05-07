@@ -14,11 +14,7 @@
     >
       <!-- Plan preview (shown when in satellite mode) -->
       <div v-if="isSatellite" class="w-full h-full flex items-end justify-center relative">
-        <img
-          src="https://tile.openstreetmap.org/12/2048/1365.png"
-          alt="Map"
-          class="absolute inset-0 w-full h-full object-cover"
-        />
+        <img :src="planThumbnail" alt="Map" class="absolute inset-0 w-full h-full object-cover" />
         <span
           class="relative z-2 text-white text-[0.85rem] font-medium pb-1.5 [text-shadow:0_0_4px_black,0_0_8px_black,0_0_12px_black]"
           >{{ $t("layerControl.plan") }}</span
@@ -28,7 +24,7 @@
       <!-- Satellite preview (shown when in plan mode) -->
       <div v-else class="w-full h-full flex items-end justify-center relative">
         <img
-          src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1365/2048"
+          :src="satelliteThumbnail"
           alt="Satellite"
           class="absolute inset-0 w-full h-full object-cover"
         />
@@ -44,6 +40,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { currentTileLayer, switchTileLayer, type TileLayerType } from "@/services/map/tileLayers";
+import satelliteThumbnail from "@/assets/satellite_thumbnail.webp";
+import planThumbnail from "@/assets/plan_thumbnail.webp";
 
 const props = defineProps<{
   inDrawer?: boolean;
