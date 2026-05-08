@@ -79,9 +79,14 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         proposed = tags.get('proposed', '')
         planned = tags.get('planned', '')
 
+        park_values = ('park', 'garden', 'playground', 'recreation_ground')
         is_park_construction = (
             leisure in ('park', 'garden', 'playground', 'recreation_ground', 'sports_centre') and
             (construction or proposed or planned)
+        ) or (
+            construction in park_values or
+            proposed in park_values or
+            planned in park_values
         )
 
         is_building_construction = (

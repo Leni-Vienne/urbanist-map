@@ -87,8 +87,6 @@ export function useViewportTriggers() {
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
-  // ── Bbox-based viewport fetch (edit/moderation) ─────────────────────────
-
   /**
    * Fetch overlays + standalone projects in the current viewport bbox.
    * Replaces the city-based loading path for edit/moderation modes.
@@ -143,8 +141,6 @@ export function useViewportTriggers() {
     // Augment cluster source with pending projects visible in this mode
     mergeProjectPointsForMode(overlaysData, projectsData, mode);
   }
-
-  // ── Main refresh ────────────────────────────────────────────────────────
 
   /**
    * Main viewport refresh, bbox loading for edit/moderation,
@@ -288,8 +284,6 @@ export function useViewportTriggers() {
     map.value.off("moveend");
     map.value.off("zoomend");
   }
-
-  // ── Mode watcher ────────────────────────────────────────────────────────
 
   function setupModeWatcher() {
     // When pending change requests finish loading, re-render project shapes

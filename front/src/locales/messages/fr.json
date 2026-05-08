@@ -162,7 +162,7 @@
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer.",
     "guest": {
       "title": "Contribuez à la carte",
-      "description": "Participez à la cartographie des projets d'aménagement urbain : ajoutez des projets officiels ou vos propres idées pour votre ville (transports, rues, logements, espaces publics, parcs...).",
+      "description": "Participez à la cartographie des projets urbains, que ce soient des propositions de projets ou des chantiers en cours. Dessinez des formes, ajoutez des images vue du dessus, des dates...",
       "signIn": "Se connecter",
       "createAccount": "Créer un compte"
     }

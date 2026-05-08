@@ -72,12 +72,24 @@ const BASE_OSM_RULES: OsmRule[] = [
     values: ["forest", "grass", "recreation_ground", "meadow", "greenfield"],
     tag: "park",
   },
+  // Future use: a construction site whose target is a park
+  {
+    key: "construction",
+    values: ["park", "garden", "playground", "recreation_ground"],
+    tag: "park",
+  },
 
   // Building
   { key: "building", tag: "building" },
   {
     key: "landuse",
-    values: ["construction", "commercial", "residential", "retail", "industrial"],
+    values: ["commercial", "residential", "retail", "industrial"],
+    tag: "building",
+  },
+  // Future use: a construction site whose target is a building
+  {
+    key: "construction",
+    values: ["apartments", "commercial", "office", "industrial", "retail", "house", "hotel"],
     tag: "building",
   },
 ];
@@ -194,12 +206,28 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
     values: ["forest", "grass", "recreation_ground", "meadow", "greenfield"],
     tag: "park",
   },
+  {
+    key: "construction",
+    values: ["park", "garden", "playground", "recreation_ground"],
+    tag: "park",
+  },
+  { key: "proposed", values: ["park", "garden", "playground", "recreation_ground"], tag: "park" },
 
   // --- Building / urban development ---
   { key: "building", tag: "building" },
   {
     key: "landuse",
-    values: ["construction", "commercial", "residential", "retail", "industrial"],
+    values: ["commercial", "residential", "retail", "industrial"],
+    tag: "building",
+  },
+  {
+    key: "construction",
+    values: ["apartments", "commercial", "office", "industrial", "retail", "house", "hotel"],
+    tag: "building",
+  },
+  {
+    key: "proposed",
+    values: ["apartments", "commercial", "office", "industrial", "retail", "house", "hotel"],
     tag: "building",
   },
 ];

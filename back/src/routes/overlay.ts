@@ -1,6 +1,6 @@
 import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
 import * as z from "zod";
-import { overlays, projects, cities, users, type ApprovalStatus } from "../db/schema";
+import { overlays, projects, cities, countries, users, type ApprovalStatus } from "../db/schema";
 import type * as schema from "../db/schema";
 import { sql, eq, and, or, inArray } from "drizzle-orm";
 import { db } from "../database";
@@ -395,12 +395,15 @@ export const overlayRouter = router({
           projectName: projects.name,
           lat: sql<number | null>`NULL`,
           lng: sql<number | null>`NULL`,
-          cityId: sql<string | null>`NULL`,
-          cityName: sql<string | null>`NULL`,
-          countryCode: sql<string | null>`NULL`,
+          cityId: projects.cityId,
+          cityName: cities.name,
+          countryCode: projects.countryCode,
+          countryName: countries.name,
         })
         .from(overlays)
         .leftJoin(projects, eq(overlays.projectId, projects.id))
+        .leftJoin(cities, eq(projects.cityId, cities.id))
+        .leftJoin(countries, eq(projects.countryCode, countries.code))
         .where(
           and(
             eq(overlays.authorId, userId),
@@ -428,10 +431,12 @@ export const overlayRouter = router({
           lng: projects.lng,
           cityId: projects.cityId,
           cityName: cities.name,
-          countryCode: cities.countryCode,
+          countryCode: projects.countryCode,
+          countryName: countries.name,
         })
         .from(projects)
         .leftJoin(cities, eq(projects.cityId, cities.id))
+        .leftJoin(countries, eq(projects.countryCode, countries.code))
         .where(
           and(
             eq(projects.ownerId, userId),

@@ -162,7 +162,7 @@
     "deleteProjectError": "Failed to delete project. Please try again.",
     "guest": {
       "title": "Contribute to the map",
-      "description": "Help map urban planning projects: add official projects or your own ideas for your city (transport, housing, street redesigns, green spaces...).",
+      "description": "Help map urban projects worldwide, from early proposals to ongoing construction. You can draw shapes, add top-down imagery, dates...",
       "signIn": "Sign in",
       "createAccount": "Create an account"
     }
