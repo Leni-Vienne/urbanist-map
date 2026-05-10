@@ -404,7 +404,6 @@ export const changesRouter = router({
           });
         }
 
-        // Delete the change request
         await db.delete(changeRequests).where(eq(changeRequests.id, input.id));
 
         return { success: true };

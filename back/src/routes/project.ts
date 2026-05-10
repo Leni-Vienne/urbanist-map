@@ -53,13 +53,10 @@ export const projectRouter = router({
         }
       }
 
-      // Check contribution limits
       if (!input.id) {
-        // Only check total limit for NEW projects (updates don't increase count)
         await checkTotalContributionLimit(ctx.user.id);
       }
 
-      // Check pending contribution limit for new projects
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
       // Build data object with proper null handling for dates and precision
@@ -257,15 +254,13 @@ export const projectRouter = router({
             .from(overlays)
             .where(eq(overlays.projectId, input.id));
 
-          // Delete all overlays from database first (foreign key constraint)
+          // Overlays first to satisfy the foreign key constraint
           if (overlaysToDelete.length > 0) {
             await tx.delete(overlays).where(eq(overlays.projectId, input.id));
           }
 
-          // Delete project from database
           await tx.delete(projects).where(eq(projects.id, input.id));
 
-          // Return overlays to delete images after transaction commits
           return overlaysToDelete;
         });
 

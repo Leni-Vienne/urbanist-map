@@ -5,10 +5,8 @@ import { eq } from "drizzle-orm";
 
 export const tilesApp = new Hono();
 
-// ---------------------------------------------------------------------------
-// In-memory LRU tile cache (low-zoom tiles only, z <= 6)
-// null = empty tile (204), Buffer = tile data
-// ---------------------------------------------------------------------------
+// In-memory LRU tile cache (low-zoom tiles only, z <= 6).
+// null = empty tile (204), Buffer = tile data.
 const TILE_CACHE_MAX = 6000;
 const LOW_ZOOM_MAX = 6;
 

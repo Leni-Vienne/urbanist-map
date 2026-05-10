@@ -408,7 +408,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   const markerIcon = createStandaloneProjectIcon(markerColor);
 
-  // Create marker
   const marker = L.marker([project.lat, project.lng], {
     icon: markerIcon,
     opacity: MARKER_OPACITY.standalone.default,

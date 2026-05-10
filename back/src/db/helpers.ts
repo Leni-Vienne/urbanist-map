@@ -73,10 +73,6 @@ export function buildPaginationResponse<T extends { id: string }>(
   };
 }
 
-// ============================================================================
-// QUERY BUILDERS
-// ============================================================================
-
 // PostGIS geometry extracted as JSON for corners and centroid
 const overlaySelectFields = {
   id: overlays.id,
@@ -211,10 +207,6 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
     .leftJoin(countries, eq(projects.countryCode, countries.code))
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
-
-// ============================================================================
-// CHANGE REQUEST HELPERS
-// ============================================================================
 
 interface ConflictableChange {
   entityType: string;
@@ -355,10 +347,6 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
   });
 }
 
-// ============================================================================
-// VISIBILITY HELPERS
-// ============================================================================
-
 // Type for user context from tRPC (can be undefined or null)
 type UserContext =
   | {
@@ -476,10 +464,6 @@ export function buildOverlayVisibilityCondition(
   // Default (anonymous or unrecognized mode): only show approved overlays
   return eq(overlays.status, "approved");
 }
-
-// ============================================================================
-// OVERLAY DATA TRANSFORMATION HELPERS
-// ============================================================================
 
 export async function fetchOverlayChangeRequests(
   user: UserContext,
@@ -645,9 +629,6 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .orderBy(overlays.createdAt);
 }
 
-// ============================================================================
-// AUTHORIZATION HELPERS
-// ============================================================================
 import { TRPCError } from "@trpc/server";
 
 export function isModeratorOrAdmin(user: UserContext): boolean {
@@ -686,21 +667,15 @@ export function requireModeratorAccess(user: UserContext, mode: AppMode): void {
   }
 }
 
-// ============================================================================
-// SPAM PREVENTION HELPERS
-// ============================================================================
-
 // Blocked if banned OR reported by >= threshold distinct moderators.
 export async function isUserBlocked(userId: string): Promise<boolean> {
   try {
-    // Fetch user banned status
     const userResult = await db
       .select({ banned: users.banned })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
 
-    // If user not found or banned, block them
     const user = userResult[0];
     if (!user || user.banned) return true;
 

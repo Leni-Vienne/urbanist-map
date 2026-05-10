@@ -299,7 +299,8 @@
       "emailLinkedToDifferentGoogle": "Cet email est déjà associé à un autre compte Google.",
       "googleAuthFailed": "L'authentification Google a échoué. Veuillez réessayer.",
       "tooManyRequests": "Trop de tentatives. Veuillez réessayer plus tard.",
-      "invalidCaptcha": "CAPTCHA invalide. Veuillez réessayer."
+      "invalidCaptcha": "CAPTCHA invalide. Veuillez réessayer.",
+      "signOutFailed": "Échec de la déconnexion"
     },
     "success": {
       "registered": "Compte créé avec succès ! Veuillez vérifier votre email pour valider votre compte.",
@@ -541,13 +542,16 @@
     "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
     "checkConflictsFailed": "Échec de la vérification des conflits",
     "noChangesDetected": "Aucune modification détectée à soumettre",
-    "preparingSubmission": "Échec de la préparation de la soumission"
+    "preparingSubmission": "Échec de la préparation de la soumission",
+    "failedToLoadCountries": "Impossible de charger la liste des pays",
+    "mapInitFailed": "Échec du chargement de la carte"
   },
   "moderation": {
     "title": "Modération",
     "description": "Examiner les contributions en attente",
     "by": "par",
     "noAccessToThisCountry": "Vous n'avez pas la permission de modérer ce pays.",
+    "refreshCountsFailed": "Impossible de rafraîchir les compteurs en attente",
     "unknownUser": "Utilisateur inconnu",
     "more": "plus",
     "projectApproved": "Projet approuvé",

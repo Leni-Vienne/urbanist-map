@@ -1,5 +1,4 @@
 // Shared teleport target management for project info popups.
-//
 // Uses an invisible Leaflet anchor marker (same technique as OverlayFloatingToolbar) so
 // Leaflet's CSS transform on the marker pane handles smooth pan/zoom automatically,
 // no manual move/zoom/resize recalculation needed.

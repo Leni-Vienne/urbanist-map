@@ -310,7 +310,6 @@ function loadCountryData(countryCode: string | null, shouldFly = true) {
   }
 }
 
-// Handle country selection change
 async function handleCountryChange() {
   loadCountryData(selectedCountryCode.value);
   await fetchPendingSubmissions();
@@ -345,6 +344,12 @@ async function refetchPendingCounts() {
     moderationStore.setPendingCounts(counts);
   } catch (error) {
     console.error("Failed to refetch pending counts:", error);
+    toast.add({
+      severity: "warn",
+      summary: t("moderation.refreshCountsFailed"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 4000,
+    });
   }
 }
 
@@ -505,7 +510,6 @@ function handleRejectProject(id: string, userId: string | null) {
   showRejectConfirmDialog.value = true;
 }
 
-// Execute project rejection after confirmation
 async function executeRejectProject(
   id: string,
   rejectionReason?: string,
@@ -527,7 +531,6 @@ async function handleApproveOverlay(id: string) {
     const overlay = projects.value.flatMap((p) => p.overlays).find((o) => o.id === id);
 
     if (overlay?.replacesOverlayId) {
-      // Check for conflicts before approving
       const conflicts = await trpc.moderation.checkReplacementConflicts.query({
         overlayId: id,
       });
@@ -628,7 +631,6 @@ function handleRejectOverlay(id: string, userId: string | null) {
   showRejectConfirmDialog.value = true;
 }
 
-// Execute overlay rejection after confirmation
 async function executeRejectOverlay(id: string, rejectionReason?: string) {
   const result = await rejectOverlay(id, rejectionReason);
 
@@ -664,7 +666,6 @@ async function handleApproveChange(changeId: string) {
   }
 }
 
-// Handle rejection confirmation from dialog
 async function handleRejectionConfirm(options: {
   rejectionReason: string;
   rejectAllOverlays: boolean;
@@ -715,7 +716,6 @@ async function handleRejectionConfirm(options: {
   }
 }
 
-// Handle rejection cancellation from dialog
 function handleRejectionCancel() {
   pendingRejection.value = null;
 }

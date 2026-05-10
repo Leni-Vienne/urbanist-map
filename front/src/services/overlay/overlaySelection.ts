@@ -1,7 +1,3 @@
-// ============================================================================
-// OVERLAY SELECTION - Selection and highlighting management for overlays
-// ============================================================================
-
 import type L from "leaflet";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -97,16 +93,13 @@ export function selectOverlay(overlayId: string | null): void {
 
   isSelectingOverlay = true;
   try {
-    // Store previous selection info before updating
     const previouslySelectedId = overlayStore.idSelectedOverlay;
     const previouslySelected = previouslySelectedId
       ? overlayStore.overlays[previouslySelectedId]
       : null;
 
-    // Update selected overlay ID
     overlayStore.idSelectedOverlay = overlayId;
 
-    // Clean up previous selection if different from new selection
     if (previouslySelected && previouslySelectedId) {
       cleanupPreviousSelection(previouslySelected, previouslySelectedId, overlayId);
     }

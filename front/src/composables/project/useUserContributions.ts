@@ -145,12 +145,9 @@ export function useUserContributions() {
     const authStore = useAuthStore();
     if (!authStore.user) return;
 
-    // Use cache key helper from store to avoid duplication
     const cacheKey = projectStore.getUserContributionsCacheKey(options);
 
-    // Check if we already have this data cached
     if (projectStore.userContributionsCache.has(cacheKey)) {
-      // Load from cache
       projectStore.userContributions = projectStore.userContributionsCache.get(cacheKey) ?? [];
       return;
     }

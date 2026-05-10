@@ -299,7 +299,8 @@
       "emailLinkedToDifferentGoogle": "This email is already associated with a different Google account.",
       "googleAuthFailed": "Google authentication failed. Please try again.",
       "tooManyRequests": "Too many requests. Please try again later.",
-      "invalidCaptcha": "Invalid CAPTCHA. Please try again."
+      "invalidCaptcha": "Invalid CAPTCHA. Please try again.",
+      "signOutFailed": "Sign-out failed"
     },
     "success": {
       "registered": "Account created successfully! Please check your email to verify your account.",
@@ -541,13 +542,16 @@
     "projectRequired": "Project Required: A project must be selected to add an image",
     "checkConflictsFailed": "Failed to check for conflicts",
     "noChangesDetected": "No changes detected to submit",
-    "preparingSubmission": "Failed to prepare submission"
+    "preparingSubmission": "Failed to prepare submission",
+    "failedToLoadCountries": "Could not load the country list",
+    "mapInitFailed": "Map failed to load"
   },
   "moderation": {
     "title": "Moderation",
     "description": "Review pending submissions",
     "by": "by",
     "noAccessToThisCountry": "You do not have permission to moderate this country.",
+    "refreshCountsFailed": "Could not refresh pending counts",
     "projectApproved": "Project Approved",
     "projectApprovedDetail": "The project has been approved successfully",
     "projectUpdated": "Project Updated",

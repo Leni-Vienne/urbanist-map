@@ -139,8 +139,6 @@ const opacity = ref(100);
 const showInfoPopup = ref(false);
 const infoSlot = ref<HTMLElement | null>(null);
 
-// --- Anchor marker ---
-
 let anchorMarker: L.Marker | null = null;
 let retryRafId: number | null = null;
 
@@ -371,8 +369,6 @@ watch(showInfoPopup, (visible) => {
   }
 });
 
-// --- Nav / index ---
-
 const overlayIndex = computed(() => {
   const id = selectedId.value;
   if (!id) return null;
@@ -408,8 +404,6 @@ const hasUnsavedModifications = computed(() => {
   if (!id) return false;
   return selectedOverlay.value?.isModified === true || pendingModsStore.hasPendingModifications(id);
 });
-
-// --- Actions ---
 
 async function toggleInfoPopup() {
   if (!showInfoPopup.value) {

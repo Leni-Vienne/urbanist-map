@@ -1,7 +1,3 @@
-// ============================================================================
-// OVERLAY HISTORY - Corner state and edit mode cache management
-// ============================================================================
-
 import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -111,13 +107,12 @@ export function saveOverlayModificationsToCache(
     isModified: overlayObject.isModified ?? false,
   });
 
-  // Save to new unified store
   const overlayStatus = overlayObject.status ?? "pending";
   pendingModsStore.saveCornersChange(
     overlayObject.id,
     overlayObject.projectId ?? null,
     mappedCorners,
-    overlayObject.corners, // Original corners from database
+    overlayObject.corners,
     overlayStatus,
   );
 }

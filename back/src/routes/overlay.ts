@@ -474,48 +474,38 @@ export const overlayRouter = router({
     .mutation(async ({ input, ctx }) => {
       try {
         const userId = ctx.user.id;
-
         const ids = input.contributionIds;
 
-        // Fetch overlays explicitly to separate approved vs rejected/replaced
-        const overlaysToCheck = await db
-          .select({
-            id: overlays.id,
-            filename: overlays.filename,
-            status: overlays.status,
-            authorId: overlays.authorId,
-          })
-          .from(overlays)
-          .where(
-            sql`${overlays.id} IN (${sql.join(
-              ids.map((id) => sql`${id}`),
-              sql`, `,
-            )})`,
-          );
+        const [ownedOverlays, ownedProjects] = await Promise.all([
+          db
+            .select({
+              id: overlays.id,
+              filename: overlays.filename,
+              status: overlays.status,
+            })
+            .from(overlays)
+            .where(and(inArray(overlays.id, ids), eq(overlays.authorId, userId))),
+          db
+            .select({
+              id: projects.id,
+              status: projects.status,
+            })
+            .from(projects)
+            .where(and(inArray(projects.id, ids), eq(projects.ownerId, userId))),
+        ]);
 
-        // Fetch projects explicitly
-        const projectsToCheck = await db
-          .select({
-            id: projects.id,
-            status: projects.status,
-            ownerId: projects.ownerId,
-          })
-          .from(projects)
-          .where(
-            sql`${projects.id} IN (${sql.join(
-              ids.map((id) => sql`${id}`),
-              sql`, `,
-            )})`,
-          );
+        if (ownedOverlays.length + ownedProjects.length !== ids.length) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Cannot acknowledge contributions you do not own",
+          });
+        }
 
         let hasApprovedItems = false;
-        const overlaysToDelete: typeof overlaysToCheck = [];
-        const projectsToDelete: typeof projectsToCheck = [];
+        const overlaysToDelete: typeof ownedOverlays = [];
+        const projectsToDelete: typeof ownedProjects = [];
 
-        // Process overlays
-        for (const overlay of overlaysToCheck) {
-          if (overlay.authorId !== userId) continue; // Skip if not owner (or throw)
-
+        for (const overlay of ownedOverlays) {
           if (overlay.status === "approved") {
             hasApprovedItems = true;
           } else if (overlay.status === "rejected" || overlay.status === "replaced") {
@@ -523,10 +513,7 @@ export const overlayRouter = router({
           }
         }
 
-        // Process projects
-        for (const project of projectsToCheck) {
-          if (project.ownerId !== userId) continue;
-
+        for (const project of ownedProjects) {
           if (project.status === "approved") {
             hasApprovedItems = true;
           } else if (project.status === "rejected") {
@@ -534,43 +521,40 @@ export const overlayRouter = router({
           }
         }
 
-        // If any approved items matched, update user's last check time
-        // We acknowledge ALL approved items by updating the timestamp, which is simpler and expected
-        if (hasApprovedItems) {
-          await db
-            .update(users)
-            .set({ lastApprovalAcknowledgementAt: new Date() })
-            .where(eq(users.id, userId));
-        }
-
-        // Delete rejected/replaced overlays
-        if (overlaysToDelete.length > 0) {
-          // Delete images first
-          for (const overlay of overlaysToDelete) {
-            try {
-              await deleteLocalImages(overlay.filename, "thumbnail");
-            } catch (error) {
-              console.error(`Failed to delete thumbnail for overlay ${overlay.id}:`, error);
-            }
+        await db.transaction(async (tx) => {
+          if (hasApprovedItems) {
+            await tx
+              .update(users)
+              .set({ lastApprovalAcknowledgementAt: new Date() })
+              .where(eq(users.id, userId));
           }
 
-          // Delete DB records
-          await db.delete(overlays).where(
-            inArray(
-              overlays.id,
-              overlaysToDelete.map((o) => o.id),
-            ),
-          );
-        }
+          if (overlaysToDelete.length > 0) {
+            await tx.delete(overlays).where(
+              inArray(
+                overlays.id,
+                overlaysToDelete.map((o) => o.id),
+              ),
+            );
+          }
 
-        // Delete rejected projects
-        if (projectsToDelete.length > 0) {
-          await db.delete(projects).where(
-            inArray(
-              projects.id,
-              projectsToDelete.map((p) => p.id),
-            ),
-          );
+          if (projectsToDelete.length > 0) {
+            await tx.delete(projects).where(
+              inArray(
+                projects.id,
+                projectsToDelete.map((p) => p.id),
+              ),
+            );
+          }
+        });
+
+        // Filesystem cleanup happens after the DB commits (orphaned files are tolerable, missing rows are not).
+        for (const overlay of overlaysToDelete) {
+          try {
+            await deleteLocalImages(overlay.filename, "thumbnail");
+          } catch (error) {
+            console.error(`Failed to delete thumbnail for overlay ${overlay.id}:`, error);
+          }
         }
 
         return {

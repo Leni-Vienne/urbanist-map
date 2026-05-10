@@ -57,7 +57,6 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     if (existing) {
       existing.caption = { current: currentCaption, original: originalCaption };
     } else {
-      // Create new modification entry
       modifications.value.set(overlayId, {
         overlayId,
         projectId,

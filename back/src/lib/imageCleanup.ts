@@ -7,10 +7,6 @@ import type { StorageInterface } from "./types";
 
 const THUMBNAIL_RETENTION_DAYS = 15;
 
-// ============================================================================
-// HELPERS
-// ============================================================================
-
 function createR2Storage(): R2StorageS3 {
   const endpoint = process.env.R2_ENDPOINT;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -77,10 +73,6 @@ async function scheduleThumbnailDeletion(overlayId: string, filename: string): P
     .values({ overlayId, filename, deletionDate, deletionType: "thumbnail" });
   console.log(`Scheduled thumbnail deletion for ${filename} on ${deletionDate.toISOString()}`);
 }
-
-// ============================================================================
-// PUBLIC API
-// ============================================================================
 
 /**
  * Cleanup after a pending overlay was rejected.

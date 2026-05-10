@@ -1,18 +1,9 @@
-// ============================================================================
-// Unified marker management: icon creation, color logic, and marker updates
-// ============================================================================
-
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 
-// ============================================================================
-// ICON CREATION
-// ============================================================================
-
-// SVG marker size constants
 const markerSize = 25;
 const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
 
@@ -128,13 +119,6 @@ export function getMarkerSvg(color: MarkerColor): string {
   return createStandaloneProjectMarkerSVG(color);
 }
 
-// ============================================================================
-// MARKER COLORS
-// ============================================================================
-
-/**
- * Centralized function to determine marker color based on overlay state and map mode
- */
 export function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
   mode: AppMode,
@@ -179,10 +163,6 @@ export function getOverlayMarkerColor(
 
   return getTimelineStatusColor(project.timelineStatus);
 }
-
-// ============================================================================
-// MARKER UPDATES
-// ============================================================================
 
 /**
  * Update overlay marker colors based on current mode.

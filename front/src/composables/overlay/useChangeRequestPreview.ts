@@ -257,7 +257,6 @@ export function useChangeRequestPreview() {
       // Don't pass previousBounds when toggling, both positions are already visible
       applyPositionPreview(change.entityId, type, wasAlreadyLoaded && !isTogglingActivePreview);
 
-      // Update state machine
       if (type === "new") {
         previewState.value = {
           type: "suggested",

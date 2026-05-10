@@ -99,28 +99,24 @@ const BASE_OSM_RULES: OsmRule[] = [
  * Includes construction/proposed detection and additional transport types
  */
 export const EXTENDED_OSM_RULES: OsmRule[] = [
-  // --- Tram ---
   { key: "railway", values: ["tram"], tag: "tram" },
   { key: "route", values: ["tram"], tag: "tram" },
   { key: "construction", values: ["tram"], tag: "tram" },
   { key: "proposed", values: ["tram"], tag: "tram" },
   { key: "transport_type", values: ["tram"], tag: "tram" },
 
-  // --- Light rail ---
   { key: "railway", values: ["light_rail"], tag: "light_rail" },
   { key: "route", values: ["light_rail"], tag: "light_rail" },
   { key: "construction", values: ["light_rail"], tag: "light_rail" },
   { key: "proposed", values: ["light_rail"], tag: "light_rail" },
   { key: "transport_type", values: ["light_rail"], tag: "light_rail" },
 
-  // --- Subway / Metro ---
   { key: "railway", values: ["subway"], tag: "subway" },
   { key: "route", values: ["subway"], tag: "subway" },
   { key: "construction", values: ["subway"], tag: "subway" },
   { key: "proposed", values: ["subway"], tag: "subway" },
   { key: "transport_type", values: ["subway"], tag: "subway" },
 
-  // --- Rail (heavy rail, narrow gauge, monorail) ---
   { key: "railway", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
   { key: "route", values: ["train", "railway"], tag: "rail" },
   { key: "construction", values: ["rail", "narrow_gauge", "monorail"], tag: "rail" },
@@ -131,7 +127,6 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
     tag: "rail",
   },
 
-  // --- Cable car / aerial / funicular ---
   {
     key: "aerialway",
     values: ["cable_car", "gondola", "funicular", "chair_lift", "mixed_lift", "drag_lift"],
@@ -150,7 +145,6 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   },
   { key: "transport_type", values: ["cable_car", "gondola", "funicular"], tag: "cable_car" },
 
-  // --- Bus / BRT ---
   { key: "construction", values: ["bus", "trolleybus", "bus_guideway"], tag: "bus" },
   { key: "proposed", values: ["bus", "trolleybus", "bus_guideway"], tag: "bus" },
   { key: "route", values: ["bus", "trolleybus"], tag: "bus" },
@@ -158,7 +152,6 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   { key: "highway", values: ["bus_guideway"], tag: "bus" },
   { key: "transport_type", values: ["bus"], tag: "bus" },
 
-  // --- Cycling / bike ---
   { key: "construction", values: ["bicycle", "cycleway"], tag: "bike" },
   { key: "proposed", values: ["bicycle", "cycleway"], tag: "bike" },
   { key: "route", values: ["bicycle", "mtb"], tag: "bike" },
@@ -166,13 +159,11 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   { key: "bicycle", values: ["yes", "designated"], tag: "bike" },
   { key: "transport_type", values: ["bike"], tag: "bike" },
 
-  // --- Pedestrian ---
   { key: "construction", values: ["pedestrian", "footway", "path"], tag: "pedestrian" },
   { key: "proposed", values: ["pedestrian", "footway", "path"], tag: "pedestrian" },
   { key: "highway", values: ["pedestrian", "footway", "path"], tag: "pedestrian" },
   { key: "transport_type", values: ["pedestrian"], tag: "pedestrian" },
 
-  // --- Road ---
   {
     key: "highway",
     values: [
@@ -189,13 +180,11 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   { key: "route", values: ["road"], tag: "road" },
   { key: "transport_type", values: ["road"], tag: "road" },
 
-  // --- Waterway ---
   { key: "waterway", tag: "waterway" },
   { key: "natural", values: ["water", "bay", "strait"], tag: "waterway" },
   { key: "man_made", values: ["pier", "dam"], tag: "waterway" },
   { key: "transport_type", values: ["waterway"], tag: "waterway" },
 
-  // --- Park / green ---
   {
     key: "leisure",
     values: ["park", "garden", "playground", "sports_centre", "recreation_ground"],
@@ -213,7 +202,6 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   },
   { key: "proposed", values: ["park", "garden", "playground", "recreation_ground"], tag: "park" },
 
-  // --- Building / urban development ---
   { key: "building", tag: "building" },
   {
     key: "landuse",

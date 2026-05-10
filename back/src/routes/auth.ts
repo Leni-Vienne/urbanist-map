@@ -76,10 +76,9 @@ export const authRouter = router({
         });
       }
 
-      // Validate CAPTCHA
-      // Optional if key not configured (dev mode), but frontend should send token if configured
-      if (process.env.TURNSTILE_SECRET_KEY && captchaToken) {
-        const isValidCaptcha = await verifyTurnstileToken(captchaToken, ip);
+      // Validate CAPTCHA. Skipped only when no secret is configured (verifyTurnstileToken returns true).
+      if (process.env.TURNSTILE_SECRET_KEY) {
+        const isValidCaptcha = await verifyTurnstileToken(captchaToken ?? "", ip);
         if (!isValidCaptcha) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -440,17 +439,12 @@ export const authRouter = router({
         });
       }
 
-      // Get all user projects (approved, pending, rejected - GDPR requires ALL)
-      const userProjects = await db.select().from(projects).where(eq(projects.ownerId, userId));
-
-      // Get all user overlays (approved, pending, rejected - GDPR requires ALL)
-      const userOverlays = await db.select().from(overlays).where(eq(overlays.authorId, userId));
-
-      // Get all user change requests
-      const userChangeRequests = await db
-        .select()
-        .from(changeRequests)
-        .where(eq(changeRequests.requestedBy, userId));
+      // GDPR requires ALL statuses (approved, pending, rejected). Three independent queries, fan out.
+      const [userProjects, userOverlays, userChangeRequests] = await Promise.all([
+        db.select().from(projects).where(eq(projects.ownerId, userId)),
+        db.select().from(overlays).where(eq(overlays.authorId, userId)),
+        db.select().from(changeRequests).where(eq(changeRequests.requestedBy, userId)),
+      ]);
 
       // Audit log: Record data export for compliance
       console.log(`[GDPR] Data export requested by user ${userId} (${user.email}) from IP ${ip}`);

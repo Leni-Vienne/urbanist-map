@@ -111,7 +111,6 @@ export class LocalFileStorage implements StorageInterface {
     }
 
     try {
-      // Ensure thumbnails directory exists
       await mkdir("./uploads/thumbnails", { recursive: true });
 
       const thumbnailBuffer = await generateThumbnail(buffer);

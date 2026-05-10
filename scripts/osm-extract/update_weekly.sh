@@ -278,8 +278,8 @@ START_SEQ=$(( FOUND_SEQ + 1 ))
 echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - START_SEQ + 1)) diffs)"
 
 # Nothing to do: PBF is already at the latest published sequence.
-# But verify that extraction artifacts from the previous run are intact — an OOM
-# in step 4 can leave the ways PBF empty while the sidecar is already advanced.
+# But verify that extraction artifacts from the previous run are intact (an OOM
+# in step 4 can leave the ways PBF empty while the sidecar is already advanced).
 # In that case fall through and re-run step 4 without re-applying any diffs.
 if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
     _WAYS_PBF_CHECK="${FILTERED_PBF%_proposed.osm.pbf}_proposed_ways.osm.pbf"
@@ -347,7 +347,7 @@ done
 
 # Phase 2: apply all diffs in one osmium call.
 # Skipped when falling through from the "already up to date but extraction
-# incomplete" path — no new diffs exist, so there is nothing to merge.
+# incomplete" path (no new diffs exist, so there is nothing to merge).
 if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     echo ""
     echo "[$(ts)] Applying $TOTAL_DIFFS diff(s) to $FILTERED_PBF"
@@ -377,7 +377,7 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
         echo "[dry-run] write $STATE_FILE: sequenceNumber=$CURRENT_SEQNUM timestamp=$FINAL_SEQ_TS"
     fi
 else
-    echo "[$(ts)] No new diffs to apply — re-running extraction from existing PBF."
+    echo "[$(ts)] No new diffs to apply, re-running extraction from existing PBF."
 fi
 
 # ---------------------------------------------------------------------------

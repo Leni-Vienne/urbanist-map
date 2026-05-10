@@ -243,6 +243,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, toRaw, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/ui/useToast";
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
 import type CitySelect from "./CitySelect.vue";
@@ -292,6 +293,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>();
 
 const { t } = useI18n();
+const toast = useToast();
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
 
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
@@ -322,6 +324,12 @@ onMounted(async () => {
     countries.value = await trpc.country.getAllCountries.query();
   } catch (error) {
     console.error("Failed to load countries:", error);
+    toast.add({
+      severity: "error",
+      summary: t("errors.failedToLoadCountries"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 5000,
+    });
   } finally {
     countriesLoading.value = false;
   }
@@ -552,7 +560,6 @@ watch(
   },
 );
 
-// Handle timeline status change
 function handleTimelineStatusChange(newStatus: TimelineStatus) {
   localTimelineStatus.value = newStatus;
   emit("update:timelineStatus", newStatus);

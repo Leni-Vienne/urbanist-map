@@ -331,7 +331,6 @@ const hasChanges = computed(() => {
   return overlayModified || projectModified || !isPublishedToBackend.value;
 });
 
-// Handle publish button click
 function handlePublishClick() {
   if (props.overlay) {
     emit("publish-overlay");

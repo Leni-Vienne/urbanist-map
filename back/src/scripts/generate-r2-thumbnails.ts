@@ -10,7 +10,6 @@ import sharp from "sharp";
 async function generateR2Thumbnails() {
   console.log("Starting R2 thumbnail generation for existing approved overlays...");
 
-  // Initialize R2 storage
   const r2Storage = new R2StorageS3({
     endpoint: process.env.R2_ENDPOINT!,
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,

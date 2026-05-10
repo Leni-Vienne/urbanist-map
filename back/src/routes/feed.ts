@@ -28,7 +28,6 @@ export const feedRouter = router({
     .input(getLatestContributionsSchema)
     .query(async ({ input }) => {
       try {
-        // Check cache
         const now = Date.now();
         if (
           latestContributionsCache &&

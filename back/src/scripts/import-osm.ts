@@ -42,9 +42,6 @@ const IMPORT_SOURCE_CONFIG = {
   enabled: true,
 };
 
-// ---------------------------------------------------------------------------
-// OSM project_status → timeline status mapping
-// ---------------------------------------------------------------------------
 function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   // OSM project_status values: "proposed" or "under_construction"
   // Map to our timeline statuses
@@ -59,9 +56,6 @@ function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   }
 }
 
-// ---------------------------------------------------------------------------
-// OSM → tag mapping (uses shared rules from @shared/osmRules)
-// ---------------------------------------------------------------------------
 function extractTags(props: Record<string, unknown>): string[] {
   const found = new Set<string>();
 
@@ -114,9 +108,7 @@ function extractTags(props: Record<string, unknown>): string[] {
   return tags;
 }
 
-// ---------------------------------------------------------------------------
-// Date parsing, OSM dates can be "YYYY", "YYYY-MM", or "YYYY-MM-DD"
-// ---------------------------------------------------------------------------
+// OSM dates can be "YYYY", "YYYY-MM", or "YYYY-MM-DD".
 function parseOsmDate(value: unknown): { date: Date; precision: "year" | "month" | "day" } | null {
   if (!value || typeof value !== "string") return null;
   const s = value.trim();
@@ -144,9 +136,6 @@ function parseOsmDate(value: unknown): { date: Date; precision: "year" | "month"
   return { date, precision };
 }
 
-// ---------------------------------------------------------------------------
-// Geometry centroid, average of all coordinates in any GeoJSON geometry
-// ---------------------------------------------------------------------------
 function flatCoords(geom: GeoJSON.Geometry): number[][] {
   switch (geom.type) {
     case "Point":
@@ -174,9 +163,6 @@ function centroid(geom: GeoJSON.Geometry): { lat: number; lng: number } | null {
   return { lat: sumLat / coords.length, lng: sumLng / coords.length };
 }
 
-// ---------------------------------------------------------------------------
-// Batched KNN country code lookup
-// ---------------------------------------------------------------------------
 const KNN_CHUNK_SIZE = 1_000;
 
 async function resolveCountryCodes(
@@ -229,10 +215,6 @@ async function resolveCountryCodes(
 
   return results;
 }
-
-// ---------------------------------------------------------------------------
-// Batch upsert helpers
-// ---------------------------------------------------------------------------
 
 const TRANSIENT_PG_CODES = new Set(["57P03", "08006", "08001", "08004"]);
 
@@ -367,11 +349,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
 async function main() {
-  // Get or create import source
   console.log(`Setting up import source: ${IMPORT_SOURCE_SLUG}`);
   let importSource = await db
     .select()
@@ -422,7 +400,6 @@ async function main() {
     const geojson = JSON.parse(fs.readFileSync(geojsonPath, "utf8")) as GeoJSON.FeatureCollection;
     console.log(`Found ${geojson.features.length} features to import`);
 
-    // --- Pre-import diagnostics ---
     const allStatuses = new Map<string, number>();
     const allTransportTypes = new Map<string, number>();
     let noName = 0,
@@ -598,26 +575,21 @@ async function main() {
   // This avoids the double geometryJson parse that would occur inline per row, and lets
   // PostGIS pipeline geography computations (ST_Length, ST_Perimeter, ST_Distance) across
   // all rows in one efficient pass.
-  //
   // Spatial size in meters, used to:
   //   - decide zoom level when flying to a project
   //   - progressively hide center-point markers when the shape is large enough
   //   - drive the size filter slider in the UI
-  //
-  // The cap is GREATEST(bbox_width, bbox_height) -- the longest side of the bounding box.
+  // The cap is GREATEST(bbox_width, bbox_height), the longest side of the bounding box.
   // Using the bbox diagonal instead would inflate areas by up to sqrt(2) (~41%) for square shapes.
-  //
   // GREATEST(ST_Length, ST_Perimeter) handles both geometry families:
   //   - LineString/MultiLineString: ST_Length > 0, ST_Perimeter = 0
   //   - Polygon/MultiPolygon:       ST_Length = 0, ST_Perimeter > 0
-  //
   // Examples (lines):
   //   - A20 motorway (170km route, ~200km bbox diagonal): LEAST(170km, 200km) = 170km  correct
   //   - B96a (675m total, 7200m bbox diagonal):           LEAST(675m,  7200m) = 675m   correct
   // Examples (polygons):
   //   - 100x100m parking lot (400m perimeter):            LEAST(400m, 100m)   = 100m   correct
   //   - Circular park r=500m (3141m perimeter):           LEAST(3141m, 1000m) = 1000m  correct (diameter)
-  //
   // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
   console.log(`\nComputing geometry sizes for all imported rows (batched)...`);
   try {

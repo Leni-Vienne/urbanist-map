@@ -14,14 +14,11 @@ import {
   requireModeratorAccess,
 } from "../db/helpers";
 
-// ── Viewport-specific visibility overrides ──────────────────────────────────
-//
-// In edit mode the approved overlays are now served exclusively via the MVT
+// In edit mode the approved overlays are served exclusively via the MVT
 // tile endpoint (vectorTileSync on the frontend). The bbox tRPC fetch must
 // therefore return ONLY the user's pending/change-request overlays so that:
 //   a) There is no duplication between tile-rendered and tRPC-rendered layers.
 //   b) The cluster source only gets augmented with pending content.
-//
 // This is intentionally an inline override rather than a change to
 // buildOverlayVisibilityCondition in helpers.ts, because other callers
 // (getCityOverlaysAndProjects, moderation panel) still need the full set.

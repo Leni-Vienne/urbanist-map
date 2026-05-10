@@ -355,16 +355,13 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   }
 }
 
-// Check if overlay is modified using unified pendingModificationsStore
 function isOverlayModified(overlayId: string): boolean {
-  // Check unified pending modifications store
   if (pendingModsStore.hasPendingModifications(overlayId)) {
     return true;
   }
 
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) {
-    // Overlay not loaded in store - check edit mode cache for unsaved position changes
     const cached = overlayStore.getFromEditModeCache(overlayId);
     return cached?.isModified ?? false;
   }

@@ -6,6 +6,8 @@ import { maplibreLayer, type MaplibreGL } from "@/lib/MaplibreLayer";
 import { map } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
+import { useToast } from "@/composables/ui/useToast";
+import { t } from "@/locales";
 import {
   addProjectDataToMlMap,
   applyPlanStyleRoadOverrides,
@@ -371,6 +373,12 @@ async function addTileLayersToMap(): Promise<void> {
     });
   } catch (error) {
     console.error("Failed to initialize MapLibre tile layer:", error);
+    useToast().add({
+      severity: "error",
+      summary: t("errors.mapInitFailed"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 8000,
+    });
   }
 }
 

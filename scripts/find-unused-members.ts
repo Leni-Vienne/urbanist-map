@@ -97,8 +97,6 @@ function countUsages(
   return { count: matchingFiles.length, files: matchingFiles };
 }
 
-// --- Main ---
-
 type AnalysisKind = "store" | "composable";
 type AnalysisFile = { file: string; kind: AnalysisKind; dir: string };
 

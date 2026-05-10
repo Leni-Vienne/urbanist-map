@@ -278,28 +278,24 @@ onMounted(async () => {
 
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
 
-  try {
-    await authStore.initialize();
+  await authStore.initialize();
 
-    // Handle auth query parameters from URL
-    if (route.query.auth === "success") {
-      toast.add({
-        severity: "success",
-        summary: t("common.success"),
-        detail: t("pages.home.signInSuccess"),
-        life: 3000,
-      });
-    } else if (route.query.error) {
-      const errorMessage = getErrorMessage(route.query.error as string);
-      toast.add({
-        severity: "error",
-        summary: t("pages.home.authenticationError"),
-        detail: errorMessage,
-        life: 5000,
-      });
-    }
-  } catch (error) {
-    console.error("Error during application initialization:", error);
+  // Handle auth query parameters from URL
+  if (route.query.auth === "success") {
+    toast.add({
+      severity: "success",
+      summary: t("common.success"),
+      detail: t("pages.home.signInSuccess"),
+      life: 3000,
+    });
+  } else if (route.query.error) {
+    const errorMessage = getErrorMessage(route.query.error as string);
+    toast.add({
+      severity: "error",
+      summary: t("pages.home.authenticationError"),
+      detail: errorMessage,
+      life: 5000,
+    });
   }
 });
 

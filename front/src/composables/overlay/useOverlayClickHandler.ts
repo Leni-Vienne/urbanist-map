@@ -154,22 +154,17 @@ async function navigateToReplacedOrRejectedOverlay(
     return;
   }
 
-  // Fallback: navigate to project coordinates
-  try {
-    const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
-    const project = contributions.projects.find((p) => p.id === overlay.projectId);
+  const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
+  const project = contributions.projects.find((p) => p.id === overlay.projectId);
 
-    if (project?.lat && project.lng) {
-      await navigateToStandaloneProject(
-        project.lat,
-        project.lng,
-        project.countryCode ?? undefined,
-        project.id,
-        project.cityId,
-        project.cityName,
-      );
-    }
-  } catch (error) {
-    console.error("Failed to navigate to project:", error);
+  if (project?.lat && project.lng) {
+    await navigateToStandaloneProject(
+      project.lat,
+      project.lng,
+      project.countryCode ?? undefined,
+      project.id,
+      project.cityId,
+      project.cityName,
+    );
   }
 }

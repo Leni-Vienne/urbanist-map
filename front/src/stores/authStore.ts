@@ -196,7 +196,6 @@ export const useAuthStore = defineStore("auth", () => {
         if (result.user?.email) {
           localStorage.setItem(`lastLoginMethod:${result.user.email}`, "email");
         }
-        // Check moderated contributions after manual sign-in (same as initialize)
         try {
           const contributions = await trpc.overlay.getModeratedContributions.query();
           const uiStore = useUiStore();

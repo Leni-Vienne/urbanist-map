@@ -300,11 +300,9 @@ export const useProjectStore = defineStore("project", () => {
       (o: UserContributionOverlay) => o.id !== overlayId,
     );
 
-    // If no overlays left and user doesn't own project, remove entire project
     if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
       userContributions.value = removeAtIndex(userContributions.value, projectIndex);
     } else {
-      // Update project with remaining overlays
       const updatedProject = {
         ...project,
         overlays: updatedOverlays,

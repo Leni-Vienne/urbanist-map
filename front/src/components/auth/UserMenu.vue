@@ -147,7 +147,6 @@ function toggleMenu(event: Event) {
 
 const { hasUnsavedChanges } = useUnsavedChanges();
 
-// Handle sign out
 async function handleSignOut() {
   if (hasUnsavedChanges()) {
     // Use a generic warning about unsaved data (reusing existing key)
@@ -158,18 +157,21 @@ async function handleSignOut() {
     }
   }
 
-  try {
-    const result = await authStore.signOut();
-    if (result.success) {
-      toast.add({
-        severity: "success",
-        summary: t("auth.signedOut"),
-        detail: t("auth.signedOutMessage"),
-        life: 3000,
-      });
-    }
-  } catch (error) {
-    console.error("Error signing out:", error);
+  const result = await authStore.signOut();
+  if (result.success) {
+    toast.add({
+      severity: "success",
+      summary: t("auth.signedOut"),
+      detail: t("auth.signedOutMessage"),
+      life: 3000,
+    });
+  } else {
+    toast.add({
+      severity: "error",
+      summary: t("auth.error.signOutFailed"),
+      detail: result.error ?? undefined,
+      life: 5000,
+    });
   }
   userPopover.value.hide();
   isMenuOpen.value = false;

@@ -1,7 +1,3 @@
-// ============================================================================
-// OVERLAY MARKERS - Marker creation and update functions
-// ============================================================================
-
 import L from "leaflet";
 import { map } from "@/services/core/map";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";

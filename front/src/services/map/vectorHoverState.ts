@@ -1,7 +1,6 @@
 // Tracks which project is currently hovered via an overlay/marker DOM element.
 // Stored here (not in projectVectorLayers) to avoid a circular dependency:
 //   overlaySelection → projectVectorLayers → standaloneProjectMarkers → overlaySelection
-//
 // projectVectorLayers reads getOverlayDrivenHoverId() to decide whether mousemove
 // should override the current hover filter.
 // overlaySelection calls setOverlayDrivenHover() to drive the highlight.

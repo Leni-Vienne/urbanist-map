@@ -198,14 +198,11 @@ app.post("/api/login", async (c) => {
       return c.json({ error: "auth.error.invalidCredentials" }, 401);
     }
 
-    // Check if email is verified
     if (!user.emailVerified) {
-      // Still wait for min time before returning
       await enforceMinExecutionTime(startTime);
       return c.json({ error: "auth.error.emailNotVerified" }, 403);
     }
 
-    // Set session with full user data
     setUserSession(c, user, rememberMe);
 
     // Constant time mitigation: Ensure request takes at least MIN_EXEC_TIME ms
@@ -379,11 +376,9 @@ async function findOrCreateGoogleUser(googleUser: {
     return linkGoogleToPasswordAccount(emailUser, googleUser.googleId);
   }
 
-  // Create new Google OAuth user
   return createGoogleUser(googleUser);
 }
 
-// Helper function to set user session
 function setUserSession(c: Context, user: any, rememberMe: boolean) {
   const session = c.get("session");
 
@@ -421,10 +416,8 @@ app.post("/api/google-login", async (c) => {
       return c.json({ error: "auth.error.invalidGoogleToken" }, 401);
     }
 
-    // Find existing user or create new one
     const user = await findOrCreateGoogleUser(googleUser);
 
-    // Set session
     setUserSession(c, user, rememberMe);
 
     return c.json({

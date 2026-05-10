@@ -1,6 +1,5 @@
 // Centralized registry for all Leaflet layer references (image overlays + markers).
 // Single source of truth for "is this overlay rendered on the map?".
-//
 // Design principles:
 //   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
 //   - All creation goes through beginCreation(), atomically prevents duplicate layers

@@ -226,12 +226,10 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
           c.fieldName === change.fieldName,
       );
 
-      // Mark all as processed
       for (const c of conflictingChanges) {
         processedIds.add(c.id);
       }
 
-      // Add as conflict group
       groups.push({
         type: "conflict",
         fieldName: change.fieldName,
