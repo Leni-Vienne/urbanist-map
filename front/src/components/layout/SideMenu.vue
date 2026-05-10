@@ -51,6 +51,19 @@
         class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-xs transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
         >{{ $t("common.contact") }}</a
       >
+      <span class="text-muted-color text-xs">•</span>
+      <a
+        href="https://github.com/Leni-Vienne/urbanist-map"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="group inline-flex items-center gap-1 text-(--p-text-color-secondary) text-xs transition-all duration-150 hover:text-primary-color"
+      >
+        <i class="pi pi-github text-xs"></i>
+        <span
+          class="underline underline-offset-2 decoration-(--p-text-muted-color) group-hover:decoration-primary-color"
+          >{{ $t("footer.github") }}</span
+        >
+      </a>
     </div>
   </div>
 </template>
