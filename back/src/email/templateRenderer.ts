@@ -41,7 +41,9 @@ export async function renderEmailTemplate(
     // Convert camelCase template name to kebab-case for file lookup
     const kebabCaseName = templateName.replaceAll(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 
-    // In production (Docker), templates are mounted at /app/email
+    // Build-time switch (not runtime): CI builds the bundle with NODE_ENV=production, so Bun
+    // inlines this and DCE keeps only the /app/email/templates branch in the deployed bundle.
+    // Source-mode runs (bun --hot) keep the import.meta.dirname branch, which resolves at runtime.
     const templatePath =
       process.env.NODE_ENV === "production"
         ? join("/app/email/templates", `${kebabCaseName}-email.html`)

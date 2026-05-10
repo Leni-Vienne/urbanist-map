@@ -32,6 +32,7 @@ import {
 } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
+import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileGrid";
 import {
   selectedProjectTags,
   selectedStatusFilters,
@@ -676,41 +677,6 @@ function navigateToLonePoint(
   } else {
     mobileAwareFlyTo([lat, lng], targetZoom, { duration });
   }
-}
-
-// Mirrors the cell_size lookup in tiles.sql. The tile zoom passed here is MapLibre zoom
-// (= Leaflet zoom - 1). Returns the grid cell side length in MVT tile units (out of 4096).
-// Only powers of 2 that divide 4096 evenly are used, non-power-of-2 values create partial
-// stub cells at tile edges, breaking cross-tile cluster alignment.
-function getGridCellSizeForTileZoom(tileZoom: number): number {
-  if (tileZoom <= 4) return 1024;
-  if (tileZoom <= 6) return 512;
-  if (tileZoom <= 12) return 256;
-  return 128;
-}
-
-// Convert tile coordinates to longitude.
-function tileToLng(x: number, z: number): number {
-  return (x / 2 ** z) * 360 - 180;
-}
-
-// Convert tile coordinates to latitude.
-function tileToLat(y: number, z: number): number {
-  const n = Math.PI - (2 * Math.PI * y) / 2 ** z;
-  return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-}
-
-// Convert a fractional tile position into longitude and latitude.
-function tilePxToLngLat(
-  tileX: number,
-  tileY: number,
-  px: number,
-  py: number,
-  z: number,
-): [number, number] {
-  const lng = tileToLng(tileX + px / 4096, z);
-  const lat = tileToLat(tileY + py / 4096, z);
-  return [lng, lat];
 }
 
 // Map a lat/lng to the tile index and pixel position inside the tile.

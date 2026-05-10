@@ -25,4 +25,7 @@ export const logger =
       });
 
 // Log server startup
-logger.info({ event: "server_startup", env: process.env.NODE_ENV }, "Logger initialized");
+logger.info(
+  { event: "server_startup", env: process.env.COMPOSE_PROJECT_NAME ?? "source" },
+  "Logger initialized",
+);

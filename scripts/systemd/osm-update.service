@@ -13,7 +13,7 @@ WorkingDirectory=/root/construction-map
 
 # Fails fast if any ExecStart returns non-zero. Subsequent ExecStart lines are skipped on failure,
 # so a failed update does not restart the backend.
-ExecStart=/root/construction-map/scripts/osm-extract/osm-extract/update_weekly.sh /root/construction-map/scripts/osm-extract/planet-latest_proposed.osm.pbf --import
+ExecStart=/root/construction-map/scripts/osm-extract/update_weekly.sh /root/construction-map/scripts/osm-extract/planet-latest_proposed.osm.pbf --import
 ExecStart=/usr/bin/docker compose --env-file .env.prod restart backend
 
 # Cap runtime at 2h (typical run: ~15min; catching up after multiple missed days can take longer).
