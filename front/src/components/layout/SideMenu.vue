@@ -73,32 +73,24 @@ defineEmits<{
   close: [];
 }>();
 
-// Get stores
 const uiStore = useUiStore();
 const authStore = useAuthStore();
 
-// Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
 const { setActiveTab } = usePanelTabs();
 
-// Use uiStore.activeTab as single source of truth (shared with MobileDrawer)
-// Computed with getter/setter for v-model compatibility
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  // Use the explicit action from usePanelTabs to handle mode syncing securely
   set: (value) => setActiveTab(value),
 });
 
-// Watch for authentication changes and execute post-login callback
 watch(
   () => authStore.isAuthenticated,
   (isAuthenticated) => {
     if (isAuthenticated && uiStore.postLoginCallback) {
-      // User just logged in, execute the callback
       uiStore.executePostLoginCallback();
     }
   },
 );
 
-// Initialize panel tabs synchronization (mode/tab/auth watchers)
 usePanelTabs();
 </script>

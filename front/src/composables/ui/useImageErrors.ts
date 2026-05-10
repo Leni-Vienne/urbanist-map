@@ -1,9 +1,5 @@
 import { ref } from "vue";
 
-/**
- * Create composable for managing image loading errors
- * Returns reactive error state and handlers
- */
 export function useImageErrors() {
   const imageErrors = ref<Record<string, boolean>>({});
 

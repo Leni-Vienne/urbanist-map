@@ -242,6 +242,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, toRaw, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import { useToast } from "@/composables/ui/useToast";
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
 import type CitySelect from "./CitySelect.vue";
@@ -262,23 +264,15 @@ import { PROJECT_TAGS } from "@/config/projectTags";
 export type { ProjectFormData };
 
 interface Props {
-  // v-model for form data
   formData: ProjectFormData;
-  // Original data for change comparison (used in edit mode)
   originalData?: ProjectFormData;
-  // Show change indicators for modified fields
   showChangeIndicators?: boolean;
-  // Unique prefix for input IDs to avoid conflicts
   idPrefix?: string;
-  // Initial timelineStatus state
   timelineStatus?: TimelineStatus;
   // Pre-filled city data for the CitySelect (uses Project['city'] format from DB)
   prefilledCity?: Project["city"];
-  // Marker coordinates for city proximity search
   markerCoordinates?: { lat: number; lng: number } | null;
-  // Function to get CSS classes for fields (from BaseEditForm)
   fieldClasses?: (fieldName: string) => string | object | undefined;
-  // Function to check if a field has changed (from BaseEditForm)
   hasChanged?: (fieldName: string) => boolean;
 }
 
@@ -298,10 +292,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-// Reference to CitySelect component
+const { t } = useI18n();
+const toast = useToast();
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
 
-// Setup field validation
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
 
 // Local timelineStatus state synced with parent
@@ -318,7 +312,7 @@ const localFormData = ref<ProjectFormData>({
   tags: props.formData.tags,
 });
 
-const allTags = PROJECT_TAGS.filter((t) => !t.hidden);
+const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
 
 // Countries for the country dropdown
 const countries = ref<{ code: string; name: string }[]>([]);
@@ -330,6 +324,12 @@ onMounted(async () => {
     countries.value = await trpc.country.getAllCountries.query();
   } catch (error) {
     console.error("Failed to load countries:", error);
+    toast.add({
+      severity: "error",
+      summary: t("errors.failedToLoadCountries"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 5000,
+    });
   } finally {
     countriesLoading.value = false;
   }
@@ -411,9 +411,7 @@ watch(
   { deep: true },
 );
 
-// Sync flexible dates to formData
 function syncDatesToFormData() {
-  // Always sync all dates - no longer clearing based on timeline status
   localFormData.value.proposalDate = flexibleDateToDb(flexibleProposalDate.value);
   localFormData.value.proposalDatePrecision = flexibleProposalDate.value?.precision ?? null;
 
@@ -562,27 +560,20 @@ watch(
   },
 );
 
-// Handle timeline status change
 function handleTimelineStatusChange(newStatus: TimelineStatus) {
   localTimelineStatus.value = newStatus;
   emit("update:timelineStatus", newStatus);
 }
 
-// Watch for city changes in local form data
 watch(
   () => localFormData.value.cityId,
   (newCityId) => {
     emit("cityChange", newCityId);
   },
-  {
-    // immediate: true
-    // Actually, we don't need immediate because we init cityIdForSelect computed
-  },
 );
 
-// Safe getter for city name that handles null/undefined conversion
 function getCityNameSafe(cityId: number | null | undefined): string {
-  return citySelectRef.value?.getCityName(cityId ?? undefined) ?? "Not set";
+  return citySelectRef.value?.getCityName(cityId ?? undefined) ?? t("overlay.notSet");
 }
 
 // Helper to format date from prop (Date) using flexible helper

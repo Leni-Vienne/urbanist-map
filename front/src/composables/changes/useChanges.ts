@@ -1,12 +1,9 @@
-// ============================================================================
-// Combines change request handling and field-specific change utilities
-// ============================================================================
 import { ref, computed, readonly } from "vue";
 import { trpc, type RouterOutput, type RouterInput } from "@/client";
 import type { FieldChange } from "@shared/validation/schemas";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { withErrorHandling, withErrorToast } from "@/services/core/errorHandling";
+import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
@@ -14,11 +11,6 @@ import L from "leaflet";
 import type { OverlayObject } from "@/types";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
-// ============================================================================
-// CHANGE REQUESTS
-// ============================================================================
-
-// Use the actual tRPC output type for change requests
 type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][number];
 type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
 const pendingChangeRequests = ref<ChangeRequest[]>([]);
@@ -28,11 +20,10 @@ export function getPendingChangeRequests(): ChangeRequest[] {
   return pendingChangeRequests.value;
 }
 
-/** Reactive readonly ref — use this to watch for changes in Vue composables. */
+/** Reactive readonly ref, use this to watch for changes in Vue composables. */
 export const pendingChangeRequestsRef = readonly(pendingChangeRequests);
 const isLoading = ref(false);
 
-// Simple loaded flag for change requests
 const changeRequestsLoaded = ref(false);
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
@@ -73,7 +64,6 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        // Reset loaded flag to allow refresh, then fetch updated pending changes
         resetChangeRequestsLoaded();
         await refreshPendingChangeRequests();
       }
@@ -97,13 +87,10 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        // Reset and refetch all moderation data (same pattern as overlay/project approval)
-        // This ensures competing change requests marked as 'conflicted' by backend are removed from UI
-        // Backend marks ALL competing changes for the same field as 'conflicted' when one is approved
+        // Competing changes for the same field are marked 'conflicted' by the backend;
+        // reset both stores so the UI reflects that.
         const moderationStore = useModerationStore();
         moderationStore.resetModerationLoaded();
-
-        // Reset local loaded flag as well for My Contributions panel
         resetChangeRequestsLoaded();
       }
 
@@ -122,12 +109,10 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        // Remove rejected change requests from local state instead of refetching
         pendingChangeRequests.value = pendingChangeRequests.value.filter(
           (cr) => !changeRequestIds.includes(cr.id),
         );
 
-        // Also remove from moderation store if available
         const moderationStore = useModerationStore();
         moderationStore.removeChangeRequests(changeRequestIds);
       }
@@ -137,10 +122,6 @@ export function useChangeRequests() {
       isLoading.value = false;
     }
   }
-
-  // ============================================================================
-  // HELPER FUNCTIONS - Internal utilities for change request deletion
-  // ============================================================================
 
   function removeChangeRequestFromLocalState(changeRequestId: string) {
     pendingChangeRequests.value = pendingChangeRequests.value.filter(
@@ -158,11 +139,8 @@ export function useChangeRequests() {
     const overlayStore = useOverlayStore();
     const pendingModsStore = usePendingModificationsStore();
 
-    // Clear from both old cache and new unified store to reset position to approved
     overlayStore.removeFromEditModeCache(overlayId);
     pendingModsStore.clearModification(overlayId);
-
-    // Reset overlay position to approved corners
     overlayObject.isModified = false;
     const layer = getLayer(overlayId);
     if (layer && overlayObject.corners.length === 4) {
@@ -206,19 +184,14 @@ export function useChangeRequests() {
   async function deleteChangeRequest(changeRequestId: string) {
     isLoading.value = true;
     try {
-      // Find the change request before deleting to get entity info
       const changeRequest = pendingChangeRequests.value.find((cr) => cr.id === changeRequestId);
-
       const result = await withErrorHandling(
         async () => trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId }),
         { errorMessage: "Failed to delete change request" },
       );
 
       if (result && changeRequest) {
-        // Remove deleted change request from local state
         removeChangeRequestFromLocalState(changeRequestId);
-
-        // Handle overlay-specific state updates
         handleOverlayStateAfterDeletion(changeRequest);
       }
 
@@ -250,28 +223,23 @@ export function useChangeRequests() {
 
   const hasConflicts = computed(() => conflictingChanges.value.size > 0);
 
-  // ============================================================================
-  // FIELD CHANGES
-  // ============================================================================
-
   async function submitMultipleFieldChanges(
     entityType: "project" | "overlay",
     entityId: string,
     fieldChanges: FieldChange[],
   ) {
-    return withErrorToast(
+    return withErrorHandling(
       async () =>
         submitChangeRequest({
           entityType,
           entityId,
           changes: fieldChanges,
         }),
-      "Failed to submit multiple field changes",
+      { errorMessage: "Failed to submit multiple field changes", rethrow: true },
     );
   }
 
   return {
-    // Change requests
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
     conflictingChanges,
     hasConflicts,
@@ -284,7 +252,6 @@ export function useChangeRequests() {
     deleteChangeRequest,
     resetChangeRequestsLoaded,
 
-    // Field changes
     submitMultipleFieldChanges,
   };
 }

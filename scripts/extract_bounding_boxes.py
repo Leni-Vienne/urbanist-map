@@ -1,16 +1,15 @@
-
 # Extracts country bounding boxes from Natural Earth shapefile (110m admin 0 countries)
 # https://www.naturalearthdata.com/downloads/110m-cultural-vectors/
-
-# MUST READ : script needs all 4 files in the .zip to work, that is .shp, .shx, .dbf, .prj
+#
+# Requires all four shapefile components in the same directory: .shp, .shx, .dbf, .prj
 
 import geopandas as gpd
 import json
 
-# Load shapefile (or GeoJSON)
+# Load shapefile
 world = gpd.read_file("./junk/bbox/ne_110m_admin_0_countries.shp")
 
-# Manual fixes for countries with ISO_A3 = -99
+# Manual ISO_A3 overrides for entries that default to "-99"
 iso_fixes = {
     "France": "FRA",
     "Norway": "NOR",
@@ -32,11 +31,11 @@ for _, row in world.iterrows():
     if not iso:
         continue
 
-    # Handle MultiPolygon → keep the largest part
+    # For MultiPolygon geometries, keep only the largest part
     if geom.geom_type == "MultiPolygon":
         geom = max(geom.geoms, key=lambda g: g.area)
 
-    # Compute mainland bounding box
+    # Compute bounding box
     minx, miny, maxx, maxy = geom.bounds
     bboxes[iso] = [minx, miny, maxx, maxy]
 

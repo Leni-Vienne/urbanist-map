@@ -3,7 +3,6 @@
 # Or with: docker compose --env-file .env.preview up -d
 
 services:
-  # PostGIS database service
   postgres:
     image: postgis/postgis:17-3.5-alpine
     container_name: ${COMPOSE_PROJECT_NAME}-db
@@ -57,6 +56,7 @@ services:
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME}
       ALERT_EMAIL: ${ALERT_EMAIL}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
       # Project name for environment identification in error alerts
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
@@ -66,9 +66,6 @@ services:
       - ./back/src/routes:/app/routes:ro
       - backend_uploads:/app/uploads
     working_dir: /app
-    # Command simplified - sharp is now in the image (global) or node_modules
-    # We still rely on local node_modules for other deps, but sharp is the critical native one
-    # Ideally we would bundle everything, but for now this removes the build step
     command: ["bun", "./server.bundle.js"]
     ports:
       # Expose backend to host for Caddy reverse proxy access

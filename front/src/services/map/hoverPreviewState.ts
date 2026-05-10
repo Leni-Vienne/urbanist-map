@@ -1,10 +1,10 @@
 // Reactive state and trigger helpers for the map hover preview card.
 // The card shows a lightweight read-only preview when hovering over a project
-// feature in the vector tile layer (desktop only — touch has no mousemove).
+// feature in the vector tile layer (desktop only, touch has no mousemove).
 
 import { ref } from "vue";
 
-// Inline data sourced directly from vector tile feature properties — no backend call needed.
+// Inline data sourced directly from vector tile feature properties, no backend call needed.
 export type HoverProjectData = {
   name: string | null;
   timelineStatus: string | null;
@@ -27,7 +27,7 @@ export const hoverPreview = ref<HoverPreviewState | null>(null);
 export const hoverPreviewX = ref(0);
 export const hoverPreviewY = ref(0);
 
-/** The project ID that was requested last — used to discard stale position updates. */
+/** The project ID that was requested last, used to discard stale position updates. */
 let _pendingId: string | null = null;
 let _pendingX = 0;
 let _pendingY = 0;
@@ -42,7 +42,7 @@ function clearTimer(): void {
 
 /**
  * Trigger a hover preview for a single project after a short delay.
- * All display data comes directly from tile feature properties — no backend call.
+ * All display data comes directly from tile feature properties, no backend call.
  * If the same project is already shown, only updates the cursor position.
  * If the timer is already running for the same project, only updates the
  * pending position so the card appears at the latest cursor location.
@@ -56,14 +56,14 @@ export function triggerProjectHover(
   // Disable hover preview on mobile/touch frames
   if (globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches) return;
 
-  // Card already visible for this project — only update position refs (no content re-render)
+  // Card already visible for this project, only update position refs (no content re-render)
   if (hoverPreview.value?.type === "project" && hoverPreview.value.projectId === projectId) {
     hoverPreviewX.value = x;
     hoverPreviewY.value = y;
     return;
   }
 
-  // Timer already counting down for this project — update position without restarting
+  // Timer already counting down for this project, update position without restarting
   if (_pendingId === projectId) {
     _pendingX = x;
     _pendingY = y;
@@ -86,7 +86,7 @@ export function triggerProjectHover(
 }
 
 /**
- * Show a cluster count tooltip immediately (no delay — it carries no per-project data).
+ * Show a cluster count tooltip immediately (no delay, it carries no per-project data).
  */
 export function triggerClusterHover(count: number, x: number, y: number): void {
   // Disable hover preview on mobile/touch frames
@@ -101,7 +101,7 @@ export function triggerClusterHover(count: number, x: number, y: number): void {
 
 /**
  * Update the card position without touching hoverPreview state.
- * Safe to call on every mousemove — no Vue re-render triggered.
+ * Safe to call on every mousemove, no Vue re-render triggered.
  */
 export function updateHoverPreviewPosition(x: number, y: number): void {
   hoverPreviewX.value = x;

@@ -29,7 +29,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-// Props for the moderation action buttons
 interface Props {
   disabled?: boolean;
   disabledTooltip?: string;
@@ -44,15 +43,11 @@ const props = withDefaults(defineProps<Props>(), {
   rejectDisabled: false,
 });
 
-// Events emitted by the component
 defineEmits<{
   approve: [];
   reject: [];
 }>();
 
-// Computed: Final disabled state for approve button
 const finalApproveDisabled = computed(() => props.disabled || props.approveDisabled);
-
-// Computed: Final disabled state for reject button
 const finalRejectDisabled = computed(() => props.disabled || props.rejectDisabled);
 </script>

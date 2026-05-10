@@ -1,9 +1,6 @@
-// Map configuration constants
-// Centralized location for map-related magic numbers and thresholds
-
 export const MAP_CONFIG = {
-  // Minimum zoom level to start loading city data and showing overlay markers
-  // This is lower than MIN_ZOOM_FOR_OVERLAYS to show markers before full images
+  // Minimum zoom level to start loading viewport data and showing markers
+  // Lower than MIN_ZOOM_FOR_OVERLAYS to show markers before full images
   VIEWPORT_LOAD_THRESHOLD: 13,
 
   // For switching to country specific satellite layers

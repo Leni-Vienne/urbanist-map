@@ -3,7 +3,7 @@
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["unicorn", "typescript", "oxc"],
   "categories": {
-    "suspicious": "error", // mostly type assertion stuff that I don't see how to fix
+    "suspicious": "warn", // mostly type assertion stuff that can't easily be fixed
     "correctness": "warn",
     "perf": "warn",
     "nursery": "warn",
@@ -16,10 +16,7 @@
     "eslint/no-await-in-loop": "off", // false positives in several places
     "typescript/prefer-readonly-parameter-types": "off",
     "eslint/func-style": ["warn", "declaration"],
-    "arrow-body-style": [
-      "off", //temp
-      "as-needed"
-    ],
+    "arrow-body-style": ["off", "as-needed"],
     /*"unicorn/filename-case": [
       "error",
       {
@@ -49,22 +46,20 @@
     "no-use-before-define": "off",
     "prefer-ternary": "off",
     "max-lines-per-function": "off", // seems irrelevant with vue composables since they are large
-    "no-explicit-any": "off", // temp maybe
-    "max-statements": "off", // temp maybe
-    "no-undefined": "off", // temp maybe
+    "no-explicit-any": "off", // many places where we can't type properly, especially with leaflet plugins
+    "max-statements": "off",
+    "no-undefined": "off",
     "no-alert": "off", // temp
-    "explicit-module-boundary-types": "off", // temp
-    "explicit-function-return-type": "off", // temp
-    "capitalized-comments": "off", // temp
-    "max-params": "off", // temp
+    "explicit-module-boundary-types": "off", // demands return types on functions
+    "explicit-function-return-type": "off", // demands return types on functions
+    "capitalized-comments": "off",
+    "max-params": "off",
     "no-rest-spread-properties": "off", // for older browsers
-    "typescript/consistent-type-definitions": "off", //temporary
-    "eslint/prefer-destructuring": "off", //temporary
-    "eslint/no-magic-numbers": "off", // temporary
-    "unicorn/no-null": "off", // temp
-    "eslint/id-length": "off", // temp
-    // --------------------- restriction rules ---------------------
-    "no-async-await": "off",
-    "use-unknown-in-catch-callback-variable": "off" //temp?
+    "typescript/consistent-type-definitions": "off",
+    "eslint/prefer-destructuring": "off", // I don't see the value
+    "no-magic-numbers": "off",
+    "unicorn/no-null": "off",
+    "eslint/id-length": "off",
+    "no-async-await": "off"
   }
 }

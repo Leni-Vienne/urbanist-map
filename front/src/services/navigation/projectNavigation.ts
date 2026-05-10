@@ -12,10 +12,7 @@ import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMark
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { requestScrollTo } from "@/services/layout/accordionState";
 
-/**
- * Shared logic for navigating to a city, loading its cities and projects
- * @returns Callback to switch to country layer after flight, or null if not cross-country
- */
+/** Update country context and clear map content if switching to a different country. */
 async function prepareNavigationToCountry(countryCode?: string): Promise<void> {
   if (countryCode) {
     const mapStore = useMapStore();
@@ -37,10 +34,7 @@ async function prepareNavigationToCountry(countryCode?: string): Promise<void> {
   }
 }
 
-/**
- * Zoom to overlay and optionally select it once rendered
- * @param autoSelect - Whether to auto-select the overlay after zoom (default: true)
- */
+/** Zoom to an overlay and optionally select it once rendered. */
 export function zoomToOverlayAndSelect(
   overlayId: string,
   corners: { lat: number; lng: number }[],
@@ -58,8 +52,7 @@ export function zoomToOverlayAndSelect(
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
-  // Wait for element to exist, then wait for image to load before selecting
-  // This fixes the bug where first click adds blue outline but doesn't open toolbar
+  // Poll per animation frame until the overlay element exists and its image is loaded.
   function waitForElementThenSelect(): void {
     const currentLayer = registry.getLayer(overlayId);
     const element = currentLayer?.getElement();
@@ -84,15 +77,15 @@ export function zoomToOverlayAndSelect(
     }
   }
 
-  // If flight was skipped (camera already at target), select immediately without
-  // waiting for moveend — which will never fire since no animation was triggered.
+  // If flight was skipped (camera already at target), select immediately since
+  // moveend will never fire.
   if (flightSkipped) {
     waitForElementThenSelect();
     return true;
   }
 
   map.value.once("moveend", () => {
-    // CRITICAL: After zoom completes, check if overlay needs to be rendered
+    // After zoom, check if the overlay layer needs to be re-rendered.
     const overlayObj = overlayStore.overlays[overlayId];
     const overlayLayer = registry.getLayer(overlayId);
     if (overlayObj && !overlayLayer) {
@@ -104,18 +97,16 @@ export function zoomToOverlayAndSelect(
       // once that in-flight render completes.
       void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
         if (registry.hasReadyLayer(overlayId)) {
-          // Layer appeared between moveend and the async import resolving — select now
+          // Layer appeared between moveend and the import resolving.
           if (autoSelect) selectOverlay(overlayId);
           return;
         }
-        // Pass createMarkers=true so the marker is (re)created if it was wiped by
-        // clearAll(preserveMarkers=false) when zooming out in view mode.
-        // createSingleMarker has a duplicate guard so this is safe if the marker exists.
-        // Without the marker, onOverlayFullyLoaded aborts and onReady is never called.
+        // Pass createMarkers=true so the marker is recreated if it was wiped by
+        // clearAll(preserveMarkers=false) when zooming out.
+        // createSingleMarker has a duplicate guard so this is safe.
         const ourRenderStarted = renderViewModeOverlays(
           [overlayObj],
           true,
-          false,
           autoSelect
             ? () => {
                 selectOverlay(overlayId);
@@ -123,11 +114,10 @@ export function zoomToOverlayAndSelect(
             : undefined,
         );
         if (ourRenderStarted) {
-          // Our render is in flight with onReady wired — do NOT poll.
+          // Our render is in flight with onReady wired, do not poll.
           // waitForElementThenSelect would race: it calls selectOverlay before
           // overlayStore.addOverlay runs (deferred via scheduleInitialization rAF queue),
-          // setting idSelectedOverlay early so onReady's selectOverlay hits the
-          // "already selected" early-exit guard and never opens the toolbar.
+          // which makes the "already selected" guard in onReady's selectOverlay fire early.
           return;
         }
         if (registry.hasReadyLayer(overlayId)) {
@@ -136,25 +126,22 @@ export function zoomToOverlayAndSelect(
           return;
         }
         if (registry.isCreating(overlayId)) {
-          // A different render (e.g. viewport loop) is in flight without our onReady —
-          // poll until it lands so we can select after it completes.
+          // A concurrent render is in flight without our onReady, poll until it lands.
           waitForElementThenSelect();
           return;
         }
         // renderViewModeOverlays was a no-op (e.g. zoom < MIN_ZOOM_FOR_OVERLAYS).
-        // Nothing we can do — the overlay can't be shown at this zoom level.
+        // Nothing we can do, the overlay can't be shown at this zoom level.
       });
-      // Do NOT call waitForElementThenSelect here — the onReady callback handles selection
+      // Do not call waitForElementThenSelect here; the onReady callback handles selection.
       return;
     } else if (overlayLayer && !map.value.hasLayer(overlayLayer)) {
       const currentZoom = map.value.getZoom();
-      // CRITICAL: Only re-add if the overlay should be visible in the current mode
-      // This prevents adding a pending overlay back to the map when in view mode
       if (currentZoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
         const authStore = useAuthStore();
         if (overlayObj && isOverlayVisible(overlayObj, mapStore.mode, authStore.user?.id)) {
           overlayLayer.addTo(map.value);
-          // Manage z-index: if this overlay is selected, bring to front; otherwise ensure selected stays on top
+          // If this overlay is selected, bring it to front; otherwise keep the currently selected overlay on top.
           requestAnimationFrame(() => {
             if (overlayStore.idSelectedOverlay === overlayId) {
               overlayLayer.bringToFront();
@@ -176,14 +163,7 @@ export function zoomToOverlayAndSelect(
 }
 
 /**
- * Navigates to a marker project by simulating the complete marker click flow
- * This replicates what happens when clicking a city marker
- * @param lat - Latitude of the marker project
- * @param lng - Longitude of the marker project
- * @param cityId - The city ID where the marker project is located
- * @param cityName - The name of the city
- * @param countryCode - The country code for proper tile layer switching
- * @param projectId - Optional project ID to open the info popup after navigation
+ * Navigate to a standalone project marker by project ID.
  */
 export async function navigateToStandaloneProject(
   lat: number,
@@ -205,7 +185,7 @@ export async function navigateToStandaloneProject(
         }, 200),
     );
 
-    // Request scroll to project in adjacent panels IMMEDIATELY after data is loaded
+    // Scroll the side panel to this project before the flight completes.
     if (projectId) {
       requestScrollTo("project", projectId);
     }

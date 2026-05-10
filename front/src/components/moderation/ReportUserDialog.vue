@@ -1,5 +1,4 @@
 ﻿<template>
-  <!-- Dialog for reporting a user for spam/harmful content -->
   <Dialog
     v-model:visible="dialogVisible"
     :header="$t('moderation.reportUser.report')"
@@ -51,7 +50,6 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc } from "@/client";
 
-// Props for the dialog
 const props = defineProps<{
   visible: boolean;
   userId: string | null;
@@ -65,17 +63,14 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 
-// Dialog visibility computed property for v-model
 const dialogVisible = computed({
   get: () => props.visible,
   set: (value) => emit("update:visible", value),
 });
 
-// Form state
 const reason = ref("");
 const isLoading = ref(false);
 
-// Handle report submission
 async function handleReport() {
   if (!props.userId) return;
 
@@ -107,7 +102,6 @@ async function handleReport() {
   }
 }
 
-// Handle cancel/close
 function handleCancel() {
   reason.value = "";
   dialogVisible.value = false;

@@ -35,7 +35,7 @@ function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstan
   else if (!shouldBeOnMap && isOnMap) layer.remove();
 }
 
-// Compute bounding box from 4 overlay corners (raw math to avoid Leaflet object allocation / GC pressure)
+// Compute bounding box from 4 overlay corners (avoids Leaflet object allocation / GC pressure).
 function computeCornersBBox(corners: { lat: number; lng: number }[]) {
   /* oxlint-disable no-non-null-assertion */
   let minLat = corners[0]!.lat;
@@ -55,13 +55,8 @@ function computeCornersBBox(corners: { lat: number; lng: number }[]) {
   /* oxlint-enable no-non-null-assertion */
 }
 
-// Check if a bounding box intersects with viewport bounds using standard AABB intersection test.
-// This correctly handles all cases:
-//   1. Overlay partially visible (some edges in viewport)
-//   2. Overlay fully visible (all edges in viewport)
-//   3. Overlay contains viewport (no edges in viewport) ← Previous bug was here
-//   4. Viewport contains overlay (all edges in viewport)
-// Two rectangles DON'T intersect only if one is completely to the left, right, above, or below the other.
+// Check if a bounding box intersects with viewport bounds (standard AABB intersection test).
+// Two rectangles don't intersect only if one is completely outside the other on any axis.
 function intersectsViewport(
   bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
   bounds: L.LatLngBounds,
@@ -75,10 +70,10 @@ function intersectsViewport(
 }
 
 /**
- * Main pruning function - determines what should be on the map based on bounds.
+ * Main pruning function: determines what should be on the map based on bounds.
  * Delegates to two structurally disjoint pipelines:
- *   pruneBackendOverlays — for overlays sourced from the backend (status !== null)
- *   pruneLocalOverlays   — for local/unsaved overlays only (status === null)
+ *   pruneBackendOverlays  for overlays sourced from the backend (status !== null)
+ *   pruneLocalOverlays    for local/unsaved overlays only (status === null)
  */
 export function runViewportRenderLoop() {
   const mapInstance = map.value;
@@ -93,10 +88,9 @@ export function runViewportRenderLoop() {
 }
 
 /**
- * Queue for progressive overlay destruction to prevent main thread blocking (UI Freeze)
- * Used when hiding many overlays at once (e.g. Edit -> View mode switch)
+ * Queue for progressive overlay destruction to prevent main-thread blocking on bulk hide
+ * (e.g. Edit -> View mode switch).
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const destructionQueue = new Set<string>();
 let isDestructionQueueRunning = false;
 
@@ -140,7 +134,7 @@ function queueForDestruction(id: string) {
 }
 
 /**
- * Prune overlay visibility — dispatches to two structurally disjoint pipelines.
+ * Prune overlay visibility, dispatches to two structurally disjoint pipelines.
  */
 function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number) {
   // Markers start appearing at VIEWPORT_LOAD_THRESHOLD
@@ -166,9 +160,9 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
 }
 
 /**
- * Pipeline 1 — Backend overlays (status !== null).
+ * Pipeline 1: Backend overlays (status !== null).
  * Source of truth: viewModeOverlays (already filtered to status !== null by construction).
- * No overlap with pruneLocalOverlays possible — backend overlays never have status === null.
+ * No overlap with pruneLocalOverlays; backend overlays never have status === null.
  */
 function pruneBackendOverlays(
   mapInstance: L.Map,
@@ -185,7 +179,7 @@ function pruneBackendOverlays(
     if (data.corners.length !== 4) continue;
 
     // Hoist layer lookup to use live corners for the viewport check.
-    // data.corners is the backend position — stale if the user has moved the overlay
+    // data.corners is the backend position, stale if the user has moved the overlay
     // in edit mode. When a layer exists, layer.getCorners() reflects the actual
     // current position and is used for the in-viewport decision.
     // When no layer exists yet, data.corners decides whether to create one.
@@ -197,7 +191,7 @@ function pruneBackendOverlays(
 
     if (isInViewport) {
       if (destructionQueue.has(data.id)) {
-        // Timed for destruction but now visible again — save it
+        // Timed for destruction but now visible again, save it
         destructionQueue.delete(data.id);
       }
 
@@ -238,16 +232,16 @@ function pruneBackendOverlays(
   if (overlaysToRender.length > 0) {
     // Dynamic import keeps leaflet-distortableimage out of the initial bundle
     void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
-      renderViewModeOverlays(overlaysToRender, true, false);
+      renderViewModeOverlays(overlaysToRender, true);
     });
   }
 }
 
 /**
- * Pipeline 2 — Local/unsaved overlays only (status === null).
+ * Pipeline 2: Local/unsaved overlays only (status === null).
  * Source: overlayStore.overlays filtered to status === null.
- * Structural gate: if status !== null, skip immediately — no defensive guards needed.
- * These overlays are ONLY visible in edit mode.
+ * Structural gate: if status !== null, skip immediately.
+ * These overlays are only visible in edit mode.
  */
 function pruneLocalOverlays(
   mapInstance: L.Map,
@@ -261,7 +255,7 @@ function pruneLocalOverlays(
   const editOverlaysToRecreate: OverlayObject[] = [];
 
   for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
-    // STRUCTURAL GATE — this pipeline owns local overlays exclusively.
+    // STRUCTURAL GATE, this pipeline owns local overlays exclusively.
     // Backend overlays (status !== null) are handled by pruneBackendOverlays.
     if (overlay.status !== null) continue;
 
@@ -272,7 +266,7 @@ function pruneLocalOverlays(
 
     const layer = registry.getLayer(id);
 
-    // Local overlays are actively being created by the user — no viewport bounds check.
+    // Local overlays are actively being created by the user, no viewport bounds check.
     // overlay.corners is NOT updated during drag, and even live layer corners can be
     // outside the viewport if moveend fires while the overlay has been moved off-screen.
     // Only explicit deletion or a mode switch should remove a local overlay.
@@ -306,7 +300,7 @@ function pruneLocalOverlays(
 
   if (editOverlaysToRecreate.length > 0) {
     // Dynamic import keeps leaflet-distortableimage out of the initial bundle
-    // Capture mode at queue time so beginCreation's atomic mutex prevents races —
+    // Capture mode at queue time so beginCreation's atomic mutex prevents races,
     // no manual queuedMode re-check needed (beginCreation returns false if race occurred).
     void import("@/services/overlay/overlayRendering").then(({ createLeafletOverlay }) => {
       for (const overlay of editOverlaysToRecreate) {
@@ -332,13 +326,7 @@ function pruneLocalOverlays(
   }
 }
 
-/**
- * Render shapes for projects that have overlays AND have geometry set.
- * Uses hasProjectShapes guard to avoid duplicate rendering.
- * In edit/moderation mode: prefers locally-modified geometry from projectStore so unsaved
- * shape changes are visible while the user is editing.
- * In view mode: always uses backend-approved geometry so unsaved edits do not leak into view mode.
- */
+/** Return the pending geometry change request value for a project, if any. */
 function getPendingGeometry(
   projectId: string,
   isModeration: boolean,
@@ -376,10 +364,9 @@ function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): 
 }
 
 /**
- * Render shapes for all visible projects (both overlay-bearing and standalone).
- * Projects with geometry set will have their shapes rendered.
- * In edit/moderation mode: preferring locally-modified geometry from projectStore.
- * In view mode: always uses backend-approved geometry.
+ * Collect all visible projects whose shapes need to be rendered.
+ * In edit/moderation mode: uses project store geometry for unsaved changes.
+ * In view mode: shapes are handled by MapLibre tiles, this function is not called.
  */
 function getVisibleProjectsToRender() {
   const overlayStore = useOverlayStore();
@@ -388,7 +375,7 @@ function getVisibleProjectsToRender() {
 
   const projectsToRender = new Map<string, Project>();
 
-  // Collect projects with overlays — always use backend overlay data as the project record
+  // Collect projects with overlays, always use backend overlay data as the project record
   // so that projectData.geometry is always the approved geometry. storedProject is looked
   // up separately in processAndRenderProjectShape for edit-mode rendering.
   for (const overlay of overlayStore.viewModeOverlays) {
@@ -398,14 +385,14 @@ function getVisibleProjectsToRender() {
   }
 
   // In edit/moderation mode, viewModeOverlays only contains pending overlays.
-  // Approved overlays are rendered by vectorTileSync — collect their project IDs from
+  // Approved overlays are rendered by vectorTileSync, collect their project IDs from
   // the tile cache so that approved-overlay projects still get their shapes rendered.
   if (mapStore.mode !== "view") {
     for (const [, overlayData] of getApprovedOverlayDataFromTiles()) {
       const projectId = overlayData.projectId;
       if (!projectId || projectsToRender.has(projectId)) continue;
-      // The tile-based OverlayData has no project field — look up the project from the store.
-      // If not yet in the store, skip (shape will render on next cycle once the store is hydrated).
+      // The tile-based OverlayData has no project field; look up the project from the store.
+      // Skip if not yet in the store (shape will render on the next cycle once the store is hydrated).
       const p = projectStore.projects[projectId];
       if (p) projectsToRender.set(projectId, p);
     }
@@ -446,8 +433,8 @@ function processAndRenderProjectShape(
   let finalGeometry = resolved?.geometry;
   let isPending = resolved?.isPending;
 
-  // Fallback: if it's a new local project, it might not have an approved geometry yet.
-  // In edit mode, we still want to render its local geometry.
+  // Fallback: new local projects may lack an approved geometry.
+  // In edit mode, render their local geometry instead.
   if (
     !finalGeometry &&
     isEditMode &&
@@ -473,16 +460,13 @@ function processAndRenderProjectShape(
 }
 
 /**
- * Render shapes for all visible projects (both overlay-bearing and standalone).
- * Projects with geometry set will have their shapes rendered.
- * In edit/moderation mode: preferring locally-modified geometry from projectStore.
- * In view mode: always uses backend-approved geometry.
+ * Render shapes for all visible projects in edit/moderation mode.
+ * Uses project store geometry (not tile data) so unsaved edits are reflected.
  */
 function renderAllProjectShapes(mapInstance: L.Map) {
   const mapStore = useMapStore();
 
-  // In view mode, project shapes are exclusively rendered by MapLibre vector tiles.
-  // Rendering Leaflet shapes here would duplicate and overlap MapLibre geometry.
+  // In view mode, shapes are rendered exclusively via MapLibre vector tiles.
   if (mapStore.mode === "view") {
     return;
   }

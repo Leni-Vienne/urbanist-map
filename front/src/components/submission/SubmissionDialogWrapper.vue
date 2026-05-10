@@ -1,6 +1,6 @@
 <template>
   <!-- Self-contained wrapper so Home.vue doesn't need to import useSubmissionDialog directly.
-       Loaded lazily (defineAsyncComponent) — only when the first submission dialog is triggered. -->
+       Loaded lazily (defineAsyncComponent), only when the first submission dialog is triggered. -->
   <SubmissionConfirmationDialog
     v-if="showSubmissionDialog"
     v-model:visible="showSubmissionDialog"

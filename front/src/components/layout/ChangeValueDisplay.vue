@@ -1,5 +1,4 @@
 ﻿<template>
-  <!-- Geometry field with preview buttons -->
   <div v-if="isGeometryField(change.fieldName)" class="my-2">
     <div class="flex gap-2 flex-wrap">
       <Button
@@ -21,7 +20,6 @@
     </div>
   </div>
 
-  <!-- City field with clickable locations -->
   <div
     v-else-if="change.fieldName === 'cityId'"
     class="flex items-start gap-2 my-1 text-xs flex-wrap"
@@ -53,7 +51,6 @@
     </span>
   </div>
 
-  <!-- Geometry (shapes) field with preview buttons -->
   <div v-else-if="change.fieldName === 'geometry'" class="my-2">
     <div class="flex gap-2 flex-wrap">
       <Button
@@ -77,7 +74,6 @@
     </div>
   </div>
 
-  <!-- Regular field with formatted values -->
   <div v-else class="flex items-start gap-2 my-1 text-xs flex-wrap">
     <span
       class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
@@ -90,12 +86,10 @@
     >
   </div>
 
-  <!-- Change reason if provided -->
   <div v-if="change.changeReason" class="text-xs text-(--p-text-color-secondary) mt-1">
     <em>{{ $t("moderation.reason") }}: {{ change.changeReason }}</em>
   </div>
 
-  <!-- Change date and contributor -->
   <div class="text-xs text-muted-color mt-1">
     <em>
       <ContributorInfo

@@ -8,17 +8,18 @@ import {
   changeHistory,
   type EntityType,
   users,
-  cities,
+  userReports,
 } from "../db/schema";
 import { eq, and, inArray, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import { addConflictFlags, enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
-import { globalRateLimiter } from "../lib/rateLimit";
+import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
 import { invalidateLatestContributionsCache } from "./feed";
+import { notifyNewSubmission } from "../services/discordNotifier";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -52,8 +53,8 @@ function isCoord(obj: unknown): obj is Coord {
   return (
     obj !== null &&
     typeof obj === "object" &&
-    Number.isFinite((obj as Record<string, unknown>)["lat"]) &&
-    Number.isFinite((obj as Record<string, unknown>)["lng"])
+    Number.isFinite((obj as Record<string, unknown>).lat) &&
+    Number.isFinite((obj as Record<string, unknown>).lng)
   );
 }
 
@@ -134,19 +135,16 @@ async function getEntityCountryCode(
   entityType: EntityType,
   entityId: string,
 ): Promise<string | undefined> {
-  // Build query based on entity type - projects join city directly, overlays via projects
   const query =
     entityType === "project"
       ? db
-          .select({ countryCode: cities.countryCode })
+          .select({ countryCode: projects.countryCode })
           .from(projects)
-          .innerJoin(cities, eq(projects.cityId, cities.id))
           .where(eq(projects.id, entityId))
       : db
-          .select({ countryCode: cities.countryCode })
+          .select({ countryCode: projects.countryCode })
           .from(overlays)
           .innerJoin(projects, eq(overlays.projectId, projects.id))
-          .innerJoin(cities, eq(projects.cityId, cities.id))
           .where(eq(overlays.id, entityId));
 
   const result = await query.limit(1);
@@ -219,7 +217,10 @@ const changeRequestSelectFields = {
   status: changeRequests.status,
   requestedBy: changeRequests.requestedBy,
   requestedByUsername: users.username,
-  requestedByReportCount: sql<number>`0`.as("requestedByReportCount"),
+  requestedByReportCount:
+    sql<number>`(SELECT COUNT(DISTINCT ${userReports.reportedBy})::int FROM ${userReports} WHERE ${userReports.reportedUserId} = ${changeRequests.requestedBy})`.as(
+      "requestedByReportCount",
+    ),
   createdAt: changeRequests.createdAt,
 } as const;
 
@@ -240,7 +241,7 @@ export const changesRouter = router({
 
         // Rate limit: 20 change requests per IP per hour
         const ip = getClientIp(ctx.hono);
-        if (!globalRateLimiter.check(ip, 20, 60 * 60 * 1000)) {
+        if (!rateLimit.check(ip, 20, 60 * 60 * 1000)) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "Too many change requests. Please try again later.",
@@ -249,9 +250,15 @@ export const changesRouter = router({
 
         // Verify that the entity exists and is approved
         // Users can only submit change requests for approved content
+        let entityLat: number | null = null;
+        let entityLng: number | null = null;
         if (input.entityType === "overlay") {
           const overlayResult = await db
-            .select({ status: overlays.status })
+            .select({
+              status: overlays.status,
+              lat: sql<number>`ST_Y(${overlays.centroid})`,
+              lng: sql<number>`ST_X(${overlays.centroid})`,
+            })
             .from(overlays)
             .where(eq(overlays.id, input.entityId))
             .limit(1);
@@ -269,9 +276,12 @@ export const changesRouter = router({
               message: "Change requests can only be submitted for approved overlays",
             });
           }
+
+          entityLat = overlayResult[0].lat;
+          entityLng = overlayResult[0].lng;
         } else {
           const projectResult = await db
-            .select({ status: projects.status })
+            .select({ status: projects.status, lat: projects.lat, lng: projects.lng })
             .from(projects)
             .where(eq(projects.id, input.entityId))
             .limit(1);
@@ -289,6 +299,9 @@ export const changesRouter = router({
               message: "Change requests can only be submitted for approved projects",
             });
           }
+
+          entityLat = projectResult[0].lat;
+          entityLng = projectResult[0].lng;
         }
 
         // Validate field values before writing to the DB
@@ -333,15 +346,19 @@ export const changesRouter = router({
           }
         });
 
+        void notifyNewSubmission({
+          kind: "change_request",
+          author: { email: ctx.user.email, username: ctx.user.username },
+          entityType: input.entityType,
+          entityId: input.entityId,
+          fieldNames: input.changes.map((change) => change.fieldName),
+          lat: entityLat,
+          lng: entityLng,
+        });
+
         return { success: true };
       } catch (error) {
         console.error("Error submitting change request:", error);
-        // Log detailed error information for debugging
-        if (error instanceof Error) {
-          console.error("Error message:", error.message);
-          console.error("Error stack:", error.stack);
-        }
-        console.error("Input data:", JSON.stringify(input, null, 2));
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to submit change request",
@@ -387,7 +404,6 @@ export const changesRouter = router({
           });
         }
 
-        // Delete the change request
         await db.delete(changeRequests).where(eq(changeRequests.id, input.id));
 
         return { success: true };

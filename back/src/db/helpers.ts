@@ -16,34 +16,12 @@ import {
 import type * as schema from "./schema";
 import type { AppMode } from "@shared/types";
 
-// ============================================================================
-// DATABASE HELPERS - Unified utilities for pagination, queries, and visibility
-// ============================================================================
-// Combines pagination, query builders, and visibility helpers to eliminate
-// duplication and provide single source of truth for database operations
-// ============================================================================
-
-// ============================================================================
-// PAGINATION HELPERS
-// ============================================================================
-
-/**
- * Standard pagination input filters used across multiple endpoints
- */
 interface PaginationFilters {
   cityId?: number;
   countryCode?: string;
   cursor?: string;
 }
 
-/**
- * Build common filter conditions for pagination queries
- * Adds cityId, countryCode, and cursor-based pagination conditions
- *
- * @param filters - Object containing optional cityId, countryCode, and cursor
- * @param sortColumn - The column used for sorting (determines cursor comparison)
- * @returns Array of SQL conditions to be used in where clauses
- */
 export async function buildPaginationConditions(
   filters: PaginationFilters,
   sortColumn: PgColumn,
@@ -75,13 +53,6 @@ export async function buildPaginationConditions(
   return conditions;
 }
 
-/**
- * Build pagination response with nextCursor and hasMore flag
- *
- * @param results - Array of query results
- * @param limit - The requested limit
- * @returns Object with paginated items and pagination metadata
- */
 export function buildPaginationResponse<T extends { id: string }>(
   results: T[],
   limit: number,
@@ -102,14 +73,7 @@ export function buildPaginationResponse<T extends { id: string }>(
   };
 }
 
-// ============================================================================
-// QUERY BUILDERS
-// ============================================================================
-
-/**
- * Select fields for overlay queries with full location hierarchy
- * Extracts PostGIS geometry as JSON for corners and centroid
- */
+// PostGIS geometry extracted as JSON for corners and centroid
 const overlaySelectFields = {
   id: overlays.id,
   version: overlays.version,
@@ -139,10 +103,6 @@ const overlaySelectFields = {
   countryName: countries.name,
 };
 
-/**
- * Build overlay query with full location joins (overlay -> project -> country)
- * Returns chainable query that can be extended with .where(), .orderBy(), .limit()
- */
 export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
   return database
     .select(overlaySelectFields)
@@ -152,7 +112,7 @@ export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
     .leftJoin(countries, eq(projects.countryCode, countries.code));
 }
 
-// Shared project column selection — add new project fields here only
+// Shared project column selection, add new project fields here only
 export const PROJECT_COLUMNS = {
   id: projects.id,
   name: projects.name,
@@ -184,10 +144,6 @@ export const PROJECT_COLUMNS = {
   centerCoordinate: projects.centerCoordinate,
 } as const;
 
-/**
- * Build project query with city and country location data
- * Returns chainable query that can be extended with .where(), .orderBy(), .limit()
- */
 export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof schema>) {
   return database
     .select({
@@ -215,9 +171,9 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
       status: overlays.status,
       version: overlays.version,
       projectId: overlays.projectId,
-      authorId: overlays.authorId, // For spam prevention filtering
-      authorUsername: users.username, // Display friendly username in moderation UI
-      authorApprovedCount: users.approvedCount, // User stats for spam detection
+      authorId: overlays.authorId,
+      authorUsername: users.username,
+      authorApprovedCount: users.approvedCount,
       authorRejectedCount: users.rejectedCount,
       replacesOverlayId: overlays.replacesOverlayId,
       replacedByOverlayId: overlays.replacedByOverlayId,
@@ -234,16 +190,13 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
     .leftJoin(users, eq(overlays.authorId, users.id));
 }
 
-/**
- * Build project query with minimal fields for moderation lists
- */
 export function buildProjectModerationQuery(database: BunSQLDatabase<typeof schema>) {
   const { geometry: _geometry, ...columnsWithoutGeometry } = PROJECT_COLUMNS;
   return database
     .select({
       ...columnsWithoutGeometry,
-      ownerUsername: users.username, // Display friendly username in moderation UI
-      ownerApprovedCount: users.approvedCount, // User stats for spam detection
+      ownerUsername: users.username,
+      ownerApprovedCount: users.approvedCount,
       ownerRejectedCount: users.rejectedCount,
       cityName: cities.name,
       countryCode: projects.countryCode,
@@ -255,26 +208,13 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
 
-// ============================================================================
-// CHANGE REQUEST HELPERS
-// ============================================================================
-
-/**
- * Interface for objects that can have conflict detection applied
- */
 interface ConflictableChange {
   entityType: string;
   entityId: string;
   fieldName: string;
 }
 
-/**
- * Adds hasConflict flag to change requests that have multiple pending requests for the same field
- * A conflict occurs when 2+ pending changes target the same entity+field combination
- *
- * @param changes - Array of change requests with entityType, entityId, and fieldName
- * @returns Same array with hasConflict boolean added to each item
- */
+// Sets hasConflict: true when 2+ pending changes target the same entity+field
 export function addConflictFlags<T extends ConflictableChange>(
   changes: T[],
 ): (T & { hasConflict: boolean })[] {
@@ -291,18 +231,12 @@ export function addConflictFlags<T extends ConflictableChange>(
   });
 }
 
-/**
- * Base interface for change requests that can be enriched with city names
- */
 interface BaseChangeRequest {
   fieldName: string;
   oldValue: unknown;
   newValue: unknown;
 }
 
-/**
- * Default empty enrichment object for non-cityId fields
- */
 const EMPTY_CITY_ENRICHMENT = {
   oldCityName: null,
   newCityName: null,
@@ -312,9 +246,6 @@ const EMPTY_CITY_ENRICHMENT = {
   newCountryName: null,
 } as const;
 
-/**
- * Type for enriched change requests with city/country metadata
- */
 type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
   oldCityName: string | null;
   newCityName: string | null;
@@ -342,9 +273,6 @@ function toValidCityId(value: unknown): number | null {
   return null;
 }
 
-/**
- * Extract all unique city IDs from cityId field changes
- */
 function extractCityIds(changes: BaseChangeRequest[]): Set<number> {
   const cityIds = new Set<number>();
 
@@ -361,14 +289,7 @@ function extractCityIds(changes: BaseChangeRequest[]): Set<number> {
   return cityIds;
 }
 
-/**
- * Enrich change requests with city and country names for cityId field changes
- * This helper queries the database to fetch city/country names and adds them to the change objects
- * Used by both changes router and moderation router
- *
- * @param changes - Array of change requests with fieldName, oldValue, newValue
- * @returns Same array enriched with city/country name fields
- */
+// Queries DB to resolve cityId changes into city/country names. Used by changes and moderation routers.
 export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
   changes: T[],
 ): Promise<EnrichedChangeRequest<T>[]> {
@@ -425,10 +346,6 @@ export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>
     };
   });
 }
-
-// ============================================================================
-// VISIBILITY HELPERS
-// ============================================================================
 
 // Type for user context from tRPC (can be undefined or null)
 type UserContext =
@@ -548,18 +465,6 @@ export function buildOverlayVisibilityCondition(
   return eq(overlays.status, "approved");
 }
 
-// ============================================================================
-// OVERLAY DATA TRANSFORMATION HELPERS
-// ============================================================================
-
-/**
- * Fetch and group overlay change requests by overlay ID based on mode
- * Used by viewport and cities routes to get pending change requests
- *
- * @param user - The user context from tRPC
- * @param mode - The map viewing mode
- * @returns Map of overlay IDs to their change requests
- */
 export async function fetchOverlayChangeRequests(
   user: UserContext,
   mode: AppMode,
@@ -630,16 +535,6 @@ export async function fetchOverlayChangeRequests(
   return changeRequestsByOverlay;
 }
 
-/**
- * Transform database overlay rows into OverlayData format with change request metadata
- * Used by both viewport and cities routes for consistent overlay data structure
- *
- * @param overlaysData - Raw overlay data from database query
- * @param changeRequestsByOverlay - Map of overlay IDs to change requests
- * @param mode - The map viewing mode
- * @param userId - The current user's ID (optional)
- * @returns Array of OverlayData objects ready for frontend
- */
 export function transformOverlayDataWithChangeRequests(
   overlaysData: Awaited<ReturnType<typeof fetchOverlaysWithLocation>>,
   changeRequestsByOverlay: Map<
@@ -698,13 +593,6 @@ export function transformOverlayDataWithChangeRequests(
   });
 }
 
-/**
- * Fetch overlays with full location hierarchy (overlay -> project -> city)
- * Extracts PostGIS geometry data and joins with projects and cities
- *
- * @param whereConditions - Array of SQL conditions to filter overlays
- * @returns Array of overlay data with extracted geometry and joined location data
- */
 export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
   return await db
     .select({
@@ -741,15 +629,8 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .orderBy(overlays.createdAt);
 }
 
-// ============================================================================
-// AUTHORIZATION HELPERS
-// ============================================================================
 import { TRPCError } from "@trpc/server";
 
-/**
- * Checks if a user has moderator or admin access
- * Returns true if user is admin OR has at least one moderated country
- */
 export function isModeratorOrAdmin(user: UserContext): boolean {
   if (!user) return false;
 
@@ -786,27 +667,15 @@ export function requireModeratorAccess(user: UserContext, mode: AppMode): void {
   }
 }
 
-// ============================================================================
-// SPAM PREVENTION HELPERS
-// ============================================================================
-
-/**
- * Check if a user is blocked from contributing content
- * A user is blocked if they are banned OR have reached the report threshold (2+ moderator reports)
- *
- * @param userId - The user ID to check
- * @returns Promise<boolean> - True if the user is blocked from contributing
- */
+// Blocked if banned OR reported by >= threshold distinct moderators.
 export async function isUserBlocked(userId: string): Promise<boolean> {
   try {
-    // Fetch user banned status
     const userResult = await db
       .select({ banned: users.banned })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
 
-    // If user not found or banned, block them
     const user = userResult[0];
     if (!user || user.banned) return true;
 

@@ -12,24 +12,19 @@
     <div
       class="w-full h-full relative overflow-hidden rounded-lg bg-content-background border-2 border-black"
     >
-      <!-- Using static images for preview to avoid loading actual tiles -->
-      <!-- Plan Preview (shown when in Satellite mode) -->
+      <!-- Plan preview (shown when in satellite mode) -->
       <div v-if="isSatellite" class="w-full h-full flex items-end justify-center relative">
-        <img
-          src="https://tile.openstreetmap.org/12/2048/1365.png"
-          alt="Map"
-          class="absolute inset-0 w-full h-full object-cover"
-        />
+        <img :src="planThumbnail" alt="Map" class="absolute inset-0 w-full h-full object-cover" />
         <span
           class="relative z-2 text-white text-[0.85rem] font-medium pb-1.5 [text-shadow:0_0_4px_black,0_0_8px_black,0_0_12px_black]"
           >{{ $t("layerControl.plan") }}</span
         >
       </div>
 
-      <!-- Satellite Preview (shown when in Plan mode) -->
+      <!-- Satellite preview (shown when in plan mode) -->
       <div v-else class="w-full h-full flex items-end justify-center relative">
         <img
-          src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/12/1365/2048"
+          :src="satelliteThumbnail"
           alt="Satellite"
           class="absolute inset-0 w-full h-full object-cover"
         />
@@ -45,6 +40,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { currentTileLayer, switchTileLayer, type TileLayerType } from "@/services/map/tileLayers";
+import satelliteThumbnail from "@/assets/satellite_thumbnail.webp";
+import planThumbnail from "@/assets/plan_thumbnail.webp";
 
 const props = defineProps<{
   inDrawer?: boolean;
@@ -52,35 +49,24 @@ const props = defineProps<{
 
 const lastSatelliteLayer = ref<Exclude<TileLayerType, "plan">>("esri");
 
-// Track last selected satellite layer to remember user preference
 watch(currentTileLayer, (newVal) => {
   if (newVal !== "plan") {
     lastSatelliteLayer.value = newVal;
   }
 });
 
-// Check if current layer is a satellite-type layer
 const isSatellite = computed(() => {
   return currentTileLayer.value !== "plan";
 });
 
-// Cooldown state to prevent spamming switches
 const isToggling = ref(false);
 
 async function toggleLayer() {
-  // Prevent spamming: If already toggling (cooldown), ignore click
   if (isToggling.value) return;
-
-  // Apply cooldown lock immediately
   isToggling.value = true;
-
-  // Release cooldown after 500ms
   setTimeout(() => {
     isToggling.value = false;
   }, 500);
-
-  // Smart toggle: If satellite, go to plan. If plan, go to last used satellite.
-  // Switching immediately to provide instant feedback (no debounce)
   if (isSatellite.value) {
     await switchTileLayer("plan");
   } else {

@@ -118,7 +118,6 @@ const isVisible = computed({
   set: (value) => emit("update:visible", value),
 });
 
-// Check if current user is admin
 const isAdmin = computed(() => authStore.user?.role === "admin");
 
 const hasHighRejectionRate = computed(() => {
@@ -133,7 +132,6 @@ function handleClose() {
   emit("update:visible", false);
 }
 
-// Open report dialog for this user
 function openReportDialog() {
   if (props.userId) {
     emit("report", props.userId);
@@ -141,7 +139,6 @@ function openReportDialog() {
   }
 }
 
-// Navigate to admin contributions page
 function goToContributions() {
   if (props.userId) {
     handleClose();

@@ -1,12 +1,9 @@
 // Centralized registry for all Leaflet layer references (image overlays + markers).
-// This is the single source of truth for "is this overlay rendered on the map?".
-// Replaces: overlaysBeingCreated Set, overlayStore.allMarkers, overlay.overlay field,
-//           and overlay.marker field on OverlayObject.
-//
+// Single source of truth for "is this overlay rendered on the map?".
 // Design principles:
 //   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
-//   - All creation goes through beginCreation() — atomically prevents duplicate layers
-//   - clearAll() is the single cleanup path, replacing map.eachLayer() eachLayer sweeps
+//   - All creation goes through beginCreation(), atomically prevents duplicate layers
+//   - clearAll() is the single cleanup path
 import type * as L from "leaflet";
 import { map } from "@/services/core/map";
 
@@ -16,7 +13,7 @@ interface RegistryEntry {
 }
 
 const entries = new Map<string, RegistryEntry>();
-// Tracks IDs currently being created — replaces the exported overlaysBeingCreated Set.
+// Tracks IDs currently being created.
 // Internal to this module; callers use beginCreation/cancelCreation API.
 const creating = new Set<string>();
 
@@ -140,7 +137,7 @@ export function clearAll(preserveMarkers = false): void {
 
 /**
  * Rename an entry (used when a local overlay gets a backend ID after submission).
- * The Leaflet layer and marker stay on the map — only the registry key changes.
+ * The Leaflet layer and marker stay on the map, only the registry key changes.
  */
 export function renameEntry(oldId: string, newId: string): void {
   const entry = entries.get(oldId);

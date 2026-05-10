@@ -11,9 +11,8 @@ function dateToFlexibleInput(date: Date, precision: DatePrecision = "day"): Flex
 }
 
 /**
- * Convert a standard Date object (from DB) to FlexibleDateInput (for form)
- * Uses the precision stored in the DB. Falls back to "day" if not available
- * (e.g. for legacy records created before the precision column was added).
+ * Convert a Date (from DB) to FlexibleDateInput (for form).
+ * Falls back to "day" precision for legacy records without a precision column.
  */
 export function dbToFlexibleDate(
   date: Date | null | undefined,
@@ -21,15 +20,13 @@ export function dbToFlexibleDate(
 ): FlexibleDateInput | null {
   if (!date) return null;
 
-  // Use precision stored in DB, or fall back to "day" for legacy records
+  // Use precision from DB, falling back to "day" for legacy records
   return dateToFlexibleInput(date, savedPrecision ?? "day");
 }
 
 /**
- * Convert FlexibleDateInput back to a standard Date for DB storage
- * This normalizes partial dates to a specific point in time
- * Year -> Jan 1st
- * Month -> 1st of month
+ * Convert FlexibleDateInput back to a Date for DB storage.
+ * Partial dates normalize to: year -> Jan 1st, month -> 1st of month.
  */
 export function flexibleDateToDb(input: FlexibleDateInput | null | undefined): Date | null {
   if (!input) return null;
@@ -38,9 +35,7 @@ export function flexibleDateToDb(input: FlexibleDateInput | null | undefined): D
   return new Date(year, month - 1, day);
 }
 
-/**
- * Format a flexible date for display with localization
- */
+/** Format a flexible date for display with localization. */
 export function formatFlexibleDate(
   input: FlexibleDateInput | null | undefined,
   locale?: string, // Optional locale override, otherwise uses navigator.language

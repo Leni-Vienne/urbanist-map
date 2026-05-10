@@ -1,5 +1,4 @@
 ﻿<template>
-  <!-- Custom draggable bottom drawer with continuous positioning -->
   <Teleport to="body">
     <Transition name="drawer-fade">
       <div
@@ -24,7 +23,6 @@
             <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
           </div>
 
-          <!-- Drag handle at the top -->
           <div
             class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0 bg-content-hover-background rounded-t-2xl"
             @click.stop
@@ -34,7 +32,6 @@
             ></div>
           </div>
 
-          <!-- Header -->
           <div
             class="drawer-header shrink-0 bg-content-hover-background cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-in-out"
             :class="{ 'py-0 px-4 pb-[0.3em] text-center': isCompact }"
@@ -49,7 +46,6 @@
             </slot>
           </div>
 
-          <!-- Content -->
           <div
             class="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-content-background"
           >
@@ -112,7 +108,6 @@ const aboveContentBottom = computed(() => {
   return "100%";
 });
 
-// Calculate drawer style with smooth transitions
 const drawerStyle = computed(() => {
   const height = Math.min(MAX_HEIGHT_PERCENT, currentHeight.value);
   return {
@@ -121,12 +116,10 @@ const drawerStyle = computed(() => {
   };
 });
 
-// Check if drawer is in compact mode
 const isCompact = computed(() => {
   return currentHeight.value <= minHeightPercent.value;
 });
 
-// Update current height when prop changes
 watch(
   () => props.heightPercent,
   (newHeight) => {
@@ -242,7 +235,6 @@ function finalizePosition() {
   emit("heightChanged", currentHeight.value);
 }
 
-// Initialize height on mount
 onMounted(() => {
   currentHeight.value = props.heightPercent;
   viewportHeight.value = globalThis.innerHeight;
@@ -265,7 +257,7 @@ onMounted(() => {
   pointer-events: auto;
 }
 
-/* No idea why but those 4 classes below are needed, otherwise the draggable drawer disappears on mobile */
+/* Required by Vue's Transition: slide the drawer off-screen below the viewport when entering/leaving */
 .drawer-fade-enter-from .draggable-drawer,
 .drawer-fade-leave-to .draggable-drawer {
   transform: translateY(100%);

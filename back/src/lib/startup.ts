@@ -12,13 +12,10 @@ export async function generateMissingThumbnails(): Promise<void> {
   const thumbnailsDir = "./uploads/thumbnails";
 
   try {
-    // Ensure thumbnails directory exists
     await mkdir(thumbnailsDir, { recursive: true });
 
-    // Read all files in uploads directory (not recursive, excludes thumbnails folder)
     const files = await readdir(uploadsDir);
 
-    // Filter for image files only
     const imageFiles = files.filter((file) => {
       const isImage = /\.(webp|png|jpg|jpeg)$/i.test(file);
       return isImage;
@@ -30,7 +27,6 @@ export async function generateMissingThumbnails(): Promise<void> {
     for (const imageFile of imageFiles) {
       const thumbnailPath = join(thumbnailsDir, imageFile);
 
-      // Check if thumbnail already exists
       try {
         const thumbFile = Bun.file(thumbnailPath);
         const exists = await thumbFile.exists();
@@ -46,8 +42,8 @@ export async function generateMissingThumbnails(): Promise<void> {
       // Generate thumbnail directly without re-saving main image
       try {
         const imagePath = join(uploadsDir, imageFile);
-        const imageFile_blob = Bun.file(imagePath);
-        const buffer = await imageFile_blob.arrayBuffer();
+        const imageFileBlob = Bun.file(imagePath);
+        const buffer = await imageFileBlob.arrayBuffer();
 
         // Generate and save thumbnail using centralized function
         const thumbnailBuffer = await generateThumbnail(buffer);

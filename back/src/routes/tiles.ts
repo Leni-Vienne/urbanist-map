@@ -5,17 +5,15 @@ import { eq } from "drizzle-orm";
 
 export const tilesApp = new Hono();
 
-// ---------------------------------------------------------------------------
-// In-memory LRU tile cache (low-zoom tiles only, z <= 6)
-// null = empty tile (204), Buffer = tile data
-// ---------------------------------------------------------------------------
+// In-memory LRU tile cache (low-zoom tiles only, z <= 6).
+// null = empty tile (204), Buffer = tile data.
 const TILE_CACHE_MAX = 6000;
 const LOW_ZOOM_MAX = 6;
 
 // Map insertion order = LRU order (oldest first)
 const tileCache = new Map<string, Buffer | null>();
 
-export function clearTileCache() {
+function clearTileCache() {
   tileCache.clear();
 }
 
@@ -158,7 +156,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
     // In Docker prod, import.meta.dir points to /app (bundle location), so use /app/routes
     // In dev, it points to the source directory where tiles.sql lives
     const sqlPath =
-      process.env.NODE_ENV === "production"
+      process.env.NODE_ENV !== "development"
         ? "/app/routes/tiles.sql"
         : `${import.meta.dir}/tiles.sql`;
     const [row] = await tilesSqlClient.file(sqlPath, [

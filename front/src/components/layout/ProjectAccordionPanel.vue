@@ -185,7 +185,6 @@ import type {
   PendingChangeRequest,
 } from "@/types/index";
 
-// Composables
 import {
   activeAccordionPanels,
   expandAccordionForOverlay,
@@ -211,7 +210,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useMapStore } from "@/stores/pinia/mapStore";
 
-// Props interface
 interface Props {
   projects: ProjectForModeration[];
   isLoading: boolean;
@@ -262,8 +260,6 @@ const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const { isScrollable } = useScrollFade();
 
-// Watch for new scroll requests (handled reactively)
-// This ensures requests are handled even if projects data matches and doesn't trigger the above watcher
 watch(
   () => pendingScrollRequest.value,
   async (newRequest) => {
@@ -275,7 +271,6 @@ watch(
 
 const isContributePanel = computed(() => props.panelClass === "my-contributions-panel");
 
-// Preserve input order (updatedAt desc from backend); pin the selected project at the top
 const flatOrderedProjects = computed(() => {
   if (!props.pinnedProjectId) return props.projects;
   const pinned = props.projects.find((p) => p.id === props.pinnedProjectId);
@@ -289,7 +284,6 @@ const pinnedProject = computed(() =>
     : null,
 );
 
-// Track if panel is active (visible) to prevent inactive panels from consuming scroll requests
 const isPanelActive = ref(false);
 
 onMounted(() => {
@@ -304,9 +298,6 @@ onDeactivated(() => {
   isPanelActive.value = false;
 });
 
-// Watch for panel becoming active while a scroll request is pending
-// This handles the race condition where requestScrollTo fires before the panel is active
-// (e.g., tab switch from Latest to CurrentLocation via KeepAlive or async component mount)
 watch(
   () => isPanelActive.value,
   async (active) => {
@@ -317,26 +308,16 @@ watch(
   },
 );
 
-// Handle scroll requests
 async function handleScrollRequest() {
-  // Only active panels should consume requests
-  if (!isPanelActive.value) {
-    return;
-  }
+  if (!isPanelActive.value) return;
 
-  // Peek at request without consuming it yet
   const request = pendingScrollRequest.value;
-  if (!request) {
-    return;
-  }
+  if (!request) return;
 
-  // Check if this panel can handle the request (contains the target)
-  // This prevents the panel from consuming requests for items it doesn't have
   let canHandle = false;
 
   if (request.type === "overlay") {
     const overlayId = String(request.id);
-    // Efficient nested check using props.projects
     canHandle = props.projects.some(
       (p) => p.overlays && p.overlays.some((o) => o.id === overlayId),
     );
@@ -345,20 +326,15 @@ async function handleScrollRequest() {
     canHandle = props.projects.some((p) => p.id === projectId);
   }
 
-  if (!canHandle) {
-    return;
-  }
+  if (!canHandle) return;
 
-  // Now consume the request since we confirmed we can handle it
   consumeScrollRequest();
-
   await nextTick();
 
   if (request.type === "overlay") {
     const overlayId = String(request.id);
     const wasExpanded = expandAccordionForOverlay(overlayId, props.projects);
     await nextTick();
-    // Pass wasAlreadyExpanded: true if wasExpanded === false (it was already open)
     await waitForAccordionAnimation(overlayId, !wasExpanded);
   } else if (request.type === "project") {
     const projectId = String(request.id);
@@ -400,15 +376,10 @@ async function waitForAccordionAnimation(
   await scrollToOverlayWhenReady(overlayElement, wasAlreadyExpanded);
 }
 
-/**
- * Wait for accordion panel transition to complete before scrolling
- * Uses ResizeObserver to dynamically track accordion height changes and scroll in real-time
- */
 async function scrollToOverlayWhenReady(
   element: Element,
   wasAlreadyExpanded: boolean = false,
 ): Promise<void> {
-  // Find the project accordion panel that wraps this element
   const projectPanel = element.closest("[data-project-id]");
 
   if (!projectPanel) {
@@ -420,10 +391,8 @@ async function scrollToOverlayWhenReady(
     return;
   }
 
-  // Store projectPanel in const to satisfy TypeScript null checking
   const panel = projectPanel;
 
-  // If accordion was already expanded, just use smooth scroll immediately
   if (wasAlreadyExpanded) {
     const viewportHeight = window.innerHeight;
     const projectRect = panel.getBoundingClientRect();
@@ -446,22 +415,18 @@ async function scrollToOverlayWhenReady(
     return;
   }
 
-  // Accordion is expanding, use ResizeObserver to track animation
   await new Promise<void>((resolve) => {
     let lastHeight = panel.clientHeight;
     let resizeCount = 0;
-    const maxResizes = 20; // Safety limit to prevent infinite observation
+    const maxResizes = 20;
     let timeoutId: NodeJS.Timeout | undefined = undefined;
     let fallbackTimeout: NodeJS.Timeout | undefined = undefined;
 
-    // Function to perform the appropriate scroll based on context
     function performScroll(isAnimating: boolean) {
       const viewportHeight = window.innerHeight;
       const projectRect = panel.getBoundingClientRect();
       const elementRect = element.getBoundingClientRect();
       const projectToElementDistance = elementRect.top - projectRect.top;
-
-      // Use smooth scroll when accordion is already open (not animating)
       const scrollBehavior = isAnimating ? "auto" : "smooth";
 
       if (projectToElementDistance < viewportHeight * 0.7) {
@@ -482,16 +447,10 @@ async function scrollToOverlayWhenReady(
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const newHeight = entry.contentRect.height;
-
-        // Only scroll if height actually changed (accordion is expanding)
         if (newHeight !== lastHeight) {
           lastHeight = newHeight;
           resizeCount += 1;
-
-          // Perform instant scroll during animation
           performScroll(true);
-
-          // Reset timeout each time we detect a resize
           clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
             clearTimeout(fallbackTimeout);
@@ -499,8 +458,6 @@ async function scrollToOverlayWhenReady(
             resolve();
           }, 100);
         }
-
-        // Safety check: disconnect after many resizes to prevent infinite loop
         if (resizeCount >= maxResizes) {
           clearTimeout(timeoutId);
           clearTimeout(fallbackTimeout);
@@ -510,17 +467,14 @@ async function scrollToOverlayWhenReady(
       }
     });
 
-    // Start observing the accordion panel for size changes
     observer.observe(panel);
 
-    // Fallback timeout in case ResizeObserver doesn't fire
     fallbackTimeout = setTimeout(() => {
       clearTimeout(timeoutId);
       observer.disconnect();
       resolve();
     }, 1000);
 
-    // If no resizes detected in 50ms, use smooth scroll
     timeoutId = setTimeout(() => {
       if (resizeCount === 0) {
         performScroll(false);
@@ -564,7 +518,6 @@ async function navigateToOverlayById(overlayId: string) {
   }
 }
 
-// Pre-compute project changes for O(1) lookup
 const projectChangesMap = computed(() => {
   const map = new Map<string, PendingChangeRequest[]>();
   for (const req of props.changeRequests) {
@@ -580,7 +533,6 @@ const projectChangesMap = computed(() => {
   return map;
 });
 
-// Pre-compute overlay changes for O(1) lookup
 const overlayChangesMap = computed(() => {
   const map = new Map<string, PendingChangeRequest[]>();
   for (const req of props.changeRequests) {
@@ -693,16 +645,13 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
 </script>
 
 <style scoped>
-/* Gap entre panels + inset depuis les bords */
 :deep(.city-accordion) {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* DO NOT EVER CHANGE THE GAP AND PADDING */
   padding: 0 0px 0px 12px;
 }
 
-/* Header pleine largeur (all:unset supprime width + box-sizing natifs du button) */
 :deep(.city-accordion .p-accordionheader) {
   width: 100%;
   box-sizing: border-box;
@@ -715,7 +664,6 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   border-radius: 12px 12px 0 0;
 }
 
-/* Le panel est la "card" blanche sur fond gris */
 :deep(.city-accordion .p-accordionpanel) {
   border: 1px solid var(--p-content-border-color) !important;
   min-width: 0;
@@ -724,25 +672,21 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   background: var(--accordion-card-bg) !important;
 }
 
-/* min-width:0 sur .p-accordioncontent (flex item dans le panel column) */
 :deep(.city-accordion .p-accordioncontent) {
   min-width: 0;
 }
 
-/* Vrai coupable : .p-accordioncontent-wrapper est le grid item de .p-accordioncontent */
-/* PrimeVue met min-height:0 mais pas min-width:0 → le grid item s'élargit à volonté */
+/* PrimeVue .p-accordioncontent-wrapper needs min-width:0 to prevent horizontal overflow */
 :deep(.city-accordion .p-accordioncontent-wrapper) {
   min-width: 0;
   overflow: hidden;
 }
 
-/* Gradient fade en bas */
 .scroll-area {
   mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
 }
 
-/* Contenu : fond transparent (hérité du panel) + padding contrôlé */
 :deep(.city-accordion .p-accordioncontent-content) {
   background: transparent !important;
   padding: 0.5rem 0.5rem 0.75rem;

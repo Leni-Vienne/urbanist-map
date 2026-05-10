@@ -1,6 +1,4 @@
-// Unified entity removal service
-// Centralizes logic for removing projects and overlays from stores, map, and caches
-// Extracted from composables to separate business logic from Vue context
+// Removes projects and overlays from stores, map layers, and caches
 
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -16,42 +14,31 @@ import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 
-// Options for deleteOverlayDirect, allowing callers to customize behavior
 interface DeleteOverlayOptions {
   showToast?: boolean;
   updateUserContributions?: boolean;
 }
 
-/**
- * Remove overlay from map layers and overlay store
- */
 export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayStore = useOverlayStore();
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) return;
 
-  // Remove Leaflet layer and marker from map via registry
   clearRegistryEntry(overlayId);
 
-  // Remove from store
   delete overlayStore.overlays[overlayId];
 
-  // Clear specific caches
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
   overlayStore.loadedEditOverlays.delete(overlayId);
 
-  // Reset selection if needed
   if (overlayStore.idSelectedOverlay === overlayId) {
     overlayStore.idSelectedOverlay = null;
   }
 
-  // Clear any pending modifications for this overlay (prevents stale entries in submission dialog)
+  // Prevents stale entries in the submission dialog
   usePendingModificationsStore().clearModification(overlayId);
 }
 
-/**
- * Remove project standalone marker from map
- */
 function removeProjectMarkerFromMap(projectId: string) {
   const marker = getStandaloneProjectMarkerByProjectId(projectId);
   if (marker && map.value.hasLayer(marker)) {
@@ -59,10 +46,6 @@ function removeProjectMarkerFromMap(projectId: string) {
   }
 }
 
-/**
- * Comprehensive overlay removal
- * Handles Store, Map, Cache, Project Association, and Standalone Marker restoration
- */
 function removeOverlay(
   overlayId: string,
   options: {
@@ -72,19 +55,15 @@ function removeOverlay(
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
-  // 1. Find parent project to update its overlay list
   const allProjectsData = projectStore.projects;
-  // Find project by overlayIds array (most reliable source)
   const projectWithOverlay = Object.values(allProjectsData).find((p) =>
     p.overlayIds.includes(overlayId),
   );
 
   if (projectWithOverlay) {
-    // Update project overlay list
     const updatedOverlayIds = projectWithOverlay.overlayIds.filter((id) => id !== overlayId);
     projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds });
 
-    // 2. Restore standalone marker if this was the last overlay
     const isLastOverlay = updatedOverlayIds.length === 0;
     if (isLastOverlay && projectWithOverlay.lat && projectWithOverlay.lng) {
       // Small delay ensures map is ready after removal animations
@@ -94,22 +73,15 @@ function removeOverlay(
     }
   }
 
-  // 3. Remove native map layers and store entries
   removeOverlayFromMapAndStore(overlayId);
 
-  // 4. Update interactions with other stores
   if (options.updateUserContributions) {
     projectStore.removeOverlayFromUserContributions(overlayId, authStore.user?.id);
   }
 
-  // Also remove standalone marker for this specific overlay ID (legacy/edge case support)
   removeProjectMarkerFromMap(overlayId);
 }
 
-/**
- * Comprehensive project removal
- * Removes project and all its associated overlays
- */
 export function removeProject(
   projectId: string,
   options: {
@@ -120,34 +92,29 @@ export function removeProject(
 
   const project = projectStore.projects[projectId];
 
-  // 1. Clean up standalone project marker
   const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays) {
     removeProjectMarkerFromMap(projectId);
   }
 
-  // 2. Remove all associated overlays
   if (project?.overlayIds) {
     for (const overlayId of project.overlayIds) {
       removeOverlayFromMapAndStore(overlayId);
     }
   }
 
-  // 3. Remove project from store
   if (projectStore.projects[projectId]) {
     delete projectStore.projects[projectId];
   }
 
-  // 4. Update auxiliary stores
   if (options.updateUserContributions) {
     projectStore.removeProjectFromUserContributions(projectId);
   }
 }
 
 /**
- * Non-composable overlay deletion function that can be called from anywhere
- * Safe to call from Leaflet toolbar handlers
- * Returns true if deletion was successful
+ * Safe to call from Leaflet toolbar handlers (outside Vue context).
+ * Returns true if deletion was successful.
  */
 export async function deleteOverlayDirect(
   overlayId: string,
@@ -159,14 +126,10 @@ export async function deleteOverlayDirect(
   const overlayObject = overlayStore.overlays[overlayId];
 
   try {
-    // Check if overlay exists in backend (has a status)
-    // Brand new overlays (status === null or undefined) only exist locally
-    // Using ?? to check for null/undefined - if status is null/undefined, existsInBackend = false
+    // Brand new overlays (status null/undefined) only exist locally
     const existsInBackend = (overlayObject?.status ?? null) !== null;
 
     if (existsInBackend) {
-      // Overlay exists in backend, call API to delete it
-      // If it throws, the outer catch handles it and returns false
       await trpc.overlay.deleteOverlay.mutate({ id: overlayId });
     }
 

@@ -85,7 +85,6 @@ const { projects } = storeToRefs(projectStore);
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
 const { projectEditForm } = storeToRefs(uiStore);
 
-// Try to find project from replacement overlay
 function findProjectFromReplacementOverlay(projectId: string): Project | null {
   if (!replacementOverlayId.value) return null;
 
@@ -102,7 +101,6 @@ function findProjectFromReplacementOverlay(projectId: string): Project | null {
   return null;
 }
 
-// Try to find project from city projects list
 function findProjectFromCityProjects(projectId: string): Project | null {
   const cityProject = Object.values(projects.value).find((p: Project) => p.id === projectId);
   return cityProject ?? null;
@@ -112,17 +110,14 @@ function addProjectToStore(projectId: string, project: Project): void {
   projects.value[projectId] = project;
 }
 
-// Process image after project selection
 async function onProjectSelected(projectId: string) {
   if (!projectId) {
     console.warn("No project ID available for overlay");
     return;
   }
 
-  // Check if project exists in local store, if not, try to get it from available sources
   if (!projects.value[projectId]) {
     try {
-      // Try multiple sources in order of preference
       const projectToAdd =
         findProjectFromReplacementOverlay(projectId) ?? findProjectFromCityProjects(projectId);
 
@@ -139,7 +134,6 @@ async function onProjectSelected(projectId: string) {
   await handleFileUpload(projectId, Boolean(replacementOverlayId.value));
 }
 
-// Handle file upload by user
 async function handleFileUpload(projectId: string, isReplacement = false) {
   if (!pendingImageFile.value) {
     console.warn("No image file to upload");
@@ -156,7 +150,6 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
   reader.addEventListener("load", async () => {
     try {
       if (isReplacement && replacementOverlayId.value) {
-        // Create replacement overlay using the standard overlay creation process
         const overlayId = addOverlay(
           reader.result as string,
           projectId,
@@ -172,7 +165,6 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
           });
         }
       } else {
-        // Regular overlay addition
         addOverlay(reader.result as string, projectId);
       }
     } catch (error) {
@@ -184,41 +176,33 @@ async function handleFileUpload(projectId: string, isReplacement = false) {
         life: 3000,
       });
     } finally {
-      // Reset state
       overlayStore.resetReplacement();
     }
   });
   reader.readAsDataURL(pendingImageFile.value);
 }
 
-// Handle marker coordinates selection from dialog
 function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
   if (tempMarker.value) {
     tempMarker.value.remove();
     tempMarker.value = null;
   }
 
-  // Open project dialog with coordinates - user must fill form before marker is created
-  // All projects now have center coordinates (no isStandalone field)
   uiStore.openProjectDialog({
     lat: coordinates.lat,
     lng: coordinates.lng,
   });
 }
 
-// Handle marker mode enabled - setup map click listener
 function onMarkerModeEnabled() {
-  // Add temporary click listener for marker placement
   function handleMapClick(e: L.LeafletMouseEvent) {
     const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
 
-    // Remove previous temp marker if exists
     if (tempMarker.value) {
       tempMarker.value.remove();
       tempMarker.value = null;
     }
 
-    // Create temporary marker using StandaloneProjectMarkerSVG in orange for visual feedback
     const markerIcon = createStandaloneProjectIcon("orange");
     const mapValue = map.value;
     if (!mapValue) return;
@@ -228,28 +212,22 @@ function onMarkerModeEnabled() {
       draggable: false,
     }).addTo(mapValue);
 
-    // Pass coordinates back to marker placement bar
     if (markerPlacementBar.value) {
       markerPlacementBar.value.setMarkerCoordinates(coordinates);
     }
   }
 
   map.value.on("click", handleMapClick);
-
-  // Store handler reference for cleanup
   (map.value as any)._tempMarkerClickHandler = handleMapClick;
 }
 
-// Handle dialog visibility changes to clean up temporary marker and listener on close
 function onDialogVisibilityChange(visible: boolean) {
   if (!visible) {
-    // Remove temporary marker
     if (tempMarker.value) {
       tempMarker.value.remove();
       tempMarker.value = null;
     }
 
-    // Remove click listener
     if ((map.value as any)._tempMarkerClickHandler) {
       map.value.off("click", (map.value as any)._tempMarkerClickHandler);
       (map.value as any)._tempMarkerClickHandler = null;
@@ -257,7 +235,6 @@ function onDialogVisibilityChange(visible: boolean) {
   }
 }
 
-// Display project marker on map and open its info popup
 async function displayProjectMarkerAndPopup(
   projectId: string,
   city: {
@@ -268,7 +245,6 @@ async function displayProjectMarkerAndPopup(
     coordinates: { x: number; y: number };
   },
 ) {
-  // Ensure country context is set so viewport rendering works
   const countryCode = city.countryCode;
   if (countryCode && mapStore.selectedCountryCode !== countryCode) {
     if (mapStore.selectedCountryCode) {
@@ -280,7 +256,6 @@ async function displayProjectMarkerAndPopup(
   let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
 
   if (!actualMarker) {
-    // Fallback: If marker wasn't created by viewport refresh (e.g. no camera move), create it manually
     const project = projectStore.projects[projectId];
     if (project) {
       addStandaloneProjectMarkerForProject(project);
@@ -295,11 +270,9 @@ async function displayProjectMarkerAndPopup(
     }
     uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
 
-    // Zoom to the marker position to show the newly created project
     const project = projectStore.projects[projectId];
     if (project?.lat && project?.lng) {
       const currentZoom = map.value.getZoom();
-      // Zoom to 16 if current zoom is less, otherwise keep current zoom
       const targetZoom = Math.max(currentZoom, 16);
       map.value.setView([project.lat, project.lng], targetZoom, {
         animate: true,
@@ -309,7 +282,6 @@ async function displayProjectMarkerAndPopup(
   }
 }
 
-// Handle new project creation
 async function handleNewProjectCreation(project: Partial<Project>): Promise<string> {
   const projectId = createProject({
     ...project,
@@ -321,7 +293,6 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
     if (project.city) {
       await displayProjectMarkerAndPopup(projectId, project.city);
     } else {
-      // City object not available from form — create marker directly
       const storedProject = projectStore.projects[projectId];
       if (storedProject) {
         addStandaloneProjectMarkerForProject(storedProject);
@@ -343,7 +314,6 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   return projectId;
 }
 
-// Handle existing project update
 function handleProjectUpdate(project: Partial<Project>): string {
   const projectId = project.id;
   if (!projectId) {
@@ -374,7 +344,6 @@ function handleProjectUpdate(project: Partial<Project>): string {
   return projectId;
 }
 
-// Handle project creation/update from dialog
 async function handleProjectSubmitted(project: Partial<Project>) {
   if (!project) return;
 
@@ -403,7 +372,6 @@ async function handleProjectSubmitted(project: Partial<Project>) {
 </script>
 
 <style scoped>
-/* Temporary marker styles */
 :global(.temp-marker-icon) {
   background: transparent !important;
   border: none !important;
@@ -412,7 +380,6 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   justify-content: center !important;
 }
 
-/* Standalone project styles */
 :global(.marker-project-icon) {
   background: transparent !important;
   border: none !important;

@@ -23,6 +23,7 @@
 
 <script setup lang="ts">
 import { AccordionHeader, Tag, Badge } from "primevue";
+import { getStatusSeverity } from "@/utils/statusHelpers";
 
 interface Props {
   name: string | null;
@@ -32,6 +33,4 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-import { getStatusSeverity } from "@/utils/statusHelpers";
 </script>

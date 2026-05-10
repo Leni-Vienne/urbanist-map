@@ -18,6 +18,7 @@ import {
 } from "../db/contributionHelpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { projectSchema } from "@shared/validation/schemas";
+import { notifyNewSubmission } from "../services/discordNotifier";
 
 function normalizePrecisionForStorage(
   date: Date | null | undefined,
@@ -52,13 +53,10 @@ export const projectRouter = router({
         }
       }
 
-      // Check contribution limits
       if (!input.id) {
-        // Only check total limit for NEW projects (updates don't increase count)
         await checkTotalContributionLimit(ctx.user.id);
       }
 
-      // Check pending contribution limit for new projects
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
       // Build data object with proper null handling for dates and precision
@@ -81,7 +79,7 @@ export const projectRouter = router({
         geometry: input.geometry
           ? sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326)`
           : null,
-        // Bbox diagonal in meters — used to exclude large-geometry projects from the cluster GeoJSON source
+        // Bbox diagonal in meters, used to exclude large-geometry projects from the cluster GeoJSON source
         geometrySizeM: input.geometry
           ? sql`ST_Length(ST_BoundingDiagonal(ST_Envelope(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)})))::geography)`
           : null,
@@ -175,6 +173,17 @@ export const projectRouter = router({
           message: "Failed to publish project",
         });
       }
+
+      void notifyNewSubmission({
+        kind: "project",
+        author: { email: ctx.user.email, username: ctx.user.username },
+        projectId: resultRow.id,
+        projectName: resultRow.name,
+        countryCode: resultRow.countryCode ?? null,
+        lat: resultRow.lat,
+        lng: resultRow.lng,
+      });
+
       return {
         id: resultRow.id,
         exists: false,
@@ -245,15 +254,13 @@ export const projectRouter = router({
             .from(overlays)
             .where(eq(overlays.projectId, input.id));
 
-          // Delete all overlays from database first (foreign key constraint)
+          // Overlays first to satisfy the foreign key constraint
           if (overlaysToDelete.length > 0) {
             await tx.delete(overlays).where(eq(overlays.projectId, input.id));
           }
 
-          // Delete project from database
           await tx.delete(projects).where(eq(projects.id, input.id));
 
-          // Return overlays to delete images after transaction commits
           return overlaysToDelete;
         });
 
@@ -318,7 +325,6 @@ export const projectRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
-        // NEW: If includeCityProjects + cityId provided, return ALL city projects in UserContribution format
         if (input.includeCityProjects && input.cityId) {
           // Query ALL projects in the city (approved OR user's pending)
           const cityProjects = await buildProjectWithLocationQuery(db)
@@ -365,7 +371,6 @@ export const projectRouter = router({
           };
         }
 
-        // EXISTING: Return user's own contributions
         const sortColumn = input.sortBy === "createdAt" ? projects.createdAt : projects.updatedAt;
 
         // Build pagination conditions using shared helper

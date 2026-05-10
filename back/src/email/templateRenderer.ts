@@ -12,13 +12,6 @@ const translations: Record<Locale, Translations> = {
   fr: frTranslations,
 };
 
-/**
- * Simple template renderer that replaces {{placeholder}} with values
- * SECURITY: Ensures values are HTML-escaped to prevent injection attacks
- * @param template HTML template string with {{placeholder}} markers
- * @param data Key-value pairs to replace in the template
- * @returns Rendered HTML string
- */
 function escapeHtml(unsafe: string) {
   return unsafe
     .replaceAll(/&/g, "&amp;")
@@ -28,13 +21,7 @@ function escapeHtml(unsafe: string) {
     .replaceAll(/'/g, "&#039;");
 }
 
-/**
- * Simple template renderer that replaces {{placeholder}} with values
- * SECURITY: Ensures values are HTML-escaped to prevent injection attacks
- * @param template HTML template string with {{placeholder}} markers
- * @param data Key-value pairs to replace in the template
- * @returns Rendered HTML string
- */
+// Replaces {{placeholder}} markers with HTML-escaped values
 function renderTemplate(template: string, data: Record<string, string>): string {
   return template.replaceAll(/\{\{(\w+)\}\}/g, (_, key) => {
     const value = data[key] ?? "";
@@ -42,35 +29,25 @@ function renderTemplate(template: string, data: Record<string, string>): string 
   });
 }
 
-/**
- * Load and render an email template with translations
- * @param templateName Name of the template (e.g., 'verification', 'passwordReset')
- * @param variables Dynamic variables to inject (e.g., { verificationUrl: '...' })
- * @param locale User's preferred language (defaults to 'en')
- * @returns Object with subject and rendered HTML
- */
 export async function renderEmailTemplate(
   templateName: TemplateName,
   variables: Record<string, string>,
-  locale: Locale = "en",
 ): Promise<{ subject: string; html: string }> {
   try {
-    // Get translations for the specified locale
-    const translation = translations[locale]?.[templateName];
-    if (!translation) {
-      throw new Error(`Translation not found for template: ${templateName}, locale: ${locale}`);
-    }
+    // Locale is hardcoded to "en" until callers can plumb a user-preferred locale through.
+    // The `fr` translations exist for that future wiring.
+    const translation = translations.en[templateName];
 
     // Convert camelCase template name to kebab-case for file lookup
     const kebabCaseName = templateName.replaceAll(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 
-    // Load HTML template file
-    // In production (Docker), templates are mounted at /app/email
-    // In development, use relative path from this file
+    // Build-time switch (not runtime): CI builds the bundle with NODE_ENV=production, so Bun
+    // inlines this and DCE keeps only the /app/email/templates branch in the deployed bundle.
+    // Source-mode runs (bun --hot) keep the import.meta.dirname branch, which resolves at runtime.
     const templatePath =
       process.env.NODE_ENV === "production"
         ? join("/app/email/templates", `${kebabCaseName}-email.html`)
-        : join(__dirname, "templates", `${kebabCaseName}-email.html`);
+        : join(import.meta.dirname, "templates", `${kebabCaseName}-email.html`);
 
     const templateFile = Bun.file(templatePath);
 
@@ -80,13 +57,11 @@ export async function renderEmailTemplate(
 
     const template = await templateFile.text();
 
-    // Merge translations with dynamic variables
     const data = {
       ...translation,
       ...variables,
     };
 
-    // Render the template
     const html = renderTemplate(template, data);
 
     return {

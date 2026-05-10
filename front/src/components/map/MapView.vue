@@ -20,7 +20,7 @@
         </div>
       </div>
 
-      <!-- Top controls container (Search + User Menu) -->
+      <!-- Top controls: Search + User Menu -->
       <div
         class="absolute top-4 left-4 right-4 flex justify-between items-start gap-4 z-1000 pointer-events-none"
       >
@@ -30,7 +30,6 @@
         <UserMenu class="shrink-0" />
       </div>
 
-      <!-- Filter control -->
       <div
         class="absolute top-18 left-4 z-1000 flex flex-col gap-3 transition-opacity duration-300"
       >
@@ -45,10 +44,7 @@
         <ModeControls />
       </div>
 
-      <!-- Satellite Preview Button -->
       <SatellitePreview />
-
-      <!-- Floating toolbar for selected overlays (replaces leaflet-toolbar popup) -->
       <OverlayFloatingToolbar v-if="overlayStore.idSelectedOverlay" />
     </div>
   </div>
@@ -66,14 +62,13 @@ import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-// Load countries for breadcrumbs (no marker rendering)
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import ModeControls from "@/components/map/ModeControls.vue";
-import SatellitePreview from "@/components/map/SatellitePreview.vue"; // no extra bundle "cost"
+import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
 const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),
@@ -83,7 +78,6 @@ const FilterControl = defineAsyncComponent(() => mapUIBundle.then((m) => m.Filte
 const UserMenu = defineAsyncComponent(() => mapUIBundle.then((m) => m.UserMenu));
 const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySearch));
 
-// Get stores
 const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
@@ -91,10 +85,8 @@ const toast = useToast();
 const { t } = useI18n();
 const isLoading = ref(true);
 
-// NEW: Viewport manager - single rendering path
 const viewportManager = useViewportTriggers();
 
-// Reset map state on logout (mode, selection, standalone markers)
 watch(
   () => authStore.user,
   (newUser) => {
@@ -105,7 +97,6 @@ watch(
   },
 );
 
-// Filter overlays - force viewport re-render with new filter state
 async function filterOverlaysByCompletionStatus() {
   await viewportManager.refreshViewport(true);
 }
@@ -116,31 +107,25 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  // Clean up viewport manager
   viewportManager.cleanupEventListeners();
 });
 
-// Initialize map and overlays
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
-    initializeCameraBounds(); // Initialize camera bounds tracking
+    initializeCameraBounds();
 
-    // Setup viewport manager
     viewportManager.setupEventListeners();
 
-    // Ensure map dimensions are calculated before checking bounds
     await nextTick();
     if (map.value !== null) {
-      // Pass false to disable animation during the initial size/bounds correction.
-      // This prevents a bounds correction from triggering a slow pan, which causes
-      // MapLibre to fetch tiles twice (once for the original center, once for the corrected).
+      // Disable animation during initial size/bounds correction to avoid a slow pan that
+      // causes MapLibre to fetch tiles twice (once per view change).
       map.value.invalidateSize(false);
 
-      // Initialize tile layers after map is created and dimensions are correct
-      // This prevents maplibre from double-fetching tiles due to resize immediately after load
+      // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
       addTileLayer();
-      initVectorTileSync(); // Start idle-driven overlay sync for view mode
+      initVectorTileSync();
 
       // Small delay to ensure Leaflet updates bounds after invalidateSize
       setTimeout(() => {
@@ -151,7 +136,7 @@ async function initializeMapAndOverlays() {
     }
 
     viewportManager.setupModeWatcher();
-    setupMapClickToDeselect(); // Setup click handler to deselect overlays when clicking map background
+    setupMapClickToDeselect();
     disableLeafletKeyboardEvents();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);

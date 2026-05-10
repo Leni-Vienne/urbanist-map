@@ -58,25 +58,20 @@ const emit = defineEmits<{
 
 const projectFormRef = ref<InstanceType<typeof CreateProjectForm> | null>(null);
 
-// Handle dialog visibility changes
 function handleVisibilityChange(newVisible: boolean) {
   emit("update:visible", newVisible);
 }
 
-// Handle form submission from ProjectForm
 function handleSubmit(project: Partial<Project>) {
   emit("submit", project);
 }
 
-// Handle cancel from ProjectForm or dialog
 function handleCancel() {
   emit("cancel");
   emit("update:visible", false);
 }
 
-// Handle submit button click in footer (trigger form validation)
 function handleFormSubmit() {
-  // Call the exposed handleSubmit method from ProjectForm
   if (projectFormRef.value) {
     projectFormRef.value.handleSubmit();
   }

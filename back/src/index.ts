@@ -12,14 +12,14 @@ import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config as appConfig } from "./config";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { generateMissingThumbnails } from "./lib/startup";
-import { DrizzleSessionStore } from "./lib/drizzleSessionStore";
+import { sessionStore, startSessionCleanup } from "./lib/drizzleSessionStore";
 import { requestLogger } from "./middleware/requestLogger";
-import { errorAlerter } from "./services/errorAlerter";
-import { globalRateLimiter } from "./lib/rateLimit";
+import { startErrorAlerter } from "./services/errorAlerter";
+import * as rateLimit from "./lib/rateLimit";
 import { getClientIp } from "./utils/ip";
 import { logger } from "./services/logger";
 import { db } from "./database";
-import { users, config, overlays, projects, cities } from "./db/schema";
+import { users, config, overlays, projects } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifyGoogleToken } from "./utils/googleAuth";
 import { startCleanupJob } from "./services/cleanupService";
@@ -57,7 +57,7 @@ app.use(
     origin: (origin) => {
       if (!origin) return null;
 
-      if (process.env.NODE_ENV !== "production") {
+      if (process.env.NODE_ENV === "development") {
         return origin; // Allow all origins in development
       }
 
@@ -110,21 +110,19 @@ app.route("/api/tiles", tilesApp);
 const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
 const SESSION_DURATION_LONG = 30 * 24 * 60 * 60; // 30 days for "Remember Me"
 
-const store = new DrizzleSessionStore();
-
 app.use(
   "*",
   sessionMiddleware({
-    // @ts-ignore hono doesn't like DrizzleSessionStore's type for some reason
-    store,
+    // @ts-ignore hono doesn't like the session store's type for some reason
+    store: sessionStore,
     sessionCookieName: "session",
     encryptionKey: process.env.COOKIE_SECRET ?? "fallback-secret-key-for-dev-at-least-32-chars",
     expireAfterSeconds: SESSION_DURATION_LONG, // Max duration, actual duration set per login
     cookieOptions: {
       httpOnly: true,
       // secure must be true when sameSite is 'None' for cross-site cookies
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: process.env.NODE_ENV !== "development",
+      sameSite: process.env.NODE_ENV !== "development" ? "None" : "Lax",
       // No domain restriction to allow the cookie to work with the backend domain
       path: "/",
     },
@@ -158,7 +156,7 @@ app.post("/api/login", async (c) => {
   try {
     // Rate limit: 10 attempts per IP per minute
     const ip = getClientIp(c);
-    if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
+    if (!rateLimit.check(ip, 10, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" }, 429);
     }
 
@@ -200,14 +198,11 @@ app.post("/api/login", async (c) => {
       return c.json({ error: "auth.error.invalidCredentials" }, 401);
     }
 
-    // Check if email is verified
     if (!user.emailVerified) {
-      // Still wait for min time before returning
       await enforceMinExecutionTime(startTime);
       return c.json({ error: "auth.error.emailNotVerified" }, 403);
     }
 
-    // Set session with full user data
     setUserSession(c, user, rememberMe);
 
     // Constant time mitigation: Ensure request takes at least MIN_EXEC_TIME ms
@@ -381,11 +376,9 @@ async function findOrCreateGoogleUser(googleUser: {
     return linkGoogleToPasswordAccount(emailUser, googleUser.googleId);
   }
 
-  // Create new Google OAuth user
   return createGoogleUser(googleUser);
 }
 
-// Helper function to set user session
 function setUserSession(c: Context, user: any, rememberMe: boolean) {
   const session = c.get("session");
 
@@ -409,7 +402,7 @@ app.post("/api/google-login", async (c) => {
   try {
     // Rate limit: 20 attempts per IP per minute (slightly higher for OAuth)
     const ip = getClientIp(c);
-    if (!globalRateLimiter.check(ip, 20, 60 * 1000)) {
+    if (!rateLimit.check(ip, 20, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" }, 429);
     }
 
@@ -423,10 +416,8 @@ app.post("/api/google-login", async (c) => {
       return c.json({ error: "auth.error.invalidGoogleToken" }, 401);
     }
 
-    // Find existing user or create new one
     const user = await findOrCreateGoogleUser(googleUser);
 
-    // Set session
     setUserSession(c, user, rememberMe);
 
     return c.json({
@@ -504,7 +495,7 @@ app.post("/api/upload-image", async (c) => {
   try {
     // Rate limit: 10 uploads per IP per minute
     const ip = getClientIp(c);
-    if (!globalRateLimiter.check(ip, 10, 60 * 1000)) {
+    if (!rateLimit.check(ip, 10, 60 * 1000)) {
       return c.json({ error: "auth.error.tooManyRequests" } as FileUploadError, 429);
     }
 
@@ -597,9 +588,9 @@ app.post("/api/upload-image", async (c) => {
 
     return c.json({
       success: true,
-      filename: filename,
+      filename,
       url: imageUrl,
-      thumbnailUrl: thumbnailUrl,
+      thumbnailUrl,
     } as FileUploadResult);
   } catch (error) {
     console.error("Error uploading file:", error);
@@ -633,11 +624,10 @@ app.get("/uploads/*", async (c) => {
       .select({
         authorId: overlays.authorId,
         status: overlays.status,
-        countryCode: cities.countryCode,
+        countryCode: projects.countryCode,
       })
       .from(overlays)
       .innerJoin(projects, eq(overlays.projectId, projects.id))
-      .leftJoin(cities, eq(projects.cityId, cities.id))
       .where(eq(overlays.filename, actualFilename))
       .limit(1);
 
@@ -680,24 +670,36 @@ app.get("/uploads/*", async (c) => {
     const file = await storage.get(validatedFilename);
 
     if (file) {
-      // Get origin from request for CORS (must match exact origin to allow credentials)
       const origin = c.req.header("Origin");
-      const allowedOrigin = origin ?? "*"; // Fallback to * if no origin header
+      const isAllowedOrigin =
+        origin &&
+        allowedDomains.some(
+          (domain) => origin === `https://${domain}` || origin.endsWith(`.${domain}`),
+        );
 
-      return new Response(file.body, {
-        headers: {
-          "Content-Type": file.contentType ?? "application/octet-stream",
-          "Cache-Control": "public, max-age=31536000, must-revalidate",
-          ETag: `"${filename}-${Date.now()}"`,
-          // CRITICAL: Must use specific origin (not *) to allow credentials (session cookies)
-          "Access-Control-Allow-Origin": allowedOrigin,
-          "Access-Control-Allow-Credentials": "true",
-          "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-          // Allow cross-origin resource loading (overrides secureHeaders middleware)
-          "Cross-Origin-Resource-Policy": "cross-origin",
-        },
-      });
+      const corsHeaders: Record<string, string> = {
+        "Content-Type": file.contentType ?? "application/octet-stream",
+        "Cache-Control": "public, max-age=31536000, must-revalidate",
+        ETag: `"${filename}-${Date.now()}"`,
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+      };
+
+      if (process.env.NODE_ENV !== "development" && isAllowedOrigin) {
+        corsHeaders["Access-Control-Allow-Origin"] = origin;
+        corsHeaders["Access-Control-Allow-Credentials"] = "true";
+      } else if (process.env.NODE_ENV !== "development") {
+        corsHeaders["Access-Control-Allow-Origin"] = allowedDomains[0]
+          ? `https://${allowedDomains[0]}`
+          : "";
+      } else {
+        // Development: allow any origin
+        corsHeaders["Access-Control-Allow-Origin"] = origin ?? "*";
+        corsHeaders["Access-Control-Allow-Credentials"] = "true";
+      }
+
+      return new Response(file.body, { headers: corsHeaders });
     }
 
     return c.json({ error: "File not found" }, 404);
@@ -759,19 +761,19 @@ const imageFileSchema = z.object({
 
 // Generate missing thumbnails on startup
 // This runs asynchronously and doesn't block server startup
-generateMissingThumbnails().catch((error) => {
+generateMissingThumbnails().catch((error: unknown) => {
   console.error("Failed to generate missing thumbnails:", error);
 });
 
 // Start error alerting service
-errorAlerter.start();
+startErrorAlerter();
 startCleanupJob();
 startR2MigrationService();
+startSessionCleanup();
 
 export type { AppRouter } from "./routes";
 
 export default {
   port: appConfig.PORT,
-  // Hostname: '0.0.0.0', //useful for testing on another device in dev, but breaks healthcheck in prod
   fetch: app.fetch,
 };

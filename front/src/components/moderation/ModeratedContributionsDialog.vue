@@ -42,7 +42,8 @@
           <!-- Standalone project icon -->
           <i
             v-else-if="item.type === 'standalone'"
-            class="pi pi-building text-3xl text-primary-color"
+            class="pi pi-building text-primary-color"
+            style="font-size: 2.5rem"
           ></i>
         </div>
 
@@ -68,11 +69,11 @@
 
           <!-- Show location for all items -->
           <p
-            v-if="item.cityName"
+            v-if="getLocationDisplay(item)"
             class="flex items-center gap-1 text-xs text-(--p-text-color-secondary) m-0"
           >
-            <i class="pi pi-map-marker text-muted-color" style="font-size: 0.625rem"></i>
-            {{ item.cityName }}{{ item.countryCode ? `, ${item.countryCode}` : "" }}
+            <i class="pi pi-map-marker text-muted-color"></i>
+            {{ getLocationDisplay(item) }}
           </p>
 
           <!-- Display rejection reason if item was rejected -->
@@ -143,12 +144,11 @@ const { moderatedContributions, isLoading, fetchModeratedContributions, acknowle
 const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);
 
-// Fetch on mount — dialog is always mounted with visible=true due to v-if in parent
+// Fetch on mount, dialog is always mounted with visible=true due to v-if in parent
 onMounted(() => {
   fetchModeratedContributions();
 });
 
-// Sync visibility with prop (re-fetch if dialog is shown again without unmounting)
 watch(
   () => props.visible,
   (newVal) => {
@@ -159,7 +159,6 @@ watch(
   },
 );
 
-// Update parent when visibility changes
 watch(isVisible, (newVal) => {
   emit("update:visible", newVal);
   if (!newVal) {
@@ -167,7 +166,18 @@ watch(isVisible, (newVal) => {
   }
 });
 
-// Handle acknowledge all button
+function getLocationDisplay(item: {
+  cityName: string | null;
+  countryName: string | null;
+  countryCode: string | null;
+}): string {
+  const country =
+    item.countryName && item.countryCode
+      ? `${item.countryName} (${item.countryCode})`
+      : (item.countryName ?? item.countryCode);
+  return [item.cityName, country].filter(Boolean).join(", ");
+}
+
 async function handleAcknowledgeAll() {
   isAcknowledging.value = true;
   try {

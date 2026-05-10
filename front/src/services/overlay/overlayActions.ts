@@ -13,7 +13,7 @@ import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 
-// Helper function to zoom to overlay bounds with proper error handling
+// Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   // Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
   const overlayBounds = getOverlayBounds(overlay);
@@ -26,7 +26,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
     return true;
   }
 
-  // Fallback to marker position if bounds unavailable
+  // Fall back to marker position if bounds unavailable
   const marker = getMarker(overlay.id);
   if (marker) {
     mobileAwareFlyTo(marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
@@ -37,9 +37,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 }
 
 /**
- * Navigates between overlays in the current project based on direction
- * @param direction - Either 'next' or 'previous' to determine navigation direction
- * @returns boolean indicating whether navigation was successful
+ * Navigates between overlays in the current project based on direction.
  */
 
 function navigateOverlaySequence(direction: "next" | "previous") {
@@ -62,7 +60,7 @@ function navigateOverlaySequence(direction: "next" | "previous") {
   let projectOverlayIds: string[] = [];
 
   // If project is not in memory, or overlayIds not yet populated (only set on popup open),
-  // derive siblings from already-loaded overlays instead.
+  // derive siblings from already-loaded overlays.
   if (!project?.overlayIds.length) {
     projectOverlayIds = Object.values(overlayStore.overlays)
       .filter((overlay) => overlay.projectId === currentOverlay.projectId)
@@ -121,11 +119,8 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
 }
 
 /**
- * Loads an overlay by ID, fetching from backend if needed
- * This function only handles loading/rendering, not navigation
- * @param overlayId - The ID of the overlay to load
- * @param includeIntersecting - Whether to fetch intersecting overlays (defaults to true for backward compatibility)
- * @returns true if overlay was loaded successfully
+ * Loads an overlay by ID, fetching from backend if needed.
+ * Returns loading result if successful, null on error.
  */
 type LoadOverlayResult = {
   alreadyInStore: boolean;
@@ -138,15 +133,12 @@ async function loadOverlay(
 ): Promise<LoadOverlayResult | null> {
   const overlayStore = useOverlayStore();
 
-  // Check if overlay is already loaded locally
   if (overlayStore.overlays[overlayId]) {
     return { alreadyInStore: true };
   }
 
-  // Overlay not found locally - fetch from backend
   return withErrorHandling(
     async () => {
-      // Fetch overlay, optionally with intersecting overlays
       const result = await trpc.overlay.getOverlay.query({
         id: overlayId,
         includeIntersecting,
@@ -156,19 +148,16 @@ async function loadOverlay(
         throw new Error("Overlay not found");
       }
 
-      // Dynamic import - overlayRendering (leaflet-distortableimage) is only needed here
       const { renderViewModeOverlays } = await import("@/services/overlay/overlayRendering");
 
-      // Render the main overlay
-      renderViewModeOverlays([result.overlay], true, false);
+      renderViewModeOverlays([result.overlay], true);
 
-      // Render intersecting overlays if they exist
       if (includeIntersecting && result.intersectingOverlays.length > 0) {
-        renderViewModeOverlays(result.intersectingOverlays, true, false);
+        renderViewModeOverlays(result.intersectingOverlays, true);
       }
 
-      // NOTE: We don't check overlayStore.overlays[overlayId] here because overlay registration
-      // is async (happens after image loads) and may not complete if zoom level is too low.
+      // Don't check overlayStore.overlays[overlayId] here: overlay registration is async
+      // (happens after image loads) and may not complete if zoom level is too low.
       // Return corners so the caller can fly to the overlay immediately.
       return { alreadyInStore: false, corners: result.overlay.corners };
     },
@@ -177,30 +166,22 @@ async function loadOverlay(
 }
 
 /**
- * Navigates to a specific overlay by ID (loads + selects + centers)
- * @param overlayId - The ID of the overlay to navigate to
- * @param centerMap - Whether to center the map on the overlay
- * @param includeIntersecting - Whether to fetch intersecting overlays if overlay needs to be loaded
- * @returns boolean indicating whether navigation was successful
+ * Navigates to a specific overlay by ID (loads + selects + centers).
  */
 export async function navigateToOverlay(
   overlayId: string,
-  centerMap: boolean,
   includeIntersecting: boolean,
 ): Promise<boolean> {
-  // Load the overlay first (fetches from backend if needed)
   const loadResult = await loadOverlay(overlayId, includeIntersecting);
 
-  // If the overlay was already in the store, use the standard path
   if (loadResult?.alreadyInStore) {
-    return selectAndCenterOverlay(overlayId, centerMap);
+    return selectAndCenterOverlay(overlayId);
   }
 
-  // Overlay was just fetched but registration is async (happens after image loads).
-  // Select the overlay in the store if it registered in time, otherwise fall back to
-  // flying directly to the corners returned from the backend.
-  const navigated = selectAndCenterOverlay(overlayId, centerMap);
-  if (!navigated && centerMap && loadResult?.corners && loadResult.corners.length >= 4) {
+  // Overlay was just fetched -- registration is async (happens after image loads).
+  // Select now if it registered in time, otherwise fly directly to the backend corners.
+  const navigated = selectAndCenterOverlay(overlayId);
+  if (!navigated && loadResult?.corners && loadResult.corners.length >= 4) {
     const bounds = L.latLngBounds(loadResult.corners.map((c) => L.latLng(c.lat, c.lng)));
     mobileAwareFlyToBounds(bounds, {
       padding: [50, 50] as [number, number],
@@ -211,7 +192,7 @@ export async function navigateToOverlay(
   return true;
 }
 
-function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
+function selectAndCenterOverlay(overlayId: string) {
   const overlayStore = useOverlayStore();
 
   const overlay = overlayStore.overlays[overlayId];
@@ -220,13 +201,8 @@ function selectAndCenterOverlay(overlayId: string, centerMap: boolean = true) {
     return false;
   }
 
-  // selectOverlay handles overlay.select() internally
   selectOverlay(overlayId);
-
-  // Center map on overlay if requested
-  if (centerMap) {
-    zoomToOverlayBounds(overlay);
-  }
+  zoomToOverlayBounds(overlay);
 
   return true;
 }
@@ -245,7 +221,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 
   overlayObject.caption = newCaption;
 
-  // Mark as modified and sync pendingModsStore so submission payload is accurate
   if (captionChanged) {
     overlayObject.isModified = true;
     pendingModsStore.saveCaptionChange(
@@ -257,11 +232,9 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
     );
   }
 
-  // Save only the specific overlay being updated, not all overlays
   updateMarkerTooltip(overlayObject);
 }
 
-// Register navigation callback directly into overlayCallbacks — no dynamic import needed.
-// overlayCallbacks lives in overlayLifecycle (same app-utils chunk).
+// Register navigation callback into overlayCallbacks.
 // overlayEditing reads overlayCallbacks.focusCameraToOverlay at call time without overriding it.
 overlayCallbacks.focusCameraToOverlay = navigateOverlaySequence;

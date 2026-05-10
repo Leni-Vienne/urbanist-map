@@ -1,20 +1,14 @@
 /**
  * Script to find unused members exported from Pinia setup stores and composables.
  *
- * Both stores (via defineStore) and composables (via `return { ... }`) expose
- * members that are invisible to static analysis tools like knip. This script
- * replicates what knip would do by:
- *   1. Parsing the `return { ... }` block of each store/composable to get exported members
- *   2. Searching the entire frontend source for usages of each member name
- *   3. Reporting members with zero usages outside their own file
+ * Parses the `return { ... }` block of each file to extract exported member names,
+ * then searches the entire frontend source for usages outside the source file.
  *
  * Usage:
- *   bun run scripts/find-unused-store-members.ts
+ *   bun run scripts/find-unused-members.ts
  *
- * ⚠️  False positives: very short or generic names (e.g. `mode`, `overlays`)
- *     may shadow usages from unrelated code. Always verify before deleting.
- * ⚠️  Composables with nested `return { }` blocks (e.g. factory helpers inside
- *     the composable) will only have the last `return { }` analysed.
+ * Note: short or generic names (e.g. `mode`, `overlays`) may produce false positives.
+ * Composables with nested `return { }` blocks will only have the last one analysed.
  */
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -43,8 +37,8 @@ function getFilesRecursively(dir: string): string[] {
   return files;
 }
 
-// Extract the shorthand property names from the last `return { }` block in a store/composable file.
-// Only matches shorthand properties (bare identifiers), not `key: value` pairs.
+// Extract shorthand property names from the last `return { }` block in the file.
+// Only matches bare identifiers, not `key: value` pairs.
 function extractReturnKeys(content: string): string[] {
   const returnIdx = content.lastIndexOf("return {");
   if (returnIdx === -1) return [];
@@ -84,8 +78,7 @@ function extractReturnKeys(content: string): string[] {
   return keys;
 }
 
-// Count how many files (excluding the source file itself) contain a word-boundary
-// match for the given identifier.
+// Count files (excluding the source file) that contain a word-boundary match for the identifier.
 function countUsages(
   identifier: string,
   fileContents: Map<string, string>,
@@ -104,8 +97,6 @@ function countUsages(
   return { count: matchingFiles.length, files: matchingFiles };
 }
 
-// --- Main ---
-
 type AnalysisKind = "store" | "composable";
 type AnalysisFile = { file: string; kind: AnalysisKind; dir: string };
 
@@ -123,7 +114,7 @@ const analysisFiles: AnalysisFile[] = [
 ];
 const allSourceFiles = getFilesRecursively(SEARCH_DIR);
 
-// Load all source files into memory once to avoid repeated disk reads
+// Load all source files into memory once
 console.log(`Loading ${allSourceFiles.length} source files into memory...`);
 const fileContents = new Map<string, string>();
 for (const f of allSourceFiles) {
@@ -162,8 +153,7 @@ for (const { file, kind, dir } of analysisFiles) {
 
   console.log(`\n${icon} ${fnName}  [${kind}]  (${relative(ROOT, file)})`);
   for (const { key, lowConfidence } of unused) {
-    const suffix = lowConfidence ? "  ⚠️  short name — verify" : "";
-    console.log(`   ❌  ${key}${suffix}`);
+    console.log(`   ❌  ${key}${lowConfidence ? "  (short name, verify)" : ""}`);
   }
 }
 
@@ -171,11 +161,10 @@ console.log("\n" + "=".repeat(60));
 console.log(`\nTotal likely unused members : ${totalUnused}`);
 if (totalLowConfidence > 0) {
   console.log(
-    `Of which low-confidence     : ${totalLowConfidence}  (name < ${MIN_CONFIDENT_LENGTH} chars — may be false positives)`,
+    `Of which low-confidence     : ${totalLowConfidence}  (name < ${MIN_CONFIDENT_LENGTH} chars, may be false positives)`,
   );
 }
 console.log(
-  "\n⚠️  A 0-usage result means the member name was not found anywhere\n" +
-    "   in front/src outside its own file. Always check with\n" +
-    "   'Find All References' in your IDE before removing.",
+  "\nA 0-usage result means the member was not found anywhere in front/src outside its own file.\n" +
+    "Always verify with 'Find All References' in your IDE before removing.",
 );

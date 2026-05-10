@@ -1,4 +1,3 @@
-// Format source URL for display by extracting domain and adding type label
 export function formatSourceUrl(url: string): string {
   if (!url) return "";
   try {

@@ -1,6 +1,6 @@
 # OSM Extract Scripts
 
-Extracts proposed/under-construction urban features from an OSM PBF file and outputs two GeoJSON files — one for linear features (transport), one for areal features (buildings, development areas).
+Extracts proposed/under-construction urban features from an OSM PBF file and outputs two GeoJSON files, one for linear features (transport), one for areal features (buildings, development areas).
 
 ## Requirements
 
@@ -8,12 +8,12 @@ Must be run inside WSL (Windows Subsystem for Linux) or a native Linux environme
 
 **System tools**
 
-- `osmium` — [osmium-tool](https://osmcode.org/osmium-tool/): `sudo apt install osmium-tool`
+- `osmium`, [osmium-tool](https://osmcode.org/osmium-tool/): `sudo apt install osmium-tool`
 
 **Python packages**
 
-- `osmium` — `pip install osmium`
-- `shapely` — `pip install shapely`
+- `osmium`, `pip install osmium`
+- `shapely`, `pip install shapely`
 
 ## Usage
 
@@ -58,10 +58,10 @@ If the source file is on a Windows drive (`/mnt/d/...`), the script works but WS
 
 ## Phases
 
-| Phase                  | Tool                                                               | Duration (planet) |
-| ---------------------- | ------------------------------------------------------------------ | ----------------- |
-| 1 — osmium filter      | `filter_combined.sh`                                               | ~40 min           |
-| 2 — feature extraction | `extract_linear_topo.py` + `extract_areal_buildings.py` (parallel) | ~3-5 min          |
+| Phase                 | Tool                                                               | Duration (planet) |
+| --------------------- | ------------------------------------------------------------------ | ----------------- |
+| 1, osmium filter      | `filter_combined.sh`                                               | ~40 min           |
+| 2, feature extraction | `extract_linear_topo.py` + `extract_areal_buildings.py` (parallel) | ~3-5 min          |
 
 ## Weekly incremental updates
 

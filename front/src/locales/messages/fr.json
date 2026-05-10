@@ -83,7 +83,7 @@
     "endDate": "Fin des travaux",
     "sourceUrl": "URL source",
     "optionalField": "Optionnel",
-    "yearOnly": "Année uniquement",
+    "yearOnly": "Année",
     "monthYear": "Mois & Année",
     "fullDate": "Date complète",
     "proposedOn": "Proposé le",
@@ -162,7 +162,7 @@
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer.",
     "guest": {
       "title": "Contribuez à la carte",
-      "description": "Participez à la cartographie des projets d'aménagement urbain : ajoutez des projets officiels ou vos propres idées pour votre ville (transports, rues, logements, espaces publics, parcs...).",
+      "description": "Participez à la cartographie des projets urbains, que ce soient des propositions de projets ou des chantiers en cours. Dessinez des formes, ajoutez des images vue du dessus, des dates...",
       "signIn": "Se connecter",
       "createAccount": "Créer un compte"
     }
@@ -299,7 +299,8 @@
       "emailLinkedToDifferentGoogle": "Cet email est déjà associé à un autre compte Google.",
       "googleAuthFailed": "L'authentification Google a échoué. Veuillez réessayer.",
       "tooManyRequests": "Trop de tentatives. Veuillez réessayer plus tard.",
-      "invalidCaptcha": "CAPTCHA invalide. Veuillez réessayer."
+      "invalidCaptcha": "CAPTCHA invalide. Veuillez réessayer.",
+      "signOutFailed": "Échec de la déconnexion"
     },
     "success": {
       "registered": "Compte créé avec succès ! Veuillez vérifier votre email pour valider votre compte.",
@@ -333,13 +334,20 @@
     "updateOverlays": "Mettre à jour les images",
     "removeChange": "Retirer cette modification",
     "noChangesToSubmit": "Aucune modification à soumettre",
-    "newOverlay": "Nouvelle image"
+    "newOverlay": "Nouvelle image",
+    "createAction": "Nouvelle soumission",
+    "updatePendingAction": "Mettre à jour la soumission",
+    "updateApprovedAction": "Suggérer des modifications"
   },
   "pages": {
     "home": {
       "signInSuccess": "Connexion réussie !",
       "authenticationError": "Erreur d'authentification",
       "loadingMapAndData": "Chargement de la carte et des données...",
+      "maintenance": {
+        "upcoming": "Maintenance planifiée dans ~{minutes} min. Le site sera indisponible pendant environ 15 minutes.",
+        "ongoing": "Maintenance en cours jusqu'à ~{endTime}, le site peut être indisponible."
+      },
       "errors": {
         "authenticationFailed": "L'authentification a échoué. Veuillez réessayer.",
         "signInCancelled": "La connexion a été annulée ou a échoué.",
@@ -532,13 +540,18 @@
   "errors": {
     "projectNotFound": "Projet introuvable",
     "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
-    "checkConflictsFailed": "Échec de la vérification des conflits"
+    "checkConflictsFailed": "Échec de la vérification des conflits",
+    "noChangesDetected": "Aucune modification détectée à soumettre",
+    "preparingSubmission": "Échec de la préparation de la soumission",
+    "failedToLoadCountries": "Impossible de charger la liste des pays",
+    "mapInitFailed": "Échec du chargement de la carte"
   },
   "moderation": {
     "title": "Modération",
     "description": "Examiner les contributions en attente",
     "by": "par",
     "noAccessToThisCountry": "Vous n'avez pas la permission de modérer ce pays.",
+    "refreshCountsFailed": "Impossible de rafraîchir les compteurs en attente",
     "unknownUser": "Utilisateur inconnu",
     "more": "plus",
     "projectApproved": "Projet approuvé",
@@ -551,6 +564,7 @@
     "overlayRejected": "Image rejetée",
     "overlayRejectedDetail": "L'image a été rejetée",
     "switchedToEditMode": "Mode édition activé",
+    "pendingOverlaysOnlyInEditMode": "Les images en attente ne sont visibles qu'en mode édition",
     "switchedToViewMode": "Mode consultation activé",
     "switchedToModerationMode": "Mode modération activé",
     "clickAgainToAdd": "Cliquez à nouveau sur le bouton pour ajouter une image",
@@ -602,6 +616,9 @@
     "chooseCountry": "Choisissez un pays...",
     "failedToLoadCountries": "Échec du chargement de la liste des pays",
     "pleaseSelectCountry": "Veuillez sélectionner un pays pour voir les contributions en attente",
+    "pendingProjects": "Projets en attente",
+    "allReviewed": "Toutes les soumissions ont été examinées",
+    "noPendingItems": "Aucune soumission en attente à modérer",
     "conflictResolved": "Modification approuvée",
     "conflictResolvedDetail": "La modification sélectionnée a été approuvée. Les autres suggestions pour ce champ ont été marquées comme non sélectionnées.",
     "conflictsRejected": "Toutes les modifications rejetées",
@@ -799,7 +816,7 @@
     "importSkippedGeometryTypes": "Types de géométrie non pris en charge ignorés : {types}",
     "saveShapes": "Enregistrer les formes",
     "cancel": "Annuler",
-    "savedLocally": "Formes enregistrées — cliquez sur Publier pour soumettre",
+    "savedLocally": "Formes enregistrées, cliquez sur Publier pour soumettre",
     "geometrySummary": "{count} forme(s)",
     "viewCurrentShapes": "Voir les formes actuelles",
     "viewSuggestedShapes": "Voir les formes suggérées",

@@ -1,6 +1,6 @@
 // Type definitions for globalThis extensions
 declare global {
-  // Cloudflareturnstile types
+  // Cloudflare Turnstile types
   var turnstile:
     | {
         render: (container: string | HTMLElement, options: any) => string;
@@ -30,6 +30,11 @@ declare global {
         };
       }
     | undefined;
+}
+
+declare module "*.webp" {
+  const src: string;
+  export default src;
 }
 
 // eslint-disable-next-line require-module-specifiers

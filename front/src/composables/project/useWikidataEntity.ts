@@ -11,7 +11,7 @@ interface WikidataEntity {
   heightM: number | null;
 }
 
-// Module-level session cache keyed by "Q123:en" — persists across component mounts
+// Module-level session cache keyed by "Q123:en", persists across component mounts
 const cache = new Map<string, WikidataEntity | null>();
 // In-flight promise cache to avoid duplicate requests for the same id+lang
 const pending = new Map<string, Promise<WikidataEntity | null>>();
@@ -28,10 +28,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // Wikidata data model, simplified:
-//   entity.claims  — object keyed by property ID (e.g. "P18"), each value is an array of statements
-//   statement.mainsnak  — the "snak" (property + value pair) that holds the actual data
-//   snak.snaktype  — "value" | "novalue" | "somevalue"; we only care about "value"
-//   snak.datavalue — { type: "string" | "quantity" | "wikibase-entityid" | …, value: … }
+//   entity.claims , object keyed by property ID (e.g. "P18"), each value is an array of statements
+//   statement.mainsnak , the "snak" (property + value pair) that holds the actual data
+//   snak.snaktype , "value" | "novalue" | "somevalue"; we only care about "value"
+//   snak.datavalue, { type: "string" | "quantity" | "wikibase-entityid" | …, value: … }
 
 // P154 = logo image (Wikimedia Commons filename)
 // P18  = main image (Wikimedia Commons filename)
@@ -67,7 +67,7 @@ function getHeightMetres(claims: Record<string, unknown>): number | null {
   if (unit.endsWith("Q174728")) return amount / 100; // Q174728 = centimetre
   if (unit.endsWith("Q3710")) return amount * 0.3048; // Q3710   = foot
   if (unit.endsWith("Q218593")) return amount * 0.0254; // Q218593 = inch
-  if (unit === "1") return amount; // dimensionless — assume metres
+  if (unit === "1") return amount; // dimensionless, assume metres
   return null;
 }
 

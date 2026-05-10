@@ -73,7 +73,7 @@ function roundCoord(v: number): string {
  * Prevents redundant fetches when the user pans a few pixels.
  */
 function bboxKey(bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number }): string {
-  // Round to ~0.005° (~500m at equator) — coarse enough to absorb tiny pans
+  // Round to ~0.005° (~500m at equator), coarse enough to absorb tiny pans
   return `${roundCoord(bbox.minLng)},${roundCoord(bbox.minLat)},${roundCoord(bbox.maxLng)},${roundCoord(bbox.maxLat)}`;
 }
 
@@ -86,8 +86,6 @@ export function useViewportTriggers() {
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
-
-  // ── Bbox-based viewport fetch (edit/moderation) ─────────────────────────
 
   /**
    * Fetch overlays + standalone projects in the current viewport bbox.
@@ -144,10 +142,8 @@ export function useViewportTriggers() {
     mergeProjectPointsForMode(overlaysData, projectsData, mode);
   }
 
-  // ── Main refresh ────────────────────────────────────────────────────────
-
   /**
-   * Main viewport refresh — bbox loading for edit/moderation,
+   * Main viewport refresh, bbox loading for edit/moderation,
    * passthrough for view mode.
    */
   async function refreshViewport(force = false) {
@@ -289,8 +285,6 @@ export function useViewportTriggers() {
     map.value.off("zoomend");
   }
 
-  // ── Mode watcher ────────────────────────────────────────────────────────
-
   function setupModeWatcher() {
     // When pending change requests finish loading, re-render project shapes
     watch(pendingChangeRequestsRef, () => {
@@ -319,7 +313,7 @@ export function useViewportTriggers() {
 
         // Save modified overlays before leaving edit mode
         if (oldMode === "edit") {
-          saveAllOverlaysToCache("edit");
+          saveAllOverlaysToCache();
         }
 
         // Reset bbox tracking on mode switch to force a fresh fetch

@@ -1,7 +1,6 @@
 // Grafana Alloy configuration for log shipping
 // This captures Docker container logs and pushes them to Grafana Loki
 
-// Discover Docker containers and scrape their logs
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
   
@@ -12,7 +11,6 @@ discovery.docker "containers" {
   }
 }
 
-// Scrape logs from discovered containers
 loki.source.docker "backend_logs" {
   host             = "unix:///var/run/docker.sock"
   targets          = discovery.docker.containers.targets
@@ -20,7 +18,6 @@ loki.source.docker "backend_logs" {
   relabel_rules    = loki.relabel.backend.rules
 }
 
-// Process JSON logs from Pino
 loki.process "json" {
   forward_to = [loki.write.default.receiver]
   
@@ -42,7 +39,6 @@ loki.process "json" {
   }
 }
 
-// Add labels to logs for better filtering in Grafana
 loki.relabel "backend" {
   rule {
     source_labels = ["__meta_docker_container_name"]
@@ -57,15 +53,8 @@ loki.relabel "backend" {
   forward_to = []
 }
 
-// Push logs to Loki
 loki.write "default" {
   endpoint {
     url = env("LOKI_URL") + "/loki/api/v1/push"
-    
-    // Add basic auth if needed (optional)
-    // basic_auth {
-    //   username = env("LOKI_USERNAME")
-    //   password = env("LOKI_PASSWORD")
-    // }
   }
 }

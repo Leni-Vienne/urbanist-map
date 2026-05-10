@@ -8,9 +8,9 @@ import { useUiStore } from "@/stores/uiStore";
 
 type ShapeEntry = {
   group: L.LayerGroup;
-  /** Visual layers — the ones that get styled on hover/highlight. */
+  /** Visual layers, the ones that get styled on hover/highlight. */
   layers: L.Path[];
-  /** Interactive layers — the ones that receive mouse events (transparent hit targets for lines, visual layers for polygons). */
+  /** Interactive layers, the ones that receive mouse events (transparent hit targets for lines, visual layers for polygons). */
   interactiveLayers: L.Path[];
   baseStyle: L.PathOptions;
   hoverStyle: L.PathOptions;
@@ -26,8 +26,8 @@ let previewHiddenProjectId: string | null = null;
 let previewMapInstance: L.Map | null = null;
 
 const PREVIEW_COLORS = {
-  current: "#22c55e", // green-500 — matches "success" severity button
-  suggested: "#f59e0b", // amber-500 — matches "warn" severity button
+  current: "#22c55e", // green-500, matches "success" severity button
+  suggested: "#f59e0b", // amber-500, matches "warn" severity button
 } as const;
 
 /** Convert a GeoJSON [lng, lat] position to a Leaflet LatLng. */
@@ -38,13 +38,13 @@ function toLatLng(coord: number[]): L.LatLng {
 /**
  * Build Leaflet path layers from a GeometryCollection.
  * Lines use `style` directly; polygons add `fillOpacity`.
- * Point/MultiPoint intentionally excluded — city boundaries are always line/polygon geometry.
+ * Point/MultiPoint geometries are ignored.
  *
  * For line geometries a transparent wide polyline is added as a hit target so lines
  * are easy to click without changing their visual weight.
  *
- * LineString is normalised to MultiLineString and Polygon to MultiPolygon before
- * constructing the Leaflet layer, so each geometry family has a single branch.
+ * LineString/Polygon are normalised to their Multi variants before constructing
+ * the Leaflet layer, so each geometry family has a single branch.
  */
 function buildShapeLayers(
   geometries: GeoJSON.Geometry[],
@@ -80,10 +80,9 @@ function buildShapeLayers(
 
 /**
  * Render a project's GeometryCollection as Leaflet layers on the map.
- * Lines become L.polyline, polygons become L.polygon (with fill).
- * Idempotent — if already rendered, does nothing.
+ * Lines become L.polyline, polygons become L.polygon (with fill). Idempotent.
  * onProjectClick: called when the user clicks any shape layer.
- * onProjectHover / onProjectLeave: called with projectId on enter/leave — use to highlight sister overlays.
+ * onProjectHover / onProjectLeave: called with projectId on enter/leave.
  */
 export function renderProjectShapes(
   project: Project,
@@ -120,10 +119,9 @@ export function renderProjectShapes(
       );
     });
     layer.on("mouseout", () => {
-      // Don't unhighlight if this project is currently persistently highlighted
-      // (project info popup open or an overlay of this project is selected).
-      // NOTE: intentionally NOT using getCurrentHighlightedProjectId() from overlaySelection,
-      // importing it here would create a circular dependency (overlaySelection → shapeRendering → overlaySelection).
+      // Keep highlight if the project info popup is open or one of its overlays is selected.
+      // Not using getCurrentHighlightedProjectId() from overlaySelection to avoid a circular
+      // dependency (overlaySelection → shapeRendering → overlaySelection).
       const overlayStore = useOverlayStore();
       const uiStore = useUiStore();
       const selected = overlayStore.idSelectedOverlay
@@ -150,9 +148,8 @@ export function renderProjectShapes(
   group.addTo(mapInstance);
   shapeLayerMap.set(project.id, { group, layers, interactiveLayers, baseStyle, hoverStyle });
 
-  // If this project is currently highlighted (via overlay selection or project info popup),
-  // apply hover style immediately — covers the timing case where shapes are re-rendered
-  // after a mode switch while the project is already focused.
+  // Apply hover style immediately if the project is already focused (e.g. shapes
+  // re-rendered after a mode switch while the popup is open).
   const overlayStore = useOverlayStore();
   const uiStore = useUiStore();
   const selected = overlayStore.idSelectedOverlay
@@ -166,10 +163,7 @@ export function renderProjectShapes(
   }
 }
 
-/**
- * Remove rendered shape layers for a single project.
- * Allows re-rendering after geometry changes (e.g. after saving in shape editor).
- */
+/** Remove rendered shape layers for a single project. */
 export function clearProjectShapes(projectId: string): void {
   const entry = shapeLayerMap.get(projectId);
   if (entry) {
@@ -178,9 +172,7 @@ export function clearProjectShapes(projectId: string): void {
   }
 }
 
-/**
- * Remove all rendered shape layers (and any active preview).
- */
+/** Remove all rendered shape layers and any active preview. */
 export function clearAllProjectShapes(): void {
   for (const entry of shapeLayerMap.values()) {
     entry.group.remove();
@@ -189,17 +181,12 @@ export function clearAllProjectShapes(): void {
   clearPreviewShapes();
 }
 
-/**
- * Check if shapes are already rendered for a project.
- */
+/** Returns true if shapes are already rendered for the given project. */
 export function hasProjectShapes(projectId: string): boolean {
   return shapeLayerMap.has(projectId);
 }
 
-/**
- * Return the combined LatLngBounds of all rendered shape layers for a project.
- * Returns null if the project has no rendered shapes or bounds are invalid.
- */
+/** Returns the combined LatLngBounds of all rendered shape layers, or null if none exist. */
 export function getProjectShapeBounds(projectId: string): L.LatLngBounds | null {
   const entry = shapeLayerMap.get(projectId);
   if (!entry || entry.layers.length === 0) return null;
@@ -237,7 +224,7 @@ export function unhighlightProjectShapes(projectId: string): void {
 
 /**
  * Render a GeometryCollection as a temporary preview layer (dashed, colored by variant).
- * Not registered in shapeLayerMap — call clearPreviewShapes() to remove.
+ * Not registered in shapeLayerMap, call clearPreviewShapes() to remove.
  */
 export function renderPreviewShapes(
   geometry: GeoJSON.GeometryCollection,
@@ -267,7 +254,7 @@ export function renderPreviewShapes(
   if (visual.length === 0) return;
 
   if (onShapeClick) {
-    // visual[k] and interactive[k] are paired: for lines interactive[k] is the hit target,
+    // visual[k] and interactive[k] are paired: for lines interactive[k] is the hit target;
     // for polygons they are the same object.
     for (const [k, hitLayer] of interactive.entries()) {
       const visualLayer = visual[k];
@@ -295,14 +282,11 @@ export function renderPreviewShapes(
   previewLayerGroup.addTo(mapInstance);
 }
 
-/**
- * Remove the current preview layer group from the map.
- */
+/** Remove the preview layer group and restore any hidden project shapes. */
 function clearPreviewShapes(): void {
   previewLayerGroup?.remove();
   previewLayerGroup = null;
 
-  // Restore the regular shapes that were hidden during preview
   if (previewHiddenProjectId && previewMapInstance) {
     const entry = shapeLayerMap.get(previewHiddenProjectId);
     if (entry) {

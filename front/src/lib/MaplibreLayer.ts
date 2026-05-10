@@ -11,6 +11,7 @@
  * Based on https://github.com/maplibre/maplibre-gl-leaflet (MIT license).
  */
 
+/* oxlint-disable no-underscore-dangle */
 import L, { type LatLngBounds, type Layer as LayerType, type Point as PointType } from "leaflet";
 import maplibre, { type Map as MaplibreMap, type MapOptions } from "maplibre-gl";
 
@@ -73,10 +74,10 @@ const MaplibreLayer = Layer.extend({
 
   getEvents: function getEvents() {
     return {
-      move: this._throttledUpdate, // sensibly throttle updating while panning
-      zoomanim: this._animateZoom, // applies the zoom animation to the <canvas>
-      zoom: this._pinchZoom, // animate every zoom event for smoother pinch-zooming
-      zoomstart: this._zoomStart, // flag starting a zoom to disable panning
+      move: this._throttledUpdate,
+      zoomanim: this._animateZoom,
+      zoom: this._pinchZoom,
+      zoomstart: this._zoomStart,
       zoomend: this._zoomEnd,
       resize: this._resize,
       // Forward Leaflet movement onto the MapLibre map as "leaflet-movestart" /
@@ -151,8 +152,8 @@ const MaplibreLayer = Layer.extend({
 
     this._glMap = new maplibre.Map(options);
 
-    // Allow MapLibre to pan/zoom beyond Mercator limits so it stays in sync
-    // with Leaflet at low zoom levels where the canvas exceeds the world bounds.
+    // Allow MapLibre to pan/zoom beyond Mercator limits to stay in sync
+    // with Leaflet at low zoom levels where the canvas exceeds world bounds.
     // Without this, MapLibre clamps to a fractional minimum zoom (e.g. 1.11)
     // causing a visual snap at the end of Leaflet's CSS zoom animation.
     const tr = this._glMap.transform;
@@ -165,7 +166,7 @@ const MaplibreLayer = Layer.extend({
     this._transformGL(this._glMap);
 
     if (this._glMap._canvas.canvas) {
-      // older versions of mapbox-gl surfaced the canvas differently
+      // older maplibre versions surfaced the canvas differently
       this._glMap._actualCanvas = this._glMap._canvas.canvas;
     } else {
       this._glMap._actualCanvas = this._glMap._canvas;
@@ -184,7 +185,6 @@ const MaplibreLayer = Layer.extend({
   },
 
   _update: function _update(_e: any) {
-    // update the offset so we can correct for it later when we zoom
     this._offset = this._map.containerPointToLayerPoint([0, 0]);
 
     if (this._zooming) {
@@ -203,9 +203,8 @@ const MaplibreLayer = Layer.extend({
     this._container.style.width = size.x + "px";
     this._container.style.height = size.y + "px";
 
-    // Debounce the actual GL canvas resize to avoid per-frame canvas clears
-    // (changing canvas dimensions clears it synchronously, causing a blank frame).
-    // The container is already the right size so layout is correct immediately.
+    // Debounce the GL canvas resize to avoid per-frame canvas clears,
+    // which happen synchronously when canvas dimensions change.
     if (this._resizeTimer) clearTimeout(this._resizeTimer);
     this._resizeTimer = setTimeout(() => {
       const gl = this._glMap;
@@ -229,7 +228,7 @@ const MaplibreLayer = Layer.extend({
     });
   },
 
-  // update the map constantly during a pinch zoom
+  // update the GL map on every pinch zoom frame
   _pinchZoom: function _pinchZoom(_e: any) {
     // Don't update MapLibre during CSS-animated zooms (scroll wheel, double-click)
     // as it changes the canvas content mid-animation, causing visual glitches.
@@ -249,7 +248,7 @@ const MaplibreLayer = Layer.extend({
     const scale = this._map.getZoomScale(e.zoom);
 
     // Work in world pixel coords (like GridLayer._setZoomTransform) to avoid
-    // lat/lng clamping at low zoom levels where the canvas extends beyond the Mercator bounds.
+    // lat/lng clamping at low zoom levels where the canvas exceeds Mercator bounds.
     const containerPos = DomUtil.getPosition(this._container);
     const pixelOrigin = this._map.getPixelOrigin();
     const newPixelOrigin = this._map._getNewPixelOrigin(e.center, e.zoom);
@@ -269,7 +268,7 @@ const MaplibreLayer = Layer.extend({
   _zoomStart: function _zoomStart(_e: any) {},
 
   _zoomEnd: function _zoomEnd() {
-    // Reset canvas CSS transform to identity (getZoomScale of current zoom = 1)
+    // Reset canvas CSS transform back to identity.
     DomUtil.setTransform(this._glMap._actualCanvas, new Point(0, 0), 1);
 
     this._zooming = false;

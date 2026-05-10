@@ -10,6 +10,39 @@ import * as z from "zod";
 // Admin-only router for managing users and their content
 // All endpoints require admin role
 
+async function loadCityDetails(userId: string, cityId: number) {
+  const cityProjects = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      status: projects.status,
+      createdAt: projects.createdAt,
+    })
+    .from(projects)
+    .where(and(eq(projects.cityId, cityId), eq(projects.ownerId, userId)));
+
+  const projectIds = cityProjects.map((p) => p.id);
+  if (projectIds.length === 0) {
+    return { projects: cityProjects, overlays: [] };
+  }
+
+  const cityOverlays = await db
+    .select({
+      id: overlays.id,
+      filename: overlays.filename,
+      caption: overlays.caption,
+      status: overlays.status,
+      createdAt: overlays.createdAt,
+      projectId: overlays.projectId,
+      projectName: projects.name,
+    })
+    .from(overlays)
+    .innerJoin(projects, eq(overlays.projectId, projects.id))
+    .where(inArray(overlays.projectId, projectIds));
+
+  return { projects: cityProjects, overlays: cityOverlays };
+}
+
 export const adminRouter = router({
   // Get user info and their contributions grouped by city
   // Returns list of cities with project/overlay counts for lazy loading
@@ -60,54 +93,7 @@ export const adminRouter = router({
           .groupBy(cities.id, cities.name, cities.countryCode)
           .having(sql`count(distinct ${projects.id}) > 0 OR count(distinct ${overlays.id}) > 0`);
 
-        let cityDetails = null;
-
-        // If cityId provided, load full project/overlay details for that city
-        if (input.cityId) {
-          const cityProjects = await db
-            .select({
-              id: projects.id,
-              name: projects.name,
-              status: projects.status,
-              createdAt: projects.createdAt,
-            })
-            .from(projects)
-            .where(and(eq(projects.cityId, input.cityId), eq(projects.ownerId, input.userId)));
-
-          // Get overlays for these projects
-          const projectIds = cityProjects.map((p) => p.id);
-
-          let cityOverlays: {
-            id: string;
-            filename: string;
-            caption: string | null;
-            status: "pending" | "approved" | "rejected" | "replaced";
-            createdAt: Date;
-            projectId: string | null;
-            projectName: string | null;
-          }[] = [];
-
-          if (projectIds.length > 0) {
-            cityOverlays = await db
-              .select({
-                id: overlays.id,
-                filename: overlays.filename,
-                caption: overlays.caption,
-                status: overlays.status,
-                createdAt: overlays.createdAt,
-                projectId: overlays.projectId,
-                projectName: projects.name,
-              })
-              .from(overlays)
-              .innerJoin(projects, eq(overlays.projectId, projects.id))
-              .where(inArray(overlays.projectId, projectIds));
-          }
-
-          cityDetails = {
-            projects: cityProjects,
-            overlays: cityOverlays,
-          };
-        }
+        const cityDetails = input.cityId ? await loadCityDetails(input.userId, input.cityId) : null;
 
         return {
           user,
@@ -164,16 +150,24 @@ export const adminRouter = router({
           .from(overlays)
           .where(eq(overlays.projectId, input.projectId));
 
-        // Delete overlays first (foreign key constraint)
-        if (projectOverlays.length > 0) {
-          await db.delete(overlays).where(eq(overlays.projectId, input.projectId));
-        }
+        // Overlays first to satisfy the FK; both deletes must succeed or roll back together.
+        await db.transaction(async (tx) => {
+          if (projectOverlays.length > 0) {
+            await tx.delete(overlays).where(eq(overlays.projectId, input.projectId));
+          }
+          await tx.delete(projects).where(eq(projects.id, input.projectId));
+        });
 
-        await db.delete(projects).where(eq(projects.id, input.projectId));
-
-        // Decrement city project count
+        // City counter is a denormalized cache (eventually consistent), kept outside the transaction.
         if (project.status === "approved" && project.cityId) {
-          await decrementCityProjectCount(project.cityId);
+          try {
+            await decrementCityProjectCount(project.cityId);
+          } catch (error) {
+            console.error(
+              `Failed to decrement city project count for city ${project.cityId}:`,
+              error,
+            );
+          }
         }
 
         // Log deletion for audit trail

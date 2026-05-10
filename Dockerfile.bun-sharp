@@ -20,9 +20,6 @@ USER bun
 ENV HOME=/home/bun
 ENV BUN_INSTALL_CACHE_DIR=/home/bun/.bun/install/cache
 
-# Pre-install sharp to cache it in the image (avoids runtime internet dependency)
-# Running as bun user ensures the cache is in /home/bun/.bun, not /root/.bun
-# Clean bun install cache after install to avoid bloating the image layer
 RUN bun add sharp \
     && rm -rf "${BUN_INSTALL_CACHE_DIR}"
 

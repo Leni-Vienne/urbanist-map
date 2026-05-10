@@ -1,4 +1,4 @@
-// Lazy chunk — only imported when a user activates the shape editor in edit mode.
+// Lazy chunk, only imported when a user activates the shape editor in edit mode.
 // Same pattern as overlayRendering.ts.
 import "@geoman-io/leaflet-geoman-free";
 // @ts-expect-error Cannot find module or type declarations for side-effect import
@@ -52,7 +52,7 @@ export async function initShapeEditor(
   mapInstance: L.Map,
   existingGeometry?: GeoJSON.GeometryCollection,
 ): Promise<void> {
-  // Geoman uses addInitHook, so map instances created before this lazy chunk was loaded
+  // Geoman uses addInitHook, so map instances created before this lazy chunk loads
   // won't have .pm set. Manually initialize it on the existing instance.
   if (!mapInstance.pm) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,7 +75,7 @@ export async function initShapeEditor(
   for (const layer of geometryLayers) layer.remove();
   geometryLayers = [];
 
-  // Enable edit mode on newly drawn layers immediately; swap handler to avoid accumulating listeners.
+  // Swap handler to avoid accumulating listeners; enable edit mode on newly drawn layers.
   if (pmCreateHandler) {
     mapInstance.off("pm:create", pmCreateHandler);
   }
@@ -101,13 +101,13 @@ export function destroyShapeEditor(mapInstance: L.Map): void {
     mapInstance.off("pm:create", pmCreateHandler);
     pmCreateHandler = null;
   }
-  // Disable any active global modes before removing controls — otherwise layers that
-  // were touched by Geoman's toolbar (e.g. rendered project shapes) stay editable.
+  // Disable active global modes before removing controls; otherwise layers touched by Geoman
+  // (e.g. rendered project shapes) stay editable after the editor closes.
   mapInstance.pm.disableDraw();
   if (mapInstance.pm.globalEditModeEnabled()) mapInstance.pm.disableGlobalEditMode();
   if (mapInstance.pm.globalDragModeEnabled()) mapInstance.pm.disableGlobalDragMode();
   for (const layer of mapInstance.pm.getGeomanDrawLayers()) layer.remove();
-  // Also remove layers loaded from existing geometry — Geoman doesn't track these.
+  // Also remove layers loaded from existing geometry (Geoman doesn't track these).
   for (const layer of geometryLayers) layer.remove();
   geometryLayers = [];
   mapInstance.pm.removeControls();
@@ -143,8 +143,8 @@ export async function addLayersFromGeometry(
 
   const drawableGeoms = geometry.geometries.filter((item) => drawableGeometryTypes.has(item.type));
 
-  // Process in batches, yielding between each so the browser can repaint and stay responsive.
-  // Without this, adding hundreds of Leaflet layers synchronously freezes the main thread.
+  // Process in batches to yield between each, keeping the browser responsive.
+  // Adding hundreds of Leaflet layers synchronously would freeze the main thread.
   for (let i = 0; i < drawableGeoms.length; i += 1) {
     if (i > 0 && i % BATCH_SIZE === 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -152,11 +152,11 @@ export async function addLayersFromGeometry(
 
     const geom = drawableGeoms[i]!;
 
-    // Process each geometry individually by wrapping it in a Feature.
-    // Using L.geoJSON(geometryCollection) produces a single FeatureGroup (not individual layers),
-    // whose toGeoJSON() returns a FeatureCollection that fails the Feature type check in getDrawnGeometry.
-    // Wrapping each geometry separately guarantees one Leaflet layer per geometry,
-    // each with a toGeoJSON() that returns a proper Feature.
+    // Wrap each geometry individually in a Feature rather than passing the whole
+    // GeometryCollection to L.geoJSON(). L.geoJSON(collection) produces a single
+    // FeatureGroup whose toGeoJSON() returns a FeatureCollection, which fails the
+    // Feature type check in getDrawnGeometry. Wrapping individually gives one Leaflet
+    // layer per geometry, each with a proper Feature from toGeoJSON().
     const feature: GeoJSON.Feature = { type: "Feature", geometry: geom, properties: {} };
     const layer = L.geoJSON(feature).getLayers()[0];
     if (!layer) continue;
@@ -164,9 +164,8 @@ export async function addLayersFromGeometry(
     addedLayers.push(layer);
     geometryLayers.push(layer);
     if (editable) {
-      // Reinitialize Geoman on this externally-created layer so vertex handles appear.
-      // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline,
-      // so reInitLayer re-applies the PM mixin before enabling edit mode.
+      // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline.
+      // reInitLayer re-applies the PM mixin so vertex handles appear.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (L as any).PM?.reInitLayer?.(layer);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

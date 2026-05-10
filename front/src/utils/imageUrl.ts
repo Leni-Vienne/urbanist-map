@@ -1,49 +1,41 @@
 import { getApiUrl } from "@/client";
 
 /**
- * Build image URL for overlay files
- * Uses direct R2 public URL in production to avoid worker CPU usage
- * @param filename - The filename of the image
- * @returns The complete URL to access the image
+ * Build the URL for an overlay image.
+ * Uses the R2 public URL directly in production to avoid backend CPU usage.
  */
 export function buildImageUrl(filename: string, forceBackendUrl = false): string {
-  // Force backend URL for pending overlays in production (not yet migrated to R2)
-  // In development, always use local server
+  // Pending overlays haven't been migrated to R2 yet, so force backend URL
   if (import.meta.env.PROD && !forceBackendUrl) {
     const r2PublicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
     return `${r2PublicUrl}/${filename}`;
   }
 
-  // Use backend server URL
   return `${getApiUrl()}/uploads/${filename}`;
 }
 
 /**
- * Build thumbnail URL from original filename
- * Thumbnails stored in thumbnails/ subfolder both locally and on R2
- * forceBackendUrl=true for pending overlays (not yet migrated to R2)
+ * Build the thumbnail URL from an original filename.
+ * Thumbnails live in a thumbnails/ subfolder both locally and on R2.
+ * Pass forceBackendUrl=true for pending overlays not yet migrated to R2.
  */
 export function buildThumbnailUrl(filename: string, forceBackendUrl = false): string {
   return buildImageUrl(`thumbnails/${filename}`, forceBackendUrl);
 }
 
 /**
- * Check if an image URL requires credentials (local backend) vs public CDN (R2)
- * Only local backend URLs need crossorigin="use-credentials" for authorization
- * R2 CDN URLs are public and don't support credentials
+ * Returns true if the image URL requires credentials.
+ * R2 CDN URLs are public; only local backend URLs need crossorigin="use-credentials".
  */
 export function imageRequiresCredentials(imageUrl: string): boolean {
-  // Check if URL is from R2 CDN (production approved images)
   const r2PublicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
   if (r2PublicUrl && imageUrl.startsWith(r2PublicUrl)) {
-    return false; // R2 URLs don't need credentials
+    return false;
   }
 
-  // Data URLs and Blob URLs don't need credentials
   if (imageUrl.startsWith("data:") || imageUrl.startsWith("blob:")) {
     return false;
   }
 
-  // All other URLs (local backend) require credentials for authorization
   return true;
 }

@@ -91,19 +91,15 @@
         :projects="filteredProjects"
         :change-requests="filteredChangeRequests"
         :is-loading="isLoading"
-        title="Pending Projects"
+        :title="$t('moderation.pendingProjects')"
         panel-class="moderation-panel"
-        empty-message="All projects reviewed!"
-        empty-sub-message="No pending projects to moderate."
+        :empty-message="$t('moderation.allReviewed')"
+        :empty-sub-message="$t('moderation.noPendingItems')"
         :show-user-stats-link="true"
         :disable-auto-mode-switch="true"
         @show-user-stats="handleShowUserStats"
         :on-overlay-click="handleViewOverlayPosition"
       >
-        <template #header-actions>
-          <!-- Header button slot - reserved for future actions -->
-        </template>
-
         <template #project-actions="{ project }">
           <!-- Show moderation buttons for pending projects -->
           <ModerationActionButtons
@@ -182,7 +178,6 @@ import UserStatsDialog from "@/components/moderation/UserStatsDialog.vue";
 import ModerationActionButtons from "@/components/moderation/ModerationActionButtons.vue";
 import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 
-// Use i18n for translations
 const { t } = useI18n();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
@@ -287,7 +282,7 @@ onMounted(async () => {
 });
 
 // Load data for a specific country (stores, fly-to)
-// City markers are managed globally by the mode watcher — no need to reload per country
+// City markers are managed globally by the mode watcher, no need to reload per country
 function loadCountryData(countryCode: string | null, shouldFly = true) {
   // Sync local ref if needed (e.g. when called from watcher/mounted)
   if (selectedCountryCode.value !== countryCode) {
@@ -315,7 +310,6 @@ function loadCountryData(countryCode: string | null, shouldFly = true) {
   }
 }
 
-// Handle country selection change
 async function handleCountryChange() {
   loadCountryData(selectedCountryCode.value);
   await fetchPendingSubmissions();
@@ -350,6 +344,12 @@ async function refetchPendingCounts() {
     moderationStore.setPendingCounts(counts);
   } catch (error) {
     console.error("Failed to refetch pending counts:", error);
+    toast.add({
+      severity: "warn",
+      summary: t("moderation.refreshCountsFailed"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 4000,
+    });
   }
 }
 
@@ -510,7 +510,6 @@ function handleRejectProject(id: string, userId: string | null) {
   showRejectConfirmDialog.value = true;
 }
 
-// Execute project rejection after confirmation
 async function executeRejectProject(
   id: string,
   rejectionReason?: string,
@@ -532,7 +531,6 @@ async function handleApproveOverlay(id: string) {
     const overlay = projects.value.flatMap((p) => p.overlays).find((o) => o.id === id);
 
     if (overlay?.replacesOverlayId) {
-      // Check for conflicts before approving
       const conflicts = await trpc.moderation.checkReplacementConflicts.query({
         overlayId: id,
       });
@@ -621,8 +619,6 @@ function handleShowUserStats(data: {
   showUserStatsDialog.value = true;
 }
 
-// Handle when a user is reported from the old ReportUserDialog (legacy path)
-// Note: This is now mostly unused since reporting is handled in the RejectionDialog
 async function handleUserReported() {
   // Just refresh the moderation data
   moderationStore.resetModerationLoaded();
@@ -635,7 +631,6 @@ function handleRejectOverlay(id: string, userId: string | null) {
   showRejectConfirmDialog.value = true;
 }
 
-// Execute overlay rejection after confirmation
 async function executeRejectOverlay(id: string, rejectionReason?: string) {
   const result = await rejectOverlay(id, rejectionReason);
 
@@ -671,7 +666,6 @@ async function handleApproveChange(changeId: string) {
   }
 }
 
-// Handle rejection confirmation from dialog
 async function handleRejectionConfirm(options: {
   rejectionReason: string;
   rejectAllOverlays: boolean;
@@ -722,7 +716,6 @@ async function handleRejectionConfirm(options: {
   }
 }
 
-// Handle rejection cancellation from dialog
 function handleRejectionCancel() {
   pendingRejection.value = null;
 }

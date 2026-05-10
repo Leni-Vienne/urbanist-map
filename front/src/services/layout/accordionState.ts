@@ -1,22 +1,10 @@
 import { ref } from "vue";
 import type { ProjectForModeration } from "@/types/index";
 
-// ============================================================================
-// ACCORDION STATE SERVICE - Singleton state for panel accordions
-// ============================================================================
-// Shared accordion state that persists across My Contributions and Moderation panels
-// This allows users to maintain their expanded/collapsed state when switching between panels
-// ============================================================================
-
-// ============================================================================
-// STATE
-// ============================================================================
+// Shared accordion state that persists across My Contributions and Moderation panels,
+// allowing the expanded/collapsed state to survive panel switches.
 
 export const activeAccordionPanels = ref<string[]>([]);
-
-// ============================================================================
-// SCROLL REQUESTS
-// ============================================================================
 
 type ScrollRequestType = "project" | "overlay";
 
@@ -28,15 +16,15 @@ interface ScrollRequest {
 export const pendingScrollRequest = ref<ScrollRequest | null>(null);
 
 /**
- * Request scrolling to a specific element in the panel
- * This sets a pending request that the panel will consume when ready
+ * Request scrolling to a specific element in the panel.
+ * Sets a pending request that the panel consumes when ready.
  */
 export function requestScrollTo(type: ScrollRequestType, id: string | number) {
   pendingScrollRequest.value = { type, id };
 }
 
 /**
- * Consume the current scroll request (retrieve and clear it)
+ * Consume the current scroll request (retrieve and clear it).
  */
 export function consumeScrollRequest(): ScrollRequest | null {
   const request = pendingScrollRequest.value;
@@ -44,22 +32,14 @@ export function consumeScrollRequest(): ScrollRequest | null {
   return request;
 }
 
-// ============================================================================
-// PROJECT METHODS
-// ============================================================================
-
 function expandProjectAccordion(projectId: string) {
   if (!activeAccordionPanels.value.includes(projectId)) {
     activeAccordionPanels.value.push(projectId);
   }
 }
 
-// ============================================================================
-// AUTO-EXPAND METHODS
-// ============================================================================
-
 /**
- * Auto-expand the project accordion that contains a specific overlay
+ * Auto-expand the project accordion that contains a specific overlay.
  */
 export function expandAccordionForOverlay(
   overlayId: string,
@@ -80,7 +60,7 @@ export function expandAccordionForOverlay(
 }
 
 /**
- * Auto-expand the accordion for a specific project
+ * Auto-expand the accordion for a specific project.
  */
 export function expandAccordionForProject(
   projectId: string,

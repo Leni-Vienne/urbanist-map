@@ -17,7 +17,7 @@ interface ErrorHandlingOptions {
   /** Custom error handler function */
   onError?: (error: unknown) => void;
   /** Custom success handler function */
-  onSuccess?: <T>(result: T) => void;
+  onSuccess?: (result: unknown) => void;
 }
 
 /**
@@ -49,8 +49,7 @@ export async function withErrorHandling<T>(
   try {
     const result = await fn();
 
-    // Show success toast if provided
-    if (successMessage != undefined) {
+    if (successMessage !== undefined) {
       toast.add({
         severity: "success",
         summary: successSummary,
@@ -59,19 +58,16 @@ export async function withErrorHandling<T>(
       });
     }
 
-    // Call custom success handler
     if (onSuccess) {
       onSuccess(result);
     }
 
     return result;
   } catch (error) {
-    // Log error to console
     if (logError) {
       console.error(errorMessage ?? "Error occurred:", error);
     }
 
-    // Show error toast
     if (errorMessage) {
       toast.add({
         severity: "error",
@@ -81,33 +77,14 @@ export async function withErrorHandling<T>(
       });
     }
 
-    // Call custom error handler
     if (onError) {
       onError(error);
     }
 
-    // Rethrow if requested
     if (rethrow) {
       throw error;
     }
 
     return null;
   }
-}
-
-/**
- * Execute a sync or async function with error toast notification (always returns result or throws)
- * Use this when you want the error to propagate but still show a toast
- *
- * @example
- * const result = await withErrorToast(
- *   () => trpc.project.delete.mutate(id),
- *   'Failed to delete project'
- * )
- */
-export async function withErrorToast<T>(
-  fn: () => T | Promise<T>,
-  errorMessage: string,
-): Promise<T> {
-  return withErrorHandling(fn, { errorMessage, rethrow: true }) as Promise<T>;
 }

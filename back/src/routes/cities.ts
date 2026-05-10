@@ -1,4 +1,4 @@
-import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod";
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { cities, projects } from "../db/schema";
 import { sql, eq } from "drizzle-orm";
@@ -14,21 +14,21 @@ import {
 } from "../db/helpers";
 
 const getCitiesNearLocationSchema = z.object({
-  lat: z.number().min(-90).max(90), // Valid latitude range
-  lng: z.number().min(-180).max(180), // Valid longitude range
-  limit: z.number().min(1).max(25).default(10), // Limit results between 1-25, default 10
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  limit: z.number().min(1).max(25).default(10),
 });
 
 const searchCitiesNearLocationSchema = z.object({
-  lat: z.number().min(-90).max(90), // Valid latitude range
-  lng: z.number().min(-180).max(180), // Valid longitude range
-  search: z.string().min(1).max(100), // Limit search string to 100 characters
-  limit: z.number().min(1).max(25).default(10), // Limit results between 1-25, default 10
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  search: z.string().min(1).max(100),
+  limit: z.number().min(1).max(25).default(10),
 });
 
 const getCityOverlaysAndProjectsSchema = z.object({
   cityId: z.number(),
-  mode: z.enum(["view", "edit", "moderation"]).optional().default("view"), // Map viewing mode
+  mode: z.enum(["view", "edit", "moderation"]).optional().default("view"),
 });
 
 export const citiesRouter = router({
@@ -82,7 +82,6 @@ export const citiesRouter = router({
       try {
         const { lat, lng, limit } = input;
 
-        // Use PostGIS ST_Distance to calculate distance and order by closest
         return await db
           .select({
             id: cities.id,
@@ -249,8 +248,8 @@ export const citiesRouter = router({
   searchCities: publicProcedure
     .input(
       z.object({
-        query: z.string().min(1).max(100), // Minimum 1 character to support short city names (e.g., Chinese cities)
-        limit: z.number().min(1).max(50).default(25), // Limit results, default 25
+        query: z.string().min(1).max(100), // min 1 supports short city names (e.g. Chinese cities)
+        limit: z.number().min(1).max(50).default(25),
       }),
     )
     .query(async ({ input }) => {
