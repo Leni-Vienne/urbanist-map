@@ -315,7 +315,8 @@
     "subtitle": "A crowdsourced map of urban projects worldwide"
   },
   "footer": {
-    "legal": "Legal"
+    "legal": "Legal",
+    "github": "GitHub"
   },
   "submission": {
     "updateProject": "Update Project",
