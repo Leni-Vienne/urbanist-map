@@ -28,7 +28,6 @@ export const feedRouter = router({
     .input(getLatestContributionsSchema)
     .query(async ({ input }) => {
       try {
-        // Check cache
         const now = Date.now();
         if (
           latestContributionsCache &&
@@ -38,7 +37,6 @@ export const feedRouter = router({
           return latestContributionsCache.data.slice(0, input.limit);
         }
 
-        // Fetch latest overlays using proper Drizzle query
         const overlaysQuery = db
           .select({
             type: sql<"overlay">`'overlay'`,
@@ -68,7 +66,6 @@ export const feedRouter = router({
           .orderBy(desc(overlays.updatedAt))
           .limit(input.limit);
 
-        // Fetch latest standalone projects using proper Drizzle query
         const projectsQuery = db
           .select({
             type: sql<"standalone">`'standalone'`,
@@ -123,13 +120,11 @@ export const feedRouter = router({
           .orderBy(sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt}) DESC`)
           .limit(input.limit);
 
-        // Execute both queries in parallel
         const [latestOverlays, latestStandaloneProjects] = await Promise.all([
           overlaysQuery,
           projectsQuery,
         ]);
 
-        // Transform overlay results
         const overlayContributions = latestOverlays.map((o) => ({
           type: "overlay" as const,
           id: o.id,
@@ -147,7 +142,6 @@ export const feedRouter = router({
           status: o.status,
         }));
 
-        // Transform project results
         const standaloneProjectContributions = latestStandaloneProjects.map((p) => ({
           type: "standalone" as const,
           id: p.id,
@@ -185,7 +179,6 @@ export const feedRouter = router({
           .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
           .slice(0, input.limit);
 
-        // Cache the result
         latestContributionsCache = {
           data: combined,
           timestamp: now,

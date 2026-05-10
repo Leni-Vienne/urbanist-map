@@ -11,8 +11,6 @@ async function populateInitialCounts() {
   console.log("Starting to populate city project counts...");
 
   try {
-    // Get all cities with their approved project counts using Drizzle
-    // Create subquery for project counts per city
     const projectCountsSubquery = db
       .select({
         cityId: projects.cityId,
@@ -32,7 +30,6 @@ async function populateInitialCounts() {
       .from(projectCountsSubquery)
       .where(isNotNull(projectCountsSubquery.cityId));
 
-    // Update each city with its count
     let updatedCount = 0;
     for (const { cityId, projectCount } of citiesWithCounts) {
       if (cityId) {
@@ -47,10 +44,8 @@ async function populateInitialCounts() {
     console.log(`✓ Updated ${updatedCount} cities with approved projects`);
 
     // Reset cities with no approved projects to 0
-    // Get all city IDs that have projects
     const cityIdsWithProjects = citiesWithCounts.map((c) => c.cityId);
 
-    // Update all cities not in that list to have count 0
     if (cityIdsWithProjects.length > 0) {
       await db
         .update(cities)
@@ -60,7 +55,6 @@ async function populateInitialCounts() {
 
     console.log(`✓ Reset cities with no approved projects to 0`);
 
-    // Verify results with proper Drizzle select
     const stats = await db
       .select({
         citiesWithProjects: count(cities.id).as("cities_with_projects"),

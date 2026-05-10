@@ -1,7 +1,5 @@
 <template>
-  <!-- Panel content -->
   <div :class="contentContainerClass">
-    <!-- Show content based on active tab -->
     <!-- KeepAlive preserves component state (scroll, data) when switching tabs -->
     <KeepAlive>
       <LatestContributionsPanel v-if="activeTab === 'latest'" />

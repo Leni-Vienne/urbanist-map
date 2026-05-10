@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extract proposed/construction linear transport features — topology-based orphan grouping.
+Extract proposed/construction linear transport features, topology-based orphan grouping.
 
 Covers railways, roads, aerialways (cable cars/gondolas/funiculars),
 waterways, cycling and pedestrian paths.
@@ -51,7 +51,7 @@ TRANSPORT_TYPES = {
     'narrow_gauge': ('narrow_gauge',),
     'monorail': ('monorail',),
     'miniature': ('miniature',),
-    # Aerial family  
+    # Aerial family
     'funicular': ('funicular',),
     'gondola': ('gondola',),
     'cable_car': ('cable_car', 'chair_lift', 'mixed_lift', 'drag_lift', 
@@ -157,7 +157,7 @@ def compute_bearing(coords):
         return 0
     dx = coords[-1][0] - coords[0][0]
     dy = coords[-1][1] - coords[0][1]
-    if abs(dx) < 1e-9 and abs(dy) < 1e-9 and len(coords) >= 2:
+    if abs(dx) < 1e-9 and abs(dy) < 1e-9:
         dx = coords[1][0] - coords[0][0]
         dy = coords[1][1] - coords[0][1]
     return math.degrees(math.atan2(dx, dy)) % 180
@@ -330,7 +330,6 @@ def best_name_from_tags(tags_list):
     2. Extract title from wikipedia tag (strips language prefix like "de:" or "en:")
     3. Description (but not overly short/generic ones)
     """
-    # Collect all names and pick the best one
     names = []
     for tags in tags_list:
         name = tags.get('name', '').strip()
@@ -338,9 +337,7 @@ def best_name_from_tags(tags_list):
             names.append(name)
 
     if names:
-        # Prefer longer names (more descriptive)
-        names_sorted = sorted(names, key=len, reverse=True)
-        return names_sorted[0]
+        return sorted(names, key=len, reverse=True)[0]
 
     # Fall back to localized name tags (name:en first, then any name:*)
     for tags in tags_list:
@@ -352,16 +349,15 @@ def best_name_from_tags(tags_list):
             if k.startswith('name:') and v.strip():
                 return v.strip()
     
-    # Try to extract title from wikipedia tag (language-agnostic)
+    # Try wikipedia tag: strip language prefix (e.g. "de:", "en:") and convert underscores
     for tags in tags_list:
         wiki = tags.get('wikipedia', '').strip()
         if wiki and ':' in wiki:
-            # Strip language prefix (e.g., "de:", "en:", "fr:") and convert underscores
             wiki_title = wiki.split(':', 1)[1].replace('_', ' ')
             if wiki_title:
                 return wiki_title
     
-    # Fall back to description, but skip very short ones (less than 4 chars)
+    # Fall back to description, skipping very short ones
     for tags in tags_list:
         desc = tags.get('description', '').strip()
         if desc:
@@ -460,7 +456,7 @@ class RelationHandler(osmium.SimpleHandler):
 
             # Road-service route types run on existing roads and are never themselves
             # infrastructure being built. A bus detour through a construction zone doesn't
-            # make the route a project — require an explicit lifecycle tag on the relation.
+            # make the route a project, require an explicit lifecycle tag on the relation.
             _ROAD_SERVICE_ROUTE_TYPES = ('bus', 'coach', 'trolleybus', 'share_taxi')
             if tags.get('route', '') in _ROAD_SERVICE_ROUTE_TYPES:
                 if not (has_lifecycle or has_construction_state):
@@ -475,7 +471,6 @@ class RelationHandler(osmium.SimpleHandler):
                     construction_length_km = 0.0
                     total_length_km = 0.0
 
-                    # Couuuld be worth caching way length but not a bottleneck at all for now
                     for wid in member_way_ids:
                         way_data = self.way_geometries.get(wid)
                         if way_data and 'coords' in way_data:
@@ -590,7 +585,7 @@ class ComponentSet:
                     if wid in self.ways and len(self.ways[wid]['coords']) >= 2]
             try:
                 self._cache[key] = linemerge(lines) if lines else None
-            except:
+            except Exception:
                 self._cache[key] = lines[0] if lines else None
         return self._cache[key]
     
@@ -605,8 +600,8 @@ class ComponentSet:
                 for tag in ('ref', 'construction:ref', 'proposed:ref', 'official_ref'):
                     if tags.get(tag, '').strip():
                         keys.add(f'{tag}:{tags[tag].strip()}')
-                # Only merge by name for major transit (not road/active)
-                if bt not in ('road', 'active'):
+                # Only merge by name for major transit (not road/bike/pedestrian)
+                if bt not in ('road', 'bike', 'pedestrian'):
                     best_name = best_name_from_tags([tags])
                     if best_name:
                         keys.add(f'name:{best_name}')
@@ -641,7 +636,7 @@ def merge_by_topology(cs):
                 continue
             if get_project_status(wa['tags']) != get_project_status(wb['tags']):
                 continue
-            # Don't merge two named ways with different names — road/path intersections
+            # Don't merge two named ways with different names, road/path intersections
             # are not project continuations
             name_a = wa['tags'].get('name', '').strip()
             name_b = wb['tags'].get('name', '').strip()
@@ -678,7 +673,6 @@ def merge_by_ref(cs, max_distance_km=1.0, max_distance_wikidata_km=10.0):
                    bbox_distance_km(cs.bbox(ri), cs.bbox(rj)) <= threshold:
                     uf.union(ri, rj)
 
-    # Rebuild components
     new_comps = defaultdict(list)
     for rep_id, way_ids in cs.components.items():
         new_comps[uf.find(rep_id)].extend(way_ids)
@@ -888,10 +882,8 @@ def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
                 if geom1.distance(geom2) <= max_dist_deg and \
                    cs.project_status(ri) == cs.project_status(rj):
                     uf.union(ri, rj)
-            except:
+            except Exception:
                 continue
-    
-    # Count merges and apply
     groups = uf.groups()
     merge_count = sum(1 for g in groups.values() if len(g) > 1)
     components_merged = sum(len(g) for g in groups.values() if len(g) > 1)
@@ -961,27 +953,25 @@ def make_relation_feature(rel_id, rel, ways):
     
     try:
         merged = linemerge(member_geoms)
-    except:
+    except Exception:
         merged = member_geoms[0]
     
     # Start with all relation tags so no OSM data is silently dropped
     props = dict(rel['tags'])
 
-    # Way tags override for core infrastructure keys (the ways are the actual geometry)
+    # Way tags fill in core transport infrastructure keys (ways carry the actual geometry)
     for wtags in member_tags:
-        # Pull core transport infrastructure tags from the ways
         for k in ('construction', 'proposed', 'planned', 'highway', 'railway', 'waterway', 'aerialway'):
             if k in wtags and k not in props:
                 props[k] = wtags[k]
 
-        # Pull specific proposed/construction/planned types (e.g. construction:highway, planned:aerialway)
+        # Also pull lifecycle prefix keys (e.g. construction:highway, planned:aerialway)
         for k in list(wtags.keys()):
             if (k.startswith('construction:') or k.startswith('proposed:') or k.startswith('planned:')) and k not in props:
                 props[k] = wtags[k]
     
-    # Determine the transport type early so we know what tags are relevant
+    # Determine transport type early so we know what rail-specific tags to pull
     temp_props = dict(props)
-    # Also check relation tags for construction/proposed/planned
     for k in ('construction', 'proposed', 'planned'):
         if k in rel['tags'] and k not in temp_props:
             temp_props[k] = rel['tags'][k]
@@ -994,17 +984,17 @@ def make_relation_feature(rel_id, rel, ways):
                 if k in wtags and k not in props:
                     props[k] = wtags[k]
     
-    # Relation identity tags always win — the relation is the canonical project record
+    # Relation identity tags always win (the relation is the canonical project record)
     for k in ('name', 'ref', 'wikidata', 'wikipedia', 'description', 'website',
               'source', 'opening_date', 'note', 'operator',
               'from', 'to', 'via', 'colour', 'color', 'network', 'short_name'):
         if k in rel['tags']:
             props[k] = rel['tags'][k]
-    # Copy all name:* localised name tags from the relation
+    # Copy localised name tags from the relation
     for k, v in rel['tags'].items():
         if k.startswith('name:'):
             props[k] = v
-    # Infrastructure type tags from relation only fill gaps (way tags are authoritative)
+    # Lifecycle tags from the relation fill gaps only (way tags are authoritative)
     for k in ('construction', 'proposed', 'planned'):
         if k in rel['tags'] and k not in props:
             props[k] = rel['tags'][k]
@@ -1014,17 +1004,14 @@ def make_relation_feature(rel_id, rel, ways):
     props['osm_ids_count'] = len(member_ids)
     props['member_way_count'] = len(member_geoms)
     
-    # Determine status using majority vote (not just "any")
-    # Count status of all member ways
+    # Determine project status by majority vote across member ways
+    # Preference order: proposed > planned > under_construction (more conservative)
     status_counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
     for t in member_tags:
         status = get_project_status(t)
         status_counts[status] = status_counts.get(status, 0) + 1
     
-    # Use the most common status
-    # Priority: proposed > planned > under_construction (prefer less certain statuses)
-    # This ensures that if a project is mostly proposed with a few construction segments,
-    # it's marked as proposed (more conservative/accurate)
+    # Use the most common status; prefer less certain statuses on ties
     if status_counts['proposed'] >= status_counts['under_construction'] and \
        status_counts['proposed'] >= status_counts['planned']:
         props['project_status'] = 'proposed'
@@ -1074,13 +1061,13 @@ def make_orphan_features(orphan_ways):
         
         try:
             merged = linemerge([LineString(w['coords']) for w in ways_data])
-        except:
+        except Exception:
             merged = LineString(ways_data[0]['coords'])
         
         props = {}
         for w in ways_data:
             props.update(w['tags'])
-        # Use best_name_from_tags so the most descriptive name wins, not the last way's
+        # Use best_name_from_tags so the longest/most descriptive name wins
         best = best_name_from_tags(tags_list)
         if best:
             props['name'] = best
@@ -1253,7 +1240,7 @@ def main():
     t = time.time()
     way_handler = WayGeometryHandler()
     way_handler.apply_file(WAYS_FILE, locations=True)
-    print(f"[linear] [{_ts()}] Pass 1 done in {_fmt(time.time() - t)} — {len(way_handler.ways):,} proposed/construction ways")
+    print(f"[linear] [{_ts()}] Pass 1 done in {_fmt(time.time() - t)}, {len(way_handler.ways):,} proposed/construction ways")
 
     if not way_handler.ways:
         print("[linear] ERROR: No ways found.")
@@ -1263,7 +1250,7 @@ def main():
     t = time.time()
     rel_handler = RelationHandler(set(way_handler.ways.keys()), way_handler.ways)
     rel_handler.apply_file(SOURCE_FILE)
-    print(f"[linear] [{_ts()}] Pass 2 done in {_fmt(time.time() - t)} — {len(rel_handler.relations):,} route relations found")
+    print(f"[linear] [{_ts()}] Pass 2 done in {_fmt(time.time() - t)}, {len(rel_handler.relations):,} route relations found")
 
     print(f"\n[linear] [{_ts()}] Building GeoJSON features...")
     t = time.time()

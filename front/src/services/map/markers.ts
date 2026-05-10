@@ -1,18 +1,9 @@
-// ============================================================================
-// Unified marker management combining icon creation, color logic, and marker updates
-// ============================================================================
-
 import L from "leaflet";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 
-// ============================================================================
-// ICON CREATION
-// ============================================================================
-
-// SVG marker configuration
 const markerSize = 25;
 const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
 
@@ -89,10 +80,8 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   `;
 }
 
-// Cache overlay DivIcon instances — only 7 colors exist, no need to recreate on every call.
-// setIcon() reconstructs the marker DOM element each time, so reusing the same object
-// still triggers DOM work. The real gain comes from skipping setIcon() when color is unchanged
-// (see updateMarkerTooltip). This cache avoids the SVG string + L.divIcon allocation cost.
+// Overlay DivIcon instances are cached (only 7 colors exist) to avoid recreating
+// SVG strings and L.divIcon allocations on every render pass.
 const _overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
 
 // Create overlay marker icon with picture frame (for overlay markers specifically)
@@ -130,13 +119,6 @@ export function getMarkerSvg(color: MarkerColor): string {
   return createStandaloneProjectMarkerSVG(color);
 }
 
-// ============================================================================
-// MARKER COLORS
-// ============================================================================
-
-/**
- * Centralized function to determine marker color based on overlay state and map mode
- */
 export function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
   mode: AppMode,
@@ -150,13 +132,10 @@ export function getOverlayMarkerColor(
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
 
-  // ==================== OVERLAY-SPECIFIC PRIORITY RULES ====================
-  // These rules are unique to overlays and don't apply to projects
-
   // Size validation error (only for local overlays - submitted ones passed backend validation)
   if (mode === "edit" && "isTooBig" in overlayData && hasBeenModified) return "red";
 
-  // Local replacement overlay (before submission) - show purple
+  // Local replacement overlay (before submission)
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";
 
   // Viewing suggested (pending) position - show yellow only when explicitly toggled
@@ -169,9 +148,6 @@ export function getOverlayMarkerColor(
     return "green";
   }
 
-  // ==================== SHARED STATUS-BASED LOGIC ====================
-  // Delegate to shared helper for common status/mode combinations
-
   if (mode === "moderation" || mode === "edit") {
     const statusColor = getApprovalStatusColor(status, mode, {
       isModified: hasBeenModified ?? false,
@@ -181,25 +157,16 @@ export function getOverlayMarkerColor(
     if (statusColor) return statusColor;
   }
 
-  // ==================== VIEW MODE: TIMELINE-BASED COLORS ====================
-  // Based on associated project's timeline dates
-
+  // View mode: color by the project's timeline status
   const project = overlayData.project;
-  if (!project) return "grey"; // No associated project
+  if (!project) return "grey";
 
-  // Use shared timeline helper
   return getTimelineStatusColor(project.timelineStatus);
 }
 
-// ============================================================================
-// MARKER UPDATES
-// ============================================================================
-
 /**
- * Update overlay markers colors for existing markers based on current mode
- * @param overlays - Reference to overlays object
- * @param mode - Current map mode (passed as parameter for testability and performance)
- * @param specificOverlayId - Optional overlay ID to update only one overlay (optimization)
+ * Update overlay marker colors based on current mode.
+ * Pass a specific overlay ID to update only that one marker (optimization).
  */
 export function updateOverlayMarkersColors(
   overlays: Record<string, OverlayObject>,
@@ -220,11 +187,9 @@ export function updateOverlayMarkersColors(
     return;
   }
 
-  // Otherwise, iterate through all overlay objects that have markers
   for (const overlayObject of Object.values(overlays)) {
     const marker = getMarker(overlayObject.id);
     if (marker) {
-      // Update marker color based on current mode and overlay state
       const markerColor = getOverlayMarkerColor(overlayObject, mode);
       const colorIcon = createOverlayIcon(markerColor);
       marker.setIcon(colorIcon);

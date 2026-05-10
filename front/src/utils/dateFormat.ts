@@ -3,11 +3,7 @@
  * For project date ranges with flexible precision, use projectDateFormat.ts instead.
  */
 
-/**
- * Format a date as dd/mm/yyyy
- * @param date - Date object, string, or null/undefined
- * @returns Formatted date string or empty string if invalid
- */
+/** Format a date as dd/mm/yyyy. */
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "";
 
@@ -21,12 +17,7 @@ export function formatDate(date: Date | string | null | undefined): string {
   return `${day}/${month}/${year}`;
 }
 
-/**
- * Format a date as relative time using i18n translations
- * @param date - The date to format (Date object or ISO string)
- * @param t - The vue-i18n translation function
- * @returns A human-readable relative time string
- */
+/** Format a date as relative time using i18n translations. */
 export function formatRelativeTime(
   date: Date | string | null | undefined,
   t: (key: string, args?: Record<string, unknown>) => string,

@@ -1,11 +1,7 @@
-// ============================================================================
-// OVERLAY STYLE - Composable box-shadow management for overlay elements
-// ============================================================================
 // Multiple features (selection ring, size warning) write to the same element's
 // boxShadow. This module is the single owner of all overlay shadow styling:
 // it holds the CSS values and composes concurrent layers so neither clobbers
 // the other. Callers just say "apply ring" / "clear ring", no CSS leaks out.
-// ============================================================================
 
 const WARNING_SHADOW = "0 0 0 2px rgba(239, 68, 68, 0.3)";
 

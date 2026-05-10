@@ -1,10 +1,3 @@
-// ============================================================================
-// OVERLAY MARKERS - Marker creation and update functions
-// ============================================================================
-// Extracted from useOverlay.ts to manage overlay marker lifecycle
-// These functions handle creating, positioning, and styling overlay markers
-// ============================================================================
-
 import L from "leaflet";
 import { map } from "@/services/core/map";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
@@ -29,7 +22,6 @@ import {
 } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
-// useI18n() uses Vue's inject() mechanism which is only available synchronously during the setup() phase of a component.
 import { t } from "@/locales";
 
 /**
@@ -68,10 +60,9 @@ export function updateMarkerTooltip(
 
   const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, mapStore.mode);
 
-  // Skip setIcon() if color hasn't changed — setIcon() detaches and rebuilds the marker's
+  // Skip setIcon() if color unchanged -- setIcon() detaches and rebuilds the marker's
   // DOM element even when the icon is visually identical, causing unnecessary layout cost.
-  // We track the current color on the marker object directly (no separate Map needed,
-  // no cleanup required when the marker is removed).
+  // We track the current color on the marker object directly.
   const markerWithColor = marker as L.Marker & { _cmorgColor?: MarkerColor };
   if (markerWithColor._cmorgColor !== markerColor) {
     marker.setIcon(createOverlayIcon(markerColor));
@@ -158,15 +149,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     return;
   }
 
-  // CRITICAL: Safety check for visibility
-  // This prevents markers from being created for filtered-out overlays during race conditions
+  // Visibility check: filters out overlays that don't pass mode/user conditions
   const authStore = useAuthStore();
   if (!isOverlayVisible(savedOverlay, mapStore.mode, authStore.user?.id)) {
     return;
   }
 
-  // Calculate centroid from corners using shared utility to match backend calculation
-  // Check edit cache first to prevent flicker when zooming back in on modified overlays
+  // Check edit cache first to prevent marker flicker when zooming back in on modified overlays
   let corners = savedOverlay.corners;
   if (mapStore.mode === "edit") {
     const cached = overlayStore.getFromEditModeCache(savedOverlay.id);
@@ -194,24 +183,19 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     icon: colorIcon,
   }).addTo(map.value);
 
-  // Add click handler to select/deselect overlay when marker is clicked
   marker.on("click", (e) => {
-    // Stop propagation to prevent map click handler (deselection) from firing
     L.DomEvent.stopPropagation(e);
 
     const overlayObject = overlayStore.overlays[savedOverlay.id];
     if (!overlayObject) return;
 
-    // Set position state for dynamic button feedback
     // Default to viewing the approved position on first click
     if (overlayObject.isViewingApprovedPosition === undefined) {
       overlayObject.isViewingApprovedPosition = true;
     }
 
-    // Sync preview state for reactive button highlighting in change request UI
     syncPreviewStateOnNavigation(savedOverlay.id, overlayObject.isViewingApprovedPosition ?? true);
 
-    // Fly to overlay bounds first
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, {
@@ -221,7 +205,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
       });
     }
 
-    // Toggle selection - selectOverlay handles overlay.select() internally
+    // Toggle selection
     if (overlayStore.idSelectedOverlay === savedOverlay.id) {
       selectOverlay(null);
     } else {
@@ -229,8 +213,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     }
   });
 
-  // Add hover handlers to highlight overlay on marker hover
-  // Capture projectId to avoid non-null assertion inside callbacks
+  // Capture projectId to avoid non-null assertion inside hover callbacks
   const projectId = savedOverlay.projectId;
   if (projectId) {
     marker.on("mouseover", () => {
@@ -243,7 +226,6 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   }
 
   registry.setMarker(savedOverlay.id, marker);
-  // Pass pre-calculated markerColor to avoid redundant getOverlayMarkerColor call
   updateMarkerTooltip(tempOverlayObject, markerColor);
 }
 
@@ -253,17 +235,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 export function createMarker(overlayObject: OverlayObject): void {
   const mapStore = useMapStore();
 
-  // CRITICAL: Safety check for visibility
+  // Visibility check: filters out overlays that don't pass mode/user conditions
   const authStore = useAuthStore();
   if (!isOverlayVisible(overlayObject, mapStore.mode, authStore.user?.id)) {
     return;
   }
 
-  // Use current map center as initial marker position
   const center = map.value.getCenter();
-
-  // Determine marker color based on overlay state
-  // Let getOverlayMarkerColor handle all color logic including replacements after submission
   const markerColor = getOverlayMarkerColor(overlayObject, "edit");
   const colorIcon = createOverlayIcon(markerColor);
 
@@ -271,9 +249,7 @@ export function createMarker(overlayObject: OverlayObject): void {
     icon: colorIcon,
   }).addTo(map.value);
 
-  // Add click handler to marker to select the overlay
   marker.on("click", () => {
-    // Fly to overlay bounds first
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, {
@@ -287,10 +263,7 @@ export function createMarker(overlayObject: OverlayObject): void {
     selectOverlay(overlayObject.id);
   });
 
-  // Register marker in registry
   registry.setMarker(overlayObject.id, marker);
-
-  // Update marker tooltip with proper styling
   updateMarkerTooltip(overlayObject);
 }
 
@@ -339,7 +312,7 @@ export function checkOverlaySizeAndWarn(
   const corners = overlay.getCorners();
 
   // Guard clause - corners can be undefined for newly created overlays
-  if (!corners || corners.length !== 4) {
+  if (corners?.length !== 4) {
     return;
   }
 
@@ -349,7 +322,7 @@ export function checkOverlaySizeAndWarn(
   const element = overlay.getElement();
   if (!element) return;
 
-  // Resolve store once — needed to sync isTooBig so that subsequent
+  // Resolve store once to sync isTooBig so that subsequent
   // updateOverlay (Object.assign from store) propagates the correct value.
   // Without this, the store retains a stale isTooBig:true after the overlay
   // becomes valid again, causing the drag handler (which reads from the store)
@@ -357,18 +330,16 @@ export function checkOverlaySizeAndWarn(
   const overlayStore = useOverlayStore();
 
   if (!validation.isValid) {
-    // Add red border to indicate size problem
     element.style.border = "4px solid #ef4444";
     applyWarningRing(element);
 
-    // Update marker color if not already marked
     if (!overlayObject.isTooBig) {
       overlayObject.isTooBig = true;
       overlayStore.updateOverlay(overlayObject.id, { isTooBig: true });
       updateMarkerTooltip(overlayObject);
     }
 
-    // Show toast message every time overlay is edited while too large
+    // Show toast every time overlay is edited while too large
     const toast = useToast();
     toast.add({
       severity: "warn",
@@ -377,11 +348,9 @@ export function checkOverlaySizeAndWarn(
       life: 3000,
     });
   } else {
-    // Remove warning styling
     element.style.border = "";
     clearWarningRing(element);
 
-    // Clear size issue flag and update marker color
     if (overlayObject.isTooBig) {
       overlayObject.isTooBig = false;
       overlayStore.updateOverlay(overlayObject.id, { isTooBig: false });

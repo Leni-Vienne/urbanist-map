@@ -16,7 +16,6 @@
           @mouseenter="handleContributionHover(contribution)"
           @mouseleave="handleContributionLeave(contribution)"
         >
-          <!-- Contribution thumbnail image (overlay) or icon (standalone) -->
           <div
             class="w-13 h-13 md:w-15 md:h-15 rounded-xl overflow-hidden bg-content-hover-background border border-surface shrink-0 flex items-center justify-center relative"
           >
@@ -62,7 +61,6 @@
             </div>
           </div>
 
-          <!-- Chevron indicator for clickability -->
           <i
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150 group-hover:text-(--p-text-color-secondary)"
           ></i>
@@ -120,18 +118,13 @@ const { t } = useI18n();
 const mapStore = useMapStore();
 const toast = useToast();
 
-// Use cached composable for latest contributions
 const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
-
-// Use shared image error handling
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
-// Get contribution thumbnail URL using the utility function
 function getContributionImageUrl(filename: string): string {
   return buildThumbnailUrl(filename);
 }
 
-// Get location display (city, country)
 function getLocationDisplay(contribution: LatestContribution): string {
   if (contribution.cityName && contribution.countryName) {
     return `${contribution.cityName}, ${contribution.countryName}`;
@@ -147,21 +140,18 @@ function getLocationDisplay(contribution: LatestContribution): string {
   return t("project.noLocation");
 }
 
-// Handle contribution hover - highlight overlay on map if loaded
 function handleContributionHover(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
     highlightOverlayById(contribution.id);
   }
 }
 
-// Handle contribution leave - remove overlay highlight
 function handleContributionLeave(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
     removeOverlayHighlight(contribution.id);
   }
 }
 
-// Handle contribution click - navigate to overlay or standalone project
 async function handleContributionClick(contribution: LatestContribution) {
   // In moderation mode, auto-select the country for the moderation panel
   // Block navigation if the moderator can't moderate this country
@@ -217,7 +207,6 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 }
 
-// Scroll-area fade logic (same pattern as ProjectAccordionPanel)
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 const isScrollable = ref(false);

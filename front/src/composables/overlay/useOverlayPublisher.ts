@@ -24,7 +24,6 @@ export function useOverlayPublisher() {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
 
-  // Validate if overlay can be published
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {
     if (!project) {
       throw new Error("Cannot Publish: Overlay must be assigned to a project");
@@ -40,46 +39,36 @@ export function useOverlayPublisher() {
     const sizeValidation = validateOverlaySize(cornersArray);
 
     if (!sizeValidation.isValid) {
-      // Simple i18n error message
       throw new Error(t("overlay.overlayTooLarge"));
     }
 
     return true;
   }
 
-  // Ensure project exists on server and handle project publishing
   async function ensureProjectOnServer(project: Project): Promise<boolean> {
     try {
-      // For approved projects, skip publishing - they already exist on server
-      // Project modifications will be handled separately via change request flow
+      // Approved projects already exist on the server; changes go through the change-request flow.
       if (project.status === "approved") {
-        return false; // Project ID won't change for existing approved projects
+        return false;
       }
 
-      // Use shared helper to build consistent payload
       const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
-      // Handle project ID update and IndexedDB cleanup if this is a new project
       if (projectResult.id) {
         const oldProjectId = project.id;
 
-        // If this is a new project (not existing), update the project ID
         if (!projectResult.exists && projectResult.id !== oldProjectId) {
-          // Update the project ID with the one from the backend
           project.id = projectResult.id;
 
-          // Update project ID in the projects store
           const updatedProjects = { ...projectStore.projects };
           delete updatedProjects[oldProjectId];
           updatedProjects[projectResult.id] = project;
           projectStore.projects = updatedProjects;
 
-          return true; // Indicates project ID changed
+          return true;
         }
 
-        // For newly created projects, add to contributions optimistically
         if (!projectResult.exists) {
-          // Update status locally to match backend
           projectStore.updateProject(project.id, { status: "pending" });
           const updatedProject = projectStore.projects[project.id];
           if (updatedProject) {
@@ -95,30 +84,22 @@ export function useOverlayPublisher() {
     }
   }
 
-  // Prepare image for server (upload or extract filename)
-  // Images are uploaded to local storage immediately, then migrated to R2 only after moderator approval
+  // Images upload to local storage first and migrate to R2 only after moderator approval.
   async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     if (overlay.imageUrl.startsWith("data:")) {
-      // Convert data URL to Blob with proper MIME type
       const response = await fetch(overlay.imageUrl);
       const blob = await response.blob();
 
-      // Validate file size before upload (10MB limit matches backend)
       const MAX_FILE_SIZE_MB = 10;
       const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
       if (blob.size > MAX_FILE_SIZE_BYTES) {
         throw new Error(t("upload.fileTooLarge", { maxSize: MAX_FILE_SIZE_MB }));
       }
 
-      // Create a File object with proper name and type
       const file = new File([blob], "overlay-image.webp", { type: blob.type || "image/webp" });
 
       const formData = new FormData();
       formData.append("image", file);
-
-      // Get API URL based on environment (same logic as tRPC client)
-      // Use shared getApiUrl function
-      // Upload to server's local storage - will migrate to R2 on approval
 
       const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
         method: "POST",
@@ -145,7 +126,6 @@ export function useOverlayPublisher() {
     }
   }
 
-  // Synchronize overlay ID change across all stores and references
   function synchronizeOverlayIdChange(
     overlay: OverlayObject,
     oldId: string,
@@ -187,20 +167,17 @@ export function useOverlayPublisher() {
     }
   }
 
-  // Handle post-publish UI updates and cache invalidation
   function handlePostPublishUpdates(
     overlay: OverlayObject,
     project: Project | null,
     filename: string,
   ): void {
-    // Update marker tooltip to reflect new published state
     updateMarkerTooltip(overlay);
 
-    // Ensure the overlay stays visible on the map after ID change
     const layer = getLayer(overlay.id);
     if (layer && !map.value.hasLayer(layer)) {
       layer.addTo(map.value);
-      // Manage z-index: if this overlay is selected, bring to front; otherwise ensure selected stays on top
+      // If this overlay is selected, bring to front; otherwise keep the selected one on top.
       requestAnimationFrame(() => {
         if (overlayStore.idSelectedOverlay === overlay.id) {
           layer.bringToFront();
@@ -213,10 +190,6 @@ export function useOverlayPublisher() {
       });
     }
 
-    // Update cache with new overlay state to refresh marker color (changes from Orange to Yellow)
-    // Use robust resolution for cityId as overlay.project might not be fully hydrated
-    // Optimistically add overlay to user contributions (no backend fetch needed)
-    // Latest overlays won't show pending submissions, so don't refresh that panel
     if (project) {
       const authStore = useAuthStore();
       projectStore.addOverlayToUserContributions(
@@ -228,15 +201,13 @@ export function useOverlayPublisher() {
     }
   }
 
-  // Main publish overlay function - orchestrates the publishing workflow
   async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
     if (!validateOverlayForPublishing(overlay, project)) {
       return;
     }
 
     try {
-      // Step 1 - Ensure project exists on server first (only for brand new projects)
-      // Skip if project is already published (pending/approved) to avoid duplicate publishProject calls
+      // For brand-new projects, publish the project first so we have a server-side ID.
       let projectIdChanged = false;
       if (project?.status === null) {
         projectIdChanged = await ensureProjectOnServer(project);
@@ -244,10 +215,9 @@ export function useOverlayPublisher() {
           overlay.projectId = project.id;
         }
       }
-      // Step 2 - Prepare and upload image if needed
+
       const filename = await prepareImageForServer(overlay);
 
-      // Step 3 - Publish overlay metadata
       if (!overlay.projectId) {
         throw new Error("Cannot publish overlay: projectId is required");
       }
@@ -264,35 +234,29 @@ export function useOverlayPublisher() {
 
       const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
 
-      // Step 4 - Handle successful publish result
       if (publishResult.id) {
         const oldId = overlay.id;
         const newId = publishResult.id;
 
-        // Update overlay properties with server response
         overlay.id = newId;
         overlay.status = publishResult.status;
         overlay.authorId = publishResult.authorId ?? null;
         overlay.isModified = false;
 
-        // CRITICAL: Update imageUrl to server URL to prevent re-upload on next save
-        // Build the server URL from the filename
-        // Use /uploads/ path as that's where the backend serves files (there is no /api/images endpoint)
+        // Point to the server URL so the image isn't re-uploaded on the next save.
+        // The backend serves uploads under /uploads/ (no /api/images endpoint exists).
         overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
-        overlay.filename = filename; // Update filename to the clean one returned by server
+        overlay.filename = filename;
 
-        // Synchronize ID change across all stores if ID changed
         if (oldId !== newId) {
           synchronizeOverlayIdChange(overlay, oldId, newId, project);
         }
 
-        // Handle post-publish UI updates and cache invalidation
         handlePostPublishUpdates(overlay, project, filename);
       }
 
-      // Don't refresh city overlays immediately after publishing to avoid overwriting
-      // the just-published overlay with stale backend data. The overlay is already
-      // updated locally with the correct state and ID from the publish response.
+      // Don't reload city overlays immediately, the local state already reflects the
+      // publish response and a refetch would overwrite it with stale backend data.
     } catch (error) {
       console.error("Failed to publish overlay:", error);
       throw new Error("Publish Failed: Failed to save to server. Please try again.", {

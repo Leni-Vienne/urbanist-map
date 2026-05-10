@@ -11,37 +11,36 @@ import { qrcode } from "vite-plugin-qrcode";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  envDir: "../", // Only way that .env can be imported, '../.env' don't work for some reason
+  envDir: "../",
   plugins: [
     {
       name: "bundle-report-clean",
       apply: "build",
       generateBundle(_, bundle) {
         const report: any = {};
-        const root = process.cwd(); // This is your project folder path
+        const root = process.cwd();
 
         Object.entries(bundle).forEach(([fileName, chunk]) => {
           if (chunk.type === "chunk") {
             // We just "delete" the root path string from every file path
-            report[fileName] = Object.keys(chunk.modules)
-              //.filter((m) => !m.endsWith(".css"))
-              .map((m) => {
-                // 1. Force both paths to use forward slashes /
-                const cleanRoot = root.replaceAll(/\\/g, "/");
-                const cleanModule = m.replaceAll(/\\/g, "/");
+            report[fileName] = Object.keys(chunk.modules).map((m) => {
+              // 1. Force both paths to use forward slashes /
+              const cleanRoot = root.replaceAll(/\\/g, "/");
+              const cleanModule = m.replaceAll(/\\/g, "/");
 
-                // 2. Now the replace will actually find the match
-                return cleanModule.replace(cleanRoot, "");
-              });
+              // 2. Now the replace will actually find the match
+              return cleanModule.replace(cleanRoot, "");
+            });
           }
         });
 
-        fs.mkdirSync("./junk", { recursive: true });
-        fs.writeFileSync("./junk/full-bundle-report.json", JSON.stringify(report, null, 2));
-        console.log("Done! Check ./junk/full-bundle-report.json");
+        fs.mkdirSync("./.bundle-report", { recursive: true });
+        fs.writeFileSync(
+          "./.bundle-report/full-bundle-report.json",
+          JSON.stringify(report, null, 2),
+        );
       },
     },
-    //fontDisplaySwapPlugin(),
     vue(),
     qrcode(),
     visualizer({
@@ -104,7 +103,6 @@ export default defineConfig(({ mode }) => ({
       "primevue/radiobutton",
       "primevue/select",
       "primevue/toast",
-      //'primevue/virtualscroller',
       "primevue/datatable",
       "primevue/column",
       "primevue/focustrap",
@@ -135,7 +133,7 @@ export default defineConfig(({ mode }) => ({
       output: {
         codeSplitting: {
           groups: [
-            // Keep maplibre-gl in a single chunk — splitting it causes minified
+            // Keep maplibre-gl in a single chunk, splitting it causes minified
             // symbol errors (e.g. "Gi is not defined") in the Web Worker callback.
             {
               name: "maplibre",
@@ -196,7 +194,7 @@ export default defineConfig(({ mode }) => ({
             },
             // Consolidate the 9-chunk cascade triggered when CurrentLocationPanel first mounts
             // (applies to both zoom→click-on-overlay and LatestContributionsPanel click flows).
-            // Only TS utility files here — NOT Vue component files. Adding .vue async entries
+            // Only TS utility files here, NOT Vue component files. Adding .vue async entries
             // to the group drags their transitive deps (vue-i18n) out of the initial bundle
             // into this lazy chunk → Rolldown preloads it at startup again to satisfy the
             // conflict, defeating the purpose. Async components (CurrentLocationPanel,
@@ -222,9 +220,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   define: {
-    //__VUE_OPTIONS_API__: false, -> crashes the app
     "process.env.NODE_ENV": JSON.stringify("production"),
-    __VUE_PROD_DEVTOOLS__: false, // doesn't seem to change anything
+    __VUE_PROD_DEVTOOLS__: false,
     // vue-i18n optimizations - tree-shake unused features
     __INTLIFY_PROD_DEVTOOLS__: false,
     __VUE_I18N_FULL_INSTALL__: true, // We use globalInjection

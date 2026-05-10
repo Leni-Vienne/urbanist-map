@@ -89,11 +89,9 @@ async function verifyEmail() {
       life: 3000,
     });
 
-    // Auto-login by setting user data from verification response
     if (result.user) {
       signingIn.value = true;
 
-      // Wait a moment so user can see the success message
       await new Promise<void>((resolve) => void setTimeout(() => resolve(), 1500));
 
       // Set user directly on auth store (session is already created by backend via cookies)

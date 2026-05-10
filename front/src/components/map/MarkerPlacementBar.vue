@@ -1,7 +1,5 @@
 ﻿<template>
-  <!-- Floating bar for marker placement, positioned inside map container -->
   <Teleport to="#mapDiv">
-    <!-- Semi-transparent backdrop to focus attention on map -->
     <div
       v-if="markerPlacementMode && visible"
       class="absolute inset-0 bg-black/30 z-1998 pointer-events-none"
@@ -33,7 +31,7 @@
         <Button :label="$t('common.cancel')" severity="secondary" size="small" @click="onCancel" />
       </div>
     </div>
-    <!-- Cursor-following marker icon — hidden on touch/mobile devices -->
+    <!-- Cursor-following marker, hidden on mobile -->
     <div
       v-if="markerPlacementMode && visible && !markerCoordinates"
       class="hidden md:block absolute pointer-events-none z-1999 -translate-x-1/2 -translate-y-full"
@@ -49,7 +47,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
 import { getMarkerSvg } from "@/services/map/markers";
 
-// Component props and emits
 interface Props {
   visible: boolean;
 }
@@ -63,13 +60,11 @@ type Emits = {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-// Component state
 const markerCoordinates = ref<{ lat: number; lng: number } | null>(null);
 const markerPlacementMode = ref(false);
 const cursorPosition = ref({ x: 0, y: 0 });
 const cursorMarkerSvg = getMarkerSvg("orange");
 
-// Track mouse position over map for cursor-following marker
 function onMouseMove(e: MouseEvent) {
   if (markerCoordinates.value) return;
   const mapContainer = map.value.getContainer();
@@ -80,7 +75,6 @@ function onMouseMove(e: MouseEvent) {
   };
 }
 
-// Setup/cleanup mouse move listener
 watch(
   () => props.visible,
   (newVisible) => {
@@ -97,13 +91,11 @@ onUnmounted(() => {
   document.removeEventListener("mousemove", onMouseMove);
 });
 
-// Handle visibility changes
 const visible = computed({
   get: () => props.visible,
   set: (value) => emit("update:visible", value),
 });
 
-// Auto-enable marker placement when dialog opens
 watch(
   () => props.visible,
   (newVisible) => {
@@ -117,17 +109,14 @@ watch(
   { immediate: true },
 );
 
-// Handle marker coordinates from map click
 function setMarkerCoordinates(coordinates: { lat: number; lng: number }) {
   markerCoordinates.value = coordinates;
 }
 
-// Cancel marker placement
 function onCancel() {
   emit("update:visible", false);
 }
 
-// Continue with marker coordinates
 function onContinue() {
   if (markerCoordinates.value) {
     emit("marker-coordinates", markerCoordinates.value);
@@ -136,13 +125,11 @@ function onContinue() {
   emit("update:visible", false);
 }
 
-// Reset all state
 function resetState() {
   markerCoordinates.value = null;
   markerPlacementMode.value = false;
 }
 
-// Close dialog when map mode changes (prevents mixed mode states)
 const mapStore = useMapStore();
 watch(
   () => mapStore.mode,
@@ -153,7 +140,6 @@ watch(
   },
 );
 
-// Expose functions to parent component
 defineExpose({
   setMarkerCoordinates,
 });

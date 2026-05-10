@@ -1,5 +1,4 @@
-// Overlay editing operations - extracted from useOverlay.ts
-// Handles edit mode state management, undo/redo, image ratio fixing, and overlay creation
+// Overlay editing operations
 
 import L from "leaflet";
 import { t } from "@/locales";
@@ -27,16 +26,13 @@ import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 
 /**
- * Update overlay editing state based on current mode
- * This function updates existing overlays in-place with new toolbar actions
- * and restores/resets positions based on whether we're entering or leaving edit mode
+ * Update overlay editing state when switching modes.
+ * Restores cached positions when entering edit mode; saves and resets to backend positions when leaving.
  */
 export async function updateOverlayEditingState(): Promise<void> {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
-  // No popup save/restore needed: OverlayFloatingToolbar.vue is reactive and persists
-  // across mode switches without any leaflet-toolbar DOM rebuild.
   const selectedOverlayId = overlayStore.idSelectedOverlay;
   const wasSelected = Boolean(selectedOverlayId);
 
@@ -47,7 +43,7 @@ export async function updateOverlayEditingState(): Promise<void> {
     if (!map.value.hasLayer(layer)) return;
 
     const isEditMode = mapStore.mode === "edit";
-    // Only pass mode actions — toolbar UI is handled by OverlayFloatingToolbar.vue.
+    // Only pass mode actions, toolbar UI is handled by OverlayFloatingToolbar.vue.
     // Cast to any[]: L.ResizeRotateAction/DistortAction are registered by leaflet-distortableimage
     // at runtime but absent from TS types.
     const modeActions = (
@@ -59,32 +55,27 @@ export async function updateOverlayEditingState(): Promise<void> {
     if (isEditMode) {
       const cachedModifications = overlayStore.getFromEditModeCache(overlayObject.id);
       if (cachedModifications?.corners.length === 4) {
-        // Restore cached corners to overlay
         const leafletCorners = cachedModifications.corners.map((corner) =>
           L.latLng(corner.lat, corner.lng),
         );
         layer.setCorners(leafletCorners);
 
-        // Only initialize history if it's empty (preserve existing undo/redo history)
         if (overlayObject.history.length === 0) {
           overlayObject.history = [cachedModifications.corners];
         }
         overlayObject.isModified = cachedModifications.isModified;
 
-        // Update marker position to match restored corners
         updateMarkerPosition(overlayObject);
       }
 
-      // When leaving edit mode (entering view/moderation mode), FIRST save to cache, THEN reset
+      // When leaving edit mode, FIRST save to cache, THEN reset to backend positions.
     } else {
-      // CRITICAL: Save current position to cache BEFORE resetting to backend
-      // This fixes the bug where edit→moderation→edit loses the modified position
-      // Logic extracted to saveAllOverlaysToCache for usage in mode watcher
+      // Save current position to cache before resetting -- prevents losing the modified position
+      // when switching edit→moderation→edit.
       if (overlayObject.isModified || overlayObject.history.length > 1) {
         saveOverlayModificationsToCache(overlayObject);
       }
 
-      // Now reset to backend positions for display
       if (overlayObject.corners.length === 4) {
         const leafletCorners = overlayObject.corners.map((corner) =>
           L.latLng(corner.lat, corner.lng),
@@ -97,7 +88,6 @@ export async function updateOverlayEditingState(): Promise<void> {
       }
     }
 
-    // Update marker color and tooltip
     updateMarkerTooltip(overlayObject);
   });
 
@@ -115,29 +105,26 @@ export async function updateOverlayEditingState(): Promise<void> {
  * Save all modified overlays to edit mode cache
  * Used before mode switches or bulk updates to prevent data loss
  */
-export function saveAllOverlaysToCache(forceMode?: "edit") {
+export function saveAllOverlaysToCache() {
   const overlayStore = useOverlayStore();
   Object.values(overlayStore.overlays).forEach((overlayObject) => {
     if (overlayObject.isModified || overlayObject.history.length > 1) {
-      saveOverlayModificationsToCache(overlayObject, forceMode);
+      saveOverlayModificationsToCache(overlayObject, "edit");
     }
   });
 }
 
-// Helper function to create new overlay with proper Drizzle schema structure
+// Helper to create a new overlay object
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
   // Detect Data URI (local upload) vs Backend URL
   const isDataUri = imageUrl.startsWith("data:");
-  // For Data URIs, use a temporary safe filename to prevent 431 errors in thumbnail generation
-  // For backend URLs, extract the actual filename
   const filename = isDataUri ? `pending-${id}.webp` : (imageUrl.split("/").pop() ?? "");
   const authStore = useAuthStore();
 
-  // Use factory function for consistent object creation
-  // status: null indicates a local overlay not yet submitted to backend
-  // IMPORTANT: Do NOT use undefined here — the factory promotes undefined to "pending",
+  // null = local only, never submitted to backend.
+  // Avoid undefined here: the factory promotes undefined to "pending",
   // which then requires authorId === currentUserId to pass visibility checks.
-  // null takes the dedicated "local overlay" branch in isOverlayVisible and always returns true.
+  // null takes the dedicated local-overlay branch in isOverlayVisible and always returns true.
   return createOverlayObject({
     id,
     filename,
@@ -191,28 +178,22 @@ export function addOverlay(
     currentZoomLevel.value < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const projectStore = useProjectStore();
 
-  // Try to find project in multiple store locations
+  // Fall back to userContributions if not found in the main project store
   let project = projectStore.projects[projectId];
-
-  // If not found in projects, check userContributions
   if (!project) {
     const userContribution = projectStore.userContributions.find((p) => p.id === projectId);
     if (userContribution) {
-      // User contributions have lat/lng, use them directly
-      // Convert using factory to ensure proper Project type (handling extra fields via safe cast)
       project = createProjectObject(userContribution as unknown as Partial<Project>);
     }
   }
 
-  // Function to create and setup the overlay (extracted to be called after zoom if needed)
   // Async to allow dynamic import of overlayRendering (keeps leaflet-distortableimage out of initial bundle)
   async function createAndSetupOverlay() {
     const { createLeafletOverlay } = await import("@/services/overlay/overlayRendering");
-    // Create the overlay
     const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
     if (!newOverlay) return;
 
-    // Wait for element to load asynchronously - getElement() returns undefined until added to DOM
+    // getElement() returns undefined until the image is added to the DOM
     const waitForElement = () => {
       const element = newOverlay.getElement();
       if (!element) {
@@ -252,7 +233,7 @@ export function addOverlay(
 
   // If zoom level is too low, zoom to project location first, then create overlay
   if (needsZoom && project?.lat && project.lng) {
-    const targetZoom = 16; // Zoom level high enough to show overlay clearly
+    const targetZoom = 16;
 
     // Show toast to inform user about auto-zoom
     const toast = useToast();
@@ -270,11 +251,10 @@ export function addOverlay(
 
     // Wait for zoom to complete before creating overlay
     map.value.once("zoomend", () => {
-      createAndSetupOverlay();
+      void createAndSetupOverlay();
     });
   } else {
-    // Zoom is already sufficient, create overlay immediately
-    createAndSetupOverlay();
+    void createAndSetupOverlay();
   }
 
   return id;
@@ -305,7 +285,6 @@ function applyHistoryAction(action: "undo" | "redo") {
   }
 
   if (isUndo) {
-    // For undo: move current state to redo stack and apply previous state
     const currentState = history.pop();
     if (!currentState) return;
 
@@ -315,49 +294,42 @@ function applyHistoryAction(action: "undo" | "redo") {
 
     layer.setCorners(previousState);
 
-    // If we're back to the initial state (history.length === 1) and overlay is approved, mark as unmodified
+    // Back to initial state on an approved overlay -- mark as unmodified
     if (history.length === 1 && overlayObject.status === "approved") {
       overlayObject.isModified = false;
     }
   } else {
-    // For redo: move state from redo stack to history and apply it
     const stateToRestore = redoStack.pop();
     if (!stateToRestore) return;
 
     history.push(stateToRestore);
     layer.setCorners(stateToRestore);
 
-    // Redoing any change means the overlay is modified again
     overlayObject.isModified = true;
   }
 
-  // Update marker position and color after undo/redo
   updateMarkerPosition(overlayObject);
   updateMarkerTooltip(overlayObject);
 
-  // Update cache (undo/redo only available in edit mode)
-  // No need to call updateOverlayMarkersColors - updateMarkerTooltip already updates icon
   saveOverlayModificationsToCache(overlayObject);
 
-  // After full undo back to original, remove corners from pendingModsStore to stay in sync with isModified=false
-  // Only clear corners (not caption), in case the user also has a pending caption change
+  // On full undo to original state, clear corners from pendingModsStore
+  // (but not caption, which may have its own pending change)
   if (isUndo && history.length === 1 && overlayObject.status === "approved") {
     const pendingModsStore = usePendingModificationsStore();
     pendingModsStore.clearFieldModification(overlayObject.id, "corners");
   }
 }
 
-// Module-level guard to prevent duplicate keyboard shortcut registration across calls
+// Guard against duplicate keyboard shortcut registration
 let keyboardShortcutsRegistered = false;
 
-// Handle keyboard shortcuts for undo/redo in edit mode
 function handleKeyDown(event: KeyboardEvent) {
-  // Undo: Ctrl+Z (works on all keyboard layouts)
+  // Ctrl+Z
   if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
     undo();
-  }
-  // Redo: Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
-  else if (
+    // Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
+  } else if (
     event.ctrlKey &&
     (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
   ) {
@@ -365,18 +337,14 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
-/**
- * Register global keyboard shortcuts for undo/redo
- * Guard prevents duplicate registration if called multiple times (e.g. on mode switch)
- */
 export function setupKeyboardShortcuts() {
   if (keyboardShortcutsRegistered) return;
   globalThis.addEventListener("keydown", handleKeyDown, true);
   keyboardShortcutsRegistered = true;
 }
 
-// Register undo/redo callbacks - overlayToolbar.ts (lazy chunk) reads these at call time
-// focusCameraToOverlay is already set in overlayCallbacks by overlayActions.ts, so not overwritten here.
+// Register undo/redo callbacks for overlayToolbar.ts (lazy chunk).
+// focusCameraToOverlay is set separately by overlayActions.ts.
 Object.assign(overlayCallbacks, { undo, redo });
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

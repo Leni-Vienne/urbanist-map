@@ -17,9 +17,6 @@ interface ToastServiceMethods {
   removeAllGroups(): void;
 }
 
-/**
- * Returns a toast service instance for displaying notifications
- */
 export function useToast(): ToastServiceMethods {
   return {
     add: (message) => {

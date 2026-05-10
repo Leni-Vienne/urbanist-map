@@ -17,8 +17,7 @@ import type { Project, ProjectFormData } from "@/types/index";
 import type { DBCity } from "../../../../back/src/db/schema";
 import type { ApprovalStatus } from "@shared/types";
 
-// Helper to serialize values for JSONB storage
-// Dates must be converted to ISO strings to prevent double-serialization
+// Dates must be converted to ISO strings to prevent double-serialization in JSONB fields
 function serializeValue(value: unknown): unknown {
   if (value instanceof Date) {
     return value.toISOString();
@@ -29,18 +28,16 @@ function serializeValue(value: unknown): unknown {
   return value;
 }
 
-// Kinda odd function signature but it makes use of FieldComparator, without fieldname all fields are tagged as changed
+// Accepts a fieldName to satisfy FieldComparator's signature; without it all fields would be tagged as changed
 function projectComparator(
   _fieldName: keyof ProjectFormData,
   original: ProjectFormData[keyof ProjectFormData],
   current: ProjectFormData[keyof ProjectFormData],
 ): boolean {
-  // Handle Date objects by comparing their time values
   if (original instanceof Date && current instanceof Date) {
     return original.getTime() !== current.getTime();
   }
 
-  // Handle cases where one is Date and other is null/undefined
   if ((original instanceof Date && !current) || (!original && current instanceof Date)) {
     return true;
   }
@@ -53,7 +50,7 @@ interface EditableProjectFormOptions {
   initialData: ProjectFormData; // Original backend values for "modified from X" comparison
   currentData?: ProjectFormData; // Current values to display in form (if different from initialData after local saves)
   entityStatus: ApprovalStatus | null;
-  localOnly?: boolean; // If true, only update local store, don't submit to backend
+  localOnly?: boolean;
   getAvailableCities?: () => {
     id: number;
     name: string;
@@ -62,7 +59,7 @@ interface EditableProjectFormOptions {
     lat: number;
     lng: number;
     distance?: number;
-  }[]; // Function to get current cities dynamically
+  }[];
   onSubmitted?: () => void;
   onClose?: () => void;
 }
@@ -75,29 +72,24 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const isSubmitting = ref(false);
   const changeReason = ref("");
 
-  // Create reactive objects for original (comparison baseline) and current (displayed) data
-  // originalData is for comparison ("modified from X"), formData is for editing
+  // originalData is the comparison baseline; formData is what the user edits
   const originalData = reactive({ ...options.initialData }) as ProjectFormData;
   const formData = reactive({ ...(options.currentData ?? options.initialData) }) as ProjectFormData;
 
-  // Check if a specific field has changed
   function hasChanged(fieldName: keyof ProjectFormData): boolean {
     return projectComparator(fieldName, originalData[fieldName], formData[fieldName]);
   }
 
-  // Check if any field has changed
   const hasChanges = computed(() => {
     // oxlint-disable-next-line no-unsafe-type-assertion
     return Object.keys(formData).some((key) => hasChanged(key as keyof ProjectFormData));
   });
 
-  // Reset all changes
   function resetChanges() {
     Object.assign(formData, originalData);
     changeReason.value = "";
   }
 
-  // Get array of changes to submit
   function getChangesToSubmit(): FieldChange[] {
     const changes: FieldChange[] = [];
 
@@ -117,14 +109,12 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     return changes;
   }
 
-  // Get CSS classes for a field based on change status
   function getFieldClasses(fieldName: keyof ProjectFormData) {
     return {
       "field-changed": hasChanged(fieldName),
     };
   }
 
-  // Handle approved entity updates (via change requests)
   async function handleApprovedEntityUpdate(changes: FieldChange[]) {
     await submitMultipleFieldChanges("project", options.entityId, changes);
 
@@ -136,7 +126,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     });
   }
 
-  // Show error toast
   function showErrorToast() {
     toast.add({
       severity: "error",
@@ -146,7 +135,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     });
   }
 
-  // Update city object when cityId changes
   function getCityObjectForUpdate(currentProject: Project): DBCity | null {
     let cityObject: DBCity | null = currentProject.city;
 
@@ -164,7 +152,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
           nameLocal: newCity.nameLocal,
           countryCode: newCity.countryCode,
           coordinates: { x: newCity.lng, y: newCity.lat },
-          approvedProjectCount: 0, // Not available from form context
+          approvedProjectCount: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -174,28 +162,23 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     return cityObject;
   }
 
-  // Handle local-only project updates (no backend submission)
   function handleLocalOnlyUpdate() {
     const currentProject = projectStore.projects[options.entityId];
 
-    // Check if project exists in userContributions (for projects opened from ContributePanel)
     const userContributionProject = projectStore.userContributions.find(
       (p) => p.id === options.entityId,
     );
 
     if (!currentProject && !userContributionProject) {
-      console.error("[useEditableProjectForm] PROJECT NOT FOUND AT ALL!");
+      console.error("[useEditableProjectForm] project not found:", options.entityId);
       return;
     }
 
     const formFields = formDataToProjectFields(formData);
 
-    // Update userContributions so ContributePanel shows updated data
     projectStore.updateProjectInUserContributions(options.entityId, formFields);
 
-    // Update or create project in projectStore.projects for infopopup sync
     if (currentProject) {
-      // Project exists in projects store - update it
       const cityObject = getCityObjectForUpdate(currentProject);
       projectStore.updateProject(options.entityId, {
         ...currentProject,
@@ -210,19 +193,17 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         updateStandaloneProjectMarkerColor(options.entityId, updatedProject);
       }
     } else if (userContributionProject) {
-      // Project only exists in userContributions - add to projects store so infopopup finds it
+      // Not yet in projects store, add it so the info popup can find it
       const projectFromContribution: Project = {
         ...createProjectFromUserContribution(userContributionProject),
         ...formFields,
         isModified: true,
       };
 
-      // Add to projects store (updateProject handles creating new entries)
       projectStore.updateProject(options.entityId, projectFromContribution);
     }
   }
 
-  // Handle pending project updates
   async function handlePendingProjectUpdate() {
     const result = await trpc.project.getUsersContributions.query({ limit: 100 });
     const project = result.projects.find((p) => p.id === options.entityId);
@@ -266,9 +247,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     });
   }
 
-  // Validate all form data using Zod schema
   function validateFormData(): boolean {
-    // Get current project for lat/lng
     const currentProject = projectStore.projects[options.entityId];
 
     const validationData = prepareProjectValidationData(formData, {
@@ -294,7 +273,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     return true;
   }
 
-  // Submit changes with local-only handling and validation
   async function submitChanges() {
     if (!hasChanges.value) return;
 
@@ -326,16 +304,11 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   return {
-    // State
     formData,
     originalData,
     changeReason,
     isSubmitting,
-
-    // Computed
     hasChanges,
-
-    // Methods
     hasChanged,
     resetChanges,
     getFieldClasses,

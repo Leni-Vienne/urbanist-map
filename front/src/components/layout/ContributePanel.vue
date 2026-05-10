@@ -182,10 +182,8 @@ type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
 
 const { t } = useI18n();
 
-// Use cached composable for user contributions (backend only)
 const { isLoading, fetchUserContributions, allContributions } = useUserContributions();
 
-// Use deletion composable for delete operations
 const {
   handleDeleteOverlay: deleteOverlayWithMarker,
   handleDeleteProject: deleteProjectWithConfirm,
@@ -196,7 +194,6 @@ const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const pendingModsStore = usePendingModificationsStore();
 
-// Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
 
 // Filter state - both true by default to show everything
@@ -218,15 +215,13 @@ async function handleAddOverlayClick() {
   }
 }
 
-// Toast for delete operations
 const toast = useToast();
 const { isMobile } = useIsMobile();
 
-// Change requests functionality
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
   useChangeRequests();
 
-// Just use allContributions directly - backend handles everything!
+// Just use allContributions directly - backend handles everything
 const displayedProjects = allContributions;
 
 // Persists the last selected project so the card stays in ContributePanel even after the popup closes.
@@ -274,8 +269,6 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   return createProjectForModerationFromProject(project, overlays);
 });
 
-// Computed filtered projects based on two independent checkboxes
-// Uses displayedProjects which conditionally shows city data or user contributions
 const filteredProjects = computed(() => {
   // If neither checkbox is selected, show nothing
   if (!showPending.value && !showApproved.value) {
@@ -362,24 +355,19 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
   }
 }
 
-// Check if overlay is modified using unified pendingModificationsStore
 function isOverlayModified(overlayId: string): boolean {
-  // Check unified pending modifications store
   if (pendingModsStore.hasPendingModifications(overlayId)) {
     return true;
   }
 
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) {
-    // Overlay not loaded in store - check edit mode cache for unsaved position changes
     const cached = overlayStore.getFromEditModeCache(overlayId);
     return cached?.isModified ?? false;
   }
   return overlayObject.isModified ?? false;
 }
 
-// Handle edit overlay click - opens the shared OverlayEditor dialog via store
-// This uses the SAME dialog component that PopupContainer uses
 function handleEditOverlayClick(overlay: OverlayForModeration) {
   // Prefer the live store object so in-memory caption changes are not lost on reopen
   const liveOverlay = overlayStore.overlays[overlay.id];
@@ -388,16 +376,14 @@ function handleEditOverlayClick(overlay: OverlayForModeration) {
     return;
   }
   // Fallback: overlay not yet loaded in store (e.g. not on map)
-  // Only id + caption are needed — openOverlayEditDialog accepts OverlayEditTarget
+  // Only id + caption are needed, openOverlayEditDialog accepts OverlayEditTarget
   uiStore.openOverlayEditDialog({
     id: overlay.id,
     caption: overlay.caption,
   });
 }
 
-// Handle add image to project - open dialog for image upload instructions
 function handleAddImageToProject(project: ProjectForModeration) {
-  // Open the instructional dialog
   uiStore.openImageUploadDialog(project.id);
 }
 
@@ -426,7 +412,6 @@ function isProjectModified(projectId: string): boolean {
   return project.overlays.some((overlay: UserContributionOverlay) => isOverlayModified(overlay.id));
 }
 
-// Handle save project click - uses shared submission dialog composable
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return;
 
@@ -438,7 +423,7 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
   prepareProjectWithOverlaysSubmission(project, projectHasChanges);
 }
 
-// Handle draw shapes click — mirrors handleDrawShapes in PopupContainer
+// Handle draw shapes click, mirrors handleDrawShapes in PopupContainer
 async function handleDrawShapesClick(project: ProjectForModeration) {
   if (isMobile.value) {
     toast.add({
@@ -481,7 +466,6 @@ function handleExternalProjectClick(_project: ProjectForModeration) {
   handleShapeProjectClick(fullProject, L.latLng(fullProject.lat ?? 0, fullProject.lng ?? 0));
 }
 
-// Handle edit project click - opens project edit form
 function handleEditProjectClick(project: ProjectForModeration) {
   // Get the latest project data from displayedProjects (not the potentially stale passed parameter)
   const latestProjectData = displayedProjects.value.find(
@@ -489,7 +473,6 @@ function handleEditProjectClick(project: ProjectForModeration) {
   );
   const projectToEdit = latestProjectData ?? project;
 
-  // Open the project edit form via uiStore
   // Use unknown as intermediate type since ProjectForModeration may not have all Project fields
   uiStore.openProjectEditForm(projectToEdit as unknown as Project);
 }
@@ -511,7 +494,6 @@ watch(
   { immediate: true },
 );
 
-// Load initial data
 onMounted(() => {
   fetchUserContributions();
   // Force user-only mode to show only this user's change requests, even for moderators

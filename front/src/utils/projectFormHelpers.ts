@@ -8,11 +8,6 @@ function toDateObject(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/**
- * Convert any project-shaped object to ProjectFormData.
- * Handles string→Date coercion and null→default normalization.
- * Single source of truth for Project→form mapping.
- */
 export function projectToFormData(p: {
   name?: string | null;
   description?: string | null;
@@ -45,10 +40,6 @@ export function projectToFormData(p: {
   };
 }
 
-/**
- * Convert ProjectFormData back to the editable subset of Project fields.
- * Single source of truth for form→Project mapping.
- */
 export function formDataToProjectFields(f: ProjectFormData): Partial<Project> {
   return {
     name: f.name,

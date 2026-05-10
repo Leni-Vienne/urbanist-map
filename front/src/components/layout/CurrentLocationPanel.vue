@@ -1,8 +1,6 @@
 <template>
-  <!-- Loading state: mlMap not ready yet -->
   <PanelEmptyState v-if="!isReady" icon="map" :message="$t('overlay.loadingProjects')" />
 
-  <!-- Ready but empty -->
   <PanelEmptyState
     v-else-if="projects.length === 0"
     icon="map-marker"
@@ -10,7 +8,6 @@
     :sub-message="$t('onMap.noProjectsDetail')"
   />
 
-  <!-- Project list -->
   <div v-else class="flex flex-col h-full min-h-0">
     <!-- Header with sort controls -->
     <div
@@ -78,7 +75,6 @@
             />
           </svg>
 
-          <!-- Name -->
           <span
             class="flex-1 text-sm truncate"
             :class="project.name ? 'text-color font-medium' : 'text-muted-color italic'"
@@ -86,7 +82,6 @@
             {{ project.name || $t("project.unnamed") }}
           </span>
 
-          <!-- Tag chips: first tag + overflow count -->
           <span class="shrink-0 flex items-center gap-1">
             <span
               v-if="project.firstTag"

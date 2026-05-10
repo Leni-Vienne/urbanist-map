@@ -5,22 +5,22 @@ import { appendFile } from "node:fs/promises";
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from "./storage";
 import type { StorageInterface } from "./types";
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+const THUMBNAIL_RETENTION_DAYS = 15;
 
 function createR2Storage(): R2StorageS3 {
-  return new R2StorageS3({
-    endpoint: process.env.R2_ENDPOINT!,
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    bucketName: process.env.R2_BUCKET_NAME!,
-  });
+  const endpoint = process.env.R2_ENDPOINT;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const bucketName = process.env.R2_BUCKET_NAME;
+  if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
+    throw new Error("Missing R2 configuration environment variables");
+  }
+  return new R2StorageS3({ endpoint, accessKeyId, secretAccessKey, bucketName });
 }
 
 /**
  * Delete full image and/or thumbnail from a single storage backend.
- * Failures are logged but not thrown — storage.delete() handles its own error swallowing.
+ * Failures are logged but not thrown, storage.delete() handles its own error swallowing.
  * Returns the list of filenames that could not be deleted.
  */
 async function deleteFilesFromStorage(
@@ -55,39 +55,55 @@ async function deleteFilesFromStorage(
 async function appendOrphanLog(failedFiles: string[]): Promise<void> {
   if (failedFiles.length === 0) return;
   const entry = `${new Date().toISOString()} - Failed to delete: ${failedFiles.join(", ")}\n`;
-  await appendFile("./orphaned_files.txt", entry).catch((error) => {
+  await appendFile("./orphaned_files.txt", entry).catch((error: unknown) => {
     console.error("Failed to write to orphaned files log:", error);
   });
 }
 
-// ============================================================================
-// PUBLIC API
-// ============================================================================
+function daysFromNow(days: number): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+async function scheduleThumbnailDeletion(overlayId: string, filename: string): Promise<void> {
+  const deletionDate = daysFromNow(THUMBNAIL_RETENTION_DAYS);
+  await db
+    .insert(scheduledDeletions)
+    .values({ overlayId, filename, deletionDate, deletionType: "thumbnail" });
+  console.log(`Scheduled thumbnail deletion for ${filename} on ${deletionDate.toISOString()}`);
+}
 
 /**
- * Schedule image deletion for a future date (used for replaced/rejected overlays).
+ * Cleanup after a pending overlay was rejected.
+ * Pending overlays are never migrated to R2, so the full image lives only in local storage.
+ * The thumbnail is retained for a grace period (visible in the user's "rejected" view).
  */
-export async function scheduleImageCleanup(
+export async function cleanupRejectedPendingOverlay(
   overlayId: string,
   filename: string,
-  deletionDate: Date,
-  deletionType: "full" | "thumbnail" | "both",
 ): Promise<void> {
-  await db.insert(scheduledDeletions).values({ overlayId, filename, deletionDate, deletionType });
-  console.log(
-    `Scheduled ${deletionType} deletion for ${filename} on ${deletionDate.toISOString()}`,
-  );
+  await deleteLocalImages(filename, "full");
+  await scheduleThumbnailDeletion(overlayId, filename);
+}
+
+/**
+ * Cleanup after an approved overlay was replaced by a new approved overlay.
+ * The original full image lives in R2 (production) or local (dev), the thumbnail is always local.
+ * The thumbnail is retained briefly so any in-flight client renders don't 404.
+ */
+export async function cleanupReplacedApprovedOverlay(
+  overlayId: string,
+  filename: string,
+): Promise<void> {
+  await deleteImages(filename, "full");
+  await scheduleThumbnailDeletion(overlayId, filename);
 }
 
 /**
  * Execute pending deletions (run by background job/cron).
- * Deletes from both local and R2 storage — rejected/replaced overlay thumbnails are always local,
+ * Deletes from both local and R2 storage, rejected/replaced overlay thumbnails are always local,
  * approved overlay images are in R2.
- *
- * Note: storage.delete() currently swallows its own errors internally, so the failed counter
- * only catches errors thrown before or after the storage calls (e.g. DB errors).
- * For accurate per-file failure tracking, storage.delete() would need to throw on real errors
- * and return/throw only on genuine failures (not missing-file 404s).
  */
 export async function executePendingDeletions(): Promise<{ deleted: number; failed: number }> {
   const now = new Date();
@@ -100,6 +116,8 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
     .where(lte(scheduledDeletions.deletionDate, now));
 
   console.log(`Found ${pendingDeletions.length} pending deletions to process`);
+  // TODO: storage.delete() swallows its own errors, so `failed` only captures DB-level failures.
+  // For accurate per-file tracking, storage.delete() should throw on real errors (not 404s).
 
   const localStorage = new LocalFileStorage();
   const isProduction = process.env.NODE_ENV === "production";
@@ -107,7 +125,7 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
 
   for (const item of pendingDeletions) {
     try {
-      // Full images may be in local (pending overlays) or R2 (approved overlays) — try both.
+      // Full images may be in local (pending overlays) or R2 (approved overlays), try both.
       // Thumbnails are always local (not migrated to R2).
       const fullOrBoth = item.deletionType === "full" || item.deletionType === "both";
       const thumbnailOrBoth = item.deletionType === "thumbnail" || item.deletionType === "both";
@@ -156,13 +174,4 @@ export async function deleteImages(
     process.env.NODE_ENV === "production" ? createR2Storage() : new LocalFileStorage();
   const failed = await deleteFilesFromStorage(storage, filename, deleteType);
   await appendOrphanLog(failed);
-}
-
-/**
- * Return a Date N days from now.
- */
-export function daysFromNow(days: number): Date {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date;
 }

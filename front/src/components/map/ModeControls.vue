@@ -1,5 +1,4 @@
 ﻿<template>
-  <!-- Shared mode controls component - used in both desktop and mobile -->
   <div
     class="flex justify-center items-center pointer-events-none"
     :class="isMobile ? 'relative z-20' : ''"
@@ -43,14 +42,10 @@ const authStore = useAuthStore();
 const toast = useToast();
 const { t } = useI18n();
 
-// Track last toast time to prevent spam
 let lastToastTime = 0;
 const TOAST_THROTTLE_MS = 1000;
-
-// Flag to prevent recursive mode switching
 let isSwitchingMode = false;
 
-// Get mode display info
 function getModeIcon(): string {
   switch (mapStore.mode) {
     case "view":
@@ -90,14 +85,9 @@ function getModeTooltip(): string {
   }
 }
 
-// Cycle through modes (view -> edit -> moderation -> view) for moderators
-// For regular users, just toggle between view and edit
+// Cycle through modes: view → edit → moderation for moderators, view ↔ edit for regular users.
 function handleModeSwitch() {
-  // Prevent recursive calls
-  if (isSwitchingMode) {
-    return;
-  }
-
+  if (isSwitchingMode) return;
   try {
     isSwitchingMode = true;
     const currentMode = mapStore.mode;
@@ -105,7 +95,6 @@ function handleModeSwitch() {
     let newMode: AppMode = "view";
 
     if (authStore.isModerator) {
-      // Moderators cycle through all 3 modes
       switch (currentMode) {
         case "view":
           newMode = "edit";
@@ -120,26 +109,20 @@ function handleModeSwitch() {
           newMode = "view";
       }
     } else {
-      // Regular users toggle between view and edit only
       newMode = currentMode === "edit" ? "view" : "edit";
     }
 
-    // Don't do anything if mode hasn't changed
     if (currentMode === newMode) {
       isSwitchingMode = false;
       return;
     }
 
-    // Use unified switchMode for all mode transitions (view/edit/moderation)
-    // This ensures consistent behavior and proper data reloading
     mapStore.setMode(newMode);
 
-    // Only show toast if enough time has passed since last one
     const now = Date.now();
     if (now - lastToastTime >= TOAST_THROTTLE_MS) {
       lastToastTime = now;
 
-      // Get the correct i18n key based on which mode we switched to
       const modeSummaryKeys: Record<AppMode, string> = {
         view: "moderation.switchedToViewMode",
         edit: "moderation.switchedToEditMode",

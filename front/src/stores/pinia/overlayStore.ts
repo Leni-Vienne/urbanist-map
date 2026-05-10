@@ -7,21 +7,18 @@ export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});
   const idSelectedOverlay = ref<string | null>(null);
 
-  // Edit mode overlay cache - stores overlay modifications for persistence across zoom changes
+  // Edit mode overlay cache: stores corner positions and modification flag across zoom changes.
   type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
   const editModeOverlayCache = ref(new Map<string, EditModeCache>());
 
-  // Overlay data for different modes
   const viewModeOverlays = ref<OverlayData[]>([]);
   const loadedEditOverlays = ref(new Set<string>());
 
-  // UI state
   const replacementOverlayId = ref<string | null>(null);
   const pendingImageFile = ref<File | null>(null);
   const showInfoPopup = ref(false);
   const infoPopupOverlayId = ref<string | null>(null);
 
-  // Basic actions
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
   }
@@ -30,7 +27,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     viewModeOverlays.value = [];
   }
 
-  // Edit mode cache management
   function saveToEditModeCache(overlayId: string, data: EditModeCache) {
     editModeOverlayCache.value.set(overlayId, data);
   }
@@ -90,30 +86,21 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   function closeAllUIElements() {
     hideInfoPopup();
-    // Don't reset replacement (which clears pendingImageFile) if we have a pending file
-    // This preserves the file during dialog navigation in overlay import flow
+    // Don't reset replacement (which clears pendingImageFile) if a file is already pending.
+    // This preserves the file during dialog navigation in the overlay import flow.
     if (!pendingImageFile.value) {
       resetReplacement();
     }
   }
 
-  // Clear user-specific state on logout/account switch
-  // NOTE: We preserve public data (viewModeOverlays) and only clear user-specific or edit-mode data
+  // Clear user-specific state on logout or account switch.
+  // Preserves public data (viewModeOverlays) and clears user/edit-mode data.
   function clearAllState() {
-    // Remove all Leaflet layers and markers from map via registry (replaces manual iteration)
     clearAllLayers(false);
-
-    // Clear overlay data (may contain unapproved user content)
     overlays.value = {};
     idSelectedOverlay.value = null;
-
-    // Clear edit mode cache and state (user-specific)
     editModeOverlayCache.value.clear();
     loadedEditOverlays.value.clear();
-
-    // KEEP viewModeOverlays - these are approved overlays for current city
-
-    // Clear all UI state
     resetAllUIStates();
   }
 

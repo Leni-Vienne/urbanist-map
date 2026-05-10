@@ -1,6 +1,6 @@
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { TRPCError } from "@trpc/server";
-import { globalRateLimiter } from "../lib/rateLimit";
+import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import crypto from "node:crypto";
 import { eq, gt } from "drizzle-orm";
@@ -12,7 +12,7 @@ import {
   resetPasswordRequestSchema,
   resetPasswordSchema,
 } from "../../../shared/validation/schemas";
-import { getEmailService } from "../services/emailService";
+import { sendEmail } from "../services/emailService";
 import { verifyTurnstileToken } from "../utils/captcha";
 import { renderEmailTemplate } from "../email/templateRenderer";
 
@@ -23,23 +23,12 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-async function sendVerificationEmail(
-  email: string,
-  token: string,
-  locale: "en" | "fr" = "en",
-): Promise<void> {
+async function sendVerificationEmail(email: string, token: string): Promise<void> {
   try {
-    const emailService = getEmailService();
     const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
+    const { subject, html } = await renderEmailTemplate("verification", { verificationUrl });
 
-    // Use template renderer with i18n support
-    const { subject, html } = await renderEmailTemplate(
-      "verification",
-      { verificationUrl },
-      locale,
-    );
-
-    await emailService.sendEmail(email, subject, html);
+    await sendEmail(email, subject, html);
     console.log(`Verification email sent successfully to ${email}`);
   } catch (error) {
     console.error("Failed to send verification email:", error);
@@ -53,19 +42,12 @@ async function sendVerificationEmail(
   }
 }
 
-async function sendPasswordResetEmail(
-  email: string,
-  token: string,
-  locale: "en" | "fr" = "en",
-): Promise<void> {
+async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
   try {
-    const emailService = getEmailService();
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl });
 
-    // Use template renderer with i18n support
-    const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl }, locale);
-
-    await emailService.sendEmail(email, subject, html);
+    await sendEmail(email, subject, html);
     console.log(`Password reset email sent successfully to ${email}`);
   } catch (error) {
     console.error("Failed to send password reset email:", error);
@@ -87,17 +69,16 @@ export const authRouter = router({
 
       // Rate limit: 5 registrations per IP per hour
       const ip = getClientIp(ctx.hono);
-      if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
           code: "TOO_MANY_REQUESTS",
           message: "auth.error.tooManyRequests",
         });
       }
 
-      // Validate CAPTCHA
-      // Optional if key not configured (dev mode), but frontend should send token if configured
-      if (process.env.TURNSTILE_SECRET_KEY && captchaToken) {
-        const isValidCaptcha = await verifyTurnstileToken(captchaToken, ip);
+      // Validate CAPTCHA. Skipped only when no secret is configured (verifyTurnstileToken returns true).
+      if (process.env.TURNSTILE_SECRET_KEY) {
+        const isValidCaptcha = await verifyTurnstileToken(captchaToken ?? "", ip);
         if (!isValidCaptcha) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -144,7 +125,7 @@ export const authRouter = router({
 
           throw new TRPCError({
             code: "CONFLICT",
-            message: "auth.error.emailAlreadyExists",
+            message: "auth.error.registrationFailed",
           });
         }
       }
@@ -211,7 +192,7 @@ export const authRouter = router({
       try {
         // Rate limit: 5 verify attempts per IP per hour (brute force protection)
         const ip = getClientIp(ctx.hono);
-        if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+        if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "auth.error.tooManyRequests",
@@ -280,6 +261,7 @@ export const authRouter = router({
           },
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Email verification error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -296,7 +278,7 @@ export const authRouter = router({
 
       // Rate limit: 5 password reset requests per IP per hour
       const ip = getClientIp(ctx.hono);
-      if (!globalRateLimiter.check(ip, 5, 60 * 60 * 1000)) {
+      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
           code: "TOO_MANY_REQUESTS",
           message: "auth.error.tooManyRequests",
@@ -422,7 +404,7 @@ export const authRouter = router({
 
       // Rate limit: 5 data exports per hour per user (prevent abuse)
       const ip = getClientIp(ctx.hono);
-      if (!globalRateLimiter.check(`export:${userId}`, 5, 60 * 60 * 1000)) {
+      if (!rateLimit.check(`export:${userId}`, 5, 60 * 60 * 1000)) {
         throw new TRPCError({
           code: "TOO_MANY_REQUESTS",
           message: "Too many data export requests. Please try again later.",
@@ -457,17 +439,12 @@ export const authRouter = router({
         });
       }
 
-      // Get all user projects (approved, pending, rejected - GDPR requires ALL)
-      const userProjects = await db.select().from(projects).where(eq(projects.ownerId, userId));
-
-      // Get all user overlays (approved, pending, rejected - GDPR requires ALL)
-      const userOverlays = await db.select().from(overlays).where(eq(overlays.authorId, userId));
-
-      // Get all user change requests
-      const userChangeRequests = await db
-        .select()
-        .from(changeRequests)
-        .where(eq(changeRequests.requestedBy, userId));
+      // GDPR requires ALL statuses (approved, pending, rejected). Three independent queries, fan out.
+      const [userProjects, userOverlays, userChangeRequests] = await Promise.all([
+        db.select().from(projects).where(eq(projects.ownerId, userId)),
+        db.select().from(overlays).where(eq(overlays.authorId, userId)),
+        db.select().from(changeRequests).where(eq(changeRequests.requestedBy, userId)),
+      ]);
 
       // Audit log: Record data export for compliance
       console.log(`[GDPR] Data export requested by user ${userId} (${user.email}) from IP ${ip}`);
@@ -505,7 +482,7 @@ export const authRouter = router({
 
         // Rate limit: 3 deletion attempts per hour per IP (prevent brute force)
         const ip = getClientIp(ctx.hono);
-        if (!globalRateLimiter.check(`delete:${ip}`, 3, 60 * 60 * 1000)) {
+        if (!rateLimit.check(`delete:${ip}`, 3, 60 * 60 * 1000)) {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "Too many deletion attempts. Please try again later.",
@@ -536,8 +513,7 @@ export const authRouter = router({
           // OAuth-only users (no password) cannot self-delete via API
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message:
-              "Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@urbanistmap.org to request account deletion.",
+            message: `Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@urbanistmap.org to request account deletion.`,
           });
         }
 
@@ -571,7 +547,9 @@ export const authRouter = router({
           await tx.delete(users).where(eq(users.id, userId));
         });
 
-        // Session invalidation handled by Hono middleware on logout
+        // Invalidate the active session so the deleted user is immediately logged out
+        const session = ctx.hono.get("session");
+        session.deleteSession();
 
         // Audit log: Confirm successful deletion
         console.log(`[GDPR] Account ${userId} (${user.email}) successfully deleted`);

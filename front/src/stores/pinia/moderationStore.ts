@@ -13,14 +13,11 @@ export const useModerationStore = defineStore("moderation", () => {
 
   const moderationLoaded = ref(false);
 
-  // Country-scoped moderation - selected country code (null = not selected yet)
   const selectedCountryCode = ref<string | null>(null);
 
-  // Cache all countries to avoid fetching on every panel mount
   const allCountries = ref<CountryItem[]>([]);
   const countriesLoaded = ref(false);
 
-  // Pending counts per country for dashboard indicators
   const pendingCountsByCountry = ref(new Map<string, number>());
   const pendingCountsLoaded = ref(false);
 
@@ -43,7 +40,6 @@ export const useModerationStore = defineStore("moderation", () => {
     changeRequests.value = [];
   }
 
-  // Remove change requests from local state after approval/rejection
   function removeChangeRequests(changeRequestIds: string[]) {
     changeRequests.value = changeRequests.value.filter((cr) => !changeRequestIds.includes(cr.id));
   }
@@ -66,7 +62,7 @@ export const useModerationStore = defineStore("moderation", () => {
     pendingCountsLoaded.value = false;
   }
 
-  // Clear all state on logout/account switch
+  // Clear all state on logout or account switch.
   function clearAllState() {
     overlays.value = [];
     projects.value = [];

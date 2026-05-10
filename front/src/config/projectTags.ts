@@ -1,9 +1,6 @@
 import { extractTagsFromOsmProperties } from "@shared/osmRules";
 
-/**
- * Predefined project tags with display labels and colors.
- * Colors are expressed as inline style values so they work without Tailwind purging.
- */
+// Colors are expressed as inline style values so they work without Tailwind purging.
 interface ProjectTag {
   slug: string;
   /** hex or CSS color string used for the chip background */
@@ -17,19 +14,18 @@ interface ProjectTag {
 // inspired by OpenRailwayMap's style
 export const PROJECT_TAGS: ProjectTag[] = [
   { slug: "tram", color: "#ff75d1", textColor: "#ffffff" },
-  { slug: "building", color: "#92400e", textColor: "#ffffff" }, // amber-800 / brown
+  { slug: "building", color: "#92400e", textColor: "#ffffff" }, // amber-800
   { slug: "rail", color: "#f97316", textColor: "#ffffff" },
   { slug: "bike", color: "#60a5fa", textColor: "#ffffff" },
   { slug: "light_rail", color: "#22c55e", textColor: "#ffffff" },
   { slug: "park", color: "#22c55e", textColor: "#ffffff" },
   { slug: "road", color: "#dc2626", textColor: "#ffffff" },
   { slug: "subway", color: "#4c4cfc", textColor: "#ffffff" },
-  { slug: "pedestrian", color: "#d8a82e", textColor: "#ffffff" }, // blue-400
+  { slug: "pedestrian", color: "#d8a82e", textColor: "#ffffff" },
   { slug: "bus", color: "#ce4444", textColor: "#ffffff", hidden: true },
   { slug: "waterway", color: "#299eff", textColor: "#ffffff" },
 ];
 
 export const PROJECT_TAG_MAP = new Map(PROJECT_TAGS.map((t) => [t.slug, t]));
 
-// Re-export the shared extraction function for backward compatibility
 export { extractTagsFromOsmProperties };

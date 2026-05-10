@@ -156,7 +156,6 @@ import { formatDate } from "@/utils/dateFormat";
 
 const { t: $t } = useI18n();
 
-// Conflicts data structure returned from backend
 export interface ReplacementConflicts {
   isReplacement: boolean;
   originalOverlayCaption: string | null;
@@ -182,7 +181,6 @@ export interface ReplacementConflicts {
   hasConflicts: boolean;
 }
 
-// Props
 interface Props {
   visible: boolean;
   conflicts: ReplacementConflicts | null;
@@ -193,17 +191,14 @@ const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
 });
 
-// Emits
 const emit = defineEmits<{
   "update:visible": [value: boolean];
   confirm: [];
   cancel: [];
 }>();
 
-// Local visibility state
 const isVisible = ref(props.visible);
 
-// Watch for external visibility changes
 watch(
   () => props.visible,
   (newValue) => {
@@ -211,23 +206,19 @@ watch(
   },
 );
 
-// Handle visibility change from dialog
 function handleVisibilityChange(value: boolean) {
   emit("update:visible", value);
 }
 
-// Handle cancel button
 function handleCancel() {
   emit("cancel");
   isVisible.value = false;
 }
 
-// Handle confirm button
 function handleConfirm() {
   emit("confirm");
 }
 
-// Format value for display
 function formatValue(value: any): string {
   if (value === null || value === undefined) {
     return $t("common.unknown");

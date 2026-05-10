@@ -20,7 +20,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
 
-// Props interface for location data
 interface Props {
   cityId?: number | null;
   cityName?: string | null;
@@ -32,7 +31,6 @@ const props = defineProps<Props>();
 const toast = useToast();
 const { t } = useI18n();
 
-// Handle city click - fetch city coordinates from backend and navigate to the city on the map
 async function handleCityClick() {
   if (!props.cityId || !props.cityName || !props.countryCode) {
     toast.add({
@@ -45,7 +43,6 @@ async function handleCityClick() {
   }
 
   try {
-    // Fetch city coordinates from backend
     const city = await trpc.cities.getCityById.query({
       cityId: props.cityId,
     });
@@ -54,7 +51,6 @@ async function handleCityClick() {
       throw new Error(t("location.cannotNavigateToCity"));
     }
 
-    // Navigate to the city with coordinates
     await navigateToCity(props.countryCode, {
       lat: city.lat,
       lng: city.lng,

@@ -3,9 +3,9 @@ import * as registry from "@/services/overlay/overlayRenderRegistry";
 
 // Cross-chunk callback registry. Modules in the initial bundle assign these at init time;
 // lazy chunks (overlayRendering, overlayToolbar) read them at call time.
-// Using a plain object so importers can mutate properties directly without ES module re-export restrictions.
+// Plain object so importers can mutate properties directly without ES module re-export restrictions.
 export const overlayCallbacks: {
-  // Registered by overlayEditing.ts (initial bundle); called from overlayToolbar.ts (lazy chunk)
+  // Registered by overlayActions.ts; called from overlayToolbar.ts (lazy chunk)
   focusCameraToOverlay: ((direction: "next" | "previous") => void) | null;
   undo: (() => void) | null;
   redo: (() => void) | null;
@@ -18,14 +18,14 @@ export const overlayCallbacks: {
 /**
  * Clear all overlays from the map and reset collections.
  * Delegates Leaflet layer/marker cleanup to overlayRenderRegistry.
- * NOTE: Does NOT clear viewModeOverlays — managed by viewport loading.
+ * Does not clear viewModeOverlays, which is managed by viewport loading.
  * @param preserveStoreData - If true, only removes Leaflet image layers but keeps marker refs
  *                            and overlay data in store. Used for zoom threshold crossings.
  */
 export function clearAllOverlays(preserveStoreData = false): void {
   const overlayStore = useOverlayStore();
 
-  // registry.clearAll handles all Leaflet cleanup — no need to iterate map.eachLayer()
+  // registry.clearAll handles all Leaflet cleanup, no need to iterate map.eachLayer()
   // because the registry is the canonical source of all live layers (created via beginCreation).
   registry.clearAll(preserveStoreData);
 

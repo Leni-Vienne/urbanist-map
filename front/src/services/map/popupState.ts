@@ -36,7 +36,6 @@ const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
 // Picks the popup opening direction that maximises available height, then sets
 // projectPopupMaxHeight so the popup CSS can clamp itself to exactly that space.
 // Preference: down → up → right → left (most common cases first).
-//
 // Pass atCenter=true when the map is about to fly/pan to the latlng: after the
 // animation the point will be centered in the viewport, so we compute placement
 // from the center rather than the current (pre-flight) screen position, avoiding

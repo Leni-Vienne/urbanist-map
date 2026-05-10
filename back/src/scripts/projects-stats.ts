@@ -2,9 +2,9 @@
  * Snapshot stats for the projects table, with before/after diff support.
  *
  * Usage:
- *   bun run back/src/scripts/projects-stats.ts          — print current stats
- *   bun run back/src/scripts/projects-stats.ts save     — save snapshot to disk
- *   bun run back/src/scripts/projects-stats.ts diff     — diff current state against saved snapshot
+ *   bun run back/src/scripts/projects-stats.ts         , print current stats
+ *   bun run back/src/scripts/projects-stats.ts save    , save snapshot to disk
+ *   bun run back/src/scripts/projects-stats.ts diff    , diff current state against saved snapshot
  */
 
 import { db } from "../database";
@@ -13,10 +13,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const SNAPSHOT_PATH = path.join(process.cwd(), "back/src/scripts/projects-stats-snapshot.json");
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 type Distribution = Record<string, number>;
 
@@ -37,26 +33,17 @@ interface Snapshot {
   osmIdTypes: Distribution;
 }
 
-// ---------------------------------------------------------------------------
-// Query helpers
-// ---------------------------------------------------------------------------
-
 async function queryDistribution(
   query: ReturnType<typeof sql>,
   labelCol: string,
-  countCol = "count",
 ): Promise<Distribution> {
   const rows = await db.execute<Record<string, string>>(query);
   const out: Distribution = {};
   for (const row of rows) {
-    out[row[labelCol]!] = Number(row[countCol]);
+    out[row[labelCol]!] = Number(row.count);
   }
   return out;
 }
-
-// ---------------------------------------------------------------------------
-// Collect snapshot from DB
-// ---------------------------------------------------------------------------
 
 async function collectSnapshot(): Promise<Snapshot> {
   const totalsRaw = await db.execute<{
@@ -211,10 +198,6 @@ async function collectSnapshot(): Promise<Snapshot> {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Print helpers
-// ---------------------------------------------------------------------------
-
 function printDistribution(title: string, dist: Distribution, total: number) {
   console.log(`\n--- ${title} ---`);
   const entries = Object.entries(dist);
@@ -234,7 +217,7 @@ function printDistribution(title: string, dist: Distribution, total: number) {
 
 function printSnapshot(s: Snapshot) {
   console.log("=".repeat(60));
-  console.log("  projects table snapshot — " + s.timestamp);
+  console.log("  projects table snapshot, " + s.timestamp);
   console.log("=".repeat(60));
 
   console.log(`\nTOTAL ROWS: ${s.total}`);
@@ -264,15 +247,11 @@ function printSnapshot(s: Snapshot) {
   console.log("\n" + "=".repeat(60));
 }
 
-// ---------------------------------------------------------------------------
-// Diff
-// ---------------------------------------------------------------------------
-
-function diffNumber(label: string, before: number, after: number, indent = "  ") {
+function diffNumber(label: string, before: number, after: number) {
   const delta = after - before;
   if (delta === 0) return;
   const sign = delta > 0 ? "+" : "";
-  console.log(`${indent}${label}: ${before} -> ${after}  (${sign}${delta})`);
+  console.log(`  ${label}: ${before} -> ${after}  (${sign}${delta})`);
 }
 
 function diffDistribution(title: string, before: Distribution, after: Distribution) {
@@ -335,10 +314,6 @@ function printDiff(before: Snapshot, after: Snapshot) {
 
   console.log("\n" + "=".repeat(60));
 }
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
 
 async function main() {
   const mode = process.argv[2] ?? "print";

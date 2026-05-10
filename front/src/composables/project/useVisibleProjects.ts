@@ -21,7 +21,7 @@ interface VisibleProject {
   name: string | null;
   /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
   bbox: L.LatLngBounds | null;
-  /** Middle vertex of the clipped tile geometry — guaranteed on the drawn line, used as popup anchor. */
+  /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as popup anchor. */
   midLat: number | null;
   midLng: number | null;
   firstTag: string;
@@ -113,7 +113,7 @@ function featureToProject(
   const geom = f.geometry as GeoJSON.Geometry | null;
   const [bboxLng, bboxLat, bbox] = getGeomBbox(geom);
   const [midLat, midLng] = getGeomClosestToCenter(geom, centerLat, centerLng);
-  // popup_lat/popup_lng are ST_PointOnSurface of the full unclipped geometry — used as fallback
+  // popup_lat/popup_lng are ST_PointOnSurface of the full unclipped geometry, used as fallback
   // for standalone points that have no clipped geometry midpoint.
   const lat =
     props.popup_lat !== null && props.popup_lat !== undefined ? Number(props.popup_lat) : bboxLat;
@@ -292,13 +292,12 @@ export function useVisibleProjects() {
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
-    const INSET = 100; // px inset from edge to avoid listing projects under UI elements
+    const INSET = 100; // px, avoids listing projects obscured by UI chrome
 
     const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
       [INSET, INSET],
       [w - INSET, h - INSET],
     ];
-    // applying an inset to avoid projects that are at the edge of the screen
     const features = mlMap.queryRenderedFeatures(bbox, { layers: [...QUERY_LAYERS] });
 
     const center = map.value.getCenter();
@@ -400,10 +399,8 @@ export function useVisibleProjects() {
   let suppressHover = false;
 
   function navigateToProject(project: VisibleProject) {
-    // Use the middle vertex of the clipped geometry as anchor — it's on the drawn line.
-    // Fall back to popup_lat/popup_lng (ST_PointOnSurface of full geometry) for standalone points.
-    // Use the middle vertex of the clipped geometry as anchor — it's on the drawn line.
-    // Fall back to popup_lat/popup_lng (ST_PointOnSurface of full geometry) for standalone points.
+    // Use the nearest vertex of the clipped tile geometry as the anchor (it's on the drawn line).
+    // Fall back to popup_lat/popup_lng (ST_PointOnSurface of the full geometry) for standalone points.
     function resolveAnchor(): L.LatLng {
       if (project.midLat !== null && project.midLng !== null) {
         return L.latLng(project.midLat, project.midLng);
@@ -451,7 +448,7 @@ export function useVisibleProjects() {
       lastHoveredProjectId = null;
       removeProjectOutlines(prevProjectId);
 
-      // If any popup is open, keep the driven hover alive — it was pinned by a click and
+      // If any popup is open, keep the driven hover alive, it was pinned by a click and
       // must not be cleared by a sidebar mouseleave (which can fire when the list scrolls
       // to the newly selected project, triggering mouseleave on the previously hovered card).
       // The watcher below clears setOverlayDrivenHover when the popup eventually closes.

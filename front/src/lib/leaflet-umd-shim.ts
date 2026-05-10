@@ -1,18 +1,11 @@
-// Creates a proxy to the UMD Leaflet object `globalThis.L` as a type-safe ESM export
+// ESM proxy for the UMD Leaflet global loaded via CDN in index.html.
+// Provides TypeScript typings without bundling Leaflet.
 // Based on https://stackoverflow.com/questions/73091042/importing-leaflet-into-module-from-cdn-with-typescript-support
 
-/*
-Leaflet is now loaded directly in index.html to avoid critical request chaining.
-This shim just provides the ESM export with TypeScript typing for the global L object.
-*/
-
-// Use type-only import to avoid bundling
 import type * as LeafletTypes from "leaflet";
 
-// Get the global L object with proper typing
 const { L } = globalThis as { L: typeof LeafletTypes };
 
-// Export as default to maintain compatibility with existing imports
 export default L;
 
 if (import.meta.hot) {

@@ -1,0 +1,20 @@
+[Unit]
+Description=Run osm-update.service daily
+Requires=osm-update.service
+
+[Timer]
+# Fires every day at 04:00 UTC. Adjust to match your lowest-traffic window.
+OnCalendar=*-*-* 04:00:00 UTC
+
+# If the VM was off when the timer should have fired, run it on next boot.
+Persistent=true
+
+# Spread load across the OSM replication servers: random delay between 0 and 30min.
+RandomizedDelaySec=30min
+
+# Tracks "last run" inside /var/lib/systemd/timers, not from journal, so restarting
+# the timer unit does not retrigger an already-completed run.
+Unit=osm-update.service
+
+[Install]
+WantedBy=timers.target

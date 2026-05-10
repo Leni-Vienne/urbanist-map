@@ -1,11 +1,13 @@
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css"; // is it of any use ?
+import "maplibre-gl/dist/maplibre-gl.css";
 import { maplibreLayer, type MaplibreGL } from "@/lib/MaplibreLayer";
 import { map } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
+import { useToast } from "@/composables/ui/useToast";
+import { t } from "@/locales";
 import {
   addProjectDataToMlMap,
   applyPlanStyleRoadOverrides,
@@ -34,7 +36,7 @@ interface CountryBorder {
   bbox: BoundingBox;
 }
 
-// Helper to convert bbox array to BoundingBox object
+// Helper to convert a bbox array to a BoundingBox object
 function toBoundingBox(bbox: number[]): BoundingBox {
   return {
     /* oxlint-disable no-non-null-assertion */
@@ -90,14 +92,14 @@ const satelliteLayerConfigs = {
   },
 };
 
-// Derived types — adding a country only requires a new entry in satelliteLayerConfigs above
+// Derived types, adding a country only requires a new entry in satelliteLayerConfigs above
 type SatelliteLayerType = keyof typeof satelliteLayerConfigs;
 type CountryCode = Exclude<SatelliteLayerType, "esri">;
 export type TileLayerType = "plan" | SatelliteLayerType;
 
 const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const OPENFREEMAP_ATTRIBUTION =
-  '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+  '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/copyright" target="_blank" rel="noopener">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">&copy; OpenStreetMap contributors</a>';
 
 let currentAttribution = "";
 
@@ -120,7 +122,7 @@ export const currentTileLayer = ref<TileLayerType>("plan");
 
 /** Reference to the basemap MapLibre map instance (renders below overlays at z-200). */
 // During Vite HMR, the module re-executes but the MapLibre instance is still alive on the page.
-// We preserve it via import.meta.hot.data so onMlMapReady callers don't get stuck waiting
+// Preserved via import.meta.hot.data so onMlMapReady callers don't get stuck waiting
 // for a `load` event that will never fire again.
 const mlMapRef = {
   current: (import.meta.hot?.data.mlMap as MaplibreMap | null) ?? null,
@@ -154,12 +156,12 @@ export function onMlMapReady(cb: () => void): void {
 /** Reference to the currently active MapLibre-GL Leaflet layer. Never removed from the map. */
 let activeBaseLayer: MaplibreGL | null = null;
 
-// Cached after first load — undefined until the user first uses satellite mode
+// Cached after first load, undefined until the user first uses satellite mode
 let countryBorders: CountryBorder[] | undefined = undefined;
 
 let lastPendingProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
 
-// Dynamically imports all country borders as a single chunk — only loads on first satellite use
+// Dynamically imports all country borders as a single chunk, only loads on first satellite use
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
   if (countryBorders) return countryBorders;
 
@@ -179,15 +181,13 @@ async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
   return countryBorders;
 }
 
-/**
- * Fast check if point is within bounding box
- */
+/** Fast check: is the given point within this bounding box? */
 function isInBoundingBox(lat: number, lng: number, bbox: BoundingBox): boolean {
   return lat >= bbox.minLat && lat <= bbox.maxLat && lng >= bbox.minLng && lng <= bbox.maxLng;
 }
 
 /**
- * Ray casting algorithm for point-in-polygon detection
+ * Ray-casting algorithm for point-in-polygon detection.
  * @param lat Point latitude
  * @param lng Point longitude
  * @param ring Polygon ring as array of [lng, lat] coordinates
@@ -210,7 +210,7 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
 }
 
 /**
- * Check if a point is inside any of the country's polygons (ray-casting algorithm with hole support)
+ * Check if a point is inside any of the country's polygons (hole support included).
  */
 function isPointInCountry(
   lat: number,
@@ -258,9 +258,6 @@ function isPointInCountry(
 /**
  * Detect which country contains the given coordinates.
  * Async because the GeoJSON border data is lazy-loaded on first call.
- * @param lat Latitude
- * @param lng Longitude
- * @returns Country code or undefined if not in any known country
  */
 async function detectCountryFromCoordinates(
   lat: number,
@@ -281,10 +278,7 @@ async function detectCountryFromCoordinates(
   return undefined;
 }
 
-/**
- * Add tile layers and layer control to the map
- */
-
+/** Initialize tile layers. */
 export function addTileLayer(): void {
   // Check if tile layers were lost during hot reload
   if (!activeBaseLayer) {
@@ -302,29 +296,21 @@ export function addTileLayer(): void {
 }
 
 /**
- * Initialize the MapLibre-GL Leaflet layer with the vector basemap.
- * The MapLibre layer is permanent — satellite mode changes its style via setStyle(),
- * it is never removed from the Leaflet map.
+ * Initialize the two MapLibre-GL Leaflet layers:
+ * - Basemap layer at tilePane (z-200): full OpenFreeMap style
+ * - Vector overlay layer at vectorPane (z-450): transparent, project geometries only
+ * The layers are permanent; satellite mode swaps the basemap style via setStyle().
  */
 async function addTileLayersToMap(): Promise<void> {
   try {
-    // Create two MapLibre layers:
-    // 1. Basemap layer at tilePane (z-200) - full style with basemap tiles
-    // 2. Vector overlay layer at vectorPane (z-450) - transparent with only project vectors
-    // This allows project vector geometries to render on top of distortable overlay images.
-
-    // Create custom pane for vector overlay layer
+    // Two MapLibre layers keep project geometry on top of distortable overlay images.
     const vectorPane = map.value.createPane("vectorPane");
     vectorPane.style.zIndex = "450";
-    // CRITICAL: Prevent the vector canvas from capturing pointer events so overlays
-    // underneath (at z-400) can still be clicked, dragged, and interacted with.
-    // The vector layer still receives clicks because Leaflet forwards map-level
-    // pointer events to MapLibre's queryRenderedFeatures.
+    // Prevent the vector canvas from capturing pointer events so overlays at z-400 remain
+    // interactive. Leaflet forwards map-level events to MapLibre via queryRenderedFeatures.
     vectorPane.style.pointerEvents = "none";
 
-    // Basemap layer (below overlays) - gets the full OpenFreeMap style.
-    // padding: 0.1 extends the rendered canvas 10% beyond the viewport in each direction,
-    // pre-fetching tiles outside the view to prevent edges from filickering while panning.
+    // Basemap: padding 0.1 pre-fetches tiles just outside the viewport to avoid edge flicker.
     const basemapLayer = maplibreLayer({
       style: OPENFREEMAP_STYLE_URL,
       fadeDuration: 0,
@@ -343,24 +329,21 @@ async function addTileLayersToMap(): Promise<void> {
     mlMap.on("load", () => {
       mlMapRef.current = mlMap;
 
-      // Apply road overrides to basemap
       applyPlanStyleRoadOverrides(mlMap);
       applyRailStyleOverrides(mlMap);
 
-      // Don't add project data to basemap layer - it would render below overlays
-      // Project data will be added to the vector overlay layer instead
+      // Project data is added to the vector overlay layer, not here.
 
       if (lastPendingProjectPointsGeojson) {
         updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
       }
     });
 
-    // Vector overlay layer (above overlays) - transparent background with only project layers
+    // Vector overlay layer: transparent background, only project layers.
     const vectorLayer = maplibreLayer({
       style: {
         version: 8,
         sources: {},
-        // Transparent background prevents grey canvas edges from showing during pan
         layers: [],
       },
       fadeDuration: 0,
@@ -376,22 +359,26 @@ async function addTileLayersToMap(): Promise<void> {
     vectorMap.on("load", () => {
       vectorMapRef.current = vectorMap;
 
-      // Add project data layers to the vector overlay map
       addProjectDataToMlMap(vectorMap);
       registerHybridInteractionHandlers(() => vectorMap);
 
       if (import.meta.env.DEV) {
-        import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
+        void import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
           (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(vectorMap);
         });
       }
 
-      // Notify subscribers that vector map is ready
       for (const cb of mlMapReadyCallbacks) cb();
       mlMapReadyCallbacks.length = 0;
     });
   } catch (error) {
     console.error("Failed to initialize MapLibre tile layer:", error);
+    useToast().add({
+      severity: "error",
+      summary: t("errors.mapInitFailed"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 8000,
+    });
   }
 }
 
@@ -407,10 +394,7 @@ watch(
   { deep: true },
 );
 
-/**
- * Update the pending-project-points-source with fresh GeoJSON data.
- * This is used for unapproved/pending projects in edit/moderation mode.
- */
+/** Update the pending-project-points source with fresh GeoJSON data (edit/moderation mode). */
 export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
   lastPendingProjectPointsGeojson = geojson;
 
@@ -445,16 +429,16 @@ function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification 
 }
 
 /**
- * Switch the basemap MapLibre map to a new style.
- * Project data remains on the separate vector overlay map and doesn't need to be re-added.
+ * Switch the basemap to a new style.
+ * Project data stays on the separate vector overlay map and is not affected.
  */
 async function switchToStyle(style: StyleSpecification | string): Promise<void> {
   const mlMap = mlMapRef.current;
   if (!mlMap) return;
 
   await new Promise<void>((resolve) => {
-    mlMap.once("style.load", () => {
-      // Re-apply road/rail overrides to the new style if it's the plan style
+    void mlMap.once("style.load", () => {
+      // Re-apply road/rail overrides if switching back to the plan style.
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
@@ -465,12 +449,10 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
   });
 }
 
-/**
- * Switch to a different tile layer (for custom layer control)
- */
+/** Switch to a different tile layer. */
 export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
-  // Optimization: If switching to satellite, check if we should directly go to a country layer
-  // This prevents loading ESRI first then immediately switching (avoiding "flash" and wasted requests)
+  // When switching to satellite, try to jump directly to the country-specific layer
+  // to avoid a brief flash of the generic ESRI layer.
   let resolvedLayerType = layerType;
   if (layerType === "esri") {
     const currentZoom = map.value.getZoom();
@@ -506,17 +488,11 @@ export function isTileLayerType(value: string): value is TileLayerType {
   return value === "plan" || Object.hasOwn(satelliteLayerConfigs, value);
 }
 
-// Debounce timer for metadata queries
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-// Cache for max zoom at locations to prevent repeated queries
-// Key: "lat,lng" rounded to ~100m, Value: maxZoom
+// Cache of max zoom by location (key: "lat,lng" rounded to ~100m).
 const maxZoomCache = new Map<string, number>();
 
-/**
- * Query Esri Metadata to look for high-resolution imagery availability
- * and dynamically adjust the maxzoom.
- */
+/** Check and adjust the Esri max native zoom for the current location. */
 async function checkEsriMaxZoom() {
   if (currentTileLayer.value !== "esri") return;
 
@@ -556,13 +532,12 @@ function applyEsriMaxZoom(zoomLevel: number) {
     if (currentTileLayer.value === "esri") {
       const mlMap = getBasemapMlMap(); // Use basemap since satellite source is there
       if (mlMap) {
-        // Since MapLibre GL JS does not officially support hot-swapping maxzoom on a source
-        // we'll attempt to update it via undocumented properties.
+        // MapLibre GL JS doesn't officially support hot-swapping source maxzoom;
+        // update it via internal properties and force a tile refresh.
         const source = mlMap.getSource("satellite");
         if (source) {
           (source as any).maxzoom = zoomLevel;
           try {
-            // Try to force the style source cache to update
             const sourceCache = (mlMap.style as any).sourceCaches.satellite;
             if (sourceCache) {
               sourceCache.clearTiles();
@@ -578,7 +553,7 @@ function applyEsriMaxZoom(zoomLevel: number) {
   }
 }
 
-// Interface for Esri Identify Response
+// Interface for the Esri Identify API response
 interface EsriIdentifyResponse {
   results?: {
     attributes: {
@@ -588,9 +563,7 @@ interface EsriIdentifyResponse {
   }[];
 }
 
-/**
- * ESRI has diffent max native zoom depending on the location
- */
+/** Queries the ESRI Identify API to get the max native zoom level at the given location. */
 async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null> {
   const bounds = map.value.getBounds();
   const extent = {
@@ -637,9 +610,7 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   return null;
 }
 
-/**
- * Automatically switch satellite layer based on map view location and zoom
- */
+/** Switch the satellite layer based on the map view location and zoom. */
 async function checkAndAutoSwitchSatelliteLayer() {
   if (currentTileLayer.value === "plan") {
     return;
@@ -668,9 +639,7 @@ async function checkAndAutoSwitchSatelliteLayer() {
   }
 }
 
-/**
- * Initialize listener for automatic country-based satellite switching
- */
+/** Start listening for map movements to auto-switch between country satellite layers. */
 function initAutoCountrySwitchListener() {
   map.value.on("moveend", () => {
     void checkAndAutoSwitchSatelliteLayer();

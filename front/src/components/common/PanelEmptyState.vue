@@ -16,7 +16,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-// Props for customizing the empty state
 interface Props {
   icon?: string;
   message: string;
@@ -27,6 +26,5 @@ const props = withDefaults(defineProps<Props>(), {
   icon: "folder",
 });
 
-// Compute full icon class
 const iconClass = computed(() => `pi-${props.icon}`);
 </script>

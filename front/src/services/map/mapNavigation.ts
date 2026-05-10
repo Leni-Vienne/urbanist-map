@@ -13,10 +13,9 @@ const currentCameraBounds = ref<CameraBounds | null>(null);
 const distanceThreshold = 10;
 
 /**
- * Initialize camera bounds tracking
+ * Initialize camera bounds tracking.
  */
 export function initializeCameraBounds() {
-  // Update bounds when map moves or zooms
   function updateBounds() {
     try {
       const bounds = map.value.getBounds();
@@ -27,7 +26,7 @@ export function initializeCameraBounds() {
         south: bounds.getSouth(),
         east: bounds.getEast(),
         west: bounds.getWest(),
-        zoom: zoom,
+        zoom,
       };
       currentCameraBounds.value = newBounds;
     } catch (error) {
@@ -35,7 +34,6 @@ export function initializeCameraBounds() {
     }
   }
 
-  // Set initial bounds immediately - no delay needed as map is ready
   updateBounds();
 
   map.value.on("load", updateBounds);
@@ -70,9 +68,10 @@ function getMobileDrawerBottomPaddingPx(): number {
 }
 
 /**
- * Mobile-aware flyTo - adjusts center on mobile to account for drawer taking the bootom half of the screen
- * Strategy: Create a small bounds around the point and use flyToBounds with mobile-aware padding
- * This leverages Leaflet's built-in padding logic which already works correctly
+ * Mobile-aware flyTo - adjusts the target center to account for the drawer
+ * covering the bottom half of the screen.
+ * Creates a small bounds around the point and uses flyToBounds with mobile-aware padding,
+ * leveraging Leaflet's built-in padding logic.
  */
 export function mobileAwareFlyTo(
   latlng: L.LatLngExpression,
@@ -122,9 +121,9 @@ export function mobileAwareFlyTo(
 }
 
 /**
- * Mobile-aware panTo - pure pan with no zoom change, but accounts for the mobile drawer offset.
- * Use this instead of mobileAwareFlyTo when the zoom level is already correct, to avoid
- * the zoom-out arc that flyTo produces even for same-zoom pans.
+ * Mobile-aware panTo - pure pan with no zoom change, accounting for the mobile drawer offset.
+ * Use instead of mobileAwareFlyTo when the zoom level is already correct, to avoid
+ * the zoom-out arc that flyTo produces for same-zoom pans.
  */
 export function mobileAwarePanTo(
   latlng: L.LatLngExpression,
@@ -147,8 +146,8 @@ export function mobileAwarePanTo(
 
   // Mobile with drawer open: shift the pan target southward in pixel space.
   // panTo centers on the given point, so panning to a point south of the target
-  // makes the target appear north of center (i.e. in the visible area above the drawer).
-  // NOTE: in Leaflet pixel coords, Y increases southward, so adding to Y moves south.
+  // makes the target appear in the visible area above the drawer.
+  // In Leaflet pixel coords, Y increases southward.
   const drawerPaddingBottom = getMobileDrawerBottomPaddingPx();
   const drawerPaddingTop = 50;
   const verticalOffsetPx = (drawerPaddingBottom - drawerPaddingTop) / 2;

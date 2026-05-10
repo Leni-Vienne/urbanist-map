@@ -162,7 +162,7 @@
     "deleteProjectError": "Failed to delete project. Please try again.",
     "guest": {
       "title": "Contribute to the map",
-      "description": "Help map urban planning projects: add official projects or your own ideas for your city (transport, housing, street redesigns, green spaces...).",
+      "description": "Help map urban projects worldwide, from early proposals to ongoing construction. You can draw shapes, add top-down imagery, dates...",
       "signIn": "Sign in",
       "createAccount": "Create an account"
     }
@@ -299,7 +299,8 @@
       "emailLinkedToDifferentGoogle": "This email is already associated with a different Google account.",
       "googleAuthFailed": "Google authentication failed. Please try again.",
       "tooManyRequests": "Too many requests. Please try again later.",
-      "invalidCaptcha": "Invalid CAPTCHA. Please try again."
+      "invalidCaptcha": "Invalid CAPTCHA. Please try again.",
+      "signOutFailed": "Sign-out failed"
     },
     "success": {
       "registered": "Account created successfully! Please check your email to verify your account.",
@@ -333,13 +334,20 @@
     "updateOverlays": "Update Images",
     "removeChange": "Remove this change",
     "noChangesToSubmit": "No changes to submit",
-    "newOverlay": "New image"
+    "newOverlay": "New image",
+    "createAction": "New submission",
+    "updatePendingAction": "Update submission",
+    "updateApprovedAction": "Suggest changes"
   },
   "pages": {
     "home": {
       "signInSuccess": "Successfully signed in!",
       "authenticationError": "Authentication Error",
       "loadingMapAndData": "Loading map and data...",
+      "maintenance": {
+        "upcoming": "Scheduled maintenance in ~{minutes} min. The site will be unavailable for about 15 minutes.",
+        "ongoing": "Maintenance in progress until ~{endTime}, the site may be unavailable."
+      },
       "errors": {
         "authenticationFailed": "Authentication failed. Please try again.",
         "signInCancelled": "Sign in was cancelled or failed.",
@@ -532,13 +540,18 @@
   "errors": {
     "projectNotFound": "Project not found",
     "projectRequired": "Project Required: A project must be selected to add an image",
-    "checkConflictsFailed": "Failed to check for conflicts"
+    "checkConflictsFailed": "Failed to check for conflicts",
+    "noChangesDetected": "No changes detected to submit",
+    "preparingSubmission": "Failed to prepare submission",
+    "failedToLoadCountries": "Could not load the country list",
+    "mapInitFailed": "Map failed to load"
   },
   "moderation": {
     "title": "Moderation",
     "description": "Review pending submissions",
     "by": "by",
     "noAccessToThisCountry": "You do not have permission to moderate this country.",
+    "refreshCountsFailed": "Could not refresh pending counts",
     "projectApproved": "Project Approved",
     "projectApprovedDetail": "The project has been approved successfully",
     "projectUpdated": "Project Updated",
@@ -549,6 +562,7 @@
     "overlayRejected": "Image Rejected",
     "overlayRejectedDetail": "The image has been rejected",
     "switchedToEditMode": "Switched to Edit Mode",
+    "pendingOverlaysOnlyInEditMode": "Pending images are only visible in edit mode",
     "switchedToViewMode": "Switched to View Mode",
     "switchedToModerationMode": "Switched to Moderation Mode",
     "clickAgainToAdd": "Click the button again to add an image",
@@ -600,6 +614,9 @@
     "chooseCountry": "Choose a country...",
     "failedToLoadCountries": "Failed to load countries list",
     "pleaseSelectCountry": "Please select a country to view pending submissions",
+    "pendingProjects": "Pending Projects",
+    "allReviewed": "All submissions reviewed",
+    "noPendingItems": "No pending submissions to moderate",
     "conflictResolved": "Change Approved",
     "conflictResolvedDetail": "The selected change has been approved. Other suggestions for this field were marked as not selected.",
     "conflictsRejected": "All Changes Rejected",
@@ -684,7 +701,7 @@
   },
   "replacementOverlay": {
     "uploadFailed": "Upload Failed",
-    "uploadFailedDetail": "Failed to process the image image"
+    "uploadFailedDetail": "Failed to process the image"
   },
   "projectSelector": {
     "suggestChanges": "Suggest Changes"
@@ -797,7 +814,7 @@
     "importSkippedGeometryTypes": "Ignored unsupported geometry types: {types}",
     "saveShapes": "Save shapes",
     "cancel": "Cancel",
-    "savedLocally": "Shapes saved — click Publish to submit",
+    "savedLocally": "Shapes saved, click Publish to submit",
     "geometrySummary": "{count} shape(s)",
     "viewCurrentShapes": "View Current Shapes",
     "viewSuggestedShapes": "View Suggested Shapes",

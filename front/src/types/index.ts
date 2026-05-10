@@ -65,7 +65,7 @@ declare module "leaflet" {
 
   interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
     actions?: DistortableAction[];
-    // resizeRotate is the most conveniant mode (tool) for the site
+    // resizeRotate is the most convenient mode for this site
     mode:
       | "drag"
       | "scale"
@@ -91,15 +91,12 @@ declare module "leaflet" {
   ): DistortableImageOverlay;
 }
 
-// tRPC-inferred types from backend API (for transformed data)
-export type City = RouterOutput["cities"]["getCitiesNearLocation"][number];
-
 // Extended Country type for frontend use with additional properties
 export interface Country extends DBCountry {
   lat: number;
   lng: number;
   projectCount: number;
-  cities: City[];
+  cities: RouterOutput["cities"]["getCitiesNearLocation"];
 }
 
 export type PendingChangeRequest =
@@ -114,7 +111,7 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   // Computed fields for all contexts
   city: DBCity | null;
   overlayIds: string[];
-  // Always an array on the frontend — null coerced to [] at DB boundary
+  // Always an array on the frontend, null coerced to [] at DB boundary
   tags: string[];
   // Joined import source details (null for user-created projects)
   importSource?: DBImportSource | null;
@@ -139,7 +136,7 @@ export interface ProjectFormData {
 }
 
 // Wire format from backend API - derived automatically from tRPC route output
-export type ApiOverlayData = RouterOutput["viewport"]["getOverlaysInViewport"][number];
+type ApiOverlayData = RouterOutput["viewport"]["getOverlaysInViewport"][number];
 
 // Frontend overlay data type - extends API type with:
 // - null status for local overlays not yet submitted to the backend
@@ -250,8 +247,6 @@ export type ProjectForModeration = Pick<
   overlayCount?: number;
   geometry?: GeoJSON.GeometryCollection | null;
 };
-
-// PendingOverlay is defined in types/api.ts - import from there if needed
 
 // Centralized UserContribution types handling local (nullable status) and backend data
 type BackendUserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];

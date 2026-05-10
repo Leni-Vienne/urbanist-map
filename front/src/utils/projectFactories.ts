@@ -1,5 +1,4 @@
 // Factory functions for creating project and overlay objects
-// Eliminates massive code duplication across currentLocationPanel, ContributePanel, and useAllContributions
 
 import type {
   OverlayData,
@@ -11,9 +10,6 @@ import type {
 } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 
-/**
- * Create OverlayForModeration from overlay data
- */
 export function createOverlayForModeration(overlayData: OverlayData): OverlayForModeration {
   return {
     id: overlayData.id,
@@ -38,10 +34,6 @@ export function createOverlayForModeration(overlayData: OverlayData): OverlayFor
   };
 }
 
-/**
- * Create UserContributionOverlay from local (unsaved) overlay object
- * Used by useAllContributions for overlays that exist only in frontend state
- */
 export function createLocalOverlayContribution(
   overlay: {
     id: string;
@@ -82,7 +74,7 @@ export function createLocalOverlayContribution(
     cityName: parentProject.cityName,
     countryCode: parentProject.countryCode,
     countryName: parentProject.countryName,
-    imageUrl: overlay.imageUrl, // Preserve local image URL for thumbnail display
+    imageUrl: overlay.imageUrl,
   };
 }
 
@@ -105,7 +97,7 @@ type LocalProject = {
   timelineStatus?: "proposed" | "planned" | "under_construction" | "completed" | "canceled" | null;
   importSourceId?: string | null;
   externalId?: string | null;
-  externalProperties?: any;
+  externalProperties?: unknown;
   externalLastModified?: Date | null;
   lastImportedAt?: Date | null;
   sourceUrl: string | null;
@@ -169,10 +161,6 @@ function buildLocalProjectShell(
   };
 }
 
-/**
- * Create UserContribution from a local (unsaved) project with a single overlay.
- * Used by useAllContributions for projects that exist only in frontend state.
- */
 export function createLocalProjectContribution(
   localProject: LocalProject,
   overlay: {
@@ -199,10 +187,6 @@ export function createLocalProjectContribution(
   return buildLocalProjectShell(localProject, [overlayData], username);
 }
 
-/**
- * Create ProjectForModeration from a full Project object with pre-built overlays.
- * Used by ContributePanel for external (non-owned) selected projects.
- */
 export function createProjectForModerationFromProject(
   project: Project,
   overlays: OverlayForModeration[],
@@ -218,10 +202,6 @@ export function createProjectForModerationFromProject(
   };
 }
 
-/**
- * Create UserContribution from a local (unsaved) project with pre-built overlays.
- * Used when overlays have already been mapped via createLocalOverlayContribution.
- */
 export function createLocalProjectContributionWithOverlays(
   localProject: LocalProject,
   overlays: UserContributionOverlay[],

@@ -12,17 +12,17 @@ import { createProjectObject, createProjectFromUserContribution } from "@/utils/
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
-// Helper function to replace an item in an array immutably at a given index
+// Replaces an item in an array immutably.
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
   return [...arr.slice(0, index), newItem, ...arr.slice(index + 1)];
 }
 
-// Helper function to remove an item from an array immutably at a given index
+// Removes an item from an array immutably.
 function removeAtIndex<T>(arr: T[], index: number): T[] {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
-// Helper to generate cache key from parameters (exported for use in composables)
+// Cache key for getUserContributions (exported for composable use).
 function getUserContributionsCacheKey(options?: {
   cityId?: number;
   includeCityProjects?: boolean;
@@ -33,29 +33,23 @@ function getUserContributionsCacheKey(options?: {
 }
 
 export const useProjectStore = defineStore("project", () => {
-  // Central store for project data to avoid circular dependencies
   const projects = ref<Record<string, Project>>({});
   const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
 
-  // Cache countries separately per mode
   const countriesCache = ref(new Map<AppMode, Country[]>());
 
-  // User contributions cache - Map-based cache for different parameter combinations
   const userContributions = ref<UserContribution[]>([]);
   const userContributionsLoading = ref(false);
-  // Cache key format: "cityId:includeCityProjects" (e.g., "null:false", "3029241:true")
+  // "cityId:includeCityProjects" (e.g. "null:false", "3029241:true")
   const userContributionsCache = ref(new Map<string, UserContribution[]>());
 
-  // Cache original projects for change detection
-  // Stores snapshots of projects (from map or contributions) before local modifications
+  // Snapshots of projects before local modifications (for change detection / reset)
   const originalProjects = ref<Record<string, Project | UserContribution>>({});
 
-  // Simple cache for city names (cityId -> city name)
-  // Populated when cities are used in forms or loaded from backend
+  // cityId -> city name, populated lazily from forms and backend responses
   const cityNamesCache = ref<Record<number, string>>({});
 
-  // Helper to cache a city name
   function cacheCityName(cityId: number, cityName: string) {
     cityNamesCache.value = {
       ...cityNamesCache.value,
@@ -63,12 +57,10 @@ export const useProjectStore = defineStore("project", () => {
     };
   }
 
-  // Helper to get original project state for change detection
   function getOriginalProject(projectId: string): Project | UserContribution | null {
     return originalProjects.value[projectId] ?? null;
   }
 
-  // Helper function to extract city metadata from project for user contributions
   function extractCityMetadata(project: Project) {
     const country = countries.value.find((c) => c.code === project.countryCode);
     return {
@@ -78,12 +70,10 @@ export const useProjectStore = defineStore("project", () => {
     };
   }
 
-  // User contributions actions
   function setUserContributions(contributions: UserContribution[], cacheKey: string) {
     userContributions.value = contributions;
     userContributionsCache.value.set(cacheKey, contributions);
 
-    // Cache original state for change detection (only if not already cached)
     for (const contribution of contributions) {
       if (!originalProjects.value[contribution.id]) {
         originalProjects.value = {
@@ -98,7 +88,7 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsLoading.value = loading;
   }
 
-  // Optimistically add new overlay to user contributions without backend fetch
+  // Optimistically add new overlay to user contributions without a backend fetch.
   function addOverlayToUserContributions(
     overlay: OverlayObject,
     project: Project,
@@ -106,15 +96,12 @@ export const useProjectStore = defineStore("project", () => {
     authorUsername: string | null,
   ) {
     if (userContributionsCache.value.size === 0) {
-      // If contributions not loaded yet, skip optimistic update
       return;
     }
 
-    // Find existing project in contributions
     const existingProjectIndex = userContributions.value.findIndex((p) => p.id === project.id);
 
     if (existingProjectIndex !== -1) {
-      // Project exists, add overlay to its overlays array
       const existingProject = userContributions.value[existingProjectIndex];
 
       if (!existingProject) {
@@ -122,7 +109,6 @@ export const useProjectStore = defineStore("project", () => {
         return;
       }
 
-      // Check if overlay already exists in the project
       const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
 
       const overlayMetadata = createLocalOverlayContribution(
@@ -159,14 +145,12 @@ export const useProjectStore = defineStore("project", () => {
         };
       }
     } else {
-      // Project doesn't exist in contributions, add both project and overlay
-      // Skip if project is local-only (not yet submitted)
+      // Project doesn't exist in contributions yet
       if (project.status === null) {
         return;
       }
 
-      // Include all overlays already loaded in the store for this project (e.g. approved ones),
-      // then add/replace with the newly submitted overlay
+      // Include overlays already in the store for this project (e.g. approved ones)
       const overlayStore = useOverlayStore();
       const cityMeta = extractCityMetadata(project);
       const existingOverlays = Object.values(overlayStore.overlays)
@@ -200,26 +184,21 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Optimistically add new project to user contributions without backend fetch
+  // Optimistically add new project to user contributions without a backend fetch.
   function addProjectToUserContributions(project: Project) {
     if (userContributionsCache.value.size === 0) {
-      // If contributions not loaded yet, skip optimistic update
       return;
     }
 
-    // Skip local-only projects (not yet submitted to backend)
     if (project.status === null) {
       return;
     }
 
-    // Check if project already exists
     const existingIndex = userContributions.value.findIndex((p) => p.id === project.id);
     if (existingIndex !== -1) {
-      // Project already exists, don't add duplicate
       return;
     }
 
-    // Create the new contribution entry
     const newContrib = {
       ...project,
       ...extractCityMetadata(project),
@@ -228,10 +207,8 @@ export const useProjectStore = defineStore("project", () => {
       overlayCount: 0,
     };
 
-    // Add new project to the beginning of the array
     userContributions.value = [newContrib, ...userContributions.value];
 
-    // Cache the original for change detection/reset functionality
     if (!originalProjects.value[project.id]) {
       originalProjects.value = {
         ...originalProjects.value,
@@ -240,7 +217,7 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Find the project containing an overlay by ID, returns index + project or null
+  // Returns the project + its index from userContributions, or null if not found.
   function findProjectContainingOverlay(
     overlayId: string,
   ): { index: number; project: UserContribution } | null {
@@ -290,7 +267,6 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Update pending project in user contributions (for field updates)
   function updateProjectInUserContributions(projectId: string, updates: Partial<UserContribution>) {
     if (userContributionsCache.value.size === 0) {
       return;
@@ -310,8 +286,7 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Remove overlay from user contributions (for deletion)
-  // currentUserId param avoids circular dependency with authStore
+  // currentUserId avoids circular dependency with authStore.
   function removeOverlayFromUserContributions(overlayId: string, currentUserId?: string) {
     if (userContributionsCache.value.size === 0) {
       return;
@@ -325,11 +300,9 @@ export const useProjectStore = defineStore("project", () => {
       (o: UserContributionOverlay) => o.id !== overlayId,
     );
 
-    // If no overlays left and user doesn't own project, remove entire project
     if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
       userContributions.value = removeAtIndex(userContributions.value, projectIndex);
     } else {
-      // Update project with remaining overlays
       const updatedProject = {
         ...project,
         overlays: updatedOverlays,
@@ -343,7 +316,6 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Remove project from user contributions (for deletion)
   function removeProjectFromUserContributions(projectId: string) {
     if (userContributionsCache.value.size === 0) {
       return;
@@ -352,12 +324,11 @@ export const useProjectStore = defineStore("project", () => {
     userContributions.value = userContributions.value.filter((p) => p.id !== projectId);
   }
 
-  // Update project in store with proper reactivity
-  // Can also create new project if it doesn't exist (when updates contains full project data)
+  // Updates a project in the store. Creates it if not present.
   function updateProject(projectId: string, updates: Partial<Project>) {
     let current = projects.value[projectId];
 
-    // Pending projects may only exist in user contributions until the user edits them locally.
+    // Pending projects may only exist in userContributions until edited locally.
     if (!current) {
       const contributionProject = userContributions.value.find(
         (project) => project.id === projectId,
@@ -367,13 +338,11 @@ export const useProjectStore = defineStore("project", () => {
       }
     }
 
-    // Save original version before first modification (for change detection)
-    // This applies to all backend projects (approved, pending, or rejected)
-    // Cache original before first modification for reset functionality
+    // Cache original before first modification for reset / change-detection.
     if (
       current &&
       !originalProjects.value[projectId] &&
-      current.status !== null && // Has a backend status (not local-only)
+      current.status !== null &&
       !current.isModified
     ) {
       originalProjects.value = {
@@ -382,16 +351,13 @@ export const useProjectStore = defineStore("project", () => {
       };
     }
 
-    // Create new object with updates to trigger reactivity
-    // If current is undefined, we're creating a new project - use updates as the base
     projects.value = {
       ...projects.value,
       [projectId]: current ? { ...current, ...updates } : createProjectObject(updates),
     };
   }
 
-  // Cache project backend state for change detection
-  // Called after successful submission to store baseline for future modifications
+  // Stores the current project state as baseline for future change detection.
   function cacheProjectBackendState(projectId: string) {
     const project = projects.value[projectId];
 
@@ -403,28 +369,19 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Reset a specific project field to its original backend value
-  // Used when user removes a single change from the submission dialog
+  // Resets a single project field to its original backend value.
   function resetProjectField(projectId: string, fieldName: string): boolean {
     const original = getOriginalProject(projectId);
 
-    // Fallback: if not in cache, check if project exists in userContributions
     if (!original) {
-      const contribInList = userContributions.value.find((p) => p.id === projectId);
-      if (contribInList) {
-        // Project exists but original wasn't cached - can't reset
-        return false;
-      }
       return false;
     }
 
-    // Get the original value to reset to
     // oxlint-disable-next-line no-unsafe-type-assertion
     const originalValue = (original as Record<string, unknown>)[fieldName];
 
     let didReset = false;
 
-    // Update in projects store if present
     const current = projects.value[projectId];
     if (current && originalValue !== undefined) {
       updateProject(projectId, { [fieldName]: originalValue });
@@ -450,7 +407,6 @@ export const useProjectStore = defineStore("project", () => {
     return didReset;
   }
 
-  // Countries cache management - store and retrieve countries per mode
   function getCachedCountries(mode: AppMode): Country[] | null {
     return countriesCache.value.get(mode) ?? null;
   }
@@ -467,36 +423,16 @@ export const useProjectStore = defineStore("project", () => {
     countriesCache.value.clear();
   }
 
-  // Clear all state on logout/account switch
-  // Clear user-specific state on logout/account switch
-  // NOTE: We preserve public data (countries, view-mode caches)
-  // and only clear user-specific data
+  // Clear user-specific state on logout or account switch.
   function clearAllState(): void {
-    // Clear projects and selection (keep the data but clear selection)
-    // Actually, we should clear user-specific projects but keep approved ones
-    // For simplicity, clear all projects and let them reload with view-mode permissions
     projects.value = {};
     selectedProjectId.value = null;
 
-    // KEEP countries - these are needed for public map view
-    // countries.value = [];
-
-    // Clear user contributions (user-specific)
     userContributions.value = [];
     userContributionsLoading.value = false;
     userContributionsCache.value.clear();
-
-    // Clear original state cache (user-specific)
     originalProjects.value = {};
-
-    // Clear city names cache (can be rebuilt)
     cityNamesCache.value = {};
-
-    // Clear mode-specific caches but keep view-mode caches
-    // The cache keys include mode, so view-mode caches will persist
-    // We only need to clear edit/moderation mode caches
-    // For now, we'll clear all caches and let view mode reload
-    // (This is safer and cleaner)
     clearCountriesCache();
   }
 

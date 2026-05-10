@@ -10,7 +10,6 @@ import { adminRouter } from "./admin";
 import { viewportRouter } from "./viewport";
 import { feedRouter } from "./feed";
 
-// Main router that combines all sub-routers
 export const appRouter = router({
   auth: authRouter,
   project: projectRouter,
@@ -24,5 +23,4 @@ export const appRouter = router({
   feed: feedRouter,
 });
 
-// Export types
 export type AppRouter = typeof appRouter;

@@ -1,5 +1,3 @@
-// Shared validation logic for overlays (used by both frontend and backend)
-
 interface Corner {
   lat: number;
   lng: number;
@@ -10,7 +8,7 @@ const MAX_WIDTH_METERS = 1000;
 const MAX_HEIGHT_METERS = 1000;
 const MAX_DIAGONAL_METERS = 1450;
 
-// Calculate distance between two points using Haversine formula (same as PostGIS ST_Distance on geography)
+// Distance between two lat/lng points using the Haversine formula
 function calculateDistance(point1: Corner, point2: Corner): number {
   const R = 6_371_000; // Earth's radius in meters
   const lat1 = (point1.lat * Math.PI) / 180;
@@ -30,7 +28,7 @@ interface OverlaySizeValidationResult {
   isValid: boolean;
 }
 
-// Validate overlay size constraints
+// Validate overlay corner positions against maximum size constraints
 export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationResult {
   if (corners.length !== 4) {
     return { isValid: false };
@@ -62,15 +60,11 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
   return { isValid };
 }
 
-// Helper to convert Leaflet LatLng to Corner interface
+// Convert Leaflet LatLng objects to Corner interface
 export function leafletCornersToCorners(leafletCorners: { lat: number; lng: number }[]): Corner[] {
   return leafletCorners.map((c) => ({ lat: c.lat, lng: c.lng }));
 }
 
-/**
- * Calculate centroid from 4 corner coordinates using average of all corners
- * Used for consistent centroid calculation across frontend and backend
- */
 export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
   if (corners.length !== 4) {
     return null;

@@ -1,12 +1,12 @@
 /**
- * vectorTileSync.ts — idle-driven overlay sync for approved overlays.
+ * vectorTileSync.ts, idle-driven overlay sync for approved overlays.
  *
  * Listens to MapLibre's 'idle' event and diffs the rendered overlay-footprints
  * features against the overlay render registry to create/destroy Leaflet
  * DistortableImageOverlay instances for approved overlays.
  *
  * Runs in ALL modes (view, edit, moderation). Approved overlays are always
- * delivered via tiles — the bbox tRPC fetch only returns pending content.
+ * delivered via tiles, the bbox tRPC fetch only returns pending content.
  */
 
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
@@ -63,7 +63,7 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
   };
 }
 
-/* function used to prevent overlays from being pruned when the viewport is entirely covered by an overlay polygon. */
+// Prevents overlays from being pruned when the viewport is entirely covered by an overlay polygon.
 function overlayIntersectsViewport(
   corners: { lat: number; lng: number }[],
   bounds: { north: number; south: number; east: number; west: number },
@@ -95,17 +95,12 @@ function syncOverlaysFromTiles(mlMap: any): void {
   if (!mlMap.getLayer("overlay-footprints")) return;
 
   try {
-    // Use querySourceFeatures instead of queryRenderedFeatures to avoid the viewport issue.
-    // queryRenderedFeatures only returns features with visible geometry in the viewport,
-    // which fails when zoomed in so close that all overlay edges are outside the screen.
-    // querySourceFeatures queries the tile data directly based on the source layer,
-    // returning all features in loaded tiles regardless of visual rendering.
-    // This correctly handles the case where viewport is entirely inside an overlay polygon.
+    // querySourceFeatures (not queryRenderedFeatures) is used to also catch overlays whose
+    // edges are outside the viewport (e.g. when zoomed in so far that only the interior shows).
     const allFeatures: any[] = mlMap.querySourceFeatures("project-sources", {
       sourceLayer: "overlay-footprints",
     });
 
-    // Get viewport bounds to filter features
     const bounds = mlMap.getBounds();
     const viewportBounds = {
       north: bounds.getNorth(),
@@ -114,8 +109,7 @@ function syncOverlaysFromTiles(mlMap: any): void {
       west: bounds.getWest(),
     };
 
-    // Deduplicate by ID and filter by viewport intersection.
-    // With promoteId set on the source, the id may be on feat.id rather than feat.properties.id.
+    // Deduplicate by ID (promoteId means the id may live on feat.id, not feat.properties.id).
     const featureMap = new Map<string, OverlayData>();
     for (const feat of allFeatures) {
       const id = String(feat.id ?? feat.properties?.id ?? "");
@@ -124,16 +118,15 @@ function syncOverlaysFromTiles(mlMap: any): void {
 
       const data = overlayDataFromFeature(feat);
       if (data && overlayIntersectsViewport(data.corners, viewportBounds)) {
-        // Only include if it intersects the viewport
         featureMap.set(id, data);
       }
     }
 
     // Remove layers for approved overlays no longer in the rendered set.
-    // Only evict registry entries that vectorTileSync itself created — identified by
+    // Only evict registry entries that vectorTileSync itself created, identified by
     // presence in approvedOverlayDataCache. Pending layers (from bbox tRPC fetch) and
     // local/new layers are never in that cache, so they are never touched here.
-    // Also skip entries currently being created — their in-flight async load will clean up
+    // Also skip entries currently being created, their in-flight async load will clean up
     // via the visibility check in onOverlayFullyLoaded if they've since left view.
     for (const [id] of registry.getAllLayers()) {
       if (!featureMap.has(id) && !registry.isCreating(id) && approvedOverlayDataCache.has(id)) {
@@ -162,9 +155,11 @@ function syncOverlaysFromTiles(mlMap: any): void {
 
     import("@/services/overlay/overlayRendering")
       .then(({ renderViewModeOverlays }) => {
-        renderViewModeOverlays(toCreate, false, false);
+        renderViewModeOverlays(toCreate, false);
       })
-      .catch((error) => console.error("vectorTileSync: failed to load overlayRendering", error));
+      .catch((error: unknown) =>
+        console.error("vectorTileSync: failed to load overlayRendering", error),
+      );
   } catch (error) {
     console.error("vectorTileSync idle error:", error);
   }
@@ -172,7 +167,7 @@ function syncOverlaysFromTiles(mlMap: any): void {
 
 /**
  * Register the idle-driven overlay sync. Call once after map init.
- * Runs in all modes — approved overlays always come from tiles.
+ * Runs in all modes, approved overlays always come from tiles.
  */
 export function initVectorTileSync(): void {
   onMlMapReady(() => {

@@ -13,8 +13,8 @@ const LOCALES_DIR = join(import.meta.dir, "../front/src/locales/messages");
 const SEARCH_DIRS = [join(import.meta.dir, "../front/src")];
 const SEARCH_EXTENSIONS = new Set([".vue", ".ts", ".tsx", ".js", ".jsx"]);
 
-// Keys that are dynamically built and should be ignored
-// Add prefixes here for keys that are used via patterns like t(`status.${value}`)
+// Keys that are dynamically built and excluded from the unused check.
+// Add prefixes for keys used via patterns like t(`status.${value}`)
 const IGNORED_PREFIXES: string[] = [
   "status.", // Used dynamically via t(`status.${status}`)
   "fields.", // Used dynamically for field names
@@ -45,7 +45,7 @@ function extractKeys(obj: unknown, prefix = ""): string[] {
   return keys;
 }
 
-// Recursively get all files with specified extensions
+// Recursively get all files with the specified extensions
 function getFilesRecursively(dir: string): string[] {
   const files: string[] = [];
 
@@ -72,7 +72,7 @@ function getFilesRecursively(dir: string): string[] {
   return files;
 }
 
-// Find dynamic key prefixes used in the codebase
+// Detect dynamic key prefixes used in the codebase (e.g. t(`prefix.${val}`))
 function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
   const dynamicPrefixes = new Set<string>();
 
@@ -95,11 +95,10 @@ function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
   return dynamicPrefixes;
 }
 
-// Check if a key is used in any file
+// Check if a translation key is referenced in any source file
 function isKeyUsed(key: string, files: string[], fileContents: Map<string, string>): boolean {
-  // Build patterns to search for
-  // Common patterns: t('key'), $t('key'), t("key"), $t("key"), i18n.t('key'), etc.
-  // Also match bare string literals like `const k = "key"; t(k)` (variable-indirected usage)
+  // Matches common patterns: t('key'), $t('key'), t("key"), $t("key"), backtick variants,
+  // and bare string literals (for variable-indirected usage)
   const patterns = [
     `t('${key}'`,
     `t("${key}"`,
@@ -125,7 +124,7 @@ function isKeyUsed(key: string, files: string[], fileContents: Map<string, strin
   return false;
 }
 
-// Remove a nested key from an object
+// Remove a nested key from an object by dot-separated path
 function removeKey(obj: Record<string, unknown>, keyPath: string): boolean {
   const parts = keyPath.split(".");
   let current: Record<string, unknown> = obj;
@@ -156,7 +155,7 @@ function removeKey(obj: Record<string, unknown>, keyPath: string): boolean {
   return false;
 }
 
-// Clean up empty objects after removing keys
+// Remove empty parent objects after key deletion
 function cleanEmptyObjects(obj: Record<string, unknown>): void {
   for (const key of Object.keys(obj)) {
     const value = obj[key];

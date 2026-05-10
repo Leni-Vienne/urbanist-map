@@ -83,7 +83,7 @@ import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
 
-const { t: $t } = useI18n();
+const { t } = useI18n();
 
 const route = useRoute();
 const router = useRouter();
@@ -113,26 +113,26 @@ function validatePasswords() {
   confirmError.value = "";
 
   if (newPassword.value && newPassword.value.length < 8) {
-    passwordError.value = $t("auth.chooseStrongPassword");
+    passwordError.value = t("auth.chooseStrongPassword");
   }
 
   if (confirmPassword.value && newPassword.value !== confirmPassword.value) {
-    confirmError.value = $t("auth.passwordsDontMatch");
+    confirmError.value = t("auth.passwordsDontMatch");
   }
 }
 
-async function validateToken() {
+async function checkTokenPresent() {
   try {
     const token = route.query.token as string;
 
     if (!token) {
-      throw new Error($t("auth.invalidResetToken"));
+      throw new Error(t("auth.invalidResetToken"));
     }
 
     tokenValid.value = true;
   } catch (error) {
     console.error("Token validation failed:", error);
-    errorMessage.value = error instanceof Error ? error.message : $t("auth.invalidResetToken");
+    errorMessage.value = error instanceof Error ? error.message : t("auth.invalidResetToken");
   } finally {
     loading.value = false;
   }
@@ -149,7 +149,7 @@ async function handleResetPassword() {
     const result = await authStore.resetPassword(token, newPassword.value);
 
     if (result.success) {
-      // Auto-login after successful password reset — failure is non-fatal
+      // Auto-login after successful password reset, failure is non-fatal
       if (result.email) {
         // oxlint-disable-next-line no-empty-function
         await authStore.signIn(result.email, newPassword.value).catch(() => {});
@@ -157,21 +157,21 @@ async function handleResetPassword() {
 
       toast.add({
         severity: "success",
-        summary: $t("common.success"),
-        detail: $t("auth.passwordResetSuccess"),
+        summary: t("common.success"),
+        detail: t("auth.passwordResetSuccess"),
         life: 3000,
       });
 
       router.push("/");
     } else {
-      throw new Error(result.error ?? $t("auth.invalidResetToken"));
+      throw new Error(result.error ?? t("auth.invalidResetToken"));
     }
   } catch (error) {
     console.error("Password reset failed:", error);
     toast.add({
       severity: "error",
-      summary: $t("common.error"),
-      detail: error instanceof Error ? error.message : $t("auth.invalidResetToken"),
+      summary: t("common.error"),
+      detail: error instanceof Error ? error.message : t("auth.invalidResetToken"),
       life: 5000,
     });
   } finally {
@@ -184,6 +184,6 @@ function goToApp() {
 }
 
 onMounted(() => {
-  validateToken();
+  checkTokenPresent();
 });
 </script>

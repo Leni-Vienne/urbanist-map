@@ -1,10 +1,3 @@
-// ============================================================================
-// OVERLAY SELECTION - Selection and highlighting management for overlays
-// ============================================================================
-// This module handles overlay selection, deselection, and highlighting.
-// Extracted from useOverlay.ts as the lowest-level module (no internal deps).
-// ============================================================================
-
 import type L from "leaflet";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -21,9 +14,6 @@ import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
 
-/**
- * Clean up previously selected overlay
- */
 function cleanupPreviousSelection(
   previouslySelected: OverlayObject,
   previouslySelectedId: string,
@@ -43,9 +33,6 @@ function cleanupPreviousSelection(
   }
 }
 
-/**
- * Setup newly selected overlay with proper state and highlighting
- */
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
   // Set position state for dynamic button feedback when selecting overlay
   // Default to viewing the approved position on first selection
@@ -77,9 +64,6 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   }
 }
 
-/**
- * Select overlay in Leaflet, waiting for DOM if needed
- */
 function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
   const element = overlay.getElement();
   const isInDOM = element && document.body.contains(element);
@@ -109,16 +93,13 @@ export function selectOverlay(overlayId: string | null): void {
 
   isSelectingOverlay = true;
   try {
-    // Store previous selection info before updating
     const previouslySelectedId = overlayStore.idSelectedOverlay;
     const previouslySelected = previouslySelectedId
       ? overlayStore.overlays[previouslySelectedId]
       : null;
 
-    // Update selected overlay ID
     overlayStore.idSelectedOverlay = overlayId;
 
-    // Clean up previous selection if different from new selection
     if (previouslySelected && previouslySelectedId) {
       cleanupPreviousSelection(previouslySelected, previouslySelectedId, overlayId);
     }
@@ -195,8 +176,6 @@ export function removeProjectOutlines(projectId: string, force = false): void {
   if (!projectId) return;
 
   setOverlayDrivenHover(null);
-
-  // Don't remove outlines if an overlay in this project is selected or the project popup is open (unless forced)
   if (!force) {
     const selectedOverlay = overlayStore.idSelectedOverlay
       ? overlayStore.overlays[overlayStore.idSelectedOverlay]
@@ -284,7 +263,6 @@ export function setupProjectHoverEvents(
 export function setupMapClickToDeselect(): void {
   map.value.on("click", () => {
     const overlayStore = useOverlayStore();
-    // Deselect if currently selected - overlay click handlers will re-select if clicked
     if (overlayStore.idSelectedOverlay) {
       selectOverlay(null);
     }

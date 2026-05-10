@@ -2,7 +2,7 @@
   "entry": ["front/src/main.{ts,js}", "front/src/index.html", "back/src/index.ts", "package.json"],
   "project": ["front/src/**/*.{ts,js,vue}", "shared/**/*.{ts,js,vue}", "back/**/*.{ts,js}"],
   "ignore": ["**/*.d.ts", "public/**/*", "**/scripts/**/*", "package.json"],
-  "ignoreDependencies": ["@vitejs/plugin-vue"],
+  "ignoreDependencies": ["@vitejs/plugin-vue", "leaflet"],
   "vite": true,
   "vue": true
 }

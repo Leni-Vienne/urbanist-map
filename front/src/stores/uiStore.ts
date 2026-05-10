@@ -1,10 +1,9 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { Project, ProjectForModeration, OverlayObject } from "@/types/index";
+import type { Project, ProjectForModeration, OverlayObject, PanelTab } from "@/types/index";
 
 // Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
-import type { PanelTab } from "@/types";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 
 interface ProjectDialogState {
@@ -41,7 +40,7 @@ export const useUiStore = defineStore("ui", () => {
   const moderatedContributionsDialogVisible = ref(false);
   const submissionDialogVisible = ref(false);
 
-  // Badge indicator — set by ModeratedContributionsWatcher so UserMenu never imports the composable
+  // Badge indicator, set by ModeratedContributionsWatcher so UserMenu never imports the composable
   const hasUnacknowledgedModeratedContributions = ref(false);
 
   // Project dialog state
@@ -64,8 +63,7 @@ export const useUiStore = defineStore("ui", () => {
     overlay: null,
   });
 
-  // Unified active tab state (shared between desktop SideMenu and mobile MobileDrawer)
-  // Single source of truth for panel tab navigation
+  // Shared tab state between desktop SideMenu and mobile MobileDrawer
   const activeTab = ref<PanelTab>("latest");
   const mobileDrawerVisible = ref(true); // Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
@@ -105,9 +103,6 @@ export const useUiStore = defineStore("ui", () => {
 
   // Project edit form actions
   function openProjectEditForm(project: Project) {
-    // Cache original project state for reset functionality
-    // This is critical for projects loaded from nearbyProjects or allProjects
-    // which bypass the normal caching in updateProject
     const projectStore = useProjectStore();
     if (project.id && project.status !== null && !project.isModified) {
       projectStore.cacheProjectBackendState(project.id);
@@ -184,7 +179,7 @@ export const useUiStore = defineStore("ui", () => {
   function executePostLoginCallback() {
     if (postLoginCallback.value) {
       postLoginCallback.value();
-      postLoginCallback.value = null; // Clear after execution
+      postLoginCallback.value = null;
     }
   }
 
@@ -238,7 +233,6 @@ export const useUiStore = defineStore("ui", () => {
   };
 });
 
-// Enable HMR for this store
 // eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useUiStore, import.meta.hot));

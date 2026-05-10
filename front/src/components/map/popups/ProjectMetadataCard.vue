@@ -306,7 +306,6 @@ const projectLocationDisplay = computed(() => {
 
   const project = props.project;
 
-  // Check if project has a cityId first (imported projects may not have one)
   if (!project.cityId) {
     return "—";
   }

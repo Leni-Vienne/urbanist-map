@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <Dialog
     v-model:visible="isVisible"
     modal
@@ -108,10 +108,8 @@ import { handleImageError } from "@/utils/imageErrorHandler";
 
 const { t: $t } = useI18n();
 
-// Change reason input
 const changeReason = ref("");
 
-// Props
 interface Props {
   visible: boolean;
   summary: SubmissionSummary | null;
@@ -122,7 +120,6 @@ const props = withDefaults(defineProps<Props>(), {
   isSubmitting: false,
 });
 
-// Emits
 const emit = defineEmits<{
   "update:visible": [value: boolean];
   confirm: [reason: string];
@@ -130,10 +127,8 @@ const emit = defineEmits<{
   "remove-change": [index: number, field: RemovableChange, overlayId?: string];
 }>();
 
-// Local visibility state
 const isVisible = ref(props.visible);
 
-// Watch for external visibility changes
 watch(
   () => props.visible,
   (newValue) => {
@@ -141,25 +136,21 @@ watch(
   },
 );
 
-// Handle visibility change from dialog
 function handleVisibilityChange(value: boolean) {
   emit("update:visible", value);
 }
 
-// Handle cancel button
 function handleCancel() {
   changeReason.value = "";
   emit("cancel");
   emit("update:visible", false);
 }
 
-// Handle confirm button
 function handleConfirm() {
   emit("confirm", changeReason.value);
   changeReason.value = "";
 }
 
-// Handle remove change button click
 function handleRemoveChange(index: number, field: RemovableChange, overlayId?: string) {
   emit("remove-change", index, field, overlayId);
 }

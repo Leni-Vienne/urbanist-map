@@ -11,8 +11,6 @@ export function getApiUrl() {
   return import.meta.env.VITE_API_BASE_URL;
 }
 
-// Pass AppRouter as generic here. 👇 This lets the `trpc` object know
-// What procedures are available on the server and their input/output types.
 const trpc = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({

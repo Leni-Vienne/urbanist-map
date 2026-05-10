@@ -168,7 +168,7 @@ const { previewShapes } = useShapeChangeRequestPreview();
 // Sync change requests and preview button state reactively.
 // watchEffect tracks all reactive reads inside (allChangeRequests prop + idSelectedOverlay store),
 // so this re-runs when either changes.
-// IMPORTANT: do NOT read previewState inside this effect — it would create a read→write cycle.
+// IMPORTANT: do NOT read previewState inside this effect, it would create a read→write cycle.
 watchEffect(() => {
   setChangeRequestsForPreview(props.allChangeRequests);
 
@@ -185,8 +185,6 @@ watchEffect(() => {
   }
 });
 
-// Computed property to check if a specific preview is active
-// Preview state is now synced automatically when navigating to overlays via markers/selection
 const isPreviewActive = computed(() => {
   return (changeId: string, type: "old" | "new") => {
     if (!isPreviewingChange(changeId)) return false;
@@ -228,12 +226,10 @@ const groupedChanges = computed<ChangeGroup[]>(() => {
           c.fieldName === change.fieldName,
       );
 
-      // Mark all as processed
       for (const c of conflictingChanges) {
         processedIds.add(c.id);
       }
 
-      // Add as conflict group
       groups.push({
         type: "conflict",
         fieldName: change.fieldName,

@@ -334,12 +334,10 @@ watch(
   () => props.visible,
   (isVisible) => {
     if (isVisible) {
-      // Reset all state when modal opens
       oauthLoading.value = false;
       loading.value = false;
       errorMessage.value = "";
     } else {
-      // Clean up when modal closes
       oauthLoading.value = false;
       loading.value = false;
     }
@@ -391,14 +389,12 @@ function loadTurnstileScript(): Promise<void> {
 async function renderTurnstile() {
   await loadTurnstileScript();
 
-  // Check if globalThis.turnstile is available and widget container exists
   if (globalThis.turnstile && document.querySelector("#turnstile-widget")) {
     // Reset if already rendered to avoid duplicates
     if (turnstileWidgetId.value) {
       globalThis.turnstile.remove(turnstileWidgetId.value);
     }
 
-    // Get site key from env (Vite exposes env vars via import.meta.env)
     const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
     if (!siteKey) {
       console.warn("Missing VITE_TURNSTILE_SITE_KEY, CAPTCHA will be skipped in dev");
@@ -495,7 +491,6 @@ async function handleSubmit() {
         errorMessage.value = translateError(result.error) || $t("auth.error.loginFailed");
       }
     } else {
-      // Pass captcha token
       const result = await authStore.signUp(
         form.email,
         form.password,
@@ -503,7 +498,6 @@ async function handleSubmit() {
         captchaToken.value,
       );
       if (result.success) {
-        // Show success message but keep modal open
         registrationSuccess.value = true;
         errorMessage.value = "";
         toast.add({
@@ -512,7 +506,6 @@ async function handleSubmit() {
           detail: $t("auth.success.registered"),
           life: 3000,
         });
-        // Do not close modal or reset form to show verification message
       } else {
         if (result.error === "auth.error.usernameTaken") {
           usernameError.value = $t("auth.error.usernameTaken");
@@ -521,22 +514,17 @@ async function handleSubmit() {
         } else {
           errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
         }
-        // Reset captcha on failure
         if (globalThis.turnstile && turnstileWidgetId.value) {
           globalThis.turnstile.reset(turnstileWidgetId.value);
           captchaToken.value = "";
         }
       }
     }
-  } catch (error) {
-    errorMessage.value =
-      translateError(error instanceof Error ? error.message : null) || $t("common.error");
   } finally {
     loading.value = false;
   }
 }
 
-// Handle OAuth sign in
 async function handleOAuthSignIn(provider: "google") {
   oauthLoading.value = true;
   errorMessage.value = "";
@@ -555,17 +543,11 @@ async function handleOAuthSignIn(provider: "google") {
     } else {
       errorMessage.value = translateError(result.error) || $t("auth.error.googleAuthFailed");
     }
-  } catch (error) {
-    console.error("OAuth sign in error:", error);
-    errorMessage.value =
-      translateError(error instanceof Error ? error.message : null) || $t("common.error");
   } finally {
-    // Always reset loading state to prevent modal from being stuck in disabled state
     oauthLoading.value = false;
   }
 }
 
-// Handle forgot password request
 async function handleForgotPassword() {
   loading.value = true;
   errorMessage.value = "";
@@ -584,9 +566,6 @@ async function handleForgotPassword() {
     } else {
       errorMessage.value = translateError(result.error) || $t("common.error");
     }
-  } catch (error) {
-    errorMessage.value =
-      translateError(error instanceof Error ? error.message : null) || $t("common.error");
   } finally {
     loading.value = false;
   }

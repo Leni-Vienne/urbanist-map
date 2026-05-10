@@ -34,6 +34,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { trpc, type RouterOutput } from "@/client";
 import { getCameraBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -64,21 +65,19 @@ defineEmits<{
   "update:modelValue": [value: number | undefined];
 }>();
 
+const { t } = useI18n();
 const projectStore = useProjectStore();
 
-// Cities data and state
 const cities = ref<RouterOutput["cities"]["getCitiesNearLocation"]>(
   props.prefilledCity ? [convertDBCityToSelectFormat(props.prefilledCity)] : [],
 );
 const citiesLoading = ref(false);
 const citiesLoaded = ref(Boolean(props.prefilledCity));
 
-// Cache the prefilled city if available
 if (props.prefilledCity) {
   projectStore.cacheCityName(props.prefilledCity.id, props.prefilledCity.name);
 }
 
-// Computed property for cities with display names including local names
 const filteredCities = computed(() => {
   return cities.value.map((city) => ({
     ...city,
@@ -88,7 +87,6 @@ const filteredCities = computed(() => {
   }));
 });
 
-// Helper function to convert DBCity to city select format
 function convertDBCityToSelectFormat(
   dbCity: Project["city"],
 ): RouterOutput["cities"]["getCitiesNearLocation"][number] {
@@ -104,7 +102,6 @@ function convertDBCityToSelectFormat(
   };
 }
 
-// Get reference location for city search
 function getReferenceLocation(): { lat: number; lng: number } | null {
   const overlayStore = useOverlayStore();
   const { idSelectedOverlay, overlays } = storeToRefs(overlayStore);
@@ -147,7 +144,6 @@ function getReferenceLocation(): { lat: number; lng: number } | null {
   return null;
 }
 
-// Load cities when dropdown opens
 async function loadCities() {
   if (citiesLoading.value) return;
 
@@ -188,9 +184,8 @@ async function loadCities() {
   }
 }
 
-// Get city name by ID
 function getCityName(cityId: number | undefined): string {
-  if (!cityId) return "Not set";
+  if (!cityId) return t("overlay.notSet");
   const city = cities.value.find((c) => c.id === cityId);
   return city ? `${city.name}, ${city.countryCode}` : String(cityId);
 }

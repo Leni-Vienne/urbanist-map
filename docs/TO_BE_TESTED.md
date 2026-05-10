@@ -105,7 +105,7 @@ This document outlines the granular functional test scenarios required to ensure
 - **Scenario**: Admin reviewing content in a specific city.
 - **Steps**:
   1.  Enter **Moderation Mode**.
-  2.  zoom somewhere that has pending items
+  2.  Zoom to a viewport with pending items.
   3.  **Check 1**: The **Moderation Side Panel** should filter to show _only_ items for that city.
   4.  **Check 2 (Regression)**: The map camera **MUST NOT** jump to the Country center. It should stay focused on the city or bounds.
   5.  **Zoom Behavior**: Zoom in. Verify pending/unapproved overlays are visible on the map (rendered with "Pending" styling).
@@ -225,7 +225,7 @@ This document outlines the granular functional test scenarios required to ensure
   5.  **Regression**: Pan around the city area.
   6.  **Check**: Pending overlays remain hidden.
 
-## 12. Panel State Preservation (Recent Fix - Jan 13)
+## 12. Panel State Preservation
 
 ### 12.1. KeepAlive Preserves Scroll Position
 
@@ -268,7 +268,7 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Check**: Change request badges appear instantly (O(1) map lookup vs O(N) array find).
   4.  **Regression**: Verify correct change requests are associated with each project/overlay.
 
-## 15. Map Navigation Performance (Recent Fix - Jan 12)
+## 15. Map Navigation Performance
 
 ### 15.1. FlyTo Defers Overlay Rendering
 
@@ -280,7 +280,7 @@ This document outlines the granular functional test scenarios required to ensure
   4.  **Check**: Overlay images only appear AFTER flight completes.
   5.  **Regression**: Verify overlays do eventually render after arrival.
 
-## 16. Overlay Fetching Timing (Recent Fix - Jan 12)
+## 16. Overlay Fetching Timing
 
 ### 16.1. Deferred Overlay Fetching During Flight
 
@@ -302,7 +302,7 @@ This document outlines the granular functional test scenarios required to ensure
   5.  Pan to reveal off-screen overlays.
   6.  **Check**: Newly visible overlays fetch and render correctly.
 
-## 17. Overlay Image Loading Race Conditions (Recent Fix - Jan 12)
+## 17. Overlay Image Loading Race Conditions
 
 ### 17.1. Reliable First Load Rendering
 
@@ -333,7 +333,7 @@ This document outlines the granular functional test scenarios required to ensure
   3.  **Check**: No crashes or console errors.
   4.  **Check**: Image load events are properly cleaned up.
 
-## 18. Email Verification Auto-Login (Recent Feature - Feb 11)
+## 18. Email Verification Auto-Login
 
 ### 18.1. Successful Verification Auto-Login
 
@@ -381,7 +381,7 @@ This document outlines the granular functional test scenarios required to ensure
   6.  Close modal manually.
   7.  **Regression**: Switch to login mode and verify form is reset correctly.
 
-## 19. Date Precision Change Detection (Recent Fix - Jan 19)
+## 19. Date Precision Change Detection
 
 ### 19.1. Date Precision Changes Trigger Save State
 
@@ -409,7 +409,7 @@ This document outlines the granular functional test scenarios required to ensure
   6.  Revert and change **Proposal Date Precision** only.
   7.  **Check**: Change is detected and save button enabled.
 
-## 20. Overlay Visibility Race Conditions (Recent Fix - Jan 18)
+## 20. Overlay Visibility Race Conditions
 
 ### 20.1. Ghost Overlays During Rapid Mode Switch
 
@@ -417,7 +417,7 @@ This document outlines the granular functional test scenarios required to ensure
 - **Steps**:
   1.  Enter **Edit Mode** at a city with your pending overlays.
   2.  Ensure overlays are visible.
-  3.  start Zooming at it fast to make it appear
+  3.  Zoom rapidly to make them visible.
   4.  **Immediately** switch to **View Mode** while map is still animating.
   5.  **Check**: NO pending overlay images appear on map after animation.
   6.  **Check**: NO pending overlay markers appear on map.
@@ -437,7 +437,7 @@ This document outlines the granular functional test scenarios required to ensure
   7.  Switch to **Edit Mode**.
   8.  **Check**: Your pending markers reappear along with images.
 
-## 21. Tile Layer Auto-Switch Prevention (Recent Fix - Jan 18)
+## 21. Tile Layer Auto-Switch Prevention
 
 ### 21.1. Country-Specific Layer Persistence on Project Submit
 
@@ -462,7 +462,7 @@ This document outlines the granular functional test scenarios required to ensure
   6.  Submit another project.
   7.  **Check**: Layer switches from "Satellite" to **"France"** layer.
 
-## 22. Esri Max Zoom Handling (Recent Fix - Jan 17)
+## 22. Esri Max Zoom Handling
 
 ### 22.1. Low MaxNativeZoom Regions
 
@@ -500,7 +500,7 @@ This document outlines the granular functional test scenarios required to ensure
   5.  **Regression**: Verify map interactions (pan, zoom) remain smooth.
   6.  **Check**: No performance degradation from forced recalculations.
 
-## 23. Satellite Preview Component (Recent Feature - Jan 16-17)
+## 23. Satellite Preview Component
 
 ### 23.1. Smart Toggle Between Plan and Satellite
 
@@ -551,7 +551,7 @@ This document outlines the granular functional test scenarios required to ensure
   6.  Move mouse away.
   7.  **Check**: Menu disappears.
 
-## 24. Cross-City Navigation Camera Flight (Recent Fix - Jan 17)
+## 24. Cross-City Navigation Camera Flight
 
 ### 24.1. Camera Flies to Different City
 
@@ -585,7 +585,7 @@ This document outlines the granular functional test scenarios required to ensure
   4.  **Check**: No freezing or stuttering during flight.
   5.  **Check**: Correct overlay is selected upon arrival.
 
-## 25. Progressive Overlay Queuing (Recent Optimization - Jan 18)
+## 25. Progressive Overlay Queuing
 
 ### 25.1. Smooth Overlay Loading Without Frame Drops
 
@@ -624,7 +624,7 @@ This document outlines the granular functional test scenarios required to ensure
   7.  **Regression**: Pan back to original location.
   8.  **Check**: Overlays re-render correctly when returning to viewport.
 
-## 26. Standalone Project Marker Stability (Recent Fix - Jan 13)
+## 26. Standalone Project Marker Stability
 
 ### 26.1. New Marker Survives Zoom Operations
 
@@ -652,7 +652,7 @@ This document outlines the granular functional test scenarios required to ensure
   7.  Switch to **View Mode**.
   8.  **Check**: Only approved markers remain visible (pending ones hidden).
 
-## 27. Event-Driven Accordion Scrolling (Recent Fix - Jan)
+## 27. Event-Driven Accordion Scrolling
 
 ### 27.2. Overlay Click Expands and Scrolls
 
@@ -679,7 +679,7 @@ This document outlines the granular functional test scenarios required to ensure
   8.  **Regression**: Approve multiple items in sequence.
   9.  **Check**: No scrolling occurs between approvals.
 
-## 28. Completion Status Filtering (Recent Fix - Feb 11)
+## 28. Completion Status Filtering
 
 ### 28.1. FilterControl Works at All Zoom Levels
 
@@ -711,7 +711,7 @@ This document outlines the granular functional test scenarios required to ensure
   7.  Reset filters (check all statuses).
   8.  **Check**: All overlays/markers become visible again.
 
-## 29. Google Auth Error Handling (Recent Fix - Feb 14)
+## 29. Google Auth Error Handling
 
 ### 29.1. Email Conflict Handling
 
@@ -727,7 +727,7 @@ This document outlines the granular functional test scenarios required to ensure
   4. **Check**: Response **DOES NOT** contain raw SQL error text (e.g., `duplicate key value violates unique constraint`).
   5. **Check**: User is shown a clear error message in the UI.
 
-## 31. Automatic Satellite Layer Switching (Recent Feature - Feb 17)
+## 31. Automatic Satellite Layer Switching
 
 ### 31.1. Auto-Switch When Panning to France
 
@@ -840,7 +840,7 @@ This document outlines the granular functional test scenarios required to ensure
   7.  **Action**: Wait 1 second, then click again.
   8.  **Check**: The map switches back to Plan immediately.
 
-## 32. Overlay Rendering Performance (Recent Optimization - Feb 18)
+## 32. Overlay Rendering Performance
 
 ### 32.1. Batched Overlay Rendering
 
@@ -852,7 +852,7 @@ This document outlines the granular functional test scenarios required to ensure
   4.  **Check**: Overlays appear smoothly without stalling the browser.
   5.  **Regression**: Verify no "flickering" where overlays appear one by one slowly. They should appear in chunks or all at once.
 
-## 34. Admin: Manual Image Pruning (Feature - Feb 21)
+## 34. Admin: Manual Image Pruning
 
 - **Location**: `/admin/reports` page, top-right of the page header. The entire `/admin/*` route requires admin role (enforced by the router guard), so no additional visibility check is needed.
 
@@ -881,9 +881,9 @@ This document outlines the granular functional test scenarios required to ensure
   3. Navigate to `/admin/user/:userId` and perform a deletion.
   4. **Check**: Toast notification appears correctly.
 
-## 34. Undo/Redo Keyboard Shortcuts (Refactor - Feb 22)
+## 35. Undo/Redo Keyboard Shortcuts
 
-### 34.1. Undo/Redo Works on First Edit Mode Entry
+### 35.1. Undo/Redo Works on First Edit Mode Entry
 
 - **Scenario**: Keyboard shortcuts are registered via `overlayEditing.ts` (not `MapView.vue`), triggered on first mode switch.
 - **Steps**:
@@ -898,7 +898,7 @@ This document outlines the granular functional test scenarios required to ensure
   9.  Press **Ctrl+Z** again.
   10. **Check**: Undo still works — no duplicate event listeners, no missed registration.
 
-## 33. isModified / pendingModsStore Sync (Fix - Feb 20)
+## 33. isModified / pendingModsStore Sync
 
 ### 33.1. Caption Change Submits Correctly
 
@@ -911,9 +911,9 @@ This document outlines the granular functional test scenarios required to ensure
   5.  Open the overlay info / edit popup again.
   6.  **Check**: The input field contains the new caption.
 
-## 34. Replacement Image Upload Appears on Map (Fix - Feb 22)
+## 36. Replacement Image Upload Appears on Map
 
-### 34.1. Replacement Image Appears on Map After Upload
+### 36.1. Replacement Image Appears on Map After Upload
 
 - **Scenario**: Uploading a replacement image via the toolbar replace button correctly places the new overlay on the map.
 - **Steps**:
@@ -926,7 +926,7 @@ This document outlines the granular functional test scenarios required to ensure
   7.  **Check**: The original overlay is still visible behind it.
   8.  **Regression**: The new overlay's marker is visible at its center.
 
-### 34.2. Regular (Non-Replacement) New Overlay Also Appears
+### 36.2. Regular (Non-Replacement) New Overlay Also Appears
 
 - **Scenario**: Uploading the very first image on a standalone project correctly displays it.
 - **Steps**:
@@ -936,9 +936,9 @@ This document outlines the granular functional test scenarios required to ensure
   4.  **Check**: The overlay image **appears on the map** immediately.
   5.  **Check**: The standalone project marker is **removed** once the overlay appears.
 
-## 35. City Rendering Core Refactor (Feb 23)
+## 37. City Rendering Core Refactor
 
-### 35.1. Viewport Path — Full Overlay Rendering
+### 37.1. Viewport Path — Full Overlay Rendering
 
 - **Scenario**: Pan/zoom loads overlays via the viewport manager.
 - **Steps**:
@@ -950,7 +950,7 @@ This document outlines the granular functional test scenarios required to ensure
   6.  Zoom in again.
   7.  **Check**: Images re-appear correctly (no blank map).
 
-### 35.3. Mode Switch Preserves Rendering
+### 37.3. Mode Switch Preserves Rendering
 
 - **Scenario**: Switching mode after viewport load re-renders correctly.
 - **Steps**:
@@ -961,9 +961,9 @@ This document outlines the granular functional test scenarios required to ensure
   5.  Switch back to **View Mode**.
   6.  **Check**: Markers return to timeline colors.
 
-## 36. Cross-City Overlay Marker Cleanup (Recent Fix - Feb 23)
+## 38. Cross-City Overlay Marker Cleanup
 
-### 36.1. Overlay Markers Cleared When Switching to Overlay-Less City
+### 38.1. Overlay Markers Cleared When Switching to Overlay-Less City
 
 - **Scenario**: Navigating from a city with overlays to one with only standalone projects clears old overlay markers.
 - **Steps**:
@@ -975,7 +975,7 @@ This document outlines the granular functional test scenarios required to ensure
   6.  **Regression**: Click City A again.
   7.  **Check**: City A's overlays and markers re-render correctly (no duplicates).
 
-### 36.2. Cross-City Zoom Without Click (Viewport Loading)
+### 38.2. Cross-City Zoom Without Click (Viewport Loading)
 
 - **Scenario**: Zooming from one city to a nearby one via viewport loading preserves marker consistency.
 - **Steps**:
@@ -986,7 +986,7 @@ This document outlines the granular functional test scenarios required to ensure
   5.  At **zoom 14**: **Check** overlay images AND their interactive markers are both visible.
   6.  **Regression**: Unzoom to 12, zoom back to 14. Verify markers still appear.
 
-### 36.5. No Stale Country Tile Requests After Plan→Satellite Round-Trip
+### 38.5. No Stale Country Tile Requests After Plan→Satellite Round-Trip
 
 - **Scenario**: Re-enabling satellite over Quebec after visiting France does not briefly request France tiles.
 - **Steps**:
@@ -999,9 +999,9 @@ This document outlines the granular functional test scenarios required to ensure
   7.  **Check**: Only Quebec tile requests (`mern.gouv.qc.ca`) are made.
   8.  **Regression**: Verify no console errors about failed tile fetches from wrong tile servers.
 
-## 37. Vector Tile Backend (Step 1)
+## 39. Vector Tile Backend
 
-### 37.1. MVT Tile Endpoint
+### 39.1. MVT Tile Endpoint
 
 - **Scenario**: The `/api/tiles/projects/:z/:x/:y` endpoint returns valid MVT binary data.
 - **Steps**:
@@ -1013,7 +1013,7 @@ This document outlines the granular functional test scenarios required to ensure
   6.  Request a tile over an area with no projects. **Check**: Response is `204 No Content`.
   7.  Request with invalid coordinates (e.g. `z=-1`). **Check**: Response is `400`.
 
-### 37.2. Project Points GeoJSON Endpoint
+### 39.2. Project Points GeoJSON Endpoint
 
 - **Scenario**: `/api/projects/points` returns the correct GeoJSON FeatureCollection.
 - **Steps**:
@@ -1024,7 +1024,7 @@ This document outlines the granular functional test scenarios required to ensure
   5.  **Check**: Projects with `geometry_size_m IS NULL` (no geometry) ARE included.
   6.  **Check**: Only `status = 'approved'` projects are returned (no pending/rejected).
 
-### 37.3. geometry_size_m Computed on Project Save
+### 39.3. geometry_size_m Computed on Project Save
 
 - **Scenario**: When a project with geometry is saved, `geometry_size_m` is correctly populated.
 - **Steps**:
@@ -1037,7 +1037,7 @@ This document outlines the granular functional test scenarios required to ensure
   7.  **Check**: `geometry_size_m` is NULL.
   8.  **Check**: This project now appears in `/api/projects/points`.
 
-### 37.4. getOverlaysInViewport tRPC Procedure
+### 39.4. getOverlaysInViewport tRPC Procedure
 
 - **Scenario**: `viewport.getOverlaysInViewport` returns overlays for the given bbox.
 - **Steps**:
@@ -1054,9 +1054,9 @@ This document outlines the granular functional test scenarios required to ensure
 
 ---
 
-## 38. Vector Tile View Mode (Step 2)
+## 40. Vector Tile View Mode
 
-### 38.1. MapLibre Always-On Base Map
+### 40.1. MapLibre Always-On Base Map
 
 - **Scenario**: Page loads for the first time (no toggle, MapLibre is mandatory).
 - **Checks**:
@@ -1064,7 +1064,7 @@ This document outlines the granular functional test scenarios required to ensure
   2. No "Plan / Satellite / Vector tiles" toggle is visible in the user menu.
   3. The satellite layer switcher still works correctly alongside MapLibre.
 
-### 38.2. Cluster Source (`/api/projects/points`)
+### 40.2. Cluster Source (`/api/projects/points`)
 
 - **Scenario**: View mode at low zoom over a city with approved projects.
 - **Checks**:
@@ -1075,7 +1075,7 @@ This document outlines the granular functional test scenarios required to ensure
   5. Projects with `geometry_size_m >= 5000` do NOT appear as cluster points (they are discoverable as lines in the MVT layer).
   6. Projects with no geometry (`geometry_size_m IS NULL`) DO appear as cluster points.
 
-### 38.3. MVT Project Shapes Layer
+### 40.3. MVT Project Shapes Layer
 
 - **Scenario**: View mode at zoom ≥ 9 over a city with projects that have polygon/line geometry.
 - **Checks**:
@@ -1083,7 +1083,7 @@ This document outlines the granular functional test scenarios required to ensure
   2. Clicking a shape opens the project info popup.
   3. Panning away and back: shapes reload from tiles without user interaction.
 
-### 38.4. Overlay Footprints MVT Layer
+### 40.4. Overlay Footprints MVT Layer
 
 - **Scenario**: View mode at zoom ≥ 14 over a city with approved overlays.
 - **Checks**:
@@ -1091,7 +1091,7 @@ This document outlines the granular functional test scenarios required to ensure
   2. Clicking an overlay footprint outline opens the project info popup.
   3. Pointer cursor appears on hover over the footprint outline.
 
-### 38.5. vectorTileSync — Idle-Driven Leaflet Overlay Creation
+### 40.5. vectorTileSync — Idle-Driven Leaflet Overlay Creation
 
 - **Scenario**: Zoom to ≥ 14 over a city with approved overlays in view mode.
 - **Checks**:
@@ -1101,7 +1101,7 @@ This document outlines the granular functional test scenarios required to ensure
   4. Pan back: overlays re-appear without a page refresh.
   5. Zoom below 14: all view-mode overlay images are removed (footprints layer hides via MapLibre minzoom).
 
-### 38.6. Mode Switch — View → Edit
+### 40.6. Mode Switch — View → Edit
 
 - **Scenario**: User is in view mode (vectorTileSync-managed overlays on map), then switches to edit mode.
 - **Checks**:
@@ -1110,7 +1110,7 @@ This document outlines the granular functional test scenarios required to ensure
   3. Edit-mode features appear (toolbar on overlays, pending overlay markers).
   4. No duplicate overlays (neither double Leaflet layers nor double markers).
 
-### 38.7. Mode Switch — Edit → View
+### 40.7. Mode Switch — Edit → View
 
 - **Scenario**: User is in edit mode with overlays loaded, then switches to view mode.
 - **Checks**:
@@ -1119,14 +1119,14 @@ This document outlines the granular functional test scenarios required to ensure
   3. Standalone project markers are cleared.
   4. `loadedCityIds` is empty after switching to view (no city-keyed cache is consumed).
 
-### 38.8. Project Points Store Refresh
+### 40.8. Project Points Store Refresh
 
 - **Scenario**: A moderator approves a project while the map is open (simulated by calling `fetchProjectPoints()` manually).
 - **Checks**:
   1. The cluster source updates without a page reload — new project point appears in the appropriate zoom range.
   2. Previously clustered area re-clusters correctly after `source.setData()`.
 
-### 38.9. `GET /api/projects/points` Endpoint
+### 40.9. `GET /api/projects/points` Endpoint
 
 - **Scenario**: Backend unit test for the projects/points endpoint.
 - **Checks**:
@@ -1137,7 +1137,7 @@ This document outlines the granular functional test scenarios required to ensure
   5. Each feature has `id`, `name`, `tags` properties and a Point geometry with `[lng, lat]` coordinates.
   6. Returns `Content-Type: application/geo+json` with `Cache-Control: public`.
 
-### 38.10. `GET /api/tiles/projects/:z/:x/:y` Endpoint
+### 40.10. `GET /api/tiles/projects/:z/:x/:y` Endpoint
 
 - **Scenario**: Request an MVT tile that covers a known city.
 - **Checks**:
@@ -1147,7 +1147,7 @@ This document outlines the granular functional test scenarios required to ensure
   4. An empty tile area returns HTTP 204 (no body).
   5. Invalid coordinates (e.g., `z=-1`) return HTTP 400.
 
-### 38.11. `GET /api/projects/points` Grid Deduplication
+### 40.11. `GET /api/projects/points` Grid Deduplication
 
 - **Scenario**: Multiple approved projects exist within ~500m of each other.
 - **Checks**:
@@ -1156,7 +1156,7 @@ This document outlines the granular functional test scenarios required to ensure
   3. Projects that are far apart (different grid cells) are all represented — no legitimate points are dropped.
   4. The MapLibre cluster source still renders correctly with the deduplicated data (clusters at low zoom, individual dots at zoom ≥ 10).
 
-### 38.13. Cluster Source Augmentation in Edit/Moderation
+### 40.13. Cluster Source Augmentation in Edit/Moderation
 
 - **Scenario**: The MapLibre cluster source shows both approved projects (from `/api/projects/points`) and pending projects (from the bbox tRPC fetch) when in Edit or Moderation mode.
 - **Steps**:
@@ -1168,7 +1168,7 @@ This document outlines the granular functional test scenarios required to ensure
   2. Switch to **View Mode** — the pending project disappears from the cluster source (only approved projects remain).
   3. Switch back to **Edit Mode** — the pending project reappears in the cluster source.
 
-### 38.14. Mode Switch With Bbox Loading
+### 40.14. Mode Switch With Bbox Loading
 
 - **Scenario**: Switching between view, edit, and moderation modes correctly transitions between tile-driven and bbox-driven rendering.
 - **Steps**:

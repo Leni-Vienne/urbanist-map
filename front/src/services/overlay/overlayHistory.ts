@@ -1,11 +1,3 @@
-// ============================================================================
-// OVERLAY HISTORY - Corner state and edit mode cache management
-// ============================================================================
-// Manages overlay corner history, resolves corners from various sources
-// (history, coordinates, or live layer state), and persists modifications
-// to the edit mode cache and pending modifications store
-// ============================================================================
-
 import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -25,7 +17,6 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
     overlayObject.history = [];
   }
 
-  // Only initialize if history is completely empty
   if (overlayObject.history.length > 0) {
     return;
   }
@@ -33,7 +24,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
   const initialCorners = layer.getCorners();
   if (initialCorners?.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
-    overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // Can't use structuredClone because corners are a class instance
+    overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // structuredClone not used: corners are class instances
     overlayObject.redoStack = [];
   }
 }
@@ -48,7 +39,7 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
     if (lastCorners?.length === 4) return lastCorners;
   }
 
-  // Priority 2: Use corners from overlayObject (skip if all zeros - indicates new overlay)
+  // Priority 2: Use corners from overlayObject (skip if all-zero, which indicates a new overlay)
   if (
     overlayObject.corners.length === 4 &&
     !overlayObject.corners.every((c) => c.lat === 0 && c.lng === 0)
@@ -60,7 +51,7 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
   const currentCorners = getLayer(overlayObject.id)?.getCorners();
   if (currentCorners?.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
-    overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))]; // Can't use structuredClone because corners are a class instance
+    overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))]; // structuredClone not used: corners are class instances
     overlayObject.redoStack = [];
     return currentCorners;
   }
@@ -111,19 +102,17 @@ export function saveOverlayModificationsToCache(
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
 
-  // Save to old cache for backwards compatibility during migration
   overlayStore.saveToEditModeCache(overlayObject.id, {
     corners: mappedCorners,
     isModified: overlayObject.isModified ?? false,
   });
 
-  // Save to new unified store
   const overlayStatus = overlayObject.status ?? "pending";
   pendingModsStore.saveCornersChange(
     overlayObject.id,
     overlayObject.projectId ?? null,
     mappedCorners,
-    overlayObject.corners, // Original corners from database
+    overlayObject.corners,
     overlayStatus,
   );
 }
@@ -158,16 +147,14 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     structuredClone(currentState) as { lat: number; lng: number }[],
   ];
 
-  // Mark overlay as modified when it's moved/changed
   overlayObject.isModified = true;
 
-  // Save modifications to edit mode cache if in edit mode for persistence across zoom changes
   saveOverlayModificationsToCache(overlayObject);
 
   updateMarkerTooltip(overlayObject);
 
-  // Update store with proper reactivity - critical for canUndo/canRedo/hasUnsavedModifications
-  // MUST happen before overlayObject.history is reassigned (see comment above).
+  // Update store with proper reactivity -- must happen before overlayObject.history is reassigned
+  // (see comment above re: Vue set trap and same-reference skipping).
   const overlayStore = useOverlayStore();
   overlayStore.updateOverlay(overlayObject.id, {
     isModified: true,
@@ -175,7 +162,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     redoStack: [],
   });
 
-  // Sync raw object so non-reactive code paths (e.g. next saveToHistory call) see fresh state.
+  // Sync raw object so non-reactive code paths see fresh state.
   overlayObject.history = newHistory;
   overlayObject.redoStack = [];
 }

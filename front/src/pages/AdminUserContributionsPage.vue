@@ -189,7 +189,7 @@
 import { ref, onMounted, reactive, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { useToast } from "primevue/usetoast";
+import { useToast } from "@/composables/ui/useToast";
 import { trpc, type RouterOutput } from "@/client";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { getStatusSeverity } from "@/utils/statusHelpers";
@@ -234,7 +234,6 @@ const deleteDialogMessage = computed(() => {
     : t("admin.userContributions.deleteOverlayDialog.message");
 });
 
-// Load initial user data with city summary
 async function loadUserContributions() {
   try {
     isLoading.value = true;
@@ -250,9 +249,7 @@ async function loadUserContributions() {
   }
 }
 
-// Load city details when accordion is expanded
 async function loadCityDetails(cityId: number) {
-  // Skip if already loaded
   if (cityDetails[cityId]) return;
 
   try {
@@ -276,20 +273,17 @@ async function loadCityDetails(cityId: number) {
   }
 }
 
-// Get overlays for a specific project
 function getOverlaysForProject(cityId: number, projectId: string): OverlayType[] {
   const details = cityDetails[cityId];
   if (!details) return [];
   return details.overlays.filter((o) => o.projectId === projectId);
 }
 
-// Get thumbnail URL for an overlay
 function getThumbnailUrl(filename: string): string {
   // Force backend URL for pending images that aren't on R2 yet
   return buildThumbnailUrl(filename, true);
 }
 
-// Delete project confirmation
 function confirmDeleteProject(project: ProjectType) {
   projectToDelete.value = project;
   deleteTargetType.value = "project";
@@ -297,7 +291,6 @@ function confirmDeleteProject(project: ProjectType) {
   showDeleteDialog.value = true;
 }
 
-// Delete overlay confirmation
 function confirmDeleteOverlay(overlay: OverlayType) {
   overlayToDelete.value = overlay;
   deleteTargetType.value = "overlay";
@@ -305,7 +298,6 @@ function confirmDeleteOverlay(overlay: OverlayType) {
   showDeleteDialog.value = true;
 }
 
-// Unified delete execution
 async function executeDelete() {
   if (deleteTargetType.value === "project") {
     await adminDeleteProject();
@@ -314,7 +306,6 @@ async function executeDelete() {
   }
 }
 
-// Execute project deletion and remove from UI (admin-specific)
 async function adminDeleteProject() {
   if (!projectToDelete.value) return;
 
@@ -365,7 +356,6 @@ async function adminDeleteProject() {
   }
 }
 
-// Execute overlay deletion and remove from UI (admin-specific)
 async function adminDeleteOverlay() {
   if (!overlayToDelete.value) return;
 

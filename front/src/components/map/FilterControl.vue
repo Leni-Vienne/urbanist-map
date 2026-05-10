@@ -1,5 +1,4 @@
 ﻿<template>
-  <!-- Filter Button (View Mode Only) - Opens Popover -->
   <div class="relative inline-flex">
     <span
       v-if="showFilterHint"
@@ -21,7 +20,6 @@
     />
   </div>
 
-  <!-- Filter Popover (View Mode Only) -->
   <Popover
     ref="filterPanel"
     @click.stop
@@ -29,8 +27,7 @@
     appendTo="body"
     pt:root:class="filter-control-popover"
   >
-    <!-- Scrollable content: capped to 65svh so the popover stays below the top-bar button without flipping.
-         overflow-x hidden removes the spurious horizontal scrollbar from the sliders. -->
+    <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
     <div
       class="min-w-55 overflow-y-auto overflow-x-hidden pr-1"
       style="max-height: min(600px, 70svh)"
@@ -39,7 +36,6 @@
         {{ $t("map.controls.filterByStatusAndTags") }}
       </h3>
 
-      <!-- Type (tags) section -->
       <div class="flex items-center justify-between mb-1.5">
         <p class="m-0 text-xs font-semibold text-color-secondary uppercase tracking-wide">
           {{ $t("map.controls.filterByTags") }}
@@ -79,7 +75,6 @@
         </button>
       </div>
 
-      <!-- Timeline section -->
       <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
         {{ $t("map.controls.filterByStatus") }}
       </p>
@@ -95,8 +90,6 @@
             @change="toggleCompletionFilter(timelineStatus)"
             @click.stop
           />
-          <!-- SVG line preview matching the map line style for this status.
-               Uses the selected tag color when exactly one type tag is active. -->
           <svg width="28" height="10" aria-hidden="true" style="flex-shrink: 0">
             <line
               x1="0"
@@ -113,7 +106,6 @@
         </label>
       </div>
 
-      <!-- Name section -->
       <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
         {{ $t("map.controls.filterByName") }}
       </p>
@@ -142,7 +134,6 @@
         </label>
       </div>
 
-      <!-- Size slider -->
       <div class="mb-4">
         <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
           {{ $t("map.controls.filterBySize") }}
@@ -163,7 +154,6 @@
         </div>
       </div>
 
-      <!-- Last modified slider -->
       <div>
         <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
           {{ $t("map.controls.filterByLastModified") }}
@@ -209,9 +199,7 @@ import {
 } from "@/services/overlay/statusFilters";
 import Slider from "primevue/slider";
 
-// Logarithmic slider: internal positions are [0, 100], mapped to meters via a log curve.
-// LOG_SCALE_REF is only used to shape the curve — it is NOT a filter ceiling.
-// Position 100 maps to Infinity (no upper limit).
+// Logarithmic slider: positions [0, 100] → meters. Position 100 = Infinity (no upper limit).
 const LOG_SCALE_REF = 500_001;
 
 function posToMeters(pos: number): number {
@@ -220,20 +208,19 @@ function posToMeters(pos: number): number {
   return Math.round(LOG_SCALE_REF ** (pos / 100) - 1);
 }
 
-const sizeSliderPositions = ref<[number, number]>([20, 100]); // corresponds to 15m
+const sizeSliderPositions = ref<[number, number]>([20, 100]);
 const prevSizeSliderPositions = ref<[number, number]>([0, 100]);
 
 watch(sizeSliderPositions, ([minPos, maxPos]) => {
-  // Clamp crossed handles: collapse to the handle that didn't move.
+  // Collapse crossed handles to the one that didn't move.
   if (minPos > maxPos) {
     const [prevMin] = prevSizeSliderPositions.value;
     sizeSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
     return;
   }
   const [prevMin, prevMax] = prevSizeSliderPositions.value;
-  // Enforce single-bound: only one non-default handle allowed at a time.
-  // A two-bound size filter would let a cluster pass even if no project inside matches,
-  // because the tile only carries per-cell min/max, not a full distribution.
+  // Single-bound only: tiles carry per-cell min/max, not a full distribution,
+  // so two active bounds would produce false cluster matches.
   if (minPos !== prevMin && minPos > 0 && maxPos < 100) {
     sizeSliderPositions.value = [minPos, 100];
     return;
@@ -246,7 +233,7 @@ watch(sizeSliderPositions, ([minPos, maxPos]) => {
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
 });
 
-// Date slider: each step is one month, from DATE_SLIDER_ORIGIN_YEAR to current month.
+// Date slider: each step is one month.
 const DATE_SLIDER_ORIGIN_YEAR = 2004;
 const _now = new Date();
 const DATE_SLIDER_MAX = (_now.getFullYear() - DATE_SLIDER_ORIGIN_YEAR) * 12 + _now.getMonth();
@@ -267,16 +254,14 @@ function formatDateSlider(pos: number): string {
 }
 
 watch(dateSliderPositions, ([minPos, maxPos]) => {
-  // Clamp crossed handles: collapse to the handle that didn't move.
+  // Collapse crossed handles to the one that didn't move.
   if (minPos > maxPos) {
     const [prevMin] = prevDateSliderPositions.value;
     dateSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
     return;
   }
   const [prevMin, prevMax] = prevDateSliderPositions.value;
-  // Enforce single-bound: only one non-default handle allowed at a time.
-  // A two-bound date filter would let a cluster pass even if no project inside actually falls
-  // within the window, because tiles only carry per-cell min/max dates, not a full distribution.
+  // Single-bound only, same reason as size slider.
   if (minPos !== prevMin && minPos > 0 && maxPos < DATE_SLIDER_MAX) {
     dateSliderPositions.value = [minPos, DATE_SLIDER_MAX];
     return;
@@ -308,9 +293,8 @@ import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 
-// dasharray values mirror the map line styles (SVG units, with stroke-linecap="round"):
-// proposed = dots,  planned and under_construction = long dash, completed = solid
-// "canceled" is intentionally omitted from the UI for now — too confusing for most users.
+// dasharray mirrors the map line styles (SVG units, stroke-linecap="round").
+// "canceled" is omitted, too confusing for most users.
 const filters: {
   timelineStatus: TimelineStatus;
   labelKey: string;
@@ -333,8 +317,7 @@ const filters: {
   },
 ];
 
-// When exactly one type tag is active, use its color for the line previews so users
-// can see what the map lines would look like for that tag. Otherwise neutral grey.
+// Use the active tag color for line previews when exactly one tag is selected.
 const linePreviewColor = computed(() => {
   const tagSlugs = selectedProjectTags.value.filter((t) => t !== UNTAGGED_PROJECT_FILTER);
   if (tagSlugs.length === 1) {
@@ -362,19 +345,13 @@ const activeFilterCount = computed(() => {
 
 const FILTER_HINT_KEY = "filter-control-seen";
 const showFilterHint = ref(localStorage.getItem(FILTER_HINT_KEY) !== "1");
-
-// Panel visibility state
 const showFilterPanel = ref(false);
-
-// Ref for the popover
 const filterPanel = ref();
 
-// Emit events to parent for complex operations
 const emit = defineEmits<{
   "filter-overlays": [];
 }>();
 
-// Toggle filter panel visibility
 function toggleFilterPanel(event: Event) {
   if (showFilterHint.value) {
     showFilterHint.value = false;
@@ -384,7 +361,6 @@ function toggleFilterPanel(event: Event) {
   showFilterPanel.value = !showFilterPanel.value;
 }
 
-// Toggle completion status filter
 function toggleCompletionFilter(status: TimelineStatus) {
   toggleFilter(status);
   emit("filter-overlays");
@@ -400,7 +376,6 @@ function clearTagFilters() {
   emit("filter-overlays");
 }
 
-// Watch for popover visibility changes
 watch(
   () => filterPanel.value?.visible,
   (visible) => {
@@ -408,7 +383,6 @@ watch(
   },
 );
 
-// Expose the filter panel ref so parent can close it when needed
 defineExpose({
   filterPanel,
 });

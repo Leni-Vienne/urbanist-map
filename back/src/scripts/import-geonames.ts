@@ -583,7 +583,6 @@ async function main() {
   console.log("=".repeat(50));
 
   try {
-    // Check required files
     if (!fs.existsSync(GEONAMES_DIR)) {
       console.error(`\n❌ GeoNames data directory not found: ${GEONAMES_DIR}`);
       console.log("\nPlease create the directory and download the following files:");

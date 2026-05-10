@@ -11,46 +11,16 @@
  */
 
 import type { Map as MaplibreMap, GeoJSONSource } from "maplibre-gl";
+import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileGrid";
 
 const SOURCE_ID = "debug-cluster-grid";
 const LAYER_ID = "debug-cluster-grid-lines";
 const LABEL_LAYER_ID = "debug-cluster-grid-labels";
 
-// Mirrors the cell_size table in tiles.sql. Input is MapLibre zoom (= Leaflet zoom - 1).
-// Must stay in sync with tiles.sql and getGridCellSizeForTileZoom in projectVectorLayers.ts.
-function getCellSize(tileZoom: number): number {
-  if (tileZoom <= 4) return 1024;
-  if (tileZoom <= 6) return 512;
-  if (tileZoom <= 12) return 256;
-  return 128;
-}
-
-function tileToLng(x: number, z: number): number {
-  return (x / 2 ** z) * 360 - 180;
-}
-
-function tileToLat(y: number, z: number): number {
-  const n = Math.PI - (2 * Math.PI * y) / 2 ** z;
-  return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-}
-
-// Converts a fractional tile position (tileX + px/4096) to lng/lat.
-function tilePxToLngLat(
-  tileX: number,
-  tileY: number,
-  px: number,
-  py: number,
-  z: number,
-): [number, number] {
-  const lng = tileToLng(tileX + px / 4096, z);
-  const lat = tileToLat(tileY + py / 4096, z);
-  return [lng, lat];
-}
-
 function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
   // Use the integer tile zoom to match the MVT grid used by the backend.
   const tileZoom = Math.floor(mlMap.getZoom());
-  const cellSize = getCellSize(tileZoom);
+  const cellSize = getGridCellSizeForTileZoom(tileZoom);
   const numCells = Math.ceil(4096 / cellSize); // cells per tile axis
 
   const bounds = mlMap.getBounds();
@@ -162,6 +132,8 @@ export function toggleClusterGrid(mlMap?: MaplibreMap): void {
     _mlMap.on("moveend", _refresh);
     _mlMap.on("zoomend", _refresh);
     _active = true;
-    console.log(`Cluster grid shown — cell_size=${getCellSize(Math.floor(_mlMap.getZoom()))}`);
+    console.log(
+      `Cluster grid shown, cell_size=${getGridCellSizeForTileZoom(Math.floor(_mlMap.getZoom()))}`,
+    );
   }
 }

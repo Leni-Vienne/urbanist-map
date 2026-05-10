@@ -2,149 +2,129 @@ import { db } from "../database";
 import { sessions } from "../db/schema";
 import { eq, lt } from "drizzle-orm";
 
-// Drizzle-based session store for hono-sessions
-// Stores sessions in PostgreSQL for persistence across server restarts
-export class DrizzleSessionStore {
-  private cleanupInterval: NodeJS.Timeout | null = null;
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const DEFAULT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-  constructor() {
-    // Run cleanup immediately on startup to clear sessions from previous runs
-    void this.cleanupExpiredSessions();
-    this.startCleanupInterval();
-  }
+let cleanupInterval: NodeJS.Timeout | null = null;
 
-  async getSessionById(sessionId: string) {
-    try {
-      const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
+async function getSessionById(sessionId: string) {
+  try {
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
 
-      if (!session) {
-        return null;
-      }
-
-      if (session.expiresAt < new Date()) {
-        await this.deleteSession(sessionId);
-        return null;
-      }
-
-      return session.data;
-    } catch (error) {
-      console.error("Failed to get session:", error);
+    if (!session) {
       return null;
     }
-  }
 
-  async createSession(sessionId: string, initialData: any): Promise<void> {
-    try {
-      const { shouldPersist, expiresAt } = this.prepareSessionForPersistence(initialData);
-
-      if (!shouldPersist) {
-        return;
-      }
-
-      await db.insert(sessions).values({
-        id: sessionId,
-        data: initialData,
-        expiresAt,
-      });
-    } catch (error) {
-      console.error("Failed to create session:", error);
-      throw error;
-    }
-  }
-
-  async persistSessionData(sessionId: string, sessionData: Record<string, any>): Promise<void> {
-    try {
-      const { shouldPersist, expiresAt } = this.prepareSessionForPersistence(sessionData);
-
-      if (!shouldPersist) {
-        return;
-      }
-
-      // Use UPSERT to handle both create and update cases
-      // This prevents session loss when persistSessionData is called before createSession
-      // or when a session needs to be recreated after expiry
-      await db
-        .insert(sessions)
-        .values({
-          id: sessionId,
-          data: sessionData,
-          expiresAt,
-        })
-        .onConflictDoUpdate({
-          target: sessions.id,
-          set: {
-            data: sessionData,
-            expiresAt,
-            updatedAt: new Date(),
-          },
-        });
-    } catch (error) {
-      console.error("Failed to persist session data:", error);
-      // Don't throw - failing to persist session data shouldn't break the request
-      // The session will still work in-memory, just won't be persisted to DB
-    }
-  }
-
-  async deleteSession(sessionId: string): Promise<void> {
-    try {
-      await db.delete(sessions).where(eq(sessions.id, sessionId));
-    } catch (error) {
-      console.error("Failed to delete session:", error);
-    }
-  }
-
-  private prepareSessionForPersistence(data: unknown): { shouldPersist: boolean; expiresAt: Date } {
-    // hono-sessions stores user data in _data property
-    const typedData = data as {
-      _data?: { user?: unknown; expiresAt?: string | number | Date };
-    };
-    const userData = typedData._data?.user;
-
-    // Skip persisting empty sessions (anonymous visitors)
-    // Only logged-in users need database-backed sessions
-    if (!userData) {
-      return { shouldPersist: false, expiresAt: new Date() };
+    if (session.expiresAt < new Date()) {
+      await deleteSession(sessionId);
+      return null;
     }
 
-    // Safely parse expiry date, fallback to 30 days if invalid
-    const rawExpiry = typedData._data?.expiresAt;
-    const defaultExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    let expiresAt = defaultExpiry;
-
-    if (rawExpiry) {
-      const parsed = new Date(rawExpiry);
-      if (!Number.isNaN(parsed.getTime())) {
-        expiresAt = parsed;
-      }
-    }
-
-    return { shouldPersist: true, expiresAt };
-  }
-
-  // Clean up expired sessions periodically
-  private startCleanupInterval() {
-    // Run cleanup every hour
-    this.cleanupInterval = setInterval(
-      () => {
-        void this.cleanupExpiredSessions();
-      },
-      60 * 60 * 1000,
-    );
-  }
-
-  private async cleanupExpiredSessions(): Promise<void> {
-    try {
-      const now = new Date();
-      await db.delete(sessions).where(lt(sessions.expiresAt, now));
-    } catch (error) {
-      console.error("Failed to cleanup expired sessions:", error);
-    }
-  }
-
-  stopCleanup(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
+    return session.data;
+  } catch (error) {
+    console.error("Failed to get session:", error);
+    return null;
   }
 }
+
+async function createSession(sessionId: string, initialData: any): Promise<void> {
+  try {
+    const { shouldPersist, expiresAt } = prepareSessionForPersistence(initialData);
+    if (!shouldPersist) return;
+
+    await db.insert(sessions).values({
+      id: sessionId,
+      data: initialData,
+      expiresAt,
+    });
+  } catch (error) {
+    console.error("Failed to create session:", error);
+    throw error;
+  }
+}
+
+async function persistSessionData(
+  sessionId: string,
+  sessionData: Record<string, any>,
+): Promise<void> {
+  try {
+    const { shouldPersist, expiresAt } = prepareSessionForPersistence(sessionData);
+    if (!shouldPersist) return;
+
+    // UPSERT covers the case where persistSessionData lands before createSession,
+    // or after a row was reaped by cleanupExpiredSessions.
+    await db
+      .insert(sessions)
+      .values({
+        id: sessionId,
+        data: sessionData,
+        expiresAt,
+      })
+      .onConflictDoUpdate({
+        target: sessions.id,
+        set: {
+          data: sessionData,
+          expiresAt,
+          updatedAt: new Date(),
+        },
+      });
+  } catch (error) {
+    // Swallowed: a failed persist shouldn't break the request. Session still works in-memory.
+    console.error("Failed to persist session data:", error);
+  }
+}
+
+async function deleteSession(sessionId: string): Promise<void> {
+  try {
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+  } catch (error) {
+    console.error("Failed to delete session:", error);
+  }
+}
+
+function prepareSessionForPersistence(data: unknown): { shouldPersist: boolean; expiresAt: Date } {
+  // hono-sessions wraps the user payload inside `_data`
+  // eslint-disable-next-line no-underscore-dangle
+  const inner = (data as { _data?: { user?: unknown; expiresAt?: string | number | Date } })._data;
+
+  // Skip empty sessions (anonymous visitors); only logged-in users get DB-backed rows.
+  if (!inner?.user) {
+    return { shouldPersist: false, expiresAt: new Date() };
+  }
+
+  let expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MS);
+  if (inner.expiresAt) {
+    const parsed = new Date(inner.expiresAt);
+    if (!Number.isNaN(parsed.getTime())) {
+      expiresAt = parsed;
+    }
+  }
+
+  return { shouldPersist: true, expiresAt };
+}
+
+async function cleanupExpiredSessions(): Promise<void> {
+  try {
+    await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
+  } catch (error) {
+    console.error("Failed to cleanup expired sessions:", error);
+  }
+}
+
+export function startSessionCleanup(): void {
+  if (cleanupInterval) return;
+
+  // Run once on startup to clear sessions left over from previous runs.
+  void cleanupExpiredSessions();
+  cleanupInterval = setInterval(() => {
+    void cleanupExpiredSessions();
+  }, CLEANUP_INTERVAL_MS);
+}
+
+// Object form consumed by hono-sessions' sessionMiddleware.
+export const sessionStore = {
+  getSessionById,
+  createSession,
+  persistSessionData,
+  deleteSession,
+};
