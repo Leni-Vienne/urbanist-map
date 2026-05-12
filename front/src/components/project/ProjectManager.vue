@@ -80,6 +80,7 @@ const toast = useToast();
 const { t: $t } = useI18n();
 const markerPlacementBar = ref();
 const tempMarker = ref<L.Marker | null>(null);
+const mapClickHandler = ref<((e: L.LeafletMouseEvent) => void) | null>(null);
 
 const { projects } = storeToRefs(projectStore);
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
@@ -194,31 +195,31 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
   });
 }
 
-function onMarkerModeEnabled() {
-  function handleMapClick(e: L.LeafletMouseEvent) {
-    const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
+function handleMapClick(e: L.LeafletMouseEvent) {
+  const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
 
-    if (tempMarker.value) {
-      tempMarker.value.remove();
-      tempMarker.value = null;
-    }
-
-    const markerIcon = createStandaloneProjectIcon("orange");
-    const mapValue = map.value;
-    if (!mapValue) return;
-
-    tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
-      icon: markerIcon,
-      draggable: false,
-    }).addTo(mapValue);
-
-    if (markerPlacementBar.value) {
-      markerPlacementBar.value.setMarkerCoordinates(coordinates);
-    }
+  if (tempMarker.value) {
+    tempMarker.value.remove();
+    tempMarker.value = null;
   }
 
+  const markerIcon = createStandaloneProjectIcon("orange");
+  const mapValue = map.value;
+  if (!mapValue) return;
+
+  tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
+    icon: markerIcon,
+    draggable: false,
+  }).addTo(mapValue);
+
+  if (markerPlacementBar.value) {
+    markerPlacementBar.value.setMarkerCoordinates(coordinates);
+  }
+}
+
+function onMarkerModeEnabled() {
+  mapClickHandler.value = handleMapClick;
   map.value.on("click", handleMapClick);
-  (map.value as any)._tempMarkerClickHandler = handleMapClick;
 }
 
 function onDialogVisibilityChange(visible: boolean) {
@@ -228,9 +229,9 @@ function onDialogVisibilityChange(visible: boolean) {
       tempMarker.value = null;
     }
 
-    if ((map.value as any)._tempMarkerClickHandler) {
-      map.value.off("click", (map.value as any)._tempMarkerClickHandler);
-      (map.value as any)._tempMarkerClickHandler = null;
+    if (mapClickHandler.value) {
+      map.value.off("click", mapClickHandler.value);
+      mapClickHandler.value = null;
     }
   }
 }

@@ -16,7 +16,7 @@
       <div class="py-2 px-4 flex items-center justify-between">
         <div>
           <h2
-            class="m-0 text-[1.75rem] font-semibold leading-tight tracking-[-0.025em] text-color max-md:text-[1.375rem]"
+            class="m-0 text-[1.75rem] font-semibold leading-tight text-color max-md:text-[1.375rem]"
           >
             {{ $t("app.title") }}
           </h2>

@@ -6,8 +6,6 @@
  *
  * Covers railways, roads, aerialways, waterways, cycling and pedestrian paths,
  * buildings under construction, and parks/green spaces.
- *
- * Usage: bun run back/src/scripts/import-osm.ts
  */
 
 // Use postgres.js instead of Bun's native SQL client: Bun double-encodes jsonb parameters

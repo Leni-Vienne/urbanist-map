@@ -43,10 +43,9 @@
         <div
           class="relative overflow-hidden mt-4 p-5 bg-zinc-900 rounded-lg border border-zinc-700 break-all before:content-[''] before:absolute before:top-0 before:left-0 before:w-1 before:h-full before:bg-primary-500"
         >
-          <span
-            class="block font-semibold mb-3 text-white text-[0.85rem] uppercase tracking-[0.05em]"
-            >{{ t("pages.contact.basemapExample") }}</span
-          >
+          <span class="block font-semibold mb-3 text-white text-[0.85rem] uppercase">{{
+            t("pages.contact.basemapExample")
+          }}</span>
           <code
             class="font-mono text-[0.8rem] text-primary-300 px-[0.6rem] py-[0.4rem] rounded leading-relaxed block"
             >https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png</code

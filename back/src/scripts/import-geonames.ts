@@ -1,3 +1,5 @@
+// instructions in /docs/GEONAMES_IMPORT.md
+
 import { db } from "../database";
 import { countries, cities } from "../db/schema";
 import { sql } from "drizzle-orm";
@@ -5,22 +7,6 @@ import * as fs from "node:fs";
 import * as readline from "node:readline";
 import * as path from "node:path";
 import { parseCSVLine } from "../utils/csv-parser";
-
-/**
- * Import countries and cities from GeoNames data with local name support
- *
- * Required files:
- * - countries.csv: Country coordinates (included in project)
- * - countryInfo.txt: Country languages and details
- * - cities15000.txt: Cities with population > 15000
- * - alternateNamesV2.csv: Local/native city names (optional but recommended)
- *
- * Download GeoNames files from: https://download.geonames.org/export/dump/
- *
- * Usage:
- * - Place GeoNames files in ./geonames-data/ directory
- * - Run: bun run back/src/scripts/import-geonames.ts
- */
 
 const GEONAMES_DIR = path.join(process.cwd(), "./back/src/scripts/geonames-data");
 const COUNTRIES_CSV = path.join(GEONAMES_DIR, "countries.csv");
@@ -82,7 +68,7 @@ async function loadCountryCoordinates(): Promise<void> {
     // Country names can contain commas (e.g., "Korea, Republic of")
     const fields = parseCSVLine(line);
     if (fields.length >= 6) {
-      const _alpha2 = fields[1]; // Alpha-2 code
+      // Column 1: Alpha-2 code that we don't use, at least for now
       const alpha3 = fields[2]; // Alpha-3 code
       const lat = Number.parseFloat(fields[4]!);
       const lng = Number.parseFloat(fields[5]!);
@@ -389,7 +375,7 @@ async function updateCityLocalNames(): Promise<void> {
       continue;
     }
 
-    const _isPreferred = fields[4] === "1";
+    // Column 4: preferred name
     const isShortName = fields[5] === "1"; // Column 5: short name flag
     const isColloquial = fields[6] === "1"; // Column 6: colloquial name flag
     const isHistoric = fields[7] === "1"; // Column 7: historic name flag

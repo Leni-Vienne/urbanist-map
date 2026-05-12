@@ -82,12 +82,12 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
 
 // Overlay DivIcon instances are cached (only 7 colors exist) to avoid recreating
 // SVG strings and L.divIcon allocations on every render pass.
-const _overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
+const overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
 
 // Create overlay marker icon with picture frame (for overlay markers specifically)
 export function createOverlayIcon(color: MarkerColor): L.DivIcon {
-  if (_overlayIconCache[color]) {
-    return _overlayIconCache[color];
+  if (overlayIconCache[color]) {
+    return overlayIconCache[color];
   }
   const svgString = createOverlayMarkerSVG(color);
   const icon = L.divIcon({
@@ -97,7 +97,7 @@ export function createOverlayIcon(color: MarkerColor): L.DivIcon {
     iconAnchor: [markerSize / 2, markerHeight], // Anchor at bottom center (pin tip)
     popupAnchor: [0, -markerHeight],
   });
-  _overlayIconCache[color] = icon;
+  overlayIconCache[color] = icon;
   return icon;
 }
 
