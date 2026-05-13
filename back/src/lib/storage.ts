@@ -1,6 +1,5 @@
 import type { StorageInterface } from "./types";
 import { S3Client } from "bun";
-import sharp from "sharp";
 import { mkdir, unlink } from "node:fs/promises";
 
 // Helper function to read ReadableStream into Uint8Array buffer
@@ -27,18 +26,24 @@ export async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array
   return buffer;
 }
 
-// Generates 120x120 WebP thumbnail with cover fit (maintains aspect ratio, crops to fill)
-// 120x120 chosen over 60x60 for better quality on high-DPI screens while staying small (~2-5KB)
-export async function generateThumbnail(buffer: ArrayBuffer): Promise<ArrayBuffer> {
-  const thumbnailBuffer = await sharp(Buffer.from(buffer))
-    .resize(120, 120, {
-      fit: "cover",
-      position: "center",
-    })
-    .webp()
-    .toBuffer();
+// Copies a Uint8Array into a fresh ArrayBuffer of exactly the right size.
+// Avoids exposing the source buffer (which may be a pool slice or SharedArrayBuffer).
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const ab = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(ab).set(bytes);
+  return ab;
+}
 
-  return thumbnailBuffer.buffer as ArrayBuffer;
+// Generates a WebP thumbnail bounded to 120x120 (aspect ratio preserved).
+// Square framing is applied client-side via CSS object-cover on a square container.
+export async function generateThumbnail(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    const bytes = await new Bun.Image(buffer).resize(120, 120, { fit: "inside" }).webp().bytes();
+    return toArrayBuffer(bytes);
+  } catch (error) {
+    console.error("Thumbnail generation failed:", error);
+    throw error;
+  }
 }
 
 interface CompressionResult {
@@ -58,15 +63,14 @@ export async function compressImageIfNeeded(
 
   try {
     // Convert to lossy WebP at quality 90 (high quality to minimize artifacts from re-encoding)
-    // This also handles lossless WebP → lossy WebP conversion for size savings
-    const webpBuffer = await sharp(Buffer.from(buffer)).webp({ quality: 90 }).toBuffer();
-
-    const webpSize = webpBuffer.byteLength;
+    // This also handles lossless WebP -> lossy WebP conversion for size savings
+    const webpBytes = await new Bun.Image(buffer).webp({ quality: 90 }).bytes();
+    const webpSize = webpBytes.byteLength;
 
     // Only use WebP if it's actually smaller (prevents quality loss with no size benefit)
     if (webpSize < originalSize) {
       return {
-        buffer: webpBuffer.buffer as ArrayBuffer,
+        buffer: toArrayBuffer(webpBytes),
         extension: "webp",
         wasCompressed: true,
         originalSize,
@@ -74,7 +78,7 @@ export async function compressImageIfNeeded(
       };
     }
 
-    // Compressed version was larger - keep original format
+    // Compressed version was larger, keep original format
     return {
       buffer,
       extension: ext,

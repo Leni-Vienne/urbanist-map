@@ -2,11 +2,8 @@ import { ref, computed, watch, onUnmounted } from "vue";
 import L from "leaflet";
 import type * as maplibregl from "maplibre-gl";
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
-import {
-  highlightProjectOverlaysOnHover,
-  removeProjectOutlines,
-} from "@/services/overlay/overlaySelection";
-import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { setExternalHover } from "@/services/map/vectorHoverState";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { VECTOR_QUERY_LAYERS, getZoomForGeometrySize } from "@/services/map/projectVectorLayers";
@@ -441,7 +438,7 @@ export function useVisibleProjects() {
   function hoverProject(projectId: string | null) {
     if (suppressHover) return;
     if (projectId) {
-      highlightProjectOverlaysOnHover(projectId);
+      highlightProject(projectId);
       lastHoveredProjectId = projectId;
     } else if (lastHoveredProjectId) {
       const prevProjectId = lastHoveredProjectId;
@@ -451,9 +448,9 @@ export function useVisibleProjects() {
       // If any popup is open, keep the driven hover alive, it was pinned by a click and
       // must not be cleared by a sidebar mouseleave (which can fire when the list scrolls
       // to the newly selected project, triggering mouseleave on the previously hovered card).
-      // The watcher below clears setOverlayDrivenHover when the popup eventually closes.
+      // The watcher below clears setExternalHover when the popup eventually closes.
       if (!uiStore.projectInfoPopup.visible) {
-        setOverlayDrivenHover(null);
+        setExternalHover(null);
       }
     }
   }
@@ -464,7 +461,7 @@ export function useVisibleProjects() {
     () => uiStore.projectInfoPopup.visible,
     (isVisible) => {
       if (!isVisible) {
-        setOverlayDrivenHover(null);
+        setExternalHover(null);
       }
     },
   );

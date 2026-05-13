@@ -42,11 +42,11 @@ export async function renderEmailTemplate(
     const kebabCaseName = templateName.replaceAll(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
 
     // Build-time switch (not runtime): CI builds the bundle with NODE_ENV=production, so Bun
-    // inlines this and DCE keeps only the /app/email/templates branch in the deployed bundle.
+    // inlines this and DCE keeps only the literal-path branch in the deployed bundle.
     // Source-mode runs (bun --hot) keep the import.meta.dirname branch, which resolves at runtime.
     const templatePath =
       process.env.NODE_ENV === "production"
-        ? join("/app/email/templates", `${kebabCaseName}-email.html`)
+        ? join("/home/bun/app/email/templates", `${kebabCaseName}-email.html`)
         : join(import.meta.dirname, "templates", `${kebabCaseName}-email.html`);
 
     const templateFile = Bun.file(templatePath);

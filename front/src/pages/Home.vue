@@ -91,13 +91,10 @@ import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { handleShapeProjectClick } from "@/services/map/standaloneProjectMarkers";
+import { selectProject } from "@/services/map/standaloneProjectMarkers";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { clearProjectShapes, renderProjectShapes } from "@/services/map/shapeRendering";
-import {
-  highlightProjectOverlaysOnHover,
-  removeProjectOutlines,
-} from "@/services/overlay/overlaySelection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -225,8 +222,8 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
     renderProjectShapes(
       updatedProject,
       map.value,
-      handleShapeProjectClick,
-      highlightProjectOverlaysOnHover,
+      selectProject,
+      highlightProject,
       removeProjectOutlines,
     );
   }
