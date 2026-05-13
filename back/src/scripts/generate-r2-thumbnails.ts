@@ -2,7 +2,6 @@ import { db } from "../database";
 import { overlays } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { R2StorageS3, getThumbnailFilename, streamToBuffer } from "../lib/storage";
-import sharp from "sharp";
 
 // Generate and upload thumbnails for existing approved overlays in R2
 // This is a one-time migration script for overlays that were approved before thumbnail feature
@@ -65,16 +64,16 @@ async function generateR2Thumbnails() {
 
       const imageBuffer = await streamToBuffer(originalImage.body);
 
-      const thumbnailBuffer = await sharp(Buffer.from(imageBuffer))
-        .resize(120, 120, {
-          fit: "cover",
-          position: "center",
-        })
+      const thumbnailBytes = await new Bun.Image(imageBuffer)
+        .resize(120, 120, { fit: "inside" })
         .webp()
-        .toBuffer();
+        .bytes();
+
+      const thumbnailArrayBuffer = new ArrayBuffer(thumbnailBytes.byteLength);
+      new Uint8Array(thumbnailArrayBuffer).set(thumbnailBytes);
 
       // skipThumbnail prevents recursive thumbnail generation
-      await r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, {
+      await r2Storage.put(thumbnailFilename, thumbnailArrayBuffer, {
         skipThumbnail: true,
       });
 

@@ -775,5 +775,6 @@ export type { AppRouter } from "./routes";
 
 export default {
   port: appConfig.PORT,
+  idleTimeout: 60, // because tile generation for low zoom level on server start can be very slow
   fetch: app.fetch,
 };

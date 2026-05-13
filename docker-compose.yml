@@ -31,9 +31,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend web server service using custom Bun image with libvips for Sharp
+  # Backend web server, running directly on the official Bun Alpine image.
+  # Image processing uses Bun.Image (no native deps needed).
   backend:
-    image: bun-sharp:1.3-alpine
+    image: oven/bun:1.3.14-alpine
     container_name: ${COMPOSE_PROJECT_NAME}-backend
     restart: unless-stopped
     depends_on:
@@ -60,12 +61,13 @@ services:
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
       # Project name for environment identification in error alerts
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+    user: bun
     volumes:
-      - ./server.bundle.js:/app/server.bundle.js:ro
-      - ./back/src/email:/app/email:ro
-      - ./back/src/routes:/app/routes:ro
-      - backend_uploads:/app/uploads
-    working_dir: /app
+      - ./server.bundle.js:/home/bun/app/server.bundle.js:ro
+      - ./back/src/email:/home/bun/app/email:ro
+      - ./back/src/routes:/home/bun/app/routes:ro
+      - backend_uploads:/home/bun/app/uploads
+    working_dir: /home/bun/app
     command: ["bun", "./server.bundle.js"]
     ports:
       # Expose backend to host for Caddy reverse proxy access

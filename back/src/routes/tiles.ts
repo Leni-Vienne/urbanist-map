@@ -189,7 +189,16 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
       },
     });
   } catch (error) {
-    console.error("Error generating MVT tile:", error);
+    // SQLSTATE 57014 = query_canceled, raised by Postgres when statement_timeout fires.
+    const isTimeout =
+      typeof error === "object" && error !== null && "code" in error && error.code === "57014";
+    if (isTimeout) {
+      console.error(
+        `MVT tile statement_timeout hit for ${c.req.param("z")}/${c.req.param("x")}/${c.req.param("y")}`,
+      );
+    } else {
+      console.error("Error generating MVT tile:", error);
+    }
     return Response.json(
       { error: "Failed to generate MVT tile" },
       {
