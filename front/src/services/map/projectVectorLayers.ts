@@ -534,11 +534,16 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
 
   const selectedProjectId = getCurrentHighlightedProjectId() ?? HOVER_NONE_ID;
   const selectedOverlayId = useOverlayStore().idSelectedOverlay ?? HOVER_NONE_ID;
+  // Overlay-driven hover (sidebar card, overlay DOM hover, popup pin) must be preserved
+  // even when mousemove returns an empty result, so it's ORed into every hover filter.
+  const drivenProjectId = getOverlayDrivenHoverId() ?? HOVER_NONE_ID;
+  const drivenOverlayId = getOverlayDrivenHoverOverlayId() ?? HOVER_NONE_ID;
 
   mlMap.setFilter("project-shapes-hover", [
     "any",
     ["==", ["to-string", ["get", "id"]], projectId],
     ["==", ["to-string", ["get", "id"]], selectedProjectId],
+    ["==", ["to-string", ["get", "id"]], drivenProjectId],
   ]);
   mlMap.setFilter("project-shapes-hover-fill", [
     "all",
@@ -547,6 +552,7 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
       "any",
       ["==", ["to-string", ["get", "id"]], projectId],
       ["==", ["to-string", ["get", "id"]], selectedProjectId],
+      ["==", ["to-string", ["get", "id"]], drivenProjectId],
     ],
   ]);
   mlMap.setFilter("project-shapes-proposed-hover", [
@@ -556,12 +562,14 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
       "any",
       ["==", ["to-string", ["get", "id"]], projectId],
       ["==", ["to-string", ["get", "id"]], selectedProjectId],
+      ["==", ["to-string", ["get", "id"]], drivenProjectId],
     ],
   ]);
   mlMap.setFilter("overlay-footprints-hover", [
     "any",
     ["==", ["to-string", ["get", "id"]], overlayId],
     ["==", ["to-string", ["get", "id"]], selectedOverlayId],
+    ["==", ["to-string", ["get", "id"]], drivenOverlayId],
   ]);
   mlMap.setFilter("overlay-footprints-proposed-hover", [
     "all",
@@ -570,6 +578,7 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
       "any",
       ["==", ["to-string", ["get", "id"]], overlayId],
       ["==", ["to-string", ["get", "id"]], selectedOverlayId],
+      ["==", ["to-string", ["get", "id"]], drivenOverlayId],
     ],
   ]);
 }
@@ -807,7 +816,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   // Leaflet fires mousemove at up to 500+/sec, which would saturate the main thread.
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
   // Position updates are exempt from throttling so the card follows the cursor smoothly.
-  let _hoverThrottlePending = false;
+  let hoverThrottlePending = false;
 
   map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
     if (
@@ -823,10 +832,10 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     // Always update card position immediately, bypasses Vue render via direct DOM write.
     updateHoverPreviewPosition(clientX, clientY);
 
-    if (_hoverThrottlePending) return;
-    _hoverThrottlePending = true;
+    if (hoverThrottlePending) return;
+    hoverThrottlePending = true;
     setTimeout(() => {
-      _hoverThrottlePending = false;
+      hoverThrottlePending = false;
     }, 32);
 
     const mlMap = mlMapGetter();
@@ -847,10 +856,9 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     // Set cursor on the Leaflet container instead of the MapLibre canvas
     // Use proper class toggling instead of overwriting inline styles that plugins rely on
     map.value.getContainer().classList.toggle("cursor-pointer", features.length > 0);
-    // Don't override an overlay-driven hover with an empty vector result.
-    if (getOverlayDrivenHoverId() === null) {
-      setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
-    }
+    // The overlay-driven hover (sidebar card, overlay DOM hover, popup pin) is preserved
+    // by setVectorHoverFilters' OR-clause, so it's safe to update on every mousemove.
+    setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
 
     // Hover preview card, only on pointer devices (no touch)
     updateHoverPreview(features, pointFeature, clientX, clientY);
