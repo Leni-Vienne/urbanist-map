@@ -1,5 +1,11 @@
 ﻿<template>
-  <div class="pointer-events-auto w-full" @mousedown.stop @touchstart.stop>
+  <div
+    class="pointer-events-auto w-full"
+    @mousedown.stop
+    @touchstart.stop
+    @click.stop
+    @dblclick.stop
+  >
     <span class="p-input-icon-left w-full">
       <i class="pi pi-search" />
       <AutoComplete

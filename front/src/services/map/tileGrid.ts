@@ -9,11 +9,11 @@ export function getGridCellSizeForTileZoom(tileZoom: number): number {
   return 128;
 }
 
-export function tileToLng(x: number, z: number): number {
+function tileToLng(x: number, z: number): number {
   return (x / 2 ** z) * 360 - 180;
 }
 
-export function tileToLat(y: number, z: number): number {
+function tileToLat(y: number, z: number): number {
   const n = Math.PI - (2 * Math.PI * y) / 2 ** z;
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 }

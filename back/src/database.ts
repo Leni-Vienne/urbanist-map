@@ -20,15 +20,20 @@ export const db = drizzle({ client, schema });
 export type Database = typeof db;
 
 // Dedicated pool for MVT tile generation with tuned session settings:
-//   jit=off       -- The tile query's estimated cost exceeds jit_above_cost (due to PostGIS
-//                    function costs), but actual row count is small, so LLVM compilation time
-//                    (~36ms) far outweighs any per-row savings.
-//   work_mem=128MB -- Low-zoom tiles (z0-z6) process 100k+ point rows in a single sort.
-//                    With the default 4MB, the sort spills 60+ MB to disk, adding ~600ms.
-//                    128MB keeps the sort in memory. With max 4 tile connections the ceiling
-//                    is 512MB, well within typical server capacity.
+//   jit=off            -- The tile query's estimated cost exceeds jit_above_cost (due to PostGIS
+//                         function costs), but actual row count is small, so LLVM compilation time
+//                         (~36ms) far outweighs any per-row savings.
+//   work_mem=128MB     -- Low-zoom tiles (z0-z6) process 100k+ point rows in a single sort.
+//                         With the default 4MB, the sort spills 60+ MB to disk, adding ~600ms.
+//                         128MB keeps the sort in memory. With max 4 tile connections the ceiling
+//                         is 512MB, well within typical server capacity.
+//   statement_timeout  -- Caps any single tile query at 30s so a stuck or pathologically slow
+//                         query (e.g. a freshly bloated dense low-zoom tile after an OSM import)
+//                         throws instead of pinning a pool connection. The handler catches the
+//                         resulting PG cancel error and returns a 500 with CORS headers, which
+//                         the browser surfaces as a real failure instead of a connection drop.
 const tilesDbUrl = new URL(config.DATABASE_URL);
-tilesDbUrl.searchParams.set("options", "-c jit=off -c work_mem=128MB");
+tilesDbUrl.searchParams.set("options", "-c jit=off -c work_mem=128MB -c statement_timeout=30000");
 
 export const tilesSqlClient = new SQL(tilesDbUrl.toString(), {
   max: isDev ? 1 : 4,

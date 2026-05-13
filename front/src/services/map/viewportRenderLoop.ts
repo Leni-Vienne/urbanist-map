@@ -12,13 +12,10 @@ import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
 import {
-  handleShapeProjectClick,
+  selectProject,
   getStandaloneProjectMarkerMap,
 } from "@/services/map/standaloneProjectMarkers";
-import {
-  highlightProjectOverlaysOnHover,
-  removeProjectOutlines,
-} from "@/services/overlay/overlaySelection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { getPendingChangeRequests } from "@/composables/changes/useChanges";
@@ -452,8 +449,8 @@ function processAndRenderProjectShape(
   renderProjectShapes(
     { ...projectToRender, geometry: finalGeometry },
     mapInstance,
-    handleShapeProjectClick,
-    highlightProjectOverlaysOnHover,
+    selectProject,
+    highlightProject,
     removeProjectOutlines,
     isPending ? "yellow" : undefined,
   );
