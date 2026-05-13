@@ -159,7 +159,7 @@ import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialo
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
 import {
   closeProjectPopupAndResetMarkers,
-  handleShapeProjectClick,
+  selectProject,
 } from "@/services/map/standaloneProjectMarkers";
 import type { RouterOutput } from "@/client";
 import type {
@@ -463,7 +463,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 function handleExternalProjectClick(_project: ProjectForModeration) {
   const fullProject = lastSelectedProject.value;
   if (!fullProject) return;
-  handleShapeProjectClick(fullProject, L.latLng(fullProject.lat ?? 0, fullProject.lng ?? 0));
+  selectProject(fullProject, L.latLng(fullProject.lat ?? 0, fullProject.lng ?? 0));
 }
 
 function handleEditProjectClick(project: ProjectForModeration) {

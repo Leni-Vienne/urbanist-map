@@ -13,10 +13,10 @@ import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelect
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 import {
-  getOverlayDrivenHoverId,
-  getOverlayDrivenHoverOverlayId,
-  registerOverlayHoverCallback,
-  setOverlayDrivenHover,
+  getExternalHoverId,
+  getExternalHoverOverlayId,
+  registerExternalHoverCallback,
+  setExternalHover,
 } from "@/services/map/vectorHoverState";
 import {
   triggerProjectHover,
@@ -521,7 +521,7 @@ function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
   const projectId = getFeaturePropertyAsString(feature, projectIdProp);
   const overlayId = isFootprint
     ? getFeaturePropertyAsString(feature, "id")
-    : (getOverlayDrivenHoverOverlayId() ?? HOVER_NONE_ID);
+    : (getExternalHoverOverlayId() ?? HOVER_NONE_ID);
 
   return {
     projectId: projectId.length > 0 ? projectId : HOVER_NONE_ID,
@@ -534,16 +534,16 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
 
   const selectedProjectId = getCurrentHighlightedProjectId() ?? HOVER_NONE_ID;
   const selectedOverlayId = useOverlayStore().idSelectedOverlay ?? HOVER_NONE_ID;
-  // Overlay-driven hover (sidebar card, overlay DOM hover, popup pin) must be preserved
+  // The external hover (sidebar card, overlay DOM hover, popup pin) must be preserved
   // even when mousemove returns an empty result, so it's ORed into every hover filter.
-  const drivenProjectId = getOverlayDrivenHoverId() ?? HOVER_NONE_ID;
-  const drivenOverlayId = getOverlayDrivenHoverOverlayId() ?? HOVER_NONE_ID;
+  const externalProjectId = getExternalHoverId() ?? HOVER_NONE_ID;
+  const externalOverlayId = getExternalHoverOverlayId() ?? HOVER_NONE_ID;
 
   mlMap.setFilter("project-shapes-hover", [
     "any",
     ["==", ["to-string", ["get", "id"]], projectId],
     ["==", ["to-string", ["get", "id"]], selectedProjectId],
-    ["==", ["to-string", ["get", "id"]], drivenProjectId],
+    ["==", ["to-string", ["get", "id"]], externalProjectId],
   ]);
   mlMap.setFilter("project-shapes-hover-fill", [
     "all",
@@ -552,7 +552,7 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
       "any",
       ["==", ["to-string", ["get", "id"]], projectId],
       ["==", ["to-string", ["get", "id"]], selectedProjectId],
-      ["==", ["to-string", ["get", "id"]], drivenProjectId],
+      ["==", ["to-string", ["get", "id"]], externalProjectId],
     ],
   ]);
   mlMap.setFilter("project-shapes-proposed-hover", [
@@ -562,14 +562,14 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
       "any",
       ["==", ["to-string", ["get", "id"]], projectId],
       ["==", ["to-string", ["get", "id"]], selectedProjectId],
-      ["==", ["to-string", ["get", "id"]], drivenProjectId],
+      ["==", ["to-string", ["get", "id"]], externalProjectId],
     ],
   ]);
   mlMap.setFilter("overlay-footprints-hover", [
     "any",
     ["==", ["to-string", ["get", "id"]], overlayId],
     ["==", ["to-string", ["get", "id"]], selectedOverlayId],
-    ["==", ["to-string", ["get", "id"]], drivenOverlayId],
+    ["==", ["to-string", ["get", "id"]], externalOverlayId],
   ]);
   mlMap.setFilter("overlay-footprints-proposed-hover", [
     "all",
@@ -578,7 +578,7 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
       "any",
       ["==", ["to-string", ["get", "id"]], overlayId],
       ["==", ["to-string", ["get", "id"]], selectedOverlayId],
-      ["==", ["to-string", ["get", "id"]], drivenOverlayId],
+      ["==", ["to-string", ["get", "id"]], externalOverlayId],
     ],
   ]);
 }
@@ -623,7 +623,7 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
-  setOverlayDrivenHover(projectId);
+  setExternalHover(projectId);
 
   void handleProjectClickFromTile(projectId, latlng, willFly);
 }
@@ -807,7 +807,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
 }
 
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
-  registerOverlayHoverCallback((projectId, overlayId) => {
+  registerExternalHoverCallback((projectId, overlayId) => {
     const mlMap = mlMapGetter();
     if (mlMap) setHoveredProjectId(mlMap, projectId, overlayId);
   });
@@ -873,7 +873,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
 
     // If a project is pinned (popup open from a click), preserve the highlight.
     // The popup-close watcher in standaloneProjectMarkers/useVisibleProjects handles cleanup.
-    if (getOverlayDrivenHoverId() !== null) return;
+    if (getExternalHoverId() !== null) return;
 
     setVectorHoverFilters(mlMap, null);
     setPointHoverFilter(mlMap, null);

@@ -11,7 +11,7 @@ import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { applyWarningRing, clearWarningRing } from "@/services/overlay/overlayStyle";
 import {
   selectOverlay,
-  highlightProjectOverlaysOnHover,
+  highlightProject,
   removeProjectOutlines,
 } from "@/services/overlay/overlaySelection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
@@ -217,7 +217,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   const projectId = savedOverlay.projectId;
   if (projectId) {
     marker.on("mouseover", () => {
-      highlightProjectOverlaysOnHover(projectId);
+      highlightProject(projectId);
     });
 
     marker.on("mouseout", () => {

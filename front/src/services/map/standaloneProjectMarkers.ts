@@ -17,7 +17,7 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
 import {
   selectOverlay,
-  highlightProjectOverlaysOnHover,
+  highlightProject,
   removeProjectOutlines,
 } from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
@@ -34,7 +34,7 @@ import {
   highlightProjectShapes,
   unhighlightProjectShapes,
 } from "@/services/map/shapeRendering";
-import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
+import { setExternalHover } from "@/services/map/vectorHoverState";
 import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -64,7 +64,7 @@ function initializePopupWatcher() {
       // When popup closes, reset marker opacity and release any pinned vector hover.
       if (wasVisible && !isVisible) {
         updateStandaloneProjectMarkerOpacities(null);
-        setOverlayDrivenHover(null);
+        setExternalHover(null);
       }
     },
   );
@@ -279,14 +279,11 @@ function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null)
 }
 
 /**
- * Handle a click on a project shape layer.
+ * Open the project info popup and pin the vector highlight for the given project.
+ * Called from vector/point clicks, Leaflet shape clicks, and the Contribute sidebar.
  * Passed as a callback to renderProjectShapes so shapeRendering stays dependency-free.
  */
-export function handleShapeProjectClick(
-  project: Project,
-  latlng: L.LatLng,
-  atCenter = false,
-): void {
+export function selectProject(project: Project, latlng: L.LatLng, atCenter = false): void {
   const uiStore = useUiStore();
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -298,7 +295,7 @@ export function handleShapeProjectClick(
     uiStore.closeProjectInfoPopup();
     cleanupProjectInfoTeleportTarget();
     unhighlightProjectShapes(project.id);
-    setOverlayDrivenHover(null); // Release the pinned vector highlight immediately.
+    setExternalHover(null); // Release the pinned vector highlight immediately.
     return;
   }
 
@@ -306,7 +303,7 @@ export function handleShapeProjectClick(
 
   // In view mode, pin the vector tile highlight while the popup is open.
   if (mapStore.mode === "view") {
-    setOverlayDrivenHover(project.id);
+    setExternalHover(project.id);
   }
 
   if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
@@ -321,7 +318,7 @@ export function handleShapeProjectClick(
 
 /**
  * Handle a MapLibre tile click given only a project ID.
- * Looks up the project from the store or fetches it, then delegates to handleShapeProjectClick.
+ * Looks up the project from the store or fetches it, then delegates to selectProject.
  */
 export async function handleProjectClickFromTile(
   projectId: string,
@@ -365,7 +362,7 @@ export async function handleProjectClickFromTile(
       }
     }
   }
-  handleShapeProjectClick(project, latlng, atCenter);
+  selectProject(project, latlng, atCenter);
 }
 
 /** Add a standalone project marker (called when the last overlay of a project is removed). */
@@ -375,13 +372,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
   if (project.geometry?.geometries.length) {
-    renderProjectShapes(
-      project,
-      map.value,
-      handleShapeProjectClick,
-      highlightProjectOverlaysOnHover,
-      removeProjectOutlines,
-    );
+    renderProjectShapes(project, map.value, selectProject, highlightProject, removeProjectOutlines);
   }
 
   initializePopupWatcher();

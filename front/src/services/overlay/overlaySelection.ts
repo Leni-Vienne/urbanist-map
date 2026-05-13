@@ -9,7 +9,7 @@ import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
-import { setOverlayDrivenHover } from "@/services/map/vectorHoverState";
+import { setExternalHover } from "@/services/map/vectorHoverState";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
@@ -60,7 +60,7 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
 
   // Apply project highlights (sister overlays) when selecting
   if (newlySelected.projectId) {
-    highlightProjectOverlaysOnHover(newlySelected.projectId, newlySelected.id);
+    highlightProject(newlySelected.projectId, newlySelected.id);
   }
 }
 
@@ -175,7 +175,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 
   if (!projectId) return;
 
-  setOverlayDrivenHover(null);
+  setExternalHover(null);
   if (!force) {
     const selectedOverlay = overlayStore.idSelectedOverlay
       ? overlayStore.overlays[overlayStore.idSelectedOverlay]
@@ -193,12 +193,14 @@ export function removeProjectOutlines(projectId: string, force = false): void {
 }
 
 /**
- * Highlight all overlays (and shapes) from the same project on hover.
+ * Highlight everything related to a project: Leaflet shapes, sister overlays, and the
+ * vector tile filters (via the external-hover state). Called from sidebar hover,
+ * overlay DOM hover, overlay selection, and selection refresh after mode switch.
  */
-export function highlightProjectOverlaysOnHover(projectId: string, overlayId?: string): void {
+export function highlightProject(projectId: string, overlayId?: string): void {
   if (!projectId) return;
 
-  setOverlayDrivenHover(projectId, overlayId ?? null);
+  setExternalHover(projectId, overlayId ?? null);
 
   // Leaflet shape layers (standalone project geometry) exist in all modes
   highlightProjectShapes(projectId);
@@ -228,7 +230,7 @@ export function getCurrentHighlightedProjectId(): string | null {
 export function refreshSelectionHighlight(): void {
   const projectId = getCurrentHighlightedProjectId();
   if (projectId) {
-    highlightProjectOverlaysOnHover(projectId);
+    highlightProject(projectId);
   }
 }
 
@@ -246,7 +248,7 @@ export function setupProjectHoverEvents(
 
   element.addEventListener("mouseenter", () => {
     if (overlayObject.projectId) {
-      highlightProjectOverlaysOnHover(overlayObject.projectId, overlayObject.id);
+      highlightProject(overlayObject.projectId, overlayObject.id);
     }
   });
 
