@@ -51,10 +51,12 @@
       content-container-class="flex-1 flex flex-col min-h-0 bg-content-hover-background"
     />
 
-    <!-- Footer with legal links (rendered outside the scroll area via slot) -->
+    <!-- Footer with legal links (rendered outside the scroll area via slot).
+         pb adds env(safe-area-inset-bottom) so the OS-reserved area (gesture pill,
+         classic nav bar, home indicator) doesn't overlap the links. -->
     <template #footer>
       <div
-        class="py-[0.2rem] px-4 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
+        class="pt-[0.2rem] pb-[calc(0.2rem+env(safe-area-inset-bottom))] px-4 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
       >
         <a
           href="/legal"
