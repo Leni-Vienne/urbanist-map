@@ -14,11 +14,9 @@ import {
 import { useToast } from "@/composables/ui/useToast";
 import {
   useSubmissionService,
-  type SubmissionContext,
   type SubmissionChange,
   type SubmissionChangeType,
-  type SubmissionContextExtended,
-  isSubmissionContextExtended,
+  type SubmissionContext,
 } from "./useSubmissionService";
 import L from "leaflet";
 import { t } from "@/locales";
@@ -283,7 +281,6 @@ export function useSubmissionDialog() {
   ): void {
     try {
       const pendingMods = pendingModsStore.getModificationsForProject(project.id);
-      const modifiedOverlayIds = pendingMods.map((mod) => mod.overlayId);
 
       // Get new overlays (status is null, never submitted to backend)
       const newOverlays = getNewOverlaysForProject(project.id);
@@ -340,20 +337,13 @@ export function useSubmissionDialog() {
         changeType,
       };
 
-      const extendedContext: SubmissionContextExtended = {
-        entityType: projectHasChanges || projectIsNew ? "project" : "overlay",
-        entityId: project.id,
+      pendingSubmissionContext.value = {
         changeType,
-        entity: projectStore.projects[project.id] ?? project,
         projectId: project.id,
         projectModified: projectHasChanges,
-        overlayModified: pendingMods.length > 0 || newOverlayIds.length > 0,
-        allProjectModifications: pendingMods,
-        pendingOverlayModifications: modifiedOverlayIds,
+        existingOverlayModifications: pendingMods,
         newOverlayIds,
       };
-
-      pendingSubmissionContext.value = extendedContext;
       showSubmissionDialog.value = true;
       uiStore.submissionDialogVisible = true;
     } catch (error: unknown) {
@@ -429,19 +419,13 @@ export function useSubmissionDialog() {
       changeType,
     };
 
-    const extendedContext: SubmissionContextExtended = {
-      entityType: "overlay",
-      entityId: overlay.id,
+    pendingSubmissionContext.value = {
       changeType,
-      entity: overlay,
       projectId: projectId ?? undefined,
       projectModified: false,
-      overlayModified: hasAnyOverlayMods,
-      allProjectModifications: allProjectMods,
+      existingOverlayModifications: allProjectMods,
       newOverlayIds: overlayIsNew ? [overlay.id] : [],
     };
-
-    pendingSubmissionContext.value = extendedContext;
     showSubmissionDialog.value = true;
     uiStore.submissionDialogVisible = true;
   }
@@ -452,7 +436,7 @@ export function useSubmissionDialog() {
     return t("submission.submissionSuccessful");
   }
 
-  function handleSubmissionSuccess(context: SubmissionContext | SubmissionContextExtended): void {
+  function handleSubmissionSuccess(context: SubmissionContext): void {
     const message = getSuccessMessage(context.changeType);
 
     toast.add({
@@ -470,22 +454,14 @@ export function useSubmissionDialog() {
   }
 
   async function confirmSubmission(reason: string): Promise<void> {
-    if (!pendingSubmissionContext.value) return;
+    const context = pendingSubmissionContext.value;
+    if (!context) return;
 
     try {
       isSubmitting.value = true;
-      const context = pendingSubmissionContext.value;
-
-      // Check if this is an extended context (combined overlay+project submission)
-      if (isSubmissionContextExtended(context)) {
-        await submissionService.submitExtendedContext(context, reason);
-        overlayStore.hideInfoPopup();
-      } else {
-        // Standard single-entity submission
-        await submissionService.submitStandardContext(context as SubmissionContext, reason);
-      }
-
-      handleSubmissionSuccess(context as SubmissionContext | SubmissionContextExtended);
+      await submissionService.submitContext(context, reason);
+      overlayStore.hideInfoPopup();
+      handleSubmissionSuccess(context);
     } catch (error: unknown) {
       console.error("Error submitting:", error);
       toast.add({
@@ -507,18 +483,12 @@ export function useSubmissionDialog() {
   }
 
   function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
-    if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
-      const extCtx = pendingSubmissionContext.value;
-      if (extCtx.allProjectModifications) {
-        extCtx.allProjectModifications = extCtx.allProjectModifications.filter(
-          (mod) => mod.overlayId !== overlayId,
-        );
-      }
-      if (extCtx.pendingOverlayModifications) {
-        extCtx.pendingOverlayModifications = extCtx.pendingOverlayModifications.filter(
-          (id) => id !== overlayId,
-        );
-      }
+    const ctx = pendingSubmissionContext.value;
+    if (!ctx) return;
+    if (ctx.existingOverlayModifications) {
+      ctx.existingOverlayModifications = ctx.existingOverlayModifications.filter(
+        (mod) => mod.overlayId !== overlayId,
+      );
     }
   }
 
@@ -533,12 +503,9 @@ export function useSubmissionDialog() {
       if (overlayObject?.status === null) {
         await deleteOverlayDirect(overlayId);
 
-        // Update the extended context to remove from newOverlayIds
-        if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
-          const extCtx = pendingSubmissionContext.value;
-          if (extCtx.newOverlayIds) {
-            extCtx.newOverlayIds = extCtx.newOverlayIds.filter((id) => id !== overlayId);
-          }
+        const extCtx = pendingSubmissionContext.value;
+        if (extCtx?.newOverlayIds) {
+          extCtx.newOverlayIds = extCtx.newOverlayIds.filter((id) => id !== overlayId);
         }
       }
       return;
@@ -559,13 +526,9 @@ export function useSubmissionDialog() {
   }
 
   function handleRemoveProjectChange(field: string): void {
-    if (isSubmissionContextExtended(pendingSubmissionContext.value)) {
-      const extCtx = pendingSubmissionContext.value;
-      if (extCtx.projectId) {
-        projectStore.resetProjectField(extCtx.projectId, field);
-      }
-    } else if (pendingSubmissionContext.value?.entityType === "project") {
-      projectStore.resetProjectField(pendingSubmissionContext.value.entityId, field);
+    const projectId = pendingSubmissionContext.value?.projectId;
+    if (projectId) {
+      projectStore.resetProjectField(projectId, field);
     }
 
     // Close project edit form to force fresh data on reopen
