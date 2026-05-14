@@ -242,14 +242,13 @@ import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import type { OverlayObject, Project } from "@/types/index";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
 const { t: $t } = useI18n();
 const toast = useToast();
 const { isMobile } = useIsMobile();
-const pendingModsStore = usePendingModificationsStore();
 
 interface Props {
   project: Project;
@@ -307,31 +306,10 @@ function handleDrawShapesClick() {
 }
 
 // Check if project/overlay is published to backend (null status means not yet submitted)
-const isPublishedToBackend = computed(() => {
-  if (props.overlay) {
-    return props.overlay.status === "approved" || props.overlay.status === "pending";
-  }
-  return (
-    props.project?.status !== null &&
-    (props.project?.status === "approved" || props.project?.status === "pending")
-  );
-});
-
-// Check if overlay or project has changes that need to be published
-// Unified check: uses BOTH prop-based isModified AND pendingModificationsStore
 const hasChanges = computed(() => {
-  // Check new unified store first (for caption/position changes)
-  if (props.overlay && pendingModsStore.hasPendingModifications(props.overlay.id)) {
-    return true;
-  }
-  // Check project's overlays in pending mods store
-  if (props.project && pendingModsStore.getModificationCountForProject(props.project.id) > 0) {
-    return true;
-  }
-  // Fallback to old prop-based isModified flags
-  const overlayModified = props.overlay?.isModified ?? false;
-  const projectModified = props.project?.isModified ?? false;
-  return overlayModified || projectModified || !isPublishedToBackend.value;
+  if (props.overlay) return isOverlayUnsaved(props.overlay);
+  if (props.project) return isProjectUnsaved(props.project);
+  return false;
 });
 
 function handlePublishClick() {
