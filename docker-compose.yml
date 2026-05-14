@@ -66,7 +66,7 @@ services:
       - ./server.bundle.js:/home/bun/app/server.bundle.js:ro
       - ./back/src/email:/home/bun/app/email:ro
       - ./back/src/routes:/home/bun/app/routes:ro
-      - backend_uploads:/home/bun/app/uploads
+      - ./uploads:/home/bun/app/uploads
     working_dir: /home/bun/app
     command: ["bun", "./server.bundle.js"]
     ports:
@@ -104,9 +104,6 @@ services:
 volumes:
   postgres_data:
     name: ${COMPOSE_PROJECT_NAME}-postgres-data
-    driver: local
-  backend_uploads:
-    name: ${COMPOSE_PROJECT_NAME}-uploads
     driver: local
   alloy_data:
     name: ${COMPOSE_PROJECT_NAME}-alloy-data
