@@ -79,8 +79,8 @@ export function useOverlayPublisher() {
 
       return false; // Project ID didn't change
     } catch (error) {
-      const errorMessage = `Failed to publish project "${project.name}" to server: ${error instanceof Error ? error.message : String(error)}`;
-      throw new Error(errorMessage, { cause: error });
+      console.error(`Failed to publish project "${project.name}" to server:`, error);
+      throw error;
     }
   }
 
@@ -259,9 +259,7 @@ export function useOverlayPublisher() {
       // publish response and a refetch would overwrite it with stale backend data.
     } catch (error) {
       console.error("Failed to publish overlay:", error);
-      throw new Error("Publish Failed: Failed to save to server. Please try again.", {
-        cause: error,
-      });
+      throw error;
     }
   }
 

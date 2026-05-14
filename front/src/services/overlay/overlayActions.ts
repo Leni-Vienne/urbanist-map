@@ -223,13 +223,17 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 
   if (captionChanged) {
     overlayObject.isModified = true;
-    pendingModsStore.saveCaptionChange(
-      id,
-      overlayObject.projectId ?? null,
-      newCaption,
-      oldCaption,
-      overlayObject.status ?? "pending",
-    );
+    // New overlays (status null) carry their caption on the overlay object itself; only
+    // approved/pending overlays need a delta tracked here for the change-request flow.
+    if (overlayObject.status !== null) {
+      pendingModsStore.saveCaptionChange(
+        id,
+        overlayObject.projectId ?? null,
+        newCaption,
+        oldCaption,
+        overlayObject.status,
+      );
+    }
   }
 
   updateMarkerTooltip(overlayObject);

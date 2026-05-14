@@ -107,13 +107,17 @@ export function saveOverlayModificationsToCache(
     isModified: overlayObject.isModified ?? false,
   });
 
-  const overlayStatus = overlayObject.status ?? "pending";
+  // pendingModificationsStore tracks deltas against server state for the change-request
+  // flow. New overlays (status null) have no server baseline, so their position lives
+  // entirely on the overlay object (corners / history / isModified) until publish.
+  if (overlayObject.status === null) return;
+
   pendingModsStore.saveCornersChange(
     overlayObject.id,
     overlayObject.projectId ?? null,
     mappedCorners,
     overlayObject.corners,
-    overlayStatus,
+    overlayObject.status,
   );
 }
 
