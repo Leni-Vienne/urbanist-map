@@ -63,22 +63,26 @@ export function usePanelTabs() {
     mapStore.setMode(targetMode);
   }
 
+  function computeTargetTab(newMode: AppMode): PanelTab {
+    if (newMode === "view") {
+      return mapStore.selectedCountryCode ? "currentLocation" : "latest";
+    }
+    return modeToDefaultTab(newMode);
+  }
+
   /**
    * Change the map mode and sync the corresponding tab.
    */
   function setAppMode(newMode: AppMode) {
-    let targetTab: PanelTab;
-
-    if (newMode === "view") {
-      if (uiStore.activeTab === "currentLocation" || uiStore.activeTab === "latest") {
-        // Already on a view-compatible tab, leave it as-is
-        return;
-      }
-      // Prefer currentLocation if a country is selected, otherwise latest
-      targetTab = mapStore.selectedCountryCode ? "currentLocation" : "latest";
-    } else {
-      targetTab = modeToDefaultTab(newMode);
+    if (
+      newMode === "view" &&
+      (uiStore.activeTab === "currentLocation" || uiStore.activeTab === "latest")
+    ) {
+      // Already on a view-compatible tab, leave it as-is
+      return;
     }
+
+    const targetTab = computeTargetTab(newMode);
 
     if (uiStore.activeTab !== targetTab) {
       uiStore.activeTab = targetTab;

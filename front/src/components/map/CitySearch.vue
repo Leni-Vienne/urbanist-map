@@ -1,5 +1,6 @@
 ﻿<template>
   <div
+    ref="wrapperEl"
     class="pointer-events-auto w-full"
     @mousedown.stop
     @touchstart.stop
@@ -42,10 +43,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import L from "leaflet";
 import { trpc } from "@/client";
 import { navigateToCity } from "@/services/navigation/locationNavigation";
 import { map } from "@/services/core/map";
+
+const wrapperEl = ref<HTMLDivElement | null>(null);
+
+onMounted(() => {
+  if (!wrapperEl.value) return;
+  // Vue's @touchstart.stop adds a "touchstart" listener, but Leaflet routes touchstart
+  // through pointer events on mobile (listens for pointerdown). Without this, a tap
+  // bubbles pointerdown to the Leaflet container and engages Draggable._onDown, which
+  // makes the map twitch on tap. L.DomEvent.disableClickPropagation goes through Leaflet's
+  // own pointer routing, so it covers pointerdown/mousedown/touchstart/dblclick/contextmenu.
+  L.DomEvent.disableClickPropagation(wrapperEl.value);
+});
 
 type CitySearchResult = {
   id: number;

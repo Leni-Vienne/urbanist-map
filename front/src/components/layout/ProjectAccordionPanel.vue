@@ -14,7 +14,7 @@
     <div
       ref="scrollAreaRef"
       :class="[
-        'flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden',
         { 'scroll-area': isScrollable },
       ]"
     >
