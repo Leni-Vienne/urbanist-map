@@ -52,15 +52,14 @@ export async function updateOverlayEditingState(): Promise<void> {
     ) as any[];
     layer.setOptions({ actions: modeActions, draggable: isEditMode });
 
-    // History.at(-1) holds the user's last edited position and persists on the OverlayObject
-    // across mode switches and viewport pruning, so it's the only thing we need to read.
+    // isModified is owned by saveToHistory / undo / submission flows; mode transitions
+    // must not write to it (would clobber the cleared state after a submission round-trip).
     if (isEditMode) {
       const lastEdited = overlayObject.history.at(-1);
       const hasUserEdits = overlayObject.history.length > 1;
       if (hasUserEdits && lastEdited?.length === 4) {
         const leafletCorners = lastEdited.map((corner) => L.latLng(corner.lat, corner.lng));
         layer.setCorners(leafletCorners);
-        overlayObject.isModified = true;
         updateMarkerPosition(overlayObject);
       }
     } else if (overlayObject.corners.length === 4) {
@@ -70,7 +69,6 @@ export async function updateOverlayEditingState(): Promise<void> {
         L.latLng(corner.lat, corner.lng),
       );
       layer.setCorners(leafletCorners);
-      overlayObject.isModified = false;
       updateMarkerPosition(overlayObject);
     }
 

@@ -589,6 +589,8 @@ export function useSubmissionService() {
     const overlayObj = overlayStore.overlays[overlayId];
     if (!overlayObj) return;
 
+    const isChangeRequest = overlayObj.status === "approved";
+
     const overlayWithChanges = {
       ...overlayObj,
       caption: mod.caption?.current ?? overlayObj.caption,
@@ -615,14 +617,38 @@ export function useSubmissionService() {
 
     pendingModsStore.clearModification(overlayId);
 
-    // submitEntity mutates the overlayWithChanges copy passed into createOverlayContext, so the
-    // live store entry never sees isModified flip back to false. Sync it here so the marker
-    // returns to its status color (yellow for pending, green for approved) instead of staying
-    // orange on the next re-render.
-    overlayStore.updateOverlay(overlayId, { isModified: false });
+    // submitEntity mutated overlayWithChanges (a copy), not the live store entry, so isModified
+    // hasn't flipped yet. For direct updates we also collapse history so the submitted state
+    // is the new baseline; change requests keep history so the proposal stays visible on
+    // edit-mode re-entry.
+    const updates: Partial<OverlayObject> = { isModified: false };
+    const submittedCorners = mod.corners?.current;
+    if (submittedCorners?.length === 4 && !isChangeRequest) {
+      updates.history = [submittedCorners];
+      updates.redoStack = [];
+      updates.corners = submittedCorners;
+    }
+    overlayStore.updateOverlay(overlayId, updates);
     const liveOverlay = overlayStore.overlays[overlayId];
     if (liveOverlay) {
       updateMarkerTooltip(liveOverlay);
+    }
+  }
+
+  async function publishNewOverlays(overlayIds: string[], project: Project | null): Promise<void> {
+    for (const overlayId of overlayIds) {
+      const overlayObj = overlayStore.overlays[overlayId];
+      if (!overlayObj) continue;
+      await publishOverlay(overlayObj, project);
+      // Collapse history so the just-published state is the new baseline.
+      const publishedCorners = overlayObj.history.at(-1);
+      if (publishedCorners?.length === 4) {
+        overlayStore.updateOverlay(overlayId, {
+          history: [publishedCorners],
+          redoStack: [],
+          corners: publishedCorners,
+        });
+      }
     }
   }
 
@@ -648,12 +674,7 @@ export function useSubmissionService() {
     }
 
     // 2. Publish brand-new overlays. Also publishes the project lazily if it's still local.
-    for (const overlayId of newOverlayIds) {
-      const overlayObj = overlayStore.overlays[overlayId];
-      if (overlayObj) {
-        await publishOverlay(overlayObj, project);
-      }
-    }
+    await publishNewOverlays(newOverlayIds, project);
 
     // 3. Submit project metadata changes for already-published projects.
     const isExistingProject = project && project.status !== null;

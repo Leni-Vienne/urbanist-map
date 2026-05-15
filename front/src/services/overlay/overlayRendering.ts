@@ -484,10 +484,12 @@ function renderSingleOverlay(
   // Preserve in-progress edit state when re-rendering. history.at(-1) is the user's last
   // edited position; without this carryover the layer would snap back to backend corners
   // on any round-trip (e.g. edit -> view -> edit) since the fresh object has empty history.
+  // Shallow-clone the arrays so the new and existing OverlayObjects don't share references
+  // during the async window before addOverlay() replaces the store entry.
   if (existingOverlay) {
     overlayObject.isViewingApprovedPosition = existingOverlay.isViewingApprovedPosition;
-    overlayObject.history = existingOverlay.history;
-    overlayObject.redoStack = existingOverlay.redoStack;
+    overlayObject.history = [...existingOverlay.history];
+    overlayObject.redoStack = [...existingOverlay.redoStack];
     overlayObject.isModified = existingOverlay.isModified;
   }
 
