@@ -28,7 +28,7 @@ import { removeStandaloneProjectMarkerForProject } from "@/services/map/standalo
 import { selectOverlay, setupProjectHoverEvents } from "@/services/overlay/overlaySelection";
 import {
   initializeOverlayHistory,
-  getCornersForOverlayWithCache,
+  getCornersForOverlay,
   saveToHistory,
 } from "@/services/overlay/overlayHistory";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
@@ -57,7 +57,7 @@ export function createLeafletOverlay(
   overlayObject.imageUrl = imageUrl;
 
   try {
-    const corners = getCornersForOverlayWithCache(overlayObject);
+    const corners = getCornersForOverlay(overlayObject);
 
     const leafletCorners = corners
       ? corners.map((corner) => L.latLng(corner.lat, corner.lng))
@@ -478,12 +478,19 @@ function renderSingleOverlay(
 
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
 
-  // Always use backend data to create overlay object (cached positions applied later via applyPositionToOverlay)
+  // Always use backend data to create overlay object.
   const overlayObject = createOverlayObject(cdnOverlay);
 
-  // Preserve UI state (like view choice) from existing store object if re-rendering
+  // Preserve in-progress edit state when re-rendering. history.at(-1) is the user's last
+  // edited position; without this carryover the layer would snap back to backend corners
+  // on any round-trip (e.g. edit -> view -> edit) since the fresh object has empty history.
+  // Shallow-clone the arrays so the new and existing OverlayObjects don't share references
+  // during the async window before addOverlay() replaces the store entry.
   if (existingOverlay) {
     overlayObject.isViewingApprovedPosition = existingOverlay.isViewingApprovedPosition;
+    overlayObject.history = [...existingOverlay.history];
+    overlayObject.redoStack = [...existingOverlay.redoStack];
+    overlayObject.isModified = existingOverlay.isModified;
   }
 
   if (createMarkers) {

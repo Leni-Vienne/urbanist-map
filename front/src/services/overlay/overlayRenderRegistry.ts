@@ -135,21 +135,6 @@ export function clearAll(preserveMarkers = false): void {
   }
 }
 
-/**
- * Rename an entry (used when a local overlay gets a backend ID after submission).
- * The Leaflet layer and marker stay on the map, only the registry key changes.
- */
-export function renameEntry(oldId: string, newId: string): void {
-  const entry = entries.get(oldId);
-  if (!entry) return;
-  entries.delete(oldId);
-  entries.set(newId, entry);
-  if (creating.has(oldId)) {
-    creating.delete(oldId);
-    creating.add(newId);
-  }
-}
-
 export function getAllLayers(): [string, L.DistortableImageOverlay][] {
   const result: [string, L.DistortableImageOverlay][] = [];
   for (const [id, entry] of entries) {

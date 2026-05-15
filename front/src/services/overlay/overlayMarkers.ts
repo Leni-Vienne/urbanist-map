@@ -155,12 +155,13 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
     return;
   }
 
-  // Check edit cache first to prevent marker flicker when zooming back in on modified overlays
+  // Use the user's last edited position in edit mode to prevent marker flicker when zooming.
+  // history.at(-1) survives layer pruning since it lives on the OverlayObject in the store.
   let corners = savedOverlay.corners;
   if (mapStore.mode === "edit") {
-    const cached = overlayStore.getFromEditModeCache(savedOverlay.id);
-    if (cached?.corners.length === 4) {
-      corners = cached.corners;
+    const lastEdited = overlayStore.overlays[savedOverlay.id]?.history.at(-1);
+    if (lastEdited?.length === 4) {
+      corners = lastEdited;
     }
   }
 
@@ -283,11 +284,11 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
     }
   }
 
-  // Priority 1: Check edit mode cache if in edit mode for the most current position
+  // Priority 1: In edit mode use the user's last edited position from history
   if (mapStore.mode === "edit") {
-    const cachedModifications = overlayStore.getFromEditModeCache(overlay.id);
-    if (cachedModifications?.corners.length === 4) {
-      const corners = cachedModifications.corners.map((corner) => L.latLng(corner.lat, corner.lng));
+    const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1);
+    if (lastEdited?.length === 4) {
+      const corners = lastEdited.map((corner) => L.latLng(corner.lat, corner.lng));
       return L.latLngBounds(corners);
     }
   }

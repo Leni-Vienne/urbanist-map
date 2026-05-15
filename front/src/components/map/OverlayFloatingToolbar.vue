@@ -118,14 +118,13 @@ import "@/services/overlay/overlayActions"; // ensure navigateOverlaySequence ca
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
-const pendingModsStore = usePendingModificationsStore();
 const mapStore = useMapStore();
 const { idSelectedOverlay } = storeToRefs(overlayStore);
 const { mode } = storeToRefs(mapStore);
@@ -400,9 +399,8 @@ const canReplaceImage = computed(() => {
 const canUndo = computed(() => (selectedOverlay.value?.history?.length ?? 0) > 1);
 const canRedo = computed(() => (selectedOverlay.value?.redoStack?.length ?? 0) > 0);
 const hasUnsavedModifications = computed(() => {
-  const id = selectedId.value;
-  if (!id) return false;
-  return selectedOverlay.value?.isModified === true || pendingModsStore.hasPendingModifications(id);
+  const overlay = selectedOverlay.value;
+  return overlay ? isOverlayUnsaved(overlay) : false;
 });
 
 async function toggleInfoPopup() {

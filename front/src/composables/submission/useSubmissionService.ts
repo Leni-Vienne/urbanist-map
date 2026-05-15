@@ -7,7 +7,7 @@ import {
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import type { Project, OverlayObject, RemovableChange, ProjectForModeration } from "@/types/index";
+import type { Project, OverlayObject, RemovableChange } from "@/types/index";
 import {
   projectSchema,
   overlaySchema,
@@ -33,8 +33,9 @@ import {
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
 type SubmissionEntityType = "project" | "overlay";
 
-// Submission context interface
-export type SubmissionContext =
+// Internal single-entity payload used by buildSummary/validate/submitEntity.
+// Each public submission may produce several of these (project metadata + per-overlay updates).
+type EntityUpdate =
   | {
       entityType: "project";
       entityId: string;
@@ -50,27 +51,15 @@ export type SubmissionContext =
       changedFields?: FieldChange[];
     };
 
-export interface SubmissionContextExtended {
-  entityType: "project" | "overlay";
-  entityId: string;
+// Public submission context: a batch of work to do for a single project.
+export interface SubmissionContext {
   changeType: SubmissionChangeType;
-  entity: OverlayObject | Project | ProjectForModeration;
   projectId?: string;
   projectModified?: boolean;
-  overlayModified?: boolean;
-  allProjectModifications?: PendingOverlayModification[];
-  pendingOverlayModifications?: string[];
+  // Caption/corners changes captured locally on already-published overlays.
+  existingOverlayModifications?: PendingOverlayModification[];
+  // Brand-new overlays (status null) to publish.
   newOverlayIds?: string[];
-}
-
-export function isSubmissionContextExtended(ctx: unknown): ctx is SubmissionContextExtended {
-  return (
-    ctx !== null &&
-    typeof ctx === "object" &&
-    ("overlayModified" in ctx ||
-      "pendingOverlayModifications" in ctx ||
-      "allProjectModifications" in ctx)
-  );
 }
 
 export interface SubmissionChange {
@@ -217,7 +206,7 @@ export function useSubmissionService() {
   function createProjectContext(
     project: Project,
     changeType?: SubmissionChangeType,
-  ): Extract<SubmissionContext, { entityType: "project" }> {
+  ): Extract<EntityUpdate, { entityType: "project" }> {
     return {
       entityType: "project",
       entityId: project.id,
@@ -229,7 +218,7 @@ export function useSubmissionService() {
   function createOverlayContext(
     overlay: OverlayObject,
     changeType?: SubmissionChangeType,
-  ): Extract<SubmissionContext, { entityType: "overlay" }> {
+  ): Extract<EntityUpdate, { entityType: "overlay" }> {
     return {
       entityType: "overlay",
       entityId: overlay.id,
@@ -337,7 +326,7 @@ export function useSubmissionService() {
   }
 
   // Build human-readable summary for confirmation dialog
-  function buildSummary(context: SubmissionContext): SubmissionSummary {
+  function buildSummary(context: EntityUpdate): SubmissionSummary {
     const changes =
       context.entityType === "project"
         ? detectProjectChanges(context.entity)
@@ -381,7 +370,7 @@ export function useSubmissionService() {
     };
   }
 
-  function validate(context: SubmissionContext): ValidationResult {
+  function validate(context: EntityUpdate): ValidationResult {
     const errors: string[] = [];
 
     if (context.entityType === "project") {
@@ -490,7 +479,7 @@ export function useSubmissionService() {
   }
 
   async function submitProject(
-    context: Extract<SubmissionContext, { entityType: "project" }>,
+    context: Extract<EntityUpdate, { entityType: "project" }>,
     changes: FieldChange[],
   ): Promise<void> {
     if (context.changeType === "update_approved") {
@@ -501,7 +490,7 @@ export function useSubmissionService() {
   }
 
   async function submitOverlay(
-    context: Extract<SubmissionContext, { entityType: "overlay" }>,
+    context: Extract<EntityUpdate, { entityType: "overlay" }>,
     changes: FieldChange[],
   ): Promise<void> {
     if (context.changeType === "create") {
@@ -575,7 +564,7 @@ export function useSubmissionService() {
     }
   }
 
-  async function submitEntity(context: SubmissionContext, customReason?: string): Promise<void> {
+  async function submitEntity(context: EntityUpdate, customReason?: string): Promise<void> {
     const validation = validate(context);
     if (!validation.isValid) throw new Error(validation.errors.join(", "));
 
@@ -599,6 +588,8 @@ export function useSubmissionService() {
   ): Promise<void> {
     const overlayObj = overlayStore.overlays[overlayId];
     if (!overlayObj) return;
+
+    const isChangeRequest = overlayObj.status === "approved";
 
     const overlayWithChanges = {
       ...overlayObj,
@@ -625,57 +616,69 @@ export function useSubmissionService() {
     await submitEntity(overlayContext, reason);
 
     pendingModsStore.clearModification(overlayId);
+
+    // submitEntity mutated overlayWithChanges (a copy), not the live store entry, so isModified
+    // hasn't flipped yet. For direct updates we also collapse history so the submitted state
+    // is the new baseline; change requests keep history so the proposal stays visible on
+    // edit-mode re-entry.
+    const updates: Partial<OverlayObject> = { isModified: false };
+    const submittedCorners = mod.corners?.current;
+    if (submittedCorners?.length === 4 && !isChangeRequest) {
+      updates.history = [submittedCorners];
+      updates.redoStack = [];
+      updates.corners = submittedCorners;
+    }
+    overlayStore.updateOverlay(overlayId, updates);
+    const liveOverlay = overlayStore.overlays[overlayId];
+    if (liveOverlay) {
+      updateMarkerTooltip(liveOverlay);
+    }
   }
 
-  async function submitExtendedContext(
-    extCtx: SubmissionContextExtended,
-    reason: string,
-  ): Promise<void> {
-    // Find the associated project to ensure we can publish overlays and use it for references
+  async function publishNewOverlays(overlayIds: string[], project: Project | null): Promise<void> {
+    for (const overlayId of overlayIds) {
+      const overlayObj = overlayStore.overlays[overlayId];
+      if (!overlayObj) continue;
+      await publishOverlay(overlayObj, project);
+      // Collapse history so the just-published state is the new baseline.
+      const publishedCorners = overlayObj.history.at(-1);
+      if (publishedCorners?.length === 4) {
+        overlayStore.updateOverlay(overlayId, {
+          history: [publishedCorners],
+          redoStack: [],
+          corners: publishedCorners,
+        });
+      }
+    }
+  }
+
+  async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
     let project: Project | null = null;
-    if (extCtx.projectId) {
+    if (ctx.projectId) {
       project =
-        projectStore.projects[extCtx.projectId] ??
+        projectStore.projects[ctx.projectId] ??
         (projectStore.userContributions.find(
-          (p) => p.id === extCtx.projectId,
+          (p) => p.id === ctx.projectId,
         ) as unknown as Project) ??
         null;
     }
 
-    // 1. Submit existing overlay modifications first
-    if (extCtx.allProjectModifications && extCtx.allProjectModifications.length > 0) {
-      // Get mods only for *existing* overlays
-      const existMods = extCtx.allProjectModifications.filter(
-        (mod) => !extCtx.newOverlayIds?.includes(mod.overlayId),
-      );
+    const newOverlayIds = ctx.newOverlayIds ?? [];
 
-      for (const mod of existMods) {
-        await submitOverlayModification(mod.overlayId, mod, reason);
-      }
-    } else if (
-      extCtx.pendingOverlayModifications &&
-      extCtx.pendingOverlayModifications.length > 0
-    ) {
-      for (const overlayId of extCtx.pendingOverlayModifications) {
-        const mod = pendingModsStore.getPendingModifications(overlayId);
-        if (!mod) continue;
-        await submitOverlayModification(overlayId, mod, reason);
-      }
+    // 1. Submit caption/corners updates for already-published overlays.
+    const existingMods = (ctx.existingOverlayModifications ?? []).filter(
+      (mod) => !newOverlayIds.includes(mod.overlayId),
+    );
+    for (const mod of existingMods) {
+      await submitOverlayModification(mod.overlayId, mod, reason);
     }
 
-    // 2. Publish new overlays
-    if (extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0) {
-      for (const overlayId of extCtx.newOverlayIds) {
-        const overlayObj = overlayStore.overlays[overlayId];
-        if (overlayObj) {
-          await publishOverlay(overlayObj, project);
-        }
-      }
-    }
+    // 2. Publish brand-new overlays. Also publishes the project lazily if it's still local.
+    await publishNewOverlays(newOverlayIds, project);
 
-    // 3. Submit project metadata changes for existing projects
+    // 3. Submit project metadata changes for already-published projects.
     const isExistingProject = project && project.status !== null;
-    if (extCtx.projectModified && extCtx.projectId && isExistingProject && project) {
+    if (ctx.projectModified && ctx.projectId && isExistingProject && project) {
       const projectContext = createProjectContext(project);
       const projectChanges = detectProjectChanges(projectContext.entity);
       if (projectChanges.length > 0) {
@@ -684,22 +687,9 @@ export function useSubmissionService() {
       }
     }
 
-    // 4. Otherwise, if new project and there were no overlays, just publish the empty project
-    const hasNewOverlays = extCtx.newOverlayIds && extCtx.newOverlayIds.length > 0;
-    if (
-      !hasNewOverlays &&
-      extCtx.entityType === "project" &&
-      extCtx.changeType === "create" &&
-      project?.status === null
-    ) {
+    // 4. Brand-new project with no overlays: publish the project on its own.
+    if (newOverlayIds.length === 0 && ctx.changeType === "create" && project?.status === null) {
       await submitEntity(createProjectContext(project, "create"), reason);
-    }
-  }
-
-  async function submitStandardContext(context: SubmissionContext, reason: string): Promise<void> {
-    await submitEntity(context, reason);
-    if (context.entityType === "project") {
-      projectStore.updateProject(context.entityId, { isModified: false });
     }
   }
 
@@ -707,7 +697,6 @@ export function useSubmissionService() {
     createProjectContext,
     buildSummary,
     validate,
-    submitExtendedContext,
-    submitStandardContext,
+    submitContext,
   };
 }

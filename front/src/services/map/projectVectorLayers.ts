@@ -481,6 +481,17 @@ function getMaplibrePointFromLeafletEvent(
   return mlMap.project([event.latlng.lng, event.latlng.lat]);
 }
 
+// UI overlays (search bar, filter panel, etc) are direct children of the Leaflet container,
+// not inside any .leaflet-pane. Leaflet's mousemove/click still fire when those events bubble
+// up to the container, which triggers vector hover/click on whatever sits under the overlay.
+// Vue's @click.stop / @mousemove.stop on the overlay wrappers is unreliable here (touch->click
+// synthesis, PrimeVue internals), so we filter at the handler instead.
+function isEventOverMapContent(event: L.LeafletMouseEvent): boolean {
+  const target = event.originalEvent?.target;
+  if (!(target instanceof Element)) return true;
+  return target.closest(".leaflet-pane") !== null;
+}
+
 function queryFeaturesAtLeafletEvent(
   event: L.LeafletMouseEvent,
   mlMap: MaplibreMap,
@@ -826,6 +837,18 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       return;
     }
 
+    if (!isEventOverMapContent(event)) {
+      // Cursor is on a UI overlay (search bar, filter panel, etc). Clear any leftover
+      // hover state so the previous highlight doesn't get stuck under the overlay.
+      const mlMap = mlMapGetter();
+      if (mlMap && getExternalHoverId() === null) {
+        setVectorHoverFilters(mlMap, null);
+        setPointHoverFilter(mlMap, null);
+      }
+      clearHoverPreview();
+      return;
+    }
+
     const clientX = event.originalEvent.clientX;
     const clientY = event.originalEvent.clientY;
 
@@ -882,6 +905,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   map.value.on("click", (event: L.LeafletMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
+
+    if (!isEventOverMapContent(event)) return;
 
     clearHoverPreview();
 

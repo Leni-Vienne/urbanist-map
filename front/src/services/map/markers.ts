@@ -129,11 +129,13 @@ export function getOverlayMarkerColor(
     "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
   const isViewingApprovedPosition =
     "isViewingApprovedPosition" in overlayData ? overlayData.isViewingApprovedPosition : undefined;
+  const isTooBig = "isTooBig" in overlayData && overlayData.isTooBig === true;
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
 
-  // Size validation error (only for local overlays - submitted ones passed backend validation)
-  if (mode === "edit" && "isTooBig" in overlayData && hasBeenModified) return "red";
+  // Size validation error: checkOverlaySizeAndWarn only runs on edit events, so isTooBig===true
+  // already implies the user resized the overlay (no need to also check hasBeenModified).
+  if (mode === "edit" && isTooBig) return "red";
 
   // Local replacement overlay (before submission)
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";
