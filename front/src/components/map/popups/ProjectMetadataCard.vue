@@ -48,7 +48,7 @@
         v-if="projectLocationDisplay !== '—' || (editMode && !project.importSourceId)"
         :class="cls.row"
       >
-        <span :class="cls.label">{{ $t("project.location") }}</span>
+        <span :class="cls.label">{{ $t("project.city") }}</span>
         <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
           projectLocationDisplay
         }}</span>

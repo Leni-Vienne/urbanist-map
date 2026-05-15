@@ -12,11 +12,6 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
   const layer = getLayer(overlayObject.id);
   if (!layer) return;
 
-  // Defensive guard: ensure history array exists (can be undefined if factory had a bug)
-  if (!overlayObject.history) {
-    overlayObject.history = [];
-  }
-
   if (overlayObject.history.length > 0) {
     return;
   }

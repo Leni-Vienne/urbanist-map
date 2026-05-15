@@ -116,12 +116,6 @@ export function createLeafletOverlay(
           return;
         }
 
-        // Prevent duplicate adds when renderFullOverlays runs multiple times
-        // before the onAddedToMap callback completes.
-        if (map.value.hasLayer(newOverlay)) {
-          return;
-        }
-
         newOverlay.addTo(map.value);
 
         // Keep the currently-selected overlay on top of this new one.
@@ -259,7 +253,6 @@ function setupOverlayLoadHandler(
 
   L.DomEvent.on(element, "error", () => {
     console.warn("Overlay image failed to load:", overlayObject.id);
-    initQueue.delete(overlayObject.id); // Cancel pending init if error
     registry.cancelCreation(overlayObject.id);
     // Execute callback even on error so the overlay is registered in the store
     // This prevents it from being stuck in a "rendering" state without a store entry
@@ -424,18 +417,9 @@ export function renderViewModeOverlays(
   createMarkers = true,
   onReady?: () => void,
 ): boolean {
-  const overlayStore = useOverlayStore();
-
-  // Render overlays that either:
-  // 1. Don't exist in the store yet (new overlays)
-  // 2. Exist but have null Leaflet layer (need re-rendering after zoom out)
-  const overlaysToRender = viewModeOverlays.filter((cdnOverlay) => {
-    if (!overlayStore.overlays[cdnOverlay.id]) return true;
-    return !registry.hasReadyLayer(cdnOverlay.id);
-  });
-
+  // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
   let anyStarted = false;
-  for (const cdnOverlay of overlaysToRender) {
+  for (const cdnOverlay of viewModeOverlays) {
     if (renderSingleOverlay(cdnOverlay, createMarkers, onReady)) {
       anyStarted = true;
     }
