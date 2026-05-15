@@ -139,9 +139,16 @@ export function useChangeRequests() {
     const overlayStore = useOverlayStore();
     const pendingModsStore = usePendingModificationsStore();
 
-    overlayStore.removeFromEditModeCache(overlayId);
     pendingModsStore.clearModification(overlayId);
+    // Reset history to the approved baseline so re-entering edit mode doesn't restore the edits.
+    overlayStore.updateOverlay(overlayId, {
+      isModified: false,
+      history: overlayObject.corners.length === 4 ? [overlayObject.corners] : [],
+      redoStack: [],
+    });
     overlayObject.isModified = false;
+    overlayObject.history = overlayObject.corners.length === 4 ? [overlayObject.corners] : [];
+    overlayObject.redoStack = [];
     const layer = getLayer(overlayId);
     if (layer && overlayObject.corners.length === 4) {
       const leafletCorners = overlayObject.corners.map((corner) =>

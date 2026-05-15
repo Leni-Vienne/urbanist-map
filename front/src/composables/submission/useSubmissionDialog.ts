@@ -171,9 +171,17 @@ function resetOverlayField(
   const overlayStore = useOverlayStore();
 
   if (field === "corners") {
-    overlayStore.removeFromEditModeCache(overlayId);
-
     const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
+    // Reset history to the baseline so re-entering edit mode doesn't restore the edits.
+    if (cornersToUse.length === 4) {
+      overlayStore.updateOverlay(overlayId, {
+        history: [cornersToUse],
+        redoStack: [],
+      });
+      overlayObject.history = [cornersToUse];
+      overlayObject.redoStack = [];
+    }
+
     const overlayLayer = registry.getLayer(overlayId);
     if (overlayLayer && cornersToUse.length === 4) {
       const leafletCorners = cornersToUse.map((corner) => L.latLng(corner.lat, corner.lng));

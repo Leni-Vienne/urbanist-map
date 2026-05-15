@@ -30,16 +30,17 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
 }
 
 /**
- * Get corners for overlay based on priority: history > coordinates > default
+ * Get corners for overlay based on priority: history > backend corners > layer fallback.
+ * History.at(-1) is the single source of truth for the user's last edited position; it
+ * survives layer pruning because it lives on the OverlayObject in the store.
  */
-function getCornersForOverlay(overlayObject: OverlayObject) {
-  // Priority 1: Use history if available (for undo/redo)
+export function getCornersForOverlay(overlayObject: OverlayObject) {
   if (overlayObject.history.length > 0) {
     const lastCorners = overlayObject.history.at(-1);
     if (lastCorners?.length === 4) return lastCorners;
   }
 
-  // Priority 2: Use corners from overlayObject (skip if all-zero, which indicates a new overlay)
+  // Skip all-zero corners, which indicates a freshly created overlay with no position yet
   if (
     overlayObject.corners.length === 4 &&
     !overlayObject.corners.every((c) => c.lat === 0 && c.lng === 0)
@@ -47,7 +48,6 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
     return overlayObject.corners;
   }
 
-  // Priority 3: Initialize from current overlay state
   const currentCorners = getLayer(overlayObject.id)?.getCorners();
   if (currentCorners?.length === 4) {
     // eslint-disable-next-line prefer-structured-clone
@@ -60,57 +60,23 @@ function getCornersForOverlay(overlayObject: OverlayObject) {
 }
 
 /**
- * Get corners for overlay with edit mode cache fallback
- * This function prioritizes edit mode cached modifications for position persistence
+ * Sync the change-request delta store with the current layer position.
+ * For status === null overlays (new, not yet on the server), history alone holds the
+ * position; no delta is tracked. For approved/pending/rejected overlays, we record the
+ * current vs original corners so the change-request submission flow can read them.
  */
-export function getCornersForOverlayWithCache(overlayObject: OverlayObject) {
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  // Check edit mode cache only if in edit mode
-  // This ensures view mode always uses backend positions, not stale cached positions
-  if (mapStore.mode === "edit") {
-    const cachedModifications = overlayStore.getFromEditModeCache(overlayObject.id);
-    if (cachedModifications?.corners.length === 4) {
-      // Update object history with cached modifications
-      overlayObject.history = [cachedModifications.corners];
-      overlayObject.isModified = cachedModifications.isModified;
-      return cachedModifications.corners;
-    }
-  }
-
-  // Use backend corners (view mode or no cache available)
-  return getCornersForOverlay(overlayObject);
-}
-
-/**
- * Save overlay modifications to edit mode cache for persistence across zoom changes
- * Also saves to pendingModificationsStore for unified modification tracking
- */
-export function saveOverlayModificationsToCache(
-  overlayObject: OverlayObject,
-  forceMode?: "edit",
-): void {
-  const overlayStore = useOverlayStore();
+export function recordOverlayModification(overlayObject: OverlayObject, forceMode?: "edit"): void {
   const pendingModsStore = usePendingModificationsStore();
   const mapStore = useMapStore();
 
   const layer = getLayer(overlayObject.id);
   if ((mapStore.mode !== "edit" && forceMode !== "edit") || !layer) return;
+  if (overlayObject.status === null) return;
+
   const corners = layer.getCorners();
   if (!corners) return;
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
-
-  overlayStore.saveToEditModeCache(overlayObject.id, {
-    corners: mappedCorners,
-    isModified: overlayObject.isModified ?? false,
-  });
-
-  // pendingModificationsStore tracks deltas against server state for the change-request
-  // flow. New overlays (status null) have no server baseline, so their position lives
-  // entirely on the overlay object (corners / history / isModified) until publish.
-  if (overlayObject.status === null) return;
 
   pendingModsStore.saveCornersChange(
     overlayObject.id,
@@ -153,7 +119,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   overlayObject.isModified = true;
 
-  saveOverlayModificationsToCache(overlayObject);
+  recordOverlayModification(overlayObject);
 
   updateMarkerTooltip(overlayObject);
 

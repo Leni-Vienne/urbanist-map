@@ -11,11 +11,10 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
-import { clearAllOverlays } from "@/services/overlay/overlayLifecycle";
+import { clearAllOverlays, clearOverlayLayersOnly } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import {
-  saveAllOverlaysToCache,
   setupKeyboardShortcuts,
   updateOverlayEditingState,
 } from "@/services/overlay/overlayEditing";
@@ -311,17 +310,13 @@ export function useViewportTriggers() {
         // Clear all standalone project markers on mode switch
         clearAllStandaloneProjectMarkers();
 
-        // Save modified overlays before leaving edit mode
-        if (oldMode === "edit") {
-          saveAllOverlaysToCache();
-        }
-
         // Reset bbox tracking on mode switch to force a fresh fetch
         lastBboxKey = "";
 
-        // Switching TO view mode: clear overlays and let vectorTileSync drive rendering.
+        // Switching TO view mode: drop Leaflet refs (tile rendering takes over) but keep
+        // overlay store data so in-progress edits survive the round-trip back to edit mode.
         if (newMode === "view") {
-          clearAllOverlays(false);
+          clearOverlayLayersOnly();
           clearAllProjectShapes();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");

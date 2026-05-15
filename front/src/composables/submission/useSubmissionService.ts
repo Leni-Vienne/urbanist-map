@@ -614,6 +614,16 @@ export function useSubmissionService() {
     await submitEntity(overlayContext, reason);
 
     pendingModsStore.clearModification(overlayId);
+
+    // submitEntity mutates the overlayWithChanges copy passed into createOverlayContext, so the
+    // live store entry never sees isModified flip back to false. Sync it here so the marker
+    // returns to its status color (yellow for pending, green for approved) instead of staying
+    // orange on the next re-render.
+    overlayStore.updateOverlay(overlayId, { isModified: false });
+    const liveOverlay = overlayStore.overlays[overlayId];
+    if (liveOverlay) {
+      updateMarkerTooltip(liveOverlay);
+    }
   }
 
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
