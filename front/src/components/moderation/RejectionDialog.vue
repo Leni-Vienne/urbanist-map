@@ -68,6 +68,7 @@
           rows="3"
           auto-resize
           class="w-full"
+          dir="auto"
         />
       </div>
     </div>

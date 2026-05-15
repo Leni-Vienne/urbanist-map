@@ -22,16 +22,6 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
-// Cache key for getUserContributions (exported for composable use).
-function getUserContributionsCacheKey(options?: {
-  cityId?: number;
-  includeCityProjects?: boolean;
-}): string {
-  const cityId = options?.cityId ?? null;
-  const includeCityProjects = options?.includeCityProjects ?? false;
-  return `${cityId}:${includeCityProjects}`;
-}
-
 export const useProjectStore = defineStore("project", () => {
   const projects = ref<Record<string, Project>>({});
   const selectedProjectId = ref<string | null>(null);
@@ -41,8 +31,7 @@ export const useProjectStore = defineStore("project", () => {
 
   const userContributions = ref<UserContribution[]>([]);
   const userContributionsLoading = ref(false);
-  // "cityId:includeCityProjects" (e.g. "null:false", "3029241:true")
-  const userContributionsCache = ref(new Map<string, UserContribution[]>());
+  const userContributionsLoaded = ref(false);
 
   // Snapshots of projects before local modifications (for change detection / reset)
   const originalProjects = ref<Record<string, Project | UserContribution>>({});
@@ -70,9 +59,9 @@ export const useProjectStore = defineStore("project", () => {
     };
   }
 
-  function setUserContributions(contributions: UserContribution[], cacheKey: string) {
+  function setUserContributions(contributions: UserContribution[]) {
     userContributions.value = contributions;
-    userContributionsCache.value.set(cacheKey, contributions);
+    userContributionsLoaded.value = true;
 
     for (const contribution of contributions) {
       if (!originalProjects.value[contribution.id]) {
@@ -95,7 +84,7 @@ export const useProjectStore = defineStore("project", () => {
     filename: string,
     authorUsername: string | null,
   ) {
-    if (userContributionsCache.value.size === 0) {
+    if (!userContributionsLoaded.value) {
       return;
     }
 
@@ -186,7 +175,7 @@ export const useProjectStore = defineStore("project", () => {
 
   // Optimistically add new project to user contributions without a backend fetch.
   function addProjectToUserContributions(project: Project) {
-    if (userContributionsCache.value.size === 0) {
+    if (!userContributionsLoaded.value) {
       return;
     }
 
@@ -238,7 +227,7 @@ export const useProjectStore = defineStore("project", () => {
     overlayId: string,
     updates: Partial<UserContributionOverlay>,
   ) {
-    if (userContributionsCache.value.size === 0) {
+    if (!userContributionsLoaded.value) {
       return;
     }
 
@@ -268,7 +257,7 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function updateProjectInUserContributions(projectId: string, updates: Partial<UserContribution>) {
-    if (userContributionsCache.value.size === 0) {
+    if (!userContributionsLoaded.value) {
       return;
     }
 
@@ -288,7 +277,7 @@ export const useProjectStore = defineStore("project", () => {
 
   // currentUserId avoids circular dependency with authStore.
   function removeOverlayFromUserContributions(overlayId: string, currentUserId?: string) {
-    if (userContributionsCache.value.size === 0) {
+    if (!userContributionsLoaded.value) {
       return;
     }
 
@@ -317,7 +306,7 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function removeProjectFromUserContributions(projectId: string) {
-    if (userContributionsCache.value.size === 0) {
+    if (!userContributionsLoaded.value) {
       return;
     }
 
@@ -430,7 +419,7 @@ export const useProjectStore = defineStore("project", () => {
 
     userContributions.value = [];
     userContributionsLoading.value = false;
-    userContributionsCache.value.clear();
+    userContributionsLoaded.value = false;
     originalProjects.value = {};
     cityNamesCache.value = {};
     clearCountriesCache();
@@ -443,7 +432,7 @@ export const useProjectStore = defineStore("project", () => {
     countries,
     userContributions,
     userContributionsLoading,
-    userContributionsCache,
+    userContributionsLoaded,
     cityNamesCache,
 
     // Local project actions
@@ -455,7 +444,6 @@ export const useProjectStore = defineStore("project", () => {
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,
-    getUserContributionsCacheKey,
     addOverlayToUserContributions,
     addProjectToUserContributions,
     updateOverlayInUserContributions,

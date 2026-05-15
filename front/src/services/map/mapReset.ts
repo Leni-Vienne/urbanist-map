@@ -3,8 +3,8 @@ import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProje
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 /**
- * Clear all map content (markers, overlays, cache, and state)
- * This is called when switching between countries or logging out
+ * Clear all overlay state and standalone project markers from the map.
+ * Used by change-request preview flows to enter a focused review of a single submission.
  */
 export function clearAllMapContent(): void {
   clearAllOverlays();

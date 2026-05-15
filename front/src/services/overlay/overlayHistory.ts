@@ -12,11 +12,6 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
   const layer = getLayer(overlayObject.id);
   if (!layer) return;
 
-  // Defensive guard: ensure history array exists (can be undefined if factory had a bug)
-  if (!overlayObject.history) {
-    overlayObject.history = [];
-  }
-
   if (overlayObject.history.length > 0) {
     return;
   }
@@ -33,9 +28,16 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
  * Get corners for overlay based on priority: history > backend corners > layer fallback.
  * History.at(-1) is the single source of truth for the user's last edited position; it
  * survives layer pruning because it lives on the OverlayObject in the store.
+ *
+ * Exception: in view mode, approved overlays display at their authoritative backend position.
+ * Their history is still preserved on the OverlayObject so re-entering edit mode restores the
+ * user's in-progress edits.
  */
 export function getCornersForOverlay(overlayObject: OverlayObject) {
-  if (overlayObject.history.length > 0) {
+  const mapStore = useMapStore();
+  const ignoreHistory = mapStore.mode === "view" && overlayObject.status === "approved";
+
+  if (!ignoreHistory && overlayObject.history.length > 0) {
     const lastCorners = overlayObject.history.at(-1);
     if (lastCorners?.length === 4) return lastCorners;
   }

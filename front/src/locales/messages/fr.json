@@ -513,7 +513,6 @@
     "nameTooShort": "Le nom doit contenir au moins {min} caractères",
     "nameTooLong": "Le nom ne doit pas dépasser {max} caractères",
     "descriptionTooLong": "La description ne doit pas dépasser {max} caractères",
-    "cityRequired": "La ville est requise",
     "invalidUrl": "Veuillez saisir une URL valide",
     "proposalDateFuture": "La date de proposition ne peut pas être dans le futur",
     "timelineRequired": "Le projet doit avoir soit une date de proposition, soit une date de début et de fin",

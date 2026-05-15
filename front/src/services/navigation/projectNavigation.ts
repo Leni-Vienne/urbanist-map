@@ -1,6 +1,5 @@
 import L from "leaflet";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { clearAllMapContent } from "@/services/map/countryData";
 import { map } from "@/services/core/map";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -11,28 +10,6 @@ import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { requestScrollTo } from "@/services/layout/accordionState";
-
-/** Update country context and clear map content if switching to a different country. */
-async function prepareNavigationToCountry(countryCode?: string): Promise<void> {
-  if (countryCode) {
-    const mapStore = useMapStore();
-    // Only clear when switching from one DEFINED country to a DIFFERENT country
-    // Don't clear when selectedCountryCode is undefined (global city markers loaded)
-    const isDifferentCountry =
-      mapStore.selectedCountryCode !== null && mapStore.selectedCountryCode !== countryCode;
-
-    // Check if we need to update the country context (new selection or initial selection)
-    const isNewCountryContext = isDifferentCountry || !mapStore.selectedCountryCode;
-
-    if (isNewCountryContext) {
-      if (isDifferentCountry) {
-        clearAllMapContent();
-      }
-
-      mapStore.selectedCountryCode = countryCode;
-    }
-  }
-}
 
 /** Zoom to an overlay and optionally select it once rendered. */
 export function zoomToOverlayAndSelect(
@@ -168,16 +145,9 @@ export function zoomToOverlayAndSelect(
 export async function navigateToStandaloneProject(
   lat: number,
   lng: number,
-  countryCode?: string,
   projectId?: string,
-  cityId?: number | null,
-  cityName?: string | null,
 ): Promise<void> {
   try {
-    if (cityId && cityName) {
-      await prepareNavigationToCountry(countryCode);
-    }
-
     await new Promise<void>(
       (resolve) =>
         void setTimeout(() => {

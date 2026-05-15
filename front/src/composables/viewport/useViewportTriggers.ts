@@ -88,7 +88,6 @@ export function useViewportTriggers() {
 
   /**
    * Fetch overlays + standalone projects in the current viewport bbox.
-   * Replaces the city-based loading path for edit/moderation modes.
    */
   async function fetchViewportData(mode: "edit" | "moderation") {
     const bbox = getMapBbox();
@@ -163,7 +162,7 @@ export function useViewportTriggers() {
         previousZoom < overlayThreshold &&
         zoom >= overlayThreshold;
 
-      // Prune entities (city markers, overlay visibility).
+      // Prune overlays, standalone project markers, and shapes for the current viewport.
       // Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
       if (!crossedLowToHigh) {
         runViewportRenderLoop();

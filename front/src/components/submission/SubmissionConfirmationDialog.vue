@@ -80,6 +80,7 @@
           v-model="changeReason"
           rows="2"
           :placeholder="$t('common.explainChanges')"
+          dir="auto"
         />
       </div>
     </div>

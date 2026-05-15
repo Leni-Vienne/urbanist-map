@@ -164,6 +164,7 @@
             :autoResize="true"
             rows="2"
             class="w-full"
+            dir="auto"
           />
         </div>
       </div>
