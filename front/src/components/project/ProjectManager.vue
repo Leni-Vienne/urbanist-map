@@ -56,7 +56,6 @@ import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
-import { clearAllMapContent } from "@/services/map/countryData";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { addOverlay } from "@/services/overlay/overlayEditing";
@@ -248,9 +247,6 @@ async function displayProjectMarkerAndPopup(
 ) {
   const countryCode = city.countryCode;
   if (countryCode && mapStore.selectedCountryCode !== countryCode) {
-    if (mapStore.selectedCountryCode) {
-      clearAllMapContent();
-    }
     mapStore.selectedCountryCode = countryCode;
   }
 

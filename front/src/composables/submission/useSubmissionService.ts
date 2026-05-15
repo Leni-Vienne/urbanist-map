@@ -167,10 +167,6 @@ function normalizeDatePrecision(
 }
 
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
-  if (!entity.id || entity.id.startsWith("temp-")) {
-    return "create";
-  }
-
   if (entity.status === "pending" || entity.status === "rejected") {
     return "update_pending";
   }

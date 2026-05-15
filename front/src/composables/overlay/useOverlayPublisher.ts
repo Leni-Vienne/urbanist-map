@@ -47,11 +47,6 @@ export function useOverlayPublisher() {
 
   async function ensureProjectOnServer(project: Project): Promise<void> {
     try {
-      // Approved projects already exist on the server; changes go through the change-request flow.
-      if (project.status === "approved") {
-        return;
-      }
-
       const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
       // The backend upserts on the supplied UUID, so projectResult.id always matches project.id.

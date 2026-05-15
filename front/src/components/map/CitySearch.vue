@@ -20,6 +20,7 @@
         :loading="isLoading"
         :dropdown="false"
         name="city-search"
+        :input-props="{ dir: 'auto' }"
       >
         <template #option="{ option }">
           <div class="flex items-center justify-between gap-2 w-full">

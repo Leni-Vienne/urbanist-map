@@ -160,6 +160,7 @@
             class="w-full"
             required
             :invalid="Boolean(usernameError)"
+            dir="auto"
             data-testid="auth-username-input"
           />
           <small v-if="usernameError" class="p-error">{{ usernameError }}</small>

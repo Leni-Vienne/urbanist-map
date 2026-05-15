@@ -508,7 +508,7 @@ export function useSubmissionDialog() {
 
     // Handle removing a NEW overlay completely
     if (field === "new_overlay") {
-      if (overlayObject?.status === null) {
+      if (overlayObject) {
         await deleteOverlayDirect(overlayId);
 
         const extCtx = pendingSubmissionContext.value;

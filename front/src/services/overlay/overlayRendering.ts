@@ -116,12 +116,6 @@ export function createLeafletOverlay(
           return;
         }
 
-        // Prevent duplicate adds when renderFullOverlays runs multiple times
-        // before the onAddedToMap callback completes.
-        if (map.value.hasLayer(newOverlay)) {
-          return;
-        }
-
         newOverlay.addTo(map.value);
 
         // Keep the currently-selected overlay on top of this new one.
@@ -259,7 +253,6 @@ function setupOverlayLoadHandler(
 
   L.DomEvent.on(element, "error", () => {
     console.warn("Overlay image failed to load:", overlayObject.id);
-    initQueue.delete(overlayObject.id); // Cancel pending init if error
     registry.cancelCreation(overlayObject.id);
     // Execute callback even on error so the overlay is registered in the store
     // This prevents it from being stuck in a "rendering" state without a store entry
@@ -424,18 +417,9 @@ export function renderViewModeOverlays(
   createMarkers = true,
   onReady?: () => void,
 ): boolean {
-  const overlayStore = useOverlayStore();
-
-  // Render overlays that either:
-  // 1. Don't exist in the store yet (new overlays)
-  // 2. Exist but have null Leaflet layer (need re-rendering after zoom out)
-  const overlaysToRender = viewModeOverlays.filter((cdnOverlay) => {
-    if (!overlayStore.overlays[cdnOverlay.id]) return true;
-    return !registry.hasReadyLayer(cdnOverlay.id);
-  });
-
+  // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
   let anyStarted = false;
-  for (const cdnOverlay of overlaysToRender) {
+  for (const cdnOverlay of viewModeOverlays) {
     if (renderSingleOverlay(cdnOverlay, createMarkers, onReady)) {
       anyStarted = true;
     }
@@ -524,27 +508,6 @@ function renderSingleOverlay(
       registry.clearLayer(cdnOverlay.id);
       registry.cancelCreation(cdnOverlay.id);
       return;
-    }
-
-    // When createMarkers=false (view mode, vectorTileSync path) the lifecycle is managed
-    // by the idle diff loop, no marker to check. When createMarkers=true (normal path)
-    // use marker presence as the "is the overlay still needed?" gate.
-    if (createMarkers) {
-      const marker = registry.getMarker(cdnOverlay.id);
-      // Marker may be gone if the user panned away or mode switched before image loaded
-      if (!marker) {
-        const layer = registry.getLayer(cdnOverlay.id);
-        if (layer && map.value.hasLayer(layer)) layer.remove();
-        registry.clearLayer(cdnOverlay.id);
-        registry.cancelCreation(cdnOverlay.id);
-        return;
-      }
-
-      // Safety net: re-add the marker if it was removed from the map
-      // during a zoom-out cleanup before the image finished loading.
-      if (!map.value.hasLayer(marker)) {
-        marker.addTo(map.value);
-      }
     }
 
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);

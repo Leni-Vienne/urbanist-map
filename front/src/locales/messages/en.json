@@ -513,7 +513,6 @@
     "nameTooShort": "Name must be at least {min} characters",
     "nameTooLong": "Name must not exceed {max} characters",
     "descriptionTooLong": "Description must not exceed {max} characters",
-    "cityRequired": "City is required",
     "invalidUrl": "Please enter a valid URL",
     "proposalDateFuture": "Proposal date cannot be in the future",
     "timelineRequired": "Project must have either a proposal date or both start and end dates",

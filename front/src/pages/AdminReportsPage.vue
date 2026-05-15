@@ -177,6 +177,7 @@
             rows="3"
             maxlength="500"
             class="w-full"
+            dir="auto"
           />
           <small class="text-muted-color">{{ banReason.length }}/500</small>
         </div>

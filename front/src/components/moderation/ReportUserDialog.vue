@@ -22,6 +22,7 @@
           :placeholder="$t('moderation.reportUser.reasonPlaceholder')"
           rows="3"
           class="w-full"
+          dir="auto"
         />
       </div>
     </div>
