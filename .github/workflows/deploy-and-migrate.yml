@@ -190,6 +190,10 @@ jobs:
           sudo rm -rf ${DEPLOY_DIR}/back/src/routes
           sudo cp -r ./back/src/routes ${DEPLOY_DIR}/back/src/
 
+          # Ensure uploads bind-mount target exists and is owned by the container's bun user (UID 1000).
+          sudo mkdir -p ${DEPLOY_DIR}/uploads
+          sudo chown -R 1000:1000 ${DEPLOY_DIR}/uploads
+
           # Create .env file from GitHub secrets/vars with environment-specific values
           sudo tee ${DEPLOY_DIR}/.env > /dev/null <<EOF
           COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}

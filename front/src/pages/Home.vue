@@ -189,18 +189,6 @@ const isMobile = computed(() => windowWidth.value <= 768);
 
 function updateWindowWidth() {
   windowWidth.value = globalThis.innerWidth;
-
-  // Update mobile overflow constraints when window size changes
-  if (isMobile.value) {
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.body.style.height = "100vh";
-    document.body.style.height = "100dvh";
-  } else {
-    document.documentElement.style.overflow = "";
-    document.body.style.overflow = "";
-    document.body.style.height = "";
-  }
 }
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
@@ -264,14 +252,6 @@ onMounted(async () => {
   maintenanceTickInterval = globalThis.setInterval(() => {
     now.value = new Date();
   }, 30_000);
-
-  // Prevent page scrolling on mobile
-  if (isMobile.value) {
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.body.style.height = "100vh";
-    document.body.style.height = "100dvh";
-  }
 
   overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
 

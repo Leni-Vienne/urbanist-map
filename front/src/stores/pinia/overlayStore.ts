@@ -7,10 +7,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});
   const idSelectedOverlay = ref<string | null>(null);
 
-  // Edit mode overlay cache: stores corner positions and modification flag across zoom changes.
-  type EditModeCache = { corners: { lat: number; lng: number }[]; isModified: boolean };
-  const editModeOverlayCache = ref(new Map<string, EditModeCache>());
-
   const viewModeOverlays = ref<OverlayData[]>([]);
   const loadedEditOverlays = ref(new Set<string>());
 
@@ -25,18 +21,6 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   function clearViewModeOverlays() {
     viewModeOverlays.value = [];
-  }
-
-  function saveToEditModeCache(overlayId: string, data: EditModeCache) {
-    editModeOverlayCache.value.set(overlayId, data);
-  }
-
-  function getFromEditModeCache(overlayId: string): EditModeCache | undefined {
-    return editModeOverlayCache.value.get(overlayId);
-  }
-
-  function removeFromEditModeCache(overlayId: string) {
-    editModeOverlayCache.value.delete(overlayId);
   }
 
   function addOverlay(overlayId: string, overlay: OverlayObject) {
@@ -99,7 +83,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     clearAllLayers(false);
     overlays.value = {};
     idSelectedOverlay.value = null;
-    editModeOverlayCache.value.clear();
     loadedEditOverlays.value.clear();
     resetAllUIStates();
   }
@@ -118,9 +101,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     // Actions
     setViewModeOverlays,
     clearViewModeOverlays,
-    saveToEditModeCache,
-    getFromEditModeCache,
-    removeFromEditModeCache,
     addOverlay,
     updateOverlay,
     batchUpdateOverlays,

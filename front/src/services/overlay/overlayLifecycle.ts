@@ -37,3 +37,16 @@ export function clearAllOverlays(preserveStoreData = false): void {
     }
   }
 }
+
+/**
+ * Tear down all Leaflet image layers and markers while keeping overlay store data intact.
+ * Used when entering view mode: tile-based rendering takes over, but the in-progress edit
+ * state (history, isModified) must survive so the user can switch back without losing work.
+ */
+export function clearOverlayLayersOnly(): void {
+  const overlayStore = useOverlayStore();
+  registry.clearAll(false);
+  if (overlayStore.idSelectedOverlay) {
+    overlayStore.idSelectedOverlay = null;
+  }
+}

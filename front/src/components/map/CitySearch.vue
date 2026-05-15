@@ -19,6 +19,7 @@
         :min-length="1"
         :loading="isLoading"
         :dropdown="false"
+        name="city-search"
       >
         <template #option="{ option }">
           <div class="flex items-center justify-between gap-2 w-full">

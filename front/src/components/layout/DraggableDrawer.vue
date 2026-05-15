@@ -47,7 +47,7 @@
           </div>
 
           <div
-            class="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-content-background"
+            class="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none [&::-webkit-scrollbar]:hidden bg-content-background"
           >
             <slot></slot>
           </div>

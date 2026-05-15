@@ -36,9 +36,10 @@
       content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0"
     />
 
-    <!-- Footer with legal links -->
+    <!-- Footer with legal links. pb adds env(safe-area-inset-bottom) so the OS-reserved
+         area (gesture pill, classic nav bar, home indicator) doesn't overlap the links. -->
     <div
-      class="shrink-0 py-2 px-2 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
+      class="shrink-0 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
     >
       <a
         href="/legal"

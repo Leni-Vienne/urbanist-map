@@ -14,7 +14,7 @@ import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { saveOverlayModificationsToCache } from "@/services/overlay/overlayHistory";
+import { recordOverlayModification } from "@/services/overlay/overlayHistory";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import {
   updateMarkerPosition,
@@ -27,7 +27,8 @@ import * as registry from "@/services/overlay/overlayRenderRegistry";
 
 /**
  * Update overlay editing state when switching modes.
- * Restores cached positions when entering edit mode; saves and resets to backend positions when leaving.
+ * Entering edit mode: restore the user's last edited corners from history.
+ * Leaving edit mode: snap the visible layer back to the approved backend corners (history preserved).
  */
 export async function updateOverlayEditingState(): Promise<void> {
   const overlayStore = useOverlayStore();
@@ -51,41 +52,24 @@ export async function updateOverlayEditingState(): Promise<void> {
     ) as any[];
     layer.setOptions({ actions: modeActions, draggable: isEditMode });
 
-    // When entering edit mode, restore cached corner positions if they exist
+    // isModified is owned by saveToHistory / undo / submission flows; mode transitions
+    // must not write to it (would clobber the cleared state after a submission round-trip).
     if (isEditMode) {
-      const cachedModifications = overlayStore.getFromEditModeCache(overlayObject.id);
-      if (cachedModifications?.corners.length === 4) {
-        const leafletCorners = cachedModifications.corners.map((corner) =>
-          L.latLng(corner.lat, corner.lng),
-        );
+      const lastEdited = overlayObject.history.at(-1);
+      const hasUserEdits = overlayObject.history.length > 1;
+      if (hasUserEdits && lastEdited?.length === 4) {
+        const leafletCorners = lastEdited.map((corner) => L.latLng(corner.lat, corner.lng));
         layer.setCorners(leafletCorners);
-
-        if (overlayObject.history.length === 0) {
-          overlayObject.history = [cachedModifications.corners];
-        }
-        overlayObject.isModified = cachedModifications.isModified;
-
         updateMarkerPosition(overlayObject);
       }
-
-      // When leaving edit mode, FIRST save to cache, THEN reset to backend positions.
-    } else {
-      // Save current position to cache before resetting -- prevents losing the modified position
-      // when switching edit→moderation→edit.
-      if (overlayObject.isModified || overlayObject.history.length > 1) {
-        saveOverlayModificationsToCache(overlayObject);
-      }
-
-      if (overlayObject.corners.length === 4) {
-        const leafletCorners = overlayObject.corners.map((corner) =>
-          L.latLng(corner.lat, corner.lng),
-        );
-        layer.setCorners(leafletCorners);
-        overlayObject.isModified = false;
-
-        // Update marker position to match backend corners
-        updateMarkerPosition(overlayObject);
-      }
+    } else if (overlayObject.corners.length === 4) {
+      // Leaving edit mode: snap the visible layer back to the approved backend position.
+      // History is intentionally preserved so re-entering edit mode restores the user's edits.
+      const leafletCorners = overlayObject.corners.map((corner) =>
+        L.latLng(corner.lat, corner.lng),
+      );
+      layer.setCorners(leafletCorners);
+      updateMarkerPosition(overlayObject);
     }
 
     updateMarkerTooltip(overlayObject);
@@ -99,19 +83,6 @@ export async function updateOverlayEditingState(): Promise<void> {
       }
     });
   }
-}
-
-/**
- * Save all modified overlays to edit mode cache
- * Used before mode switches or bulk updates to prevent data loss
- */
-export function saveAllOverlaysToCache() {
-  const overlayStore = useOverlayStore();
-  Object.values(overlayStore.overlays).forEach((overlayObject) => {
-    if (overlayObject.isModified || overlayObject.history.length > 1) {
-      saveOverlayModificationsToCache(overlayObject, "edit");
-    }
-  });
 }
 
 // Helper to create a new overlay object
@@ -294,8 +265,9 @@ function applyHistoryAction(action: "undo" | "redo") {
 
     layer.setCorners(previousState);
 
-    // Back to initial state on an approved overlay -- mark as unmodified
-    if (history.length === 1 && overlayObject.status === "approved") {
+    // Back to initial state on a submitted overlay (approved/pending/rejected) -- mark as
+    // unmodified so the marker returns to its status color.
+    if (history.length === 1 && overlayObject.status !== null) {
       overlayObject.isModified = false;
     }
   } else {
@@ -311,11 +283,11 @@ function applyHistoryAction(action: "undo" | "redo") {
   updateMarkerPosition(overlayObject);
   updateMarkerTooltip(overlayObject);
 
-  saveOverlayModificationsToCache(overlayObject);
+  recordOverlayModification(overlayObject);
 
-  // On full undo to original state, clear corners from pendingModsStore
-  // (but not caption, which may have its own pending change)
-  if (isUndo && history.length === 1 && overlayObject.status === "approved") {
+  // On full undo to original state, clear corners from pendingModsStore for any submitted
+  // overlay (but not caption, which may have its own pending change).
+  if (isUndo && history.length === 1 && overlayObject.status !== null) {
     const pendingModsStore = usePendingModificationsStore();
     pendingModsStore.clearFieldModification(overlayObject.id, "corners");
   }

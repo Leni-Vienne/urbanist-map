@@ -8,7 +8,7 @@ import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayVal
 import { projectSchema } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
-import { getLayer, renameEntry } from "@/services/overlay/overlayRenderRegistry";
+import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
 // Extract corners from overlay object, falling back to stored corners if layer isn't ready
 function getCornersFromOverlay(overlay: OverlayObject) {
@@ -45,42 +45,28 @@ export function useOverlayPublisher() {
     return true;
   }
 
-  async function ensureProjectOnServer(project: Project): Promise<boolean> {
+  async function ensureProjectOnServer(project: Project): Promise<void> {
     try {
       // Approved projects already exist on the server; changes go through the change-request flow.
       if (project.status === "approved") {
-        return false;
+        return;
       }
 
       const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
-      if (projectResult.id) {
-        const oldProjectId = project.id;
-
-        if (!projectResult.exists && projectResult.id !== oldProjectId) {
-          project.id = projectResult.id;
-
-          const updatedProjects = { ...projectStore.projects };
-          delete updatedProjects[oldProjectId];
-          updatedProjects[projectResult.id] = project;
-          projectStore.projects = updatedProjects;
-
-          return true;
-        }
-
-        if (!projectResult.exists) {
-          projectStore.updateProject(project.id, { status: "pending" });
-          const updatedProject = projectStore.projects[project.id];
-          if (updatedProject) {
-            projectStore.addProjectToUserContributions(updatedProject);
-          }
+      // The backend upserts on the supplied UUID, so projectResult.id always matches project.id.
+      // Newly-inserted projects (exists === false) need their local status flipped to pending and
+      // a contributions-cache entry so the sidebar reflects the submission.
+      if (projectResult.id && !projectResult.exists) {
+        projectStore.updateProject(project.id, { status: "pending" });
+        const updatedProject = projectStore.projects[project.id];
+        if (updatedProject) {
+          projectStore.addProjectToUserContributions(updatedProject);
         }
       }
-
-      return false; // Project ID didn't change
     } catch (error) {
-      const errorMessage = `Failed to publish project "${project.name}" to server: ${error instanceof Error ? error.message : String(error)}`;
-      throw new Error(errorMessage, { cause: error });
+      console.error(`Failed to publish project "${project.name}" to server:`, error);
+      throw error;
     }
   }
 
@@ -126,47 +112,6 @@ export function useOverlayPublisher() {
     }
   }
 
-  function synchronizeOverlayIdChange(
-    overlay: OverlayObject,
-    oldId: string,
-    newId: string,
-    project: Project | null,
-  ): void {
-    // Update overlays store with new key
-    const updatedOverlays = { ...overlayStore.overlays };
-    delete updatedOverlays[oldId];
-    updatedOverlays[newId] = overlay;
-    overlayStore.overlays = updatedOverlays;
-
-    // Move the registry entry (layer + marker) from old ID to new ID
-    renameEntry(oldId, newId);
-
-    // Update project's overlayIds array to use new ID
-    if (project?.id) {
-      const storedProject = projectStore.projects[project.id];
-      if (storedProject) {
-        const overlayIndex = storedProject.overlayIds.indexOf(oldId);
-
-        if (overlayIndex !== -1) {
-          const updatedOverlayIds = [...storedProject.overlayIds];
-          updatedOverlayIds[overlayIndex] = newId;
-
-          const updatedProjects = { ...projectStore.projects };
-          updatedProjects[project.id] = {
-            ...storedProject,
-            overlayIds: updatedOverlayIds,
-          };
-          projectStore.projects = updatedProjects;
-        }
-      }
-    }
-
-    // Update selected overlay ID if this was the selected one
-    if (overlayStore.idSelectedOverlay === oldId) {
-      overlayStore.idSelectedOverlay = newId;
-    }
-  }
-
   function handlePostPublishUpdates(
     overlay: OverlayObject,
     project: Project | null,
@@ -207,13 +152,9 @@ export function useOverlayPublisher() {
     }
 
     try {
-      // For brand-new projects, publish the project first so we have a server-side ID.
-      let projectIdChanged = false;
+      // For brand-new projects, publish the project first so the overlay can reference it.
       if (project?.status === null) {
-        projectIdChanged = await ensureProjectOnServer(project);
-        if (projectIdChanged) {
-          overlay.projectId = project.id;
-        }
+        await ensureProjectOnServer(project);
       }
 
       const filename = await prepareImageForServer(overlay);
@@ -235,10 +176,6 @@ export function useOverlayPublisher() {
       const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
 
       if (publishResult.id) {
-        const oldId = overlay.id;
-        const newId = publishResult.id;
-
-        overlay.id = newId;
         overlay.status = publishResult.status;
         overlay.authorId = publishResult.authorId ?? null;
         overlay.isModified = false;
@@ -248,10 +185,6 @@ export function useOverlayPublisher() {
         overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
         overlay.filename = filename;
 
-        if (oldId !== newId) {
-          synchronizeOverlayIdChange(overlay, oldId, newId, project);
-        }
-
         handlePostPublishUpdates(overlay, project, filename);
       }
 
@@ -259,9 +192,7 @@ export function useOverlayPublisher() {
       // publish response and a refetch would overwrite it with stale backend data.
     } catch (error) {
       console.error("Failed to publish overlay:", error);
-      throw new Error("Publish Failed: Failed to save to server. Please try again.", {
-        cause: error,
-      });
+      throw error;
     }
   }
 

@@ -151,7 +151,7 @@ import { expandAccordionForProject, activeAccordionPanels } from "@/services/lay
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { map } from "@/services/core/map";
 import L from "leaflet";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
@@ -192,7 +192,6 @@ const {
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-const pendingModsStore = usePendingModificationsStore();
 
 const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
 
@@ -356,16 +355,8 @@ async function handleDeleteChangeRequestClick(change: ChangeRequest) {
 }
 
 function isOverlayModified(overlayId: string): boolean {
-  if (pendingModsStore.hasPendingModifications(overlayId)) {
-    return true;
-  }
-
-  const overlayObject = overlayStore.overlays[overlayId];
-  if (!overlayObject) {
-    const cached = overlayStore.getFromEditModeCache(overlayId);
-    return cached?.isModified ?? false;
-  }
-  return overlayObject.isModified ?? false;
+  const overlay = overlayStore.overlays[overlayId];
+  return overlay ? isOverlayUnsaved(overlay) : false;
 }
 
 function handleEditOverlayClick(overlay: OverlayForModeration) {
@@ -389,27 +380,12 @@ function handleAddImageToProject(project: ProjectForModeration) {
 
 // Check if project or any of its overlays is modified
 function isProjectModified(projectId: string): boolean {
-  // First check if the project itself is modified (from edit form)
   const projectInStore = projectStore.projects[projectId];
-  if (projectInStore?.isModified) return true;
+  if (projectInStore && isProjectUnsaved(projectInStore)) return true;
 
-  // Check for any pending modifications in the unified store (matches infopopup logic)
-  if (pendingModsStore.getModificationCountForProject(projectId) > 0) {
-    return true;
-  }
-
-  // Check for NEW overlays in overlayStore (status null, never submitted)
-  // This catches overlays that were just added but not yet moved
-  const hasNewOverlays = Object.values(overlayStore.overlays).some(
-    (overlay) => overlay.projectId === projectId && overlay.status === null,
-  );
-  if (hasNewOverlays) return true;
-
-  // Also check all overlays for this project from displayed projects
+  // UserContribution.overlays may reference overlays in the live store under the same id.
   const project = displayedProjects.value.find((p: UserContribution) => p.id === projectId);
-  if (!project?.overlays) return false;
-
-  return project.overlays.some((overlay: UserContributionOverlay) => isOverlayModified(overlay.id));
+  return project?.overlays?.some((o: UserContributionOverlay) => isOverlayModified(o.id)) ?? false;
 }
 
 async function handleSaveProjectClick(project: ProjectForModeration) {

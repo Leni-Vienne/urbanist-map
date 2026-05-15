@@ -30,15 +30,14 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
     }
   }
 
-  // Check edit mode cache to determine if overlay has been modified locally
-  const cachedModifications =
-    mapStore.mode === "edit" ? overlayStore.getFromEditModeCache(savedOverlay.id) : undefined;
+  // In edit mode, prefer the live OverlayObject's isModified flag so marker color
+  // reflects user edits even before the savedOverlay snapshot has been refreshed.
+  const liveOverlay = mapStore.mode === "edit" ? overlayStore.overlays[savedOverlay.id] : undefined;
 
   return createOverlayObject({
     ...savedOverlay,
     project: project ?? null,
     corners: savedOverlay.corners,
-    // Set isModified flag based on edit mode cache for proper marker color
-    isModified: cachedModifications?.isModified ?? savedOverlay.isModified,
+    isModified: liveOverlay?.isModified ?? savedOverlay.isModified,
   });
 }
