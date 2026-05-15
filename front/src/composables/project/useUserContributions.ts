@@ -138,34 +138,21 @@ export function useUserContributions() {
     return result;
   });
 
-  async function fetchUserContributions(options?: {
-    cityId?: number;
-    includeCityProjects?: boolean;
-  }) {
+  async function fetchUserContributions() {
     const authStore = useAuthStore();
     if (!authStore.user) return;
 
-    const cacheKey = projectStore.getUserContributionsCacheKey(options);
-
-    if (projectStore.userContributionsCache.has(cacheKey)) {
-      projectStore.userContributions = projectStore.userContributionsCache.get(cacheKey) ?? [];
-      return;
-    }
+    if (projectStore.userContributionsLoaded) return;
 
     projectStore.setUserContributionsLoading(true);
     try {
       const result = await withErrorHandling(
-        async () =>
-          trpc.project.getUsersContributions.query({
-            limit: 50,
-            cityId: options?.cityId,
-            includeCityProjects: options?.includeCityProjects,
-          }),
+        async () => trpc.project.getUsersContributions.query({ limit: 50 }),
         { errorMessage: "Failed to load contributions. Please refresh the page." },
       );
 
       if (result) {
-        projectStore.setUserContributions(result.projects, cacheKey);
+        projectStore.setUserContributions(result.projects);
       }
     } finally {
       projectStore.setUserContributionsLoading(false);

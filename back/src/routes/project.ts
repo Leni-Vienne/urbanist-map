@@ -316,66 +316,16 @@ export const projectRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(100).optional().default(50),
-        cursor: z.string().uuid().optional(),
+        cursor: z.uuid().optional(),
         sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("updatedAt"),
-        cityId: z.number().optional(),
-        countryCode: z.string().length(3).optional(),
-        includeCityProjects: z.boolean().optional(), // When true + cityId provided, return ALL city projects
       }),
     )
     .query(async ({ input, ctx }) => {
       try {
-        if (input.includeCityProjects && input.cityId) {
-          // Query ALL projects in the city (approved OR user's pending)
-          const cityProjects = await buildProjectWithLocationQuery(db)
-            .where(
-              and(
-                eq(projects.cityId, input.cityId),
-                or(
-                  eq(projects.status, "approved"),
-                  and(eq(projects.status, "pending"), eq(projects.ownerId, ctx.user.id)),
-                ),
-              ),
-            )
-            .orderBy(sql`${projects.updatedAt} DESC`)
-            .limit(input.limit);
-
-          const projectIds = cityProjects.map((p) => p.id);
-          let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
-
-          if (projectIds.length > 0) {
-            // Get overlays for these projects (approved OR user's own)
-            projectOverlays = await buildOverlayModerationQuery(db)
-              .where(
-                and(
-                  inArray(overlays.projectId, projectIds),
-                  or(eq(overlays.status, "approved"), eq(overlays.authorId, ctx.user.id)),
-                ),
-              )
-              .orderBy(overlays.updatedAt);
-          }
-
-          const projectsWithOverlays = cityProjects.map((project) => {
-            const projectOverlaysList = projectOverlays.filter(
-              (overlay) => overlay.projectId === project.id,
-            );
-            return Object.assign({}, project, {
-              overlays: projectOverlaysList,
-              overlayCount: projectOverlaysList.length,
-            });
-          });
-
-          return {
-            projects: projectsWithOverlays,
-            pagination: { hasMore: false, nextCursor: null }, // No pagination for city projects
-          };
-        }
-
         const sortColumn = input.sortBy === "createdAt" ? projects.createdAt : projects.updatedAt;
 
-        // Build pagination conditions using shared helper
         const paginationConditions = await buildPaginationConditions(
-          { cityId: input.cityId, countryCode: input.countryCode, cursor: input.cursor },
+          { cursor: input.cursor },
           sortColumn,
         );
 
