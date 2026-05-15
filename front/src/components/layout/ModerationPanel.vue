@@ -282,7 +282,6 @@ onMounted(async () => {
 });
 
 // Load data for a specific country (stores, fly-to)
-// City markers are managed globally by the mode watcher, no need to reload per country
 function loadCountryData(countryCode: string | null, shouldFly = true) {
   // Sync local ref if needed (e.g. when called from watcher/mounted)
   if (selectedCountryCode.value !== countryCode) {
@@ -315,15 +314,13 @@ async function handleCountryChange() {
   await fetchPendingSubmissions();
 }
 
-// Watch for external changes to moderationStore.selectedCountryCode (e.g., from city marker clicks)
-// This ensures the moderation panel loads data when country is selected from the map
+// Keep the moderation panel in sync when the country is set externally (e.g., from a map click).
 watch(
   () => moderationStore.selectedCountryCode,
   (newCountryCode) => {
     if (newCountryCode !== selectedCountryCode.value) {
       selectedCountryCode.value = newCountryCode;
       if (newCountryCode) {
-        // Use shared loader to ensure city markers are loaded too
         loadCountryData(newCountryCode);
         fetchPendingSubmissions();
       }
