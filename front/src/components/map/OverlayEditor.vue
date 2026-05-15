@@ -24,6 +24,7 @@
               v-model="editingInfo.caption"
               class="w-full p-3"
               autocomplete="off"
+              dir="auto"
             />
             <label for="overlay-name-input" class="text-(--p-text-color-secondary)">{{
               $t("common.name")

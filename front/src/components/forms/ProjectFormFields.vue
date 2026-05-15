@@ -11,6 +11,7 @@
           required
           minlength="8"
           autocomplete="off"
+          dir="auto"
           @blur="handleNameBlur"
           @input="handleNameInput"
         />
@@ -35,6 +36,7 @@
           v-model="localFormData.description"
           :class="getInputClass('description')"
           rows="2"
+          dir="auto"
           @blur="handleDescriptionBlur"
           @input="handleDescriptionInput"
         />
