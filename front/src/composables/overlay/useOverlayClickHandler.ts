@@ -158,13 +158,6 @@ async function navigateToReplacedOrRejectedOverlay(
   const project = contributions.projects.find((p) => p.id === overlay.projectId);
 
   if (project?.lat && project.lng) {
-    await navigateToStandaloneProject(
-      project.lat,
-      project.lng,
-      project.countryCode ?? undefined,
-      project.id,
-      project.cityId,
-      project.cityName,
-    );
+    await navigateToStandaloneProject(project.lat, project.lng, project.id);
   }
 }

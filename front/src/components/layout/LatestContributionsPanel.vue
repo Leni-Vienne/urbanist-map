@@ -197,12 +197,7 @@ async function handleContributionClick(contribution: LatestContribution) {
         void handleProjectClickFromTile(contribution.id, popupLatLng);
       });
     } else if (contribution.lat && contribution.lng) {
-      await navigateToStandaloneProject(
-        contribution.lat,
-        contribution.lng,
-        contribution.countryCode ?? undefined,
-        contribution.id,
-      );
+      await navigateToStandaloneProject(contribution.lat, contribution.lng, contribution.id);
     }
   }
 }

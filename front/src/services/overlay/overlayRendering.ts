@@ -510,27 +510,6 @@ function renderSingleOverlay(
       return;
     }
 
-    // When createMarkers=false (view mode, vectorTileSync path) the lifecycle is managed
-    // by the idle diff loop, no marker to check. When createMarkers=true (normal path)
-    // use marker presence as the "is the overlay still needed?" gate.
-    if (createMarkers) {
-      const marker = registry.getMarker(cdnOverlay.id);
-      // Marker may be gone if the user panned away or mode switched before image loaded
-      if (!marker) {
-        const layer = registry.getLayer(cdnOverlay.id);
-        if (layer && map.value.hasLayer(layer)) layer.remove();
-        registry.clearLayer(cdnOverlay.id);
-        registry.cancelCreation(cdnOverlay.id);
-        return;
-      }
-
-      // Safety net: re-add the marker if it was removed from the map
-      // during a zoom-out cleanup before the image finished loading.
-      if (!map.value.hasLayer(marker)) {
-        marker.addTo(map.value);
-      }
-    }
-
     overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
 
     // Update the tooltip here rather than in createSingleMarker, because the mode may have
