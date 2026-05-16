@@ -65,10 +65,6 @@ export function useModeration() {
     }
   }
 
-  function resetModerationLoaded() {
-    moderationStore.resetModerationLoaded();
-  }
-
   // Generic approval handler for any moderation item type
   async function setApprovalStatus(
     id: string,
@@ -123,7 +119,7 @@ export function useModeration() {
     }
 
     if (!result.success) {
-      resetModerationLoaded();
+      moderationStore.resetModerationLoaded();
       await fetchPendingSubmissions();
       return {
         success: false,
@@ -132,7 +128,7 @@ export function useModeration() {
       };
     }
 
-    resetModerationLoaded();
+    moderationStore.resetModerationLoaded();
     await fetchPendingSubmissions();
 
     return {
@@ -276,14 +272,12 @@ export function useModeration() {
   }
 
   return {
-    overlays,
     projects,
     changeRequests,
     approveOverlay,
     rejectOverlay,
     approveProject,
     rejectProject,
-    resetModerationLoaded,
     fetchPendingSubmissions,
   };
 }

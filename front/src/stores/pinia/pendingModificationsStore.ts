@@ -1,6 +1,6 @@
 // Single source of truth for pending overlay changes (position, caption) across all UI surfaces.
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import type { ApprovalStatus } from "@shared/types";
 
 type CornersChange = {
@@ -78,11 +78,6 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     return [...modifications.value.values()].filter((mod) => mod.projectId === projectId);
   }
 
-  // Returns the count of modified overlays for a project (for UI indicators).
-  function getModificationCountForProject(projectId: string): number {
-    return getModificationsForProject(projectId).length;
-  }
-
   // Removes one field from a modification. Returns false if no modifications remain.
   function clearFieldModification(overlayId: string, field: "caption" | "corners"): boolean {
     const existing = modifications.value.get(overlayId);
@@ -106,22 +101,12 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     modifications.value.delete(overlayId);
   }
 
-  const hasAnyModifications = computed(() => modifications.value.size > 0);
-
   return {
-    // State
-    modifications,
-
-    // Getters
-    hasAnyModifications,
-
-    // Actions
     saveCornersChange,
     saveCaptionChange,
     hasPendingModifications,
     getPendingModifications,
     getModificationsForProject,
-    getModificationCountForProject,
     clearFieldModification,
     clearModification,
   };

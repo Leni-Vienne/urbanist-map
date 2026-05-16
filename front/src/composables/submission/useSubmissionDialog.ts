@@ -69,20 +69,49 @@ function buildOverlayModificationChanges(
   return changes;
 }
 
+// Helper to get image URL for new overlays
+// OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
+function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
+  if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
+  if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
+  return undefined;
+}
+
+function determineSubmissionAction(
+  projectIsNew: boolean,
+  requiresModeration: boolean,
+  projectHasChanges: boolean,
+  newOverlayIds: string[],
+): string {
+  if (projectIsNew) return t("project.publish");
+  if (requiresModeration) return t("submission.submitChangeRequest");
+  if (projectHasChanges) return t("submission.updateProject");
+  if (newOverlayIds.length > 0) return t("overlay.publishOverlay");
+  return t("submission.updateOverlays");
+}
+
+function getSuccessMessage(changeType: string): string {
+  if (changeType === "update_approved") return t("submission.changeRequestSubmitted");
+  if (changeType === "update_pending") return t("submission.changesSaved");
+  return t("submission.submissionSuccessful");
+}
+
+function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
+  const ctx = pendingSubmissionContext.value;
+  if (!ctx) return;
+  if (ctx.existingOverlayModifications) {
+    ctx.existingOverlayModifications = ctx.existingOverlayModifications.filter(
+      (mod) => mod.overlayId !== overlayId,
+    );
+  }
+}
+
 // Build changes for NEW overlays (status is null, never submitted to backend)
 function buildNewOverlayChanges(
   newOverlayIds: string[],
   overlays: Record<string, OverlayObject | OverlayForModeration>,
 ): SubmissionChange[] {
   const changes: SubmissionChange[] = [];
-
-  // Helper to get image URL for new overlays
-  // OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
-  function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
-    if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
-    if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
-    return undefined;
-  }
 
   for (const overlayId of newOverlayIds) {
     const overlay = overlays[overlayId];
@@ -269,19 +298,6 @@ export function useSubmissionDialog() {
     );
   }
 
-  function determineSubmissionAction(
-    projectIsNew: boolean,
-    requiresModeration: boolean,
-    projectHasChanges: boolean,
-    newOverlayIds: string[],
-  ): string {
-    if (projectIsNew) return t("project.publish");
-    if (requiresModeration) return t("submission.submitChangeRequest");
-    if (projectHasChanges) return t("submission.updateProject");
-    if (newOverlayIds.length > 0) return t("overlay.publishOverlay");
-    return t("submission.updateOverlays");
-  }
-
   // Prepare combined project+overlay submission. Used by both ContributePanel and InfoPopup.
   function prepareProjectWithOverlaysSubmission(
     project: Project | ProjectForModeration,
@@ -438,12 +454,6 @@ export function useSubmissionDialog() {
     uiStore.submissionDialogVisible = true;
   }
 
-  function getSuccessMessage(changeType: string): string {
-    if (changeType === "update_approved") return t("submission.changeRequestSubmitted");
-    if (changeType === "update_pending") return t("submission.changesSaved");
-    return t("submission.submissionSuccessful");
-  }
-
   function handleSubmissionSuccess(context: SubmissionContext): void {
     const message = getSuccessMessage(context.changeType);
 
@@ -488,16 +498,6 @@ export function useSubmissionDialog() {
     uiStore.submissionDialogVisible = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
-  }
-
-  function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
-    const ctx = pendingSubmissionContext.value;
-    if (!ctx) return;
-    if (ctx.existingOverlayModifications) {
-      ctx.existingOverlayModifications = ctx.existingOverlayModifications.filter(
-        (mod) => mod.overlayId !== overlayId,
-      );
-    }
   }
 
   async function handleRemoveOverlayChange(

@@ -250,11 +250,12 @@ export const viewportRouter = router({
         const whereConditions = [
           bboxCondition,
           // In edit mode: only return the user's own non-approved projects (pending/rejected/null).
-          // Approved projects are already in the cluster source (/api/projects/points) which runs
-          // in all modes. Returning approved here would cause duplicates in the cluster source merge.
+          // In moderation mode: only return projects that need moderator attention (strict).
+          // Approved projects with no pending content are already in the MVT vector layer,
+          // returning them here would duplicate markers and shapes against the tile layer.
           mode === "edit"
             ? sql`(${projects.ownerId} = ${ctx.user.id} AND ${projects.status} != 'approved')`
-            : buildProjectVisibilityCondition(ctx.user, mode, false),
+            : buildProjectVisibilityCondition(ctx.user, mode),
         ];
 
         const projectsData = await db

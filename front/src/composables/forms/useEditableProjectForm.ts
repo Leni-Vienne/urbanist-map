@@ -70,7 +70,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const toast = useToast();
 
   const isSubmitting = ref(false);
-  const changeReason = ref("");
 
   // originalData is the comparison baseline; formData is what the user edits
   const originalData = reactive({ ...options.initialData }) as ProjectFormData;
@@ -87,7 +86,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
   function resetChanges() {
     Object.assign(formData, originalData);
-    changeReason.value = "";
   }
 
   function getChangesToSubmit(): FieldChange[] {
@@ -101,7 +99,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
           fieldName,
           oldValue: serializeValue(originalData[fieldName]),
           newValue: serializeValue(formData[fieldName]),
-          changeReason: changeReason.value,
         });
       }
     }
@@ -122,15 +119,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       severity: "success",
       summary: t("submission.changeRequestSubmitted"),
       detail: t("submission.changeRequestSubmitted"),
-      life: 3000,
-    });
-  }
-
-  function showErrorToast() {
-    toast.add({
-      severity: "error",
-      summary: t("toast.submissionFailed"),
-      detail: t("moderation.rejectionFailedDetail"),
       life: 3000,
     });
   }
@@ -297,7 +285,12 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       options.onClose?.();
     } catch (error) {
       console.error("Failed to submit changes:", error);
-      showErrorToast();
+      toast.add({
+        severity: "error",
+        summary: t("toast.submissionFailed"),
+        detail: t("moderation.rejectionFailedDetail"),
+        life: 3000,
+      });
     } finally {
       isSubmitting.value = false;
     }
@@ -306,13 +299,11 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   return {
     formData,
     originalData,
-    changeReason,
     isSubmitting,
     hasChanges,
     hasChanged,
     resetChanges,
     getFieldClasses,
-    showErrorToast,
     submitChanges,
   };
 }

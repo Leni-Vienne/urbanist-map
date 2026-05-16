@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
@@ -167,7 +168,9 @@ function tagChipStyle(slug: string): Record<string, string> {
   return { backgroundColor: tag.color, color: tag.textColor };
 }
 
-const { isScrollable } = useScrollFade();
+const scrollAreaRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
+const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 </script>
 
 <style scoped>

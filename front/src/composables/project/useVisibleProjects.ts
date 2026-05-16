@@ -471,7 +471,6 @@ export function useVisibleProjects() {
     sortMode,
     sortReverse,
     isReady,
-    refresh: scheduleRefresh,
     navigateToProject,
     hoverProject,
   };
