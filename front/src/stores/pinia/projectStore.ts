@@ -7,7 +7,6 @@ import type {
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
-import type { AppMode } from "@shared/types";
 import { createProjectObject, createProjectFromUserContribution } from "@/utils/typeFactories";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -24,10 +23,7 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
 
 export const useProjectStore = defineStore("project", () => {
   const projects = ref<Record<string, Project>>({});
-  const selectedProjectId = ref<string | null>(null);
   const countries = ref<Country[]>([]);
-
-  const countriesCache = ref(new Map<AppMode, Country[]>());
 
   const userContributions = ref<UserContribution[]>([]);
   const userContributionsLoading = ref(false);
@@ -396,40 +392,19 @@ export const useProjectStore = defineStore("project", () => {
     return didReset;
   }
 
-  function getCachedCountries(mode: AppMode): Country[] | null {
-    return countriesCache.value.get(mode) ?? null;
-  }
-
-  function setCachedCountries(mode: AppMode, countriesData: Country[]): void {
-    countriesCache.value.set(mode, countriesData);
-  }
-
-  function hasCachedCountries(mode: AppMode): boolean {
-    return countriesCache.value.has(mode);
-  }
-
-  function clearCountriesCache(): void {
-    countriesCache.value.clear();
-  }
-
   // Clear user-specific state on logout or account switch.
   function clearAllState(): void {
     projects.value = {};
-    selectedProjectId.value = null;
-
     userContributions.value = [];
     userContributionsLoading.value = false;
     userContributionsLoaded.value = false;
     originalProjects.value = {};
     cityNamesCache.value = {};
-    clearCountriesCache();
   }
 
   return {
     // State
     projects,
-    selectedProjectId,
-    countries,
     userContributions,
     userContributionsLoading,
     userContributionsLoaded,
@@ -450,11 +425,6 @@ export const useProjectStore = defineStore("project", () => {
     updateProjectInUserContributions,
     removeOverlayFromUserContributions,
     removeProjectFromUserContributions,
-
-    // Countries cache actions
-    getCachedCountries,
-    setCachedCountries,
-    hasCachedCountries,
 
     // Comprehensive cleanup
     clearAllState,

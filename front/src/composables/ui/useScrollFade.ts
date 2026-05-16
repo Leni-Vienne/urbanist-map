@@ -1,8 +1,9 @@
-import { ref, watch, onMounted, onActivated, onBeforeUnmount } from "vue";
+import { ref, watch, onMounted, onActivated, onBeforeUnmount, type Ref } from "vue";
 
-export function useScrollFade() {
-  const scrollAreaRef = ref<HTMLElement | null>(null);
-  const contentRef = ref<HTMLElement | null>(null);
+export function useScrollFade(
+  scrollAreaRef: Ref<HTMLElement | null>,
+  contentRef: Ref<HTMLElement | null>,
+) {
   const isScrollable = ref(false);
 
   function updateScrollable() {
@@ -31,5 +32,5 @@ export function useScrollFade() {
     }
   });
 
-  return { scrollAreaRef, contentRef, isScrollable };
+  return { isScrollable };
 }

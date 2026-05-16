@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
-import { useUnsavedChanges } from "@/composables/core/useUnsavedChanges";
+import { hasUnsavedChanges } from "@/composables/core/useUnsavedChanges";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
@@ -144,8 +144,6 @@ function toggleMenu(event: Event) {
   userPopover.value.toggle(event);
   isMenuOpen.value = !isMenuOpen.value;
 }
-
-const { hasUnsavedChanges } = useUnsavedChanges();
 
 async function handleSignOut() {
   if (hasUnsavedChanges()) {

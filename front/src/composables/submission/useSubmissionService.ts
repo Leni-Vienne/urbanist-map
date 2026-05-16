@@ -692,7 +692,6 @@ export function useSubmissionService() {
   return {
     createProjectContext,
     buildSummary,
-    validate,
     submitContext,
   };
 }

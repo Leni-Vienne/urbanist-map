@@ -113,7 +113,6 @@ async function fetchEntity(id: string, lang: string): Promise<WikidataEntity | n
 export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
   const { locale } = useI18n();
   const entity = ref<WikidataEntity | null>(null);
-  const loading = ref(false);
 
   watch(
     [wikidataId, locale],
@@ -137,7 +136,6 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
         return;
       }
 
-      loading.value = true;
       const promise = fetchEntity(id, lang);
       pending.set(cacheKey, promise);
       try {
@@ -145,12 +143,11 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
         cache.set(cacheKey, result);
         entity.value = result;
       } finally {
-        loading.value = false;
         pending.delete(cacheKey);
       }
     },
     { immediate: true },
   );
 
-  return { entity, loading };
+  return { entity };
 }

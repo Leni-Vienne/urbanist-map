@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onActivated, onBeforeUnmount } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   canModerateCountry,
@@ -102,6 +102,7 @@ import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
+import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
   navigateToStandaloneProject,
   zoomToOverlayAndSelect,
@@ -204,33 +205,10 @@ async function handleContributionClick(contribution: LatestContribution) {
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
-const isScrollable = ref(false);
-
-function updateScrollable() {
-  const el = scrollAreaRef.value;
-  if (el) isScrollable.value = el.scrollHeight > el.clientHeight;
-}
-
-const scrollObserver = new ResizeObserver(updateScrollable);
+const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
 onMounted(() => {
-  if (scrollAreaRef.value) scrollObserver.observe(scrollAreaRef.value);
   fetchLatestContributions();
-  updateScrollable();
-});
-
-onActivated(updateScrollable);
-
-onBeforeUnmount(() => scrollObserver.disconnect());
-
-watch(contentRef, (el, oldEl) => {
-  if (oldEl) scrollObserver.unobserve(oldEl);
-  if (el) {
-    scrollObserver.observe(el);
-    updateScrollable();
-  } else {
-    isScrollable.value = false;
-  }
 });
 </script>
 

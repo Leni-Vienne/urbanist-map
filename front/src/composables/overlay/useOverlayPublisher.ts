@@ -20,6 +20,48 @@ function getCornersFromOverlay(overlay: OverlayObject) {
   return overlay.corners;
 }
 
+// Images upload to local storage first and migrate to R2 only after moderator approval.
+async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
+  if (overlay.imageUrl.startsWith("data:")) {
+    const response = await fetch(overlay.imageUrl);
+    const blob = await response.blob();
+
+    const MAX_FILE_SIZE_MB = 10;
+    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+    if (blob.size > MAX_FILE_SIZE_BYTES) {
+      throw new Error(t("upload.fileTooLarge", { maxSize: MAX_FILE_SIZE_MB }));
+    }
+
+    const file = new File([blob], "overlay-image.webp", { type: blob.type || "image/webp" });
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("Failed to upload image to server");
+    }
+    const uploadResult: { filename: string } = await uploadResponse.json();
+
+    return uploadResult.filename;
+  } else {
+    // Extract filename from existing server URL
+    const urlParts = overlay.imageUrl.split("/");
+    const filename = urlParts[urlParts.length - 1];
+
+    if (!filename) {
+      throw new Error("Could not extract filename from URL");
+    }
+
+    return filename;
+  }
+}
+
 export function useOverlayPublisher() {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
@@ -62,48 +104,6 @@ export function useOverlayPublisher() {
     } catch (error) {
       console.error(`Failed to publish project "${project.name}" to server:`, error);
       throw error;
-    }
-  }
-
-  // Images upload to local storage first and migrate to R2 only after moderator approval.
-  async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
-    if (overlay.imageUrl.startsWith("data:")) {
-      const response = await fetch(overlay.imageUrl);
-      const blob = await response.blob();
-
-      const MAX_FILE_SIZE_MB = 10;
-      const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-      if (blob.size > MAX_FILE_SIZE_BYTES) {
-        throw new Error(t("upload.fileTooLarge", { maxSize: MAX_FILE_SIZE_MB }));
-      }
-
-      const file = new File([blob], "overlay-image.webp", { type: blob.type || "image/webp" });
-
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const uploadResponse = await fetch(`${getApiUrl()}/api/upload-image`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload image to server");
-      }
-      const uploadResult: { filename: string } = await uploadResponse.json();
-
-      return uploadResult.filename;
-    } else {
-      // Extract filename from existing server URL
-      const urlParts = overlay.imageUrl.split("/");
-      const filename = urlParts[urlParts.length - 1];
-
-      if (!filename) {
-        throw new Error("Could not extract filename from URL");
-      }
-
-      return filename;
     }
   }
 

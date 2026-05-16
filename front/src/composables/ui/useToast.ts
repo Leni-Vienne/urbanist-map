@@ -12,24 +12,12 @@ interface ToastMessage {
 
 interface ToastServiceMethods {
   add(message: ToastMessage): void;
-  remove(message: ToastMessage): void;
-  removeGroup(group: string): void;
-  removeAllGroups(): void;
 }
 
 export function useToast(): ToastServiceMethods {
   return {
     add: (message) => {
       ToastEventBus.emit("add", message);
-    },
-    remove: (message) => {
-      ToastEventBus.emit("remove", message);
-    },
-    removeGroup: (group) => {
-      ToastEventBus.emit("remove-group", group);
-    },
-    removeAllGroups: () => {
-      ToastEventBus.emit("remove-all-groups");
     },
   };
 }

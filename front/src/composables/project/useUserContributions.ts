@@ -12,15 +12,21 @@ import {
   createLocalProjectContributionWithOverlays,
 } from "@/utils/projectFactories";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
-
 import type { UserContribution } from "@/types/index";
+
+async function deleteOverlay(overlayId: string): Promise<boolean> {
+  // Delegate to deleteOverlayDirect with composable-appropriate options
+  return deleteOverlayDirect(overlayId, {
+    showToast: true,
+    updateUserContributions: true,
+  });
+}
 
 export function useUserContributions() {
   const projectStore = useProjectStore();
   const toast = useToast();
 
   const isLoading = computed(() => projectStore.userContributionsLoading);
-  const projects = computed(() => projectStore.userContributions);
 
   /**
    * Merged contributions combining backend data with local-only projects/overlays
@@ -159,14 +165,6 @@ export function useUserContributions() {
     }
   }
 
-  async function deleteOverlay(overlayId: string): Promise<boolean> {
-    // Delegate to deleteOverlayDirect with composable-appropriate options
-    return deleteOverlayDirect(overlayId, {
-      showToast: true,
-      updateUserContributions: true,
-    });
-  }
-
   async function deleteProject(projectId: string): Promise<boolean> {
     try {
       // Get project to check if it's local-only (not submitted to backend)
@@ -212,7 +210,6 @@ export function useUserContributions() {
 
   return {
     isLoading,
-    projects,
     fetchUserContributions,
     deleteOverlay,
     deleteProject,

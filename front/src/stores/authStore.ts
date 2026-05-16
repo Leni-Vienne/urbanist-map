@@ -100,6 +100,95 @@ function createOAuthCallbackHandler<TResponse>(options: {
   };
 }
 
+// Sign up with email and password
+async function signUp(email: string, password: string, username: string, captchaToken?: string) {
+  try {
+    const result = await trpc.auth.register.mutate({
+      email,
+      password,
+      username,
+      captchaToken,
+    });
+
+    return {
+      success: result.success,
+      user: result.user,
+      error: result.success ? null : result.message,
+    };
+  } catch (error: unknown) {
+    console.error("Sign up error:", error);
+    return {
+      success: false,
+      user: null,
+      error: error instanceof Error ? error.message : "Registration failed",
+    };
+  }
+}
+
+// Verify email
+async function verifyEmail(token: string) {
+  try {
+    const result = await trpc.auth.verifyEmail.mutate({ token });
+    return {
+      success: result.success,
+      user: result.user ?? null,
+      error: result.success ? null : result.message,
+    };
+  } catch (error: unknown) {
+    console.error("Email verification error:", error);
+    return {
+      success: false,
+      user: null,
+      error: error instanceof Error ? error.message : "Email verification failed",
+    };
+  }
+}
+
+async function requestPasswordReset(email: string) {
+  try {
+    const result = await trpc.auth.requestPasswordReset.mutate({ email });
+    return {
+      success: result.success,
+      error: result.success ? null : result.message,
+    };
+  } catch (error: unknown) {
+    console.error("Password reset request error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Password reset request failed",
+    };
+  }
+}
+
+async function loadModeratedContributionsForUser() {
+  try {
+    const contributions = await trpc.overlay.getModeratedContributions.query();
+    const uiStore = useUiStore();
+    uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
+    if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
+  } catch (error) {
+    console.error("Failed to check moderated contributions:", error);
+  }
+}
+
+async function resetPassword(token: string, password: string) {
+  try {
+    const result = await trpc.auth.resetPassword.mutate({ token, password });
+    return {
+      success: result.success,
+      email: result.success ? result.email : null,
+      error: result.success ? null : result.message,
+    };
+  } catch (error: unknown) {
+    console.error("Password reset error:", error);
+    return {
+      success: false,
+      email: null,
+      error: error instanceof Error ? error.message : "Password reset failed",
+    };
+  }
+}
+
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const infoMessage = ref<string | null>(null);
@@ -130,14 +219,7 @@ export const useAuthStore = defineStore("auth", () => {
           user.value = result.user;
           infoMessage.value = result.infoMessage;
           if (!result.user) return;
-          try {
-            const contributions = await trpc.overlay.getModeratedContributions.query();
-            const uiStore = useUiStore();
-            uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
-            if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
-          } catch (error) {
-            console.error("Failed to check moderated contributions:", error);
-          }
+          await loadModeratedContributionsForUser();
         } else {
           user.value = null;
           infoMessage.value = null;
@@ -150,31 +232,6 @@ export const useAuthStore = defineStore("auth", () => {
     })();
 
     return initPromise;
-  }
-
-  // Sign up with email and password
-  async function signUp(email: string, password: string, username: string, captchaToken?: string) {
-    try {
-      const result = await trpc.auth.register.mutate({
-        email,
-        password,
-        username,
-        captchaToken,
-      });
-
-      return {
-        success: result.success,
-        user: result.user,
-        error: result.success ? null : result.message,
-      };
-    } catch (error: unknown) {
-      console.error("Sign up error:", error);
-      return {
-        success: false,
-        user: null,
-        error: error instanceof Error ? error.message : "Registration failed",
-      };
-    }
   }
 
   async function signIn(email: string, password: string, rememberMe = false) {
@@ -196,14 +253,7 @@ export const useAuthStore = defineStore("auth", () => {
         if (result.user?.email) {
           localStorage.setItem(`lastLoginMethod:${result.user.email}`, "email");
         }
-        try {
-          const contributions = await trpc.overlay.getModeratedContributions.query();
-          const uiStore = useUiStore();
-          uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
-          if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
-        } catch (error) {
-          console.error("Failed to check moderated contributions:", error);
-        }
+        await loadModeratedContributionsForUser();
         return {
           success: true,
           user: result.user ?? null,
@@ -325,59 +375,6 @@ export const useAuthStore = defineStore("auth", () => {
       // Clear local data even if server logout fails
       user.value = null;
       return { success: false, error: error instanceof Error ? error.message : "Logout failed" };
-    }
-  }
-
-  // Verify email
-  async function verifyEmail(token: string) {
-    try {
-      const result = await trpc.auth.verifyEmail.mutate({ token });
-      return {
-        success: result.success,
-        user: result.user ?? null,
-        error: result.success ? null : result.message,
-      };
-    } catch (error: unknown) {
-      console.error("Email verification error:", error);
-      return {
-        success: false,
-        user: null,
-        error: error instanceof Error ? error.message : "Email verification failed",
-      };
-    }
-  }
-
-  async function requestPasswordReset(email: string) {
-    try {
-      const result = await trpc.auth.requestPasswordReset.mutate({ email });
-      return {
-        success: result.success,
-        error: result.success ? null : result.message,
-      };
-    } catch (error: unknown) {
-      console.error("Password reset request error:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Password reset request failed",
-      };
-    }
-  }
-
-  async function resetPassword(token: string, password: string) {
-    try {
-      const result = await trpc.auth.resetPassword.mutate({ token, password });
-      return {
-        success: result.success,
-        email: result.success ? result.email : null,
-        error: result.success ? null : result.message,
-      };
-    } catch (error: unknown) {
-      console.error("Password reset error:", error);
-      return {
-        success: false,
-        email: null,
-        error: error instanceof Error ? error.message : "Password reset failed",
-      };
     }
   }
 
