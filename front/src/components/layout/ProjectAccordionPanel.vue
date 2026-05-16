@@ -258,7 +258,9 @@ const { t } = useI18n();
 const toast = useToast();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
-const { isScrollable } = useScrollFade();
+const scrollAreaRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
+const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
 watch(
   () => pendingScrollRequest.value,
