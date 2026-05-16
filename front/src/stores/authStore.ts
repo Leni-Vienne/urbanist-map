@@ -160,6 +160,17 @@ async function requestPasswordReset(email: string) {
   }
 }
 
+async function loadModeratedContributionsForUser() {
+  try {
+    const contributions = await trpc.overlay.getModeratedContributions.query();
+    const uiStore = useUiStore();
+    uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
+    if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
+  } catch (error) {
+    console.error("Failed to check moderated contributions:", error);
+  }
+}
+
 async function resetPassword(token: string, password: string) {
   try {
     const result = await trpc.auth.resetPassword.mutate({ token, password });
@@ -208,14 +219,7 @@ export const useAuthStore = defineStore("auth", () => {
           user.value = result.user;
           infoMessage.value = result.infoMessage;
           if (!result.user) return;
-          try {
-            const contributions = await trpc.overlay.getModeratedContributions.query();
-            const uiStore = useUiStore();
-            uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
-            if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
-          } catch (error) {
-            console.error("Failed to check moderated contributions:", error);
-          }
+          await loadModeratedContributionsForUser();
         } else {
           user.value = null;
           infoMessage.value = null;
@@ -249,14 +253,7 @@ export const useAuthStore = defineStore("auth", () => {
         if (result.user?.email) {
           localStorage.setItem(`lastLoginMethod:${result.user.email}`, "email");
         }
-        try {
-          const contributions = await trpc.overlay.getModeratedContributions.query();
-          const uiStore = useUiStore();
-          uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
-          if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
-        } catch (error) {
-          console.error("Failed to check moderated contributions:", error);
-        }
+        await loadModeratedContributionsForUser();
         return {
           success: true,
           user: result.user ?? null,

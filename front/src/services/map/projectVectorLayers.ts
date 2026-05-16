@@ -540,6 +540,14 @@ function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
   };
 }
 
+// Build a MapLibre filter that matches any of the given ids against the feature's "id" property.
+function buildIdMatchFilter(ids: string[]): FilterSpecification {
+  return [
+    "any",
+    ...ids.map((id) => ["==", ["to-string", ["get", "id"]], id]),
+  ] as FilterSpecification;
+}
+
 function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature | null): void {
   const { projectId, overlayId } = getHoveredFeatureIds(feature);
 
@@ -550,48 +558,26 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
   const externalProjectId = getExternalHoverId() ?? HOVER_NONE_ID;
   const externalOverlayId = getExternalHoverOverlayId() ?? HOVER_NONE_ID;
 
-  mlMap.setFilter("project-shapes-hover", [
-    "any",
-    ["==", ["to-string", ["get", "id"]], projectId],
-    ["==", ["to-string", ["get", "id"]], selectedProjectId],
-    ["==", ["to-string", ["get", "id"]], externalProjectId],
-  ]);
+  const projectMatch = buildIdMatchFilter([projectId, selectedProjectId, externalProjectId]);
+  const overlayMatch = buildIdMatchFilter([overlayId, selectedOverlayId, externalOverlayId]);
+
+  mlMap.setFilter("project-shapes-hover", projectMatch);
   mlMap.setFilter("project-shapes-hover-fill", [
     "all",
     ["==", ["geometry-type"], "Polygon"],
-    [
-      "any",
-      ["==", ["to-string", ["get", "id"]], projectId],
-      ["==", ["to-string", ["get", "id"]], selectedProjectId],
-      ["==", ["to-string", ["get", "id"]], externalProjectId],
-    ],
-  ]);
+    projectMatch,
+  ] as FilterSpecification);
   mlMap.setFilter("project-shapes-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
-    [
-      "any",
-      ["==", ["to-string", ["get", "id"]], projectId],
-      ["==", ["to-string", ["get", "id"]], selectedProjectId],
-      ["==", ["to-string", ["get", "id"]], externalProjectId],
-    ],
-  ]);
-  mlMap.setFilter("overlay-footprints-hover", [
-    "any",
-    ["==", ["to-string", ["get", "id"]], overlayId],
-    ["==", ["to-string", ["get", "id"]], selectedOverlayId],
-    ["==", ["to-string", ["get", "id"]], externalOverlayId],
-  ]);
+    projectMatch,
+  ] as FilterSpecification);
+  mlMap.setFilter("overlay-footprints-hover", overlayMatch);
   mlMap.setFilter("overlay-footprints-proposed-hover", [
     "all",
     getIsProposedFilterExpression(),
-    [
-      "any",
-      ["==", ["to-string", ["get", "id"]], overlayId],
-      ["==", ["to-string", ["get", "id"]], selectedOverlayId],
-      ["==", ["to-string", ["get", "id"]], externalOverlayId],
-    ],
-  ]);
+    overlayMatch,
+  ] as FilterSpecification);
 }
 
 function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | null {

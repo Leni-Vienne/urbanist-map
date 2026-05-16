@@ -27,7 +27,6 @@ export function useUserContributions() {
   const toast = useToast();
 
   const isLoading = computed(() => projectStore.userContributionsLoading);
-  const projects = computed(() => projectStore.userContributions);
 
   /**
    * Merged contributions combining backend data with local-only projects/overlays
@@ -211,7 +210,6 @@ export function useUserContributions() {
 
   return {
     isLoading,
-    projects,
     fetchUserContributions,
     deleteOverlay,
     deleteProject,

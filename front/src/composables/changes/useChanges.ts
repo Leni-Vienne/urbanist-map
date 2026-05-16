@@ -206,28 +206,6 @@ export function useChangeRequests() {
     }
   }
 
-  function getConflictingChanges() {
-    const conflicts = new Map<string, ChangeRequest[]>();
-
-    for (const request of pendingChangeRequests.value) {
-      if (request.status === "conflicted") {
-        const key = `${request.entityType}:${request.entityId}:${request.fieldName}`;
-        let list = conflicts.get(key);
-        if (!list) {
-          list = [];
-          conflicts.set(key, list);
-        }
-        list.push(request);
-      }
-    }
-
-    return conflicts;
-  }
-
-  const conflictingChanges = computed(() => getConflictingChanges());
-
-  const hasConflicts = computed(() => conflictingChanges.value.size > 0);
-
   async function submitMultipleFieldChanges(
     entityType: "project" | "overlay",
     entityId: string,
@@ -246,11 +224,7 @@ export function useChangeRequests() {
 
   return {
     pendingChangeRequests: computed(() => pendingChangeRequests.value),
-    conflictingChanges,
-    hasConflicts,
-    isLoading: computed(() => isLoading.value),
 
-    submitChangeRequest,
     refreshPendingChangeRequests,
     approveChangeRequests,
     rejectChangeRequests,

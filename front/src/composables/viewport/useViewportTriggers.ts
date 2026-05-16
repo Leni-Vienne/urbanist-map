@@ -369,7 +369,6 @@ export function useViewportTriggers() {
     setupEventListeners,
     cleanupEventListeners,
     setupModeWatcher,
-    isLoading,
   };
 }
 
