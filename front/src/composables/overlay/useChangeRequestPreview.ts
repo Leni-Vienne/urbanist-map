@@ -37,21 +37,62 @@ function isCoordinate(value: unknown): value is { lat: number; lng: number } {
   );
 }
 
+function isPreviewingChange(changeId: string): boolean {
+  const state = previewState.value;
+  if (state.type === "none") return false;
+  return state.changeId === changeId;
+}
+
+// Navigate to position, combining new and previous bounds for a smooth unzoom effect
+function navigateToPosition(
+  targetLatLngs: L.LatLng[],
+  previousBounds: L.LatLngBounds | null,
+  overlayId: string,
+): void {
+  const newBounds = L.latLngBounds(targetLatLngs);
+
+  // Extend with previous bounds so both positions stay visible during transition
+  const targetBounds = previousBounds ? newBounds.extend(previousBounds) : newBounds;
+
+  mobileAwareFlyToBounds(targetBounds, {
+    padding: [50, 50] as [number, number],
+    duration: 1.5,
+    easeLinearity: 0.25,
+  });
+
+  // Select overlay after flyTo completes
+  map.value.once("moveend", () => {
+    selectOverlay(overlayId);
+  });
+}
+
+function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): L.LatLng[] | null {
+  if (type === "new") {
+    // Show suggested position
+    if (overlayObject.suggestedCorners?.length !== 4) {
+      console.warn("No suggested corners available for overlay", overlayObject.id);
+      return null;
+    }
+    return overlayObject.suggestedCorners.map((c: { lat: number; lng: number }) =>
+      L.latLng(c.lat, c.lng),
+    );
+  }
+  // Show approved position (always in corners field)
+  if (overlayObject.corners.length !== 4) {
+    return null;
+  }
+  return overlayObject.corners.map((c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng));
+}
+
+function getPreviewType(changeId: string): "current" | "suggested" | null {
+  const state = previewState.value;
+  if (state.type === "none" || state.changeId !== changeId) return null;
+  return state.type === "current" || state.type === "project-current" ? "current" : "suggested";
+}
+
 export function useChangeRequestPreview() {
   const toast = useToast();
   const overlayStore = useOverlayStore();
-
-  function isPreviewingChange(changeId: string): boolean {
-    const state = previewState.value;
-    if (state.type === "none") return false;
-    return state.changeId === changeId;
-  }
-
-  function getPreviewType(changeId: string): "current" | "suggested" | null {
-    const state = previewState.value;
-    if (state.type === "none" || state.changeId !== changeId) return null;
-    return state.type === "current" || state.type === "project-current" ? "current" : "suggested";
-  }
 
   // Type guard for coordinate array
   function isCoordinateArray(value: unknown): value is { lat: number; lng: number }[] {
@@ -144,47 +185,6 @@ export function useChangeRequestPreview() {
     }
 
     return true;
-  }
-
-  // Navigate to position, combining new and previous bounds for a smooth unzoom effect
-  function navigateToPosition(
-    targetLatLngs: L.LatLng[],
-    previousBounds: L.LatLngBounds | null,
-    overlayId: string,
-  ): void {
-    const newBounds = L.latLngBounds(targetLatLngs);
-
-    // Extend with previous bounds so both positions stay visible during transition
-    const targetBounds = previousBounds ? newBounds.extend(previousBounds) : newBounds;
-
-    mobileAwareFlyToBounds(targetBounds, {
-      padding: [50, 50] as [number, number],
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
-
-    // Select overlay after flyTo completes
-    map.value.once("moveend", () => {
-      selectOverlay(overlayId);
-    });
-  }
-
-  function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): L.LatLng[] | null {
-    if (type === "new") {
-      // Show suggested position
-      if (overlayObject.suggestedCorners?.length !== 4) {
-        console.warn("No suggested corners available for overlay", overlayObject.id);
-        return null;
-      }
-      return overlayObject.suggestedCorners.map((c: { lat: number; lng: number }) =>
-        L.latLng(c.lat, c.lng),
-      );
-    }
-    // Show approved position (always in corners field)
-    if (overlayObject.corners.length !== 4) {
-      return null;
-    }
-    return overlayObject.corners.map((c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng));
   }
 
   function applyPositionPreview(

@@ -12,8 +12,15 @@ import {
   createLocalProjectContributionWithOverlays,
 } from "@/utils/projectFactories";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
-
 import type { UserContribution } from "@/types/index";
+
+async function deleteOverlay(overlayId: string): Promise<boolean> {
+  // Delegate to deleteOverlayDirect with composable-appropriate options
+  return deleteOverlayDirect(overlayId, {
+    showToast: true,
+    updateUserContributions: true,
+  });
+}
 
 export function useUserContributions() {
   const projectStore = useProjectStore();
@@ -157,14 +164,6 @@ export function useUserContributions() {
     } finally {
       projectStore.setUserContributionsLoading(false);
     }
-  }
-
-  async function deleteOverlay(overlayId: string): Promise<boolean> {
-    // Delegate to deleteOverlayDirect with composable-appropriate options
-    return deleteOverlayDirect(overlayId, {
-      showToast: true,
-      updateUserContributions: true,
-    });
   }
 
   async function deleteProject(projectId: string): Promise<boolean> {

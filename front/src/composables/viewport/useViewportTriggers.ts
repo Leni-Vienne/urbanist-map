@@ -76,6 +76,11 @@ function bboxKey(bbox: { minLng: number; minLat: number; maxLng: number; maxLat:
   return `${roundCoord(bbox.minLng)},${roundCoord(bbox.minLat)},${roundCoord(bbox.maxLng)},${roundCoord(bbox.maxLat)}`;
 }
 
+function cleanupEventListeners() {
+  map.value.off("moveend");
+  map.value.off("zoomend");
+}
+
 /**
  * Main viewport content manager
  * Handles all overlay and project rendering based on viewport bounds
@@ -276,11 +281,6 @@ export function useViewportTriggers() {
     map.value.on("zoomend", () => {
       debouncedRefreshViewport();
     });
-  }
-
-  function cleanupEventListeners() {
-    map.value.off("moveend");
-    map.value.off("zoomend");
   }
 
   function setupModeWatcher() {

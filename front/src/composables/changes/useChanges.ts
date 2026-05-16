@@ -32,6 +32,28 @@ function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.isViewingApprovedPosition = undefined;
 }
 
+function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
+  const overlayStore = useOverlayStore();
+  const pendingModsStore = usePendingModificationsStore();
+
+  pendingModsStore.clearModification(overlayId);
+  // Reset history to the approved baseline so re-entering edit mode doesn't restore the edits.
+  overlayStore.updateOverlay(overlayId, {
+    isModified: false,
+    history: overlayObject.corners.length === 4 ? [overlayObject.corners] : [],
+    redoStack: [],
+  });
+  overlayObject.isModified = false;
+  overlayObject.history = overlayObject.corners.length === 4 ? [overlayObject.corners] : [];
+  overlayObject.redoStack = [];
+  const layer = getLayer(overlayId);
+  if (layer && overlayObject.corners.length === 4) {
+    const leafletCorners = overlayObject.corners.map((corner) => L.latLng(corner.lat, corner.lng));
+    layer.setCorners(leafletCorners);
+    updateMarkerPosition(overlayObject);
+  }
+}
+
 /** Ensures pending change requests are loaded. Safe to call outside Vue setup. */
 export async function refreshPendingChangeRequests(forceUserOnly = false) {
   if (changeRequestsLoaded.value) return;
@@ -133,30 +155,6 @@ export function useChangeRequests() {
     return pendingChangeRequests.value.some(
       (cr) => cr.entityType === "overlay" && cr.entityId === overlayId,
     );
-  }
-
-  function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
-    const overlayStore = useOverlayStore();
-    const pendingModsStore = usePendingModificationsStore();
-
-    pendingModsStore.clearModification(overlayId);
-    // Reset history to the approved baseline so re-entering edit mode doesn't restore the edits.
-    overlayStore.updateOverlay(overlayId, {
-      isModified: false,
-      history: overlayObject.corners.length === 4 ? [overlayObject.corners] : [],
-      redoStack: [],
-    });
-    overlayObject.isModified = false;
-    overlayObject.history = overlayObject.corners.length === 4 ? [overlayObject.corners] : [];
-    overlayObject.redoStack = [];
-    const layer = getLayer(overlayId);
-    if (layer && overlayObject.corners.length === 4) {
-      const leafletCorners = overlayObject.corners.map((corner) =>
-        L.latLng(corner.lat, corner.lng),
-      );
-      layer.setCorners(leafletCorners);
-      updateMarkerPosition(overlayObject);
-    }
   }
 
   function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
