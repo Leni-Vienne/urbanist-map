@@ -6,7 +6,6 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { createProjectFromUserContribution } from "@/utils/typeFactories";
 import {
   projectSchema,
   getValidationErrorsMap,
@@ -181,9 +180,9 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
         updateStandaloneProjectMarkerColor(options.entityId, updatedProject);
       }
     } else if (userContributionProject) {
-      // Not yet in projects store, add it so the info popup can find it
+      // Not yet in projects store. UserContribution extends Project, so we can spread directly.
       const projectFromContribution: Project = {
-        ...createProjectFromUserContribution(userContributionProject),
+        ...userContributionProject,
         ...formFields,
         isModified: true,
       };

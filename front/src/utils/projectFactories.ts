@@ -1,5 +1,3 @@
-// Factory functions for creating project and overlay objects
-
 import type {
   OverlayData,
   Project,
@@ -78,113 +76,21 @@ export function createLocalOverlayContribution(
   };
 }
 
-type LocalProject = {
-  id: string;
-  name: string | null;
-  description: string | null;
-  ownerId: string | null;
-  cityId: number | null;
-  countryCode: string;
-  city: { name: string; countryCode: string } | null;
-  lat: number | null;
-  lng: number | null;
-  proposalDate: Date | null;
-  proposalDatePrecision?: "year" | "month" | "day" | null;
-  startDate: Date | null;
-  startDatePrecision?: "year" | "month" | "day" | null;
-  endDate: Date | null;
-  endDatePrecision?: "year" | "month" | "day" | null;
-  timelineStatus?: "proposed" | "planned" | "under_construction" | "completed" | "canceled" | null;
-  importSourceId?: string | null;
-  externalId?: string | null;
-  externalProperties?: unknown;
-  externalLastModified?: Date | null;
-  lastImportedAt?: Date | null;
-  sourceUrl: string | null;
-  tags?: string[] | null;
-};
-
-function buildLocalProjectShell(
-  localProject: LocalProject,
+export function createLocalProjectContribution(
+  project: Project,
   overlays: UserContributionOverlay[],
   username: string | null,
 ): UserContribution {
   return {
-    id: localProject.id,
-    name: localProject.name,
-    description: localProject.description,
-    status: null,
-    version: 1,
-    ownerId: localProject.ownerId,
+    ...project,
+    overlays,
+    overlayIds: overlays.map((o) => o.id),
+    cityName: project.city?.name ?? null,
+    countryName: null,
     ownerUsername: username,
     ownerApprovedCount: null,
     ownerRejectedCount: null,
-    cityId: localProject.cityId,
-    cityName: localProject.city?.name ?? null,
-    countryCode: localProject.countryCode,
-    countryName: null,
-    lat: localProject.lat,
-    lng: localProject.lng,
-    city: localProject.cityId
-      ? {
-          id: localProject.cityId,
-          name: localProject.city?.name ?? "",
-          countryCode: localProject.city?.countryCode ?? "",
-          nameLocal: null,
-          coordinates: { x: 0, y: 0 },
-          approvedProjectCount: 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      : null,
-    proposalDate: localProject.proposalDate,
-    proposalDatePrecision: localProject.proposalDatePrecision ?? null,
-    startDate: localProject.startDate,
-    startDatePrecision: localProject.startDatePrecision ?? null,
-    endDate: localProject.endDate,
-    endDatePrecision: localProject.endDatePrecision ?? null,
-    timelineStatus: localProject.timelineStatus ?? "proposed",
-    importSourceId: localProject.importSourceId ?? null,
-    externalId: localProject.externalId ?? null,
-    externalProperties: localProject.externalProperties ?? null,
-    externalLastModified: localProject.externalLastModified ?? null,
-    lastImportedAt: localProject.lastImportedAt ?? null,
-    sourceUrl: localProject.sourceUrl,
-    tags: localProject.tags ?? [],
-    geometry: null,
-    rejectionReason: null,
-    centerCoordinate: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    overlays,
-    overlayCount: overlays.length,
   };
-}
-
-export function createLocalProjectContribution(
-  localProject: LocalProject,
-  overlay: {
-    id: string;
-    caption: string | null;
-    filename: string;
-    projectId: string | null;
-    authorId: string | null;
-    replacesOverlayId: string | null;
-    imageUrl?: string;
-  },
-  username: string | null,
-): UserContribution {
-  const overlayData = createLocalOverlayContribution(
-    overlay,
-    {
-      cityId: localProject.cityId,
-      cityName: localProject.city?.name ?? null,
-      countryCode: localProject.countryCode,
-      countryName: null,
-    },
-    username,
-  );
-  return buildLocalProjectShell(localProject, [overlayData], username);
 }
 
 export function createProjectForModerationFromProject(
@@ -200,12 +106,4 @@ export function createProjectForModerationFromProject(
     overlays,
     overlayCount: project.overlayIds.length,
   };
-}
-
-export function createLocalProjectContributionWithOverlays(
-  localProject: LocalProject,
-  overlays: UserContributionOverlay[],
-  username: string | null,
-): UserContribution {
-  return buildLocalProjectShell(localProject, overlays, username);
 }

@@ -9,7 +9,6 @@ import { t } from "@/locales";
 import {
   createLocalOverlayContribution,
   createLocalProjectContribution,
-  createLocalProjectContributionWithOverlays,
 } from "@/utils/projectFactories";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
 import type { UserContribution } from "@/types/index";
@@ -79,7 +78,6 @@ export function useUserContributions() {
           parentProject = {
             ...parentProject,
             overlays: [...parentProject.overlays, localOverlayData],
-            overlayCount: parentProject.overlayCount + 1,
           };
           contributionsMap.set(overlay.projectId, parentProject);
         }
@@ -89,14 +87,20 @@ export function useUserContributions() {
         const localProject = projectStore.projects[overlay.projectId];
 
         if (localProject && localProject.ownerId === user.id) {
-          // Use factory to create new contribution entry for local project
-          const newContribution = createLocalProjectContribution(
-            localProject,
+          const localOverlayData = createLocalOverlayContribution(
             overlay,
+            {
+              cityId: localProject.cityId,
+              cityName: localProject.city?.name ?? null,
+              countryCode: localProject.countryCode,
+              countryName: null,
+            },
             user.username ?? null,
           );
-
-          contributionsMap.set(localProject.id, newContribution);
+          contributionsMap.set(
+            localProject.id,
+            createLocalProjectContribution(localProject, [localOverlayData], user.username ?? null),
+          );
         }
       }
     }
@@ -128,11 +132,7 @@ export function useUserContributions() {
 
       contributionsMap.set(
         localProject.id,
-        createLocalProjectContributionWithOverlays(
-          localProject,
-          overlayData,
-          user.username ?? null,
-        ),
+        createLocalProjectContribution(localProject, overlayData, user.username ?? null),
       );
     }
 

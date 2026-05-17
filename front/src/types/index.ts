@@ -248,38 +248,22 @@ export type ProjectForModeration = Pick<
   geometry?: GeoJSON.GeometryCollection | null;
 };
 
-// Centralized UserContribution types handling local (nullable status) and backend data
-type BackendUserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
+type BackendContributionOverlay =
+  RouterOutput["project"]["getUsersContributions"]["projects"][number]["overlays"][number];
 
-export type UserContributionOverlay = Omit<
-  BackendUserContribution["overlays"][number],
-  "status" | "cityId" | "cityName" | "countryCode" | "countryName"
-> & {
+export type UserContributionOverlay = Omit<BackendContributionOverlay, "status"> & {
+  // Status widens to allow null for local-only overlays that haven't been submitted
   status: ApprovalStatus | null;
-  cityId: number | null; // Override: cityId is now nullable for imported projects
-  cityName: string | null;
-  countryCode: string | null;
-  countryName: string | null;
-  // Frontend-specific fields added by factories
+  // imageUrl is the data URL or server URL used to render the thumbnail in the contributions panel
   imageUrl?: string;
-  authorUsername?: string | null;
-  authorApprovedCount?: number | null;
-  authorRejectedCount?: number | null;
 };
 
-export type UserContribution = Omit<
-  BackendUserContribution,
-  "status" | "overlays" | "cityId" | "city"
-> & {
-  status: ApprovalStatus | null;
-  cityId: number | null;
-  city: DBCity | null;
+// A user contribution is a Project augmented with the inline overlay list and a few owner display fields.
+// The backend response already conforms to the Project shape (overlayIds, tags coerced, joined city + country fields).
+export type UserContribution = Project & {
   overlays: UserContributionOverlay[];
-  // Date precision fields
-  proposalDatePrecision?: "year" | "month" | "day" | null;
-  startDatePrecision?: "year" | "month" | "day" | null;
-  endDatePrecision?: "year" | "month" | "day" | null;
-  // Frontend-specific fields added by factories
+  cityName: string | null;
+  countryName: string | null;
   ownerUsername?: string | null;
   ownerApprovedCount?: number | null;
   ownerRejectedCount?: number | null;

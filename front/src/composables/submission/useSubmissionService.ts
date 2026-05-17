@@ -247,7 +247,6 @@ export function useSubmissionService() {
     ];
 
     for (const field of fieldsToCheck) {
-      // Cast: originalProject can be Project or UserContribution; both share these keys.
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
@@ -532,13 +531,11 @@ export function useSubmissionService() {
 
       if (hasCornersChange) {
         // Project lookup: check both the active map cache and the user contributions sidebar.
-        let project = null;
+        let project: Project | null = null;
         if (context.entity.projectId) {
           project =
             projectStore.projects[context.entity.projectId] ??
-            (projectStore.userContributions.find(
-              (p) => p.id === context.entity.projectId,
-            ) as unknown as Project) ??
+            projectStore.userContributions.find((p) => p.id === context.entity.projectId) ??
             null;
         }
         await publishOverlay(context.entity, project);
@@ -653,9 +650,7 @@ export function useSubmissionService() {
     if (ctx.projectId) {
       project =
         projectStore.projects[ctx.projectId] ??
-        (projectStore.userContributions.find(
-          (p) => p.id === ctx.projectId,
-        ) as unknown as Project) ??
+        projectStore.userContributions.find((p) => p.id === ctx.projectId) ??
         null;
     }
 
