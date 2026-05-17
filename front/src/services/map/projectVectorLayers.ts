@@ -140,6 +140,9 @@ const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 // Viewport padding for flyToBounds to leave space around cluster cells.
 const CLUSTER_BOUNDS_PADDING_PX = 50;
+// Below this Leaflet zoom, lone points (cell_count===1) still zoom to cell bounds
+// instead of opening the project, to avoid a jarring jump from low zoom to z14.
+const LONE_POINT_CLICK_MIN_LEAFLET_ZOOM = 8;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
@@ -789,7 +792,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
 
     targetLatLng = L.latLng(lat, lng);
 
-    if (cellCount === 1) {
+    if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_LEAFLET_ZOOM) {
       willFly = true;
       navigateToLonePoint(props, lat, lng, currentZoom);
     } else {
