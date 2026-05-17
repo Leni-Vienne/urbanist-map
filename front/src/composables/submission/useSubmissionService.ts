@@ -19,6 +19,7 @@ import { computed } from "vue";
 import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
+import { getCityNameCache } from "@/utils/cityNameCache";
 import {
   prepareProjectValidationData,
   prepareOverlayValidationData,
@@ -187,7 +188,7 @@ export function useSubmissionService() {
 
   // City name cache built from the project store and all projects seen so far.
   const cityNamesCache = computed(() => {
-    const cache: Record<string, string> = { ...projectStore.cityNamesCache };
+    const cache: Record<string, string> = { ...getCityNameCache() };
 
     // Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.projects)) {

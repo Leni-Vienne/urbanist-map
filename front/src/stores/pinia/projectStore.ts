@@ -9,6 +9,7 @@ import type {
 } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
+import { clearCityNameCache } from "@/utils/cityNameCache";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -29,16 +30,6 @@ export const useProjectStore = defineStore("project", () => {
 
   // Snapshots of projects before local modifications (for change detection / reset)
   const originalProjects = ref<Record<string, Project>>({});
-
-  // cityId -> city name, populated lazily from forms and backend responses
-  const cityNamesCache = ref<Record<number, string>>({});
-
-  function cacheCityName(cityId: number, cityName: string) {
-    cityNamesCache.value = {
-      ...cityNamesCache.value,
-      [cityId]: cityName,
-    };
-  }
 
   function getOriginalProject(projectId: string): Project | null {
     return originalProjects.value[projectId] ?? null;
@@ -386,7 +377,7 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsLoading.value = false;
     userContributionsLoaded.value = false;
     originalProjects.value = {};
-    cityNamesCache.value = {};
+    clearCityNameCache();
   }
 
   return {
@@ -395,13 +386,11 @@ export const useProjectStore = defineStore("project", () => {
     userContributions,
     userContributionsLoading,
     userContributionsLoaded,
-    cityNamesCache,
 
     // Local project actions
     updateProject,
     cacheProjectBackendState,
     resetProjectField,
-    cacheCityName,
     getOriginalProject,
     // User contributions actions
     setUserContributions,

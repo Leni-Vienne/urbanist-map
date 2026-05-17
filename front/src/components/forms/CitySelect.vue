@@ -38,7 +38,7 @@ import { useI18n } from "vue-i18n";
 import { trpc, type RouterOutput } from "@/client";
 import { getCameraBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { cacheCityName } from "@/utils/cityNameCache";
 import { storeToRefs } from "pinia";
 import type { Project } from "@/types/index";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
@@ -66,7 +66,6 @@ defineEmits<{
 }>();
 
 const { t } = useI18n();
-const projectStore = useProjectStore();
 
 const cities = ref<RouterOutput["cities"]["getCitiesNearLocation"]>(
   props.prefilledCity ? [convertDBCityToSelectFormat(props.prefilledCity)] : [],
@@ -75,7 +74,7 @@ const citiesLoading = ref(false);
 const citiesLoaded = ref(Boolean(props.prefilledCity));
 
 if (props.prefilledCity) {
-  projectStore.cacheCityName(props.prefilledCity.id, props.prefilledCity.name);
+  cacheCityName(props.prefilledCity.id, props.prefilledCity.name);
 }
 
 const filteredCities = computed(() => {
@@ -162,7 +161,7 @@ async function loadCities() {
 
     // Cache city names for all nearby cities
     for (const city of nearbyCities) {
-      projectStore.cacheCityName(city.id, city.name);
+      cacheCityName(city.id, city.name);
     }
 
     // Merge with prefilled city if not in results
