@@ -3,7 +3,6 @@ import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/overlayActions";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
@@ -29,12 +28,12 @@ export function canModerateCountry(countryCode: string): boolean {
 }
 
 /**
- * Auto-select a country in the moderation store if not already selected.
+ * Set the active country so the moderation panel reloads its pending submissions.
  */
 export function syncModerationCountry(countryCode: string): void {
-  const moderationStore = useModerationStore();
-  if (moderationStore.selectedCountryCode !== countryCode) {
-    moderationStore.setSelectedCountryCode(countryCode);
+  const mapStore = useMapStore();
+  if (mapStore.selectedCountryCode !== countryCode) {
+    mapStore.selectedCountryCode = countryCode;
   }
 }
 

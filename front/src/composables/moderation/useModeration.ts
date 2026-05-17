@@ -27,6 +27,7 @@ type ApprovalResult = {
 
 export function useModeration() {
   const moderationStore = useModerationStore();
+  const mapStore = useMapStore();
   const toast = useToast();
 
   const overlays = computed(() => moderationStore.overlays);
@@ -39,9 +40,8 @@ export function useModeration() {
     }
 
     try {
-      // Pass selected country code for country-scoped moderation
       const response = await trpc.moderation.getPendingSubmissions.query({
-        countryCode: moderationStore.selectedCountryCode ?? undefined,
+        countryCode: mapStore.selectedCountryCode ?? undefined,
       });
 
       moderationStore.setModerationData({
@@ -143,7 +143,6 @@ export function useModeration() {
     rejectionReason?: string,
   ): Promise<ApprovalResult> {
     const overlayStore = useOverlayStore();
-    const mapStore = useMapStore();
 
     const overlay = overlays.value.find((o) => o.id === id);
     const replacesOverlayId = overlay?.replacesOverlayId;
@@ -197,26 +196,17 @@ export function useModeration() {
 
   onMounted(async () => {
     const authStore = useAuthStore();
-    const mapStore = useMapStore();
     const user = authStore.user;
-
     if (!user) return;
 
+    const isAdmin = user.role === "admin";
     const mapCountryCode = mapStore.selectedCountryCode;
     const canAccessMapCountry =
       !user.moderatedCountries ||
-      (mapCountryCode && user.moderatedCountries.includes(mapCountryCode));
+      (mapCountryCode !== null && user.moderatedCountries.includes(mapCountryCode));
 
-    if (mapCountryCode && canAccessMapCountry) {
-      moderationStore.setSelectedCountryCode(mapCountryCode);
-    }
-    // Preserve the existing moderation store country if the map is in global view
-
-    const isAdmin = user.role === "admin";
-    const hasSelectedCountry = moderationStore.selectedCountryCode !== null;
-
-    // Fetch if admin (no country needed) OR if country already selected
-    if (isAdmin || hasSelectedCountry) {
+    // Admins fetch unfiltered; moderators only when the active country is one they can access.
+    if (isAdmin || (mapCountryCode && canAccessMapCountry)) {
       await fetchPendingSubmissions();
     }
   });
@@ -227,8 +217,6 @@ export function useModeration() {
     rejectionReason?: string,
     rejectAllOverlays?: boolean,
   ): Promise<ApprovalResult> {
-    const mapStore = useMapStore();
-
     const projectBeforeApproval = projects.value.find((p) => p.id === id);
 
     const result = await setApprovalStatus(

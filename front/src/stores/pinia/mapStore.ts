@@ -16,11 +16,17 @@ export const useMapStore = defineStore("map", () => {
 
   const selectedCountryCode = ref<string | null>(null);
 
+  function clearAllState() {
+    mode.value = "view";
+    selectedCountryCode.value = null;
+  }
+
   return {
     mode,
     selectedCountryCode,
     setMode,
     resetMode,
+    clearAllState,
   };
 });
 
