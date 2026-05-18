@@ -43,18 +43,50 @@ let selectedStandaloneProjectMarker: L.Marker | null = null;
 // Track if watcher has been initialized (lazy initialization to avoid Pinia issues)
 let isWatcherInitialized = false;
 
-/** Initialize the popup-close watcher. Lazy so Pinia is ready by the first selection. */
+/**
+ * Initialize the popup state watcher. Lazy so Pinia is ready by the first selection.
+ * Drives all popup-state-driven side effects (marker opacity, vector hover highlight,
+ * accordion scroll, overlay popup hide, deselect) so click handlers only need to toggle
+ * the popup state.
+ */
 export function initializePopupWatcher() {
   if (isWatcherInitialized) return;
 
-  const uiStore = useUiStore();
   watch(
-    () => uiStore.projectInfoPopup.visible,
-    (isVisible, wasVisible) => {
-      if (wasVisible && !isVisible) {
+    () => {
+      const uiStore = useUiStore();
+      return uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null;
+    },
+    (newProjectId, oldProjectId) => {
+      if (newProjectId === oldProjectId) return;
+
+      const overlayStore = useOverlayStore();
+      const uiStore = useUiStore();
+      const mapStore = useMapStore();
+
+      if (oldProjectId && oldProjectId !== newProjectId) {
+        unhighlightProjectShapes(oldProjectId);
+      }
+
+      if (!newProjectId) {
         updateStandaloneProjectMarkerOpacities(null);
         setExternalHover(null);
+        return;
       }
+
+      const marker = standaloneProjectMarkerMap.get(newProjectId) ?? null;
+      updateStandaloneProjectMarkerOpacities(marker);
+
+      // Pin the vector tile highlight in view mode (overlay-only projects only render via tiles).
+      if (mapStore.mode === "view") {
+        setExternalHover(newProjectId);
+      }
+
+      if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
+      requestScrollTo("project", newProjectId);
+
+      if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
+      if (overlayStore.idSelectedOverlay) selectOverlay(null);
     },
   );
 
@@ -249,7 +281,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   initializePopupWatcher();
 
-  const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const markerColor = getProjectMarkerColor(project, mapStore.mode);
   const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
@@ -309,35 +340,16 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   updateStandaloneProjectMarkerTooltip(marker, project, mapStore.mode);
 
   marker.on("click", (e) => {
-    void (async () => {
-      L.DomEvent.stopPropagation(e);
-      const uiStore = useUiStore();
+    L.DomEvent.stopPropagation(e);
+    const uiStore = useUiStore();
 
-      if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-        uiStore.closeProjectInfoPopup();
-        updateStandaloneProjectMarkerOpacities(null);
-        return;
-      }
+    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
+      uiStore.closeProjectInfoPopup();
+      return;
+    }
 
-      uiStore.openProjectInfoPopup(project.id, project);
-
-      if (uiStore.activeTab === "latest") {
-        uiStore.activeTab = "currentLocation";
-      }
-
-      requestScrollTo("project", project.id);
-
-      if (overlayStore.showInfoPopup) {
-        overlayStore.hideInfoPopup();
-      }
-
-      if (overlayStore.idSelectedOverlay) {
-        selectOverlay(null);
-      }
-
-      createProjectInfoTeleportTarget(marker);
-      updateStandaloneProjectMarkerOpacities(marker);
-    })();
+    uiStore.openProjectInfoPopup(project.id, project);
+    createProjectInfoTeleportTarget(marker);
   });
 }
 

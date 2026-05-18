@@ -14,6 +14,7 @@ import {
   loadLocaleMessages,
   setI18nInstance,
 } from "./locales";
+import { setupKeyboardShortcuts } from "./services/overlay/overlayEditing";
 
 // importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement
 const UrbanistmapPreset = definePreset(Aura, {
@@ -94,6 +95,10 @@ updateTranslationSettings(currentLocale);
 const app = createApp(App);
 
 app.use(createPinia());
+
+// Keyboard shortcuts (undo/redo) are document-level and only act when an overlay is selected,
+// so register them once at boot rather than re-installing on every mode switch.
+setupKeyboardShortcuts();
 
 window.addEventListener("beforeunload", (event) => {
   if (hasUnsavedChanges()) event.preventDefault();

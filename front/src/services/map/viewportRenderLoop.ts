@@ -16,7 +16,7 @@ import { selectProject } from "@/services/map/projectSelection";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { getPendingChangeRequests } from "@/composables/changes/useChanges";
+import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
 import { createProjectObject } from "@/utils/typeFactories";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
@@ -291,7 +291,9 @@ function getPendingGeometry(
   projectId: string,
   isModeration: boolean,
 ): GeoJSON.GeometryCollection | null {
-  const crList = isModeration ? useModerationStore().changeRequests : getPendingChangeRequests();
+  const crList = isModeration
+    ? useModerationStore().changeRequests
+    : useChangeRequestStore().pendingChangeRequests;
   const cr = crList.find(
     (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
   );

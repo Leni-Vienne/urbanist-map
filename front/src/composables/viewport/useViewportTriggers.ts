@@ -15,12 +15,9 @@ import { clearAllOverlays, clearOverlayLayersOnly } from "@/services/overlay/ove
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
-import {
-  setupKeyboardShortcuts,
-  updateOverlayEditingState,
-} from "@/services/overlay/overlayEditing";
+import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
 import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
-import { pendingChangeRequestsRef } from "@/composables/changes/useChanges";
+import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
@@ -374,11 +371,15 @@ export function useViewportTriggers() {
     );
 
     // When pending change requests finish loading, re-render project shapes
-    watch(pendingChangeRequestsRef, () => {
-      if (mapStore.mode === "view") return;
-      clearAllProjectShapes();
-      runViewportRenderLoop();
-    });
+    const changeRequestStore = useChangeRequestStore();
+    watch(
+      () => changeRequestStore.pendingChangeRequests,
+      () => {
+        if (mapStore.mode === "view") return;
+        clearAllProjectShapes();
+        runViewportRenderLoop();
+      },
+    );
 
     // In moderation mode, re-render project shapes once moderation data is ready.
     watch(
@@ -409,7 +410,6 @@ export function useViewportTriggers() {
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();
-          setupKeyboardShortcuts();
           refreshSelectionHighlight();
           return;
         }
@@ -434,7 +434,6 @@ export function useViewportTriggers() {
         await refreshViewport(true);
 
         await updateOverlayEditingState();
-        setupKeyboardShortcuts();
         refreshSelectionHighlight();
 
         // In edit mode, also add markers for local (unsaved) projects

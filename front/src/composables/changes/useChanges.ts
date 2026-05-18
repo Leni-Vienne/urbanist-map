@@ -1,8 +1,9 @@
-import { ref, computed, readonly } from "vue";
-import { trpc, type RouterOutput, type RouterInput } from "@/client";
+import { computed } from "vue";
+import { trpc, type RouterInput } from "@/client";
 import type { FieldChange } from "@shared/validation/schemas";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/changeRequestStore";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
@@ -11,20 +12,7 @@ import L from "leaflet";
 import type { OverlayObject } from "@/types";
 import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
-type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][number];
 type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
-const pendingChangeRequests = ref<ChangeRequest[]>([]);
-
-/** Read-only accessor for service-layer code that can't use composables. */
-export function getPendingChangeRequests(): ChangeRequest[] {
-  return pendingChangeRequests.value;
-}
-
-/** Reactive readonly ref, use this to watch for changes in Vue composables. */
-export const pendingChangeRequestsRef = readonly(pendingChangeRequests);
-const isLoading = ref(false);
-
-const changeRequestsLoaded = ref(false);
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
@@ -56,8 +44,9 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
 
 /** Ensures pending change requests are loaded. Safe to call outside Vue setup. */
 export async function refreshPendingChangeRequests(forceUserOnly = false) {
-  if (changeRequestsLoaded.value) return;
-  isLoading.value = true;
+  const store = useChangeRequestStore();
+  if (store.loaded) return;
+  store.setLoading(true);
   try {
     const { isModerator } = useAuthStore();
     const result = await withErrorHandling(
@@ -68,17 +57,18 @@ export async function refreshPendingChangeRequests(forceUserOnly = false) {
       { errorMessage: "Failed to fetch pending change requests" },
     );
     if (result) {
-      pendingChangeRequests.value = result;
-      changeRequestsLoaded.value = true;
+      store.setPendingChangeRequests(result);
     }
   } finally {
-    isLoading.value = false;
+    store.setLoading(false);
   }
 }
 
 export function useChangeRequests() {
+  const store = useChangeRequestStore();
+
   async function submitChangeRequest(input: SubmitChangeRequestInput) {
-    isLoading.value = true;
+    store.setLoading(true);
     try {
       const result = await withErrorHandling(
         async () => trpc.changes.submitChangeRequest.mutate(input),
@@ -86,22 +76,18 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        resetChangeRequestsLoaded();
+        store.resetLoaded();
         await refreshPendingChangeRequests();
       }
 
       return result;
     } finally {
-      isLoading.value = false;
+      store.setLoading(false);
     }
   }
 
-  function resetChangeRequestsLoaded() {
-    changeRequestsLoaded.value = false;
-  }
-
   async function approveChangeRequests(changeRequestIds: string[]) {
-    isLoading.value = true;
+    store.setLoading(true);
     try {
       const result = await withErrorHandling(
         async () => trpc.changes.approveChangeRequests.mutate({ changeRequestIds }),
@@ -113,17 +99,17 @@ export function useChangeRequests() {
         // reset both stores so the UI reflects that.
         const moderationStore = useModerationStore();
         moderationStore.resetModerationLoaded();
-        resetChangeRequestsLoaded();
+        store.resetLoaded();
       }
 
       return result;
     } finally {
-      isLoading.value = false;
+      store.setLoading(false);
     }
   }
 
   async function rejectChangeRequests(changeRequestIds: string[]) {
-    isLoading.value = true;
+    store.setLoading(true);
     try {
       const result = await withErrorHandling(
         async () => trpc.changes.rejectChangeRequests.mutate({ changeRequestIds }),
@@ -131,9 +117,7 @@ export function useChangeRequests() {
       );
 
       if (result) {
-        pendingChangeRequests.value = pendingChangeRequests.value.filter(
-          (cr) => !changeRequestIds.includes(cr.id),
-        );
+        store.removeChangeRequests(changeRequestIds);
 
         const moderationStore = useModerationStore();
         moderationStore.removeChangeRequests(changeRequestIds);
@@ -141,18 +125,12 @@ export function useChangeRequests() {
 
       return result;
     } finally {
-      isLoading.value = false;
+      store.setLoading(false);
     }
   }
 
-  function removeChangeRequestFromLocalState(changeRequestId: string) {
-    pendingChangeRequests.value = pendingChangeRequests.value.filter(
-      (cr) => cr.id !== changeRequestId,
-    );
-  }
-
   function hasOtherPendingChangeRequestsForOverlay(overlayId: string): boolean {
-    return pendingChangeRequests.value.some(
+    return store.pendingChangeRequests.some(
       (cr) => cr.entityType === "overlay" && cr.entityId === overlayId,
     );
   }
@@ -169,40 +147,36 @@ export function useChangeRequests() {
       return;
     }
 
-    // Check if there are any other pending change requests for this overlay
     if (hasOtherPendingChangeRequestsForOverlay(changeRequest.entityId)) {
       return;
     }
 
-    // No other pending change requests exist, reset the overlay state
     clearOverlayChangeRequestState(overlayObject);
 
-    // If this was a position change request, clear edit mode cache and reset position
     if (changeRequest.fieldName === "corners") {
       resetOverlayPositionToApproved(overlayObject, changeRequest.entityId);
     }
 
-    // Update marker color and tooltip to reflect new state
     updateMarkerTooltip(overlayObject);
   }
 
   async function deleteChangeRequest(changeRequestId: string) {
-    isLoading.value = true;
+    store.setLoading(true);
     try {
-      const changeRequest = pendingChangeRequests.value.find((cr) => cr.id === changeRequestId);
+      const changeRequest = store.pendingChangeRequests.find((cr) => cr.id === changeRequestId);
       const result = await withErrorHandling(
         async () => trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId }),
         { errorMessage: "Failed to delete change request" },
       );
 
       if (result && changeRequest) {
-        removeChangeRequestFromLocalState(changeRequestId);
+        store.removeChangeRequest(changeRequestId);
         handleOverlayStateAfterDeletion(changeRequest);
       }
 
       return result;
     } finally {
-      isLoading.value = false;
+      store.setLoading(false);
     }
   }
 
@@ -223,13 +197,12 @@ export function useChangeRequests() {
   }
 
   return {
-    pendingChangeRequests: computed(() => pendingChangeRequests.value),
-
+    pendingChangeRequests: computed(() => store.pendingChangeRequests),
     refreshPendingChangeRequests,
     approveChangeRequests,
     rejectChangeRequests,
     deleteChangeRequest,
-    resetChangeRequestsLoaded,
+    resetChangeRequestsLoaded: store.resetLoaded,
 
     submitMultipleFieldChanges,
   };
