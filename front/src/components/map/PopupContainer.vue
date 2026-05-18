@@ -65,11 +65,10 @@ import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { getPopupLatLng } from "@/services/map/projectPopupTeleport";
-import type { OverlayObject, Project } from "@/types/index";
+import type { OverlayData, OverlayObject, Project } from "@/types/index";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
-import type { DBProject, DBCity } from "../../../../back/src/db/schema";
-import type { ApprovalStatus } from "@shared/types";
+import { createProjectObject } from "@/utils/typeFactories";
 
 const UnifiedProjectPopup = defineAsyncComponent(
   () => import("@/components/map/popups/UnifiedProjectPopup.vue"),
@@ -116,44 +115,20 @@ const overlayObject = computed(() => {
 });
 
 function convertAndCacheBackendProject(
-  backendProject: Omit<DBProject, "status"> & {
-    status: ApprovalStatus | null;
-    city: DBCity | null;
-  },
+  backendProject: NonNullable<OverlayData["project"]>,
 ): Project {
-  // If project already exists, return it to preserve overlayIds.
-  const existingProject = projects.value[backendProject.id];
-  if (existingProject) {
-    return existingProject;
-  }
+  const existing = projects.value[backendProject.id];
+  if (existing) return existing;
 
-  // Populate overlayIds from currently loaded overlays for this project.
-  const overlaysForProject = Object.values(overlays.value)
+  const overlayIds = Object.values(overlays.value)
     .filter((o) => o.projectId === backendProject.id)
     .map((o) => o.id);
 
-  const convertedProject: Project = {
-    ...backendProject,
-    name: backendProject.name,
-    city: backendProject.city,
-    overlayIds: overlaysForProject,
-    geometry: backendProject.geometry ?? null,
-    tags: backendProject.tags ?? [],
-  };
+  const project = createProjectObject({ ...backendProject, overlayIds });
+  projects.value = { ...projects.value, [project.id]: project };
+  if (project.status !== null) projectStore.cacheProjectBackendState(project.id);
 
-  if (!projects.value[backendProject.id]) {
-    projects.value = {
-      ...projects.value,
-      [backendProject.id]: convertedProject,
-    };
-
-    // Cache original for reset functionality (bypasses updateProject which normally does this).
-    if (backendProject.status !== null) {
-      projectStore.cacheProjectBackendState(backendProject.id);
-    }
-  }
-
-  return convertedProject;
+  return project;
 }
 
 // In view mode, show original approved data for locally-modified projects.
@@ -176,11 +151,7 @@ const activeProject = computed(() => {
 
     const backendProject = overlay.project?.id === overlay.projectId ? overlay.project : null;
 
-    if (backendProject)
-      return convertAndCacheBackendProject({
-        ...backendProject,
-        city: backendProject.city ?? null,
-      });
+    if (backendProject) return convertAndCacheBackendProject(backendProject);
   }
 
   // Fall back to project popup.
@@ -188,8 +159,7 @@ const activeProject = computed(() => {
     const localProject = getEffectiveProject(projectInfoPopup.value.projectId);
     if (localProject) return localProject;
 
-    // Cast: popup state may hold ProjectForModeration (shape preview).
-    if (projectInfoPopup.value.project) return projectInfoPopup.value.project as Project;
+    if (projectInfoPopup.value.project) return projectInfoPopup.value.project;
   }
 
   return undefined;

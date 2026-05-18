@@ -18,6 +18,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { getPendingChangeRequests } from "@/composables/changes/useChanges";
 import { createProjectObject } from "@/utils/typeFactories";
+import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -82,50 +83,12 @@ export function runViewportRenderLoop() {
   pruneOverlays(mapInstance, paddedBounds, zoom);
 }
 
-/**
- * Queue for progressive overlay destruction to prevent main-thread blocking on bulk hide
- * (e.g. Edit -> View mode switch).
- */
-const destructionQueue = new Set<string>();
-let isDestructionQueueRunning = false;
-
-function processDestructionQueue() {
-  if (destructionQueue.size === 0) {
-    isDestructionQueueRunning = false;
-    return;
-  }
-
-  isDestructionQueueRunning = true;
-
-  // Process up to 10 overlays per frame
-  // Destruction is cheaper than creation, so we can process more
-  let processedCount = 0;
-  const BATCH_SIZE = 10;
-
-  const iterator = destructionQueue.values();
-  let result = iterator.next();
-
-  while (!result.done && processedCount < BATCH_SIZE) {
-    const id = result.value;
-    registry.clearEntry(id);
-
-    destructionQueue.delete(id);
-    processedCount += 1;
-    result = iterator.next();
-  }
-
-  if (destructionQueue.size > 0) {
-    requestAnimationFrame(processDestructionQueue);
-  } else {
-    isDestructionQueueRunning = false;
-  }
-}
+// Drains in batches of 10 per frame to keep bulk teardown (e.g. Edit -> View) off the main thread.
+// Destruction is cheaper than creation, so the batch can be larger than the init queue.
+const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
 
 function queueForDestruction(id: string) {
-  destructionQueue.add(id);
-  if (!isDestructionQueueRunning) {
-    processDestructionQueue();
-  }
+  destructionQueue.enqueue(id, null);
 }
 
 /**
