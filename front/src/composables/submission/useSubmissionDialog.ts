@@ -106,6 +106,12 @@ function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
   }
 }
 
+function cancelSubmission(): void {
+  showSubmissionDialog.value = false;
+  pendingSubmissionContext.value = null;
+  submissionSummary.value = null;
+}
+
 // Build changes for NEW overlays (status is null, never submitted to backend)
 function buildNewOverlayChanges(
   newOverlayIds: string[],
@@ -369,7 +375,6 @@ export function useSubmissionDialog() {
         newOverlayIds,
       };
       showSubmissionDialog.value = true;
-      uiStore.submissionDialogVisible = true;
     } catch (error: unknown) {
       console.error("Error preparing submission:", error);
       toast.add({
@@ -451,7 +456,6 @@ export function useSubmissionDialog() {
       newOverlayIds: overlayIsNew ? [overlay.id] : [],
     };
     showSubmissionDialog.value = true;
-    uiStore.submissionDialogVisible = true;
   }
 
   function handleSubmissionSuccess(context: SubmissionContext): void {
@@ -466,7 +470,6 @@ export function useSubmissionDialog() {
 
     // Close dialog and reset state
     showSubmissionDialog.value = false;
-    uiStore.submissionDialogVisible = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }
@@ -491,13 +494,6 @@ export function useSubmissionDialog() {
     } finally {
       isSubmitting.value = false;
     }
-  }
-
-  function cancelSubmission(): void {
-    showSubmissionDialog.value = false;
-    uiStore.submissionDialogVisible = false;
-    pendingSubmissionContext.value = null;
-    submissionSummary.value = null;
   }
 
   async function handleRemoveOverlayChange(

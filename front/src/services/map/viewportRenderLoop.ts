@@ -136,13 +136,15 @@ function pruneBackendOverlays(
   for (const data of filteredOverlays) {
     if (data.corners.length !== 4) continue;
 
-    // Hoist layer lookup to use live corners for the viewport check.
-    // data.corners is the backend position, stale if the user has moved the overlay
-    // in edit mode. When a layer exists, layer.getCorners() reflects the actual
-    // current position and is used for the in-viewport decision.
-    // When no layer exists yet, data.corners decides whether to create one.
+    // Prefer live corners so in-progress edits show up. getCorners() throws before the
+    // image loads (leaflet-distortableimage reads _corners[0] unguarded).
     const layer = registry.getLayer(data.id);
-    const liveCorners = layer?.getCorners();
+    let liveCorners: ReturnType<L.DistortableImageOverlay["getCorners"]> | undefined;
+    try {
+      liveCorners = layer?.getCorners();
+    } catch {
+      liveCorners = undefined;
+    }
     const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.corners;
 
     const isInViewport = intersectsViewport(computeCornersBBox(effectiveCorners), bounds);

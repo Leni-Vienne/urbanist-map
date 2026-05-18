@@ -67,7 +67,7 @@
     <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
-    <SubmissionDialogWrapper v-if="uiStore.submissionDialogVisible" />
+    <SubmissionDialogWrapper v-if="showSubmissionDialog" />
 
     <!-- Shape Editor Panel - lives outside PopupContainer so closing a popup doesn't destroy it -->
     <ShapeEditorPanel
@@ -95,6 +95,7 @@ import { selectProject } from "@/services/map/projectSelection";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { clearProjectShapes, renderProjectShapes } from "@/services/map/shapeRendering";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";

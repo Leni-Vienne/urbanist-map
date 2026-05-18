@@ -1,6 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject, PanelTab } from "@/types/index";
+import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 // Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
@@ -38,7 +39,6 @@ export const useUiStore = defineStore("ui", () => {
   const authModalInitialMode = ref<"login" | "signup">("login");
   const markerPlacementBarVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
-  const submissionDialogVisible = ref(false);
 
   // Badge indicator, set by ModeratedContributionsWatcher so UserMenu never imports the composable
   const hasUnacknowledgedModeratedContributions = ref(false);
@@ -193,7 +193,7 @@ export const useUiStore = defineStore("ui", () => {
     projectInfoPopup.value.visible = false;
     moderatedContributionsDialogVisible.value = false;
     imageUploadDialog.value.visible = false;
-    submissionDialogVisible.value = false;
+    showSubmissionDialog.value = false;
   }
 
   return {
@@ -202,7 +202,6 @@ export const useUiStore = defineStore("ui", () => {
     authModalInitialMode,
     markerPlacementBarVisible,
     moderatedContributionsDialogVisible,
-    submissionDialogVisible,
     hasUnacknowledgedModeratedContributions,
     projectDialog,
     projectEditForm,

@@ -14,6 +14,7 @@ import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayLayersOnly } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import { updateOverlayMarkersColors } from "@/services/map/markers";
 import {
   setupKeyboardShortcuts,
   updateOverlayEditingState,
@@ -28,22 +29,92 @@ import {
   refreshAllStandaloneMarkers,
 } from "@/services/map/standaloneProjectMarkers";
 import {
-  processStandaloneMarkers,
-  renderFullOverlays,
-  hydrateOverlayStoreObjects,
-} from "@/services/navigation/viewportRenderHelpers";
-import {
   filterByStatus,
   selectedProjectTags,
   visibleStates,
 } from "@/services/overlay/statusFilters";
-import { convertOverlayToData, createProjectObject } from "@/utils/typeFactories";
+import {
+  convertOverlayToData,
+  createOverlayObject,
+  createProjectObject,
+  type StandaloneProject,
+} from "@/utils/typeFactories";
 import { trpc } from "@/client";
 import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
 } from "@/services/map/clusterSourceMerge";
 import type { OverlayData } from "@/types/index";
+
+function processStandaloneMarkers(
+  standaloneProjects: StandaloneProject[],
+  overlaysData: OverlayData[] | null,
+): void {
+  if (standaloneProjects.length === 0) return;
+
+  const projectIdsWithOverlays = new Set<string>();
+  if (overlaysData) {
+    for (const overlay of overlaysData) {
+      if (overlay.projectId) {
+        projectIdsWithOverlays.add(overlay.projectId);
+      }
+    }
+  }
+
+  for (const project of standaloneProjects) {
+    let overlayCount = 0;
+    if ("overlayCount" in project && typeof project.overlayCount === "number") {
+      overlayCount = project.overlayCount;
+    } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
+      overlayCount = project.overlayIds.length;
+    } else if ("overlays" in project && Array.isArray(project.overlays)) {
+      overlayCount = project.overlays.length;
+    }
+
+    if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
+      addStandaloneProjectMarkerForProject(
+        createProjectObject(project as Parameters<typeof createProjectObject>[0]),
+      );
+    }
+  }
+}
+
+function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
+  const overlayStore = useOverlayStore();
+  const updates: Record<string, Partial<OverlayData>> = {};
+  for (const overlayData of overlaysData) {
+    if (overlayStore.overlays[overlayData.id]) {
+      updates[overlayData.id] = {
+        hasPendingChanges: overlayData.hasPendingChanges,
+        suggestedCorners: overlayData.suggestedCorners,
+        pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
+        // Approved overlays first loaded via vectorTileSync lack project data.
+        // Update it here when the bbox fetch provides it, so the popup can resolve activeProject.
+        ...(overlayData.project ? { project: overlayData.project } : {}),
+      };
+    } else {
+      overlayStore.addOverlay(overlayData.id, createOverlayObject(overlayData));
+    }
+  }
+  if (Object.keys(updates).length > 0) {
+    overlayStore.batchUpdateOverlays(updates);
+  }
+}
+
+function renderFullOverlays(overlaysData: OverlayData[]): void {
+  const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+
+  overlayStore.setViewModeOverlays(overlaysData);
+  hydrateOverlayStoreObjects(overlaysData);
+  updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
+
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
+    createSingleMarker(overlayObject);
+  }
+
+  runViewportRenderLoop();
+}
 
 const isLoading = ref(false);
 
@@ -289,9 +360,7 @@ export function useViewportTriggers() {
   }
 
   function setupModeWatcher() {
-    // Filter changes: refresh standalone markers AND sync overlay marker visibility.
-    // runViewportRenderLoop runs on the next map event and handles full destruction;
-    // here we only need an immediate show/hide pass that works at all zoom levels.
+    // Filter changes: re-sync standalone markers and overlay layers/markers via the prune pipelines.
     watch(
       () => ({
         status: visibleStates.value,
@@ -299,19 +368,7 @@ export function useViewportTriggers() {
       }),
       () => {
         refreshAllStandaloneMarkers();
-
-        const mapInstance = map.value;
-        const filteredIds = new Set(
-          filterByStatus(overlayStore.viewModeOverlays, mapStore.mode).map((o) => o.id),
-        );
-        for (const id of Object.keys(overlayStore.overlays)) {
-          const marker = registry.getMarker(id);
-          if (!marker) continue;
-          const shouldBeVisible = filteredIds.has(id);
-          const isOnMap = mapInstance.hasLayer(marker);
-          if (shouldBeVisible && !isOnMap) marker.addTo(mapInstance);
-          else if (!shouldBeVisible && isOnMap) marker.remove();
-        }
+        runViewportRenderLoop();
       },
       { deep: true },
     );

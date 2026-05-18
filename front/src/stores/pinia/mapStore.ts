@@ -10,10 +10,6 @@ export const useMapStore = defineStore("map", () => {
     mode.value = newMode;
   }
 
-  function resetMode() {
-    mode.value = "view";
-  }
-
   const selectedCountryCode = ref<string | null>(null);
 
   function clearAllState() {
@@ -25,7 +21,6 @@ export const useMapStore = defineStore("map", () => {
     mode,
     selectedCountryCode,
     setMode,
-    resetMode,
     clearAllState,
   };
 });
