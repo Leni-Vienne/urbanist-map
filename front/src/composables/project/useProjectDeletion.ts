@@ -1,5 +1,4 @@
 import { t } from "@/locales";
-import type { Project } from "@/types/index";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -34,7 +33,7 @@ export function useProjectDeletion() {
     // If it was the last overlay, add a standalone project marker to show the project
     // (entityRemoval.removeOverlay also does this for backend projects; this is a safety net for local-only projects)
     if (isLastOverlay && project?.id && project.lat && project.lng) {
-      const updatedProject = projectStore.projects[project.id] ?? project;
+      const updatedProject = projectStore.projects[project.id];
 
       await new Promise<void>(
         (resolve) =>
@@ -42,7 +41,9 @@ export function useProjectDeletion() {
             resolve();
           }, 150),
       );
-      addStandaloneProjectMarkerForProject(updatedProject as unknown as Project);
+      if (updatedProject) {
+        addStandaloneProjectMarkerForProject(updatedProject);
+      }
     }
 
     onSuccess?.();

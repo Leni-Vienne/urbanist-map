@@ -1,11 +1,4 @@
-import type {
-  OverlayData,
-  Project,
-  ProjectForModeration,
-  OverlayForModeration,
-  UserContribution,
-  UserContributionOverlay,
-} from "@/types/index";
+import type { OverlayData, OverlayForModeration, UserContributionOverlay } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 
 export function createOverlayForModeration(overlayData: OverlayData): OverlayForModeration {
@@ -48,9 +41,9 @@ export function createLocalOverlayContribution(
   },
   parentProject: {
     cityId: number | null;
-    cityName: string | null;
+    cityName: string | null | undefined;
     countryCode: string | null;
-    countryName: string | null;
+    countryName: string | null | undefined;
   },
   username: string | null,
 ): UserContributionOverlay {
@@ -69,41 +62,9 @@ export function createLocalOverlayContribution(
     replacedByOverlayId: overlay.replacedByOverlayId ?? null,
     updatedAt: overlay.updatedAt ?? new Date(),
     cityId: parentProject.cityId,
-    cityName: parentProject.cityName,
+    cityName: parentProject.cityName ?? null,
     countryCode: parentProject.countryCode,
-    countryName: parentProject.countryName,
+    countryName: parentProject.countryName ?? null,
     imageUrl: overlay.imageUrl,
-  };
-}
-
-export function createLocalProjectContribution(
-  project: Project,
-  overlays: UserContributionOverlay[],
-  username: string | null,
-): UserContribution {
-  return {
-    ...project,
-    overlays,
-    overlayIds: overlays.map((o) => o.id),
-    cityName: project.city?.name ?? null,
-    countryName: null,
-    ownerUsername: username,
-    ownerApprovedCount: null,
-    ownerRejectedCount: null,
-  };
-}
-
-export function createProjectForModerationFromProject(
-  project: Project,
-  overlays: OverlayForModeration[],
-): ProjectForModeration {
-  return {
-    ...project,
-    tags: project.tags,
-    cityName: project.city?.name ?? null,
-    countryCode: project.countryCode,
-    countryName: null,
-    overlays,
-    overlayCount: project.overlayIds.length,
   };
 }

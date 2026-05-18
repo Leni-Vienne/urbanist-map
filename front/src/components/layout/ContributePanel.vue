@@ -167,10 +167,7 @@ import type {
   UserContributionOverlay,
   OverlayForModeration,
 } from "@/types/index";
-import {
-  createOverlayForModeration,
-  createProjectForModerationFromProject,
-} from "@/utils/projectFactories";
+import { createOverlayForModeration } from "@/utils/projectFactories";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
@@ -263,7 +260,7 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   const overlays = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === project.id)
     .map((o) => createOverlayForModeration(o));
-  return createProjectForModerationFromProject(project, overlays);
+  return { ...project, overlays };
 });
 
 const filteredProjects = computed(() => {
@@ -425,7 +422,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   }
 
   // Open the shape editor panel (no popup to reopen at)
-  uiStore.openShapeEditor(project as unknown as Project);
+  uiStore.openShapeEditor(project);
   // Lazy-load geoman and initialise the toolbar with the best available geometry
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
   await initShapeEditor(map.value, existingGeometry ?? undefined);
@@ -447,8 +444,7 @@ function handleEditProjectClick(project: ProjectForModeration) {
   );
   const projectToEdit = latestProjectData ?? project;
 
-  // Use unknown as intermediate type since ProjectForModeration may not have all Project fields
-  uiStore.openProjectEditForm(projectToEdit as unknown as Project);
+  uiStore.openProjectEditForm(projectToEdit);
 }
 
 // Auto-expand the pinned project when the selection changes
@@ -459,7 +455,7 @@ watch(
     await nextTick();
     const isOwnContribution = displayedProjects.value.some((p) => p.id === id);
     if (isOwnContribution) {
-      expandAccordionForProject(id, displayedProjects.value as unknown as ProjectForModeration[]);
+      expandAccordionForProject(id, displayedProjects.value);
     } else if (!activeAccordionPanels.value.includes(id)) {
       // External pinned project: just push the id into the shared accordion state
       activeAccordionPanels.value.push(id);

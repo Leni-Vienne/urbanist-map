@@ -49,17 +49,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     lat: data.lat ?? null,
     lng: data.lng ?? null,
     centerCoordinate: data.centerCoordinate ?? null,
-    // Computed fields
-    city: data.city ?? {
-      id: 0,
-      name: "",
-      nameLocal: null,
-      countryCode: "",
-      coordinates: { x: 0, y: 0 },
-      approvedProjectCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    city: data.city ?? null,
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
     geometrySizeM: data.geometrySizeM ?? null,

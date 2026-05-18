@@ -15,7 +15,7 @@ import {
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
 import { t } from "@/locales";
-import type { Project } from "@/types/index";
+import type { Project, ProjectForModeration } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
 
 // Result type for approval operations
@@ -44,9 +44,19 @@ export function useModeration() {
         countryCode: mapStore.selectedCountryCode ?? undefined,
       });
 
+      // The moderation backend query omits the joined city object, the derived overlayIds array,
+      // and the parsed geometry. Coerce here so the stored projects satisfy ProjectForModeration.
+      const moderationProjects: ProjectForModeration[] = response.projects.map((project) => ({
+        ...project,
+        city: null,
+        overlayIds: project.overlays.map((overlay) => overlay.id),
+        geometry: null,
+        tags: project.tags ?? [],
+      }));
+
       moderationStore.setModerationData({
         overlays: response.overlays,
-        projects: response.projects,
+        projects: moderationProjects,
         changeRequests: response.changeRequests,
       });
     } catch (error) {

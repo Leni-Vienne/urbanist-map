@@ -6,12 +6,24 @@ import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import {
-  createLocalOverlayContribution,
-  createLocalProjectContribution,
-} from "@/utils/projectFactories";
+import { createLocalOverlayContribution } from "@/utils/projectFactories";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
-import type { UserContribution } from "@/types/index";
+import type { Project, UserContribution, UserContributionOverlay } from "@/types/index";
+
+function buildLocalContribution(
+  project: Project,
+  overlays: UserContributionOverlay[],
+  username: string | null,
+): UserContribution {
+  return {
+    ...project,
+    overlays,
+    overlayIds: overlays.map((o) => o.id),
+    cityName: project.city?.name ?? null,
+    countryName: null,
+    ownerUsername: username,
+  };
+}
 
 async function deleteOverlay(overlayId: string): Promise<boolean> {
   // Delegate to deleteOverlayDirect with composable-appropriate options
@@ -99,7 +111,7 @@ export function useUserContributions() {
           );
           contributionsMap.set(
             localProject.id,
-            createLocalProjectContribution(localProject, [localOverlayData], user.username ?? null),
+            buildLocalContribution(localProject, [localOverlayData], user.username ?? null),
           );
         }
       }
@@ -132,7 +144,7 @@ export function useUserContributions() {
 
       contributionsMap.set(
         localProject.id,
-        createLocalProjectContribution(localProject, overlayData, user.username ?? null),
+        buildLocalContribution(localProject, overlayData, user.username ?? null),
       );
     }
 

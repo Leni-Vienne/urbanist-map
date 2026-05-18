@@ -38,7 +38,7 @@ export function processStandaloneMarkers(
   for (const project of standaloneProjects) {
     // Unified overlay count check spanning all StandaloneProject union members
     let overlayCount = 0;
-    if ("overlayCount" in project) {
+    if ("overlayCount" in project && typeof project.overlayCount === "number") {
       overlayCount = project.overlayCount;
     } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
       overlayCount = project.overlayIds.length;

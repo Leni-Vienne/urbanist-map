@@ -24,8 +24,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
     if (!project && mapStore.mode === "moderation") {
       const modProject = moderationStore.projects.find((p) => p.id === savedOverlay.projectId);
       if (modProject) {
-        // Cast moderation project to Project type (compatible enough for our needs)
-        project = modProject as unknown as Project;
+        project = modProject;
       }
     }
   }

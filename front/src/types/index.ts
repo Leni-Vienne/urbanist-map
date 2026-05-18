@@ -117,6 +117,19 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   importSource?: DBImportSource | null;
   // UI state for tracking local modifications
   isModified?: boolean;
+
+  // Denormalized location names, populated by location-aware queries (joins).
+  cityName?: string | null;
+  countryName?: string | null;
+
+  // Owner display + spam-detection fields, populated by moderation/contribution endpoints.
+  ownerUsername?: string | null;
+  ownerApprovedCount?: number | null;
+  ownerRejectedCount?: number | null;
+  ownerReportCount?: number;
+
+  // Cached overlay count for list views that don't hydrate the full overlays array.
+  overlayCount?: number;
 }
 
 export interface ProjectFormData {
@@ -201,51 +214,8 @@ export type OverlayForModeration = Pick<
   imageUrl?: string; // Optional for local overlays not yet uploaded
 };
 
-export type ProjectForModeration = Pick<
-  Project,
-  | "id"
-  | "name"
-  | "description"
-  | "status"
-  | "version"
-  | "createdAt"
-  | "updatedAt"
-  | "startDate"
-  | "startDatePrecision"
-  | "endDate"
-  | "endDatePrecision"
-  | "proposalDate"
-  | "proposalDatePrecision"
-  | "timelineStatus"
-  | "importSourceId"
-  | "externalId"
-  | "externalProperties"
-  | "externalLastModified"
-  | "lastImportedAt"
-  | "sourceUrl"
-  | "lat"
-  | "lng"
-  | "cityId"
-> & {
-  tags: string[] | null; // May be null for legacy projects without tags
-  ownerId?: string | null; // For spam prevention reporting (optional, only in moderation)
-  ownerUsername?: string | null; // Display friendly username in moderation UI
-  ownerApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)
-  ownerRejectedCount?: number | null;
-  ownerReportCount?: number; // Number of reports for this user
-  city?: {
-    // Full city object with local name support
-    id: number;
-    name: string;
-    nameLocal: string | null;
-    countryCode: string;
-  } | null;
-  cityName: string | null;
-  countryCode: string | null;
-  countryName: string | null;
+export type ProjectForModeration = Project & {
   overlays: OverlayForModeration[];
-  overlayCount?: number;
-  geometry?: GeoJSON.GeometryCollection | null;
 };
 
 type BackendContributionOverlay =
@@ -258,13 +228,8 @@ export type UserContributionOverlay = Omit<BackendContributionOverlay, "status">
   imageUrl?: string;
 };
 
-// A user contribution is a Project augmented with the inline overlay list and a few owner display fields.
-// The backend response already conforms to the Project shape (overlayIds, tags coerced, joined city + country fields).
+// A user contribution is a Project augmented with the inline overlay list.
+// Backend already populates the optional denormalized fields on Project (cityName, countryName, ownerUsername...).
 export type UserContribution = Project & {
   overlays: UserContributionOverlay[];
-  cityName: string | null;
-  countryName: string | null;
-  ownerUsername?: string | null;
-  ownerApprovedCount?: number | null;
-  ownerRejectedCount?: number | null;
 };
