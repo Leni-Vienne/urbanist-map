@@ -25,13 +25,18 @@ import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
+  refreshAllStandaloneMarkers,
 } from "@/services/map/standaloneProjectMarkers";
 import {
   processStandaloneMarkers,
   renderFullOverlays,
   hydrateOverlayStoreObjects,
 } from "@/services/navigation/viewportRenderHelpers";
-import { filterByStatus } from "@/services/overlay/statusFilters";
+import {
+  filterByStatus,
+  selectedProjectTags,
+  visibleStates,
+} from "@/services/overlay/statusFilters";
 import { convertOverlayToData, createProjectObject } from "@/utils/typeFactories";
 import { trpc } from "@/client";
 import {
@@ -284,6 +289,33 @@ export function useViewportTriggers() {
   }
 
   function setupModeWatcher() {
+    // Filter changes: refresh standalone markers AND sync overlay marker visibility.
+    // runViewportRenderLoop runs on the next map event and handles full destruction;
+    // here we only need an immediate show/hide pass that works at all zoom levels.
+    watch(
+      () => ({
+        status: visibleStates.value,
+        tags: selectedProjectTags.value,
+      }),
+      () => {
+        refreshAllStandaloneMarkers();
+
+        const mapInstance = map.value;
+        const filteredIds = new Set(
+          filterByStatus(overlayStore.viewModeOverlays, mapStore.mode).map((o) => o.id),
+        );
+        for (const id of Object.keys(overlayStore.overlays)) {
+          const marker = registry.getMarker(id);
+          if (!marker) continue;
+          const shouldBeVisible = filteredIds.has(id);
+          const isOnMap = mapInstance.hasLayer(marker);
+          if (shouldBeVisible && !isOnMap) marker.addTo(mapInstance);
+          else if (!shouldBeVisible && isOnMap) marker.remove();
+        }
+      },
+      { deep: true },
+    );
+
     // When pending change requests finish loading, re-render project shapes
     watch(pendingChangeRequestsRef, () => {
       if (mapStore.mode === "view") return;

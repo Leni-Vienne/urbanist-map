@@ -157,10 +157,8 @@ import L from "leaflet";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
-import {
-  closeProjectPopupAndResetMarkers,
-  selectProject,
-} from "@/services/map/standaloneProjectMarkers";
+import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { selectProject } from "@/services/map/projectSelection";
 import type { RouterOutput } from "@/client";
 import type {
   Project,

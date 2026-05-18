@@ -10,11 +10,10 @@ import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import {
   addProjectDataToMlMap,
-  applyPlanStyleRoadOverrides,
-  applyRailStyleOverrides,
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
+import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
 import {
   selectedProjectTags,
   visibleStates,

@@ -91,7 +91,7 @@ import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { selectProject } from "@/services/map/standaloneProjectMarkers";
+import { selectProject } from "@/services/map/projectSelection";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { clearProjectShapes, renderProjectShapes } from "@/services/map/shapeRendering";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";

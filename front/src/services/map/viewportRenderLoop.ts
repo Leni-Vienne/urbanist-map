@@ -11,10 +11,8 @@ import { filterByStatus } from "@/services/overlay/statusFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
-import {
-  selectProject,
-  getStandaloneProjectMarkerMap,
-} from "@/services/map/standaloneProjectMarkers";
+import { getStandaloneProjectMarkerMap } from "@/services/map/standaloneProjectMarkers";
+import { selectProject } from "@/services/map/projectSelection";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";

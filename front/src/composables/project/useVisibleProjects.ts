@@ -5,7 +5,7 @@ import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
 import { map } from "@/services/core/map";
-import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { VECTOR_QUERY_LAYERS, getZoomForGeometrySize } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";

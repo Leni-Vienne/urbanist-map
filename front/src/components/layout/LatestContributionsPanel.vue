@@ -110,7 +110,7 @@ import {
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { map } from "@/services/core/map";
 import L from "leaflet";
