@@ -103,35 +103,13 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
     },
   );
 
-  onMounted(async () => {
+  async function initCountries() {
     try {
       if (!moderationStore.countriesLoaded) {
-        countriesLoading.value = true;
         const countries = await trpc.country.getAllCountries.query();
         moderationStore.setAllCountries(countries);
       }
-
-      // Auto-select for non-admin moderators with exactly one assigned country.
-      // The watcher above will pick this up and trigger the fetch.
-      const user = authStore.user;
-      const isAdmin = user?.role === "admin";
-      if (!mapStore.selectedCountryCode && !isAdmin && availableCountries.value.length === 1) {
-        const country = availableCountries.value[0];
-        if (!country) {
-          throw new Error("No country found");
-        }
-        mapStore.selectedCountryCode = country.code;
-        flyToCountry(country.code);
-      }
-
-      if (!moderationStore.pendingCountsLoaded) {
-        try {
-          const counts = await trpc.moderation.getPendingCountsByCountry.query();
-          moderationStore.setPendingCounts(counts);
-        } catch (error) {
-          console.error("Failed to load pending counts:", error);
-        }
-      }
+      autoSelectSingleCountry();
     } catch (error) {
       console.error("Failed to load countries:", error);
       toast.add({
@@ -140,9 +118,35 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
         detail: t("moderation.failedToLoadCountries"),
         life: 3000,
       });
-    } finally {
-      countriesLoading.value = false;
     }
+  }
+
+  async function initPendingCounts() {
+    if (moderationStore.pendingCountsLoaded) return;
+    try {
+      const counts = await trpc.moderation.getPendingCountsByCountry.query();
+      moderationStore.setPendingCounts(counts);
+    } catch (error) {
+      console.error("Failed to load pending counts:", error);
+    }
+  }
+
+  function autoSelectSingleCountry() {
+    if (mapStore.selectedCountryCode) return;
+    if (authStore.user?.role === "admin") return;
+    if (availableCountries.value.length !== 1) return;
+
+    const country = availableCountries.value[0];
+    if (!country) throw new Error("No country found");
+
+    mapStore.selectedCountryCode = country.code;
+    flyToCountry(country.code);
+  }
+
+  onMounted(async () => {
+    countriesLoading.value = true;
+    await Promise.all([initCountries(), initPendingCounts()]);
+    countriesLoading.value = false;
   });
 
   return {
