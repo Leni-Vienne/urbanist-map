@@ -1,8 +1,11 @@
 import L from "leaflet";
+import { watchEffect } from "vue";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 
 const markerSize = 25;
 const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
@@ -167,36 +170,32 @@ export function getOverlayMarkerColor(
 }
 
 /**
- * Update overlay marker colors based on current mode.
- * Pass a specific overlay ID to update only that one marker (optimization).
+ * Set up a single watchEffect that keeps every overlay marker's color in sync with its
+ * Pinia state (status, isModified, hasPendingChanges, isViewingApprovedPosition, project,
+ * isTooBig, replacesOverlayId) and the current map mode. Replaces the imperative
+ * updateOverlayMarkersColors call sites; data mutations that go through overlayStore /
+ * batchUpdateOverlays / updateOverlay trigger this automatically.
+ *
+ * Initial color is set by createSingleMarker / createMarker on creation; this effect
+ * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
+ * no-op setIcon calls.
  */
-export function updateOverlayMarkersColors(
-  overlays: Record<string, OverlayObject>,
-  mode: AppMode,
-  specificOverlayId?: string,
-): void {
-  // If specific overlay ID provided, only update that one
-  if (specificOverlayId) {
-    const overlayObject = overlays[specificOverlayId];
-    if (overlayObject) {
-      const marker = getMarker(overlayObject.id);
-      if (marker) {
-        const markerColor = getOverlayMarkerColor(overlayObject, mode);
-        const colorIcon = createOverlayIcon(markerColor);
-        marker.setIcon(colorIcon);
-      }
-    }
-    return;
-  }
+export function initializeMarkerColorTriggers(): void {
+  const mapStore = useMapStore();
+  const overlayStore = useOverlayStore();
 
-  for (const overlayObject of Object.values(overlays)) {
-    const marker = getMarker(overlayObject.id);
-    if (marker) {
-      const markerColor = getOverlayMarkerColor(overlayObject, mode);
-      const colorIcon = createOverlayIcon(markerColor);
-      marker.setIcon(colorIcon);
+  watchEffect(() => {
+    const mode = mapStore.mode;
+    for (const overlayObject of Object.values(overlayStore.overlays)) {
+      const marker = getMarker(overlayObject.id);
+      if (!marker) continue;
+      const color = getOverlayMarkerColor(overlayObject, mode);
+      const markerWithColor = marker as L.Marker & { _cmorgColor?: MarkerColor };
+      if (markerWithColor._cmorgColor === color) continue;
+      marker.setIcon(createOverlayIcon(color));
+      markerWithColor._cmorgColor = color;
     }
-  }
+  });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

@@ -199,7 +199,7 @@ import {
   hasProjectShapes,
   highlightProjectShapes,
   unhighlightProjectShapes,
-} from "@/services/map/shapeRendering";
+} from "@/services/map/shapeLayerRegistry";
 import {
   highlightStandaloneProjectMarker,
   unhighlightStandaloneProjectMarker,

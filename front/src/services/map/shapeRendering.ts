@@ -5,19 +5,16 @@ import { getProjectMarkerColor } from "@/utils/markerColors";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
-
-type ShapeEntry = {
-  group: L.LayerGroup;
-  /** Visual layers, the ones that get styled on hover/highlight. */
-  layers: L.Path[];
-  /** Interactive layers, the ones that receive mouse events (transparent hit targets for lines, visual layers for polygons). */
-  interactiveLayers: L.Path[];
-  baseStyle: L.PathOptions;
-  hoverStyle: L.PathOptions;
-};
-
-// Registry: projectId → shape entry with layers and styles for highlight/unhighlight
-const shapeLayerMap = new Map<string, ShapeEntry>();
+import { selectProject } from "@/services/map/projectSelection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import {
+  setShapeEntry,
+  getShapeEntry,
+  hasProjectShapes,
+  highlightProjectShapes,
+  unhighlightProjectShapes,
+  clearAllShapeEntries,
+} from "@/services/map/shapeLayerRegistry";
 
 // Ephemeral preview layer for change request previews (not in shapeLayerMap)
 let previewLayerGroup: L.LayerGroup | null = null;
@@ -81,19 +78,15 @@ function buildShapeLayers(
 /**
  * Render a project's GeometryCollection as Leaflet layers on the map.
  * Lines become L.polyline, polygons become L.polygon (with fill). Idempotent.
- * onProjectClick: called when the user clicks any shape layer.
- * onProjectHover / onProjectLeave: called with projectId on enter/leave.
+ * Hover/click handlers call selectProject + highlightProject/removeProjectOutlines directly.
  */
 export function renderProjectShapes(
   project: Project,
   mapInstance: L.Map,
-  onProjectClick?: (project: Project, latlng: L.LatLng) => void,
-  onProjectHover?: (projectId: string) => void,
-  onProjectLeave?: (projectId: string) => void,
   colorKeyOverride?: keyof typeof markerColors,
 ): void {
   if (!project.geometry?.geometries.length) return;
-  if (shapeLayerMap.has(project.id)) return;
+  if (hasProjectShapes(project.id)) return;
 
   const mapStore = useMapStore();
   const color = markerColors[colorKeyOverride ?? getProjectMarkerColor(project, mapStore.mode)];
@@ -112,7 +105,7 @@ export function renderProjectShapes(
   for (const layer of interactiveLayers) {
     layer.on("mouseover", () => {
       highlightProjectShapes(project.id);
-      onProjectHover?.(project.id);
+      highlightProject(project.id);
       (layer.getElement() as unknown as HTMLElement | undefined)?.style.setProperty(
         "cursor",
         "pointer",
@@ -120,8 +113,8 @@ export function renderProjectShapes(
     });
     layer.on("mouseout", () => {
       // Keep highlight if the project info popup is open or one of its overlays is selected.
-      // Not using getCurrentHighlightedProjectId() from overlaySelection to avoid a circular
-      // dependency (overlaySelection → shapeRendering → overlaySelection).
+      // Inlined check to avoid coupling to overlaySelection.getCurrentHighlightedProjectId
+      // beyond the existing import.
       const overlayStore = useOverlayStore();
       const uiStore = useUiStore();
       const selected = overlayStore.idSelectedOverlay
@@ -133,20 +126,18 @@ export function renderProjectShapes(
       if (highlightedId === project.id) return;
 
       unhighlightProjectShapes(project.id);
-      onProjectLeave?.(project.id);
+      removeProjectOutlines(project.id);
       (layer.getElement() as unknown as HTMLElement | undefined)?.style.removeProperty("cursor");
     });
-    if (onProjectClick) {
-      layer.on("click", (e: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e);
-        onProjectClick(project, e.latlng);
-      });
-    }
+    layer.on("click", (e: L.LeafletMouseEvent) => {
+      L.DomEvent.stopPropagation(e);
+      selectProject(project, e.latlng);
+    });
   }
 
   const group = L.layerGroup([...layers, ...interactiveLayers]);
   group.addTo(mapInstance);
-  shapeLayerMap.set(project.id, { group, layers, interactiveLayers, baseStyle, hoverStyle });
+  setShapeEntry(project.id, { group, layers, interactiveLayers, baseStyle, hoverStyle });
 
   // Apply hover style immediately if the project is already focused (e.g. shapes
   // re-rendered after a mode switch while the popup is open).
@@ -163,68 +154,15 @@ export function renderProjectShapes(
   }
 }
 
-/** Remove rendered shape layers for a single project. */
-export function clearProjectShapes(projectId: string): void {
-  const entry = shapeLayerMap.get(projectId);
-  if (entry) {
-    entry.group.remove();
-    shapeLayerMap.delete(projectId);
-  }
-}
-
 /** Remove all rendered shape layers and any active preview. */
 export function clearAllProjectShapes(): void {
-  for (const entry of shapeLayerMap.values()) {
-    entry.group.remove();
-  }
-  shapeLayerMap.clear();
+  clearAllShapeEntries();
   clearPreviewShapes();
-}
-
-/** Returns true if shapes are already rendered for the given project. */
-export function hasProjectShapes(projectId: string): boolean {
-  return shapeLayerMap.has(projectId);
-}
-
-/** Returns the combined LatLngBounds of all rendered shape layers, or null if none exist. */
-export function getProjectShapeBounds(projectId: string): L.LatLngBounds | null {
-  const entry = shapeLayerMap.get(projectId);
-  if (!entry || entry.layers.length === 0) return null;
-  let bounds: L.LatLngBounds | null = null;
-  for (const layer of entry.layers) {
-    const layerBounds = layer instanceof L.Polyline ? layer.getBounds() : undefined;
-    if (layerBounds?.isValid()) {
-      bounds = bounds ? bounds.extend(layerBounds) : layerBounds;
-    }
-  }
-  return bounds?.isValid() ? bounds : null;
-}
-
-/**
- * Apply the hover style to all shape layers of a project (e.g. when an overlay is hovered).
- */
-export function highlightProjectShapes(projectId: string): void {
-  const entry = shapeLayerMap.get(projectId);
-  if (!entry) return;
-  for (const layer of entry.layers) {
-    layer.setStyle(entry.hoverStyle);
-  }
-}
-
-/**
- * Revert all shape layers of a project to their base style.
- */
-export function unhighlightProjectShapes(projectId: string): void {
-  const entry = shapeLayerMap.get(projectId);
-  if (!entry) return;
-  for (const layer of entry.layers) {
-    layer.setStyle(entry.baseStyle);
-  }
 }
 
 /**
  * Render a GeometryCollection as a temporary preview layer (dashed, colored by variant).
- * Not registered in shapeLayerMap, call clearPreviewShapes() to remove.
+ * Not registered in the shape registry, call clearPreviewShapes() to remove.
  */
 export function renderPreviewShapes(
   geometry: GeoJSON.GeometryCollection,
@@ -238,7 +176,7 @@ export function renderPreviewShapes(
   // Temporarily hide this project's regular shapes so they don't overlap the preview
   previewMapInstance = mapInstance;
   if (projectId) {
-    const existingEntry = shapeLayerMap.get(projectId);
+    const existingEntry = getShapeEntry(projectId);
     if (existingEntry) {
       existingEntry.group.remove();
     }
@@ -288,7 +226,7 @@ function clearPreviewShapes(): void {
   previewLayerGroup = null;
 
   if (previewHiddenProjectId && previewMapInstance) {
-    const entry = shapeLayerMap.get(previewHiddenProjectId);
+    const entry = getShapeEntry(previewHiddenProjectId);
     if (entry) {
       entry.group.addTo(previewMapInstance);
     }

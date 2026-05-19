@@ -7,7 +7,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,
@@ -171,9 +170,9 @@ export function useModeration() {
       const overlayObject = overlayStore.overlays[id];
 
       if (overlayObject) {
+        // updateOverlay mutates the Pinia proxy, picked up by initializeMarkerColorTriggers.
         overlayStore.updateOverlay(id, { status });
         updateMarkerTooltip(overlayObject);
-        updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
       }
 
       // If a replacement overlay was approved, remove the original and any competing replacements

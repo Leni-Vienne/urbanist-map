@@ -14,7 +14,6 @@ import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/
 import { clearAllOverlays, clearOverlayLayersOnly } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
-import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
 import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
 import {
@@ -93,11 +92,9 @@ function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
 
 function renderFullOverlays(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
 
   overlayStore.setViewModeOverlays(overlaysData);
   hydrateOverlayStoreObjects(overlaysData);
-  updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
 
   for (const overlayObject of Object.values(overlayStore.overlays)) {
     createSingleMarker(overlayObject);

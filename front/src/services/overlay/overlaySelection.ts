@@ -8,7 +8,10 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
-import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapeRendering";
+import {
+  highlightProjectShapes,
+  unhighlightProjectShapes,
+} from "@/services/map/shapeLayerRegistry";
 import { setExternalHover } from "@/services/map/vectorHoverState";
 
 // Guard to prevent recursive selectOverlay calls when library fires select event

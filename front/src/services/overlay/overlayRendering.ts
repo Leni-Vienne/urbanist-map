@@ -20,7 +20,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { createOverlayObject } from "@/utils/typeFactories";
@@ -278,9 +277,6 @@ function setupOverlayMovementTracking(
 
     // Stop tracking handler - behaves like 'mouseup'/'touchend'
     function stopTracking() {
-      const overlayStore = useOverlayStore();
-      const mapStore = useMapStore();
-
       if (!isManipulating) return;
       isManipulating = false;
 
@@ -297,8 +293,10 @@ function setupOverlayMovementTracking(
       document.removeEventListener("touchmove", onMovement);
 
       if (hasActuallyMoved) {
+        // saveToHistory (called from the Leaflet "dragend"/"edit" handlers in
+        // setupOverlayEventHandlers) flips isModified through overlayStore.updateOverlay,
+        // which is picked up by initializeMarkerColorTriggers' watchEffect.
         updateMarkerPosition(overlayObject);
-        updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode, overlayObject.id);
       }
     }
 

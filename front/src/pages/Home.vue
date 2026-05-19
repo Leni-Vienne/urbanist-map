@@ -91,10 +91,9 @@ import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { selectProject } from "@/services/map/projectSelection";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
-import { clearProjectShapes, renderProjectShapes } from "@/services/map/shapeRendering";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { renderProjectShapes } from "@/services/map/shapeRendering";
+import { clearProjectShapes } from "@/services/map/shapeLayerRegistry";
 import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import MapView from "@/components/map/MapView.vue";
@@ -208,13 +207,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   clearProjectShapes(project.id);
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
-    renderProjectShapes(
-      updatedProject,
-      map.value,
-      selectProject,
-      highlightProject,
-      removeProjectOutlines,
-    );
+    renderProjectShapes(updatedProject, map.value);
   }
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });

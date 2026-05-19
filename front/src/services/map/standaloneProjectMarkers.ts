@@ -9,11 +9,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import {
-  selectOverlay,
-  highlightProject,
-  removeProjectOutlines,
-} from "@/services/overlay/overlaySelection";
+import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import {
   createProjectInfoTeleportTarget,
@@ -21,14 +17,12 @@ import {
 } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
+import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
-  renderProjectShapes,
-  clearAllProjectShapes,
   highlightProjectShapes,
   unhighlightProjectShapes,
-} from "@/services/map/shapeRendering";
+} from "@/services/map/shapeLayerRegistry";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { selectProject } from "@/services/map/projectSelection";
 // t() is imported directly since useI18n() is only available inside component setup().
 import { t } from "@/locales";
 
@@ -277,7 +271,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
   if (project.geometry?.geometries.length) {
-    renderProjectShapes(project, map.value, selectProject, highlightProject, removeProjectOutlines);
+    renderProjectShapes(project, map.value);
   }
 
   initializePopupWatcher();
