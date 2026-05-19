@@ -4,25 +4,21 @@ import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { shouldShowStandaloneProject } from "@/services/overlay/statusFilters";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import {
   createProjectInfoTeleportTarget,
   cleanupProjectInfoTeleportTarget,
 } from "@/services/map/projectPopupTeleport";
-import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   highlightProjectShapes,
   unhighlightProjectShapes,
 } from "@/services/map/shapeLayerRegistry";
-import { setExternalHover } from "@/services/map/vectorHoverState";
 // t() is imported directly since useI18n() is only available inside component setup().
 import { t } from "@/locales";
 
@@ -34,59 +30,6 @@ const standaloneProjectMarkerMap = new Map<string, L.Marker>();
 
 // Track the currently selected standalone project marker (for opacity control)
 let selectedStandaloneProjectMarker: L.Marker | null = null;
-
-// Track if watcher has been initialized (lazy initialization to avoid Pinia issues)
-let isWatcherInitialized = false;
-
-/**
- * Initialize the popup state watcher. Lazy so Pinia is ready by the first selection.
- * Drives all popup-state-driven side effects (marker opacity, vector hover highlight,
- * accordion scroll, overlay popup hide, deselect) so click handlers only need to toggle
- * the popup state.
- */
-export function initializePopupWatcher() {
-  if (isWatcherInitialized) return;
-
-  watch(
-    () => {
-      const uiStore = useUiStore();
-      return uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null;
-    },
-    (newProjectId, oldProjectId) => {
-      if (newProjectId === oldProjectId) return;
-
-      const overlayStore = useOverlayStore();
-      const uiStore = useUiStore();
-      const mapStore = useMapStore();
-
-      if (oldProjectId && oldProjectId !== newProjectId) {
-        unhighlightProjectShapes(oldProjectId);
-      }
-
-      if (!newProjectId) {
-        updateStandaloneProjectMarkerOpacities(null);
-        setExternalHover(null);
-        return;
-      }
-
-      const marker = standaloneProjectMarkerMap.get(newProjectId) ?? null;
-      updateStandaloneProjectMarkerOpacities(marker);
-
-      // Pin the vector tile highlight in view mode (overlay-only projects only render via tiles).
-      if (mapStore.mode === "view") {
-        setExternalHover(newProjectId);
-      }
-
-      if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
-      requestScrollTo("project", newProjectId);
-
-      if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
-      if (overlayStore.idSelectedOverlay) selectOverlay(null);
-    },
-  );
-
-  isWatcherInitialized = true;
-}
 
 /** Returns the standalone project marker for a given project ID. */
 export function getStandaloneProjectMarkerByProjectId(projectId: string): L.Marker | undefined {
@@ -248,7 +191,7 @@ export function updateStandaloneProjectMarkerTooltip(
 }
 
 /** Dim all standalone markers except the selected one. */
-function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
+export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
   if (!standaloneProjectsLayer) return;
 
   selectedStandaloneProjectMarker = selectedMarker;
@@ -273,8 +216,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (project.geometry?.geometries.length) {
     renderProjectShapes(project, map.value);
   }
-
-  initializePopupWatcher();
 
   const mapStore = useMapStore();
   const markerColor = getProjectMarkerColor(project, mapStore.mode);

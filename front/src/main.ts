@@ -15,6 +15,7 @@ import {
   setI18nInstance,
 } from "./locales";
 import { setupKeyboardShortcuts } from "./services/overlay/overlayEditing";
+import { initializePopupWatcher } from "./services/map/projectPopupWatcher";
 
 // importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement
 const UrbanistmapPreset = definePreset(Aura, {
@@ -95,6 +96,10 @@ updateTranslationSettings(currentLocale);
 const app = createApp(App);
 
 app.use(createPinia());
+
+// Popup watcher drives popup-state-driven side effects across the map. Initialize once
+// after Pinia is installed so click handlers only need to toggle popup state.
+initializePopupWatcher();
 
 // Keyboard shortcuts (undo/redo) are document-level and only act when an overlay is selected,
 // so register them once at boot rather than re-installing on every mode switch.

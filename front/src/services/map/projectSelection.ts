@@ -10,19 +10,15 @@ import {
 import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
-import { initializePopupWatcher } from "@/services/map/standaloneProjectMarkers";
 
 /**
  * Open the project info popup and pin the teleport anchor for the given project.
  * Called from vector/point clicks, Leaflet shape clicks, and the Contribute sidebar.
  * Popup-state side effects (vector hover, accordion scroll, marker opacity, overlay
- * deselect) are handled by the popup watcher in standaloneProjectMarkers.
+ * deselect) are handled by the popup watcher initialized at boot in main.ts.
  */
 export function selectProject(project: Project, latlng: L.LatLng, atCenter = false): void {
   const uiStore = useUiStore();
-
-  // Ensure the watcher is active even for overlay-only projects (no standalone marker creation path).
-  initializePopupWatcher();
 
   if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
     uiStore.closeProjectInfoPopup();

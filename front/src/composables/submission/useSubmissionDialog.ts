@@ -12,12 +12,8 @@ import {
   type PendingOverlayModification,
 } from "@/stores/pinia/pendingModificationsStore";
 import { useToast } from "@/composables/ui/useToast";
-import {
-  useSubmissionService,
-  type SubmissionChange,
-  type SubmissionChangeType,
-  type SubmissionContext,
-} from "./useSubmissionService";
+import { useSubmissionService } from "./useSubmissionService";
+import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 import L from "leaflet";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
