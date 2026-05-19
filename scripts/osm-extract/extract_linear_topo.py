@@ -689,7 +689,12 @@ def _expand_box(b, pad_lon, pad_lat):
 
 
 def absorb_anonymous(cs, max_distance_km=1.0):
-    """Absorb anonymous components into nearest named component of exact same type."""
+    """Absorb anonymous components into nearest named component of exact same type.
+
+    Uses line-to-line distance against the actual geometry of each named component.
+    Bbox distance would treat any orphan inside a large enveloping component
+    (e.g. a ring road spanning a whole metro area) as adjacent to it.
+    """
     before = len(cs.components)
     named = [rid for rid in cs.components if not cs.is_anonymous(rid)]
     anonymous = [rid for rid in cs.components if cs.is_anonymous(rid)]
@@ -697,34 +702,47 @@ def absorb_anonymous(cs, max_distance_km=1.0):
     if not named or not anonymous:
         return before, len(cs.components)
 
-    # Group named components by (transport_type, project_status) and build one STRtree per group.
-    pad_lon = max_distance_km / 85
-    pad_lat = max_distance_km / 111
+    max_dist_deg = meters_to_degrees(max_distance_km * 1000)
+
+    # Group named components by (transport_type, project_status) and build one STRtree
+    # per group over the buffered actual geometry of each named component.
     named_by_type_status = defaultdict(list)
     for nid in named:
         named_by_type_status[(cs.transport_type(nid), cs.project_status(nid))].append(nid)
 
-    trees = {}   # (transport_type, project_status) -> STRtree
-    idx_maps = {}  # (transport_type, project_status) -> list of rep_ids (index matches tree)
+    trees = {}     # key -> STRtree of buffered geometries
+    idx_maps = {}  # key -> list of (rep_id, geometry); index matches tree
     for key, nids in named_by_type_status.items():
-        geoms = [_bbox_to_box(cs.bbox(nid)) for nid in nids]
-        trees[key] = STRtree(geoms)
-        idx_maps[key] = nids
+        entries = []
+        bufs = []
+        for nid in nids:
+            g = cs.geometry(nid)
+            if g is not None and not g.is_empty:
+                entries.append((nid, g))
+                bufs.append(g.buffer(max_dist_deg))
+        if bufs:
+            trees[key] = STRtree(bufs)
+            idx_maps[key] = entries
 
     absorptions = {}
     for uid in anonymous:
         uid_key = (cs.transport_type(uid), cs.project_status(uid))
         if uid_key not in trees:
             continue
-        query_box = _expand_box(cs.bbox(uid), pad_lon, pad_lat)
-        candidates = trees[uid_key].query(query_box)
+        anon_geom = cs.geometry(uid)
+        if anon_geom is None or anon_geom.is_empty:
+            continue
+        candidates = trees[uid_key].query(anon_geom)
         best_target, best_dist = None, float('inf')
         for idx in candidates:
-            nid = idx_maps[uid_key][idx]
-            d = bbox_distance_km(cs.bbox(uid), cs.bbox(nid))
+            nid, named_geom = idx_maps[uid_key][idx]
+            try:
+                d = anon_geom.distance(named_geom)
+            except Exception:
+                continue
             if d < best_dist:
                 best_dist, best_target = d, nid
-        if best_target and best_dist <= max_distance_km:
+        if best_target is not None and best_dist <= max_dist_deg:
             absorptions[uid] = best_target
 
     new_comps = dict(cs.components)
