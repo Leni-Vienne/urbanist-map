@@ -8,6 +8,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
 import {
   selectOverlay,
   highlightProject,
@@ -373,6 +374,31 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
 export function closeProjectPopupAndResetMarkers() {
   cleanupProjectInfoTeleportTarget();
   updateStandaloneProjectMarkerOpacities(null);
+}
+
+// On mode switch: clear all standalone markers, and on entering edit mode re-add markers
+// for the user's local (unsaved) and own-pending projects.
+export function initializeStandaloneMarkerModeWatcher() {
+  const mapStore = useMapStore();
+  const projectStore = useProjectStore();
+  const authStore = useAuthStore();
+
+  watch(
+    () => mapStore.mode,
+    (newMode) => {
+      clearAllStandaloneProjectMarkers();
+      if (newMode !== "edit") return;
+
+      const userId = authStore.user?.id;
+      const userProjects = Object.values(projectStore.projects).filter(
+        (p) =>
+          p.lat && p.lng && (p.status === null || (p.status === "pending" && p.ownerId === userId)),
+      );
+      for (const project of userProjects) {
+        addStandaloneProjectMarkerForProject(project);
+      }
+    },
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

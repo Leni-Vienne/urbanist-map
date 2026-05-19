@@ -10,26 +10,19 @@ import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
+import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayLayersOnly } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
 import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
-import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
-  refreshAllStandaloneMarkers,
+  initializeStandaloneMarkerModeWatcher,
 } from "@/services/map/standaloneProjectMarkers";
-import {
-  filterByStatus,
-  selectedProjectTags,
-  visibleStates,
-} from "@/services/overlay/statusFilters";
+import { filterByStatus } from "@/services/overlay/statusFilters";
 import {
   convertOverlayToData,
   createOverlayObject,
@@ -357,47 +350,13 @@ export function useViewportTriggers() {
   }
 
   function setupModeWatcher() {
-    // Filter changes: re-sync standalone markers and overlay layers/markers via the prune pipelines.
-    watch(
-      () => ({
-        status: visibleStates.value,
-        tags: selectedProjectTags.value,
-      }),
-      () => {
-        refreshAllStandaloneMarkers();
-        runViewportRenderLoop();
-      },
-      { deep: true },
-    );
-
-    // When pending change requests finish loading, re-render project shapes
-    const changeRequestStore = useChangeRequestStore();
-    watch(
-      () => changeRequestStore.pendingChangeRequests,
-      () => {
-        if (mapStore.mode === "view") return;
-        clearAllProjectShapes();
-        runViewportRenderLoop();
-      },
-    );
-
-    // In moderation mode, re-render project shapes once moderation data is ready.
-    watch(
-      () => useModerationStore().moderationLoaded,
-      (loaded) => {
-        if (!loaded || mapStore.mode !== "moderation") return;
-        clearAllProjectShapes();
-        runViewportRenderLoop();
-      },
-    );
+    initializeRenderTriggers();
+    initializeStandaloneMarkerModeWatcher();
 
     watch(
       () => mapStore.mode,
       async (newMode, oldMode) => {
         if (newMode === oldMode) return;
-
-        // Clear all standalone project markers on mode switch
-        clearAllStandaloneProjectMarkers();
 
         // Reset bbox tracking on mode switch to force a fresh fetch
         lastBboxKey = "";
@@ -406,7 +365,6 @@ export function useViewportTriggers() {
         // overlay store data so in-progress edits survive the round-trip back to edit mode.
         if (newMode === "view") {
           clearOverlayLayersOnly();
-          clearAllProjectShapes();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();
@@ -435,19 +393,6 @@ export function useViewportTriggers() {
 
         await updateOverlayEditingState();
         refreshSelectionHighlight();
-
-        // In edit mode, also add markers for local (unsaved) projects
-        if (newMode === "edit") {
-          const userProjects = Object.values(projectStore.projects).filter((p) => {
-            if (!p.lat || !p.lng) return false;
-            if (p.status === null) return true;
-            if (p.status === "pending" && p.ownerId === authStore.user?.id) return true;
-            return false;
-          });
-          for (const project of userProjects) {
-            addStandaloneProjectMarkerForProject(project);
-          }
-        }
       },
     );
   }

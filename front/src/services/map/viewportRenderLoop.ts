@@ -1,4 +1,5 @@
 import type * as L from "leaflet";
+import { watch } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -7,11 +8,22 @@ import { map } from "@/services/core/map";
 // which is only needed when the user zooms in far enough to see overlay images
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, OverlayData, Project } from "@/types/index";
-import { filterByStatus } from "@/services/overlay/statusFilters";
+import {
+  filterByStatus,
+  visibleStates,
+  selectedProjectTags,
+} from "@/services/overlay/statusFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
-import { getStandaloneProjectMarkerMap } from "@/services/map/standaloneProjectMarkers";
+import {
+  renderProjectShapes,
+  hasProjectShapes,
+  clearAllProjectShapes,
+} from "@/services/map/shapeRendering";
+import {
+  getStandaloneProjectMarkerMap,
+  refreshAllStandaloneMarkers,
+} from "@/services/map/standaloneProjectMarkers";
 import { selectProject } from "@/services/map/projectSelection";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -441,6 +453,48 @@ function renderAllProjectShapes(mapInstance: L.Map) {
   for (const [projectId, projectData] of projectsToRender.entries()) {
     processAndRenderProjectShape(projectId, projectData, mapInstance, isEditMode, isModeration);
   }
+}
+
+// Data-load / filter / mode triggers that all collapse to "re-run the render loop".
+export function initializeRenderTriggers() {
+  const mapStore = useMapStore();
+  const changeRequestStore = useChangeRequestStore();
+  const moderationStore = useModerationStore();
+
+  watch(
+    () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
+    () => {
+      refreshAllStandaloneMarkers();
+      runViewportRenderLoop();
+    },
+    { deep: true },
+  );
+
+  watch(
+    () => changeRequestStore.pendingChangeRequests,
+    () => {
+      if (mapStore.mode === "view") return;
+      clearAllProjectShapes();
+      runViewportRenderLoop();
+    },
+  );
+
+  watch(
+    () => moderationStore.moderationLoaded,
+    (loaded) => {
+      if (!loaded || mapStore.mode !== "moderation") return;
+      clearAllProjectShapes();
+      runViewportRenderLoop();
+    },
+  );
+
+  // Entering view mode: MapLibre vector tiles take over from Leaflet shape rendering.
+  watch(
+    () => mapStore.mode,
+    (newMode) => {
+      if (newMode === "view") clearAllProjectShapes();
+    },
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
