@@ -1,6 +1,6 @@
 import L from "leaflet";
 
-export type ShapeEntry = {
+type ShapeEntry = {
   group: L.LayerGroup;
   /** Visual layers, the ones that get styled on hover/highlight. */
   layers: L.Path[];

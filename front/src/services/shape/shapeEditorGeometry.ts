@@ -15,7 +15,7 @@ export async function resolveShapeEditorGeometry(
   projectId: string,
   fallbackGeometry: GeoJSON.GeometryCollection | null,
 ): Promise<GeoJSON.GeometryCollection | null> {
-  await refreshPendingChangeRequests(true);
+  await refreshPendingChangeRequests();
 
   const projectStore = useProjectStore();
   const authStore = useAuthStore();

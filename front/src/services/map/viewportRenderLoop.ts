@@ -290,7 +290,12 @@ function pruneLocalOverlays(
 
 // Data-load / filter triggers that re-run the render loop.
 // Shape-specific triggers live in initializeShapeRenderTriggers; marker color triggers in markers.ts.
+let renderTriggersInitialized = false;
 export function initializeRenderTriggers() {
+  // MapView can remount; the watchers below tie to global state so once is enough.
+  if (renderTriggersInitialized) return;
+  renderTriggersInitialized = true;
+
   watch(
     () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
     () => {

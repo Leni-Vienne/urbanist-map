@@ -2,7 +2,7 @@ import type { RemovableChange } from "@/types/index";
 import type { PendingOverlayModification } from "@/stores/pinia/pendingModificationsStore";
 
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
-export type SubmissionEntityType = "project" | "overlay";
+type SubmissionEntityType = "project" | "overlay";
 
 // Public submission context: a batch of work to do for a single project.
 export interface SubmissionContext {

@@ -13,7 +13,7 @@ import {
 import { eq, and, inArray, sql, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
-import { addConflictFlags, enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
+import { enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
@@ -434,8 +434,7 @@ export const changesRouter = router({
         )
         .orderBy(changeRequests.createdAt);
 
-      // Add hasConflict field to maintain type consistency with getPendingChangeRequests
-      // For user's own changes, we show conflicts when status is 'conflicted' (another change was chosen)
+      // 'conflicted' status surfaces in the UI as a hasConflict flag.
       const changesWithConflictInfo = myChanges.map((change) => {
         return Object.assign({}, change, {
           hasConflict: change.status === "conflicted",
@@ -451,61 +450,6 @@ export const changesRouter = router({
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to fetch my change requests",
-      });
-    }
-  }),
-
-  getPendingChangeRequests: moderatorProcedure.query(async ({ ctx }) => {
-    try {
-      const userModeratedCountries = ctx.user.moderatedCountries;
-      const isAdmin = ctx.user.role === "admin";
-
-      // Only show 'pending' changes to moderators
-      // 'conflicted' status means "another change was chosen" (soft rejection by moderator)
-      const pendingChanges = await db
-        .select(changeRequestSelectFields)
-        .from(changeRequests)
-        .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-        .where(eq(changeRequests.status, "pending"))
-        .orderBy(changeRequests.createdAt);
-
-      // Filter change requests by moderator's assigned countries
-      let filteredChanges = pendingChanges;
-      if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
-        // Get country codes for all change requests
-        const changeRequestCountries = await Promise.all(
-          pendingChanges.map(async (change) => {
-            try {
-              const countryCode = await getEntityCountryCode(change.entityType, change.entityId);
-              return { changeId: change.id, countryCode };
-            } catch {
-              return { changeId: change.id, countryCode: undefined };
-            }
-          }),
-        );
-
-        // Filter to only changes in moderator's countries
-        const allowedChangeIds = new Set(
-          changeRequestCountries
-            .filter((c) => c.countryCode && userModeratedCountries.includes(c.countryCode))
-            .map((c) => c.changeId),
-        );
-
-        filteredChanges = pendingChanges.filter((change) => allowedChangeIds.has(change.id));
-      }
-
-      // Add hasConflict flag to changes that have competing requests
-      const changesWithConflictInfo = addConflictFlags(filteredChanges);
-
-      // Enrich with city and country names
-      const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
-
-      return enrichedChanges;
-    } catch (error) {
-      console.error("Error fetching pending change requests:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch pending change requests",
       });
     }
   }),

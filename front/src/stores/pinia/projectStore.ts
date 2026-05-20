@@ -35,26 +35,36 @@ export const useProjectStore = defineStore("project", () => {
     return originalProjects.value[projectId] ?? null;
   }
 
-  // Promote a Project to a UserContribution by attaching the inline overlay list and joined country name.
+  // Denormalized fields win; the joined city / countries lookup is a fallback when they're unset.
+  function resolveLocationNames(project: Project): {
+    cityName: string | null;
+    countryName: string | null;
+  } {
+    return {
+      cityName: project.cityName ?? project.city?.name ?? null,
+      countryName:
+        project.countryName ??
+        countries.value.find((c) => c.code === project.countryCode)?.name ??
+        null,
+    };
+  }
+
+  // Promote a Project to a UserContribution by attaching the inline overlay list.
   // overlayIds is derived from overlays so the two stay in sync.
   function toContribution(project: Project, overlays: UserContributionOverlay[]): UserContribution {
-    const country = countries.value.find((c) => c.code === project.countryCode);
     return {
       ...project,
       overlays,
       overlayIds: overlays.map((o) => o.id),
-      cityName: project.city?.name ?? null,
-      countryName: country?.name ?? null,
+      ...resolveLocationNames(project),
     };
   }
 
   function overlayParentMetadata(project: Project) {
-    const country = countries.value.find((c) => c.code === project.countryCode);
     return {
       cityId: project.cityId,
-      cityName: project.city?.name ?? null,
       countryCode: project.countryCode,
-      countryName: country?.name ?? null,
+      ...resolveLocationNames(project),
     };
   }
 

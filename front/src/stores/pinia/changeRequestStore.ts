@@ -2,11 +2,10 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { RouterOutput } from "@/client";
 
-export type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][number];
+export type ChangeRequest = RouterOutput["changes"]["getMyChangeRequests"][number];
 
 export const useChangeRequestStore = defineStore("changeRequest", () => {
   const pendingChangeRequests = ref<ChangeRequest[]>([]);
-  const isLoading = ref(false);
   const loaded = ref(false);
 
   function setPendingChangeRequests(items: ChangeRequest[]) {
@@ -27,19 +26,13 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     loaded.value = false;
   }
 
-  function setLoading(value: boolean) {
-    isLoading.value = value;
-  }
-
   return {
     pendingChangeRequests,
-    isLoading,
     loaded,
     setPendingChangeRequests,
     removeChangeRequest,
     removeChangeRequests,
     resetLoaded,
-    setLoading,
   };
 });
 

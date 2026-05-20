@@ -401,7 +401,7 @@ export function useSubmissionService() {
     projectStore.updateProject(project.id, { isModified: false });
 
     resetChangeRequestsLoaded();
-    await refreshPendingChangeRequests(true);
+    await refreshPendingChangeRequests();
   }
 
   // Local store + UI sync after a successful project publish: status flip, baseline cache,
@@ -486,7 +486,7 @@ export function useSubmissionService() {
       const liveOverlay = overlayStore.overlays[overlayId];
       if (liveOverlay) updateMarkerTooltip(liveOverlay);
       resetChangeRequestsLoaded();
-      await refreshPendingChangeRequests(true);
+      await refreshPendingChangeRequests();
       return;
     }
 

@@ -159,7 +159,7 @@ import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialo
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { selectProject } from "@/services/map/projectSelection";
-import type { RouterOutput } from "@/client";
+import type { ChangeRequest } from "@/stores/pinia/changeRequestStore";
 import type {
   Project,
   ProjectForModeration,
@@ -171,9 +171,6 @@ import { createOverlayForModeration } from "@/utils/projectFactories";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
-
-// Type definition from tRPC backend response for change requests
-type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
 
 const { t } = useI18n();
 
@@ -457,7 +454,6 @@ watch(
 
 onMounted(() => {
   fetchUserContributions();
-  // Force user-only mode to show only this user's change requests, even for moderators
-  refreshPendingChangeRequests(true);
+  refreshPendingChangeRequests();
 });
 </script>

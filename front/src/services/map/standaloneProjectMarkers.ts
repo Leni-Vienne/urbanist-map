@@ -313,7 +313,12 @@ export function closeProjectPopupAndResetMarkers() {
 
 // On mode switch: clear all standalone markers, and on entering edit mode re-add markers
 // for the user's local (unsaved) and own-pending projects.
+let standaloneMarkerModeWatcherInitialized = false;
 export function initializeStandaloneMarkerModeWatcher() {
+  // MapView can remount; the watch below ties to global state so once is enough.
+  if (standaloneMarkerModeWatcherInitialized) return;
+  standaloneMarkerModeWatcherInitialized = true;
+
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
