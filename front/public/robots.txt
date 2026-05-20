@@ -3,7 +3,7 @@ User-agent: *
 Allow: /$
 Allow: /legal$
 Allow: /contact$
-Allow: /email-verification$
-Allow: /password-reset$
+Allow: /og-preview.jpg
+Allow: /favicon.svg
 
 Disallow: /
