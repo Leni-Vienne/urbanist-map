@@ -1,9 +1,2 @@
 User-agent: *
-
-Allow: /$
-Allow: /legal$
-Allow: /contact$
-Allow: /og-preview.jpg
-Allow: /favicon.svg
-
-Disallow: /
+Disallow: /admin
