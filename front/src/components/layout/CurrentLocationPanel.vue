@@ -8,7 +8,7 @@
     :sub-message="$t('onMap.noProjectsDetail')"
   />
 
-  <div v-else class="flex flex-col h-full min-h-0">
+  <div v-else class="relative flex flex-col h-full min-h-0">
     <!-- Header with sort controls -->
     <div
       class="px-4 py-2.5 border-b border-surface bg-content-background flex items-center justify-between shrink-0"
@@ -42,10 +42,7 @@
     <!-- Scrollable list -->
     <div
       ref="scrollAreaRef"
-      :class="[
-        'flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden',
-        { 'scroll-area': isScrollable },
-      ]"
+      class="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
       <div ref="contentRef">
         <button
@@ -103,6 +100,8 @@
         </button>
       </div>
     </div>
+
+    <div v-if="isScrollable" class="scroll-fade-overlay"></div>
   </div>
 </template>
 
@@ -172,10 +171,3 @@ const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 </script>
-
-<style scoped>
-.scroll-area {
-  mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
-}
-</style>

@@ -125,3 +125,14 @@ body {
 .p-toast {
   max-width: calc(100vw - 40px);
 }
+
+/* Bottom fade for scrollable panels. An opaque overlay (not a mask) keeps the
+   text layer opaque so Windows Chrome retains ClearType subpixel AA while scrolling. */
+.scroll-fade-overlay {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3rem;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--p-content-hover-background), transparent);
+}

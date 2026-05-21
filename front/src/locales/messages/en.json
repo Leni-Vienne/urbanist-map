@@ -170,7 +170,8 @@
   "contribution": {
     "noContributionsFound": "No contributions found.",
     "beFirstToAdd": "Be the first to add a project",
-    "loadingContributions": "Loading contributions..."
+    "loadingContributions": "Loading contributions...",
+    "fromOpenStreetMap": "From OpenStreetMap"
   },
   "onMap": {
     "noProjects": "No projects visible",

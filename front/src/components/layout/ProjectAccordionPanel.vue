@@ -1,5 +1,5 @@
 ﻿<template>
-  <div :class="['h-full flex flex-col', panelClass]">
+  <div :class="['relative h-full flex flex-col', panelClass]">
     <div
       class="sticky top-0 bg-content-hover-background flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
     >
@@ -13,10 +13,7 @@
 
     <div
       ref="scrollAreaRef"
-      :class="[
-        'flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden',
-        { 'scroll-area': isScrollable },
-      ]"
+      class="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
       <div
         v-if="projects.length > 0 || pinnedExternalProject"
@@ -168,6 +165,8 @@
         <p>{{ $t("overlay.loadingProjects") }}</p>
       </div>
     </div>
+
+    <div v-if="isScrollable" class="scroll-fade-overlay"></div>
   </div>
 </template>
 
@@ -675,11 +674,6 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
 :deep(.city-accordion .p-accordioncontent-wrapper) {
   min-width: 0;
   overflow: hidden;
-}
-
-.scroll-area {
-  mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 48px), transparent 100%);
 }
 
 :deep(.city-accordion .p-accordioncontent-content) {
