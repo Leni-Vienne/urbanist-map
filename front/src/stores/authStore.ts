@@ -359,7 +359,7 @@ export const useAuthStore = defineStore("auth", () => {
       const overlayStore = useOverlayStore();
       const moderationStore = useModerationStore();
 
-      mapStore.resetMode();
+      mapStore.clearAllState();
       projectStore.clearAllState();
       overlayStore.clearAllState();
       moderationStore.clearAllState();

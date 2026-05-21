@@ -12,12 +12,12 @@
     title=""
     panel-class="my-contributions-panel"
     :empty-message="
-      displayedProjects.length > 0 && filteredProjects.length === 0
+      allContributions.length > 0 && filteredProjects.length === 0
         ? $t('contribute.noProjectsMatchFilter')
         : $t('contribute.noProjectsFound')
     "
     :empty-sub-message="
-      displayedProjects.length > 0 && filteredProjects.length === 0
+      allContributions.length > 0 && filteredProjects.length === 0
         ? $t('contribute.tryChangingFilters')
         : $t('contribute.createFirstProject')
     "
@@ -85,7 +85,7 @@
 
     <template #empty-state>
       <p
-        v-if="displayedProjects.length === 0"
+        v-if="allContributions.length === 0"
         class="text-sm text-muted-color mt-3 max-w-65 leading-relaxed"
       >
         {{ $t("contribute.guest.description") }}
@@ -113,7 +113,7 @@
             </div>
           </div>
           <!-- Second row - filters (hidden when no contributions yet) -->
-          <div v-if="displayedProjects.length > 0" class="flex items-center gap-4 flex-wrap">
+          <div v-if="allContributions.length > 0" class="flex items-center gap-4 flex-wrap">
             <div class="flex items-center gap-2">
               <Checkbox v-model="showPending" inputId="showPending" binary />
               <label
@@ -140,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { ref, computed, watch, watchEffect, onMounted, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
@@ -157,11 +157,9 @@ import L from "leaflet";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
-import {
-  closeProjectPopupAndResetMarkers,
-  selectProject,
-} from "@/services/map/standaloneProjectMarkers";
-import type { RouterOutput } from "@/client";
+import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { selectProject } from "@/services/map/projectSelection";
+import type { ChangeRequest } from "@/stores/pinia/changeRequestStore";
 import type {
   Project,
   ProjectForModeration,
@@ -169,16 +167,10 @@ import type {
   UserContributionOverlay,
   OverlayForModeration,
 } from "@/types/index";
-import {
-  createOverlayForModeration,
-  createProjectForModerationFromProject,
-} from "@/utils/projectFactories";
+import { createOverlayForModeration } from "@/utils/projectFactories";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
-
-// Type definition from tRPC backend response for change requests
-type ChangeRequest = RouterOutput["changes"]["getPendingChangeRequests"][0];
 
 const { t } = useI18n();
 
@@ -220,34 +212,25 @@ const { isMobile } = useIsMobile();
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
   useChangeRequests();
 
-// Just use allContributions directly - backend handles everything
-const displayedProjects = allContributions;
-
 // Persists the last selected project so the card stays in ContributePanel even after the popup closes.
 // Only updates when a new project is opened, never clears on close.
 const lastSelectedProject = ref<Project | null>(null);
 
-// Update when a standalone project popup opens (shape / vector footprint click)
-watch(
-  () => uiStore.projectInfoPopup.project,
-  (project) => {
-    if (project && "overlayIds" in project) lastSelectedProject.value = project;
-  },
-  { immediate: true },
-);
-
-// Update when an overlay image or marker is clicked (selectOverlay closes projectInfoPopup,
-// so we read the project from the overlay object directly instead)
-watch(
-  () => overlayStore.idSelectedOverlay,
-  (overlayId) => {
-    if (!overlayId) return;
-    const overlay = overlayStore.overlays[overlayId];
-    const project = overlay?.project;
-    if (project) lastSelectedProject.value = project as unknown as Project;
-  },
-  { immediate: true },
-);
+// Update from either source that can signal a project selection:
+// - standalone project popup opens (shape / vector footprint click)
+// - an overlay is selected (selectOverlay closes the popup, so we read project from the overlay)
+watchEffect(() => {
+  const popupProject = uiStore.projectInfoPopup.project;
+  if (popupProject) {
+    lastSelectedProject.value = popupProject;
+    return;
+  }
+  const overlayId = overlayStore.idSelectedOverlay;
+  if (!overlayId) return;
+  const overlay = overlayStore.overlays[overlayId];
+  const project = overlay?.project;
+  if (project) lastSelectedProject.value = project as unknown as Project;
+});
 
 const selectedProjectId = computed(() => lastSelectedProject.value?.id ?? null);
 
@@ -257,7 +240,7 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   const id = selectedProjectId.value;
   if (!id) return null;
   // If it's already in contributions, it will be pinned via pinnedProjectId instead
-  const isOwnContribution = displayedProjects.value.some((p) => p.id === id);
+  const isOwnContribution = allContributions.value.some((p) => p.id === id);
 
   if (isOwnContribution) return null;
   const project = lastSelectedProject.value;
@@ -265,7 +248,7 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   const overlays = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === project.id)
     .map((o) => createOverlayForModeration(o));
-  return createProjectForModerationFromProject(project, overlays);
+  return { ...project, overlays };
 });
 
 const filteredProjects = computed(() => {
@@ -276,11 +259,11 @@ const filteredProjects = computed(() => {
 
   // If both are selected, show everything
   if (showPending.value && showApproved.value) {
-    return displayedProjects.value;
+    return allContributions.value;
   }
 
   // Filter based on which checkbox(es) are selected
-  return displayedProjects.value.filter((project) => {
+  return allContributions.value.filter((project) => {
     // Treat unsaved/unsubmitted projects (status === null) as pending
     const isPending = project.status === "pending" || project.status === null;
     const isApproved =
@@ -325,7 +308,7 @@ const filteredProjects = computed(() => {
 // Handle delete overlay click - uses shared deletion composable
 async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
   // Find the project that contains this overlay
-  const project = displayedProjects.value.find((displayedProject: UserContribution) =>
+  const project = allContributions.value.find((displayedProject: UserContribution) =>
     displayedProject.overlays?.some(
       (overlayElement: UserContributionOverlay) => overlayElement.id === overlay.id,
     ),
@@ -384,7 +367,7 @@ function isProjectModified(projectId: string): boolean {
   if (projectInStore && isProjectUnsaved(projectInStore)) return true;
 
   // UserContribution.overlays may reference overlays in the live store under the same id.
-  const project = displayedProjects.value.find((p: UserContribution) => p.id === projectId);
+  const project = allContributions.value.find((p: UserContribution) => p.id === projectId);
   return project?.overlays?.some((o: UserContributionOverlay) => isOverlayModified(o.id)) ?? false;
 }
 
@@ -427,7 +410,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   }
 
   // Open the shape editor panel (no popup to reopen at)
-  uiStore.openShapeEditor(project as unknown as Project);
+  uiStore.openShapeEditor(project);
   // Lazy-load geoman and initialise the toolbar with the best available geometry
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
   await initShapeEditor(map.value, existingGeometry ?? undefined);
@@ -443,14 +426,13 @@ function handleExternalProjectClick(_project: ProjectForModeration) {
 }
 
 function handleEditProjectClick(project: ProjectForModeration) {
-  // Get the latest project data from displayedProjects (not the potentially stale passed parameter)
-  const latestProjectData = displayedProjects.value.find(
+  // Get the latest project data from allContributions (not the potentially stale passed parameter)
+  const latestProjectData = allContributions.value.find(
     (p: UserContribution) => p.id === project.id,
   );
   const projectToEdit = latestProjectData ?? project;
 
-  // Use unknown as intermediate type since ProjectForModeration may not have all Project fields
-  uiStore.openProjectEditForm(projectToEdit as unknown as Project);
+  uiStore.openProjectEditForm(projectToEdit);
 }
 
 // Auto-expand the pinned project when the selection changes
@@ -459,9 +441,9 @@ watch(
   async (id) => {
     if (!id) return;
     await nextTick();
-    const isOwnContribution = displayedProjects.value.some((p) => p.id === id);
+    const isOwnContribution = allContributions.value.some((p) => p.id === id);
     if (isOwnContribution) {
-      expandAccordionForProject(id, displayedProjects.value as unknown as ProjectForModeration[]);
+      expandAccordionForProject(id, allContributions.value);
     } else if (!activeAccordionPanels.value.includes(id)) {
       // External pinned project: just push the id into the shared accordion state
       activeAccordionPanels.value.push(id);
@@ -472,7 +454,6 @@ watch(
 
 onMounted(() => {
   fetchUserContributions();
-  // Force user-only mode to show only this user's change requests, even for moderators
-  refreshPendingChangeRequests(true);
+  refreshPendingChangeRequests();
 });
 </script>

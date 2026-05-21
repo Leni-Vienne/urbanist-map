@@ -20,7 +20,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { createOverlayObject } from "@/utils/typeFactories";
@@ -39,6 +38,7 @@ import {
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
@@ -95,10 +95,8 @@ export function createLeafletOverlay(
 
     setupOverlayEventHandlers(newOverlay, overlayObject);
 
-    setupOverlayLoadHandler(newOverlay, overlayObject, onAddedToMap);
-
-    // Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler
-    // This waits for any ongoing zoom animation to complete before adding to prevent visual glitches
+    // Always add overlay to map - visibility based on zoom is handled by useOverlayZoomHandler.
+    // Waits for any ongoing zoom animation to complete before adding to prevent visual glitches.
     const addOverlayWhenReady = () => {
       const currentZoom = map.value.getZoom();
       const shouldShowImage =
@@ -117,6 +115,8 @@ export function createLeafletOverlay(
         }
 
         newOverlay.addTo(map.value);
+        // getElement() is non-null after addTo, so setupOverlayLoadHandler can run synchronously.
+        setupOverlayLoadHandler(newOverlay, overlayObject, onAddedToMap);
 
         // Keep the currently-selected overlay on top of this new one.
         const overlayStore = useOverlayStore();
@@ -151,49 +151,12 @@ export function createLeafletOverlay(
   }
 }
 
-/**
- * Progressive initialization queue: OverlayID -> init callback.
- * Drained two per frame to keep the main thread responsive.
- */
-const initQueue = new Map<string, () => void>();
-let isInitQueueRunning = false;
-
-function processInitQueue() {
-  if (initQueue.size === 0) {
-    isInitQueueRunning = false;
-    return;
-  }
-
-  isInitQueueRunning = true;
-
-  // Cap batch size so a cache-burst of simultaneous image loads doesn't
-  // produce long "Animation frame fired" blocks in the performance profile.
-  let processedCount = 0;
-  const BATCH_SIZE = 2;
-
-  for (const [id, initFn] of initQueue) {
-    if (processedCount >= BATCH_SIZE) break;
-
-    initFn();
-    initQueue.delete(id);
-    processedCount += 1;
-  }
-
-  if (initQueue.size > 0) {
-    requestAnimationFrame(processInitQueue);
-  } else {
-    isInitQueueRunning = false;
-  }
-}
+// Cap batch size at 2 so a cache-burst of simultaneous image loads doesn't
+// produce long "Animation frame fired" blocks in the performance profile.
+const initQueue = createRafBatchQueue<() => void>((initFn) => initFn(), 2);
 
 function scheduleInitialization(id: string, initFn: () => void) {
-  if (initQueue.has(id)) return;
-
-  initQueue.set(id, initFn);
-
-  if (!isInitQueueRunning) {
-    processInitQueue();
-  }
+  initQueue.enqueue(id, initFn);
 }
 
 function setupOverlayLoadHandler(
@@ -203,66 +166,40 @@ function setupOverlayLoadHandler(
 ): void {
   const element = overlay.getElement();
   if (!element) {
-    // getElement() is normally non-null after addTo(); retry next frame as a fallback.
-    requestAnimationFrame(() => {
-      setupOverlayLoadHandler(overlay, overlayObject, onReady);
-    });
+    console.warn("Overlay element missing at setupOverlayLoadHandler:", overlayObject.id);
+    registry.cancelCreation(overlayObject.id);
     return;
   }
 
   let isInitialized = false;
 
   const tryInit = () => {
-    if (isInitialized) {
-      return;
-    }
+    if (isInitialized || !map.value.hasLayer(overlay)) return;
+    if (!element.complete || element.naturalWidth === 0) return;
 
-    const hasLayer = map.value.hasLayer(overlay);
+    isInitialized = true;
+    L.DomEvent.off(element, "load", tryInit);
 
-    // Bail if the overlay was removed during a rapid viewport change.
-    if (!hasLayer) {
-      return;
-    }
-
-    if (element.complete && element.naturalWidth > 0) {
-      isInitialized = true;
-
-      L.DomEvent.off(element, "load", tryInit);
-      overlay.off("add", tryInit);
-
-      // Schedule rather than run synchronously so a burst of simultaneous
-      // cached-image loads doesn't produce a single long frame.
-      scheduleInitialization(overlayObject.id, () => {
-        // Re-check existence before running (user might have panned away)
-        if (map.value.hasLayer(overlay)) {
-          onOverlayLoaded(overlayObject, onReady);
-        } else {
-          // Layer was removed from map (e.g. mode switch) before image loaded
-          // Clean up tracking to allow future re-creation
-          registry.cancelCreation(overlayObject.id);
-        }
-      });
-    }
+    // Batch so a cache-burst of simultaneous loads doesn't produce a long frame.
+    scheduleInitialization(overlayObject.id, () => {
+      if (map.value.hasLayer(overlay)) {
+        onOverlayLoaded(overlayObject, onReady);
+      } else {
+        registry.cancelCreation(overlayObject.id);
+      }
+    });
   };
 
   L.DomEvent.on(element, "load", tryInit);
-
-  // The image can finish loading while the layer is still off-map (e.g. mid-flyTo),
-  // in which case tryInit bails on !hasLayer; re-check on 'add'.
-  overlay.on("add", tryInit);
-
   L.DomEvent.on(element, "error", () => {
     console.warn("Overlay image failed to load:", overlayObject.id);
     registry.cancelCreation(overlayObject.id);
-    // Execute callback even on error so the overlay is registered in the store
-    // This prevents it from being stuck in a "rendering" state without a store entry
-    if (onReady) {
-      onReady();
-    }
+    onReady?.();
   });
 
-  // Check immediately in case it's already loaded and on map
-  tryInit();
+  // Defer one frame so the lib's own load handler runs first (populates _corners
+  // for overlays created without preset corners).
+  requestAnimationFrame(tryInit);
 }
 
 function onOverlayLoaded(overlayObject: OverlayObject, onReady?: () => void): void {
@@ -340,9 +277,6 @@ function setupOverlayMovementTracking(
 
     // Stop tracking handler - behaves like 'mouseup'/'touchend'
     function stopTracking() {
-      const overlayStore = useOverlayStore();
-      const mapStore = useMapStore();
-
       if (!isManipulating) return;
       isManipulating = false;
 
@@ -359,8 +293,10 @@ function setupOverlayMovementTracking(
       document.removeEventListener("touchmove", onMovement);
 
       if (hasActuallyMoved) {
+        // saveToHistory (called from the Leaflet "dragend"/"edit" handlers in
+        // setupOverlayEventHandlers) flips isModified through overlayStore.updateOverlay,
+        // which is picked up by initializeMarkerColorTriggers' watchEffect.
         updateMarkerPosition(overlayObject);
-        updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode, overlayObject.id);
       }
     }
 

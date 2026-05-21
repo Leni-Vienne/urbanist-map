@@ -1,5 +1,6 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 
 // Cross-chunk callback registry. Modules in the initial bundle assign these at init time;
 // lazy chunks (overlayRendering, overlayToolbar) read them at call time.
@@ -49,4 +50,11 @@ export function clearOverlayLayersOnly(): void {
   if (overlayStore.idSelectedOverlay) {
     overlayStore.idSelectedOverlay = null;
   }
+}
+
+// Wipe overlays, view-mode cache, and standalone markers. Used to enter a focused single-submission preview.
+export function clearAllMapContent(): void {
+  clearAllOverlays();
+  useOverlayStore().clearViewModeOverlays();
+  clearAllStandaloneProjectMarkers();
 }

@@ -477,10 +477,12 @@ export const projectRouter = router({
           const projectOverlaysList = projectOverlays.filter(
             (overlay) => overlay.projectId === project.id,
           );
-          return Object.assign({}, project, {
+          return {
+            ...project,
+            tags: project.tags ?? [],
             overlays: projectOverlaysList,
-            overlayCount: projectOverlaysList.length,
-          });
+            overlayIds: projectOverlaysList.map((overlay) => overlay.id),
+          };
         });
 
         // Build pagination response using shared helper (only for owned projects, as contributed are not paginated)

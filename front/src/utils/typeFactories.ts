@@ -1,5 +1,5 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData, UserContribution } from "@/types/index";
+import type { Project, OverlayObject, OverlayData } from "@/types/index";
 import type { RouterOutput } from "@/client";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
@@ -49,17 +49,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     lat: data.lat ?? null,
     lng: data.lng ?? null,
     centerCoordinate: data.centerCoordinate ?? null,
-    // Computed fields
-    city: data.city ?? {
-      id: 0,
-      name: "",
-      nameLocal: null,
-      countryCode: "",
-      coordinates: { x: 0, y: 0 },
-      approvedProjectCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    city: data.city ?? null,
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
     geometrySizeM: data.geometrySizeM ?? null,
@@ -67,50 +57,6 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     countryCode: data.countryCode ?? "",
     detachedAt: data.detachedAt ?? null,
   };
-}
-
-export function createProjectFromUserContribution(contribution: UserContribution): Project {
-  return createProjectObject({
-    id: contribution.id,
-    name: contribution.name,
-    description: contribution.description ?? null,
-    proposalDate: contribution.proposalDate ?? null,
-    proposalDatePrecision: contribution.proposalDatePrecision ?? null,
-    startDate: contribution.startDate ?? null,
-    startDatePrecision: contribution.startDatePrecision ?? null,
-    endDate: contribution.endDate ?? null,
-    endDatePrecision: contribution.endDatePrecision ?? null,
-    sourceUrl: contribution.sourceUrl ?? null,
-    lat: contribution.lat,
-    lng: contribution.lng,
-    cityId: contribution.cityId,
-    city:
-      contribution.cityId && contribution.city
-        ? {
-            id: contribution.cityId,
-            name: contribution.city.name,
-            nameLocal: contribution.city.nameLocal ?? null,
-            countryCode: contribution.city.countryCode,
-            coordinates: { x: contribution.lng ?? 0, y: contribution.lat ?? 0 },
-            approvedProjectCount: 0,
-            createdAt: contribution.city.createdAt,
-            updatedAt: contribution.city.updatedAt,
-          }
-        : undefined,
-    status: contribution.status,
-    rejectionReason: null,
-    overlayIds: contribution.overlays.map((overlay) => overlay.id),
-    createdAt: contribution.createdAt,
-    updatedAt: contribution.updatedAt,
-    ownerId: contribution.ownerId ?? null,
-    centerCoordinate: {
-      x: contribution.lng ?? 0,
-      y: contribution.lat ?? 0,
-    },
-    version: contribution.version,
-    geometry: contribution.geometry ?? null,
-    tags: contribution.tags,
-  });
 }
 
 /**

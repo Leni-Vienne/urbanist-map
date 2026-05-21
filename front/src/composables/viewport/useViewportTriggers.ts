@@ -10,35 +10,98 @@ import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
+import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayLayersOnly } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
-import {
-  setupKeyboardShortcuts,
-  updateOverlayEditingState,
-} from "@/services/overlay/overlayEditing";
+import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
 import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
-import { pendingChangeRequestsRef } from "@/composables/changes/useChanges";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,
+  initializeStandaloneMarkerModeWatcher,
 } from "@/services/map/standaloneProjectMarkers";
-import {
-  processStandaloneMarkers,
-  renderFullOverlays,
-  hydrateOverlayStoreObjects,
-} from "@/services/navigation/viewportRenderHelpers";
 import { filterByStatus } from "@/services/overlay/statusFilters";
-import { convertOverlayToData, createProjectObject } from "@/utils/typeFactories";
+import {
+  convertOverlayToData,
+  createOverlayObject,
+  createProjectObject,
+  type StandaloneProject,
+} from "@/utils/typeFactories";
 import { trpc } from "@/client";
 import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
 } from "@/services/map/clusterSourceMerge";
 import type { OverlayData } from "@/types/index";
+
+function processStandaloneMarkers(
+  standaloneProjects: StandaloneProject[],
+  overlaysData: OverlayData[] | null,
+): void {
+  if (standaloneProjects.length === 0) return;
+
+  const projectIdsWithOverlays = new Set<string>();
+  if (overlaysData) {
+    for (const overlay of overlaysData) {
+      if (overlay.projectId) {
+        projectIdsWithOverlays.add(overlay.projectId);
+      }
+    }
+  }
+
+  for (const project of standaloneProjects) {
+    let overlayCount = 0;
+    if ("overlayCount" in project && typeof project.overlayCount === "number") {
+      overlayCount = project.overlayCount;
+    } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
+      overlayCount = project.overlayIds.length;
+    } else if ("overlays" in project && Array.isArray(project.overlays)) {
+      overlayCount = project.overlays.length;
+    }
+
+    if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
+      addStandaloneProjectMarkerForProject(
+        createProjectObject(project as Parameters<typeof createProjectObject>[0]),
+      );
+    }
+  }
+}
+
+function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
+  const overlayStore = useOverlayStore();
+  const updates: Record<string, Partial<OverlayData>> = {};
+  for (const overlayData of overlaysData) {
+    if (overlayStore.overlays[overlayData.id]) {
+      updates[overlayData.id] = {
+        hasPendingChanges: overlayData.hasPendingChanges,
+        suggestedCorners: overlayData.suggestedCorners,
+        pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
+        // Approved overlays first loaded via vectorTileSync lack project data.
+        // Update it here when the bbox fetch provides it, so the popup can resolve activeProject.
+        ...(overlayData.project ? { project: overlayData.project } : {}),
+      };
+    } else {
+      overlayStore.addOverlay(overlayData.id, createOverlayObject(overlayData));
+    }
+  }
+  if (Object.keys(updates).length > 0) {
+    overlayStore.batchUpdateOverlays(updates);
+  }
+}
+
+function renderFullOverlays(overlaysData: OverlayData[]): void {
+  const overlayStore = useOverlayStore();
+
+  overlayStore.setViewModeOverlays(overlaysData);
+  hydrateOverlayStoreObjects(overlaysData);
+
+  for (const overlayObject of Object.values(overlayStore.overlays)) {
+    createSingleMarker(overlayObject);
+  }
+
+  runViewportRenderLoop();
+}
 
 const isLoading = ref(false);
 
@@ -284,30 +347,13 @@ export function useViewportTriggers() {
   }
 
   function setupModeWatcher() {
-    // When pending change requests finish loading, re-render project shapes
-    watch(pendingChangeRequestsRef, () => {
-      if (mapStore.mode === "view") return;
-      clearAllProjectShapes();
-      runViewportRenderLoop();
-    });
-
-    // In moderation mode, re-render project shapes once moderation data is ready.
-    watch(
-      () => useModerationStore().moderationLoaded,
-      (loaded) => {
-        if (!loaded || mapStore.mode !== "moderation") return;
-        clearAllProjectShapes();
-        runViewportRenderLoop();
-      },
-    );
+    initializeRenderTriggers();
+    initializeStandaloneMarkerModeWatcher();
 
     watch(
       () => mapStore.mode,
       async (newMode, oldMode) => {
         if (newMode === oldMode) return;
-
-        // Clear all standalone project markers on mode switch
-        clearAllStandaloneProjectMarkers();
 
         // Reset bbox tracking on mode switch to force a fresh fetch
         lastBboxKey = "";
@@ -316,11 +362,9 @@ export function useViewportTriggers() {
         // overlay store data so in-progress edits survive the round-trip back to edit mode.
         if (newMode === "view") {
           clearOverlayLayersOnly();
-          clearAllProjectShapes();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();
-          setupKeyboardShortcuts();
           refreshSelectionHighlight();
           return;
         }
@@ -345,21 +389,7 @@ export function useViewportTriggers() {
         await refreshViewport(true);
 
         await updateOverlayEditingState();
-        setupKeyboardShortcuts();
         refreshSelectionHighlight();
-
-        // In edit mode, also add markers for local (unsaved) projects
-        if (newMode === "edit") {
-          const userProjects = Object.values(projectStore.projects).filter((p) => {
-            if (!p.lat || !p.lng) return false;
-            if (p.status === null) return true;
-            if (p.status === "pending" && p.ownerId === authStore.user?.id) return true;
-            return false;
-          });
-          for (const project of userProjects) {
-            addStandaloneProjectMarkerForProject(project);
-          }
-        }
       },
     );
   }

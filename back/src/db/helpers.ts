@@ -140,8 +140,11 @@ export const PROJECT_COLUMNS = {
   createdAt: projects.createdAt,
   updatedAt: projects.updatedAt,
   geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
+  geometrySizeM: projects.geometrySizeM,
   rejectionReason: projects.rejectionReason,
   centerCoordinate: projects.centerCoordinate,
+  countryCode: projects.countryCode,
+  detachedAt: projects.detachedAt,
 } as const;
 
 export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof schema>) {
@@ -149,7 +152,6 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
     .select({
       ...PROJECT_COLUMNS,
       cityName: cities.name,
-      countryCode: projects.countryCode,
       countryName: countries.name,
       city: cities,
     })
@@ -199,7 +201,6 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
       ownerApprovedCount: users.approvedCount,
       ownerRejectedCount: users.rejectedCount,
       cityName: cities.name,
-      countryCode: projects.countryCode,
       countryName: countries.name,
     })
     .from(projects)

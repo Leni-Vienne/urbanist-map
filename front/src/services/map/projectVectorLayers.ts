@@ -7,7 +7,7 @@ import {
   addProtocol,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
 import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -140,6 +140,9 @@ const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 // Viewport padding for flyToBounds to leave space around cluster cells.
 const CLUSTER_BOUNDS_PADDING_PX = 50;
+// Below this Leaflet zoom, lone points (cell_count===1) still zoom to cell bounds
+// instead of opening the project, to avoid a jarring jump from low zoom to z14.
+const LONE_POINT_CLICK_MIN_LEAFLET_ZOOM = 8;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
@@ -789,7 +792,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
 
     targetLatLng = L.latLng(lat, lng);
 
-    if (cellCount === 1) {
+    if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_LEAFLET_ZOOM) {
       willFly = true;
       navigateToLonePoint(props, lat, lng, currentZoom);
     } else {
@@ -987,78 +990,6 @@ function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData 
     // malformed tags, leave empty
   }
   return { name, timelineStatus, tags };
-}
-
-// Gray shades for road types, replacing Liberty's yellow/orange major roads.
-// Minor roads and paths are already white/gray in Liberty and are left unchanged.
-const ROAD_COLOR_OVERRIDES: Record<string, string> = {
-  motorway: "#c0bfbf",
-  trunk: "#d0cfcf",
-  primary: "#e0dfdf",
-  secondary: "#ebebeb",
-  tertiary: "#f0efef",
-};
-
-// Casing (outline) colors, slightly darker than the fill
-const ROAD_CASING_OVERRIDES: Record<string, string> = {
-  motorway: "#a8a8a8",
-  trunk: "#b8b8b8",
-  primary: "#cccccc",
-  secondary: "#d8d8d8",
-  tertiary: "#dedede",
-};
-
-/**
- * Overrides Liberty basemap road colors to a neutral gray palette.
- * Only runs when the plan (vector) style is active, satellite styles have no road layers.
- * Matches Liberty layer IDs like "road_trunk", "road_primary_casing", "tunnel_motorway", etc.
- */
-export function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
-  const layers = mlMap.getStyle().layers;
-
-  for (const layer of layers) {
-    if (layer.type !== "line") continue;
-
-    // Only target basemap road/tunnel/bridge layers
-    const id = layer.id;
-    if (!id.startsWith("road") && !id.startsWith("tunnel") && !id.startsWith("bridge")) continue;
-
-    const isCasing = id.includes("casing") || id.includes("outline") || id.includes("border");
-
-    for (const [roadType, color] of Object.entries(
-      isCasing ? ROAD_CASING_OVERRIDES : ROAD_COLOR_OVERRIDES,
-    )) {
-      if (id.includes(roadType)) {
-        mlMap.setPaintProperty(id, "line-color", color);
-        break;
-      }
-    }
-  }
-}
-
-/**
- * Applies overrides to the Liberty basemap's railway styling to visually
- * differentiate it from our tram project geometries.
- * Makes existing railways orange and semi-transparent.
- */
-export function applyRailStyleOverrides(mlMap: MaplibreMap): void {
-  const layers = mlMap.getStyle().layers;
-
-  for (const layer of layers) {
-    if (layer.type !== "line") continue;
-
-    const id = layer.id;
-    // Target rail lines
-    if (id.includes("road_major_rail") || id.includes("bridge_major_rail")) {
-      // Dim the main rail line
-      mlMap.setPaintProperty(id, "line-color", "#f97316");
-      mlMap.setPaintProperty(id, "line-opacity", 0.7);
-    }
-    if (id.includes("tunnel_major_rail")) {
-      mlMap.setPaintProperty(id, "line-color", "#f97316");
-      mlMap.setPaintProperty(id, "line-opacity", 0.5);
-    }
-  }
 }
 
 /**

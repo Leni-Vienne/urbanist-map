@@ -12,12 +12,8 @@ import {
   type PendingOverlayModification,
 } from "@/stores/pinia/pendingModificationsStore";
 import { useToast } from "@/composables/ui/useToast";
-import {
-  useSubmissionService,
-  type SubmissionChange,
-  type SubmissionChangeType,
-  type SubmissionContext,
-} from "./useSubmissionService";
+import { useSubmissionService } from "./useSubmissionService";
+import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 import L from "leaflet";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
@@ -104,6 +100,12 @@ function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
       (mod) => mod.overlayId !== overlayId,
     );
   }
+}
+
+function cancelSubmission(): void {
+  showSubmissionDialog.value = false;
+  pendingSubmissionContext.value = null;
+  submissionSummary.value = null;
 }
 
 // Build changes for NEW overlays (status is null, never submitted to backend)
@@ -369,7 +371,6 @@ export function useSubmissionDialog() {
         newOverlayIds,
       };
       showSubmissionDialog.value = true;
-      uiStore.submissionDialogVisible = true;
     } catch (error: unknown) {
       console.error("Error preparing submission:", error);
       toast.add({
@@ -451,7 +452,6 @@ export function useSubmissionDialog() {
       newOverlayIds: overlayIsNew ? [overlay.id] : [],
     };
     showSubmissionDialog.value = true;
-    uiStore.submissionDialogVisible = true;
   }
 
   function handleSubmissionSuccess(context: SubmissionContext): void {
@@ -466,7 +466,6 @@ export function useSubmissionDialog() {
 
     // Close dialog and reset state
     showSubmissionDialog.value = false;
-    uiStore.submissionDialogVisible = false;
     pendingSubmissionContext.value = null;
     submissionSummary.value = null;
   }
@@ -491,13 +490,6 @@ export function useSubmissionDialog() {
     } finally {
       isSubmitting.value = false;
     }
-  }
-
-  function cancelSubmission(): void {
-    showSubmissionDialog.value = false;
-    uiStore.submissionDialogVisible = false;
-    pendingSubmissionContext.value = null;
-    submissionSummary.value = null;
   }
 
   async function handleRemoveOverlayChange(

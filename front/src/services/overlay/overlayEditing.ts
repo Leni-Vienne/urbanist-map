@@ -161,45 +161,22 @@ export function addOverlay(
   // Async to allow dynamic import of overlayRendering (keeps leaflet-distortableimage out of initial bundle)
   async function createAndSetupOverlay() {
     const { createLeafletOverlay } = await import("@/services/overlay/overlayRendering");
-    const newOverlay = createLeafletOverlay(imageUrl, overlayObject);
-    if (!newOverlay) return;
+    // onAddedToMap fires after the image has loaded and the layer is confirmed on the map.
+    // createLeafletOverlay already registers the layer and waits for the image internally.
+    createLeafletOverlay(imageUrl, overlayObject, () => {
+      const layer = registry.getLayer(overlayObject.id);
+      overlayObject.corners = layer?.getCorners() ?? [];
 
-    // getElement() returns undefined until the image is added to the DOM
-    const waitForElement = () => {
-      const element = newOverlay.getElement();
-      if (!element) {
-        // Element not ready yet, try again on next frame
-        requestAnimationFrame(waitForElement);
-        return;
+      overlayStore.addOverlay(id, overlayObject);
+      createMarker(overlayObject);
+
+      // Add to project AFTER storing in overlays to avoid "not found" error.
+      const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
+      if (isFirstOverlay) {
+        removeStandaloneProjectMarkerForProject(projectId);
       }
-
-      L.DomEvent.on(element, "load", () => {
-        if (element.complete && element.naturalWidth > 0) {
-          registry.setLayer(overlayObject.id, newOverlay);
-          overlayObject.corners = newOverlay.getCorners() ?? [];
-
-          // Store reference and initialize with proper reactivity
-          overlayStore.addOverlay(id, overlayObject);
-
-          // Create marker with appropriate color based on replacement status
-          createMarker(overlayObject);
-
-          // Add to project AFTER storing in overlays to avoid "not found" error
-          const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
-
-          // Remove standalone project marker when first overlay is added to project
-          if (isFirstOverlay) {
-            removeStandaloneProjectMarkerForProject(projectId);
-          }
-
-          // Automatically select the newly created overlay for immediate positioning
-          selectOverlay(id);
-        }
-      });
-    };
-
-    // Start waiting for element to be ready
-    waitForElement();
+      selectOverlay(id);
+    });
   }
 
   // If zoom level is too low, zoom to project location first, then create overlay

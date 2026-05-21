@@ -7,7 +7,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import { handleProjectClickFromTile } from "@/services/map/standaloneProjectMarkers";
+import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { requestScrollTo } from "@/services/layout/accordionState";
 

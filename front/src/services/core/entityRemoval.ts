@@ -29,7 +29,6 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   delete overlayStore.overlays[overlayId];
 
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
-  overlayStore.loadedEditOverlays.delete(overlayId);
 
   if (overlayStore.idSelectedOverlay === overlayId) {
     overlayStore.idSelectedOverlay = null;

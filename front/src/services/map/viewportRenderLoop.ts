@@ -1,4 +1,5 @@
 import type * as L from "leaflet";
+import { watch } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -6,21 +7,21 @@ import { map } from "@/services/core/map";
 // Dynamic import for chunk splitting - overlayRendering pulls in leaflet-distortableimage
 // which is only needed when the user zooms in far enough to see overlay images
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import type { OverlayObject, OverlayData, Project } from "@/types/index";
-import { filterByStatus } from "@/services/overlay/statusFilters";
+import type { OverlayObject, OverlayData } from "@/types/index";
+import {
+  filterByStatus,
+  visibleStates,
+  selectedProjectTags,
+} from "@/services/overlay/statusFilters";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { renderProjectShapes, hasProjectShapes } from "@/services/map/shapeRendering";
+import { refreshAllStandaloneMarkers } from "@/services/map/standaloneProjectMarkers";
+import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import {
-  selectProject,
-  getStandaloneProjectMarkerMap,
-} from "@/services/map/standaloneProjectMarkers";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { getPendingChangeRequests } from "@/composables/changes/useChanges";
-import { createProjectObject } from "@/utils/typeFactories";
-import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
+  renderAllProjectShapes,
+  initializeShapeRenderTriggers,
+} from "@/services/map/projectShapeRenderLoop";
+import { initializeMarkerColorTriggers } from "@/services/map/markers";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -84,50 +85,12 @@ export function runViewportRenderLoop() {
   pruneOverlays(mapInstance, paddedBounds, zoom);
 }
 
-/**
- * Queue for progressive overlay destruction to prevent main-thread blocking on bulk hide
- * (e.g. Edit -> View mode switch).
- */
-const destructionQueue = new Set<string>();
-let isDestructionQueueRunning = false;
-
-function processDestructionQueue() {
-  if (destructionQueue.size === 0) {
-    isDestructionQueueRunning = false;
-    return;
-  }
-
-  isDestructionQueueRunning = true;
-
-  // Process up to 10 overlays per frame
-  // Destruction is cheaper than creation, so we can process more
-  let processedCount = 0;
-  const BATCH_SIZE = 10;
-
-  const iterator = destructionQueue.values();
-  let result = iterator.next();
-
-  while (!result.done && processedCount < BATCH_SIZE) {
-    const id = result.value;
-    registry.clearEntry(id);
-
-    destructionQueue.delete(id);
-    processedCount += 1;
-    result = iterator.next();
-  }
-
-  if (destructionQueue.size > 0) {
-    requestAnimationFrame(processDestructionQueue);
-  } else {
-    isDestructionQueueRunning = false;
-  }
-}
+// Drains in batches of 10 per frame to keep bulk teardown (e.g. Edit -> View) off the main thread.
+// Destruction is cheaper than creation, so the batch can be larger than the init queue.
+const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
 
 function queueForDestruction(id: string) {
-  destructionQueue.add(id);
-  if (!isDestructionQueueRunning) {
-    processDestructionQueue();
-  }
+  destructionQueue.enqueue(id, null);
 }
 
 /**
@@ -139,21 +102,35 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   if (zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
 
   const showImages = zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
-  // Markers are shown whenever we're past the load threshold, regardless of whether
-  // full overlay images are displayed.
-  const showMarkers = true;
+  // Markers are always shown past the load threshold, regardless of whether full
+  // overlay images are displayed.
 
   // In view mode, all backend overlays are approved and synced by vectorTileSync.
   // pruneBackendOverlays only runs for edit/moderation to manage pending overlays from
   // viewModeOverlays (approved overlays in those modes are still handled by vectorTileSync).
   const mapStore = useMapStore();
   if (mapStore.mode !== "view") {
-    pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
+    pruneBackendOverlays(mapInstance, bounds, showImages);
   }
-  pruneLocalOverlays(mapInstance, bounds, showImages, showMarkers);
+  pruneLocalOverlays(mapInstance, showImages);
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)
   renderAllProjectShapes(mapInstance);
+}
+
+// Destroy markers/layers for overlays that are filtered OUT by completion status, so
+// toggling a filter off immediately removes the corresponding backend markers.
+function queueFilteredOutForDestruction(
+  allOverlays: OverlayData[],
+  visibleOverlays: OverlayData[],
+) {
+  const visibleIds = new Set(visibleOverlays.map((o) => o.id));
+  for (const data of allOverlays) {
+    if (visibleIds.has(data.id)) continue;
+    if (registry.getMarker(data.id) || registry.getLayer(data.id)) {
+      queueForDestruction(data.id);
+    }
+  }
 }
 
 /**
@@ -161,12 +138,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
  * Source of truth: viewModeOverlays (already filtered to status !== null by construction).
  * No overlap with pruneLocalOverlays; backend overlays never have status === null.
  */
-function pruneBackendOverlays(
-  mapInstance: L.Map,
-  bounds: L.LatLngBounds,
-  showImages: boolean,
-  showMarkers: boolean,
-) {
+function pruneBackendOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, showImages: boolean) {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const filteredOverlays = filterByStatus(overlayStore.viewModeOverlays, mapStore.mode);
@@ -175,13 +147,15 @@ function pruneBackendOverlays(
   for (const data of filteredOverlays) {
     if (data.corners.length !== 4) continue;
 
-    // Hoist layer lookup to use live corners for the viewport check.
-    // data.corners is the backend position, stale if the user has moved the overlay
-    // in edit mode. When a layer exists, layer.getCorners() reflects the actual
-    // current position and is used for the in-viewport decision.
-    // When no layer exists yet, data.corners decides whether to create one.
+    // Prefer live corners so in-progress edits show up. getCorners() throws before the
+    // image loads (leaflet-distortableimage reads _corners[0] unguarded).
     const layer = registry.getLayer(data.id);
-    const liveCorners = layer?.getCorners();
+    let liveCorners: ReturnType<L.DistortableImageOverlay["getCorners"]> | undefined;
+    try {
+      liveCorners = layer?.getCorners();
+    } catch {
+      liveCorners = undefined;
+    }
     const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.corners;
 
     const isInViewport = intersectsViewport(computeCornersBBox(effectiveCorners), bounds);
@@ -201,11 +175,11 @@ function pruneBackendOverlays(
         syncLayerToMap(layer, showImages, mapInstance);
       }
 
-      if (!marker && showMarkers) {
+      if (!marker) {
         const overlayObject = overlayStore.overlays[data.id];
         if (overlayObject) createSingleMarker(overlayObject);
       } else {
-        syncLayerToMap(marker, showMarkers, mapInstance);
+        syncLayerToMap(marker, true, mapInstance);
       }
     } else if (layer || registry.getMarker(data.id)) {
       // Not visible → queue for cleanup
@@ -213,18 +187,7 @@ function pruneBackendOverlays(
     }
   }
 
-  // Destroy markers/layers for overlays that are filtered OUT by completion status.
-  // pruneLocalOverlays handles this correctly; mirror the same logic here so that
-  // toggling a filter off immediately removes the corresponding backend markers.
-  const filteredIds = new Set(filteredOverlays.map((o) => o.id));
-  for (const data of overlayStore.viewModeOverlays) {
-    if (filteredIds.has(data.id)) continue;
-    const marker = registry.getMarker(data.id);
-    const layer = registry.getLayer(data.id);
-    if (marker || layer) {
-      queueForDestruction(data.id);
-    }
-  }
+  queueFilteredOutForDestruction(overlayStore.viewModeOverlays, filteredOverlays);
 
   if (overlaysToRender.length > 0) {
     // Dynamic import keeps leaflet-distortableimage out of the initial bundle
@@ -240,12 +203,7 @@ function pruneBackendOverlays(
  * Structural gate: if status !== null, skip immediately.
  * These overlays are only visible in edit mode.
  */
-function pruneLocalOverlays(
-  mapInstance: L.Map,
-  _bounds: L.LatLngBounds,
-  showImages: boolean,
-  showMarkers: boolean,
-) {
+function pruneLocalOverlays(mapInstance: L.Map, showImages: boolean) {
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
   const mapStore = useMapStore();
@@ -282,10 +240,10 @@ function pruneLocalOverlays(
         syncLayerToMap(layer, showImages, mapInstance);
       }
 
-      if (!marker && showMarkers) {
+      if (!marker) {
         createSingleMarker(overlay);
       } else {
-        syncLayerToMap(marker, showMarkers, mapInstance);
+        syncLayerToMap(marker, true, mapInstance);
       }
     } else {
       const marker = registry.getMarker(id);
@@ -323,159 +281,25 @@ function pruneLocalOverlays(
   }
 }
 
-/** Return the pending geometry change request value for a project, if any. */
-function getPendingGeometry(
-  projectId: string,
-  isModeration: boolean,
-): GeoJSON.GeometryCollection | null {
-  const crList = isModeration ? useModerationStore().changeRequests : getPendingChangeRequests();
-  const cr = crList.find(
-    (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
-  );
-  const geom = cr?.newValue as GeoJSON.GeometryCollection | undefined;
-  return geom?.geometries?.length ? geom : null;
-}
+// Data-load / filter triggers that re-run the render loop.
+// Shape-specific triggers live in initializeShapeRenderTriggers; marker color triggers in markers.ts.
+let renderTriggersInitialized = false;
+export function initializeRenderTriggers() {
+  // MapView can remount; the watchers below tie to global state so once is enough.
+  if (renderTriggersInitialized) return;
+  renderTriggersInitialized = true;
 
-type ResolvedGeometry = { geometry: GeoJSON.GeometryCollection; isPending: boolean } | null;
-
-function resolveProjectGeometry(
-  projectId: string,
-  approvedGeometry: GeoJSON.GeometryCollection | null | undefined,
-  storedGeometry: GeoJSON.GeometryCollection | null | undefined,
-  isEditMode: boolean,
-  isModeration: boolean,
-): ResolvedGeometry {
-  const approved = (isEditMode ? storedGeometry : null) ?? approvedGeometry;
-  if (approved?.geometries?.length) return { geometry: approved, isPending: false };
-  if (!isEditMode && !isModeration) return null;
-  const pending = getPendingGeometry(projectId, isModeration);
-  return pending ? { geometry: pending, isPending: true } : null;
-}
-
-function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): Project {
-  return createProjectObject({
-    ...project,
-    overlayIds: [],
-    geometry: project.geometry ?? null,
-  });
-}
-
-/**
- * Collect all visible projects whose shapes need to be rendered.
- * In edit/moderation mode: uses project store geometry for unsaved changes.
- * In view mode: shapes are handled by MapLibre tiles, this function is not called.
- */
-function getVisibleProjectsToRender() {
-  const overlayStore = useOverlayStore();
-  const projectStore = useProjectStore();
-  const mapStore = useMapStore();
-
-  const projectsToRender = new Map<string, Project>();
-
-  // Collect projects with overlays, always use backend overlay data as the project record
-  // so that projectData.geometry is always the approved geometry. storedProject is looked
-  // up separately in processAndRenderProjectShape for edit-mode rendering.
-  for (const overlay of overlayStore.viewModeOverlays) {
-    if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
-      projectsToRender.set(overlay.projectId, normalizeOverlayProject(overlay.project));
-    }
-  }
-
-  // In edit/moderation mode, viewModeOverlays only contains pending overlays.
-  // Approved overlays are rendered by vectorTileSync, collect their project IDs from
-  // the tile cache so that approved-overlay projects still get their shapes rendered.
-  if (mapStore.mode !== "view") {
-    for (const [, overlayData] of getApprovedOverlayDataFromTiles()) {
-      const projectId = overlayData.projectId;
-      if (!projectId || projectsToRender.has(projectId)) continue;
-      // The tile-based OverlayData has no project field; look up the project from the store.
-      // Skip if not yet in the store (shape will render on the next cycle once the store is hydrated).
-      const p = projectStore.projects[projectId];
-      if (p) projectsToRender.set(projectId, p);
-    }
-  }
-
-  // Collect standalone projects
-  for (const projectId of getStandaloneProjectMarkerMap().keys()) {
-    if (!projectsToRender.has(projectId)) {
-      const p = projectStore.projects[projectId];
-      if (p) {
-        projectsToRender.set(projectId, p);
-      }
-    }
-  }
-
-  return projectsToRender;
-}
-
-function processAndRenderProjectShape(
-  projectId: string,
-  projectData: Project,
-  mapInstance: L.Map,
-  isEditMode: boolean,
-  isModeration: boolean,
-) {
-  if (hasProjectShapes(projectId)) return;
-
-  const projectStore = useProjectStore();
-  const storedProject = projectStore.projects[projectId];
-  const resolved = resolveProjectGeometry(
-    projectId,
-    projectData.geometry,
-    storedProject?.geometry,
-    isEditMode,
-    isModeration,
+  watch(
+    () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
+    () => {
+      refreshAllStandaloneMarkers();
+      runViewportRenderLoop();
+    },
+    { deep: true },
   );
 
-  let finalGeometry = resolved?.geometry;
-  let isPending = resolved?.isPending;
-
-  // Fallback: new local projects may lack an approved geometry.
-  // In edit mode, render their local geometry instead.
-  if (
-    !finalGeometry &&
-    isEditMode &&
-    storedProject?.status === null &&
-    storedProject.geometry?.geometries?.length
-  ) {
-    finalGeometry = storedProject.geometry;
-    isPending = false;
-  }
-
-  if (!finalGeometry) return;
-
-  const projectToRender = (isEditMode ? storedProject : null) ?? projectData;
-
-  renderProjectShapes(
-    { ...projectToRender, geometry: finalGeometry },
-    mapInstance,
-    selectProject,
-    highlightProject,
-    removeProjectOutlines,
-    isPending ? "yellow" : undefined,
-  );
-}
-
-/**
- * Render shapes for all visible projects in edit/moderation mode.
- * Uses project store geometry (not tile data) so unsaved edits are reflected.
- */
-function renderAllProjectShapes(mapInstance: L.Map) {
-  const mapStore = useMapStore();
-
-  // In view mode, shapes are rendered exclusively via MapLibre vector tiles.
-  if (mapStore.mode === "view") {
-    return;
-  }
-
-  const isEditMode = mapStore.mode === "edit";
-  const isModeration = mapStore.mode === "moderation";
-
-  const projectsToRender = getVisibleProjectsToRender();
-
-  for (const [projectId, projectData] of projectsToRender.entries()) {
-    processAndRenderProjectShape(projectId, projectData, mapInstance, isEditMode, isModeration);
-  }
+  initializeShapeRenderTriggers();
+  initializeMarkerColorTriggers();
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

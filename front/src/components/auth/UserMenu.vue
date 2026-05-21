@@ -117,7 +117,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
-import { hasUnsavedChanges } from "@/composables/core/useUnsavedChanges";
+import { hasUnsavedChanges } from "@/utils/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";

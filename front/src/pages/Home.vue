@@ -67,7 +67,7 @@
     <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
-    <SubmissionDialogWrapper v-if="uiStore.submissionDialogVisible" />
+    <SubmissionDialogWrapper v-if="showSubmissionDialog" />
 
     <!-- Shape Editor Panel - lives outside PopupContainer so closing a popup doesn't destroy it -->
     <ShapeEditorPanel
@@ -91,10 +91,10 @@ import { map } from "@/services/core/map";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { selectProject } from "@/services/map/standaloneProjectMarkers";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
-import { clearProjectShapes, renderProjectShapes } from "@/services/map/shapeRendering";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { renderProjectShapes } from "@/services/map/shapeRendering";
+import { clearProjectShapes } from "@/services/map/shapeLayerRegistry";
+import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -207,13 +207,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   clearProjectShapes(project.id);
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
-    renderProjectShapes(
-      updatedProject,
-      map.value,
-      selectProject,
-      highlightProject,
-      removeProjectOutlines,
-    );
+    renderProjectShapes(updatedProject, map.value);
   }
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });

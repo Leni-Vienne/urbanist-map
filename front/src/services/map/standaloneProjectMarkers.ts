@@ -3,41 +3,22 @@ import { watch } from "vue";
 import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
-import {
-  visibleStates,
-  selectedProjectTags,
-  filterByStatus,
-  shouldShowStandaloneProject,
-} from "@/services/overlay/statusFilters";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { shouldShowStandaloneProject } from "@/services/overlay/statusFilters";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
-import {
-  selectOverlay,
-  highlightProject,
-  removeProjectOutlines,
-} from "@/services/overlay/overlaySelection";
+import { useAuthStore } from "@/stores/authStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
 import {
   createProjectInfoTeleportTarget,
-  createProjectInfoTeleportTargetAtLatLng,
   cleanupProjectInfoTeleportTarget,
 } from "@/services/map/projectPopupTeleport";
-import { requestScrollTo } from "@/services/layout/accordionState";
 import { getProjectMarkerColor } from "@/utils/markerColors";
+import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
-  renderProjectShapes,
-  clearAllProjectShapes,
   highlightProjectShapes,
   unhighlightProjectShapes,
-} from "@/services/map/shapeRendering";
-import { setExternalHover } from "@/services/map/vectorHoverState";
-import { setPopupPlacementForLatLng } from "@/services/map/popupState";
-import { trpc } from "@/client";
-import { createProjectObject } from "@/utils/typeFactories";
+} from "@/services/map/shapeLayerRegistry";
 // t() is imported directly since useI18n() is only available inside component setup().
 import { t } from "@/locales";
 
@@ -49,58 +30,6 @@ const standaloneProjectMarkerMap = new Map<string, L.Marker>();
 
 // Track the currently selected standalone project marker (for opacity control)
 let selectedStandaloneProjectMarker: L.Marker | null = null;
-
-// Track if watcher has been initialized (lazy initialization to avoid Pinia issues)
-let isWatcherInitialized = false;
-
-/** Initialize watchers for standalone markers. Called once on first use to avoid Pinia initialization issues. */
-function initializePopupWatcher() {
-  if (isWatcherInitialized) return;
-
-  const uiStore = useUiStore();
-  watch(
-    () => uiStore.projectInfoPopup.visible,
-    (isVisible, wasVisible) => {
-      // When popup closes, reset marker opacity and release any pinned vector hover.
-      if (wasVisible && !isVisible) {
-        updateStandaloneProjectMarkerOpacities(null);
-        setExternalHover(null);
-      }
-    },
-  );
-
-  // Watch filter changes: refresh standalone markers AND sync overlay marker visibility.
-  // runViewportRenderLoop is NOT called, it runs on the next map event and handles proper
-  // destruction; here we only need an immediate show/hide pass that works at all zoom levels.
-  watch(
-    () => ({
-      status: visibleStates.value,
-      tags: selectedProjectTags.value,
-    }),
-    () => {
-      refreshAllStandaloneMarkers();
-
-      // Sync overlay marker visibility to the current completion filter
-      const overlayStore = useOverlayStore();
-      const mapStore = useMapStore();
-      const mapInstance = map.value;
-      const filteredIds = new Set(
-        filterByStatus(overlayStore.viewModeOverlays, mapStore.mode).map((o) => o.id),
-      );
-      for (const id of Object.keys(overlayStore.overlays)) {
-        const marker = registry.getMarker(id);
-        if (!marker) continue;
-        const shouldBeVisible = filteredIds.has(id);
-        const isOnMap = mapInstance.hasLayer(marker);
-        if (shouldBeVisible && !isOnMap) marker.addTo(mapInstance);
-        else if (!shouldBeVisible && isOnMap) marker.remove();
-      }
-    },
-    { deep: true },
-  );
-
-  isWatcherInitialized = true;
-}
 
 /** Returns the standalone project marker for a given project ID. */
 export function getStandaloneProjectMarkerByProjectId(projectId: string): L.Marker | undefined {
@@ -172,7 +101,7 @@ export function clearAllStandaloneProjectMarkers(): void {
 }
 
 /** Show/hide standalone markers based on the current completion filters. */
-function refreshAllStandaloneMarkers(): void {
+export function refreshAllStandaloneMarkers(): void {
   if (!standaloneProjectsLayer) return;
 
   const mapStore = useMapStore();
@@ -262,7 +191,7 @@ export function updateStandaloneProjectMarkerTooltip(
 }
 
 /** Dim all standalone markers except the selected one. */
-function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
+export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
   if (!standaloneProjectsLayer) return;
 
   selectedStandaloneProjectMarker = selectedMarker;
@@ -278,93 +207,6 @@ function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null)
   });
 }
 
-/**
- * Open the project info popup and pin the vector highlight for the given project.
- * Called from vector/point clicks, Leaflet shape clicks, and the Contribute sidebar.
- * Passed as a callback to renderProjectShapes so shapeRendering stays dependency-free.
- */
-export function selectProject(project: Project, latlng: L.LatLng, atCenter = false): void {
-  const uiStore = useUiStore();
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  // Ensure the popup-close watcher is active even for overlay-only projects.
-  initializePopupWatcher();
-
-  if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-    uiStore.closeProjectInfoPopup();
-    cleanupProjectInfoTeleportTarget();
-    unhighlightProjectShapes(project.id);
-    setExternalHover(null); // Release the pinned vector highlight immediately.
-    return;
-  }
-
-  uiStore.openProjectInfoPopup(project.id, project);
-
-  // In view mode, pin the vector tile highlight while the popup is open.
-  if (mapStore.mode === "view") {
-    setExternalHover(project.id);
-  }
-
-  if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
-  requestScrollTo("project", project.id);
-
-  if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
-  if (overlayStore.idSelectedOverlay) selectOverlay(null);
-
-  setPopupPlacementForLatLng(latlng, atCenter);
-  createProjectInfoTeleportTargetAtLatLng(latlng);
-}
-
-/**
- * Handle a MapLibre tile click given only a project ID.
- * Looks up the project from the store or fetches it, then delegates to selectProject.
- */
-export async function handleProjectClickFromTile(
-  projectId: string,
-  latlng: L.LatLng,
-  atCenter = false,
-): Promise<void> {
-  const projectStore = useProjectStore();
-  let project = projectStore.projects[projectId];
-  if (!project) {
-    // Check moderation store for pending projects before hitting the API
-    const moderationStore = useModerationStore();
-    const pendingProject = moderationStore.projects.find((p) => p.id === projectId);
-    if (pendingProject) {
-      project = createProjectObject({
-        ...pendingProject,
-        tags: pendingProject.tags ?? [],
-        overlayIds: [],
-        city: pendingProject.city
-          ? {
-              ...pendingProject.city,
-              createdAt: new Date(0),
-              updatedAt: new Date(0),
-              coordinates: { x: 0, y: 0 },
-              approvedProjectCount: 0,
-            }
-          : null,
-      });
-    } else {
-      try {
-        const result = await trpc.project.getById.query({ id: projectId });
-        if (!result) return;
-        project = createProjectObject({
-          ...result,
-          tags: result.tags ?? [],
-          overlayIds: [],
-        });
-        projectStore.updateProject(projectId, project);
-      } catch (error) {
-        console.error("Failed to fetch project for tile click:", error);
-        return;
-      }
-    }
-  }
-  selectProject(project, latlng, atCenter);
-}
-
 /** Add a standalone project marker (called when the last overlay of a project is removed). */
 export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (!project.lat || !project.lng) return;
@@ -372,12 +214,9 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
   if (project.geometry?.geometries.length) {
-    renderProjectShapes(project, map.value, selectProject, highlightProject, removeProjectOutlines);
+    renderProjectShapes(project, map.value);
   }
 
-  initializePopupWatcher();
-
-  const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const markerColor = getProjectMarkerColor(project, mapStore.mode);
   const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
@@ -437,35 +276,16 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   updateStandaloneProjectMarkerTooltip(marker, project, mapStore.mode);
 
   marker.on("click", (e) => {
-    void (async () => {
-      L.DomEvent.stopPropagation(e);
-      const uiStore = useUiStore();
+    L.DomEvent.stopPropagation(e);
+    const uiStore = useUiStore();
 
-      if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-        uiStore.closeProjectInfoPopup();
-        updateStandaloneProjectMarkerOpacities(null);
-        return;
-      }
+    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
+      uiStore.closeProjectInfoPopup();
+      return;
+    }
 
-      uiStore.openProjectInfoPopup(project.id, project);
-
-      if (uiStore.activeTab === "latest") {
-        uiStore.activeTab = "currentLocation";
-      }
-
-      requestScrollTo("project", project.id);
-
-      if (overlayStore.showInfoPopup) {
-        overlayStore.hideInfoPopup();
-      }
-
-      if (overlayStore.idSelectedOverlay) {
-        selectOverlay(null);
-      }
-
-      createProjectInfoTeleportTarget(marker);
-      updateStandaloneProjectMarkerOpacities(marker);
-    })();
+    uiStore.openProjectInfoPopup(project.id, project);
+    createProjectInfoTeleportTarget(marker);
   });
 }
 
@@ -489,6 +309,36 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
 export function closeProjectPopupAndResetMarkers() {
   cleanupProjectInfoTeleportTarget();
   updateStandaloneProjectMarkerOpacities(null);
+}
+
+// On mode switch: clear all standalone markers, and on entering edit mode re-add markers
+// for the user's local (unsaved) and own-pending projects.
+let standaloneMarkerModeWatcherInitialized = false;
+export function initializeStandaloneMarkerModeWatcher() {
+  // MapView can remount; the watch below ties to global state so once is enough.
+  if (standaloneMarkerModeWatcherInitialized) return;
+  standaloneMarkerModeWatcherInitialized = true;
+
+  const mapStore = useMapStore();
+  const projectStore = useProjectStore();
+  const authStore = useAuthStore();
+
+  watch(
+    () => mapStore.mode,
+    (newMode) => {
+      clearAllStandaloneProjectMarkers();
+      if (newMode !== "edit") return;
+
+      const userId = authStore.user?.id;
+      const userProjects = Object.values(projectStore.projects).filter(
+        (p) =>
+          p.lat && p.lng && (p.status === null || (p.status === "pending" && p.ownerId === userId)),
+      );
+      for (const project of userProjects) {
+        addStandaloneProjectMarkerForProject(project);
+      }
+    },
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

@@ -155,18 +155,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useModeration } from "@/composables/moderation/useModeration";
+import { useModerationCountrySelector } from "@/composables/moderation/useModerationCountrySelector";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useToast } from "@/composables/ui/useToast";
-import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayForModeration } from "@/types/index";
 import { trpc } from "@/client";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
@@ -181,176 +179,8 @@ import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 const { t } = useI18n();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
-// Auth and moderation stores for country filtering
-const authStore = useAuthStore();
 const moderationStore = useModerationStore();
-const mapStore = useMapStore();
-// Country selector state - use store's cached countries
-const countriesLoading = ref(false);
-const selectedCountryCode = ref<string | null>(moderationStore.selectedCountryCode);
 
-// Computed: show country selector if user is not admin and has access to multiple countries
-const showCountrySelector = computed(() => {
-  const user = authStore.user;
-  if (!user) return false;
-
-  // Admin role or null moderatedCountries = no country selector needed
-  const isAdmin = user.role === "admin";
-  if (isAdmin) return true;
-
-  // Hide selector if moderator only has access to one country
-  return availableCountries.value.length > 1;
-});
-
-// Computed: filter countries by user's moderatedCountries
-const availableCountries = computed(() => {
-  const userCountries = authStore.user?.moderatedCountries;
-
-  // Admin (null or undefined) sees all countries
-  if (userCountries === null || userCountries === undefined) {
-    return moderationStore.allCountries;
-  }
-
-  // Handle edge case where moderatedCountries might not be an array at runtime
-  if (!Array.isArray(userCountries)) {
-    console.warn("moderatedCountries is not an array:", userCountries);
-    return moderationStore.allCountries;
-  }
-
-  // Filter to only moderator's assigned countries
-  return moderationStore.allCountries.filter((country) => userCountries.includes(country.code));
-});
-
-// Fetch all countries on mount only if not already cached, and auto-select if only one available
-onMounted(async () => {
-  try {
-    // Restore state from Store or Map logic BEFORE fetching countries
-    // This ensures markers are loaded immediately if we are returning to the panel
-    const initialCode = mapStore.selectedCountryCode ?? moderationStore.selectedCountryCode ?? null;
-    if (initialCode) {
-      const user = authStore.user;
-      const canAccess = !user?.moderatedCountries || user.moderatedCountries.includes(initialCode);
-      if (canAccess) {
-        // Restore markers. useModeration hook (running after this) will see the store value and fetch the list.
-        loadCountryData(initialCode, true);
-      }
-    }
-
-    // Only fetch if not already loaded in store
-    if (!moderationStore.countriesLoaded) {
-      countriesLoading.value = true;
-      const countries = await trpc.country.getAllCountries.query();
-      moderationStore.setAllCountries(countries);
-    }
-
-    // Auto-select country if non-admin moderator has exactly one assigned country
-    const user = authStore.user;
-    const isAdmin = user?.role === "admin";
-    // Check if we DIDN'T restore a country already
-    if (!selectedCountryCode.value && !isAdmin && availableCountries.value.length === 1) {
-      const country = availableCountries.value[0];
-      if (!country) {
-        throw new Error("No country found");
-      }
-      // Use shared loader
-      loadCountryData(country.code);
-      // Explicitly fetch pending submissions because useModeration hook ran already (saw null)
-      await fetchPendingSubmissions();
-    }
-
-    // Fetch pending counts for all countries only if not already loaded
-    if (!moderationStore.pendingCountsLoaded) {
-      try {
-        const counts = await trpc.moderation.getPendingCountsByCountry.query();
-        moderationStore.setPendingCounts(counts);
-      } catch (error) {
-        console.error("Failed to load pending counts:", error);
-        // Don't block UI if counts fail to load
-      }
-    }
-  } catch (error) {
-    console.error("Failed to load countries:", error);
-    toast.add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: t("moderation.failedToLoadCountries"),
-      life: 3000,
-    });
-  } finally {
-    countriesLoading.value = false;
-  }
-});
-
-// Load data for a specific country (stores, fly-to)
-function loadCountryData(countryCode: string | null, shouldFly = true) {
-  // Sync local ref if needed (e.g. when called from watcher/mounted)
-  if (selectedCountryCode.value !== countryCode) {
-    selectedCountryCode.value = countryCode;
-  }
-
-  // Only invalidate moderation data if country changed (allows cache reuse)
-  const isDifferentCountry = moderationStore.selectedCountryCode !== countryCode;
-  moderationStore.setSelectedCountryCode(countryCode);
-  if (isDifferentCountry) {
-    moderationStore.resetModerationLoaded();
-  }
-
-  if (countryCode) {
-    mapStore.selectedCountryCode = countryCode;
-
-    if (shouldFly) {
-      const country = moderationStore.allCountries.find((c) => c.code === countryCode);
-      if (country) {
-        mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, {
-          duration: 1.5,
-        });
-      }
-    }
-  }
-}
-
-async function handleCountryChange() {
-  loadCountryData(selectedCountryCode.value);
-  await fetchPendingSubmissions();
-}
-
-// Keep the moderation panel in sync when the country is set externally (e.g., from a map click).
-watch(
-  () => moderationStore.selectedCountryCode,
-  (newCountryCode) => {
-    if (newCountryCode !== selectedCountryCode.value) {
-      selectedCountryCode.value = newCountryCode;
-      if (newCountryCode) {
-        loadCountryData(newCountryCode);
-        fetchPendingSubmissions();
-      }
-    }
-  },
-);
-
-// Get pending count for a specific country
-function getPendingCount(countryCode: string): number {
-  return moderationStore.pendingCountsByCountry.get(countryCode) ?? 0;
-}
-
-// Helper to refetch pending counts after operations
-async function refetchPendingCounts() {
-  try {
-    moderationStore.resetPendingCounts();
-    const counts = await trpc.moderation.getPendingCountsByCountry.query();
-    moderationStore.setPendingCounts(counts);
-  } catch (error) {
-    console.error("Failed to refetch pending counts:", error);
-    toast.add({
-      severity: "warn",
-      summary: t("moderation.refreshCountsFailed"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 4000,
-    });
-  }
-}
-
-// Use moderation composable
 const {
   projects,
   changeRequests,
@@ -360,6 +190,18 @@ const {
   rejectOverlay,
   fetchPendingSubmissions,
 } = useModeration();
+
+const {
+  countriesLoading,
+  selectedCountryCode,
+  showCountrySelector,
+  availableCountries,
+  handleCountryChange,
+  getPendingCount,
+  refetchPendingCounts,
+} = useModerationCountrySelector({
+  onCountryDataNeeded: fetchPendingSubmissions,
+});
 
 const { approveChangeRequests, rejectChangeRequests } = useChangeRequests();
 

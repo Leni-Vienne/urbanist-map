@@ -1,9 +1,2 @@
 User-agent: *
-
-Allow: /$
-Allow: /legal$
-Allow: /contact$
-Allow: /email-verification$
-Allow: /password-reset$
-
-Disallow: /
+Disallow: /admin

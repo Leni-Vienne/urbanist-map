@@ -117,6 +117,19 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   importSource?: DBImportSource | null;
   // UI state for tracking local modifications
   isModified?: boolean;
+
+  // Denormalized location names, populated by location-aware queries (joins).
+  cityName?: string | null;
+  countryName?: string | null;
+
+  // Owner display + spam-detection fields, populated by moderation/contribution endpoints.
+  ownerUsername?: string | null;
+  ownerApprovedCount?: number | null;
+  ownerRejectedCount?: number | null;
+  ownerReportCount?: number;
+
+  // Cached overlay count for list views that don't hydrate the full overlays array.
+  overlayCount?: number;
 }
 
 export interface ProjectFormData {
@@ -201,86 +214,22 @@ export type OverlayForModeration = Pick<
   imageUrl?: string; // Optional for local overlays not yet uploaded
 };
 
-export type ProjectForModeration = Pick<
-  Project,
-  | "id"
-  | "name"
-  | "description"
-  | "status"
-  | "version"
-  | "createdAt"
-  | "updatedAt"
-  | "startDate"
-  | "startDatePrecision"
-  | "endDate"
-  | "endDatePrecision"
-  | "proposalDate"
-  | "proposalDatePrecision"
-  | "timelineStatus"
-  | "importSourceId"
-  | "externalId"
-  | "externalProperties"
-  | "externalLastModified"
-  | "lastImportedAt"
-  | "sourceUrl"
-  | "lat"
-  | "lng"
-  | "cityId"
-> & {
-  tags: string[] | null; // May be null for legacy projects without tags
-  ownerId?: string | null; // For spam prevention reporting (optional, only in moderation)
-  ownerUsername?: string | null; // Display friendly username in moderation UI
-  ownerApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)
-  ownerRejectedCount?: number | null;
-  ownerReportCount?: number; // Number of reports for this user
-  city?: {
-    // Full city object with local name support
-    id: number;
-    name: string;
-    nameLocal: string | null;
-    countryCode: string;
-  } | null;
-  cityName: string | null;
-  countryCode: string | null;
-  countryName: string | null;
+export type ProjectForModeration = Project & {
   overlays: OverlayForModeration[];
-  overlayCount?: number;
-  geometry?: GeoJSON.GeometryCollection | null;
 };
 
-// Centralized UserContribution types handling local (nullable status) and backend data
-type BackendUserContribution = RouterOutput["project"]["getUsersContributions"]["projects"][number];
+type BackendContributionOverlay =
+  RouterOutput["project"]["getUsersContributions"]["projects"][number]["overlays"][number];
 
-export type UserContributionOverlay = Omit<
-  BackendUserContribution["overlays"][number],
-  "status" | "cityId" | "cityName" | "countryCode" | "countryName"
-> & {
+export type UserContributionOverlay = Omit<BackendContributionOverlay, "status"> & {
+  // Status widens to allow null for local-only overlays that haven't been submitted
   status: ApprovalStatus | null;
-  cityId: number | null; // Override: cityId is now nullable for imported projects
-  cityName: string | null;
-  countryCode: string | null;
-  countryName: string | null;
-  // Frontend-specific fields added by factories
+  // imageUrl is the data URL or server URL used to render the thumbnail in the contributions panel
   imageUrl?: string;
-  authorUsername?: string | null;
-  authorApprovedCount?: number | null;
-  authorRejectedCount?: number | null;
 };
 
-export type UserContribution = Omit<
-  BackendUserContribution,
-  "status" | "overlays" | "cityId" | "city"
-> & {
-  status: ApprovalStatus | null;
-  cityId: number | null;
-  city: DBCity | null;
+// A user contribution is a Project augmented with the inline overlay list.
+// Backend already populates the optional denormalized fields on Project (cityName, countryName, ownerUsername...).
+export type UserContribution = Project & {
   overlays: UserContributionOverlay[];
-  // Date precision fields
-  proposalDatePrecision?: "year" | "month" | "day" | null;
-  startDatePrecision?: "year" | "month" | "day" | null;
-  endDatePrecision?: "year" | "month" | "day" | null;
-  // Frontend-specific fields added by factories
-  ownerUsername?: string | null;
-  ownerApprovedCount?: number | null;
-  ownerRejectedCount?: number | null;
 };

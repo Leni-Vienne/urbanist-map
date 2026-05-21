@@ -7,7 +7,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { updateOverlayMarkersColors } from "@/services/map/markers";
 import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,
@@ -15,7 +14,7 @@ import {
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
 import { t } from "@/locales";
-import type { Project } from "@/types/index";
+import type { Project, ProjectForModeration } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
 
 // Result type for approval operations
@@ -27,6 +26,7 @@ type ApprovalResult = {
 
 export function useModeration() {
   const moderationStore = useModerationStore();
+  const mapStore = useMapStore();
   const toast = useToast();
 
   const overlays = computed(() => moderationStore.overlays);
@@ -39,14 +39,23 @@ export function useModeration() {
     }
 
     try {
-      // Pass selected country code for country-scoped moderation
       const response = await trpc.moderation.getPendingSubmissions.query({
-        countryCode: moderationStore.selectedCountryCode ?? undefined,
+        countryCode: mapStore.selectedCountryCode ?? undefined,
       });
+
+      // The moderation backend query omits the joined city object, the derived overlayIds array,
+      // and the parsed geometry. Coerce here so the stored projects satisfy ProjectForModeration.
+      const moderationProjects: ProjectForModeration[] = response.projects.map((project) => ({
+        ...project,
+        city: null,
+        overlayIds: project.overlays.map((overlay) => overlay.id),
+        geometry: null,
+        tags: project.tags ?? [],
+      }));
 
       moderationStore.setModerationData({
         overlays: response.overlays,
-        projects: response.projects,
+        projects: moderationProjects,
         changeRequests: response.changeRequests,
       });
     } catch (error) {
@@ -143,7 +152,6 @@ export function useModeration() {
     rejectionReason?: string,
   ): Promise<ApprovalResult> {
     const overlayStore = useOverlayStore();
-    const mapStore = useMapStore();
 
     const overlay = overlays.value.find((o) => o.id === id);
     const replacesOverlayId = overlay?.replacesOverlayId;
@@ -162,9 +170,9 @@ export function useModeration() {
       const overlayObject = overlayStore.overlays[id];
 
       if (overlayObject) {
+        // updateOverlay mutates the Pinia proxy, picked up by initializeMarkerColorTriggers.
         overlayStore.updateOverlay(id, { status });
         updateMarkerTooltip(overlayObject);
-        updateOverlayMarkersColors(overlayStore.overlays, mapStore.mode);
       }
 
       // If a replacement overlay was approved, remove the original and any competing replacements
@@ -197,26 +205,17 @@ export function useModeration() {
 
   onMounted(async () => {
     const authStore = useAuthStore();
-    const mapStore = useMapStore();
     const user = authStore.user;
-
     if (!user) return;
 
+    const isAdmin = user.role === "admin";
     const mapCountryCode = mapStore.selectedCountryCode;
     const canAccessMapCountry =
       !user.moderatedCountries ||
-      (mapCountryCode && user.moderatedCountries.includes(mapCountryCode));
+      (mapCountryCode !== null && user.moderatedCountries.includes(mapCountryCode));
 
-    if (mapCountryCode && canAccessMapCountry) {
-      moderationStore.setSelectedCountryCode(mapCountryCode);
-    }
-    // Preserve the existing moderation store country if the map is in global view
-
-    const isAdmin = user.role === "admin";
-    const hasSelectedCountry = moderationStore.selectedCountryCode !== null;
-
-    // Fetch if admin (no country needed) OR if country already selected
-    if (isAdmin || hasSelectedCountry) {
+    // Admins fetch unfiltered; moderators only when the active country is one they can access.
+    if (isAdmin || (mapCountryCode && canAccessMapCountry)) {
       await fetchPendingSubmissions();
     }
   });
@@ -227,8 +226,6 @@ export function useModeration() {
     rejectionReason?: string,
     rejectAllOverlays?: boolean,
   ): Promise<ApprovalResult> {
-    const mapStore = useMapStore();
-
     const projectBeforeApproval = projects.value.find((p) => p.id === id);
 
     const result = await setApprovalStatus(

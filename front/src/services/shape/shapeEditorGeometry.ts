@@ -1,7 +1,5 @@
-import {
-  getPendingChangeRequests,
-  refreshPendingChangeRequests,
-} from "@/composables/changes/useChanges";
+import { refreshPendingChangeRequests } from "@/composables/changes/useChanges";
+import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 
@@ -17,7 +15,7 @@ export async function resolveShapeEditorGeometry(
   projectId: string,
   fallbackGeometry: GeoJSON.GeometryCollection | null,
 ): Promise<GeoJSON.GeometryCollection | null> {
-  await refreshPendingChangeRequests(true);
+  await refreshPendingChangeRequests();
 
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
@@ -25,7 +23,8 @@ export async function resolveShapeEditorGeometry(
   // Use undefined (not null) as sentinel: an explicit null means "delete all shapes"
   // and must be preserved rather than fallen through.
   const localStoredGeometry = projectStore.projects[projectId]?.geometry;
-  const pendingGeometryChange = getPendingChangeRequests().find(
+  const changeRequestStore = useChangeRequestStore();
+  const pendingGeometryChange = changeRequestStore.pendingChangeRequests.find(
     (cr) =>
       cr.requestedBy === authStore.user?.id &&
       cr.entityType === "project" &&

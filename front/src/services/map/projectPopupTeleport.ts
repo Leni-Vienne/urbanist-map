@@ -7,7 +7,7 @@ import L from "leaflet";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { setProjectPopupTarget } from "@/services/map/popupState";
-import { unhighlightProjectShapes } from "@/services/map/shapeRendering";
+import { unhighlightProjectShapes } from "@/services/map/shapeLayerRegistry";
 
 let anchorMarker: L.Marker | null = null;
 let mapClickHandler: (() => void) | null = null;

@@ -19,6 +19,7 @@ import { computed } from "vue";
 import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
+import { getCityNameCache } from "@/utils/cityNameCache";
 import {
   prepareProjectValidationData,
   prepareOverlayValidationData,
@@ -28,10 +29,12 @@ import {
   usePendingModificationsStore,
   type PendingOverlayModification,
 } from "@/stores/pinia/pendingModificationsStore";
-
-// Unified submission types for consolidated workflow
-export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
-type SubmissionEntityType = "project" | "overlay";
+import type {
+  SubmissionChange,
+  SubmissionChangeType,
+  SubmissionContext,
+  SubmissionSummary,
+} from "./submissionTypes";
 
 // Internal single-entity payload used by buildSummary/validate/submitEntity.
 // Each public submission may produce several of these (project metadata + per-overlay updates).
@@ -47,39 +50,15 @@ type EntityUpdate =
       entityType: "overlay";
       entityId: string;
       changeType: SubmissionChangeType;
-      entity: OverlayObject;
+      // Proposed caption/corners that aren't yet on the live store entry (tracked as deltas
+      // in pendingModificationsStore). When absent, validate/buildSummary fall back to the
+      // live store + Leaflet layer.
+      proposed?: {
+        caption?: string | null;
+        corners?: OverlayCorners;
+      };
       changedFields?: FieldChange[];
     };
-
-// Public submission context: a batch of work to do for a single project.
-export interface SubmissionContext {
-  changeType: SubmissionChangeType;
-  projectId?: string;
-  projectModified?: boolean;
-  // Caption/corners changes captured locally on already-published overlays.
-  existingOverlayModifications?: PendingOverlayModification[];
-  // Brand-new overlays (status null) to publish.
-  newOverlayIds?: string[];
-}
-
-export interface SubmissionChange {
-  field: RemovableChange;
-  oldValue: unknown;
-  newValue: unknown;
-  displayLabel: string;
-  // Optional overlay identification for deletion and thumbnail display
-  overlayId?: string;
-  thumbnailUrl?: string;
-}
-
-export interface SubmissionSummary {
-  action: string;
-  entityName: string | null;
-  changes: SubmissionChange[];
-  requiresModeration: boolean;
-  entityType: SubmissionEntityType;
-  changeType: SubmissionChangeType;
-}
 
 interface ValidationResult {
   isValid: boolean;
@@ -166,6 +145,20 @@ function normalizeDatePrecision(
   return precisionValue === null || precisionValue === undefined ? "day" : precisionValue;
 }
 
+function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrorsMap>[0]): string[] {
+  const zodErrors = getValidationErrorsMap(zodError);
+  return Object.values(zodErrors).map((e) => t(e.key, e.params ?? {}));
+}
+
+function validateProject(project: Project): string[] {
+  const validationData = prepareProjectValidationData(project, {
+    lat: project.lat,
+    lng: project.lng,
+  });
+  const result = projectSchema.safeParse(validationData);
+  return result.success ? [] : zodErrorsToMessages(result.error);
+}
+
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
   if (entity.status === "pending" || entity.status === "rejected") {
     return "update_pending";
@@ -187,7 +180,7 @@ export function useSubmissionService() {
 
   // City name cache built from the project store and all projects seen so far.
   const cityNamesCache = computed(() => {
-    const cache: Record<string, string> = { ...projectStore.cityNamesCache };
+    const cache: Record<string, string> = { ...getCityNameCache() };
 
     // Extract from all projects (includes both loaded and original cached projects)
     for (const project of Object.values(projectStore.projects)) {
@@ -208,18 +201,6 @@ export function useSubmissionService() {
       entityId: project.id,
       entity: project,
       changeType: changeType ?? getChangeType(project),
-    };
-  }
-
-  function createOverlayContext(
-    overlay: OverlayObject,
-    changeType?: SubmissionChangeType,
-  ): Extract<EntityUpdate, { entityType: "overlay" }> {
-    return {
-      entityType: "overlay",
-      entityId: overlay.id,
-      entity: overlay,
-      changeType: changeType ?? getChangeType(overlay),
     };
   }
 
@@ -247,7 +228,6 @@ export function useSubmissionService() {
     ];
 
     for (const field of fieldsToCheck) {
-      // Cast: originalProject can be Project or UserContribution; both share these keys.
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
@@ -330,7 +310,9 @@ export function useSubmissionService() {
     const entityName =
       context.entityType === "project"
         ? context.entity.name
-        : (context.entity.caption ?? t("overlay.untitled"));
+        : (context.proposed?.caption ??
+          overlayStore.overlays[context.entityId]?.caption ??
+          t("overlay.untitled"));
 
     let action = "";
     let requiresModeration = false;
@@ -366,46 +348,29 @@ export function useSubmissionService() {
     };
   }
 
+  function validateOverlay(context: Extract<EntityUpdate, { entityType: "overlay" }>): string[] {
+    const liveOverlay = overlayStore.overlays[context.entityId];
+    const corners =
+      context.proposed?.corners ??
+      getLayer(context.entityId)?.getCorners() ??
+      liveOverlay?.corners ??
+      [];
+
+    const validationData = prepareOverlayValidationData({
+      id: context.entityId,
+      filename: liveOverlay?.filename ?? "",
+      caption: context.proposed?.caption ?? liveOverlay?.caption ?? null,
+      projectId: liveOverlay?.projectId ?? null,
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      corners: corners.map((c: { lat: number; lng: number }) => ({ lat: c.lat, lng: c.lng })),
+    });
+    const result = overlaySchema.safeParse(validationData);
+    return result.success ? [] : zodErrorsToMessages(result.error);
+  }
+
   function validate(context: EntityUpdate): ValidationResult {
-    const errors: string[] = [];
-
-    if (context.entityType === "project") {
-      const validationData = prepareProjectValidationData(context.entity, {
-        lat: context.entity.lat,
-        lng: context.entity.lng,
-      });
-
-      const result = projectSchema.safeParse(validationData);
-
-      if (!result.success) {
-        const zodErrors = getValidationErrorsMap(result.error);
-        for (const error of Object.values(zodErrors)) {
-          errors.push(t(error.key, error.params ?? {}));
-        }
-      }
-    }
-
-    if (context.entityType === "overlay") {
-      const corners = getLayer(context.entity.id)?.getCorners() ?? context.entity.corners;
-
-      const validationData = prepareOverlayValidationData({
-        id: context.entity.id,
-        filename: context.entity.filename,
-        caption: context.entity.caption,
-        projectId: context.entity.projectId,
-        // oxlint-disable-next-line no-unsafe-type-assertion
-        corners: corners.map((c: { lat: number; lng: number }) => ({ lat: c.lat, lng: c.lng })),
-      });
-
-      const result = overlaySchema.safeParse(validationData);
-
-      if (!result.success) {
-        const zodErrors = getValidationErrorsMap(result.error);
-        for (const error of Object.values(zodErrors)) {
-          errors.push(t(error.key, error.params ?? {}));
-        }
-      }
-    }
+    const errors =
+      context.entityType === "project" ? validateProject(context.entity) : validateOverlay(context);
 
     if (context.changeType !== "create") {
       const changes =
@@ -436,35 +401,30 @@ export function useSubmissionService() {
     projectStore.updateProject(project.id, { isModified: false });
 
     resetChangeRequestsLoaded();
-    await refreshPendingChangeRequests(true);
+    await refreshPendingChangeRequests();
   }
 
-  async function publishProjectDirect(
+  // Local store + UI sync after a successful project publish: status flip, baseline cache,
+  // marker add/recolor, and contributions-sidebar entry. Kept together so callers don't have
+  // to remember the full cascade.
+  function applyOptimisticPublishedProject(
     project: Project,
     changeType: SubmissionChangeType,
-  ): Promise<void> {
-    await trpc.project.publishProject.mutate(projectSchema.parse(project));
-
+  ): void {
     projectStore.updateProject(project.id, { isModified: false, status: "pending" });
-
     projectStore.cacheProjectBackendState(project.id);
 
-    const updatedProject = projectStore.projects[project.id];
-    if (updatedProject) {
-      if (changeType === "create") {
-        addStandaloneProjectMarkerForProject(updatedProject);
-      } else {
-        updateStandaloneProjectMarkerColor(project.id, updatedProject);
-      }
-    }
+    const updated = projectStore.projects[project.id];
+    if (!updated) return;
 
     if (changeType === "create") {
-      // Optimistically add project to contributions (status is already "pending" from publishProject above)
-      if (updatedProject) {
-        projectStore.addProjectToUserContributions(updatedProject);
-      }
-    } else if (changeType === "update_pending") {
-      // Optimistically update pending project in user contributions cache
+      addStandaloneProjectMarkerForProject(updated);
+      projectStore.addProjectToUserContributions(updated);
+      return;
+    }
+
+    updateStandaloneProjectMarkerColor(project.id, updated);
+    if (changeType === "update_pending") {
       projectStore.updateProjectInUserContributions(project.id, {
         name: project.name,
         description: project.description,
@@ -472,6 +432,14 @@ export function useSubmissionService() {
         updatedAt: new Date(),
       });
     }
+  }
+
+  async function publishProjectDirect(
+    project: Project,
+    changeType: SubmissionChangeType,
+  ): Promise<void> {
+    await trpc.project.publishProject.mutate(projectSchema.parse(project));
+    applyOptimisticPublishedProject(project, changeType);
   }
 
   async function submitProject(
@@ -486,77 +454,68 @@ export function useSubmissionService() {
   }
 
   async function submitOverlay(
-    context: Extract<EntityUpdate, { entityType: "overlay" }>,
+    overlayId: string,
+    changeType: SubmissionChangeType,
     changes: FieldChange[],
   ): Promise<void> {
-    if (context.changeType === "create") {
+    if (changeType === "create") {
       throw new Error("New overlay creation should use publishOverlay directly");
     }
 
-    if (context.changeType === "update_approved") {
+    if (changeType === "update_approved") {
       if (changes.length === 0) throw new Error(t("errors.noChangesDetected"));
-      // Submit change requests for approved overlays
       await trpc.changes.submitChangeRequest.mutate({
         entityType: "overlay",
-        entityId: context.entity.id,
+        entityId: overlayId,
         changes,
       });
 
-      // Reset modified flag and set pending changes flag after submitting change request.
-      context.entity.isModified = false;
-      context.entity.hasPendingChanges = true;
-
-      // Save suggested corners so the "view suggested position" button works immediately.
       const cornersChange = changes.find((c) => c.fieldName === "corners");
+      const updates: Partial<OverlayObject> = {
+        isModified: false,
+        hasPendingChanges: true,
+      };
       if (cornersChange?.newValue) {
-        context.entity.suggestedCorners = cornersChange.newValue as OverlayCorners;
-        // Marker shows yellow to indicate pending changes.
-        context.entity.isViewingApprovedPosition = false;
+        // suggestedCorners powers the "view suggested position" preview; flipping
+        // isViewingApprovedPosition turns the marker yellow while the CR is open.
+        updates.suggestedCorners = cornersChange.newValue as OverlayCorners;
+        updates.isViewingApprovedPosition = false;
       }
+      overlayStore.updateOverlay(overlayId, updates);
 
-      // CRITICAL: Also sync the overlay in overlayStore so preview buttons work immediately.
-      const overlayInStore = overlayStore.overlays[context.entity.id];
-      if (overlayInStore && cornersChange?.newValue) {
-        overlayInStore.suggestedCorners = cornersChange.newValue as OverlayCorners;
-        overlayInStore.hasPendingChanges = true;
-        overlayInStore.isViewingApprovedPosition = false;
-      }
-
-      updateMarkerTooltip(context.entity);
+      const liveOverlay = overlayStore.overlays[overlayId];
+      if (liveOverlay) updateMarkerTooltip(liveOverlay);
       resetChangeRequestsLoaded();
-      await refreshPendingChangeRequests(true);
+      await refreshPendingChangeRequests();
+      return;
     }
 
-    if (context.changeType === "update_pending") {
-      const hasCornersChange = changes.some((c) => c.fieldName === "corners");
+    // changeType === "update_pending"
+    const hasCornersChange = changes.some((c) => c.fieldName === "corners");
+    if (hasCornersChange) {
+      // Pass the live store entry so publishOverlay's status/imageUrl mutations land in the store.
+      const liveOverlay = overlayStore.overlays[overlayId];
+      if (!liveOverlay) return;
 
-      if (hasCornersChange) {
-        // Project lookup: check both the active map cache and the user contributions sidebar.
-        let project = null;
-        if (context.entity.projectId) {
-          project =
-            projectStore.projects[context.entity.projectId] ??
-            (projectStore.userContributions.find(
-              (p) => p.id === context.entity.projectId,
-            ) as unknown as Project) ??
-            null;
-        }
-        await publishOverlay(context.entity, project);
-      } else {
-        const overlayData: { id: string; caption?: string } = { id: context.entity.id };
-        const captionChange = changes.find((c) => c.fieldName === "caption");
-        if (captionChange) {
-          overlayData.caption = String(captionChange.newValue ?? "");
-        }
+      const project = liveOverlay.projectId
+        ? projectStore.getProjectById(liveOverlay.projectId)
+        : null;
+      await publishOverlay(liveOverlay, project);
+      return;
+    }
 
-        await trpc.overlay.updateOverlay.mutate(overlayData);
+    // Caption-only update on a pending overlay.
+    const overlayData: { id: string; caption?: string } = { id: overlayId };
+    const captionChange = changes.find((c) => c.fieldName === "caption");
+    if (captionChange) {
+      overlayData.caption = String(captionChange.newValue ?? "");
+    }
+    await trpc.overlay.updateOverlay.mutate(overlayData);
 
-        if (overlayData.caption !== undefined) {
-          projectStore.updateOverlayInUserContributions(context.entity.id, {
-            caption: overlayData.caption,
-          });
-        }
-      }
+    if (overlayData.caption !== undefined) {
+      projectStore.updateOverlayInUserContributions(overlayId, {
+        caption: overlayData.caption,
+      });
     }
   }
 
@@ -572,7 +531,7 @@ export function useSubmissionService() {
     if (context.entityType === "project") {
       await submitProject(context, changes);
     } else {
-      await submitOverlay(context, changes);
+      await submitOverlay(context.entityId, context.changeType, changes);
     }
   }
 
@@ -587,36 +546,40 @@ export function useSubmissionService() {
 
     const isChangeRequest = overlayObj.status === "approved";
 
-    const overlayWithChanges = {
-      ...overlayObj,
-      caption: mod.caption?.current ?? overlayObj.caption,
-      corners: mod.corners?.current ?? overlayObj.corners,
-    };
-
     const changedFields: FieldChange[] = [];
-    if (mod.caption)
+    const proposed: { caption?: string | null; corners?: OverlayCorners } = {};
+    if (mod.caption) {
       changedFields.push({
         fieldName: "caption",
         oldValue: mod.caption.original,
         newValue: mod.caption.current,
       });
-    if (mod.corners)
+      proposed.caption = mod.caption.current;
+    }
+    if (mod.corners) {
       changedFields.push({
         fieldName: "corners",
         oldValue: mod.corners.original,
         newValue: mod.corners.current,
       });
+      proposed.corners = mod.corners.current;
+    }
 
-    const overlayContext = createOverlayContext(overlayWithChanges);
-    overlayContext.changedFields = changedFields;
-    await submitEntity(overlayContext, reason);
+    await submitEntity(
+      {
+        entityType: "overlay",
+        entityId: overlayId,
+        changeType: getChangeType(overlayObj),
+        changedFields,
+        proposed,
+      },
+      reason,
+    );
 
     pendingModsStore.clearModification(overlayId);
 
-    // submitEntity mutated overlayWithChanges (a copy), not the live store entry, so isModified
-    // hasn't flipped yet. For direct updates we also collapse history so the submitted state
-    // is the new baseline; change requests keep history so the proposal stays visible on
-    // edit-mode re-entry.
+    // For direct updates we collapse history so the submitted state is the new baseline;
+    // change requests keep history so the proposal stays visible on edit-mode re-entry.
     const updates: Partial<OverlayObject> = { isModified: false };
     const submittedCorners = mod.corners?.current;
     if (submittedCorners?.length === 4 && !isChangeRequest) {
@@ -649,15 +612,7 @@ export function useSubmissionService() {
   }
 
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
-    let project: Project | null = null;
-    if (ctx.projectId) {
-      project =
-        projectStore.projects[ctx.projectId] ??
-        (projectStore.userContributions.find(
-          (p) => p.id === ctx.projectId,
-        ) as unknown as Project) ??
-        null;
-    }
+    const project = ctx.projectId ? projectStore.getProjectById(ctx.projectId) : null;
 
     const newOverlayIds = ctx.newOverlayIds ?? [];
 

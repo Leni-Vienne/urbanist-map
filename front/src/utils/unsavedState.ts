@@ -4,6 +4,7 @@
 import type { OverlayObject, Project } from "@/types/index";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 
 type OverlayLike = Pick<OverlayObject, "id" | "status" | "isModified">;
 type ProjectLike = Pick<Project, "id" | "status" | "isModified">;
@@ -21,4 +22,13 @@ export function isProjectUnsaved(project: ProjectLike): boolean {
   return Object.values(overlayStore.overlays).some(
     (o) => o.projectId === project.id && isOverlayUnsaved(o),
   );
+}
+
+export function hasUnsavedChanges(): boolean {
+  const projectStore = useProjectStore();
+  const overlayStore = useOverlayStore();
+
+  if (Object.values(overlayStore.overlays).some(isOverlayUnsaved)) return true;
+  if (Object.values(projectStore.projects).some(isProjectUnsaved)) return true;
+  return false;
 }

@@ -13,8 +13,6 @@ export const useModerationStore = defineStore("moderation", () => {
 
   const moderationLoaded = ref(false);
 
-  const selectedCountryCode = ref<string | null>(null);
-
   const allCountries = ref<CountryItem[]>([]);
   const countriesLoaded = ref(false);
 
@@ -44,10 +42,6 @@ export const useModerationStore = defineStore("moderation", () => {
     changeRequests.value = changeRequests.value.filter((cr) => !changeRequestIds.includes(cr.id));
   }
 
-  function setSelectedCountryCode(countryCode: string | null) {
-    selectedCountryCode.value = countryCode;
-  }
-
   function setAllCountries(countries: CountryItem[]) {
     allCountries.value = countries;
     countriesLoaded.value = true;
@@ -68,7 +62,6 @@ export const useModerationStore = defineStore("moderation", () => {
     projects.value = [];
     changeRequests.value = [];
     moderationLoaded.value = false;
-    selectedCountryCode.value = null;
     allCountries.value = [];
     countriesLoaded.value = false;
     pendingCountsByCountry.value.clear();
@@ -80,7 +73,6 @@ export const useModerationStore = defineStore("moderation", () => {
     projects,
     changeRequests,
     moderationLoaded,
-    selectedCountryCode,
     allCountries,
     countriesLoaded,
     pendingCountsByCountry,
@@ -88,7 +80,6 @@ export const useModerationStore = defineStore("moderation", () => {
     setModerationData,
     resetModerationLoaded,
     removeChangeRequests,
-    setSelectedCountryCode,
     setAllCountries,
     setPendingCounts,
     resetPendingCounts,
