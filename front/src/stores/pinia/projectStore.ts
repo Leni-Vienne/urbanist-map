@@ -20,6 +20,14 @@ function removeAtIndex<T>(arr: T[], index: number): T[] {
   return [...arr.slice(0, index), ...arr.slice(index + 1)];
 }
 
+// Rebuild a contribution with a new overlay list, keeping overlayIds in sync.
+function withOverlays(
+  contribution: UserContribution,
+  overlays: UserContributionOverlay[],
+): UserContribution {
+  return { ...contribution, overlays, overlayIds: overlays.map((o) => o.id) };
+}
+
 export const useProjectStore = defineStore("project", () => {
   const projects = ref<Record<string, Project>>({});
   const countries = ref<Country[]>([]);
@@ -33,6 +41,14 @@ export const useProjectStore = defineStore("project", () => {
 
   function getOriginalProject(projectId: string): Project | null {
     return originalProjects.value[projectId] ?? null;
+  }
+
+  // Pending projects may live only in userContributions until edited locally, so fall
+  // back to that list when the project isn't in the main map.
+  function getProjectById(projectId: string): Project | null {
+    return (
+      projects.value[projectId] ?? userContributions.value.find((p) => p.id === projectId) ?? null
+    );
   }
 
   // Denormalized fields win; the joined city / countries lookup is a fallback when they're unset.
@@ -66,6 +82,20 @@ export const useProjectStore = defineStore("project", () => {
       countryCode: project.countryCode,
       ...resolveLocationNames(project),
     };
+  }
+
+  // Find a loaded contribution by predicate and write back an updated copy.
+  // No-op (returns false) if contributions aren't loaded yet or nothing matches.
+  function replaceContribution(
+    predicate: (p: UserContribution) => boolean,
+    updater: (p: UserContribution) => UserContribution,
+  ): boolean {
+    if (!userContributionsLoaded.value) return false;
+    const index = userContributions.value.findIndex(predicate);
+    const current = index === -1 ? undefined : userContributions.value[index];
+    if (!current) return false;
+    userContributions.value = replaceAtIndex(userContributions.value, index, updater(current));
+    return true;
   }
 
   function setUserContributions(contributions: UserContribution[]) {
@@ -118,11 +148,7 @@ export const useProjectStore = defineStore("project", () => {
           ? replaceAtIndex(existingProject.overlays, existingOverlayIndex, overlayMetadata)
           : [...existingProject.overlays, overlayMetadata];
 
-      const updatedProject = {
-        ...existingProject,
-        overlays: updatedOverlays,
-        overlayIds: updatedOverlays.map((o) => o.id),
-      };
+      const updatedProject = withOverlays(existingProject, updatedOverlays);
 
       userContributions.value = replaceAtIndex(
         userContributions.value,
@@ -210,54 +236,21 @@ export const useProjectStore = defineStore("project", () => {
     overlayId: string,
     updates: Partial<UserContributionOverlay>,
   ) {
-    if (!userContributionsLoaded.value) {
-      return;
-    }
-
-    const found = findProjectContainingOverlay(overlayId);
-    if (!found) return;
-
-    const { index: projectIndex, project } = found;
-    const overlayIndex = project.overlays.findIndex((o) => o.id === overlayId);
-
-    if (overlayIndex !== -1) {
-      const overlay = project.overlays[overlayIndex];
-      if (!overlay) return;
-
-      const updatedOverlays = replaceAtIndex(project.overlays, overlayIndex, {
-        ...overlay,
-        ...updates,
-      });
-      const updatedProject = {
-        ...project,
-        overlays: updatedOverlays,
-        overlayIds: updatedOverlays.map((o) => o.id),
-      };
-      userContributions.value = replaceAtIndex(
-        userContributions.value,
-        projectIndex,
-        updatedProject,
-      );
-    }
+    replaceContribution(
+      (p) => p.overlays.some((o) => o.id === overlayId),
+      (p) =>
+        withOverlays(
+          p,
+          p.overlays.map((o) => (o.id === overlayId ? { ...o, ...updates } : o)),
+        ),
+    );
   }
 
   function updateProjectInUserContributions(projectId: string, updates: Partial<UserContribution>) {
-    if (!userContributionsLoaded.value) {
-      return;
-    }
-
-    const projectIndex = userContributions.value.findIndex((p) => p.id === projectId);
-    if (projectIndex !== -1) {
-      const project = userContributions.value[projectIndex];
-      if (!project) return;
-
-      const updatedProject = { ...project, ...updates };
-      userContributions.value = replaceAtIndex(
-        userContributions.value,
-        projectIndex,
-        updatedProject,
-      );
-    }
+    replaceContribution(
+      (p) => p.id === projectId,
+      (p) => ({ ...p, ...updates }),
+    );
   }
 
   // currentUserId avoids circular dependency with authStore.
@@ -275,15 +268,10 @@ export const useProjectStore = defineStore("project", () => {
     if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
       userContributions.value = removeAtIndex(userContributions.value, projectIndex);
     } else {
-      const updatedProject = {
-        ...project,
-        overlays: updatedOverlays,
-        overlayIds: updatedOverlays.map((o) => o.id),
-      };
       userContributions.value = replaceAtIndex(
         userContributions.value,
         projectIndex,
-        updatedProject,
+        withOverlays(project, updatedOverlays),
       );
     }
   }
@@ -402,6 +390,7 @@ export const useProjectStore = defineStore("project", () => {
     cacheProjectBackendState,
     resetProjectField,
     getOriginalProject,
+    getProjectById,
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,

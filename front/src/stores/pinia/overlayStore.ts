@@ -8,7 +8,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   const idSelectedOverlay = ref<string | null>(null);
 
   const viewModeOverlays = ref<OverlayData[]>([]);
-  const loadedEditOverlays = ref(new Set<string>());
 
   const replacementOverlayId = ref<string | null>(null);
   const pendingImageFile = ref<File | null>(null);
@@ -83,7 +82,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     clearAllLayers(false);
     overlays.value = {};
     idSelectedOverlay.value = null;
-    loadedEditOverlays.value.clear();
     resetAllUIStates();
   }
 
@@ -92,7 +90,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlays,
     idSelectedOverlay,
     viewModeOverlays,
-    loadedEditOverlays,
     replacementOverlayId,
     pendingImageFile,
     showInfoPopup,

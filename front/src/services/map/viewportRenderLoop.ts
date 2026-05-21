@@ -102,21 +102,35 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
   if (zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
 
   const showImages = zoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
-  // Markers are shown whenever we're past the load threshold, regardless of whether
-  // full overlay images are displayed.
-  const showMarkers = true;
+  // Markers are always shown past the load threshold, regardless of whether full
+  // overlay images are displayed.
 
   // In view mode, all backend overlays are approved and synced by vectorTileSync.
   // pruneBackendOverlays only runs for edit/moderation to manage pending overlays from
   // viewModeOverlays (approved overlays in those modes are still handled by vectorTileSync).
   const mapStore = useMapStore();
   if (mapStore.mode !== "view") {
-    pruneBackendOverlays(mapInstance, bounds, showImages, showMarkers);
+    pruneBackendOverlays(mapInstance, bounds, showImages);
   }
-  pruneLocalOverlays(mapInstance, bounds, showImages, showMarkers);
+  pruneLocalOverlays(mapInstance, showImages);
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)
   renderAllProjectShapes(mapInstance);
+}
+
+// Destroy markers/layers for overlays that are filtered OUT by completion status, so
+// toggling a filter off immediately removes the corresponding backend markers.
+function queueFilteredOutForDestruction(
+  allOverlays: OverlayData[],
+  visibleOverlays: OverlayData[],
+) {
+  const visibleIds = new Set(visibleOverlays.map((o) => o.id));
+  for (const data of allOverlays) {
+    if (visibleIds.has(data.id)) continue;
+    if (registry.getMarker(data.id) || registry.getLayer(data.id)) {
+      queueForDestruction(data.id);
+    }
+  }
 }
 
 /**
@@ -124,12 +138,7 @@ function pruneOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, zoom: number)
  * Source of truth: viewModeOverlays (already filtered to status !== null by construction).
  * No overlap with pruneLocalOverlays; backend overlays never have status === null.
  */
-function pruneBackendOverlays(
-  mapInstance: L.Map,
-  bounds: L.LatLngBounds,
-  showImages: boolean,
-  showMarkers: boolean,
-) {
+function pruneBackendOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, showImages: boolean) {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const filteredOverlays = filterByStatus(overlayStore.viewModeOverlays, mapStore.mode);
@@ -166,11 +175,11 @@ function pruneBackendOverlays(
         syncLayerToMap(layer, showImages, mapInstance);
       }
 
-      if (!marker && showMarkers) {
+      if (!marker) {
         const overlayObject = overlayStore.overlays[data.id];
         if (overlayObject) createSingleMarker(overlayObject);
       } else {
-        syncLayerToMap(marker, showMarkers, mapInstance);
+        syncLayerToMap(marker, true, mapInstance);
       }
     } else if (layer || registry.getMarker(data.id)) {
       // Not visible → queue for cleanup
@@ -178,18 +187,7 @@ function pruneBackendOverlays(
     }
   }
 
-  // Destroy markers/layers for overlays that are filtered OUT by completion status.
-  // pruneLocalOverlays handles this correctly; mirror the same logic here so that
-  // toggling a filter off immediately removes the corresponding backend markers.
-  const filteredIds = new Set(filteredOverlays.map((o) => o.id));
-  for (const data of overlayStore.viewModeOverlays) {
-    if (filteredIds.has(data.id)) continue;
-    const marker = registry.getMarker(data.id);
-    const layer = registry.getLayer(data.id);
-    if (marker || layer) {
-      queueForDestruction(data.id);
-    }
-  }
+  queueFilteredOutForDestruction(overlayStore.viewModeOverlays, filteredOverlays);
 
   if (overlaysToRender.length > 0) {
     // Dynamic import keeps leaflet-distortableimage out of the initial bundle
@@ -205,12 +203,7 @@ function pruneBackendOverlays(
  * Structural gate: if status !== null, skip immediately.
  * These overlays are only visible in edit mode.
  */
-function pruneLocalOverlays(
-  mapInstance: L.Map,
-  _bounds: L.LatLngBounds,
-  showImages: boolean,
-  showMarkers: boolean,
-) {
+function pruneLocalOverlays(mapInstance: L.Map, showImages: boolean) {
   const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
   const mapStore = useMapStore();
@@ -247,10 +240,10 @@ function pruneLocalOverlays(
         syncLayerToMap(layer, showImages, mapInstance);
       }
 
-      if (!marker && showMarkers) {
+      if (!marker) {
         createSingleMarker(overlay);
       } else {
-        syncLayerToMap(marker, showMarkers, mapInstance);
+        syncLayerToMap(marker, true, mapInstance);
       }
     } else {
       const marker = registry.getMarker(id);

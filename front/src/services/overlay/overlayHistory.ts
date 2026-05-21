@@ -18,8 +18,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
 
   const initialCorners = layer.getCorners();
   if (initialCorners?.length === 4) {
-    // eslint-disable-next-line prefer-structured-clone
-    overlayObject.history = [JSON.parse(JSON.stringify(initialCorners))]; // structuredClone not used: corners are class instances
+    overlayObject.history = [structuredClone(initialCorners) as { lat: number; lng: number }[]];
     overlayObject.redoStack = [];
   }
 }
@@ -52,8 +51,7 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
 
   const currentCorners = getLayer(overlayObject.id)?.getCorners();
   if (currentCorners?.length === 4) {
-    // eslint-disable-next-line prefer-structured-clone
-    overlayObject.history = [JSON.parse(JSON.stringify(currentCorners))]; // structuredClone not used: corners are class instances
+    overlayObject.history = [structuredClone(currentCorners) as { lat: number; lng: number }[]];
     overlayObject.redoStack = [];
     return currentCorners;
   }

@@ -11,6 +11,7 @@ import { renderPreviewShapes } from "@/services/map/shapeRendering";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
+import { forEachPosition } from "@/utils/geojson";
 import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
 
 interface PreviewShapesOptions {
@@ -32,31 +33,10 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
   return gc as GeoJSON.GeometryCollection;
 }
 
-// Point/MultiPoint intentionally excluded, city boundaries are always line/polygon geometry.
-function collectLatLngs(geom: GeoJSON.Geometry, out: L.LatLng[]): void {
-  // oxlint-disable no-unsafe-type-assertion
-  function add(lng: number, lat: number) {
-    out.push(L.latLng(lat, lng));
-  }
-  if (geom.type === "LineString") {
-    for (const [lng, lat] of geom.coordinates as [number, number][]) add(lng, lat);
-  } else if (geom.type === "MultiLineString") {
-    for (const line of geom.coordinates as [number, number][][])
-      for (const [lng, lat] of line) add(lng, lat);
-  } else if (geom.type === "Polygon") {
-    for (const ring of geom.coordinates as [number, number][][])
-      for (const [lng, lat] of ring) add(lng, lat);
-  } else if (geom.type === "MultiPolygon") {
-    for (const poly of geom.coordinates as [number, number][][][])
-      for (const ring of poly) for (const [lng, lat] of ring) add(lng, lat);
-  }
-  // oxlint-enable no-unsafe-type-assertion
-}
-
 function computeBounds(geometry: GeoJSON.GeometryCollection): L.LatLngBounds | null {
   const latLngs: L.LatLng[] = [];
   for (const geom of geometry.geometries) {
-    collectLatLngs(geom, latLngs);
+    forEachPosition(geom, (lng, lat) => latLngs.push(L.latLng(lat, lng)));
   }
   if (latLngs.length === 0) return null;
   return L.latLngBounds(latLngs);

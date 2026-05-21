@@ -154,12 +154,11 @@ export function getOverlayMarkerColor(
   }
 
   if (mode === "moderation" || mode === "edit") {
-    const statusColor = getApprovalStatusColor(status, mode, {
+    return getApprovalStatusColor(status, mode, {
       isModified: hasBeenModified ?? false,
       isReplacement,
       isLocalUnsubmitted: hasBeenModified ?? false,
     });
-    if (statusColor) return statusColor;
   }
 
   // View mode: color by the project's timeline status

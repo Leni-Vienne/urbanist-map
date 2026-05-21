@@ -497,13 +497,9 @@ export function useSubmissionService() {
       const liveOverlay = overlayStore.overlays[overlayId];
       if (!liveOverlay) return;
 
-      let project: Project | null = null;
-      if (liveOverlay.projectId) {
-        project =
-          projectStore.projects[liveOverlay.projectId] ??
-          projectStore.userContributions.find((p) => p.id === liveOverlay.projectId) ??
-          null;
-      }
+      const project = liveOverlay.projectId
+        ? projectStore.getProjectById(liveOverlay.projectId)
+        : null;
       await publishOverlay(liveOverlay, project);
       return;
     }
@@ -616,13 +612,7 @@ export function useSubmissionService() {
   }
 
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
-    let project: Project | null = null;
-    if (ctx.projectId) {
-      project =
-        projectStore.projects[ctx.projectId] ??
-        projectStore.userContributions.find((p) => p.id === ctx.projectId) ??
-        null;
-    }
+    const project = ctx.projectId ? projectStore.getProjectById(ctx.projectId) : null;
 
     const newOverlayIds = ctx.newOverlayIds ?? [];
 

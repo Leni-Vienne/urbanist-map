@@ -10,6 +10,7 @@ import { VECTOR_QUERY_LAYERS, getZoomForGeometrySize } from "@/services/map/proj
 import { useUiStore } from "@/stores/uiStore";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
+import { forEachPosition } from "@/utils/geojson";
 
 export type SortMode = "recent" | "name" | "size" | "status";
 
@@ -47,23 +48,9 @@ const STATUS_RANK: Record<string, number> = {
 const QUERY_LAYERS = ["project-points", ...VECTOR_QUERY_LAYERS] as const;
 
 function collectCoords(geom: GeoJSON.Geometry): number[][] {
-  switch (geom.type) {
-    case "Point":
-      return [geom.coordinates];
-    case "LineString":
-    case "MultiPoint":
-      return geom.coordinates;
-    case "Polygon":
-    case "MultiLineString":
-      return geom.coordinates.flat();
-    case "MultiPolygon":
-      // oxlint-disable-next-line no-magic-array-flat-depth
-      return geom.coordinates.flat(2);
-    case "GeometryCollection":
-      return geom.geometries.flatMap(collectCoords);
-    default:
-      return [];
-  }
+  const out: number[][] = [];
+  forEachPosition(geom, (lng, lat) => out.push([lng, lat]));
+  return out;
 }
 
 function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolean {
