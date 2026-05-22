@@ -76,7 +76,7 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
 function parseMvtTags(raw: unknown): string[] {
   try {
     if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === "string");
-    return JSON.parse(typeof raw === "string" ? raw : "[]") as unknown as string[];
+    return JSON.parse(typeof raw === "string" ? raw : "[]") as string[];
   } catch {
     return [];
   }

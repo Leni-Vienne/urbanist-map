@@ -143,7 +143,7 @@ export const authRouter = router({
         .values({
           email,
           passwordHash,
-          username: username ?? email.split("@")[0],
+          username,
           emailVerificationToken,
           emailVerified: false,
           moderatedCountries: [],

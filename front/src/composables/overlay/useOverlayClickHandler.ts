@@ -145,11 +145,7 @@ async function navigateToReplacedOrRejectedOverlay(
     const centroidLng =
       overlayFromStore.corners.reduce((sum, c) => sum + c.lng, 0) / overlayFromStore.corners.length;
 
-    // Use mobileAwareFlyTo for proper navigation
-    mobileAwareFlyTo([centroidLat, centroidLng], 18, {
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
+    mobileAwareFlyTo([centroidLat, centroidLng], 18);
     return;
   }
 

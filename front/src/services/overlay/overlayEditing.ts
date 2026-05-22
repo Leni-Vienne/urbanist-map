@@ -192,10 +192,7 @@ export function addOverlay(
       life: 4000,
     });
 
-    mobileAwareFlyTo(L.latLng(project.lat, project.lng), targetZoom, {
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
+    mobileAwareFlyTo(L.latLng(project.lat, project.lng), targetZoom);
 
     // Wait for zoom to complete before creating overlay
     map.value.once("zoomend", () => {

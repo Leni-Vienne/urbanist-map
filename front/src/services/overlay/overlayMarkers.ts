@@ -199,11 +199,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
-      mobileAwareFlyToBounds(bounds, {
-        padding: [50, 50] as [number, number],
-        duration: 1.5,
-        easeLinearity: 0.25,
-      });
+      mobileAwareFlyToBounds(bounds);
     }
 
     // Toggle selection
@@ -253,11 +249,7 @@ export function createMarker(overlayObject: OverlayObject): void {
   marker.on("click", () => {
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
-      mobileAwareFlyToBounds(bounds, {
-        padding: [50, 50] as [number, number],
-        duration: 1.5,
-        easeLinearity: 0.25,
-      });
+      mobileAwareFlyToBounds(bounds);
     }
 
     // selectOverlay handles overlay.select() internally

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../database";
 import { overlays, projects, cities, countries } from "../db/schema";
 import { sql, eq, and, desc } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(50).optional().default(20),
@@ -21,6 +22,102 @@ const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 // Invalidate cache when new content is approved
 export function invalidateLatestContributionsCache() {
   latestContributionsCache = null;
+}
+
+// Builds the standalone-projects feed query (approved, named, no approved overlay).
+// importFilter splits user-created projects (importSourceId IS NULL) from OSM/citydata imports.
+function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
+  return db
+    .select({
+      type: sql<"standalone">`'standalone'`,
+      id: projects.id,
+      name: projects.name,
+      filename: sql<null>`NULL`,
+      updatedAt: sql<Date>`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
+      cityName: cities.name,
+      countryCode: projects.countryCode,
+      countryName: countries.name,
+      centroidLat: sql<null>`NULL`,
+      centroidLng: sql<null>`NULL`,
+      corners: sql<null>`NULL`,
+      status: projects.status,
+      lat: projects.lat,
+      lng: projects.lng,
+      // Bounding box of project geometry for flying to the right area when clicked
+      geometryBboxMinLat: sql<
+        number | null
+      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+      geometryBboxMaxLat: sql<
+        number | null
+      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+      geometryBboxMinLng: sql<
+        number | null
+      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+      geometryBboxMaxLng: sql<
+        number | null
+      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+      // A point guaranteed to lie on the geometry itself (midpoint of a line, surface point of a polygon)
+      geometryPointLat: sql<
+        number | null
+      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_Y(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
+      geometryPointLng: sql<
+        number | null
+      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_X(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
+    })
+    .from(projects)
+    .leftJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(countries, eq(projects.countryCode, countries.code))
+    .where(
+      and(
+        eq(projects.status, "approved"),
+        sql`${projects.name} IS NOT NULL`,
+        sql`NOT EXISTS (
+          SELECT 1 FROM ${overlays}
+          WHERE ${overlays.projectId} = ${projects.id}
+          AND ${overlays.status} = 'approved'
+        )`,
+        importFilter,
+      ),
+    )
+    .orderBy(sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt}) DESC`)
+    .limit(limit);
+}
+
+type StandaloneProjectRow = Awaited<ReturnType<typeof buildStandaloneProjectsQuery>>[number];
+
+function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
+  return {
+    type: "standalone" as const,
+    id: p.id,
+    name: p.name,
+    filename: null as string | null,
+    updatedAt: p.updatedAt,
+    cityName: p.cityName,
+    countryCode: p.countryCode,
+    countryName: p.countryName,
+    lat: p.lat,
+    lng: p.lng,
+    status: p.status,
+    isImport,
+    // Geometry bbox for flying to the right bounds when the project has vector shapes
+    geometryBbox:
+      p.geometryBboxMinLat !== null &&
+      p.geometryBboxMaxLat !== null &&
+      p.geometryBboxMinLng !== null &&
+      p.geometryBboxMaxLng !== null
+        ? {
+            minLat: p.geometryBboxMinLat,
+            maxLat: p.geometryBboxMaxLat,
+            minLng: p.geometryBboxMinLng,
+            maxLng: p.geometryBboxMaxLng,
+          }
+        : null,
+    // A point on the geometry itself for popup placement (not a computed center)
+    geometryPoint:
+      p.geometryPointLat !== null && p.geometryPointLng !== null
+        ? { lat: p.geometryPointLat, lng: p.geometryPointLng }
+        : null,
+  };
 }
 
 export const feedRouter = router({
@@ -66,63 +163,19 @@ export const feedRouter = router({
           .orderBy(desc(overlays.updatedAt))
           .limit(input.limit);
 
-        const projectsQuery = db
-          .select({
-            type: sql<"standalone">`'standalone'`,
-            id: projects.id,
-            name: projects.name,
-            filename: sql<null>`NULL`,
-            updatedAt: sql<Date>`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
-            cityName: cities.name,
-            countryCode: projects.countryCode,
-            countryName: countries.name,
-            centroidLat: sql<null>`NULL`,
-            centroidLng: sql<null>`NULL`,
-            corners: sql<null>`NULL`,
-            status: projects.status,
-            lat: projects.lat,
-            lng: projects.lng,
-            // Bounding box of project geometry for flying to the right area when clicked
-            geometryBboxMinLat: sql<
-              number | null
-            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-            geometryBboxMaxLat: sql<
-              number | null
-            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-            geometryBboxMinLng: sql<
-              number | null
-            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-            geometryBboxMaxLng: sql<
-              number | null
-            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-            // A point guaranteed to lie on the geometry itself (midpoint of a line, surface point of a polygon)
-            geometryPointLat: sql<
-              number | null
-            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_Y(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
-            geometryPointLng: sql<
-              number | null
-            >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_X(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
-          })
-          .from(projects)
-          .leftJoin(cities, eq(projects.cityId, cities.id))
-          .leftJoin(countries, eq(projects.countryCode, countries.code))
-          .where(
-            and(
-              eq(projects.status, "approved"),
-              sql`${projects.name} IS NOT NULL`,
-              sql`NOT EXISTS (
-                SELECT 1 FROM ${overlays}
-                WHERE ${overlays.projectId} = ${projects.id}
-                AND ${overlays.status} = 'approved'
-              )`,
-            ),
-          )
-          .orderBy(sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt}) DESC`)
-          .limit(input.limit);
+        const directProjectsQuery = buildStandaloneProjectsQuery(
+          sql`${projects.importSourceId} IS NULL`,
+          input.limit,
+        );
+        const importedProjectsQuery = buildStandaloneProjectsQuery(
+          sql`${projects.importSourceId} IS NOT NULL`,
+          input.limit,
+        );
 
-        const [latestOverlays, latestStandaloneProjects] = await Promise.all([
+        const [latestOverlays, directProjectRows, importedProjectRows] = await Promise.all([
           overlaysQuery,
-          projectsQuery,
+          directProjectsQuery,
+          importedProjectsQuery,
         ]);
 
         const overlayContributions = latestOverlays.map((o) => ({
@@ -140,44 +193,27 @@ export const feedRouter = router({
               : null,
           corners: o.corners,
           status: o.status,
+          isImport: false,
         }));
 
-        const standaloneProjectContributions = latestStandaloneProjects.map((p) => ({
-          type: "standalone" as const,
-          id: p.id,
-          name: p.name,
-          filename: null as string | null,
-          updatedAt: p.updatedAt,
-          cityName: p.cityName,
-          countryCode: p.countryCode,
-          countryName: p.countryName,
-          lat: p.lat,
-          lng: p.lng,
-          status: p.status,
-          // Geometry bbox for flying to the right bounds when the project has vector shapes
-          geometryBbox:
-            p.geometryBboxMinLat !== null &&
-            p.geometryBboxMaxLat !== null &&
-            p.geometryBboxMinLng !== null &&
-            p.geometryBboxMaxLng !== null
-              ? {
-                  minLat: p.geometryBboxMinLat,
-                  maxLat: p.geometryBboxMaxLat,
-                  minLng: p.geometryBboxMinLng,
-                  maxLng: p.geometryBboxMaxLng,
-                }
-              : null,
-          // A point on the geometry itself for popup placement (not a computed center)
-          geometryPoint:
-            p.geometryPointLat !== null && p.geometryPointLng !== null
-              ? { lat: p.geometryPointLat, lng: p.geometryPointLng }
-              : null,
-        }));
+        const directStandaloneContributions = directProjectRows.map((p) =>
+          mapStandaloneProject(p, false),
+        );
+        const importedStandaloneContributions = importedProjectRows.map((p) =>
+          mapStandaloneProject(p, true),
+        );
 
-        // Combine and sort by updatedAt descending
-        const combined = [...overlayContributions, ...standaloneProjectContributions]
-          .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, input.limit);
+        // Direct human contributions (uploads + user-created projects) always rank above OSM
+        // imports so a daily import flood can't bury them. Imports backfill to keep the feed fresh.
+        const directContributions = [
+          ...overlayContributions,
+          ...directStandaloneContributions,
+        ].toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+        const combined = [...directContributions, ...importedStandaloneContributions].slice(
+          0,
+          input.limit,
+        );
 
         latestContributionsCache = {
           data: combined,

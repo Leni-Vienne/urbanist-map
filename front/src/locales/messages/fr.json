@@ -170,7 +170,8 @@
   "contribution": {
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
-    "loadingContributions": "Chargement des contributions..."
+    "loadingContributions": "Chargement des contributions...",
+    "fromOpenStreetMap": "Depuis OpenStreetMap"
   },
   "onMap": {
     "noProjects": "Aucun projet visible",

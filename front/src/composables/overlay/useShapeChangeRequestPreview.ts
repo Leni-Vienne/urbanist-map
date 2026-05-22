@@ -83,11 +83,7 @@ export function useShapeChangeRequestPreview() {
       },
     );
 
-    mobileAwareFlyToBounds(bounds, {
-      padding: [50, 50] as [number, number],
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
+    mobileAwareFlyToBounds(bounds);
 
     previewState.value =
       type === "new"

@@ -20,11 +20,7 @@ export function zoomToOverlayAndSelect(
   if (corners.length !== 4) return false;
 
   const bounds = L.latLngBounds(corners.map((c) => L.latLng(c.lat, c.lng)));
-  const flightSkipped = mobileAwareFlyToBounds(bounds, {
-    padding: [50, 50] as [number, number],
-    duration: 1.5,
-    easeLinearity: 0.25,
-  });
+  const flightSkipped = mobileAwareFlyToBounds(bounds);
 
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
@@ -160,10 +156,7 @@ export async function navigateToStandaloneProject(
       requestScrollTo("project", projectId);
     }
 
-    mobileAwareFlyTo([lat, lng], 18, {
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
+    mobileAwareFlyTo([lat, lng], 18);
 
     map.value.once("moveend", () => {
       if (projectId) {

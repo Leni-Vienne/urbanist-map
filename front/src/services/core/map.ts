@@ -1,4 +1,5 @@
 import L from "leaflet";
+import "@/lib/smoothWheelZoom";
 import { debounce } from "@/utils/debounce";
 import { ref, customRef } from "vue";
 
@@ -57,6 +58,14 @@ function calculateMinZoom(): number {
   return 2 + (largerDimension - 1920) / (2560 - 1920);
 }
 
+// Replacement for Leaflet's Map._limitZoom that honors zoomSnap regardless of
+// L.Browser.any3d (which some mobile browsers report false, forcing whole-level snap).
+function limitZoomToSnap(this: any, zoom: number): number {
+  const snap = this.options.zoomSnap;
+  const snapped = snap ? Math.round(zoom / snap) * snap : zoom;
+  return Math.max(this.getMinZoom(), Math.min(this.getMaxZoom(), snapped));
+}
+
 export function initializeMap() {
   const hashCoords = parseHashCoords();
   const minZoom = calculateMinZoom();
@@ -65,8 +74,7 @@ export function initializeMap() {
     zoom: hashCoords ? Math.max(hashCoords.zoom, minZoom) : minZoom,
     minZoom,
     maxZoom: 22,
-    zoomSnap: 0.25,
-    zoomDelta: 0.25,
+    zoomSnap: 0.25, // fine settle for pinch and mouse wheel; trackpad ease bypasses this
     worldCopyJump: true, // keeps markers in sync when crossing the antimeridian
     zoomControl: false, // custom zoom control used instead
     maxBounds: L.latLngBounds([-85, Infinity], [85, -Infinity]), // prevent vertical black borders
@@ -76,6 +84,13 @@ export function initializeMap() {
     fadeAnimation: true,
     markerZoomAnimation: true,
   });
+
+  // Leaflet applies zoomSnap to pinch only when L.Browser.any3d is true; some mobile
+  // browsers report it false and then snap pinch to whole zoom levels. Make the
+  // configured zoomSnap authoritative on every zoom so pinch settles the same on all devices.
+  // oxlint-disable-next-line no-underscore-dangle
+  (map.value as any)._limitZoom = limitZoomToSnap;
+
   map.value.attributionControl.setPrefix(false);
 
   currentZoomLevel.value = map.value.getZoom();
