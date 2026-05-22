@@ -1,5 +1,4 @@
 import { ref, computed } from "vue";
-import { getProjectMarkerColor } from "@/utils/markerColors";
 import type { Project, OverlayData, OverlayObject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
@@ -120,23 +119,17 @@ function matchesLastModifiedDateFilter(project: Project): boolean {
   return true;
 }
 
-// In edit/moderation modes the timeline status filter does not apply.
 export function shouldShowStandaloneProject(project: Project, mode: AppMode): boolean {
-  if (mode !== "view") {
-    const markerColor = getProjectMarkerColor(project, mode);
-    return (
-      markerColor !== undefined &&
-      matchesSelectedTags(project.tags) &&
-      matchesNameFilter(project.name) &&
-      matchesLastModifiedDateFilter(project)
-    );
-  }
-  return (
-    visibleStates.value[project.timelineStatus] &&
+  const passesCommonFilters =
     matchesSelectedTags(project.tags) &&
     matchesNameFilter(project.name) &&
-    matchesLastModifiedDateFilter(project)
-  );
+    matchesLastModifiedDateFilter(project);
+
+  // The timeline status filter only applies in view mode.
+  if (mode === "view") {
+    return passesCommonFilters && visibleStates.value[project.timelineStatus];
+  }
+  return passesCommonFilters;
 }
 
 // Empty selection = all statuses visible.

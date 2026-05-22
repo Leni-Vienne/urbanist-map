@@ -183,22 +183,14 @@ async function handleContributionClick(contribution: LatestContribution) {
     if (contribution.corners && contribution.corners.length === 4) {
       zoomToOverlayAndSelect(contribution.id, contribution.corners);
     } else if (contribution.centroid) {
-      mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18, {
-        duration: 1.5,
-        easeLinearity: 0.25,
-      });
+      mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18);
     }
   } else if (contribution.type === "standalone") {
     if (contribution.geometryBbox) {
       // Fly to the actual geometry bounds instead of the project center point
       const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
       const bounds = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
-      mobileAwareFlyToBounds(bounds, {
-        padding: [50, 50],
-        maxZoom: 18,
-        duration: 1.5,
-        easeLinearity: 0.25,
-      });
+      mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
       requestScrollTo("project", contribution.id);
       // Use a point on the geometry itself so the popup anchors on the actual vector
       const popupLatLng = contribution.geometryPoint

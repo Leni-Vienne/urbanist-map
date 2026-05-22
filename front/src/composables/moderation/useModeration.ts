@@ -59,18 +59,17 @@ export function useModeration() {
         changeRequests: response.changeRequests,
       });
     } catch (error) {
-      // If error is because no country is selected, don't show error toast (UI will prompt user to select)
+      // No country selected yet: stay silent, the UI prompts the user to pick one.
       if (error instanceof Error && error.message.includes("must select a country")) {
-        console.log("Waiting for country selection before loading moderation data");
-      } else {
-        console.error("Failed to load pending submissions:", error);
-        toast.add({
-          severity: "error",
-          summary: t("common.error"),
-          detail: t("moderation.fetchSubmissionsFailed"),
-          life: 5000,
-        });
+        return;
       }
+      console.error("Failed to load pending submissions:", error);
+      toast.add({
+        severity: "error",
+        summary: t("common.error"),
+        detail: t("moderation.fetchSubmissionsFailed"),
+        life: 5000,
+      });
     }
   }
 
@@ -127,18 +126,18 @@ export function useModeration() {
       };
     }
 
+    // Refetch so the panel reflects the new server state, whether the write
+    // succeeded or hit a version conflict.
+    moderationStore.resetModerationLoaded();
+    await fetchPendingSubmissions();
+
     if (!result.success) {
-      moderationStore.resetModerationLoaded();
-      await fetchPendingSubmissions();
       return {
         success: false,
         error: "version_conflict",
         message: t(`moderation.${itemType}VersionConflict`),
       };
     }
-
-    moderationStore.resetModerationLoaded();
-    await fetchPendingSubmissions();
 
     return {
       success: true,

@@ -76,8 +76,9 @@ function getMobileDrawerBottomPaddingPx(): number {
 export function mobileAwareFlyTo(
   latlng: L.LatLngExpression,
   zoom?: number,
-  options: ZoomPanOptions = { duration: 1.5 },
+  options: ZoomPanOptions = {},
 ): void {
+  const flyOptions: ZoomPanOptions = { duration: 1.5, easeLinearity: 0.25, ...options };
   const latLng = L.latLng(latlng);
   const currentCenter = map.value.getCenter();
   const currentZoom = map.value.getZoom();
@@ -96,7 +97,7 @@ export function mobileAwareFlyTo(
 
   if (!applyOffset) {
     // Desktop or drawer closed - center normally
-    map.value.flyTo([latLng.lat, latLng.lng], zoom, options);
+    map.value.flyTo([latLng.lat, latLng.lng], zoom, flyOptions);
     return;
   }
 
@@ -111,7 +112,7 @@ export function mobileAwareFlyTo(
   const bottomPadding = getMobileDrawerBottomPaddingPx();
   // Use flyToBounds with mobile-aware padding and target zoom
   const fitOptions: FitBoundsOptions = {
-    ...options,
+    ...flyOptions,
     maxZoom: zoom ?? map.value.getZoom(),
     paddingTopLeft: [50, 50],
     paddingBottomRight: [50, bottomPadding],
@@ -223,16 +224,19 @@ export function mobileAwareFlyToBounds(
   const duration = scaledDuration(centerDistance, zoomDiff, maxDuration);
 
   const applyOffset = shouldApplyMobileOffset();
+  const easeLinearity = options?.easeLinearity ?? 0.25;
   const flyOptions: FitBoundsOptions = applyOffset
     ? {
         ...options,
         duration,
+        easeLinearity,
         paddingTopLeft: [50, 50] as [number, number],
         paddingBottomRight: [50, getMobileDrawerBottomPaddingPx()] as [number, number],
       }
     : {
         ...options,
         duration,
+        easeLinearity,
         padding: options?.padding ?? ([50, 50] as [number, number]),
       };
 

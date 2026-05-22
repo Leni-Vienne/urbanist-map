@@ -11,7 +11,7 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
-import { clearAllOverlays, clearOverlayLayersOnly } from "@/services/overlay/overlayLifecycle";
+import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
@@ -361,7 +361,7 @@ export function useViewportTriggers() {
         // Switching TO view mode: drop Leaflet refs (tile rendering takes over) but keep
         // overlay store data so in-progress edits survive the round-trip back to edit mode.
         if (newMode === "view") {
-          clearOverlayLayersOnly();
+          clearOverlayRenderState();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();

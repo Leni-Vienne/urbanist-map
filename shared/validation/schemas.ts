@@ -108,7 +108,7 @@ export const overlaySchema = z
 
 // Auth validation schemas
 export const registerSchema = z.object({
-  email: z.string().email("validation.invalidEmail"),
+  email: z.email("validation.invalidEmail"),
   password: z.string().min(8, "validation.passwordTooShort"),
   username: z.string().min(3, "validation.usernameTooShort").max(50, "validation.usernameTooLong"),
   captchaToken: z.string().optional(),

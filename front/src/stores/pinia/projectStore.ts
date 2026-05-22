@@ -43,6 +43,12 @@ export const useProjectStore = defineStore("project", () => {
     return originalProjects.value[projectId] ?? null;
   }
 
+  // Snapshot a project's current state as the change-detection baseline. No-op if one exists.
+  function snapshotOriginal(project: Project): void {
+    if (originalProjects.value[project.id]) return;
+    originalProjects.value = { ...originalProjects.value, [project.id]: { ...project } };
+  }
+
   // Pending projects may live only in userContributions until edited locally, so fall
   // back to that list when the project isn't in the main map.
   function getProjectById(projectId: string): Project | null {
@@ -103,12 +109,7 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsLoaded.value = true;
 
     for (const contribution of contributions) {
-      if (!originalProjects.value[contribution.id]) {
-        originalProjects.value = {
-          ...originalProjects.value,
-          [contribution.id]: { ...contribution },
-        };
-      }
+      snapshotOriginal(contribution);
     }
   }
 
@@ -156,11 +157,8 @@ export const useProjectStore = defineStore("project", () => {
         updatedProject,
       );
 
-      if (existingOverlayIndex === -1 && !originalProjects.value[project.id]) {
-        originalProjects.value = {
-          ...originalProjects.value,
-          [project.id]: { ...updatedProject },
-        };
+      if (existingOverlayIndex === -1) {
+        snapshotOriginal(updatedProject);
       }
     } else {
       // Project doesn't exist in contributions yet
@@ -179,12 +177,7 @@ export const useProjectStore = defineStore("project", () => {
 
       userContributions.value = [newProject, ...userContributions.value];
 
-      if (!originalProjects.value[project.id]) {
-        originalProjects.value = {
-          ...originalProjects.value,
-          [project.id]: { ...newProject },
-        };
-      }
+      snapshotOriginal(newProject);
     }
   }
 
@@ -207,12 +200,7 @@ export const useProjectStore = defineStore("project", () => {
 
     userContributions.value = [newContrib, ...userContributions.value];
 
-    if (!originalProjects.value[project.id]) {
-      originalProjects.value = {
-        ...originalProjects.value,
-        [project.id]: { ...newContrib },
-      };
-    }
+    snapshotOriginal(newContrib);
   }
 
   // Returns the project + its index from userContributions, or null if not found.
@@ -300,16 +288,8 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     // Cache original before first modification for reset / change-detection.
-    if (
-      current &&
-      !originalProjects.value[projectId] &&
-      current.status !== null &&
-      !current.isModified
-    ) {
-      originalProjects.value = {
-        ...originalProjects.value,
-        [projectId]: { ...current },
-      };
+    if (current && current.status !== null && !current.isModified) {
+      snapshotOriginal(current);
     }
 
     projects.value = {
@@ -321,12 +301,8 @@ export const useProjectStore = defineStore("project", () => {
   // Stores the current project state as baseline for future change detection.
   function cacheProjectBackendState(projectId: string) {
     const project = projects.value[projectId];
-
-    if (project && !originalProjects.value[projectId]) {
-      originalProjects.value = {
-        ...originalProjects.value,
-        [projectId]: { ...project },
-      };
+    if (project) {
+      snapshotOriginal(project);
     }
   }
 

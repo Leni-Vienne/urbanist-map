@@ -56,9 +56,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   function flyToCountry(code: string) {
     const country = moderationStore.allCountries.find((c) => c.code === code);
     if (country) {
-      mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6, {
-        duration: 1.5,
-      });
+      mobileAwareFlyTo([country.centerCoordinates.y, country.centerCoordinates.x], 6);
     }
   }
 

@@ -37,6 +37,30 @@ function isCoordinate(value: unknown): value is { lat: number; lng: number } {
   );
 }
 
+// Type guard for coordinate array
+function isCoordinateArray(value: unknown): value is { lat: number; lng: number }[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isCoordinate);
+}
+
+// Parse geometry value into corner coordinates (single coord or coordinate array from JSONB)
+function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
+  if (!geometryValue || typeof geometryValue !== "object") {
+    return [];
+  }
+
+  // Single coordinate (centerCoordinate, centroid)
+  if (isCoordinate(geometryValue)) {
+    return [geometryValue];
+  }
+
+  // Array of coordinates (corners)
+  if (isCoordinateArray(geometryValue)) {
+    return geometryValue;
+  }
+
+  return [];
+}
+
 function isPreviewingChange(changeId: string): boolean {
   const state = previewState.value;
   if (state.type === "none") return false;
@@ -54,11 +78,7 @@ function navigateToPosition(
   // Extend with previous bounds so both positions stay visible during transition
   const targetBounds = previousBounds ? newBounds.extend(previousBounds) : newBounds;
 
-  mobileAwareFlyToBounds(targetBounds, {
-    padding: [50, 50] as [number, number],
-    duration: 1.5,
-    easeLinearity: 0.25,
-  });
+  mobileAwareFlyToBounds(targetBounds);
 
   // Select overlay after flyTo completes
   map.value.once("moveend", () => {
@@ -93,30 +113,6 @@ function getPreviewType(changeId: string): "current" | "suggested" | null {
 export function useChangeRequestPreview() {
   const toast = useToast();
   const overlayStore = useOverlayStore();
-
-  // Type guard for coordinate array
-  function isCoordinateArray(value: unknown): value is { lat: number; lng: number }[] {
-    return Array.isArray(value) && value.length > 0 && value.every(isCoordinate);
-  }
-
-  // Parse geometry value into corner coordinates (single coord or coordinate array from JSONB)
-  function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
-    if (!geometryValue || typeof geometryValue !== "object") {
-      return [];
-    }
-
-    // Single coordinate (centerCoordinate, centroid)
-    if (isCoordinate(geometryValue)) {
-      return [geometryValue];
-    }
-
-    // Array of coordinates (corners)
-    if (isCoordinateArray(geometryValue)) {
-      return geometryValue;
-    }
-
-    return [];
-  }
 
   async function ensureOverlayLoaded(
     overlayForModeration: OverlayForModeration,
@@ -158,11 +154,7 @@ export function useChangeRequestPreview() {
 
     // Step 4: Navigate to overlay position
     const targetBounds = L.latLngBounds(targetCorners);
-    mobileAwareFlyToBounds(targetBounds, {
-      padding: [50, 50] as [number, number],
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
+    mobileAwareFlyToBounds(targetBounds);
 
     // Poll until the overlay appears in the store and registry (up to 2s)
     const maxAttempts = 20;

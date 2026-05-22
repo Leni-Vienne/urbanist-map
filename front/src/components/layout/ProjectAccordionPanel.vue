@@ -568,7 +568,7 @@ async function handleCardClick(project: ProjectForModeration) {
   if (hasProjectShapes(project.id)) {
     const bounds = getProjectShapeBounds(project.id);
     if (bounds) {
-      mobileAwareFlyToBounds(bounds, { padding: [50, 50], duration: 1.5 });
+      mobileAwareFlyToBounds(bounds);
       return;
     }
   }

@@ -36,7 +36,6 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   return createOverlayObject({
     ...savedOverlay,
     project: project ?? null,
-    corners: savedOverlay.corners,
     isModified: liveOverlay?.isModified ?? savedOverlay.isModified,
   });
 }

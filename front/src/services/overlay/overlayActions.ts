@@ -18,18 +18,14 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   // Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
-    mobileAwareFlyToBounds(overlayBounds, {
-      padding: [50, 50] as [number, number],
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
+    mobileAwareFlyToBounds(overlayBounds);
     return true;
   }
 
   // Fall back to marker position if bounds unavailable
   const marker = getMarker(overlay.id);
   if (marker) {
-    mobileAwareFlyTo(marker.getLatLng(), 17, { duration: 1.5, easeLinearity: 0.25 });
+    mobileAwareFlyTo(marker.getLatLng(), 17);
     return true;
   }
 
@@ -183,11 +179,7 @@ export async function navigateToOverlay(
   const navigated = selectAndCenterOverlay(overlayId);
   if (!navigated && loadResult?.corners && loadResult.corners.length >= 4) {
     const bounds = L.latLngBounds(loadResult.corners.map((c) => L.latLng(c.lat, c.lng)));
-    mobileAwareFlyToBounds(bounds, {
-      padding: [50, 50] as [number, number],
-      duration: 1.5,
-      easeLinearity: 0.25,
-    });
+    mobileAwareFlyToBounds(bounds);
   }
   return true;
 }

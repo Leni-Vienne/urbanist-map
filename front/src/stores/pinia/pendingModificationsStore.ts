@@ -24,25 +24,33 @@ export type PendingOverlayModification = {
 export const usePendingModificationsStore = defineStore("pendingModifications", () => {
   const modifications = ref<Map<string, PendingOverlayModification>>(new Map());
 
+  // Upsert one field of a modification, creating the entry on first write.
+  function upsertModification(
+    overlayId: string,
+    projectId: string | null,
+    overlayStatus: ApprovalStatus,
+    field:
+      | Pick<PendingOverlayModification, "corners">
+      | Pick<PendingOverlayModification, "caption">,
+  ): void {
+    const existing = modifications.value.get(overlayId);
+    if (existing) {
+      Object.assign(existing, field);
+    } else {
+      modifications.value.set(overlayId, { overlayId, projectId, overlayStatus, ...field });
+    }
+  }
+
   function saveCornersChange(
     overlayId: string,
     projectId: string | null,
     currentCorners: { lat: number; lng: number }[],
     originalCorners: { lat: number; lng: number }[],
     overlayStatus: ApprovalStatus,
-  ) {
-    const existing = modifications.value.get(overlayId);
-
-    if (existing) {
-      existing.corners = { current: currentCorners, original: originalCorners };
-    } else {
-      modifications.value.set(overlayId, {
-        overlayId,
-        projectId,
-        overlayStatus,
-        corners: { current: currentCorners, original: originalCorners },
-      });
-    }
+  ): void {
+    upsertModification(overlayId, projectId, overlayStatus, {
+      corners: { current: currentCorners, original: originalCorners },
+    });
   }
 
   function saveCaptionChange(
@@ -52,18 +60,9 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     originalCaption: string | null,
     overlayStatus: ApprovalStatus,
   ): void {
-    const existing = modifications.value.get(overlayId);
-
-    if (existing) {
-      existing.caption = { current: currentCaption, original: originalCaption };
-    } else {
-      modifications.value.set(overlayId, {
-        overlayId,
-        projectId,
-        overlayStatus,
-        caption: { current: currentCaption, original: originalCaption },
-      });
-    }
+    upsertModification(overlayId, projectId, overlayStatus, {
+      caption: { current: currentCaption, original: originalCaption },
+    });
   }
 
   function hasPendingModifications(overlayId: string): boolean {

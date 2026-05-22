@@ -44,7 +44,7 @@ export function clearAllOverlays(preserveStoreData = false): void {
  * Used when entering view mode: tile-based rendering takes over, but the in-progress edit
  * state (history, isModified) must survive so the user can switch back without losing work.
  */
-export function clearOverlayLayersOnly(): void {
+export function clearOverlayRenderState(): void {
   const overlayStore = useOverlayStore();
   registry.clearAll(false);
   if (overlayStore.idSelectedOverlay) {

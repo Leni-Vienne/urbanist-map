@@ -14,9 +14,7 @@ export async function navigateToCity(
   const lng = cityCoords?.lng;
 
   if (lat !== undefined && lng !== undefined) {
-    mobileAwareFlyTo([lat, lng], 14, {
-      duration: 1.5,
-    });
+    mobileAwareFlyTo([lat, lng], 14);
 
     await new Promise<void>((resolve) => {
       map.value.once("moveend", () => {
