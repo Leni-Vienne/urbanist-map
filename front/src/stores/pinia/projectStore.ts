@@ -2,7 +2,6 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type {
   Project,
-  Country,
   OverlayObject,
   UserContribution,
   UserContributionOverlay,
@@ -28,9 +27,19 @@ function withOverlays(
   return { ...contribution, overlays, overlayIds: overlays.map((o) => o.id) };
 }
 
+// Denormalized fields win; the joined city lookup is a fallback when cityName is unset.
+function resolveLocationNames(project: Project): {
+  cityName: string | null;
+  countryName: string | null;
+} {
+  return {
+    cityName: project.cityName ?? project.city?.name ?? null,
+    countryName: project.countryName ?? null,
+  };
+}
+
 export const useProjectStore = defineStore("project", () => {
   const projects = ref<Record<string, Project>>({});
-  const countries = ref<Country[]>([]);
 
   const userContributions = ref<UserContribution[]>([]);
   const userContributionsLoading = ref(false);
@@ -55,20 +64,6 @@ export const useProjectStore = defineStore("project", () => {
     return (
       projects.value[projectId] ?? userContributions.value.find((p) => p.id === projectId) ?? null
     );
-  }
-
-  // Denormalized fields win; the joined city / countries lookup is a fallback when they're unset.
-  function resolveLocationNames(project: Project): {
-    cityName: string | null;
-    countryName: string | null;
-  } {
-    return {
-      cityName: project.cityName ?? project.city?.name ?? null,
-      countryName:
-        project.countryName ??
-        countries.value.find((c) => c.code === project.countryCode)?.name ??
-        null,
-    };
   }
 
   // Promote a Project to a UserContribution by attaching the inline overlay list.

@@ -155,9 +155,8 @@ export function getOverlayMarkerColor(
 
   if (mode === "moderation" || mode === "edit") {
     return getApprovalStatusColor(status, mode, {
-      isModified: hasBeenModified ?? false,
+      isModified: hasBeenModified,
       isReplacement,
-      isLocalUnsubmitted: hasBeenModified ?? false,
     });
   }
 

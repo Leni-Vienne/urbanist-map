@@ -247,8 +247,6 @@ onMounted(async () => {
     now.value = new Date();
   }, 30_000);
 
-  overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
-
   await authStore.initialize();
 
   // Handle auth query parameters from URL

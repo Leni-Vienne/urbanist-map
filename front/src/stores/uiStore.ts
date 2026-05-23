@@ -1,7 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { Project, OverlayObject, PanelTab } from "@/types/index";
-import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 // Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
@@ -183,19 +182,6 @@ export const useUiStore = defineStore("ui", () => {
     }
   }
 
-  // Close all UI elements (used for cleanup)
-  function closeAllDialogs() {
-    authModalVisible.value = false;
-    markerPlacementBarVisible.value = false;
-    projectDialog.value.visible = false;
-    projectEditForm.value.visible = false;
-    overlayEditDialog.value.visible = false;
-    projectInfoPopup.value.visible = false;
-    moderatedContributionsDialogVisible.value = false;
-    imageUploadDialog.value.visible = false;
-    showSubmissionDialog.value = false;
-  }
-
   return {
     // State
     authModalVisible,
@@ -228,7 +214,6 @@ export const useUiStore = defineStore("ui", () => {
     openShapeEditor,
     closeShapeEditor,
     executePostLoginCallback,
-    closeAllDialogs,
   };
 });
 

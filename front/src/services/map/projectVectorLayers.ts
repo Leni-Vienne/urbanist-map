@@ -36,9 +36,9 @@ import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileG
 import {
   selectedProjectTags,
   selectedStatusFilters,
-  UNTAGGED_PROJECT_FILTER,
+  splitTagSelection,
+  getNameFilterMode,
   sizeFilterRange,
-  selectedNameFilters,
   lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 
@@ -251,22 +251,17 @@ function getIsNeitherProposedNorCompletedFilterExpression(): FilterSpecification
  * Returns null if no filtering is needed (all tags visible).
  */
 function getTagFilterExpression(): FilterSpecification | null {
-  const selected = selectedProjectTags.value;
-  if (selected.length === 0) {
+  if (selectedProjectTags.value.length === 0) {
     return null; // No filter needed
   }
 
-  const includeUntagged = selected.includes(UNTAGGED_PROJECT_FILTER);
-  const selectedKnownTags = selected.filter((t) => t !== UNTAGGED_PROJECT_FILTER);
+  const { includeUntagged, knownTags } = splitTagSelection();
 
   const conditions: unknown[] = [];
 
-  // Match any of the selected known tags
-  // The backend sends 'tags' as a JSON array string in the MVT tiles
-  if (selectedKnownTags.length > 0) {
-    for (const tag of selectedKnownTags) {
-      conditions.push(["in", tag, ["to-string", ["get", "tags"]]]);
-    }
+  // Match any of the selected known tags. The backend sends 'tags' as a JSON array string in the tiles.
+  for (const tag of knownTags) {
+    conditions.push(["in", tag, ["to-string", ["get", "tags"]]]);
   }
 
   // Match untagged (empty first_tag)
@@ -378,15 +373,9 @@ function getSizeFilterExpressionForShapes(): FilterSpecification | null {
  * Build a name filter expression. Returns null if no name filter is active.
  */
 function getNameFilterExpression(): FilterSpecification | null {
-  const selected = selectedNameFilters.value;
-  if (selected.length === 0 || (selected.includes("named") && selected.includes("unnamed"))) {
-    return null;
-  }
-  if (selected.includes("named")) {
-    return ["==", ["get", "is_named"], 1] as FilterSpecification;
-  }
-  // unnamed only
-  return ["==", ["get", "is_named"], 0] as FilterSpecification;
+  const mode = getNameFilterMode();
+  if (mode === "all") return null;
+  return ["==", ["get", "is_named"], mode === "named" ? 1 : 0] as FilterSpecification;
 }
 
 /**
@@ -726,17 +715,17 @@ function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.Lat
 }
 
 /**
- * Returns true and zooms if the cluster representative satisfies the active size filter.
- * Returns false (no zoom) if the representative's own size is outside the filter range,
- * meaning the cluster only passed because some other project elsewhere in the cell matched,
- * zooming to the representative's location would land in an empty area.
+ * Zoom into the cluster cell the point belongs to. If the representative matches the active
+ * size/date filter, fit the exact cell bounds; otherwise the cluster only passed because some
+ * other project in the cell matched, so nudge in by 2 zoom levels instead of committing to
+ * the representative's location.
  */
 function navigateToCluster(
   props: Record<string, unknown>,
   lat: number,
   lng: number,
   currentZoom: number,
-): boolean {
+): void {
   const [minFilter, maxFilter] = sizeFilterRange.value;
   const repSize: number | null = (props.geometry_size_m as number | null) ?? null;
   const repMatchesSizeFilter =
@@ -770,7 +759,6 @@ function navigateToCluster(
     const duration = Math.min(0.3 + 2 * 0.25, 1.5);
     mobileAwareFlyTo([lat, lng], targetZoom, { duration });
   }
-  return true;
 }
 
 async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng): Promise<void> {
@@ -797,7 +785,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
       navigateToLonePoint(props, lat, lng, currentZoom);
     } else {
       shouldOpenPanel = false;
-      if (!navigateToCluster(props, lat, lng, currentZoom)) return;
+      navigateToCluster(props, lat, lng, currentZoom);
     }
   }
 

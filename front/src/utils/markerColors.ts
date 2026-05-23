@@ -8,13 +8,13 @@ export function getApprovalStatusColor(
   options: {
     isModified?: boolean;
     isReplacement?: boolean;
-    isLocalUnsubmitted?: boolean;
   } = {},
 ): MarkerColor {
-  const { isModified = false, isReplacement = false, isLocalUnsubmitted = false } = options;
+  const { isModified = false, isReplacement = false } = options;
 
   if (mode === "moderation") {
-    if (isReplacement && isLocalUnsubmitted) return "purple";
+    // A replacement the user is editing stands out from the approved/pending overlays.
+    if (isReplacement && isModified) return "purple";
     if (status === "pending") return "yellow";
     if (status === "approved") return "green";
     if (status === "rejected") return "red";

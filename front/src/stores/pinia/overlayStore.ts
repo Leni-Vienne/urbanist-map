@@ -67,15 +67,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     resetReplacement();
   }
 
-  function closeAllUIElements() {
-    hideInfoPopup();
-    // Don't reset replacement (which clears pendingImageFile) if a file is already pending.
-    // This preserves the file during dialog navigation in the overlay import flow.
-    if (!pendingImageFile.value) {
-      resetReplacement();
-    }
-  }
-
   // Clear user-specific state on logout or account switch.
   // Preserves public data (viewModeOverlays) and clears user/edit-mode data.
   function clearAllState() {
@@ -105,7 +96,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     resetReplacement,
     showInfoPopupForOverlay,
     hideInfoPopup,
-    closeAllUIElements,
     clearAllState,
   };
 });
