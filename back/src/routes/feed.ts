@@ -203,17 +203,18 @@ export const feedRouter = router({
           mapStandaloneProject(p, true),
         );
 
-        // Direct human contributions (uploads + user-created projects) always rank above OSM
-        // imports so a daily import flood can't bury them. Imports backfill to keep the feed fresh.
-        const directContributions = [
-          ...overlayContributions,
-          ...directStandaloneContributions,
-        ].toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        // Direct human contributions (uploads + user-created projects) rank above OSM imports.
+        // Each category gets an even share so a flood of either can't bury the other.
+        const perCategoryLimit = Math.floor(input.limit / 2);
 
-        const combined = [...directContributions, ...importedStandaloneContributions].slice(
-          0,
-          input.limit,
-        );
+        const directContributions = [...overlayContributions, ...directStandaloneContributions]
+          .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, perCategoryLimit);
+
+        const combined = [
+          ...directContributions,
+          ...importedStandaloneContributions.slice(0, perCategoryLimit),
+        ];
 
         latestContributionsCache = {
           data: combined,
