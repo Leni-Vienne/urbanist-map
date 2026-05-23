@@ -112,6 +112,7 @@ footprints AS (
       o.filename,
       o.caption,
       o.project_id,
+      p.name,
       array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
