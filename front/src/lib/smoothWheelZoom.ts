@@ -44,7 +44,7 @@ const SmoothWheelZoom = Handler.extend({
   addHooks: function addHooks() {
     DomEvent.on(this._map._container, "wheel", this._onWheel, this);
     const builtin = this._map.scrollWheelZoom;
-    if (builtin && builtin.enabled()) {
+    if (builtin?.enabled()) {
       builtin.disable();
       builtin.enable();
     }
@@ -102,7 +102,7 @@ const SmoothWheelZoom = Handler.extend({
       // Take the built-in wheel handler fully out of play so it can't also zoom
       // (its zoomSnap-quantized step would fight this ease). Restored on gesture end.
       const builtin = map.scrollWheelZoom;
-      if (builtin && builtin.enabled()) {
+      if (builtin?.enabled()) {
         this._builtinDisabled = true;
         builtin.disable();
       }

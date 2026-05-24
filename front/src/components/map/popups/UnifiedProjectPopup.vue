@@ -152,82 +152,82 @@
           </button>
         </div>
       </div>
-    </div>
 
-    <!-- Actions Section - Edit mode buttons -->
-    <div v-if="!viewMode" class="px-4 pb-4 pt-0 flex flex-col gap-2">
-      <div class="flex gap-2">
+      <!-- Action buttons footer, stays visible while the content above scrolls -->
+      <div v-if="!viewMode" class="px-4 pb-4 pt-0 flex flex-col gap-2 shrink-0">
+        <div class="flex gap-2">
+          <Button
+            v-if="!project?.importSourceId"
+            class="flex-1"
+            type="button"
+            :label="$t('shapes.drawShapes')"
+            severity="secondary"
+            outlined
+            @click="handleDrawShapesClick"
+          >
+            <template #icon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="lucide lucide-waypoints-icon lucide-waypoints"
+              >
+                <path d="m10.586 5.414-5.172 5.172" />
+                <path d="m18.586 13.414-5.172 5.172" />
+                <path d="M6 12h12" />
+                <circle cx="12" cy="20" r="2" />
+                <circle cx="12" cy="4" r="2" />
+                <circle cx="20" cy="12" r="2" />
+                <circle cx="4" cy="12" r="2" />
+              </svg>
+            </template>
+          </Button>
+          <Button
+            class="flex-1"
+            type="button"
+            :label="$t('project.addImages')"
+            severity="secondary"
+            outlined
+            @click="emit('add-images')"
+          >
+            <template #icon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M16 5h6" />
+                <path d="M19 2v6" />
+                <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                <circle cx="9" cy="9" r="2" />
+              </svg>
+            </template>
+          </Button>
+        </div>
         <Button
-          v-if="!project?.importSourceId"
-          class="flex-1"
+          class="w-full"
           type="button"
-          :label="$t('shapes.drawShapes')"
-          severity="secondary"
-          outlined
-          @click="handleDrawShapesClick"
-        >
-          <template #icon>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="lucide lucide-waypoints-icon lucide-waypoints"
-            >
-              <path d="m10.586 5.414-5.172 5.172" />
-              <path d="m18.586 13.414-5.172 5.172" />
-              <path d="M6 12h12" />
-              <circle cx="12" cy="20" r="2" />
-              <circle cx="12" cy="4" r="2" />
-              <circle cx="20" cy="12" r="2" />
-              <circle cx="4" cy="12" r="2" />
-            </svg>
-          </template>
-        </Button>
-        <Button
-          class="flex-1"
-          type="button"
-          :label="$t('project.addImages')"
-          severity="secondary"
-          outlined
-          @click="emit('add-images')"
-        >
-          <template #icon>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M16 5h6" />
-              <path d="M19 2v6" />
-              <path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5" />
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-              <circle cx="9" cy="9" r="2" />
-            </svg>
-          </template>
-        </Button>
+          :label="$t('project.submitChangeRequest')"
+          icon="pi pi-send"
+          severity="success"
+          :loading="publishLoading"
+          :disabled="!hasChanges"
+          @click="handlePublishClick"
+        />
       </div>
-      <Button
-        class="w-full"
-        type="button"
-        :label="$t('project.submitChangeRequest')"
-        icon="pi pi-send"
-        severity="success"
-        :loading="publishLoading"
-        :disabled="!hasChanges"
-        @click="handlePublishClick"
-      />
     </div>
   </div>
 </template>
