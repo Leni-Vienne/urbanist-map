@@ -341,12 +341,16 @@ function getSizeFilterExpressionForPoints(): FilterSpecification | null {
   if (minSize === 0 && maxSize === Infinity) return null;
 
   // A cell matches if its size range overlaps the filter range.
-  // Standalone projects (no geometry) are treated as size 0 via coalesce.
   const conditions: unknown[] = [[">=", ["coalesce", ["get", "max_size_m"], 0], minSize]];
   if (maxSize !== Infinity) {
     conditions.push(["<=", ["coalesce", ["get", "min_size_m"], 0], maxSize]);
   }
-  return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
+  const rangeFilter = (
+    conditions.length === 1 ? conditions[0] : ["all", ...conditions]
+  ) as FilterSpecification;
+  // Cells of only no-geometry projects have null max_size_m; let them pass like the shapes filter,
+  // otherwise the default min size would hide every standalone/overlay-only project.
+  return ["any", ["==", ["get", "max_size_m"], null], rangeFilter] as FilterSpecification;
 }
 
 /**

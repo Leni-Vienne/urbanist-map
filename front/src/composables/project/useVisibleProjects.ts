@@ -92,7 +92,7 @@ function featureToProject(
   const sourceLayer = String(f.sourceLayer);
   const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
   if (!id) return null;
-  const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
+  const name: string | null = props.name ?? null;
   // oxlint-disable-next-line no-unsafe-type-assertion
   const geom = f.geometry as GeoJSON.Geometry | null;
   const [bboxLng, bboxLat, bbox] = getGeomBbox(geom);
@@ -233,7 +233,9 @@ export function useVisibleProjects() {
         const dateMs = p.lastModifiedS * 1000;
         if (dateMs < minDateMs || dateMs > maxDateMs) return false;
       }
-      if (p.sizeM < minSizeM || p.sizeM > maxSizeM) return false;
+      // sizeM 0 means no geometry size (overlay footprints, standalone points); the map's
+      // footprint/shape layers exempt these from the size filter, so the panel must too.
+      if (p.sizeM > 0 && (p.sizeM < minSizeM || p.sizeM > maxSizeM)) return false;
       return true;
     });
 
