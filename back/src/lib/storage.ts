@@ -54,6 +54,8 @@ interface CompressionResult {
   finalSize: number;
 }
 
+const MAX_DIMENSION_PX = 4096;
+
 export async function compressImageIfNeeded(
   buffer: ArrayBuffer,
   originalExtension: string,
@@ -64,7 +66,13 @@ export async function compressImageIfNeeded(
   try {
     // Convert to lossy WebP at quality 90 (high quality to minimize artifacts from re-encoding)
     // This also handles lossless WebP -> lossy WebP conversion for size savings
-    const webpBytes = await new Bun.Image(buffer).webp({ quality: 90 }).bytes();
+    const image = new Bun.Image(buffer);
+    const { width, height } = await image.metadata();
+    const pipeline =
+      width > MAX_DIMENSION_PX || height > MAX_DIMENSION_PX
+        ? image.resize(MAX_DIMENSION_PX, MAX_DIMENSION_PX, { fit: "inside" })
+        : image;
+    const webpBytes = await pipeline.webp({ quality: 90 }).bytes();
     const webpSize = webpBytes.byteLength;
 
     // Only use WebP if it's actually smaller (prevents quality loss with no size benefit)
