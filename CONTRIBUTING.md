@@ -34,7 +34,6 @@ front/
     components/
     services/
       map/
-      layers
       overlay/
     composables/
     stores/
@@ -48,7 +47,7 @@ scripts/
 
 ```bash
 bun run lint
-bun run typechecK
+bun run typecheck
 ```
 
 Formatting is handled by oxfmt via the pre-commit hook, so there's no Prettier config to fight with.
