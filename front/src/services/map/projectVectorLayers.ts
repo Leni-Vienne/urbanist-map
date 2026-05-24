@@ -1178,6 +1178,29 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
+  // Permanent border for overlays whose project has no drawn geometry. Without a shape
+  // outline these images can blend into the basemap, so trace their footprint edge using
+  // the same styling as the hover border.
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints-no-geometry",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: ["==", ["get", "has_geometry"], false],
+      layout: { "line-cap": "round" },
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": FOOTPRINT_LINE_WIDTH,
+        // Subtler than the full-opacity hover layer (stacked above) so hovering still
+        // reads as a state change rather than rendering identically.
+        "line-opacity": 0.6,
+      },
+    },
+    firstSymbolLayerId,
+  );
+
   mlMap.addLayer(
     {
       id: "overlay-footprints-hover",
