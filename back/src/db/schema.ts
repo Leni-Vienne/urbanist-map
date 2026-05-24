@@ -109,8 +109,9 @@ export const users = pgTable(
     emailVerificationToken: text("email_verification_token"),
     passwordResetToken: text("password_reset_token"),
     passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true }),
-    // OAuth provider IDs for secure authentication
-    googleId: text("google_id").unique(), // Google's unique user ID (sub field)
+    // Deprecated: OAuth identities now live in the oauth_accounts table. Kept for one
+    // release as a safety net after backfill; no longer read or written by the app.
+    googleId: text("google_id").unique(),
     // Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
     approvedCount: integer("approved_count").default(0).notNull(),
     rejectedCount: integer("rejected_count").default(0).notNull(),
@@ -142,6 +143,33 @@ export const users = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   overlays: many(overlays),
+  oauthAccounts: many(oauthAccounts),
+}));
+
+// One row per linked external identity (Google, OSM, GitHub, ...). Provider-agnostic
+// so new providers need no schema change: just a new `provider` value.
+export const oauthAccounts = pgTable(
+  "oauth_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
+    provider: text("provider").notNull(), // "google", "osm", ...
+    providerAccountId: text("provider_account_id").notNull(), // the provider's unique user id
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_oauth_accounts_provider_account").on(table.provider, table.providerAccountId),
+    index("idx_oauth_accounts_user_id").on(table.userId),
+  ],
+);
+
+export const oauthAccountsRelations = relations(oauthAccounts, ({ one }) => ({
+  user: one(users, {
+    fields: [oauthAccounts.userId],
+    references: [users.id],
+  }),
 }));
 
 // Sessions table for database-backed session storage

@@ -6,7 +6,8 @@ import crypto from "node:crypto";
 import { eq, gt } from "drizzle-orm";
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import { db } from "../database";
-import { users, projects, overlays, changeRequests } from "../db/schema";
+import { users, projects, overlays, changeRequests, oauthAccounts } from "../db/schema";
+import { getUserOAuthProviders } from "../utils/oauthAccounts";
 import {
   registerSchema,
   resetPasswordRequestSchema,
@@ -115,12 +116,15 @@ export const authRouter = router({
           // Delete the unverified user
           await db.delete(users).where(eq(users.id, existingUser.id));
         } else {
-          // Check if this is an OAuth-only account
-          if (existingUser.googleId && !existingUser.passwordHash) {
-            throw new TRPCError({
-              code: "CONFLICT",
-              message: "auth.error.emailUsesGoogleSignIn",
-            });
+          // OAuth-only account (a linked provider, no password): point them to it
+          if (!existingUser.passwordHash) {
+            const providers = await getUserOAuthProviders(existingUser.id);
+            if (providers.length > 0) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message: "auth.error.emailUsesGoogleSignIn",
+              });
+            }
           }
 
           throw new TRPCError({
@@ -304,10 +308,12 @@ export const authRouter = router({
             return;
           }
 
-          // SECURITY: Check if OAuth-only user - silently fail (don't reveal auth method)
-          if (user.googleId && !user.passwordHash) {
-            // OAuth-only users can't reset password - silently fail to prevent enumeration
-            return;
+          // SECURITY: OAuth-only users can't reset password - silently fail to prevent enumeration
+          if (!user.passwordHash) {
+            const providers = await getUserOAuthProviders(user.id);
+            if (providers.length > 0) {
+              return;
+            }
           }
 
           // Generate reset token and expiry (1 hour)
@@ -419,7 +425,6 @@ export const authRouter = router({
           username: users.username,
           role: users.role,
           emailVerified: users.emailVerified,
-          googleId: users.googleId,
           approvedCount: users.approvedCount,
           rejectedCount: users.rejectedCount,
           banned: users.banned,
@@ -439,12 +444,22 @@ export const authRouter = router({
         });
       }
 
-      // GDPR requires ALL statuses (approved, pending, rejected). Three independent queries, fan out.
-      const [userProjects, userOverlays, userChangeRequests] = await Promise.all([
-        db.select().from(projects).where(eq(projects.ownerId, userId)),
-        db.select().from(overlays).where(eq(overlays.authorId, userId)),
-        db.select().from(changeRequests).where(eq(changeRequests.requestedBy, userId)),
-      ]);
+      // GDPR requires ALL statuses (approved, pending, rejected). Independent queries, fan out.
+      const [userProjects, userOverlays, userChangeRequests, userOAuthAccounts] = await Promise.all(
+        [
+          db.select().from(projects).where(eq(projects.ownerId, userId)),
+          db.select().from(overlays).where(eq(overlays.authorId, userId)),
+          db.select().from(changeRequests).where(eq(changeRequests.requestedBy, userId)),
+          db
+            .select({
+              provider: oauthAccounts.provider,
+              providerAccountId: oauthAccounts.providerAccountId,
+              createdAt: oauthAccounts.createdAt,
+            })
+            .from(oauthAccounts)
+            .where(eq(oauthAccounts.userId, userId)),
+        ],
+      );
 
       // Audit log: Record data export for compliance
       console.log(`[GDPR] Data export requested by user ${userId} (${user.email}) from IP ${ip}`);
@@ -455,6 +470,7 @@ export const authRouter = router({
         projects: userProjects,
         overlays: userOverlays,
         changeRequests: userChangeRequests,
+        oauthAccounts: userOAuthAccounts,
         exportedAt: new Date(),
       };
     } catch (error) {
