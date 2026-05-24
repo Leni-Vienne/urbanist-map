@@ -18,36 +18,37 @@ bun run db:fill
 
 ## Becoming a local moderator
 
-Once you have an account, set `moderated_countries` on your `users` row to an array of ISO codes, e.g. `'{"FRA","CHE"}'`. You can then exercise the moderation flows for those countries.
+Once you have an account, set `role` column to `admin` to moderate all countries, or set `moderated_countries` on your `users` row to an array of 3-letter country codes, like `'{"FRA","CHE"}'`.
 
 ## Project layout
 
 ```
 back/         # Bun + Hono + tRPC + Drizzle backend
   src/
-    routes/       # tRPC routers
-    db/           # Drizzle schema, queries, visibility helpers
+    routes/
+    db/
     email/        # Nodemailer templates (i18n)
-    scripts/      # one-off scripts (GeoNames import, image cleanup, OSM import)
-front/        # Vue 3 + Vite frontend
+    scripts/      # GeoNames import, image cleanup, OSM import
+front/
   src/
-    components/   # Vue components
+    components/
     services/
-      map/        # Leaflet + MapLibre orchestration, tile layers, vector layers
-      overlay/    # overlay rendering, lifecycle, render registry
-    composables/  # Vue composables (viewport, keyboard, etc.)
-    stores/       # Pinia stores
+      map/
+      layers
+      overlay/
+    composables/
+    stores/
     locales/      # vue-i18n message catalogs
-shared/       # types shared between front and back
-docs/         # additional documentation (deployment, GeoNames, tile layers)
-scripts/      # repo-level scripts (translation usage, OSM extracts)
+shared/       # types and zod schemas shared between front and back
+docs/
+scripts/
 ```
 
 ## Lint, typecheck, format
 
 ```bash
-bun run lint        # oxlint, type-aware
-bun run typecheck   # vue-tsc --noEmit
+bun run lint
+bun run typechecK
 ```
 
 Formatting is handled by oxfmt via the pre-commit hook, so there's no Prettier config to fight with.
@@ -62,10 +63,6 @@ A useful sanity check:
 bun run unused-translations
 ```
 
-## Opening a PR
-
-For UI changes, attach a screenshot or short clip in the PR description. That's it.
-
 ## License
 
-By contributing, you agree your contributions will be licensed under [AGPL-3.0](LICENSE.md), the same license as the rest of the project.
+[AGPL-3.0](LICENSE.md)
