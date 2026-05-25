@@ -336,7 +336,7 @@ app.post("/api/google-login", async (c) => {
 // OpenStreetMap OAuth: kick off the authorization-code flow by redirecting the
 // browser to OSM. CSRF state is stashed in the session for validation on return.
 app.get("/api/osm-login", (c) => {
-  const frontendUrl = process.env.FRONTEND_URL ?? "";
+  const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
   try {
     const ip = getClientIp(c);
     if (!rateLimit.check(ip, 20, 60 * 1000)) {
@@ -364,7 +364,7 @@ app.get("/api/osm-login", (c) => {
 // OpenStreetMap OAuth callback: validate state, exchange the code for the user's
 // profile, resolve or create the account, then redirect back to the SPA.
 app.get("/api/osm-callback", async (c) => {
-  const frontendUrl = process.env.FRONTEND_URL ?? "";
+  const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
   const session = c.get("session");
   const osmOauth = session.get("osmOauth");
   session.set("osmOauth", undefined); // single-use, cleared regardless of outcome

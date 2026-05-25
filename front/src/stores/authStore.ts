@@ -1,6 +1,5 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
-import type { OAuthProvider } from "@shared/types";
 import { trpc } from "@/client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -43,32 +42,24 @@ async function loadGoogleIdentityScript() {
   });
 }
 
-function getLastLoginMethod(email: string): "email" | "google" | null {
+type LastUsedMethod = "email" | "google" | "osm";
+type LastUsed = { method: LastUsedMethod; email: string | null };
+
+// Single global record of the most recent sign-in, powering the "last used" hint in
+// the auth modal. Global rather than per-email so redirect providers like OSM (which
+// expose no typed email) share one timeline and exactly one method is ever marked.
+function getLastUsedMethod(): LastUsed | null {
   try {
-    const method = localStorage.getItem(`lastLoginMethod:${email}`);
-    return method as "email" | "google" | null;
+    const raw = localStorage.getItem("lastUsedMethod");
+    return raw ? (JSON.parse(raw) as LastUsed) : null;
   } catch {
     return null;
   }
 }
 
-// Redirect-based providers (OSM) don't have a typed email to key the per-email hint
-// on, so the last one used is tracked under a single global key instead.
-function getLastOAuthProvider(): OAuthProvider | null {
+function setLastUsedMethod(method: LastUsedMethod, email: string | null = null) {
   try {
-    return localStorage.getItem("lastOAuthProvider") as OAuthProvider | null;
-  } catch {
-    return null;
-  }
-}
-
-function setLastOAuthProvider(provider: OAuthProvider | null) {
-  try {
-    if (provider) {
-      localStorage.setItem("lastOAuthProvider", provider);
-    } else {
-      localStorage.removeItem("lastOAuthProvider");
-    }
+    localStorage.setItem("lastUsedMethod", JSON.stringify({ method, email }));
   } catch {
     // localStorage unavailable (private mode); the hint is non-critical
   }
@@ -278,10 +269,7 @@ export const useAuthStore = defineStore("auth", () => {
 
       if (response.ok && result.success) {
         user.value = result.user ?? null;
-        if (result.user?.email) {
-          localStorage.setItem(`lastLoginMethod:${result.user.email}`, "email");
-        }
-        setLastOAuthProvider(null);
+        setLastUsedMethod("email", result.user?.email ?? null);
         await loadModeratedContributionsForUser();
         return {
           success: true,
@@ -352,10 +340,7 @@ export const useAuthStore = defineStore("auth", () => {
 
       if (result.success) {
         user.value = result.user;
-        if (result.user?.email) {
-          localStorage.setItem(`lastLoginMethod:${result.user.email}`, provider);
-        }
-        setLastOAuthProvider(provider);
+        setLastUsedMethod(provider, result.user?.email ?? null);
       }
       return result;
     } catch (error: unknown) {
@@ -421,9 +406,8 @@ export const useAuthStore = defineStore("auth", () => {
     verifyEmail,
     requestPasswordReset,
     resetPassword,
-    getLastLoginMethod,
-    getLastOAuthProvider,
-    setLastOAuthProvider,
+    getLastUsedMethod,
+    setLastUsedMethod,
     startOsmLogin,
   };
 });

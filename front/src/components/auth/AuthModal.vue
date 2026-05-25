@@ -75,7 +75,7 @@
     </div>
 
     <!-- Normal Auth Mode (Sign In / Sign Up) -->
-    <div v-else :class="{ 'pt-3': lastLoginMethod === 'google' && isLoginMode }">
+    <div v-else :class="{ 'pt-3': lastGoogleUsed && isLoginMode }">
       <!-- Social Login Section -->
       <div class="mb-6 overflow-visible">
         <div class="flex flex-col gap-3 mb-4 overflow-visible">
@@ -116,12 +116,12 @@
             :disabled="oauthLoading"
             class="w-full"
             :class="{
-              'last-used-method': lastLoginMethod === 'google' && isLoginMode,
+              'last-used-method': lastGoogleUsed && isLoginMode,
             }"
           />
           <!-- Last used badge for Google -->
           <span
-            v-if="lastLoginMethod === 'google' && isLoginMode"
+            v-if="lastGoogleUsed && isLoginMode"
             class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
             style="
               background-color: var(--p-primary-color);
@@ -155,13 +155,13 @@
             autocomplete="email"
             class="w-full"
             :class="{
-              'last-used-input': lastLoginMethod === 'email' && isLoginMode,
+              'last-used-input': lastEmailUsed && isLoginMode,
             }"
             data-testid="auth-email-input"
           />
           <!-- Last used badge for email method -->
           <span
-            v-if="lastLoginMethod === 'email' && isLoginMode && form.email"
+            v-if="lastEmailUsed && isLoginMode"
             class="absolute top-7.5 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
             style="
               background-color: var(--p-primary-color);
@@ -329,9 +329,8 @@ const registrationSuccess = ref(false);
 const captchaToken = ref("");
 const turnstileWidgetId = ref<string | null>(null);
 
-// Track last login method hint
-const lastLoginMethod = ref<"email" | "google" | null>(null);
-const lastOsmUsed = ref(false);
+// Single "last used" sign-in hint, read when the modal opens.
+const lastUsed = ref<{ method: "email" | "google" | "osm"; email: string | null } | null>(null);
 
 const visible = computed({
   get: () => props.visible,
@@ -345,17 +344,15 @@ const form = reactive({
   rememberMe: false,
 });
 
-// Watch email field to show last login hint
-watch(
-  () => form.email,
-  (email) => {
-    if (email && isLoginMode.value && !isForgotPasswordMode.value) {
-      lastLoginMethod.value = authStore.getLastLoginMethod(email);
-    } else {
-      lastLoginMethod.value = null;
-    }
-  },
+// The email badge also requires the typed email to match the recorded one.
+const lastEmailUsed = computed(
+  () =>
+    lastUsed.value?.method === "email" &&
+    Boolean(form.email) &&
+    form.email === lastUsed.value.email,
 );
+const lastGoogleUsed = computed(() => lastUsed.value?.method === "google");
+const lastOsmUsed = computed(() => lastUsed.value?.method === "osm");
 
 // Reset loading states and errors when modal opens/closes
 watch(
@@ -365,7 +362,7 @@ watch(
       oauthLoading.value = false;
       loading.value = false;
       errorMessage.value = "";
-      lastOsmUsed.value = authStore.getLastOAuthProvider() === "osm";
+      lastUsed.value = authStore.getLastUsedMethod();
     } else {
       oauthLoading.value = false;
       loading.value = false;
