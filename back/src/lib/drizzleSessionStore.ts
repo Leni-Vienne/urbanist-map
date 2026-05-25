@@ -85,10 +85,19 @@ async function deleteSession(sessionId: string): Promise<void> {
 function prepareSessionForPersistence(data: unknown): { shouldPersist: boolean; expiresAt: Date } {
   // hono-sessions wraps the user payload inside `_data`
   // eslint-disable-next-line no-underscore-dangle
-  const inner = (data as { _data?: { user?: unknown; expiresAt?: string | number | Date } })._data;
+  const inner = (
+    data as {
+      _data?: { user?: unknown; osmOauth?: unknown; expiresAt?: string | number | Date };
+    }
+  )._data;
 
-  // Skip empty sessions (anonymous visitors); only logged-in users get DB-backed rows.
+  // Anonymous visitors get no DB row to keep the table small. Exception: a session
+  // mid-OAuth carries the OSM CSRF state, which must survive the redirect to
+  // openstreetmap.org and back, so persist it with a short expiry.
   if (!inner?.user) {
+    if (inner?.osmOauth) {
+      return { shouldPersist: true, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+    }
     return { shouldPersist: false, expiresAt: new Date() };
   }
 
