@@ -134,33 +134,42 @@ export const feedRouter = router({
           return latestContributionsCache.data.slice(0, input.limit);
         }
 
-        const overlaysQuery = db
-          .select({
-            type: sql<"overlay">`'overlay'`,
+        // One feed entry per project: the most recently updated approved overlay.
+        // DISTINCT ON (project) collapses a multi-overlay project to a single row so a
+        // batch approval can't bury every other contribution.
+        const latestOverlayPerProject = db
+          .selectDistinctOn([overlays.projectId], {
+            type: sql<"overlay">`'overlay'`.as("type"),
             id: overlays.id,
-            name: sql<string>`COALESCE(${overlays.caption}, ${projects.name})`,
+            name: sql<string>`COALESCE(${overlays.caption}, ${projects.name})`.as("name"),
             filename: overlays.filename,
             updatedAt: overlays.updatedAt,
-            cityName: cities.name,
+            cityName: sql<string | null>`${cities.name}`.as("cityName"),
             countryCode: projects.countryCode,
-            countryName: countries.name,
-            centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
-            centroidLng: sql<number>`ST_X(${overlays.centroid})`,
+            countryName: sql<string | null>`${countries.name}`.as("countryName"),
+            centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as("centroidLat"),
+            centroidLng: sql<number>`ST_X(${overlays.centroid})`.as("centroidLng"),
             corners: sql<{ lat: number; lng: number }[]>`(
               SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
               FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
               WHERE path[2] <= 4
-            )`,
+            )`.as("corners"),
             status: overlays.status,
-            lat: sql<null>`NULL`,
-            lng: sql<null>`NULL`,
+            lat: sql<null>`NULL`.as("lat"),
+            lng: sql<null>`NULL`.as("lng"),
           })
           .from(overlays)
           .leftJoin(projects, eq(overlays.projectId, projects.id))
           .leftJoin(cities, eq(projects.cityId, cities.id))
           .leftJoin(countries, eq(projects.countryCode, countries.code))
           .where(and(eq(overlays.status, "approved"), eq(projects.status, "approved")))
-          .orderBy(desc(overlays.updatedAt))
+          .orderBy(overlays.projectId, desc(overlays.updatedAt))
+          .as("latest_overlay_per_project");
+
+        const overlaysQuery = db
+          .select()
+          .from(latestOverlayPerProject)
+          .orderBy(desc(latestOverlayPerProject.updatedAt))
           .limit(input.limit);
 
         const directProjectsQuery = buildStandaloneProjectsQuery(
