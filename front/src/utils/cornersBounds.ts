@@ -1,0 +1,38 @@
+export interface SimpleBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+/**
+ * AABB intersection test: true if the bounding box of `corners` overlaps `bounds`.
+ * Works on raw {lat,lng} corners (or Leaflet LatLngs) to avoid allocating Leaflet
+ * objects per call, which matters in the per-frame viewport loops. Correctly handles
+ * the case where the viewport sits entirely inside a large overlay polygon.
+ */
+export function cornersIntersectBounds(
+  corners: { lat: number; lng: number }[],
+  bounds: SimpleBounds,
+): boolean {
+  const first = corners[0];
+  if (!first) return false;
+
+  let minLat = first.lat;
+  let maxLat = first.lat;
+  let minLng = first.lng;
+  let maxLng = first.lng;
+
+  for (let i = 1; i < corners.length; i += 1) {
+    const c = corners[i];
+    if (!c) continue;
+    if (c.lat < minLat) minLat = c.lat;
+    if (c.lat > maxLat) maxLat = c.lat;
+    if (c.lng < minLng) minLng = c.lng;
+    if (c.lng > maxLng) maxLng = c.lng;
+  }
+
+  return (
+    maxLat > bounds.south && minLat < bounds.north && maxLng > bounds.west && minLng < bounds.east
+  );
+}

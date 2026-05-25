@@ -81,31 +81,57 @@
         <div class="flex flex-col gap-3 mb-4 overflow-visible">
           <div class="relative overflow-visible">
             <Button
-              icon="pi pi-google"
-              :label="$t('auth.continueWithGoogle')"
-              @click="handleOAuthSignIn('google')"
+              icon="pi pi-map"
+              :label="$t('auth.continueWithOpenStreetMap')"
+              @click="handleOsmSignIn"
               outlined
               :loading="oauthLoading"
               :disabled="oauthLoading"
               class="w-full"
-              :class="{
-                'last-used-method': lastLoginMethod === 'google' && isLoginMode,
-              }"
+              :class="{ 'last-used-method': lastOsmUsed && isLoginMode }"
             />
-            <!-- Last used badge for Google -->
+            <!-- Last used badge for OpenStreetMap -->
             <span
-              v-if="lastLoginMethod === 'google' && isLoginMode"
+              v-if="lastOsmUsed && isLoginMode"
               class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
               style="
                 background-color: var(--p-primary-color);
                 color: var(--p-primary-contrast-color);
                 box-shadow: var(--p-button-shadow);
               "
-              :title="$t('auth.lastUsedGoogle')"
+              :title="$t('auth.lastUsedOpenStreetMap')"
             >
               {{ $t("auth.lastUsed") }}
             </span>
           </div>
+        </div>
+
+        <div class="relative overflow-visible">
+          <Button
+            icon="pi pi-google"
+            :label="$t('auth.continueWithGoogle')"
+            @click="handleOAuthSignIn('google')"
+            outlined
+            :loading="oauthLoading"
+            :disabled="oauthLoading"
+            class="w-full"
+            :class="{
+              'last-used-method': lastLoginMethod === 'google' && isLoginMode,
+            }"
+          />
+          <!-- Last used badge for Google -->
+          <span
+            v-if="lastLoginMethod === 'google' && isLoginMode"
+            class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
+            style="
+              background-color: var(--p-primary-color);
+              color: var(--p-primary-contrast-color);
+              box-shadow: var(--p-button-shadow);
+            "
+            :title="$t('auth.lastUsedGoogle')"
+          >
+            {{ $t("auth.lastUsed") }}
+          </span>
         </div>
 
         <div class="flex items-center my-4">
@@ -305,6 +331,7 @@ const turnstileWidgetId = ref<string | null>(null);
 
 // Track last login method hint
 const lastLoginMethod = ref<"email" | "google" | null>(null);
+const lastOsmUsed = ref(false);
 
 const visible = computed({
   get: () => props.visible,
@@ -338,6 +365,7 @@ watch(
       oauthLoading.value = false;
       loading.value = false;
       errorMessage.value = "";
+      lastOsmUsed.value = authStore.getLastOAuthProvider() === "osm";
     } else {
       oauthLoading.value = false;
       loading.value = false;
@@ -524,6 +552,12 @@ async function handleSubmit() {
   } finally {
     loading.value = false;
   }
+}
+
+function handleOsmSignIn() {
+  oauthLoading.value = true;
+  errorMessage.value = "";
+  authStore.startOsmLogin(form.rememberMe);
 }
 
 async function handleOAuthSignIn(provider: "google") {

@@ -36,9 +36,9 @@ import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileG
 import {
   selectedProjectTags,
   selectedStatusFilters,
-  UNTAGGED_PROJECT_FILTER,
+  splitTagSelection,
+  getNameFilterMode,
   sizeFilterRange,
-  selectedNameFilters,
   lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 
@@ -251,22 +251,17 @@ function getIsNeitherProposedNorCompletedFilterExpression(): FilterSpecification
  * Returns null if no filtering is needed (all tags visible).
  */
 function getTagFilterExpression(): FilterSpecification | null {
-  const selected = selectedProjectTags.value;
-  if (selected.length === 0) {
+  if (selectedProjectTags.value.length === 0) {
     return null; // No filter needed
   }
 
-  const includeUntagged = selected.includes(UNTAGGED_PROJECT_FILTER);
-  const selectedKnownTags = selected.filter((t) => t !== UNTAGGED_PROJECT_FILTER);
+  const { includeUntagged, knownTags } = splitTagSelection();
 
   const conditions: unknown[] = [];
 
-  // Match any of the selected known tags
-  // The backend sends 'tags' as a JSON array string in the MVT tiles
-  if (selectedKnownTags.length > 0) {
-    for (const tag of selectedKnownTags) {
-      conditions.push(["in", tag, ["to-string", ["get", "tags"]]]);
-    }
+  // Match any of the selected known tags. The backend sends 'tags' as a JSON array string in the tiles.
+  for (const tag of knownTags) {
+    conditions.push(["in", tag, ["to-string", ["get", "tags"]]]);
   }
 
   // Match untagged (empty first_tag)
@@ -346,12 +341,16 @@ function getSizeFilterExpressionForPoints(): FilterSpecification | null {
   if (minSize === 0 && maxSize === Infinity) return null;
 
   // A cell matches if its size range overlaps the filter range.
-  // Standalone projects (no geometry) are treated as size 0 via coalesce.
   const conditions: unknown[] = [[">=", ["coalesce", ["get", "max_size_m"], 0], minSize]];
   if (maxSize !== Infinity) {
     conditions.push(["<=", ["coalesce", ["get", "min_size_m"], 0], maxSize]);
   }
-  return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
+  const rangeFilter = (
+    conditions.length === 1 ? conditions[0] : ["all", ...conditions]
+  ) as FilterSpecification;
+  // Cells of only no-geometry projects have null max_size_m; let them pass like the shapes filter,
+  // otherwise the default min size would hide every standalone/overlay-only project.
+  return ["any", ["==", ["get", "max_size_m"], null], rangeFilter] as FilterSpecification;
 }
 
 /**
@@ -378,15 +377,9 @@ function getSizeFilterExpressionForShapes(): FilterSpecification | null {
  * Build a name filter expression. Returns null if no name filter is active.
  */
 function getNameFilterExpression(): FilterSpecification | null {
-  const selected = selectedNameFilters.value;
-  if (selected.length === 0 || (selected.includes("named") && selected.includes("unnamed"))) {
-    return null;
-  }
-  if (selected.includes("named")) {
-    return ["==", ["get", "is_named"], 1] as FilterSpecification;
-  }
-  // unnamed only
-  return ["==", ["get", "is_named"], 0] as FilterSpecification;
+  const mode = getNameFilterMode();
+  if (mode === "all") return null;
+  return ["==", ["get", "is_named"], mode === "named" ? 1 : 0] as FilterSpecification;
 }
 
 /**
@@ -726,17 +719,17 @@ function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.Lat
 }
 
 /**
- * Returns true and zooms if the cluster representative satisfies the active size filter.
- * Returns false (no zoom) if the representative's own size is outside the filter range,
- * meaning the cluster only passed because some other project elsewhere in the cell matched,
- * zooming to the representative's location would land in an empty area.
+ * Zoom into the cluster cell the point belongs to. If the representative matches the active
+ * size/date filter, fit the exact cell bounds; otherwise the cluster only passed because some
+ * other project in the cell matched, so nudge in by 2 zoom levels instead of committing to
+ * the representative's location.
  */
 function navigateToCluster(
   props: Record<string, unknown>,
   lat: number,
   lng: number,
   currentZoom: number,
-): boolean {
+): void {
   const [minFilter, maxFilter] = sizeFilterRange.value;
   const repSize: number | null = (props.geometry_size_m as number | null) ?? null;
   const repMatchesSizeFilter =
@@ -770,7 +763,6 @@ function navigateToCluster(
     const duration = Math.min(0.3 + 2 * 0.25, 1.5);
     mobileAwareFlyTo([lat, lng], targetZoom, { duration });
   }
-  return true;
 }
 
 async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng): Promise<void> {
@@ -797,7 +789,7 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
       navigateToLonePoint(props, lat, lng, currentZoom);
     } else {
       shouldOpenPanel = false;
-      if (!navigateToCluster(props, lat, lng, currentZoom)) return;
+      navigateToCluster(props, lat, lng, currentZoom);
     }
   }
 
@@ -1186,6 +1178,29 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       paint: { "line-width": 0 },
+    },
+    firstSymbolLayerId,
+  );
+
+  // Permanent border for overlays whose project has no drawn geometry. Without a shape
+  // outline these images can blend into the basemap, so trace their footprint edge using
+  // the same styling as the hover border.
+  mlMap.addLayer(
+    {
+      id: "overlay-footprints-no-geometry",
+      type: "line",
+      source: "project-sources",
+      "source-layer": "overlay-footprints",
+      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      filter: ["==", ["get", "has_geometry"], false],
+      layout: { "line-cap": "round" },
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": FOOTPRINT_LINE_WIDTH,
+        // Subtler than the full-opacity hover layer (stacked above) so hovering still
+        // reads as a state change rather than rendering identically.
+        "line-opacity": 0.6,
+      },
     },
     firstSymbolLayerId,
   );

@@ -5,62 +5,84 @@
 
 import { dbToFlexibleDate, formatFlexibleDate } from "./flexibleDateHelpers";
 
+type DatePrecision = "year" | "month" | "day" | null | undefined;
+
+export interface ProjectDateFields {
+  timelineStatus: string | null | undefined;
+  startDate: Date | null | undefined;
+  endDate: Date | null | undefined;
+  proposalDate: Date | null | undefined;
+  startDatePrecision?: DatePrecision;
+  endDatePrecision?: DatePrecision;
+  proposalDatePrecision?: DatePrecision;
+}
+
+type ResolvedDateRange =
+  | { kind: "proposed"; value: string; precision: DatePrecision }
+  | { kind: "period"; start: string; end: string }
+  | { kind: "start"; value: string; precision: DatePrecision }
+  | { kind: "end"; value: string; precision: DatePrecision }
+  | { kind: "none" };
+
+// Day precision (and the legacy null precision) format to a full date and read "on";
+// coarser precisions format to a year/month and read "in".
+function isOnPrecision(precision: DatePrecision): boolean {
+  return precision === "day" || precision === null;
+}
+
+// Resolve which date(s) a project row should show. Shared by both formatters below so the
+// proposed/period/start/end priority lives in one place.
+function resolveProjectDateRange(f: ProjectDateFields): ResolvedDateRange {
+  if (f.timelineStatus === "proposed" && f.proposalDate) {
+    return {
+      kind: "proposed",
+      value: formatFlexibleDate(dbToFlexibleDate(f.proposalDate, f.proposalDatePrecision)),
+      precision: f.proposalDatePrecision,
+    };
+  }
+
+  const start = f.startDate
+    ? formatFlexibleDate(dbToFlexibleDate(f.startDate, f.startDatePrecision))
+    : null;
+  const end = f.endDate
+    ? formatFlexibleDate(dbToFlexibleDate(f.endDate, f.endDatePrecision))
+    : null;
+
+  if (start && end) return { kind: "period", start, end };
+  if (start) return { kind: "start", value: start, precision: f.startDatePrecision };
+  if (end) return { kind: "end", value: end, precision: f.endDatePrecision };
+  if (f.proposalDate) {
+    return {
+      kind: "proposed",
+      value: formatFlexibleDate(dbToFlexibleDate(f.proposalDate, f.proposalDatePrecision)),
+      precision: f.proposalDatePrecision,
+    };
+  }
+
+  return { kind: "none" };
+}
+
 /**
- * Format a project date range based on timeline status
- * Supports flexible date precision (year, month, day)
+ * Format a project date range as a single sentence with a verb prefix
+ * ("Proposed on ...", "Starts in ...", "<start> - <end>").
  */
 export function formatProjectDateRange(
-  timelineStatus: string | null | undefined,
-  startDate: Date | null | undefined,
-  endDate: Date | null | undefined,
-  proposalDate: Date | null | undefined,
-  startDatePrecision?: "year" | "month" | "day" | null,
-  endDatePrecision?: "year" | "month" | "day" | null,
-  proposalDatePrecision?: "year" | "month" | "day" | null,
-  t = (key: string) => key,
+  fields: ProjectDateFields,
+  t: (key: string) => string,
 ): string {
-  if (timelineStatus === "proposed" && proposalDate) {
-    const proposalDateStr = formatFlexibleDate(
-      dbToFlexibleDate(proposalDate, proposalDatePrecision),
-    );
-    const proposedKey =
-      proposalDatePrecision === "day" || proposalDatePrecision === null
-        ? "project.proposedOn"
-        : "project.proposedIn";
-    return `${t(proposedKey)} ${proposalDateStr}`;
+  const resolved = resolveProjectDateRange(fields);
+  switch (resolved.kind) {
+    case "proposed":
+      return `${t(isOnPrecision(resolved.precision) ? "project.proposedOn" : "project.proposedIn")} ${resolved.value}`;
+    case "period":
+      return `${resolved.start} - ${resolved.end}`;
+    case "start":
+      return `${t(isOnPrecision(resolved.precision) ? "project.startsOn" : "project.startsIn")} ${resolved.value}`;
+    case "end":
+      return `${t(isOnPrecision(resolved.precision) ? "project.endsOn" : "project.endsIn")} ${resolved.value}`;
+    default:
+      return "";
   }
-
-  const start = startDate
-    ? formatFlexibleDate(dbToFlexibleDate(startDate, startDatePrecision))
-    : null;
-  const end = endDate ? formatFlexibleDate(dbToFlexibleDate(endDate, endDatePrecision)) : null;
-
-  if (start && end) {
-    return `${start} - ${end}`;
-  } else if (start) {
-    // Use "Starts in" for year/month precision, "Starts on" for day precision
-    const startsKey =
-      startDatePrecision === "day" || startDatePrecision === null
-        ? "project.startsOn"
-        : "project.startsIn";
-    return `${t(startsKey)} ${start}`;
-  } else if (end) {
-    // Use "Ends in" for year/month precision, "Ends on" for day precision
-    const endsKey =
-      endDatePrecision === "day" || endDatePrecision === null ? "project.endsOn" : "project.endsIn";
-    return `${t(endsKey)} ${end}`;
-  } else if (proposalDate) {
-    const proposalDateStr = formatFlexibleDate(
-      dbToFlexibleDate(proposalDate, proposalDatePrecision),
-    );
-    const proposedKey =
-      proposalDatePrecision === "day" || proposalDatePrecision === null
-        ? "project.proposedOn"
-        : "project.proposedIn";
-    return `${t(proposedKey)} ${proposalDateStr}`;
-  }
-
-  return "";
 }
 
 /**
@@ -69,39 +91,20 @@ export function formatProjectDateRange(
  * and the value is just the date/range without a verb prefix.
  */
 export function formatProjectDateRangeParts(
-  timelineStatus: string | null | undefined,
-  startDate: Date | null | undefined,
-  endDate: Date | null | undefined,
-  proposalDate: Date | null | undefined,
-  startDatePrecision?: "year" | "month" | "day" | null,
-  endDatePrecision?: "year" | "month" | "day" | null,
-  proposalDatePrecision?: "year" | "month" | "day" | null,
-  t = (key: string) => key,
+  fields: ProjectDateFields,
+  t: (key: string) => string,
 ): { label: string; value: string } | null {
-  if (timelineStatus === "proposed" && proposalDate) {
-    return {
-      label: t("project.proposalDate"),
-      value: formatFlexibleDate(dbToFlexibleDate(proposalDate, proposalDatePrecision)),
-    };
+  const resolved = resolveProjectDateRange(fields);
+  switch (resolved.kind) {
+    case "proposed":
+      return { label: t("project.proposalDate"), value: resolved.value };
+    case "period":
+      return { label: t("project.period"), value: `${resolved.start} - ${resolved.end}` };
+    case "start":
+      return { label: t("project.startDate"), value: resolved.value };
+    case "end":
+      return { label: t("project.estimatedCompletion"), value: resolved.value };
+    default:
+      return null;
   }
-
-  const start = startDate
-    ? formatFlexibleDate(dbToFlexibleDate(startDate, startDatePrecision))
-    : null;
-  const end = endDate ? formatFlexibleDate(dbToFlexibleDate(endDate, endDatePrecision)) : null;
-
-  if (start && end) {
-    return { label: t("project.period"), value: `${start} - ${end}` };
-  } else if (start) {
-    return { label: t("project.startDate"), value: start };
-  } else if (end) {
-    return { label: t("project.estimatedCompletion"), value: end };
-  } else if (proposalDate) {
-    return {
-      label: t("project.proposalDate"),
-      value: formatFlexibleDate(dbToFlexibleDate(proposalDate, proposalDatePrecision)),
-    };
-  }
-
-  return null;
 }

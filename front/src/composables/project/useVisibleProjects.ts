@@ -92,7 +92,7 @@ function featureToProject(
   const sourceLayer = String(f.sourceLayer);
   const id = sourceLayer === "overlay-footprints" ? (props.project_id ?? "") : (props.id ?? "");
   if (!id) return null;
-  const name: string | null = sourceLayer === "overlay-footprints" ? null : (props.name ?? null);
+  const name: string | null = props.name ?? null;
   // oxlint-disable-next-line no-unsafe-type-assertion
   const geom = f.geometry as GeoJSON.Geometry | null;
   const [bboxLng, bboxLat, bbox] = getGeomBbox(geom);
@@ -124,12 +124,7 @@ function featureToProject(
 }
 
 /** Merge a subsequent feature for the same project id into the existing entry. */
-function mergeIntoExisting(
-  existing: VisibleProject,
-  f: maplibregl.MapGeoJSONFeature,
-  incoming: VisibleProject,
-): void {
-  const props = f.properties;
+function mergeIntoExisting(existing: VisibleProject, incoming: VisibleProject): void {
   if (incoming.name && !existing.name) existing.name = incoming.name;
   if (incoming.lat !== null && existing.lat === null) {
     existing.lat = incoming.lat;
@@ -140,9 +135,9 @@ function mergeIntoExisting(
   existing.sizeM = Math.max(existing.sizeM || 0, incoming.sizeM || 0);
   existing.lastModifiedS = Math.max(existing.lastModifiedS || 0, incoming.lastModifiedS || 0);
   if (incoming.tags.length > existing.tags.length) existing.tags = incoming.tags;
-  if (props.first_tag && !existing.firstTag) existing.firstTag = props.first_tag;
-  if (props.timeline_status && !existing.timelineStatus)
-    existing.timelineStatus = props.timeline_status;
+  if (incoming.firstTag && !existing.firstTag) existing.firstTag = incoming.firstTag;
+  if (incoming.timelineStatus && !existing.timelineStatus)
+    existing.timelineStatus = incoming.timelineStatus;
 }
 
 function accumulateFeatures(
@@ -158,7 +153,7 @@ function accumulateFeatures(
     if (!existing) {
       seen.set(incoming.id, incoming);
     } else {
-      mergeIntoExisting(existing, f, incoming);
+      mergeIntoExisting(existing, incoming);
     }
   }
   const result = [...seen.values()];
@@ -238,7 +233,9 @@ export function useVisibleProjects() {
         const dateMs = p.lastModifiedS * 1000;
         if (dateMs < minDateMs || dateMs > maxDateMs) return false;
       }
-      if (p.sizeM < minSizeM || p.sizeM > maxSizeM) return false;
+      // sizeM 0 means no geometry size (overlay footprints, standalone points); the map's
+      // footprint/shape layers exempt these from the size filter, so the panel must too.
+      if (p.sizeM > 0 && (p.sizeM < minSizeM || p.sizeM > maxSizeM)) return false;
       return true;
     });
 

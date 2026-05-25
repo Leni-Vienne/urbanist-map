@@ -72,38 +72,38 @@ export function toggleProjectTagFilter(tag: string): void {
   selectedProjectTags.value = [...selectedProjectTags.value, tag];
 }
 
+export function splitTagSelection(): { includeUntagged: boolean; knownTags: string[] } {
+  const selected = selectedProjectTags.value;
+  return {
+    includeUntagged: selected.includes(UNTAGGED_PROJECT_FILTER),
+    knownTags: selected.filter((tag) => tag !== UNTAGGED_PROJECT_FILTER),
+  };
+}
+
+export function getNameFilterMode(): "all" | "named" | "unnamed" {
+  const selected = selectedNameFilters.value;
+  if (selected.length === 0) return "all";
+  const named = selected.includes("named");
+  const unnamed = selected.includes("unnamed");
+  if (named && unnamed) return "all";
+  return named ? "named" : "unnamed";
+}
+
 function matchesSelectedTags(tags: string[] | null | undefined): boolean {
   if (selectedProjectTags.value.length === 0) return true;
 
-  const includeUntagged = selectedProjectTags.value.includes(UNTAGGED_PROJECT_FILTER);
-  const selectedKnownTags = selectedProjectTags.value.filter(
-    (tag) => tag !== UNTAGGED_PROJECT_FILTER,
-  );
-
-  if (!tags || tags.length === 0) {
-    return includeUntagged;
-  }
-
-  if (selectedKnownTags.length === 0) {
-    return false;
-  }
-
-  return tags.some((tag) => selectedKnownTags.includes(tag));
+  const { includeUntagged, knownTags } = splitTagSelection();
+  if (!tags || tags.length === 0) return includeUntagged;
+  if (knownTags.length === 0) return false;
+  return tags.some((tag) => knownTags.includes(tag));
 }
 
 function matchesNameFilter(name: string | null | undefined): boolean {
-  if (selectedNameFilters.value.length === 0) return true;
+  const mode = getNameFilterMode();
+  if (mode === "all") return true;
   // oxlint-disable-next-line no-implicit-coercion
   const hasName = !!name && name.trim().length > 0;
-  if (
-    selectedNameFilters.value.includes("named") &&
-    selectedNameFilters.value.includes("unnamed")
-  ) {
-    return true;
-  }
-  if (selectedNameFilters.value.includes("named")) return hasName;
-  if (selectedNameFilters.value.includes("unnamed")) return !hasName;
-  return true;
+  return mode === "named" ? hasName : !hasName;
 }
 
 function getEffectiveLastModifiedMs(project: Project): number {

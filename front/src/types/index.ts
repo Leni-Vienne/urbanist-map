@@ -1,7 +1,6 @@
 import type * as L from "leaflet";
 import type { RouterOutput } from "@/client";
 import type {
-  DBCountry,
   DBProject,
   DBCity,
   DBImportSource,
@@ -89,14 +88,6 @@ declare module "leaflet" {
     imageUrl: string,
     options?: DistortableImageOverlayOptions,
   ): DistortableImageOverlay;
-}
-
-// Extended Country type for frontend use with additional properties
-export interface Country extends DBCountry {
-  lat: number;
-  lng: number;
-  projectCount: number;
-  cities: RouterOutput["cities"]["getCitiesNearLocation"];
 }
 
 export type PendingChangeRequest =

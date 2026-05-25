@@ -13,6 +13,7 @@ import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
+import { cornersIntersectBounds } from "@/utils/cornersBounds";
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
 // Stores the last-synced set of OverlayData objects built from tile features.
@@ -63,33 +64,6 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
   };
 }
 
-// Prevents overlays from being pruned when the viewport is entirely covered by an overlay polygon.
-function overlayIntersectsViewport(
-  corners: { lat: number; lng: number }[],
-  bounds: { north: number; south: number; east: number; west: number },
-): boolean {
-  /* oxlint-disable-next-line no-non-null-assertion */
-  const firstCorner = corners[0]!;
-  let minLat = firstCorner.lat;
-  let maxLat = firstCorner.lat;
-  let minLng = firstCorner.lng;
-  let maxLng = firstCorner.lng;
-
-  for (let i = 1; i < corners.length; i += 1) {
-    /* oxlint-disable-next-line no-non-null-assertion */
-    const c = corners[i]!;
-    if (c.lat < minLat) minLat = c.lat;
-    if (c.lat > maxLat) maxLat = c.lat;
-    if (c.lng < minLng) minLng = c.lng;
-    if (c.lng > maxLng) maxLng = c.lng;
-  }
-
-  // AABB intersection test - correctly handles viewport inside overlay
-  return (
-    maxLat > bounds.south && minLat < bounds.north && maxLng > bounds.west && minLng < bounds.east
-  );
-}
-
 function syncOverlaysFromTiles(mlMap: any): void {
   // During style reloads/HMR, idle can fire before this layer is present.
   if (!mlMap.getLayer("overlay-footprints")) return;
@@ -117,7 +91,7 @@ function syncOverlaysFromTiles(mlMap: any): void {
       if (!id || featureMap.has(id)) continue;
 
       const data = overlayDataFromFeature(feat);
-      if (data && overlayIntersectsViewport(data.corners, viewportBounds)) {
+      if (data && cornersIntersectBounds(data.corners, viewportBounds)) {
         featureMap.set(id, data);
       }
     }

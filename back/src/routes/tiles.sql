@@ -116,6 +116,9 @@ footprints AS (
       array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
+      -- Drives a permanent border on the client for overlays whose project has no drawn
+      -- shape, so the image doesn't blend into the basemap.
+      CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
       -- Extract the four individual corner latitude and longitude coordinates for rendering the overlay map image on the client
       ST_Y(ST_PointN(ST_ExteriorRing(o.corners), 1)) AS c0_lat,
       ST_X(ST_PointN(ST_ExteriorRing(o.corners), 1)) AS c0_lng,

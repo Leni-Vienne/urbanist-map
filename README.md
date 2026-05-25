@@ -16,12 +16,11 @@ Submissions go through moderation before going public.
 
 ```bash
 cp .env.example .env
-# then fill in POSTGRES_PASSWORD and COOKIE_SECRET
 bun install
 docker compose -f docker-compose.dev.yml --env-file .env up -d
 bun run db:push
-bun run dev-back   # :3000
-bun run dev-front  # :5173
+bun run dev-back
+bun run dev-front
 ```
 
 The app runs without R2, OAuth, or Turnstile credentials in dev (uploads stay local, captcha is skipped). Verification emails for signup are caught by the local mailpit instance, viewable at http://localhost:8025.

@@ -247,12 +247,13 @@ onMounted(async () => {
     now.value = new Date();
   }, 30_000);
 
-  overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
-
   await authStore.initialize();
 
   // Handle auth query parameters from URL
   if (route.query.auth === "success") {
+    if (route.query.provider === "osm") {
+      authStore.setLastOAuthProvider("osm");
+    }
     toast.add({
       severity: "success",
       summary: t("common.success"),
@@ -279,6 +280,8 @@ function getErrorMessage(error: string): string {
       return t("pages.home.errors.signInCancelled");
     case "unexpected":
       return t("pages.home.errors.unexpectedError");
+    case "too_many_requests":
+      return t("auth.error.tooManyRequests");
     default:
       return t("pages.home.errors.authenticationError");
   }

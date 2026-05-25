@@ -1,5 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
+import type { OAuthProvider } from "@shared/types";
 import { trpc } from "@/client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -18,8 +19,6 @@ interface User {
 }
 
 type AuthResult = { success: boolean; user: User | null; error: string | null };
-
-type OAuthProvider = "google";
 
 async function loadGoogleIdentityScript() {
   return new Promise<void>((resolve, reject) => {
@@ -53,6 +52,35 @@ function getLastLoginMethod(email: string): "email" | "google" | null {
   }
 }
 
+// Redirect-based providers (OSM) don't have a typed email to key the per-email hint
+// on, so the last one used is tracked under a single global key instead.
+function getLastOAuthProvider(): OAuthProvider | null {
+  try {
+    return localStorage.getItem("lastOAuthProvider") as OAuthProvider | null;
+  } catch {
+    return null;
+  }
+}
+
+function setLastOAuthProvider(provider: OAuthProvider | null) {
+  try {
+    if (provider) {
+      localStorage.setItem("lastOAuthProvider", provider);
+    } else {
+      localStorage.removeItem("lastOAuthProvider");
+    }
+  } catch {
+    // localStorage unavailable (private mode); the hint is non-critical
+  }
+}
+
+// OSM uses a full-page authorization-code redirect, so this navigates away and
+// never returns; the backend handles the callback and redirects back to the SPA.
+function startOsmLogin(rememberMe: boolean): void {
+  const rememberParam = rememberMe ? "true" : "false";
+  globalThis.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/osm-login?rememberMe=${rememberParam}`;
+}
+
 async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean) {
   const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
     method: "POST",
@@ -76,7 +104,7 @@ async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean)
 // The returned handler clears the pending timeout, awaits the exchange, and resolves
 // the outer promise with a uniform AuthResult shape regardless of provider.
 function createOAuthCallbackHandler<TResponse>(options: {
-  provider: OAuthProvider;
+  provider: "google";
   exchangeToken: (response: TResponse) => Promise<User | null>;
   timeoutId: ReturnType<typeof setTimeout>;
   resolve: (value: AuthResult) => void;
@@ -253,6 +281,7 @@ export const useAuthStore = defineStore("auth", () => {
         if (result.user?.email) {
           localStorage.setItem(`lastLoginMethod:${result.user.email}`, "email");
         }
+        setLastOAuthProvider(null);
         await loadModeratedContributionsForUser();
         return {
           success: true,
@@ -276,7 +305,7 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function signInWithOAuth(provider: OAuthProvider, rememberMe = false): Promise<AuthResult> {
+  async function signInWithOAuth(provider: "google", rememberMe = false): Promise<AuthResult> {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
       return { success: false, user: null, error: "Google Client ID not configured" };
@@ -326,6 +355,7 @@ export const useAuthStore = defineStore("auth", () => {
         if (result.user?.email) {
           localStorage.setItem(`lastLoginMethod:${result.user.email}`, provider);
         }
+        setLastOAuthProvider(provider);
       }
       return result;
     } catch (error: unknown) {
@@ -392,6 +422,9 @@ export const useAuthStore = defineStore("auth", () => {
     requestPasswordReset,
     resetPassword,
     getLastLoginMethod,
+    getLastOAuthProvider,
+    setLastOAuthProvider,
+    startOsmLogin,
   };
 });
 
