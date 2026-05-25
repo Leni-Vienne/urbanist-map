@@ -130,7 +130,7 @@ jobs:
           R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-          OSM_CLIENT_ID: ${{ vars.OSM_CLIENT_ID }}
+          OSM_CLIENT_ID: ${{ secrets.OSM_CLIENT_ID }}
           OSM_CLIENT_SECRET: ${{ secrets.OSM_CLIENT_SECRET }}
           CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
           SES_REGION: ${{ vars.SES_REGION }}
