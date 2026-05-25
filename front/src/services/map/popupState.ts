@@ -56,11 +56,14 @@ export function setPopupPlacementForLatLng(latlng: L.LatLng, atCenter = false): 
 
   const availableBelow = mapH - point.y - POPUP_ANCHOR_GAP - mobileBlockedPx - POPUP_EDGE_MARGIN;
   const availableAbove = point.y - POPUP_ANCHOR_GAP - POPUP_EDGE_MARGIN;
-  const availableRight = mapH - POPUP_EDGE_MARGIN * 2;
+  // Left/right popups are vertically centered on the anchor (translateY(-50%)), so the usable
+  // height is twice the smaller of the room above and below the anchor.
+  const availableSide =
+    2 * Math.min(point.y - POPUP_EDGE_MARGIN, mapH - point.y - mobileBlockedPx - POPUP_EDGE_MARGIN);
   const hCentered = point.x >= POPUP_EST_HALF_W && mapW - point.x >= POPUP_EST_HALF_W;
 
   let placement: PopupPlacement = "left";
-  let maxHeight = availableRight;
+  let maxHeight = availableSide;
 
   if (hCentered) {
     // Pick whichever vertical direction has more usable space, as long as it meets the minimum.
@@ -76,7 +79,7 @@ export function setPopupPlacementForLatLng(latlng: L.LatLng, atCenter = false): 
   }
   if (placement === "left" && mapW - point.x >= POPUP_EST_W) {
     placement = "right";
-    maxHeight = availableRight;
+    maxHeight = availableSide;
   }
 
   projectPopupPlacement.value = placement;

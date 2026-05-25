@@ -65,12 +65,12 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
  * position; no delta is tracked. For approved/pending/rejected overlays, we record the
  * current vs original corners so the change-request submission flow can read them.
  */
-export function recordOverlayModification(overlayObject: OverlayObject, forceMode?: "edit"): void {
+export function recordOverlayModification(overlayObject: OverlayObject): void {
   const pendingModsStore = usePendingModificationsStore();
   const mapStore = useMapStore();
 
   const layer = getLayer(overlayObject.id);
-  if ((mapStore.mode !== "edit" && forceMode !== "edit") || !layer) return;
+  if (mapStore.mode !== "edit" || !layer) return;
   if (overlayObject.status === null) return;
 
   const corners = layer.getCorners();

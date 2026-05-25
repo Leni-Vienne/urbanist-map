@@ -247,12 +247,13 @@ onMounted(async () => {
     now.value = new Date();
   }, 30_000);
 
-  overlayStore.closeAllUIElements = uiStore.closeAllDialogs;
-
   await authStore.initialize();
 
   // Handle auth query parameters from URL
   if (route.query.auth === "success") {
+    if (route.query.provider === "osm") {
+      authStore.setLastUsedMethod("osm");
+    }
     toast.add({
       severity: "success",
       summary: t("common.success"),
@@ -268,6 +269,17 @@ onMounted(async () => {
       life: 5000,
     });
   }
+
+  // Strip the auth params the OAuth callback appended so they don't linger in the URL.
+  // Done via the History API to leave the map-state hash (managed in map.ts) untouched.
+  if (route.query.auth || route.query.error || route.query.provider) {
+    const url = new URL(globalThis.location.href);
+    url.searchParams.delete("auth");
+    url.searchParams.delete("provider");
+    url.searchParams.delete("error");
+    const path = url.pathname.replace(/\/{2,}/g, "/");
+    globalThis.history.replaceState(globalThis.history.state, "", path + url.search + url.hash);
+  }
 });
 
 // Get error message for auth query param codes
@@ -279,6 +291,8 @@ function getErrorMessage(error: string): string {
       return t("pages.home.errors.signInCancelled");
     case "unexpected":
       return t("pages.home.errors.unexpectedError");
+    case "too_many_requests":
+      return t("auth.error.tooManyRequests");
     default:
       return t("pages.home.errors.authenticationError");
   }

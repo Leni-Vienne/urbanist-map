@@ -14,10 +14,6 @@ export function getStatusSeverity(
     case "replaced": {
       return "secondary";
     }
-    case null:
-    case undefined: {
-      return "info";
-    }
     default: {
       return "info";
     }

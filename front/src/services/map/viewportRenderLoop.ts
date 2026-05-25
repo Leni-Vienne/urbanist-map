@@ -17,6 +17,7 @@ import { createSingleMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { refreshAllStandaloneMarkers } from "@/services/map/standaloneProjectMarkers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
+import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import {
   renderAllProjectShapes,
   initializeShapeRenderTriggers,
@@ -31,40 +32,6 @@ function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstan
   const isOnMap = mapInstance.hasLayer(layer);
   if (shouldBeOnMap && !isOnMap) layer.addTo(mapInstance);
   else if (!shouldBeOnMap && isOnMap) layer.remove();
-}
-
-// Compute bounding box from 4 overlay corners (avoids Leaflet object allocation / GC pressure).
-function computeCornersBBox(corners: { lat: number; lng: number }[]) {
-  /* oxlint-disable no-non-null-assertion */
-  let minLat = corners[0]!.lat;
-  let maxLat = corners[0]!.lat;
-  let minLng = corners[0]!.lng;
-  let maxLng = corners[0]!.lng;
-
-  for (let i = 1; i < 4; i += 1) {
-    const c = corners[i]!;
-    if (c.lat < minLat) minLat = c.lat;
-    if (c.lat > maxLat) maxLat = c.lat;
-    if (c.lng < minLng) minLng = c.lng;
-    if (c.lng > maxLng) maxLng = c.lng;
-  }
-
-  return { minLat, maxLat, minLng, maxLng };
-  /* oxlint-enable no-non-null-assertion */
-}
-
-// Check if a bounding box intersects with viewport bounds (standard AABB intersection test).
-// Two rectangles don't intersect only if one is completely outside the other on any axis.
-function intersectsViewport(
-  bbox: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-  bounds: L.LatLngBounds,
-) {
-  return (
-    bbox.maxLat > bounds.getSouth() &&
-    bbox.minLat < bounds.getNorth() &&
-    bbox.maxLng > bounds.getWest() &&
-    bbox.minLng < bounds.getEast()
-  );
 }
 
 /**
@@ -144,6 +111,14 @@ function pruneBackendOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, showIm
   const filteredOverlays = filterByStatus(overlayStore.viewModeOverlays, mapStore.mode);
   const overlaysToRender: OverlayData[] = [];
 
+  // Extract bounds once; cornersIntersectBounds reads plain numbers per overlay.
+  const viewportBounds = {
+    north: bounds.getNorth(),
+    south: bounds.getSouth(),
+    east: bounds.getEast(),
+    west: bounds.getWest(),
+  };
+
   for (const data of filteredOverlays) {
     if (data.corners.length !== 4) continue;
 
@@ -158,7 +133,7 @@ function pruneBackendOverlays(mapInstance: L.Map, bounds: L.LatLngBounds, showIm
     }
     const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.corners;
 
-    const isInViewport = intersectsViewport(computeCornersBBox(effectiveCorners), bounds);
+    const isInViewport = cornersIntersectBounds(effectiveCorners, viewportBounds);
 
     if (isInViewport) {
       if (destructionQueue.has(data.id)) {

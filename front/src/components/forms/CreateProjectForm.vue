@@ -71,13 +71,6 @@ function handleSubmit() {
     ...props.project,
     ...formDataToProjectFields(formData),
     timelineStatus: timelineStatus.value,
-    proposalDate: timelineStatus.value === "proposed" ? formData.proposalDate : null,
-    proposalDatePrecision:
-      timelineStatus.value === "proposed" ? formData.proposalDatePrecision : null,
-    startDate: timelineStatus.value === "proposed" ? null : formData.startDate,
-    startDatePrecision: timelineStatus.value === "proposed" ? null : formData.startDatePrecision,
-    endDate: timelineStatus.value === "proposed" ? null : formData.endDate,
-    endDatePrecision: timelineStatus.value === "proposed" ? null : formData.endDatePrecision,
   };
 
   // Include city object if available

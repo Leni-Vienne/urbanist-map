@@ -22,6 +22,10 @@ import { db } from "./database";
 import { users, config, overlays, projects } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { verifyGoogleToken } from "./utils/googleAuth";
+import { findOrCreateOAuthUser } from "./utils/oauthAccounts";
+import { buildOsmAuthorizeUrl, exchangeOsmCodeForUser, isOsmConfigured } from "./utils/osmAuth";
+import { SYNTHETIC_EMAIL_DOMAIN } from "@shared/types";
+import crypto from "node:crypto";
 import { startCleanupJob } from "./services/cleanupService";
 import { startR2MigrationService } from "./services/r2MigrationService";
 
@@ -35,6 +39,9 @@ type SessionData = {
     emailVerified: boolean;
   };
   expiresAt?: string;
+  // Transient CSRF state for the OSM OAuth redirect, set on /api/osm-login and
+  // consumed (single-use) on /api/osm-callback.
+  osmOauth?: { state: string; rememberMe: boolean };
 };
 
 const app = new Hono<{
@@ -247,138 +254,6 @@ async function validateGoogleLoginRequest(body: unknown) {
   return validationResult.data;
 }
 
-// Helper function to update existing user's email if changed on Google's side
-async function updateExistingUserEmail(existingUser: any, newEmail: string) {
-  if (existingUser.email !== newEmail) {
-    try {
-      await db
-        .update(users)
-        .set({
-          email: newEmail,
-          emailVerified: true,
-          emailVerificationToken: null,
-        })
-        .where(eq(users.id, existingUser.id));
-
-      // Refetch updated user
-      const [updatedUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, existingUser.id))
-        .limit(1);
-      return updatedUser;
-    } catch (error: any) {
-      // Check for unique constraint violation (email taken)
-      if (
-        error.code === "23505" ||
-        error.message?.includes("unique constraint") ||
-        error.message?.includes("duplicate key")
-      ) {
-        throw Object.assign(new Error("auth.error.emailTaken"), {
-          statusCode: 409, // Conflict
-          action: "account_conflict",
-        });
-      }
-      throw error;
-    }
-  }
-  return existingUser;
-}
-
-// Helper function to link Google account to existing password-based account
-async function linkGoogleToPasswordAccount(emailUser: any, googleId: string) {
-  await db
-    .update(users)
-    .set({
-      googleId,
-      emailVerified: true,
-      emailVerificationToken: null,
-    })
-    .where(eq(users.id, emailUser.id));
-
-  return {
-    ...emailUser,
-    googleId,
-    emailVerified: true,
-  };
-}
-
-// Helper function to create new Google OAuth user.
-// Uses insert-and-retry on username unique constraint violation to avoid
-// the TOCTOU race condition of the previous check-then-insert approach.
-async function createGoogleUser(googleUser: { email: string; name: string; googleId: string }) {
-  const baseUsername = googleUser.name;
-  let username = baseUsername;
-  let counter = 1;
-
-  // eslint-disable-next-line no-unnecessary-condition
-  while (true) {
-    try {
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          email: googleUser.email,
-          username,
-          emailVerified: true,
-          passwordHash: null,
-          googleId: googleUser.googleId,
-          moderatedCountries: [], // Regular users start with no moderated countries; admin status is controlled via the `role` field
-        })
-        .returning();
-      return newUser;
-    } catch (error: any) {
-      // Retry only on username uniqueness conflict (constraint name from Drizzle: users_username_unique)
-      if (error.code === "23505" && error.constraint === "users_username_unique") {
-        username = `${baseUsername}${counter}`;
-        counter += 1;
-      } else {
-        throw error;
-      }
-    }
-  }
-}
-
-// Helper function to find or create user from Google authentication
-async function findOrCreateGoogleUser(googleUser: {
-  email: string;
-  name: string;
-  googleId: string;
-}) {
-  // SECURE: First check by googleId (not email!)
-  const [existingUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.googleId, googleUser.googleId))
-    .limit(1);
-
-  if (existingUser) {
-    // User found by Google ID - update email if changed on Google's side
-    return updateExistingUserEmail(existingUser, googleUser.email);
-  }
-
-  // No user found by Google ID - check if email exists with different auth method
-  const [emailUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, googleUser.email))
-    .limit(1);
-
-  if (emailUser) {
-    if (emailUser.googleId) {
-      // SECURITY: Email already linked to a different Google account
-      throw Object.assign(new Error("auth.error.emailLinkedToDifferentGoogle"), {
-        statusCode: 409,
-        action: "account_conflict",
-      });
-    }
-
-    // SECURE AUTO-LINKING: Link Google account to existing password account
-    return linkGoogleToPasswordAccount(emailUser, googleUser.googleId);
-  }
-
-  return createGoogleUser(googleUser);
-}
-
 function setUserSession(c: Context, user: any, rememberMe: boolean) {
   const session = c.get("session");
 
@@ -416,7 +291,14 @@ app.post("/api/google-login", async (c) => {
       return c.json({ error: "auth.error.invalidGoogleToken" }, 401);
     }
 
-    const user = await findOrCreateGoogleUser(googleUser);
+    const user = await findOrCreateOAuthUser({
+      provider: "google",
+      providerAccountId: googleUser.googleId,
+      email: googleUser.email,
+      name: googleUser.name,
+      // Only link to / update an existing account when Google says this email is verified
+      trustProviderEmail: googleUser.emailVerified,
+    });
 
     setUserSession(c, user, rememberMe);
 
@@ -448,6 +330,78 @@ app.post("/api/google-login", async (c) => {
 
     // Handle unexpected errors securely (don't leak raw error message)
     return c.json({ error: "auth.error.googleAuthFailed" }, 500);
+  }
+});
+
+// OpenStreetMap OAuth: kick off the authorization-code flow by redirecting the
+// browser to OSM. CSRF state is stashed in the session for validation on return.
+app.get("/api/osm-login", (c) => {
+  const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
+  try {
+    const ip = getClientIp(c);
+    if (!rateLimit.check(ip, 20, 60 * 1000)) {
+      return c.redirect(`${frontendUrl}/?error=too_many_requests`);
+    }
+
+    if (!isOsmConfigured()) {
+      console.error("OSM OAuth not configured (missing OSM_CLIENT_ID / OSM_CLIENT_SECRET)");
+      return c.redirect(`${frontendUrl}/?error=unexpected`);
+    }
+
+    const rememberMe = c.req.query("rememberMe") === "true";
+    const state = crypto.randomBytes(32).toString("hex");
+
+    const session = c.get("session");
+    session.set("osmOauth", { state, rememberMe });
+
+    return c.redirect(buildOsmAuthorizeUrl(state));
+  } catch (error) {
+    console.error("OSM login initiation error:", error);
+    return c.redirect(`${frontendUrl}/?error=unexpected`);
+  }
+});
+
+// OpenStreetMap OAuth callback: validate state, exchange the code for the user's
+// profile, resolve or create the account, then redirect back to the SPA.
+app.get("/api/osm-callback", async (c) => {
+  const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
+  const session = c.get("session");
+  const osmOauth = session.get("osmOauth");
+  session.set("osmOauth", undefined); // single-use, cleared regardless of outcome
+
+  try {
+    const code = c.req.query("code");
+    const state = c.req.query("state");
+    const denied = c.req.query("error"); // e.g. "access_denied" when the user cancels
+
+    if (denied || !code || !state) {
+      return c.redirect(`${frontendUrl}/?error=no_session`);
+    }
+
+    if (!osmOauth || osmOauth.state !== state) {
+      return c.redirect(`${frontendUrl}/?error=auth_failed`);
+    }
+
+    const osmUser = await exchangeOsmCodeForUser(code);
+    if (!osmUser) {
+      return c.redirect(`${frontendUrl}/?error=auth_failed`);
+    }
+
+    // OSM never exposes an email, so synthesize a stable, non-routable one.
+    const user = await findOrCreateOAuthUser({
+      provider: "osm",
+      providerAccountId: osmUser.osmId,
+      email: `osm-${osmUser.osmId}@${SYNTHETIC_EMAIL_DOMAIN}`,
+      name: osmUser.displayName,
+      trustProviderEmail: false,
+    });
+
+    setUserSession(c, user, osmOauth.rememberMe);
+
+    return c.redirect(`${frontendUrl}/?auth=success&provider=osm`);
+  } catch (error) {
+    console.error("OSM callback error:", error);
+    return c.redirect(`${frontendUrl}/?error=unexpected`);
   }
 });
 

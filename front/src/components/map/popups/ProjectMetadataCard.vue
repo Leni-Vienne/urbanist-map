@@ -204,16 +204,7 @@ function formatDate(date: Date | string | null | undefined): string {
 
 const periodParts = computed(() => {
   if (!props.project) return null;
-  return formatProjectDateRangeParts(
-    props.project.timelineStatus,
-    props.project.startDate,
-    props.project.endDate,
-    props.project.proposalDate,
-    props.project.startDatePrecision,
-    props.project.endDatePrecision,
-    props.project.proposalDatePrecision,
-    $t,
-  );
+  return formatProjectDateRangeParts(props.project, $t);
 });
 
 const osmEditUrl = computed(() => {

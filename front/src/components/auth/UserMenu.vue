@@ -51,7 +51,10 @@
       <div class="flex flex-col w-48">
         <div class="px-2 py-1.5 bg-content-hover-background border-round mb-1">
           <div class="font-medium text-sm text-ellipsis overflow-hidden">
-            {{ authStore.user?.email }}
+            {{ isOsmAccount ? authStore.user?.username : authStore.user?.email }}
+          </div>
+          <div v-if="isOsmAccount" class="text-xs text-muted-color">
+            {{ $t("auth.openStreetMapAccount") }}
           </div>
         </div>
 
@@ -116,7 +119,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { isSyntheticEmail } from "@shared/types";
 import { hasUnsavedChanges } from "@/utils/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -138,6 +142,11 @@ const toast = useToast();
 const { t } = useI18n();
 const isMenuOpen = ref(false);
 const userPopover = ref();
+
+// OSM accounts have a synthetic, non-routable email, so show the username instead.
+const isOsmAccount = computed(() =>
+  authStore.user?.email ? isSyntheticEmail(authStore.user.email) : false,
+);
 
 // Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
