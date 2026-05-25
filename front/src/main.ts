@@ -132,6 +132,13 @@ app.use(i18n);
 app.use(PrimeVue, {
   ripple: true,
   inputVariant: "filled",
+  // Mobile drawer sits at z-1101; lift dropdown/menu overlays above it (default base is 1000).
+  zIndex: {
+    modal: 1100,
+    overlay: 1200,
+    menu: 1200,
+    tooltip: 1100,
+  },
   theme: {
     preset: UrbanistmapPreset,
     options: {
