@@ -24,6 +24,7 @@ import { eq } from "drizzle-orm";
 import { verifyGoogleToken } from "./utils/googleAuth";
 import { findOrCreateOAuthUser } from "./utils/oauthAccounts";
 import { buildOsmAuthorizeUrl, exchangeOsmCodeForUser, isOsmConfigured } from "./utils/osmAuth";
+import { SYNTHETIC_EMAIL_DOMAIN } from "@shared/types";
 import crypto from "node:crypto";
 import { startCleanupJob } from "./services/cleanupService";
 import { startR2MigrationService } from "./services/r2MigrationService";
@@ -390,7 +391,7 @@ app.get("/api/osm-callback", async (c) => {
     const user = await findOrCreateOAuthUser({
       provider: "osm",
       providerAccountId: osmUser.osmId,
-      email: `osm-${osmUser.osmId}@users.urbanistmap.org`,
+      email: `osm-${osmUser.osmId}@${SYNTHETIC_EMAIL_DOMAIN}`,
       name: osmUser.displayName,
       trustProviderEmail: false,
     });

@@ -266,6 +266,7 @@
     "moderationMessage": "Vous avez besoin de privilèges de modérateur pour accéder à cette section.",
     "signedOut": "Déconnecté",
     "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
+    "openStreetMapAccount": "Compte OpenStreetMap",
     "resetPassword": "Réinitialiser le mot de passe",
     "forgotPasswordTitle": "Mot de passe oublié ?",
     "forgotPasswordMessage": "Entrez votre email et un lien vous sera envoyé pour réinitialiser votre mot de passe.",

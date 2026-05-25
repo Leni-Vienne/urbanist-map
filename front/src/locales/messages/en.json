@@ -266,6 +266,7 @@
     "moderationMessage": "You need moderator privileges to access this section.",
     "signedOut": "Signed Out",
     "signedOutMessage": "You have successfully signed out.",
+    "openStreetMapAccount": "OpenStreetMap account",
     "resetPassword": "Reset Password",
     "forgotPasswordTitle": "Forgot your password?",
     "forgotPasswordMessage": "Enter your email and a link will be sent to reset your password.",
