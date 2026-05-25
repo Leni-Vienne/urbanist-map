@@ -60,6 +60,7 @@
         :disabled="countriesLoading && availableCountries.length === 0"
         @change="handleCountryChange"
         class="flex-1 min-w-50 max-w-75"
+        appendTo="body"
       >
         <template #option="{ option }">
           <div class="flex items-center justify-between gap-2 w-full">
