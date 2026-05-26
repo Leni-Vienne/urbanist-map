@@ -40,6 +40,15 @@ EXCLUDE_BUILDINGS = {
     'shed', 'hut', 'cabin', 'roof', 'terrace', 'carport'
 }
 
+# Building/landuse types that mark a definite non-house development. These get a lower area
+# floor; generic untyped construction keeps the higher floor since it is more likely a house.
+NONHOUSE_TYPES = {
+    'apartments', 'commercial', 'office', 'retail', 'industrial', 'hospital', 'school',
+    'hotel', 'university', 'warehouse', 'public', 'civic', 'college', 'kindergarten',
+    'church', 'dormitory', 'clinic', 'sports_centre', 'train_station', 'transportation',
+    'education', 'government', 'farm'
+}
+
 
 def clean_description(desc):
     """Strip URLs from a description string. Returns (cleaned_text, first_url_or_None)."""
@@ -113,13 +122,16 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         if any(k in tags for k in infrastructure_keys):
             return
 
-        # Exclude features where construction/proposed value is a transport infrastructure type
+        # Exclude features where construction/proposed value is a transport infrastructure type.
+        # With landuse=construction or a building tag, the value names the future land use
+        # (e.g. construction=residential -> landuse=residential), not a road class, so keep it.
         infrastructure_values = {
             'tram', 'rail', 'railway', 'light_rail', 'subway', 'narrow_gauge', 'train',
             'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
             'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel'
         }
-        if tags.get('construction') in infrastructure_values or tags.get('proposed') in infrastructure_values:
+        has_areal_context = landuse == 'construction' or building != ''
+        if not has_areal_context and (tags.get('construction') in infrastructure_values or tags.get('proposed') in infrastructure_values):
             return
 
         try:
@@ -131,12 +143,21 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         lat = geom.centroid.y
         area_m2 = geom.area * (111320**2) * math.cos(math.radians(lat))
 
+        # A definite development (clear non-house type, or a landuse=construction area) uses a
+        # lower size floor; generic untyped construction keeps the higher floor to drop houses.
+        has_nonhouse_signal = (
+            building in NONHOUSE_TYPES or construction in NONHOUSE_TYPES or
+            proposed in NONHOUSE_TYPES or planned in NONHOUSE_TYPES or
+            landuse == 'construction' or
+            landuse in ('commercial', 'retail', 'industrial', 'residential')
+        )
+
         if is_park_construction:
             if area_m2 < 200:
                 return
             feature_kind = 'park'
         else:
-            if area_m2 < 400:
+            if area_m2 < (200 if has_nonhouse_signal else 400):
                 return
             feature_kind = 'building'
 
@@ -184,10 +205,12 @@ class ArealExtractionHandler(osmium.SimpleHandler):
 
 def filter_nested_buildings(features, geometries):
     """
-    Filter out redundant nested buildings based on naming:
-    - If a large area HAS a name → keep only the large area, remove buildings inside
-    - If a large area has NO name → remove the large area, keep individual buildings inside
-    
+    Remove redundant unnamed container polygons:
+    - A large area with NO name that contains smaller buildings is removed, keeping the
+      individual buildings inside.
+    - A named area (a development) is kept alongside the buildings within it, so
+      individually-mapped buildings are never hidden under a development boundary.
+
     Returns (filtered_features, stats_dict).
     """
     from shapely.strtree import STRtree
@@ -196,7 +219,7 @@ def filter_nested_buildings(features, geometries):
     non_buildings = [f for f in features if f['properties'].get('transport_type') != 'building']
     
     if len(buildings) < 2:
-        return features, {'checked': 0, 'removed_unnamed_containers': 0, 'removed_contained_buildings': 0}
+        return features, {'checked': 0, 'removed_unnamed_containers': 0}
     
     # Build spatial index
     building_geoms = []
@@ -209,14 +232,13 @@ def filter_nested_buildings(features, geometries):
             building_map[idx] = f
     
     if not building_geoms:
-        return features, {'checked': 0, 'removed_unnamed_containers': 0, 'removed_contained_buildings': 0}
+        return features, {'checked': 0, 'removed_unnamed_containers': 0}
     
     tree = STRtree(building_geoms)
 
     to_remove = set()
     removed_unnamed_containers = 0
-    removed_contained_buildings = 0
-    
+
     for i, geom in enumerate(building_geoms):
         if i in to_remove:
             continue
@@ -234,41 +256,24 @@ def filter_nested_buildings(features, geometries):
                 continue
                 
             other_feature = building_map[j]
-            other_fid = other_feature['id']
-            other_props = other_feature['properties']
-            other_area = other_props.get('area_sqm', 0)
+            other_area = other_feature['properties'].get('area_sqm', 0)
             other_geom = building_geoms[j]
-            
-            # Check if one contains the other (use centroid for speed)
-            # The larger one is the potential container
-            if area > other_area * 1.5:  # i is larger, might contain j
+
+            # Only an unnamed container is removed (keeping the smaller buildings inside it).
+            # A named area is kept alongside the buildings within it. The case where j is the
+            # larger container is handled when j is itself processed as i.
+            if area > other_area * 1.5 and not has_name:  # i is an unnamed container of j
                 if geom.contains(other_geom.centroid):
-                    if has_name:
-                        # Named container: remove the contained building
-                        to_remove.add(j)
-                        removed_contained_buildings += 1
-                    else:
-                        # Unnamed container: remove the container, keep individual buildings
-                        to_remove.add(i)
-                        removed_unnamed_containers += 1
-                        break  # Stop checking, this container is removed
-            elif other_area > area * 1.5:  # j is larger, might contain i
-                other_has_name = bool(other_props.get('name', '').strip())
-                if other_geom.contains(geom.centroid):
-                    if other_has_name:
-                        # Named container: remove this building (i)
-                        to_remove.add(i)
-                        removed_contained_buildings += 1
-                        break
-                    # else: unnamed container will be handled when we process j
+                    to_remove.add(i)
+                    removed_unnamed_containers += 1
+                    break  # this container is removed, stop checking
     
     # Build filtered list
     kept_buildings = [building_map[i] for i in range(len(building_geoms)) if i not in to_remove]
     
     stats = {
         'checked': len(buildings),
-        'removed_unnamed_containers': removed_unnamed_containers,
-        'removed_contained_buildings': removed_contained_buildings
+        'removed_unnamed_containers': removed_unnamed_containers
     }
     
     return non_buildings + kept_buildings, stats
@@ -301,7 +306,6 @@ def main():
     print(f"[areal] [{_ts()}] Nesting filter done in {_fmt(time.time() - t)}")
     print(f"  Checked: {nest_stats['checked']:,} buildings")
     print(f"  Removed unnamed containers: {nest_stats['removed_unnamed_containers']:,}")
-    print(f"  Removed buildings inside named areas: {nest_stats['removed_contained_buildings']:,}")
     print(f"  Kept: {len(features):,}")
 
     print(f"\n[areal] [{_ts()}] Writing {OUTPUT_FILE}...")
