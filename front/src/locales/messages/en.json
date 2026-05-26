@@ -449,7 +449,8 @@
       "out": "Zoom Out"
     },
     "filter": "Filter Projects",
-    "language": "Language"
+    "language": "Language",
+    "settings": "Settings"
   },
   "tooltips": {
     "editProject": "Edit Project",

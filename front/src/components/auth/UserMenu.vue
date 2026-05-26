@@ -4,7 +4,15 @@
   >
     <!-- Sign In Button for unauthenticated users -->
     <template v-if="!authStore.isAuthenticated">
-      <LanguageSwitcherMenu display-mode="icon" />
+      <button
+        type="button"
+        class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-content-background border border-surface cursor-pointer transition-all duration-200 text-(--p-text-color-secondary) hover:bg-content-hover-background hover:text-primary-hover-color hover:shadow-sm"
+        :aria-label="$t('controls.settings')"
+        @click.stop="toggleSettings"
+        @dblclick.stop
+      >
+        <i class="pi pi-cog text-base"></i>
+      </button>
       <Button
         :label="$t('auth.signIn')"
         size="small"
@@ -58,30 +66,7 @@
           </div>
         </div>
 
-        <!-- Language Switcher as list item -->
-        <LanguageSwitcherMenu display-mode="list-item" />
-
-        <!-- Dark mode toggle as list item -->
-        <button
-          type="button"
-          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
-          @click="toggleTheme"
-        >
-          <i :class="theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
-          <span>{{ theme === "dark" ? $t("theme.light") : $t("theme.dark") }}</span>
-        </button>
-
-        <!-- 3D buildings toggle as list item -->
-        <button
-          type="button"
-          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
-          @click="toggleBuildings3D"
-        >
-          <i class="pi pi-building"></i>
-          <span>{{
-            show3DBuildings ? $t("map.buildings3D.disable") : $t("map.buildings3D.enable")
-          }}</span>
-        </button>
+        <SettingsMenuItems />
 
         <!-- Moderation Results as list item -->
         <button
@@ -115,6 +100,13 @@
       </div>
     </Popover>
 
+    <!-- Settings popover for signed-out users -->
+    <Popover ref="settingsPopover">
+      <div class="flex flex-col w-48">
+        <SettingsMenuItems />
+      </div>
+    </Popover>
+
     <!-- Auth Modal, v-if prevents mounting (and async loading) until actually needed -->
     <AuthModal
       v-if="uiStore.authModalVisible"
@@ -138,9 +130,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
-import { useTheme } from "@/composables/core/useTheme";
-import { useBuildings3D } from "@/composables/core/useBuildings3D";
+import SettingsMenuItems from "@/components/map/SettingsMenuItems.vue";
 
 // Lazy-load AuthModal for chunk splitting, avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
@@ -148,14 +138,13 @@ const ModeratedContributionsDialog = defineAsyncComponent(
   () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
 );
 
-const { theme, toggle: toggleTheme } = useTheme();
-const { show3DBuildings, toggle: toggleBuildings3D } = useBuildings3D();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const { t } = useI18n();
 const isMenuOpen = ref(false);
 const userPopover = ref();
+const settingsPopover = ref();
 
 // OSM accounts have a synthetic, non-routable email, so show the username instead.
 const isOsmAccount = computed(() =>
@@ -166,6 +155,10 @@ const isOsmAccount = computed(() =>
 function toggleMenu(event: Event) {
   userPopover.value.toggle(event);
   isMenuOpen.value = !isMenuOpen.value;
+}
+
+function toggleSettings(event: Event) {
+  settingsPopover.value.toggle(event);
 }
 
 async function handleSignOut() {
@@ -218,6 +211,9 @@ function handleResize() {
   if (isMenuOpen.value && userPopover.value) {
     userPopover.value.hide();
     isMenuOpen.value = false;
+  }
+  if (settingsPopover.value?.visible) {
+    settingsPopover.value.hide();
   }
 }
 
