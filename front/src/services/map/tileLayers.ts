@@ -144,18 +144,38 @@ function getBasemapMlMap(): MaplibreMap | null {
   return mlMapRef.current;
 }
 
+// Original extrusion height/base expressions per layer, captured before flattening
+// so 3D can be restored on toggle-back.
+const originalExtrusionPaint = new Map<string, { height: unknown; base: unknown }>();
+
 /**
- * Toggle visibility of the basemap's 3D building extrusion layers.
- * Only the plan (Liberty) style has fill-extrusion layers; satellite styles have none.
+ * Switch the basemap's buildings between 3D extrusion and flat footprints.
+ * Liberty's flat "building" fill only renders at z13-14; past z14 the footprint
+ * exists solely as the "building-3d" extrusion. So we flatten the extrusion to
+ * height 0 (keeping the footprint) rather than hiding it, which would leave no
+ * buildings when zoomed in. Satellite styles have no fill-extrusion layers.
  */
-export function applyBuildings3DVisibility(visible: boolean): void {
+function applyBuildings3DState(extruded: boolean): void {
   const mlMap = getBasemapMlMap();
   if (!mlMap || !mlMap.isStyleLoaded()) return;
 
-  const visibility = visible ? "visible" : "none";
   for (const layer of mlMap.getStyle().layers) {
-    if (layer.type === "fill-extrusion") {
-      mlMap.setLayoutProperty(layer.id, "visibility", visibility);
+    if (layer.type !== "fill-extrusion") continue;
+
+    if (!originalExtrusionPaint.has(layer.id)) {
+      originalExtrusionPaint.set(layer.id, {
+        height: mlMap.getPaintProperty(layer.id, "fill-extrusion-height"),
+        base: mlMap.getPaintProperty(layer.id, "fill-extrusion-base"),
+      });
+    }
+
+    if (extruded) {
+      const original = originalExtrusionPaint.get(layer.id);
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-height", original?.height);
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-base", original?.base);
+    } else {
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-height", 0);
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-base", 0);
     }
   }
 }
@@ -347,7 +367,7 @@ async function addTileLayersToMap(): Promise<void> {
 
       applyPlanStyleRoadOverrides(mlMap);
       applyRailStyleOverrides(mlMap);
-      applyBuildings3DVisibility(show3DBuildings.value);
+      applyBuildings3DState(show3DBuildings.value);
 
       // Project data is added to the vector overlay layer, not here.
 
@@ -411,8 +431,8 @@ watch(
   { deep: true },
 );
 
-watch(show3DBuildings, (visible) => {
-  applyBuildings3DVisibility(visible);
+watch(show3DBuildings, (extruded) => {
+  applyBuildings3DState(extruded);
 });
 
 /** Update the pending-project-points source with fresh GeoJSON data (edit/moderation mode). */
@@ -463,7 +483,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
-        applyBuildings3DVisibility(show3DBuildings.value);
+        applyBuildings3DState(show3DBuildings.value);
       }
       resolve();
     });
