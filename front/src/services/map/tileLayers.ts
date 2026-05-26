@@ -14,6 +14,7 @@ import {
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
 import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
+import { show3DBuildings } from "@/composables/core/useBuildings3D";
 import {
   selectedProjectTags,
   visibleStates,
@@ -141,6 +142,22 @@ export function getMlMap(): MaplibreMap | null {
 
 function getBasemapMlMap(): MaplibreMap | null {
   return mlMapRef.current;
+}
+
+/**
+ * Toggle visibility of the basemap's 3D building extrusion layers.
+ * Only the plan (Liberty) style has fill-extrusion layers; satellite styles have none.
+ */
+export function applyBuildings3DVisibility(visible: boolean): void {
+  const mlMap = getBasemapMlMap();
+  if (!mlMap || !mlMap.isStyleLoaded()) return;
+
+  const visibility = visible ? "visible" : "none";
+  for (const layer of mlMap.getStyle().layers) {
+    if (layer.type === "fill-extrusion") {
+      mlMap.setLayoutProperty(layer.id, "visibility", visibility);
+    }
+  }
 }
 
 /** Register a callback to be called once (and immediately if already ready) when vector mlMap is loaded. */
@@ -330,6 +347,7 @@ async function addTileLayersToMap(): Promise<void> {
 
       applyPlanStyleRoadOverrides(mlMap);
       applyRailStyleOverrides(mlMap);
+      applyBuildings3DVisibility(show3DBuildings.value);
 
       // Project data is added to the vector overlay layer, not here.
 
@@ -393,6 +411,10 @@ watch(
   { deep: true },
 );
 
+watch(show3DBuildings, (visible) => {
+  applyBuildings3DVisibility(visible);
+});
+
 /** Update the pending-project-points source with fresh GeoJSON data (edit/moderation mode). */
 export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
   lastPendingProjectPointsGeojson = geojson;
@@ -441,6 +463,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
+        applyBuildings3DVisibility(show3DBuildings.value);
       }
       resolve();
     });

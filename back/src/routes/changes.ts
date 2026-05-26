@@ -98,6 +98,10 @@ function convertCoordinateToGeometry(coordValue: unknown) {
   return sql`ST_SetSRID(ST_MakePoint(${coordValue.lng}, ${coordValue.lat}), 4326)`;
 }
 
+// Project fields backed by timestamp columns. Stored in jsonb as ISO strings,
+// so they need coercion back to Date before Drizzle serializes them.
+const PROJECT_DATE_FIELDS = new Set(["proposalDate", "startDate", "endDate"]);
+
 // Helper function to build update data with proper geometry handling
 function buildUpdateData(change: { entityType: string; fieldName: string; newValue: unknown }) {
   const isOverlayCornersField = change.entityType === "overlay" && change.fieldName === "corners";
@@ -124,6 +128,12 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
     }
     const collection = parseGeometryCollection(change.newValue);
     return { geometry: sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326)` };
+  }
+
+  if (change.entityType === "project" && PROJECT_DATE_FIELDS.has(change.fieldName)) {
+    const value = change.newValue;
+    const date = value === null || value === undefined ? null : new Date(value as string | number);
+    return { [change.fieldName]: date };
   }
 
   // For non-geometry fields, use the value directly
