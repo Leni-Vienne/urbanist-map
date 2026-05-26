@@ -3,6 +3,7 @@
 import L from "leaflet";
 import { t } from "@/locales";
 import { map, currentZoomLevel } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -41,7 +42,7 @@ export async function updateOverlayEditingState(): Promise<void> {
     const layer = registry.getLayer(overlayObject.id);
     if (!layer) return;
 
-    if (!map.value.hasLayer(layer)) return;
+    if (!legacyLeafletMap().hasLayer(layer)) return;
 
     const isEditMode = mapStore.mode === "edit";
     // Only pass mode actions, toolbar UI is handled by OverlayFloatingToolbar.vue.

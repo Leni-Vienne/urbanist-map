@@ -5,6 +5,7 @@
 
 import L from "leaflet";
 import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { useUiStore } from "@/stores/uiStore";
 import { setProjectPopupTarget } from "@/services/map/popupState";
 import { unhighlightProjectShapes } from "@/services/map/shapeLayerRegistry";
@@ -35,10 +36,12 @@ function ensureAnchorCSS() {
   document.head.appendChild(style);
 }
 
-function createAnchorMarker(latlng: L.LatLng): L.Marker {
+function createAnchorMarker(latlng: { lat: number; lng: number }): L.Marker {
   ensureAnchorCSS();
-  if (!map.value.getPane("projectPopupPane")) {
-    map.value.createPane("projectPopupPane").style.zIndex = "610";
+  // TODO(phase 3): replace the invisible Leaflet anchor marker + pane with a maplibregl.Marker.
+  const leafletMap = legacyLeafletMap();
+  if (!leafletMap.getPane("projectPopupPane")) {
+    leafletMap.createPane("projectPopupPane").style.zIndex = "610";
   }
   return L.marker(latlng, {
     icon: L.divIcon({
@@ -49,7 +52,7 @@ function createAnchorMarker(latlng: L.LatLng): L.Marker {
     interactive: false,
     keyboard: false,
     pane: "projectPopupPane",
-  }).addTo(map.value);
+  }).addTo(leafletMap);
 }
 
 function attachClickHandler() {
@@ -88,7 +91,7 @@ export function createProjectInfoTeleportTarget(marker: L.Marker) {
  * Create teleport target for project info popup at a map position (e.g. shape click).
  * If a target already exists (switching projects), just moves the anchor.
  */
-export function createProjectInfoTeleportTargetAtLatLng(latlng: L.LatLng) {
+export function createProjectInfoTeleportTargetAtLatLng(latlng: { lat: number; lng: number }) {
   if (anchorMarker) {
     anchorMarker.setLatLng(latlng);
     return;

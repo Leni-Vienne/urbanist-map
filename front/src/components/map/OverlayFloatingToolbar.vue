@@ -111,6 +111,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { getLayer, getAllLayers } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
@@ -171,9 +172,11 @@ function destroyMarker() {
 
 function createMarker(latlng: L.LatLng) {
   if (!map.value) return;
+  // TODO(phase 3): replace the Leaflet anchor marker + pane with a maplibregl.Marker element.
+  const leafletMap = legacyLeafletMap();
   // Use a dedicated pane above markerPane (z-index 600) so the toolbar always renders on top of markers.
-  if (!map.value.getPane("overlayToolbarPane")) {
-    map.value.createPane("overlayToolbarPane").style.zIndex = "620";
+  if (!leafletMap.getPane("overlayToolbarPane")) {
+    leafletMap.createPane("overlayToolbarPane").style.zIndex = "620";
   }
   anchorMarker = L.marker(latlng, {
     icon: L.divIcon({
@@ -184,7 +187,7 @@ function createMarker(latlng: L.LatLng) {
     interactive: false,
     keyboard: false,
     pane: "overlayToolbarPane",
-  }).addTo(map.value);
+  }).addTo(leafletMap);
   // _icon is set synchronously by Leaflet's addTo → onAdd → _initIcon
   markerIconEl.value = (anchorMarker as any)._icon ?? null;
 }

@@ -1,6 +1,7 @@
 import L from "leaflet";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -108,12 +109,12 @@ export function zoomToOverlayAndSelect(
       });
       // Do not call waitForElementThenSelect here; the onReady callback handles selection.
       return;
-    } else if (overlayLayer && !map.value.hasLayer(overlayLayer)) {
+    } else if (overlayLayer && !legacyLeafletMap().hasLayer(overlayLayer)) {
       const currentZoom = map.value.getZoom();
       if (currentZoom >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
         const authStore = useAuthStore();
         if (overlayObj && isOverlayVisible(overlayObj, mapStore.mode, authStore.user?.id)) {
-          overlayLayer.addTo(map.value);
+          overlayLayer.addTo(legacyLeafletMap());
           // If this overlay is selected, bring it to front; otherwise keep the currently selected overlay on top.
           requestAnimationFrame(() => {
             if (overlayStore.idSelectedOverlay === overlayId) {

@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import L, { type FitBoundsOptions, type PanOptions, type ZoomPanOptions } from "leaflet";
+import type { LngLatLike, PaddingOptions } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import type { CameraBounds } from "@/types/index";
@@ -7,28 +7,68 @@ import type { CameraBounds } from "@/types/index";
 const currentCameraBounds = ref<CameraBounds | null>(null);
 
 // Minimum distance in meters to skip re-animation when the camera is already close enough.
-// distanceTo() returns meters, so 10m ≈ a few map pixels at street-level zoom.
-// For bounds comparison (mobileAwareFlyToBounds) the multiplied threshold is 100m,
-// which is still well below the size of any overlay (max ~few hundred meters).
+// 10m is a few map pixels at street-level zoom. For bounds comparison the threshold is
+// multiplied to 100m, still well below the size of any overlay (max ~few hundred meters).
 const distanceThreshold = 10;
+
+export type LatLngInput = [number, number] | { lat: number; lng: number };
+
+interface FlyOptions {
+  /** Animation duration in seconds (converted to milliseconds for MapLibre). */
+  duration?: number;
+  /** Accepted for call-site compatibility; MapLibre animates regardless. */
+  animate?: boolean;
+}
+
+interface FlyToBoundsOptions extends FlyOptions {
+  maxZoom?: number;
+  /** A single inset, or [horizontal, vertical] in pixels. */
+  padding?: number | [number, number];
+}
+
+/** Structural bounds shape implemented by both Leaflet LatLngBounds and MapLibre LngLatBounds. */
+export interface BoundsLike {
+  getNorth(): number;
+  getSouth(): number;
+  getEast(): number;
+  getWest(): number;
+}
+
+function toLatLng(p: LatLngInput): { lat: number; lng: number } {
+  return Array.isArray(p) ? { lat: p[0], lng: p[1] } : { lat: p.lat, lng: p.lng };
+}
+
+function readLngLat(c: LngLatLike): { lng: number; lat: number } {
+  if (Array.isArray(c)) return { lng: c[0], lat: c[1] };
+  return { lng: (c as { lng: number }).lng, lat: (c as { lat: number }).lat };
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
 
 /**
  * Initialize camera bounds tracking.
  */
 export function initializeCameraBounds() {
+  const m = map.value;
+
   function updateBounds() {
     try {
-      const bounds = map.value.getBounds();
-      const zoom = map.value.getZoom();
-
-      const newBounds: CameraBounds = {
+      const bounds = m.getBounds();
+      currentCameraBounds.value = {
         north: bounds.getNorth(),
         south: bounds.getSouth(),
         east: bounds.getEast(),
         west: bounds.getWest(),
-        zoom,
+        zoom: m.getZoom(),
       };
-      currentCameraBounds.value = newBounds;
     } catch (error) {
       console.error("Error updating camera bounds:", error);
     }
@@ -36,9 +76,9 @@ export function initializeCameraBounds() {
 
   updateBounds();
 
-  map.value.on("load", updateBounds);
-  map.value.on("moveend", updateBounds);
-  map.value.on("zoomend", updateBounds);
+  m.on("load", updateBounds);
+  m.on("moveend", updateBounds);
+  m.on("zoomend", updateBounds);
 }
 
 export function getCameraBounds() {
@@ -68,180 +108,132 @@ function getMobileDrawerBottomPaddingPx(): number {
 }
 
 /**
- * Mobile-aware flyTo - adjusts the target center to account for the drawer
- * covering the bottom half of the screen.
- * Creates a small bounds around the point and uses flyToBounds with mobile-aware padding,
- * leveraging Leaflet's built-in padding logic.
+ * Resolve the MapLibre padding for a camera move. On mobile with the drawer open, the
+ * target is pushed above the drawer; otherwise the caller's inset (default 50px) is used.
  */
-export function mobileAwareFlyTo(
-  latlng: L.LatLngExpression,
-  zoom?: number,
-  options: ZoomPanOptions = {},
-): void {
-  const flyOptions: ZoomPanOptions = { duration: 1.5, easeLinearity: 0.25, ...options };
-  const latLng = L.latLng(latlng);
-  const currentCenter = map.value.getCenter();
-  const currentZoom = map.value.getZoom();
-  const targetZoom = zoom ?? currentZoom;
-
-  // Check if already at target location and zoom to prevent camera shake
-  // Only skip if BOTH distance and zoom are already correct
-  const distance = currentCenter.distanceTo(latLng);
-  const zoomDiff = Math.abs(currentZoom - targetZoom);
-
-  if (distance < distanceThreshold && zoomDiff < 0.1) {
-    return; // Already at target, skip animation
+function resolvePadding(p?: number | [number, number]): PaddingOptions | number {
+  if (shouldApplyMobileOffset()) {
+    return { top: 50, bottom: getMobileDrawerBottomPaddingPx(), left: 50, right: 50 };
   }
-
-  const applyOffset = shouldApplyMobileOffset();
-
-  if (!applyOffset) {
-    // Desktop or drawer closed - center normally
-    map.value.flyTo([latLng.lat, latLng.lng], zoom, flyOptions);
-    return;
-  }
-
-  // Mobile with drawer open - use flyToBounds with a tiny bounds around the point
-  // This leverages the working padding logic from mobileAwareFlyToBounds
-  const offset = 0.001; // Small offset to create minimal bounds
-  const bounds = L.latLngBounds(
-    [latLng.lat - offset, latLng.lng - offset],
-    [latLng.lat + offset, latLng.lng + offset],
-  );
-
-  const bottomPadding = getMobileDrawerBottomPaddingPx();
-  // Use flyToBounds with mobile-aware padding and target zoom
-  const fitOptions: FitBoundsOptions = {
-    ...flyOptions,
-    maxZoom: zoom ?? map.value.getZoom(),
-    paddingTopLeft: [50, 50],
-    paddingBottomRight: [50, bottomPadding],
-  };
-
-  map.value.flyToBounds(bounds, fitOptions);
-}
-
-/**
- * Mobile-aware panTo - pure pan with no zoom change, accounting for the mobile drawer offset.
- * Use instead of mobileAwareFlyTo when the zoom level is already correct, to avoid
- * the zoom-out arc that flyTo produces for same-zoom pans.
- */
-export function mobileAwarePanTo(
-  latlng: L.LatLngExpression,
-  options: PanOptions = { animate: true, duration: 0.3 },
-): void {
-  const latLng = L.latLng(latlng);
-  const currentCenter = map.value.getCenter();
-  const distance = currentCenter.distanceTo(latLng);
-
-  if (distance < distanceThreshold) {
-    return; // Already at target, skip animation
-  }
-
-  const applyOffset = shouldApplyMobileOffset();
-
-  if (!applyOffset) {
-    map.value.panTo([latLng.lat, latLng.lng], options);
-    return;
-  }
-
-  // Mobile with drawer open: shift the pan target southward in pixel space.
-  // panTo centers on the given point, so panning to a point south of the target
-  // makes the target appear in the visible area above the drawer.
-  // In Leaflet pixel coords, Y increases southward.
-  const drawerPaddingBottom = getMobileDrawerBottomPaddingPx();
-  const drawerPaddingTop = 50;
-  const verticalOffsetPx = (drawerPaddingBottom - drawerPaddingTop) / 2;
-  const currentZoom = map.value.getZoom();
-  const targetPixel = map.value.project(latLng, currentZoom);
-  const offsetLatLng = map.value.unproject(
-    targetPixel.add(L.point(0, verticalOffsetPx)),
-    currentZoom,
-  );
-
-  map.value.panTo(offsetLatLng, options);
+  if (typeof p === "number") return p;
+  if (Array.isArray(p)) return { top: p[1], bottom: p[1], left: p[0], right: p[0] };
+  return 50;
 }
 
 /**
  * Scale flight duration based on how far the camera needs to travel.
- * The caller supplies a maximum duration; nearby moves get a shorter one.
  * Breakpoints (linear interpolation between them):
  *   centerDistance < 200 m  AND zoomDiff < 1  →  minDuration (0.3 s)
  *   centerDistance > 5 000 m OR  zoomDiff > 3  →  maxDuration (caller value)
  */
 function scaledDuration(centerDistance: number, zoomDiff: number, maxDuration: number): number {
   const minDuration = 0.3;
-
-  // Normalise each axis to [0, 1] then take the max so either axis alone
-  // can drive a longer animation (e.g. big zoom-out with little panning).
   const distanceFactor = Math.min(centerDistance / 5000, 1);
   const zoomFactor = Math.min(zoomDiff / 3, 1);
   const t = Math.max(distanceFactor, zoomFactor);
-
   return minDuration + t * (maxDuration - minDuration);
 }
 
 /**
- * Mobile-aware flyToBounds - uses asymmetric padding on mobile
- * Returns true if the flight was skipped (camera already at target), false otherwise
+ * Fly to a point, accounting for the mobile drawer covering the bottom of the screen.
  */
-export function mobileAwareFlyToBounds(
-  bounds: L.LatLngBoundsExpression,
-  options?: FitBoundsOptions,
-): boolean {
-  const targetBounds = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds);
-  const currentZoom = map.value.getZoom();
+export function mobileAwareFlyTo(
+  latlng: LatLngInput,
+  zoom?: number,
+  options: FlyOptions = {},
+): void {
+  const m = map.value;
+  const target = toLatLng(latlng);
+  const center = m.getCenter();
+  const currentZoom = m.getZoom();
+  const targetZoom = zoom ?? currentZoom;
 
-  // For shake prevention with asymmetric padding, we need a different approach
-  // Calculate the center point that would result from fitting these bounds
-  const targetCenter = targetBounds.getCenter();
-  const currentCenter = map.value.getCenter();
-
-  // Check distance between current center and target center
-  const centerDistance = currentCenter.distanceTo(targetCenter);
-
-  // Calculate zoom - For asymmetric padding, we can't use getBoundsZoom directly
-  // Instead, we'll check if maxZoom is set, or estimate based on bounds size
-  let targetZoom = currentZoom;
-  if (options?.maxZoom !== undefined) {
-    targetZoom = options.maxZoom;
-  } else {
-    // Estimate zoom based on bounds size (will be refined by Leaflet)
-    // This is just for comparison purposes
-    targetZoom = map.value.getBoundsZoom(targetBounds, false);
+  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+  const zoomDiff = Math.abs(currentZoom - targetZoom);
+  if (distance < distanceThreshold && zoomDiff < 0.1) {
+    return; // Already at target, skip animation
   }
 
+  m.flyTo({
+    center: [target.lng, target.lat],
+    zoom: targetZoom,
+    duration: (options.duration ?? 1.5) * 1000,
+    padding: resolvePadding(),
+    essential: true,
+  });
+}
+
+/**
+ * Pure pan with no zoom change, accounting for the mobile drawer offset.
+ * Use instead of mobileAwareFlyTo when the zoom level is already correct, to avoid
+ * the zoom-out arc that flyTo produces for same-zoom pans.
+ */
+export function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
+  const m = map.value;
+  const target = toLatLng(latlng);
+  const center = m.getCenter();
+  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+
+  if (distance < distanceThreshold) {
+    return; // Already at target, skip animation
+  }
+
+  m.easeTo({
+    center: [target.lng, target.lat],
+    duration: (options.duration ?? 0.3) * 1000,
+    padding: resolvePadding(),
+    essential: true,
+  });
+}
+
+/**
+ * Fit a bounds, with mobile-aware padding.
+ * Returns true if the flight was skipped (camera already at target), false otherwise.
+ */
+export function mobileAwareFlyToBounds(
+  bounds: BoundsLike,
+  options: FlyToBoundsOptions = {},
+): boolean {
+  const m = map.value;
+  const llb: [[number, number], [number, number]] = [
+    [bounds.getWest(), bounds.getSouth()],
+    [bounds.getEast(), bounds.getNorth()],
+  ];
+  const padding = resolvePadding(options.padding);
+
+  const currentZoom = m.getZoom();
+  const currentCenter = m.getCenter();
+
+  const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding });
+  let targetZoom = currentZoom;
+  let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
+  if (cam) {
+    targetZoom = cam.zoom ?? currentZoom;
+    if (cam.center) targetCenter = readLngLat(cam.center);
+  }
+
+  const centerDistance = haversineMeters(
+    currentCenter.lat,
+    currentCenter.lng,
+    targetCenter.lat,
+    targetCenter.lng,
+  );
   const zoomDiff = Math.abs(currentZoom - targetZoom);
 
-  // Only skip if center is very close AND zoom is similar
-  // Use larger threshold for bounds since we're comparing centers, not corners
+  // Larger threshold for bounds since we compare centers, not corners.
   if (centerDistance < distanceThreshold * 10 && zoomDiff < 0.1) {
     return true; // Already viewing these bounds, skip animation
   }
 
-  // Scale duration so nearby overlays don't suffer a comically slow 1.5 s crawl
-  const maxDuration = typeof options?.duration === "number" ? options.duration : 1.5;
+  const maxDuration = options.duration ?? 1.5;
   const duration = scaledDuration(centerDistance, zoomDiff, maxDuration);
 
-  const applyOffset = shouldApplyMobileOffset();
-  const easeLinearity = options?.easeLinearity ?? 0.25;
-  const flyOptions: FitBoundsOptions = applyOffset
-    ? {
-        ...options,
-        duration,
-        easeLinearity,
-        paddingTopLeft: [50, 50] as [number, number],
-        paddingBottomRight: [50, getMobileDrawerBottomPaddingPx()] as [number, number],
-      }
-    : {
-        ...options,
-        duration,
-        easeLinearity,
-        padding: options?.padding ?? ([50, 50] as [number, number]),
-      };
-
-  // Use the already-normalized targetBounds for consistency
-  map.value.flyToBounds(targetBounds, flyOptions);
+  m.fitBounds(llb, {
+    maxZoom: options.maxZoom,
+    padding,
+    duration: duration * 1000,
+    essential: true,
+  });
   return false;
 }
 

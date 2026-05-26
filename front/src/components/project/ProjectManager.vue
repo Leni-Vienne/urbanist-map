@@ -50,6 +50,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import {
   getStandaloneProjectMarkerByProjectId,
@@ -209,7 +210,7 @@ function handleMapClick(e: L.LeafletMouseEvent) {
   tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
     icon: markerIcon,
     draggable: false,
-  }).addTo(mapValue);
+  }).addTo(legacyLeafletMap());
 
   if (markerPlacementBar.value) {
     markerPlacementBar.value.setMarkerCoordinates(coordinates);
@@ -271,9 +272,11 @@ async function displayProjectMarkerAndPopup(
     if (project?.lat && project?.lng) {
       const currentZoom = map.value.getZoom();
       const targetZoom = Math.max(currentZoom, 16);
-      map.value.setView([project.lat, project.lng], targetZoom, {
-        animate: true,
-        duration: 1,
+      map.value.flyTo({
+        center: [project.lng, project.lat],
+        zoom: targetZoom,
+        duration: 1000,
+        essential: true,
       });
     }
   }

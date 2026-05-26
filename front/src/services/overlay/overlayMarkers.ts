@@ -1,5 +1,6 @@
 import L from "leaflet";
 import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -182,7 +183,7 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 
   const marker = L.marker(center, {
     icon: colorIcon,
-  }).addTo(map.value);
+  }).addTo(legacyLeafletMap());
 
   marker.on("click", (e) => {
     L.DomEvent.stopPropagation(e);
@@ -244,7 +245,7 @@ export function createMarker(overlayObject: OverlayObject): void {
 
   const marker = L.marker(center, {
     icon: colorIcon,
-  }).addTo(map.value);
+  }).addTo(legacyLeafletMap());
 
   marker.on("click", () => {
     const bounds = getOverlayBounds(overlayObject);

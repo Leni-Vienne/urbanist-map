@@ -1,7 +1,7 @@
 import L from "leaflet";
 import { watch } from "vue";
 import type { Project } from "@/types/index";
-import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { createStandaloneProjectIcon } from "@/services/map/markers";
 import { shouldShowStandaloneProject } from "@/services/overlay/statusFilters";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -91,7 +91,7 @@ export function clearAllStandaloneProjectMarkers(): void {
   }
 
   if (standaloneProjectsLayer) {
-    map.value.removeLayer(standaloneProjectsLayer);
+    legacyLeafletMap().removeLayer(standaloneProjectsLayer);
     standaloneProjectsLayer = null;
   }
 
@@ -214,7 +214,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
   if (project.geometry?.geometries.length) {
-    renderProjectShapes(project, map.value);
+    renderProjectShapes(project, legacyLeafletMap());
   }
 
   const mapStore = useMapStore();
@@ -223,7 +223,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   if (!standaloneProjectsLayer) {
     standaloneProjectsLayer = L.layerGroup();
-    standaloneProjectsLayer.addTo(map.value);
+    standaloneProjectsLayer.addTo(legacyLeafletMap());
   }
 
   // Store project in projectStore so color updates can find it later

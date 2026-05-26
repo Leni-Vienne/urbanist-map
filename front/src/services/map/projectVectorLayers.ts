@@ -1,9 +1,10 @@
-import L from "leaflet";
 import {
   type Map as MaplibreMap,
+  type MapMouseEvent,
   type PointLike,
   type FilterSpecification,
   type ExpressionSpecification,
+  LngLatBounds,
   addProtocol,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
@@ -140,9 +141,9 @@ const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 // Viewport padding for flyToBounds to leave space around cluster cells.
 const CLUSTER_BOUNDS_PADDING_PX = 50;
-// Below this Leaflet zoom, lone points (cell_count===1) still zoom to cell bounds
+// Below this zoom, lone points (cell_count===1) still zoom to cell bounds
 // instead of opening the project, to avoid a jarring jump from low zoom to z14.
-const LONE_POINT_CLICK_MIN_LEAFLET_ZOOM = 8;
+const LONE_POINT_CLICK_MIN_ZOOM = 7;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
@@ -460,42 +461,20 @@ export function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: num
   // 111320m per degree latitude is a standard geodesic constant.
   const halfDegLat = sizeMeters / 2 / 111_320;
   const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
-  const bounds = L.latLngBounds(
-    [lat - halfDegLat, lng - halfDegLng],
-    [lat + halfDegLat, lng + halfDegLng],
-  );
-  return Math.max(8, Math.min(16, map.value.getBoundsZoom(bounds)));
+  const cam = map.value.cameraForBounds([
+    [lng - halfDegLng, lat - halfDegLat],
+    [lng + halfDegLng, lat + halfDegLat],
+  ]);
+  const zoom = cam?.zoom ?? map.value.getZoom();
+  return Math.max(7, Math.min(15, zoom));
 }
 
-function getMaplibrePointFromLeafletEvent(
-  event: L.LeafletMouseEvent,
-  mlMap: MaplibreMap,
-): {
-  x: number;
-  y: number;
-} {
-  return mlMap.project([event.latlng.lng, event.latlng.lat]);
-}
-
-// UI overlays (search bar, filter panel, etc) are direct children of the Leaflet container,
-// not inside any .leaflet-pane. Leaflet's mousemove/click still fire when those events bubble
-// up to the container, which triggers vector hover/click on whatever sits under the overlay.
-// Vue's @click.stop / @mousemove.stop on the overlay wrappers is unreliable here (touch->click
-// synthesis, PrimeVue internals), so we filter at the handler instead.
-function isEventOverMapContent(event: L.LeafletMouseEvent): boolean {
-  const target = event.originalEvent?.target;
-  if (!(target instanceof Element)) return true;
-  return target.closest(".leaflet-pane") !== null;
-}
-
-function queryFeaturesAtLeafletEvent(
-  event: L.LeafletMouseEvent,
+function queryFeaturesAtPoint(
+  point: { x: number; y: number },
   mlMap: MaplibreMap,
   layers: readonly string[],
   hitRadius: number,
 ): any[] {
-  const point = getMaplibrePointFromLeafletEvent(event, mlMap);
-
   if (hitRadius > 0) {
     const bbox: [PointLike, PointLike] = [
       [point.x - hitRadius, point.y - hitRadius],
@@ -585,7 +564,10 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   return vectorFeature ?? null;
 }
 
-function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
+function handleVectorFeatureClick(
+  feature: RenderedMapFeature,
+  latlng: { lat: number; lng: number },
+): void {
   const sourceLayer = String(feature.sourceLayer);
   const projectId =
     sourceLayer === "overlay-footprints"
@@ -697,9 +679,9 @@ function getTileCoordsForLatLng(
 }
 
 // Compute the exact bounds of the cluster cell containing the given point.
-// The cell bounds are tight (no padding) because Leaflet's flyToBounds will add
-// viewport padding controlled by CLUSTER_BOUNDS_PADDING_PX.
-function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.LatLngBounds {
+// The cell bounds are tight (no padding) because fitBounds adds viewport padding
+// controlled by CLUSTER_BOUNDS_PADDING_PX.
+function getClusterCellBounds(lat: number, lng: number, tileZoom: number): LngLatBounds {
   const safeZoom = Math.max(0, tileZoom);
   const { tileX, tileY, px, py } = getTileCoordsForLatLng(lat, lng, safeZoom);
   const cellSize = getGridCellSizeForTileZoom(safeZoom);
@@ -707,7 +689,7 @@ function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.Lat
   const cellY = Math.floor(py / cellSize);
 
   // Use exact cell boundaries without geographic padding.
-  // Padding will be applied in screen space by flyToBounds.
+  // Padding will be applied in screen space by fitBounds.
   const minPx = cellX * cellSize;
   const maxPx = (cellX + 1) * cellSize;
   const minPy = cellY * cellSize;
@@ -715,7 +697,10 @@ function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.Lat
 
   const nw = tilePxToLngLat(tileX, tileY, minPx, minPy, safeZoom);
   const se = tilePxToLngLat(tileX, tileY, maxPx, maxPy, safeZoom);
-  return L.latLngBounds([nw[1], nw[0]], [se[1], se[0]]);
+  const bounds = new LngLatBounds();
+  bounds.extend([nw[0], nw[1]]);
+  bounds.extend([se[0], se[1]]);
+  return bounds;
 }
 
 /**
@@ -743,14 +728,14 @@ function navigateToCluster(
 
   const repMatchesFilter = repMatchesSizeFilter && repMatchesDateFilter;
 
-  // Leaflet zoom = MapLibre zoom + 1. Use the integer tile zoom to match MVT grid logic.
-  const tileZoom = Math.floor(currentZoom - 1);
+  // Native MapLibre zoom is the integer tile zoom used by the MVT grid logic.
+  const tileZoom = Math.floor(currentZoom);
 
   if (repMatchesFilter) {
     // Fly to the exact cluster cell boundaries. The cell bounds are tight (no geographic padding),
-    // and flyToBounds will add viewport padding to keep points away from screen edges.
+    // and fitBounds will add viewport padding to keep points away from screen edges.
     const cellBounds = getClusterCellBounds(lat, lng, tileZoom);
-    const boundsZoom = map.value.getBoundsZoom(cellBounds, false);
+    const boundsZoom = map.value.cameraForBounds(cellBounds)?.zoom ?? currentZoom;
     mobileAwareFlyToBounds(cellBounds, {
       maxZoom: Math.max(currentZoom, boundsZoom),
       padding: [CLUSTER_BOUNDS_PADDING_PX, CLUSTER_BOUNDS_PADDING_PX],
@@ -765,7 +750,10 @@ function navigateToCluster(
   }
 }
 
-async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng): Promise<void> {
+async function handlePointFeatureClick(
+  pointFeature: any,
+  eventLatLng: { lat: number; lng: number },
+): Promise<void> {
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
@@ -782,9 +770,9 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
     const cellCount: number = pointFeature.properties?.cell_count ?? 2;
     const props: Record<string, unknown> = pointFeature.properties ?? {};
 
-    targetLatLng = L.latLng(lat, lng);
+    targetLatLng = { lat, lng };
 
-    if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_LEAFLET_ZOOM) {
+    if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_ZOOM) {
       willFly = true;
       navigateToLonePoint(props, lat, lng, currentZoom);
     } else {
@@ -810,28 +798,14 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   // Position updates are exempt from throttling so the card follows the cursor smoothly.
   let hoverThrottlePending = false;
 
-  map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
-    if (
-      "pointerType" in event.originalEvent &&
-      (event.originalEvent as PointerEvent).pointerType === "touch"
-    ) {
+  map.value.on("mousemove", (event: MapMouseEvent) => {
+    const orig = event.originalEvent;
+    if ("pointerType" in orig && (orig as PointerEvent).pointerType === "touch") {
       return;
     }
 
-    if (!isEventOverMapContent(event)) {
-      // Cursor is on a UI overlay (search bar, filter panel, etc). Clear any leftover
-      // hover state so the previous highlight doesn't get stuck under the overlay.
-      const mlMap = mlMapGetter();
-      if (mlMap && getExternalHoverId() === null) {
-        setVectorHoverFilters(mlMap, null);
-        setPointHoverFilter(mlMap, null);
-      }
-      clearHoverPreview();
-      return;
-    }
-
-    const clientX = event.originalEvent.clientX;
-    const clientY = event.originalEvent.clientY;
+    const clientX = orig.clientX;
+    const clientY = orig.clientY;
 
     // Always update card position immediately, bypasses Vue render via direct DOM write.
     updateHoverPreviewPosition(clientX, clientY);
@@ -845,8 +819,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    const features = queryFeaturesAtLeafletEvent(
-      event,
+    const features = queryFeaturesAtPoint(
+      event.point,
       mlMap,
       CLICK_QUERY_LAYERS,
       VECTOR_HOVER_HIT_RADIUS_PX,
@@ -857,9 +831,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
-    // Set cursor on the Leaflet container instead of the MapLibre canvas
-    // Use proper class toggling instead of overwriting inline styles that plugins rely on
-    map.value.getContainer().classList.toggle("cursor-pointer", features.length > 0);
+    mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);
     // The overlay-driven hover (sidebar card, overlay DOM hover, popup pin) is preserved
     // by setVectorHoverFilters' OR-clause, so it's safe to update on every mousemove.
     setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
@@ -872,7 +844,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    map.value.getContainer().classList.remove("cursor-pointer");
+    mlMap.getContainer().classList.remove("cursor-pointer");
     clearHoverPreview();
 
     // If a project is pinned (popup open from a click), preserve the highlight.
@@ -883,16 +855,14 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setPointHoverFilter(mlMap, null);
   });
 
-  map.value.on("click", (event: L.LeafletMouseEvent) => {
+  map.value.on("click", (event: MapMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    if (!isEventOverMapContent(event)) return;
-
     clearHoverPreview();
 
-    const features = queryFeaturesAtLeafletEvent(
-      event,
+    const features = queryFeaturesAtPoint(
+      event.point,
       mlMap,
       CLICK_QUERY_LAYERS,
       VECTOR_HOVER_HIT_RADIUS_PX,
@@ -901,7 +871,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
 
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
-      handleVectorFeatureClick(vectorFeature, event.latlng);
+      handleVectorFeatureClick(vectorFeature, event.lngLat);
       return;
     }
 
@@ -909,7 +879,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
-      void handlePointFeatureClick(pointFeature, event.latlng);
+      void handlePointFeatureClick(pointFeature, event.lngLat);
     }
   });
 }

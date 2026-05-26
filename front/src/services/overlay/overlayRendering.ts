@@ -8,6 +8,7 @@ import L from "leaflet";
 import "leaflet-toolbar";
 import "leaflet-distortableimage";
 import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 
 // leaflet-distortableimage's addInitHook adds the 'ldi' class to the map container,
 // which is required for the CSS rule that sets pointer-events: all on overlay images.
@@ -114,7 +115,7 @@ export function createLeafletOverlay(
           return;
         }
 
-        newOverlay.addTo(map.value);
+        newOverlay.addTo(legacyLeafletMap());
         // getElement() is non-null after addTo, so setupOverlayLoadHandler can run synchronously.
         setupOverlayLoadHandler(newOverlay, overlayObject, onAddedToMap);
 
@@ -136,8 +137,8 @@ export function createLeafletOverlay(
     };
 
     // _animatingZoom is undocumented but reliably set during zoom animations.
-    if (map.value._animatingZoom) {
-      map.value.once("zoomend", addOverlayWhenReady);
+    if (legacyLeafletMap()._animatingZoom) {
+      legacyLeafletMap().once("zoomend", addOverlayWhenReady);
     } else {
       addOverlayWhenReady();
     }
@@ -174,7 +175,7 @@ function setupOverlayLoadHandler(
   let isInitialized = false;
 
   const tryInit = () => {
-    if (isInitialized || !map.value.hasLayer(overlay)) return;
+    if (isInitialized || !legacyLeafletMap().hasLayer(overlay)) return;
     if (!element.complete || element.naturalWidth === 0) return;
 
     isInitialized = true;
@@ -182,7 +183,7 @@ function setupOverlayLoadHandler(
 
     // Batch so a cache-burst of simultaneous loads doesn't produce a long frame.
     scheduleInitialization(overlayObject.id, () => {
-      if (map.value.hasLayer(overlay)) {
+      if (legacyLeafletMap().hasLayer(overlay)) {
         onOverlayLoaded(overlayObject, onReady);
       } else {
         registry.cancelCreation(overlayObject.id);
@@ -353,7 +354,12 @@ export function renderViewModeOverlays(
   createMarkers = true,
   onReady?: () => void,
 ): boolean {
+  // TODO(phase 2): overlay images use leaflet-distortableimage and are disabled during the
+  // MapLibre migration. Restored in Phase 2 as a MapLibre image source + raster layer per overlay.
+  return false;
+
   // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
+  // eslint-disable-next-line no-unreachable
   let anyStarted = false;
   for (const cdnOverlay of viewModeOverlays) {
     if (renderSingleOverlay(cdnOverlay, createMarkers, onReady)) {
@@ -440,7 +446,7 @@ function renderSingleOverlay(
     const visible = isOverlayVisible(overlayObjectWithMethods, mapStore.mode, authStore.user?.id);
     if (!visible) {
       const layer = registry.getLayer(cdnOverlay.id);
-      if (layer && map.value.hasLayer(layer)) layer.remove();
+      if (layer && legacyLeafletMap().hasLayer(layer)) layer.remove();
       registry.clearLayer(cdnOverlay.id);
       registry.cancelCreation(cdnOverlay.id);
       return;

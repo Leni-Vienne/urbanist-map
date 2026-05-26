@@ -1,6 +1,6 @@
 import type * as L from "leaflet";
 import { watch } from "vue";
-import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import type { OverlayData, Project } from "@/types/index";
 import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
 import { hasProjectShapes } from "@/services/map/shapeLayerRegistry";
@@ -181,7 +181,7 @@ export function initializeShapeRenderTriggers() {
     () => {
       if (mapStore.mode === "view") return;
       clearAllProjectShapes();
-      renderAllProjectShapes(map.value);
+      renderAllProjectShapes(legacyLeafletMap());
     },
   );
 
@@ -190,7 +190,7 @@ export function initializeShapeRenderTriggers() {
     (loaded) => {
       if (!loaded || mapStore.mode !== "moderation") return;
       clearAllProjectShapes();
-      renderAllProjectShapes(map.value);
+      renderAllProjectShapes(legacyLeafletMap());
     },
   );
 

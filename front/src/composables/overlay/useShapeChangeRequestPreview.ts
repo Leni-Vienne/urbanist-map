@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { nextTick } from "vue";
-import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
@@ -73,7 +73,7 @@ export function useShapeChangeRequestPreview() {
 
     renderPreviewShapes(
       geometry,
-      map.value,
+      legacyLeafletMap(),
       type === "new" ? "suggested" : "current",
       project.id,
       (latlng) => {

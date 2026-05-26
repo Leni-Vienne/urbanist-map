@@ -1,7 +1,7 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
@@ -115,8 +115,8 @@ export function useOverlayPublisher() {
     updateMarkerTooltip(overlay);
 
     const layer = getLayer(overlay.id);
-    if (layer && !map.value.hasLayer(layer)) {
-      layer.addTo(map.value);
+    if (layer && !legacyLeafletMap().hasLayer(layer)) {
+      layer.addTo(legacyLeafletMap());
       // If this overlay is selected, bring to front; otherwise keep the selected one on top.
       requestAnimationFrame(() => {
         if (overlayStore.idSelectedOverlay === overlay.id) {

@@ -116,13 +116,18 @@ let lastBboxKey = "";
  */
 function getMapBbox() {
   const bounds = map.value.getBounds();
+  const west = bounds.getWest();
+  const east = bounds.getEast();
+  const south = bounds.getSouth();
+  const north = bounds.getNorth();
   // Pad slightly so panning a few pixels doesn't immediately refetch
-  const padded = bounds.pad(0.15);
+  const padX = (east - west) * 0.15;
+  const padY = (north - south) * 0.15;
   return {
-    minLng: padded.getWest(),
-    minLat: padded.getSouth(),
-    maxLng: padded.getEast(),
-    maxLat: padded.getNorth(),
+    minLng: west - padX,
+    minLat: south - padY,
+    maxLng: east + padX,
+    maxLat: north + padY,
   };
 }
 
@@ -139,9 +144,20 @@ function bboxKey(bbox: { minLng: number; minLat: number; maxLng: number; maxLat:
   return `${roundCoord(bbox.minLng)},${roundCoord(bbox.minLat)},${roundCoord(bbox.maxLng)},${roundCoord(bbox.maxLat)}`;
 }
 
+// MapLibre's off() needs the exact handler reference (unlike Leaflet's off(type) which
+// removed every listener of a type), so the viewport handlers are kept at module scope.
+let viewportMoveEndHandler: (() => void) | null = null;
+let viewportZoomEndHandler: (() => void) | null = null;
+
 function cleanupEventListeners() {
-  map.value.off("moveend");
-  map.value.off("zoomend");
+  if (viewportMoveEndHandler) {
+    map.value.off("moveend", viewportMoveEndHandler);
+    viewportMoveEndHandler = null;
+  }
+  if (viewportZoomEndHandler) {
+    map.value.off("zoomend", viewportZoomEndHandler);
+    viewportZoomEndHandler = null;
+  }
 }
 
 /**
@@ -338,12 +354,14 @@ export function useViewportTriggers() {
   const debouncedRefreshViewport = debounce(refreshViewport, 100);
 
   function setupEventListeners() {
-    map.value.on("moveend", () => {
+    viewportMoveEndHandler = () => {
       debouncedRefreshViewport();
-    });
-    map.value.on("zoomend", () => {
+    };
+    viewportZoomEndHandler = () => {
       debouncedRefreshViewport();
-    });
+    };
+    map.value.on("moveend", viewportMoveEndHandler);
+    map.value.on("zoomend", viewportZoomEndHandler);
   }
 
   function setupModeWatcher() {

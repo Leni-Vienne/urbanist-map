@@ -9,7 +9,7 @@
       ]"
     ></div>
 
-    <div id="mapDiv" class="absolute inset-0">
+    <div id="mapDiv" class="absolute inset-0 w-full h-full">
       <div
         v-if="isLoading"
         class="absolute inset-0 flex justify-center items-center bg-content-hover-background"
@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } from "vue";
 
-import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/core/map";
+import { initializeMap, map } from "@/services/core/map";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initVectorTileSync } from "@/services/map/vectorTileSync";
@@ -119,15 +119,14 @@ async function initializeMapAndOverlays() {
 
     await nextTick();
     if (map.value !== null) {
-      // Disable animation during initial size/bounds correction to avoid a slow pan that
-      // causes MapLibre to fetch tiles twice (once per view change).
-      map.value.invalidateSize(false);
+      // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
+      // fetch tiles twice (once per view change) when the dimensions correct.
+      map.value.resize();
 
       // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
       addTileLayer();
       initVectorTileSync();
 
-      // Small delay to ensure Leaflet updates bounds after invalidateSize
       setTimeout(() => {
         viewportManager.refreshViewport();
       }, 100);
@@ -137,7 +136,6 @@ async function initializeMapAndOverlays() {
 
     viewportManager.setupModeWatcher();
     setupMapClickToDeselect();
-    disableLeafletKeyboardEvents();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toast.add({

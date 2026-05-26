@@ -4,7 +4,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/overlayRenderRegistry";
 import {
   getStandaloneProjectMarkerByProjectId,
@@ -40,8 +40,8 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
 
 function removeProjectMarkerFromMap(projectId: string) {
   const marker = getStandaloneProjectMarkerByProjectId(projectId);
-  if (marker && map.value.hasLayer(marker)) {
-    map.value.removeLayer(marker);
+  if (marker && legacyLeafletMap().hasLayer(marker)) {
+    legacyLeafletMap().removeLayer(marker);
   }
 }
 

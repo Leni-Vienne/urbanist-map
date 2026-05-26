@@ -96,4 +96,9 @@ if (import.meta.env.VITE_DEBUG) {
 
   lazyObserver.observe({ type: "resource", buffered: false });
 }
+
+if (import.meta.env.DEV) {
+  // Split chunk: keeps the camera benchmark out of the production bundle.
+  void import("@/services/dev/perfBench");
+}
 </script>

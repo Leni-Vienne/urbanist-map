@@ -1,7 +1,6 @@
 import { ref } from "vue";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
-import type L from "leaflet";
 
 // State for tracking teleport targets
 // This eliminates the need for MutationObservers in PopupContainer
@@ -40,11 +39,16 @@ const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
 // animation the point will be centered in the viewport, so we compute placement
 // from the center rather than the current (pre-flight) screen position, avoiding
 // a placement jump when moveend fires.
-export function setPopupPlacementForLatLng(latlng: L.LatLng, atCenter = false): void {
+export function setPopupPlacementForLatLng(
+  latlng: { lat: number; lng: number },
+  atCenter = false,
+): void {
   const mapEl = map.value.getContainer();
   const mapW = mapEl.clientWidth;
   const mapH = mapEl.clientHeight;
-  const point = atCenter ? { x: mapW / 2, y: mapH / 2 } : map.value.latLngToContainerPoint(latlng);
+  const point = atCenter
+    ? { x: mapW / 2, y: mapH / 2 }
+    : map.value.project([latlng.lng, latlng.lat]);
 
   // On mobile, subtract the drawer height + mode controls buffer from available bottom space.
   const uiStore = useUiStore();

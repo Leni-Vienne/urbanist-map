@@ -1,4 +1,3 @@
-import type L from "leaflet";
 import type { Project } from "@/types/index";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -17,7 +16,11 @@ import { createProjectObject } from "@/utils/typeFactories";
  * Popup-state side effects (vector hover, accordion scroll, marker opacity, overlay
  * deselect) are handled by the popup watcher initialized at boot in main.ts.
  */
-export function selectProject(project: Project, latlng: L.LatLng, atCenter = false): void {
+export function selectProject(
+  project: Project,
+  latlng: { lat: number; lng: number },
+  atCenter = false,
+): void {
   const uiStore = useUiStore();
 
   if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
@@ -37,7 +40,7 @@ export function selectProject(project: Project, latlng: L.LatLng, atCenter = fal
  */
 export async function handleProjectClickFromTile(
   projectId: string,
-  latlng: L.LatLng,
+  latlng: { lat: number; lng: number },
   atCenter = false,
 ): Promise<void> {
   const projectStore = useProjectStore();

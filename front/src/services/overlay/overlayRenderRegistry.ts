@@ -5,7 +5,7 @@
 //   - All creation goes through beginCreation(), atomically prevents duplicate layers
 //   - clearAll() is the single cleanup path
 import type * as L from "leaflet";
-import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 
 interface RegistryEntry {
   layer: L.DistortableImageOverlay | null;
@@ -97,10 +97,10 @@ export function clearEntry(id: string): void {
   const entry = entries.get(id);
   if (!entry) return;
 
-  if (entry.layer && map.value.hasLayer(entry.layer)) {
+  if (entry.layer && legacyLeafletMap().hasLayer(entry.layer)) {
     entry.layer.remove();
   }
-  if (entry.marker && map.value.hasLayer(entry.marker)) {
+  if (entry.marker && legacyLeafletMap().hasLayer(entry.marker)) {
     entry.marker.remove();
   }
 
@@ -118,7 +118,7 @@ export function clearAll(preserveMarkers = false): void {
   creating.clear();
 
   for (const [id, entry] of entries) {
-    if (entry.layer && map.value.hasLayer(entry.layer)) {
+    if (entry.layer && legacyLeafletMap().hasLayer(entry.layer)) {
       entry.layer.remove();
     }
 
@@ -127,7 +127,7 @@ export function clearAll(preserveMarkers = false): void {
       // This prevents marker flicker when crossing the zoom 13/14 boundary.
       entry.layer = null;
     } else {
-      if (entry.marker && map.value.hasLayer(entry.marker)) {
+      if (entry.marker && legacyLeafletMap().hasLayer(entry.marker)) {
         entry.marker.remove();
       }
       entries.delete(id);

@@ -1,9 +1,10 @@
-import type * as L from "leaflet";
+import L from "leaflet";
 import { watch } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
+import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 // Dynamic import for chunk splitting - overlayRendering pulls in leaflet-distortableimage
 // which is only needed when the user zooms in far enough to see overlay images
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
@@ -41,12 +42,18 @@ function syncLayerToMap(layer: L.Layer | null, shouldBeOnMap: boolean, mapInstan
  *   pruneLocalOverlays    for local/unsaved overlays only (status === null)
  */
 export function runViewportRenderLoop() {
-  const mapInstance = map.value;
-  const bounds = mapInstance.getBounds();
-  const zoom = mapInstance.getZoom();
+  // TODO(phase 2-4): the overlay/shape/marker prune pipeline below is Leaflet-based. During the
+  // MapLibre migration it iterates empty collections (creation is gated off) and renders nothing;
+  // project vector data renders independently via MVT in projectVectorLayers.
+  const mapInstance = legacyLeafletMap();
+  const mlBounds = map.value.getBounds();
+  const zoom = map.value.getZoom();
 
   // Pad bounds slightly to pre-load items just outside view
-  const paddedBounds = bounds.pad(0.1);
+  const paddedBounds = L.latLngBounds(
+    [mlBounds.getSouth(), mlBounds.getWest()],
+    [mlBounds.getNorth(), mlBounds.getEast()],
+  ).pad(0.1);
 
   // Prune Overlays
   pruneOverlays(mapInstance, paddedBounds, zoom);
