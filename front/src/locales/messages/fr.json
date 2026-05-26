@@ -449,7 +449,8 @@
       "out": "Dézoomer"
     },
     "filter": "Filtrer les projets",
-    "language": "Langue"
+    "language": "Langue",
+    "settings": "Paramètres"
   },
   "tooltips": {
     "editProject": "Modifier le projet",

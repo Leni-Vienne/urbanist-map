@@ -1,18 +1,6 @@
 ﻿<template>
-  <div :class="{ 'w-full': displayMode === 'list-item' }">
+  <div class="w-full">
     <button
-      v-if="displayMode === 'icon'"
-      type="button"
-      class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-content-background border border-surface cursor-pointer transition-all duration-200 text-(--p-text-color-secondary) hover:bg-black/5 dark:hover:bg-white/10 hover:border-surface hover:text-primary-600 hover:shadow-sm"
-      @click="toggleMenu"
-      ref="languageMenuRef"
-      :aria-label="$t('controls.language')"
-      @dblclick.stop
-    >
-      <i class="pi pi-language text-base"></i>
-    </button>
-    <button
-      v-else
       type="button"
       class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
       @click="toggleMenu"
@@ -68,10 +56,6 @@ const currentLocale = ref<Locale>("en");
 const languagePopover = ref();
 const isLoading = ref(false);
 const loadingLocale = ref<Locale | null>(null);
-
-defineProps<{
-  displayMode?: "icon" | "list-item";
-}>();
 
 onMounted(() => {
   currentLocale.value = locale.value as Locale;
