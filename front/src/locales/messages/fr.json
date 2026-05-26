@@ -241,6 +241,10 @@
       "filterByLastModified": "Filtrer par date de modification",
       "lastModifiedFrom": "Du",
       "lastModifiedTo": "Au"
+    },
+    "buildings3D": {
+      "enable": "Activer les bâtiments 3D",
+      "disable": "Désactiver les bâtiments 3D"
     }
   },
   "search": {

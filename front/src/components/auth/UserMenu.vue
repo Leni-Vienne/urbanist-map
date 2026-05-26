@@ -71,6 +71,18 @@
           <span>{{ theme === "dark" ? $t("theme.light") : $t("theme.dark") }}</span>
         </button>
 
+        <!-- 3D buildings toggle as list item -->
+        <button
+          type="button"
+          class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
+          @click="toggleBuildings3D"
+        >
+          <i class="pi pi-building"></i>
+          <span>{{
+            show3DBuildings ? $t("map.buildings3D.disable") : $t("map.buildings3D.enable")
+          }}</span>
+        </button>
+
         <!-- Moderation Results as list item -->
         <button
           type="button"
@@ -128,6 +140,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 import { useTheme } from "@/composables/core/useTheme";
+import { useBuildings3D } from "@/composables/core/useBuildings3D";
 
 // Lazy-load AuthModal for chunk splitting, avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
@@ -136,6 +149,7 @@ const ModeratedContributionsDialog = defineAsyncComponent(
 );
 
 const { theme, toggle: toggleTheme } = useTheme();
+const { show3DBuildings, toggle: toggleBuildings3D } = useBuildings3D();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const toast = useToast();
