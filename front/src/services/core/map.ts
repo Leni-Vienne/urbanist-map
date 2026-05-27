@@ -1,6 +1,7 @@
-import maplibre, { type Map as MaplibreMap } from "maplibre-gl";
+import maplibre, { type Map as MaplibreMap, type RequestParameters } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { ref, customRef } from "vue";
+import { getApiUrl } from "@/client";
 
 export const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -60,6 +61,16 @@ function calculateMinZoom(): number {
   return 1 + (largerDimension - 1920) / (2560 - 1920);
 }
 
+// Pending overlay images live behind the authenticated /uploads/ endpoint; MapLibre image
+// sources must send credentials to fetch them. Scoped strictly to that backend path so the
+// public basemap style/tiles (wildcard CORS) and R2 CDN images are never sent credentials.
+function transformMapRequest(url: string): RequestParameters | undefined {
+  if (url.startsWith(`${getApiUrl()}/uploads/`)) {
+    return { url, credentials: "include" };
+  }
+  return undefined;
+}
+
 export function initializeMap() {
   const hashCoords = parseHashCoords();
   const minZoom = calculateMinZoom();
@@ -72,6 +83,7 @@ export function initializeMap() {
     minZoom,
     maxZoom: 21,
     attributionControl: false, // custom attribution control added below
+    transformRequest: transformMapRequest,
     // North-up, top-down only. Rotation and pitch are deliberately disabled (Phase 1 decision).
     dragRotate: false,
     pitchWithRotate: false,

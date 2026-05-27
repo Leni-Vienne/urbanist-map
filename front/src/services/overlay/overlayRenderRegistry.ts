@@ -5,11 +5,24 @@
 //   - All creation goes through beginCreation(), atomically prevents duplicate layers
 //   - clearAll() is the single cleanup path
 import type * as L from "leaflet";
+import type { Marker as MaplibreMarker } from "maplibre-gl";
 import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
+import { map } from "@/services/core/map";
+import type { OverlayTransform } from "@/services/overlay/overlayTransform";
+
+// MapLibre image-source state for one overlay. Replaces the Leaflet `layer` field as the
+// edit path moves off leaflet-distortableimage; both coexist during the migration.
+export interface OverlayImageHandle {
+  sourceId: string;
+  rasterLayerId: string;
+  transform: OverlayTransform;
+  opacity: number;
+}
 
 interface RegistryEntry {
   layer: L.DistortableImageOverlay | null;
-  marker: L.Marker | null;
+  marker: MaplibreMarker | null;
+  imageHandle: OverlayImageHandle | null;
 }
 
 const entries = new Map<string, RegistryEntry>();
@@ -29,7 +42,7 @@ const creating = new Set<string>();
 export function beginCreation(id: string): boolean {
   if (creating.has(id)) return false;
   const entry = entries.get(id);
-  if (entry !== undefined && entry.layer !== null) return false;
+  if (entry !== undefined && (entry.layer !== null || entry.imageHandle !== null)) return false;
   creating.add(id);
   return true;
 }
@@ -49,7 +62,7 @@ export function setLayer(id: string, layer: L.DistortableImageOverlay): void {
   if (entry) {
     entry.layer = layer;
   } else {
-    entries.set(id, { layer, marker: null });
+    entries.set(id, { layer, marker: null, imageHandle: null });
   }
 }
 
@@ -74,17 +87,62 @@ export function clearLayer(id: string): void {
 
 // ─── Marker ──────────────────────────────────────────────────────────────────
 
-export function setMarker(id: string, marker: L.Marker): void {
+export function setMarker(id: string, marker: MaplibreMarker): void {
   const entry = entries.get(id);
   if (entry) {
     entry.marker = marker;
   } else {
-    entries.set(id, { layer: null, marker });
+    entries.set(id, { layer: null, marker, imageHandle: null });
   }
 }
 
-export function getMarker(id: string): L.Marker | null {
+export function getMarker(id: string): MaplibreMarker | null {
   return entries.get(id)?.marker ?? null;
+}
+
+// ─── Image handle (MapLibre image source) ────────────────────────────────────
+
+export function setImageHandle(id: string, handle: OverlayImageHandle): void {
+  const entry = entries.get(id);
+  if (entry) {
+    entry.imageHandle = handle;
+  } else {
+    entries.set(id, { layer: null, marker: null, imageHandle: handle });
+  }
+}
+
+export function getImageHandle(id: string): OverlayImageHandle | null {
+  return entries.get(id)?.imageHandle ?? null;
+}
+
+// IDs of overlays currently rendered as MapLibre image layers. Used by vectorTileSync to
+// evict approved overlays that have left the rendered tile feature set.
+export function getRenderedOverlayIds(): string[] {
+  const ids: string[] = [];
+  for (const [id, entry] of entries) {
+    if (entry.imageHandle !== null) ids.push(id);
+  }
+  return ids;
+}
+
+// setStyle() (satellite switch) wipes every source and layer, including overlay image
+// sources, but leaves DOM markers untouched. Drop the now-dangling image handles so
+// vectorTileSync re-creates them once the new style loads. No map removal needed here.
+export function dropImageHandlesForStyleSwitch(): void {
+  for (const [id, entry] of entries) {
+    entry.imageHandle = null;
+    if (entry.layer === null && entry.marker === null) {
+      entries.delete(id);
+    }
+  }
+}
+
+// Remove an overlay's image source + raster layer from the MapLibre map.
+function removeImageFromMap(handle: OverlayImageHandle): void {
+  const mlMap = map.value;
+  if (!mlMap) return;
+  if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
+  if (mlMap.getSource(handle.sourceId)) mlMap.removeSource(handle.sourceId);
 }
 
 // ─── Full entry lifecycle ─────────────────────────────────────────────────────
@@ -97,12 +155,13 @@ export function clearEntry(id: string): void {
   const entry = entries.get(id);
   if (!entry) return;
 
+  if (entry.imageHandle) {
+    removeImageFromMap(entry.imageHandle);
+  }
   if (entry.layer && legacyLeafletMap().hasLayer(entry.layer)) {
     entry.layer.remove();
   }
-  if (entry.marker && legacyLeafletMap().hasLayer(entry.marker)) {
-    entry.marker.remove();
-  }
+  entry.marker?.remove();
 
   entries.delete(id);
   creating.delete(id);
@@ -118,18 +177,20 @@ export function clearAll(preserveMarkers = false): void {
   creating.clear();
 
   for (const [id, entry] of entries) {
+    if (entry.imageHandle) {
+      removeImageFromMap(entry.imageHandle);
+    }
     if (entry.layer && legacyLeafletMap().hasLayer(entry.layer)) {
       entry.layer.remove();
     }
 
     if (preserveMarkers) {
-      // Zoom threshold: null the image layer but keep the marker alive on the map.
+      // Zoom threshold: null the image refs but keep the marker alive on the map.
       // This prevents marker flicker when crossing the zoom 13/14 boundary.
       entry.layer = null;
+      entry.imageHandle = null;
     } else {
-      if (entry.marker && legacyLeafletMap().hasLayer(entry.marker)) {
-        entry.marker.remove();
-      }
+      entry.marker?.remove();
       entries.delete(id);
     }
   }

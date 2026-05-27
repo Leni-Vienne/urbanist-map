@@ -3,20 +3,19 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { getLayer } from "@/services/overlay/overlayRenderRegistry";
+import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
 /**
  * Initialize history for overlay if not already set
  */
 export function initializeOverlayHistory(overlayObject: OverlayObject): void {
-  const layer = getLayer(overlayObject.id);
-  if (!layer) return;
-
   if (overlayObject.history.length > 0) {
     return;
   }
 
-  const initialCorners = layer.getCorners();
+  const initialCorners =
+    getOverlayImageCorners(overlayObject.id) ??
+    (overlayObject.corners.length === 4 ? overlayObject.corners : null);
   if (initialCorners?.length === 4) {
     overlayObject.history = [structuredClone(initialCorners) as { lat: number; lng: number }[]];
     overlayObject.redoStack = [];
@@ -24,7 +23,7 @@ export function initializeOverlayHistory(overlayObject: OverlayObject): void {
 }
 
 /**
- * Get corners for overlay based on priority: history > backend corners > layer fallback.
+ * Get corners for overlay based on priority: history > backend corners > live image position.
  * History.at(-1) is the single source of truth for the user's last edited position; it
  * survives layer pruning because it lives on the OverlayObject in the store.
  *
@@ -49,7 +48,7 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
     return overlayObject.corners;
   }
 
-  const currentCorners = getLayer(overlayObject.id)?.getCorners();
+  const currentCorners = getOverlayImageCorners(overlayObject.id);
   if (currentCorners?.length === 4) {
     overlayObject.history = [structuredClone(currentCorners) as { lat: number; lng: number }[]];
     overlayObject.redoStack = [];
@@ -60,7 +59,7 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
 }
 
 /**
- * Sync the change-request delta store with the current layer position.
+ * Sync the change-request delta store with the current image position.
  * For status === null overlays (new, not yet on the server), history alone holds the
  * position; no delta is tracked. For approved/pending/rejected overlays, we record the
  * current vs original corners so the change-request submission flow can read them.
@@ -69,11 +68,10 @@ export function recordOverlayModification(overlayObject: OverlayObject): void {
   const pendingModsStore = usePendingModificationsStore();
   const mapStore = useMapStore();
 
-  const layer = getLayer(overlayObject.id);
-  if (mapStore.mode !== "edit" || !layer) return;
+  if (mapStore.mode !== "edit") return;
   if (overlayObject.status === null) return;
 
-  const corners = layer.getCorners();
+  const corners = getOverlayImageCorners(overlayObject.id);
   if (!corners) return;
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
@@ -91,10 +89,8 @@ export function recordOverlayModification(overlayObject: OverlayObject): void {
  * Save the current state of an overlay to history
  */
 export function saveToHistory(overlayObject: OverlayObject): void {
-  const layer = getLayer(overlayObject.id);
-  if (!layer) return;
-
-  const currentState = layer.getCorners();
+  const currentState = getOverlayImageCorners(overlayObject.id);
+  if (!currentState) return;
 
   // Check if current state is different from last saved state
   if (overlayObject.history.length > 0) {
@@ -107,11 +103,10 @@ export function saveToHistory(overlayObject: OverlayObject): void {
     }
   }
 
-  // Build new arrays before touching overlayObject.
-  // overlayObject is the raw (non-proxied) object captured in Leaflet closures.
-  // If we mutate overlayObject.history first, the Vue reactive proxy's set trap will see
-  // target.history === newHistory (same reference) and skip the trigger entirely.
-  // By calling updateOverlay first with a fresh array, Vue sees oldArray !== newArray → trigger.
+  // Build the new array before touching overlayObject.history. overlayObject may be a raw
+  // (non-proxied) object; mutating history first would make Vue's reactive set trap see the
+  // same reference and skip the trigger. Calling updateOverlay with a fresh array first means
+  // Vue sees oldArray !== newArray and fires.
   const newHistory = [
     ...overlayObject.history,
     structuredClone(currentState) as { lat: number; lng: number }[],
@@ -123,8 +118,6 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   updateMarkerTooltip(overlayObject);
 
-  // Update store with proper reactivity -- must happen before overlayObject.history is reassigned
-  // (see comment above re: Vue set trap and same-reference skipping).
   const overlayStore = useOverlayStore();
   overlayStore.updateOverlay(overlayObject.id, {
     isModified: true,

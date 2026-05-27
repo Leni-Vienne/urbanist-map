@@ -39,6 +39,7 @@ import {
   checkOverlaySizeAndWarn,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { createOverlayImage } from "@/services/overlay/overlayImageLayer";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
@@ -354,12 +355,7 @@ export function renderViewModeOverlays(
   createMarkers = true,
   onReady?: () => void,
 ): boolean {
-  // TODO(phase 2): overlay images use leaflet-distortableimage and are disabled during the
-  // MapLibre migration. Restored in Phase 2 as a MapLibre image source + raster layer per overlay.
-  return false;
-
   // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
-  // eslint-disable-next-line no-unreachable
   let anyStarted = false;
   for (const cdnOverlay of viewModeOverlays) {
     if (renderSingleOverlay(cdnOverlay, createMarkers, onReady)) {
@@ -371,8 +367,30 @@ export function renderViewModeOverlays(
 }
 
 /**
- * Render a single CDN overlay as read-only distortable overlay on the map.
- * Returns true if creation was actually started (beginCreation succeeded), false otherwise.
+ * Create the image source for an existing local OverlayObject (status === null).
+ * Used by the viewport loop's local-overlay pipeline; the status marker is created separately.
+ */
+export function createOverlayImageForObject(overlayObject: OverlayObject): void {
+  if (!registry.beginCreation(overlayObject.id)) return;
+
+  const corners = getCornersForOverlay(overlayObject);
+  if (!corners) {
+    registry.cancelCreation(overlayObject.id);
+    return;
+  }
+
+  const handle = createOverlayImage(overlayObject, corners);
+  if (!handle) {
+    registry.cancelCreation(overlayObject.id);
+    return;
+  }
+  registry.setImageHandle(overlayObject.id, handle);
+  registry.cancelCreation(overlayObject.id);
+}
+
+/**
+ * Render a single overlay as a MapLibre image source + raster layer.
+ * Returns true if creation was started (beginCreation succeeded), false otherwise.
  */
 function renderSingleOverlay(
   cdnOverlay: OverlayData,
@@ -387,31 +405,22 @@ function renderSingleOverlay(
     return false;
   }
 
-  // Catch the race where renderViewModeOverlays was queued under one mode but
-  // executes after a mode switch (e.g. pending overlay queued in edit mode,
-  // but mode switched to view before the async callback fires).
   const authStore = useAuthStore();
   if (!isOverlayVisible(cdnOverlay, mapStore.mode, authStore.user?.id)) {
     return false;
   }
 
-  // beginCreation atomically checks + prevents duplicate layers:
-  //   - returns false if already has a ready layer (re-render not needed)
-  //   - returns false if already being created (concurrent call guard)
+  // beginCreation atomically prevents a duplicate source for the same overlay.
   if (!registry.beginCreation(cdnOverlay.id)) {
     return false;
   }
 
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
-
-  // Always use backend data to create overlay object.
   const overlayObject = createOverlayObject(cdnOverlay);
 
   // Preserve in-progress edit state when re-rendering. history.at(-1) is the user's last
-  // edited position; without this carryover the layer would snap back to backend corners
+  // edited position; without this carryover the image would snap back to backend corners
   // on any round-trip (e.g. edit -> view -> edit) since the fresh object has empty history.
-  // Shallow-clone the arrays so the new and existing OverlayObjects don't share references
-  // during the async window before addOverlay() replaces the store entry.
   if (existingOverlay) {
     overlayObject.isViewingApprovedPosition = existingOverlay.isViewingApprovedPosition;
     overlayObject.history = [...existingOverlay.history];
@@ -419,57 +428,38 @@ function renderSingleOverlay(
     overlayObject.isModified = existingOverlay.isModified;
   }
 
-  if (createMarkers) {
-    createSingleMarker(overlayObject);
-  }
-
   const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
 
-  // onOverlayFullyLoaded is hoisted below; it fires async once the image is loaded.
-  const newOverlay = createLeafletOverlay(
-    overlayObjectWithMethods.imageUrl,
-    overlayObjectWithMethods,
-    onOverlayFullyLoaded,
-  );
-
-  if (!newOverlay) {
-    // Creation failed - release the creation mutex
+  const corners = getCornersForOverlay(overlayObjectWithMethods);
+  if (!corners) {
     registry.cancelCreation(cdnOverlay.id);
     return false;
   }
 
-  // registry.setLayer was already called inside createLeafletOverlay so mode-switch
-  // cleanup can find this layer; we only register store data once the image is loaded.
-  function onOverlayFullyLoaded() {
-    // The mode may have changed during async image loading (e.g. Edit -> View
-    // while a pending overlay's image was still in flight).
-    const visible = isOverlayVisible(overlayObjectWithMethods, mapStore.mode, authStore.user?.id);
-    if (!visible) {
-      const layer = registry.getLayer(cdnOverlay.id);
-      if (layer && legacyLeafletMap().hasLayer(layer)) layer.remove();
-      registry.clearLayer(cdnOverlay.id);
-      registry.cancelCreation(cdnOverlay.id);
-      return;
-    }
-
-    overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
-
-    // Update the tooltip here rather than in createSingleMarker, because the mode may have
-    // changed during the async image load (e.g. a View -> Edit switch mid-navigation).
-    updateMarkerTooltip(overlayObjectWithMethods);
-
+  const handle = createOverlayImage(overlayObjectWithMethods, corners);
+  if (!handle) {
     registry.cancelCreation(cdnOverlay.id);
+    return false;
+  }
+  registry.setImageHandle(cdnOverlay.id, handle);
 
-    // A standalone project marker may have been shown for this project while its overlays
-    // were pending/invisible. Remove it now that a real overlay is on the map.
-    if (cdnOverlay.projectId) {
-      removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
-    }
+  overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
 
-    onReady?.();
+  // Markers are Leaflet-based (ported in a later phase step); view mode passes createMarkers=false
+  // and relies on the overlay-footprints MVT layer for low-zoom representation and click handling.
+  if (createMarkers) {
+    createSingleMarker(overlayObjectWithMethods);
+    updateMarkerTooltip(overlayObjectWithMethods);
   }
 
-  // Creation was successfully started, onReady is wired; caller should NOT fall back to polling.
+  // A standalone project marker may have been shown for this project while its overlays
+  // were pending/invisible. Remove it now that a real overlay is on the map.
+  if (cdnOverlay.projectId) {
+    removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
+  }
+
+  registry.cancelCreation(cdnOverlay.id);
+  onReady?.();
   return true;
 }
 

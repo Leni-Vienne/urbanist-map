@@ -1,13 +1,14 @@
 import type L from "leaflet";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { getMarker, getLayer } from "@/services/overlay/overlayRenderRegistry";
+import { getMarker } from "@/services/overlay/overlayRenderRegistry";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
-import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
+import { getOverlayMarkerColor, updateOverlayMarkerColor } from "@/services/map/markers";
 import {
   highlightProjectShapes,
   unhighlightProjectShapes,
@@ -29,11 +30,8 @@ function cleanupPreviousSelection(
     removeProjectOutlines(previouslySelected.projectId, true);
   }
 
-  // Call deselect on the Leaflet overlay to remove toolbar and handles
-  const prevLayer = getLayer(previouslySelected.id);
-  if (prevLayer) {
-    prevLayer.deselect();
-  }
+  // Remove editing handles from the previously selected overlay.
+  hideEditHandles();
 }
 
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
@@ -47,37 +45,20 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   const marker = getMarker(overlayId);
   if (marker) {
     const mode = useMapStore().mode;
-    marker.setIcon(createOverlayIcon(getOverlayMarkerColor(newlySelected, mode)));
+    updateOverlayMarkerColor(marker, getOverlayMarkerColor(newlySelected, mode));
   }
 
   // Sync preview state for reactive button highlighting in change request UI
   syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
 
-  // Call overlay.select() to show toolbar and handles (single source of truth)
-  const newLayer = getLayer(newlySelected.id);
-  if (newLayer) {
-    selectOverlayInLeaflet(newLayer);
-    // Bring selected overlay to front so it stays on top of overlapping images
-    newLayer.bringToFront();
+  // Show editing handles when selecting in edit mode.
+  if (useMapStore().mode === "edit") {
+    showEditHandles(newlySelected);
   }
 
   // Apply project highlights (sister overlays) when selecting
   if (newlySelected.projectId) {
     highlightProject(newlySelected.projectId, newlySelected.id);
-  }
-}
-
-function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
-  const element = overlay.getElement();
-  const isInDOM = element && document.body.contains(element);
-
-  if (!isInDOM) {
-    // Wait for element to be added to DOM before selecting
-    requestAnimationFrame(() => {
-      overlay.select();
-    });
-  } else {
-    overlay.select();
   }
 }
 

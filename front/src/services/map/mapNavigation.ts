@@ -144,6 +144,7 @@ export function mobileAwareFlyTo(
 ): void {
   const m = map.value;
   const target = toLatLng(latlng);
+  if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
   const center = m.getCenter();
   const currentZoom = m.getZoom();
   const targetZoom = zoom ?? currentZoom;
@@ -171,6 +172,7 @@ export function mobileAwareFlyTo(
 export function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   const m = map.value;
   const target = toLatLng(latlng);
+  if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
   const center = m.getCenter();
   const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
 
@@ -195,9 +197,17 @@ export function mobileAwareFlyToBounds(
   options: FlyToBoundsOptions = {},
 ): boolean {
   const m = map.value;
+  const west = bounds.getWest();
+  const south = bounds.getSouth();
+  const east = bounds.getEast();
+  const north = bounds.getNorth();
+  if (![west, south, east, north].every((n) => Number.isFinite(n))) {
+    // Degenerate bounds (e.g. NaN corners) would throw in cameraForBounds; skip instead.
+    return false;
+  }
   const llb: [[number, number], [number, number]] = [
-    [bounds.getWest(), bounds.getSouth()],
-    [bounds.getEast(), bounds.getNorth()],
+    [west, south],
+    [east, north],
   ];
   const padding = resolvePadding(options.padding);
 

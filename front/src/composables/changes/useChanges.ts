@@ -7,9 +7,9 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import L from "leaflet";
 import type { OverlayObject } from "@/types";
-import { getLayer } from "@/services/overlay/overlayRenderRegistry";
+import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
 type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
 
@@ -33,10 +33,8 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
   overlayObject.isModified = false;
   overlayObject.history = overlayObject.corners.length === 4 ? [overlayObject.corners] : [];
   overlayObject.redoStack = [];
-  const layer = getLayer(overlayId);
-  if (layer && overlayObject.corners.length === 4) {
-    const leafletCorners = overlayObject.corners.map((corner) => L.latLng(corner.lat, corner.lng));
-    layer.setCorners(leafletCorners);
+  if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
+    setOverlayImageCorners(overlayId, overlayObject.corners);
     updateMarkerPosition(overlayObject);
   }
 }

@@ -1,7 +1,7 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
-import { getLayer } from "@/services/overlay/overlayRenderRegistry";
+import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
@@ -352,7 +352,7 @@ export function useSubmissionService() {
     const liveOverlay = overlayStore.overlays[context.entityId];
     const corners =
       context.proposed?.corners ??
-      getLayer(context.entityId)?.getCorners() ??
+      getOverlayImageCorners(context.entityId) ??
       liveOverlay?.corners ??
       [];
 

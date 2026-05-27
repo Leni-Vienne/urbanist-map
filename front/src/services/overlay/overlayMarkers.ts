@@ -1,7 +1,11 @@
 import L from "leaflet";
+import maplibregl from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
-import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
+import {
+  getOverlayMarkerColor,
+  createOverlayMarkerElement,
+  updateOverlayMarkerColor,
+} from "@/services/map/markers";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -9,6 +13,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import { applyWarningRing, clearWarningRing } from "@/services/overlay/overlayStyle";
 import {
   selectOverlay,
@@ -26,27 +31,22 @@ import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 import { t } from "@/locales";
 
 /**
- * Update the marker position based on overlay center
+ * Update the marker position based on the overlay's current center
  */
 export function updateMarkerPosition(overlayObject: OverlayObject): void {
-  const layer = registry.getLayer(overlayObject.id);
   const marker = registry.getMarker(overlayObject.id);
-  if (!layer || !marker) {
-    return;
-  }
+  if (!marker) return;
 
-  // Calculate centroid from corners (average of all 4 corners) to match backend calculation
-  // This ensures marker position doesn't jump when zooming in/out
-  const corners = layer.getCorners();
-  if (corners?.length === 4) {
-    /* oxlint-disable-next-line no-non-null-assertion */
-    const centroid = calculateCentroidFromCorners(corners)!;
-    marker.setLatLng(L.latLng(centroid.lat, centroid.lng));
+  // Centroid from the live image corners so the pin tracks the overlay during edits.
+  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.corners;
+  if (corners.length === 4) {
+    const centroid = calculateCentroidFromCorners(corners);
+    if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);
   }
 }
 
 /**
- * Update marker tooltip based on overlay storage status
+ * Update marker color + tooltip based on overlay storage status
  * @param overlayObject - The overlay object to update
  * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
  */
@@ -60,27 +60,16 @@ export function updateMarkerTooltip(
   if (!marker) return;
 
   const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, mapStore.mode);
+  updateOverlayMarkerColor(marker, markerColor);
 
-  // Skip setIcon() if color unchanged -- setIcon() detaches and rebuilds the marker's
-  // DOM element even when the icon is visually identical, causing unnecessary layout cost.
-  // We track the current color on the marker object directly.
-  const markerWithColor = marker as L.Marker & { _cmorgColor?: MarkerColor };
-  if (markerWithColor._cmorgColor !== markerColor) {
-    marker.setIcon(createOverlayIcon(markerColor));
-    markerWithColor._cmorgColor = markerColor;
-  }
+  const element = marker.getElement();
 
-  // View mode: ensure no tooltip is bound
-  // Edit & Moderation modes: show tooltips
+  // View mode shows no tooltip; edit & moderation modes do.
   if (mapStore.mode === "view") {
-    if (marker.getTooltip()) {
-      marker.unbindTooltip();
-    }
+    element.removeAttribute("title");
     return;
   }
-  /**
-   * Helper to generate tooltip text based on overlay state
-   */
+
   function getTooltipTextForOverlay(): string {
     const hasBeenModified = overlayObject.isModified;
     const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
@@ -120,18 +109,7 @@ export function updateMarkerTooltip(
     return modifierText ? `${statusText} (${modifierText})` : statusText;
   }
 
-  const tooltipText = getTooltipTextForOverlay();
-
-  // Update tooltip content if it exists, otherwise bind new one
-  if (marker.getTooltip()) {
-    marker.setTooltipContent(tooltipText);
-  } else {
-    marker.bindTooltip(tooltipText, {
-      permanent: false,
-      direction: "top",
-      offset: [0, -10],
-    });
-  }
+  element.title = getTooltipTextForOverlay();
 }
 
 /**
@@ -140,6 +118,8 @@ export function updateMarkerTooltip(
 export function createSingleMarker(savedOverlay: OverlayObject): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
+  const mlMap = map.value;
+  if (!mlMap) return;
 
   // Skip replaced overlays - the replacement is at the same location, marker would be confusing
   if (savedOverlay.status === "replaced") {
@@ -174,51 +154,50 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
   if (!centroid) {
     return;
   }
-  const center = L.latLng(centroid.lat, centroid.lng);
 
   // Enrich overlay with project data for proper marker color calculation
   const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
   const markerColor = getOverlayMarkerColor(tempOverlayObject, mapStore.mode);
-  const colorIcon = createOverlayIcon(markerColor);
+  const element = createOverlayMarkerElement(markerColor);
 
-  const marker = L.marker(center, {
-    icon: colorIcon,
-  }).addTo(legacyLeafletMap());
+  const marker = new maplibregl.Marker({ element, anchor: "bottom" })
+    .setLngLat([centroid.lng, centroid.lat])
+    .addTo(mlMap);
 
-  marker.on("click", (e) => {
-    L.DomEvent.stopPropagation(e);
+  element.addEventListener("click", (e) => {
+    e.stopPropagation();
 
     const overlayObject = overlayStore.overlays[savedOverlay.id];
     if (!overlayObject) return;
+
+    // Selection drives the toolbar and edit handles, so it must run before the camera fly
+    // below, which can bail (or previously threw) on degenerate bounds.
+    if (overlayStore.idSelectedOverlay === savedOverlay.id) {
+      selectOverlay(null);
+      return;
+    }
 
     // Default to viewing the approved position on first click
     if (overlayObject.isViewingApprovedPosition === undefined) {
       overlayObject.isViewingApprovedPosition = true;
     }
-
     syncPreviewStateOnNavigation(savedOverlay.id, overlayObject.isViewingApprovedPosition ?? true);
+
+    selectOverlay(savedOverlay.id);
 
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
       mobileAwareFlyToBounds(bounds);
-    }
-
-    // Toggle selection
-    if (overlayStore.idSelectedOverlay === savedOverlay.id) {
-      selectOverlay(null);
-    } else {
-      selectOverlay(savedOverlay.id);
     }
   });
 
   // Capture projectId to avoid non-null assertion inside hover callbacks
   const projectId = savedOverlay.projectId;
   if (projectId) {
-    marker.on("mouseover", () => {
+    element.addEventListener("mouseenter", () => {
       highlightProject(projectId);
     });
-
-    marker.on("mouseout", () => {
+    element.addEventListener("mouseleave", () => {
       removeProjectOutlines(projectId);
     });
   }
@@ -232,6 +211,8 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
  */
 export function createMarker(overlayObject: OverlayObject): void {
   const mapStore = useMapStore();
+  const mlMap = map.value;
+  if (!mlMap) return;
 
   // Visibility check: filters out overlays that don't pass mode/user conditions
   const authStore = useAuthStore();
@@ -239,22 +220,19 @@ export function createMarker(overlayObject: OverlayObject): void {
     return;
   }
 
-  const center = map.value.getCenter();
   const markerColor = getOverlayMarkerColor(overlayObject, "edit");
-  const colorIcon = createOverlayIcon(markerColor);
+  const element = createOverlayMarkerElement(markerColor);
 
-  const marker = L.marker(center, {
-    icon: colorIcon,
-  }).addTo(legacyLeafletMap());
+  const marker = new maplibregl.Marker({ element, anchor: "bottom" })
+    .setLngLat(mlMap.getCenter())
+    .addTo(mlMap);
 
-  marker.on("click", () => {
+  element.addEventListener("click", () => {
+    selectOverlay(overlayObject.id);
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {
       mobileAwareFlyToBounds(bounds);
     }
-
-    // selectOverlay handles overlay.select() internally
-    selectOverlay(overlayObject.id);
   });
 
   registry.setMarker(overlayObject.id, marker);
@@ -268,28 +246,23 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
-  // Priority 0: If overlay is rendered, use actual Leaflet overlay position (most accurate)
-  const layer = registry.getLayer(overlay.id);
-  if (layer) {
-    const actualCorners = layer.getCorners();
-    if (actualCorners?.length === 4) {
-      return L.latLngBounds(actualCorners);
-    }
+  // Priority 0: live image position (most accurate when the overlay is rendered)
+  const liveCorners = getOverlayImageCorners(overlay.id);
+  if (liveCorners?.length === 4) {
+    return L.latLngBounds(liveCorners.map((c) => L.latLng(c.lat, c.lng)));
   }
 
   // Priority 1: In edit mode use the user's last edited position from history
   if (mapStore.mode === "edit") {
     const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1);
     if (lastEdited?.length === 4) {
-      const corners = lastEdited.map((corner) => L.latLng(corner.lat, corner.lng));
-      return L.latLngBounds(corners);
+      return L.latLngBounds(lastEdited.map((corner) => L.latLng(corner.lat, corner.lng)));
     }
   }
 
   // Priority 2: Use overlay corners from overlayData
   if (overlay.corners.length === 4) {
-    const corners = overlay.corners.map((corner) => L.latLng(corner.lat, corner.lng));
-    return L.latLngBounds(corners);
+    return L.latLngBounds(overlay.corners.map((corner) => L.latLng(corner.lat, corner.lng)));
   }
 
   return null;
@@ -318,9 +291,6 @@ export function checkOverlaySizeAndWarn(
 
   // Resolve store once to sync isTooBig so that subsequent
   // updateOverlay (Object.assign from store) propagates the correct value.
-  // Without this, the store retains a stale isTooBig:true after the overlay
-  // becomes valid again, causing the drag handler (which reads from the store)
-  // to wrongly color the marker red.
   const overlayStore = useOverlayStore();
 
   if (!validation.isValid) {

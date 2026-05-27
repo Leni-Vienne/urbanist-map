@@ -11,6 +11,7 @@
 
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
@@ -102,7 +103,7 @@ function syncOverlaysFromTiles(mlMap: any): void {
     // local/new layers are never in that cache, so they are never touched here.
     // Also skip entries currently being created, their in-flight async load will clean up
     // via the visibility check in onOverlayFullyLoaded if they've since left view.
-    for (const [id] of registry.getAllLayers()) {
+    for (const id of registry.getRenderedOverlayIds()) {
       if (!featureMap.has(id) && !registry.isCreating(id) && approvedOverlayDataCache.has(id)) {
         registry.clearEntry(id);
         approvedOverlayDataCache.delete(id);
@@ -123,13 +124,15 @@ function syncOverlaysFromTiles(mlMap: any): void {
     }
 
     // Render new overlays. renderViewModeOverlays deduplicates via beginCreation inside.
-    // createMarkers=false: click handling is done by the overlay-footprints MapLibre layer.
+    // View mode handles clicks via the overlay-footprints MapLibre layer, so no DOM pin.
+    // Edit/moderation need a clickable status pin to select an approved overlay for editing.
     const toCreate = [...featureMap.values()];
     if (toCreate.length === 0) return;
 
+    const createMarkers = useMapStore().mode !== "view";
     import("@/services/overlay/overlayRendering")
       .then(({ renderViewModeOverlays }) => {
-        renderViewModeOverlays(toCreate, false);
+        renderViewModeOverlays(toCreate, createMarkers);
       })
       .catch((error: unknown) =>
         console.error("vectorTileSync: failed to load overlayRendering", error),

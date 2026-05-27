@@ -3,7 +3,6 @@
 import L from "leaflet";
 import { t } from "@/locales";
 import { map, currentZoomLevel } from "@/services/core/map";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -22,6 +21,13 @@ import {
   updateMarkerTooltip,
   createMarker,
 } from "@/services/overlay/overlayMarkers";
+import { createOverlayImage, setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { transformToCorners } from "@/services/overlay/overlayTransform";
+import {
+  showEditHandles,
+  hideEditHandles,
+  refreshEditHandles,
+} from "@/services/overlay/overlayEditHandles";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
@@ -29,60 +35,43 @@ import * as registry from "@/services/overlay/overlayRenderRegistry";
 /**
  * Update overlay editing state when switching modes.
  * Entering edit mode: restore the user's last edited corners from history.
- * Leaving edit mode: snap the visible layer back to the approved backend corners (history preserved).
+ * Leaving edit mode: snap the image back to the approved backend corners (history preserved).
  */
 export async function updateOverlayEditingState(): Promise<void> {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
-
+  const isEditMode = mapStore.mode === "edit";
   const selectedOverlayId = overlayStore.idSelectedOverlay;
-  const wasSelected = Boolean(selectedOverlayId);
+
+  // Clear any stale handles; they are re-shown for the selected overlay below.
+  hideEditHandles();
 
   Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
-    const layer = registry.getLayer(overlayObject.id);
-    if (!layer) return;
+    if (!registry.getImageHandle(overlayObject.id)) return;
 
-    if (!legacyLeafletMap().hasLayer(layer)) return;
-
-    const isEditMode = mapStore.mode === "edit";
-    // Only pass mode actions, toolbar UI is handled by OverlayFloatingToolbar.vue.
-    // Cast to any[]: L.ResizeRotateAction/DistortAction are registered by leaflet-distortableimage
-    // at runtime but absent from TS types.
-    const modeActions = (
-      isEditMode ? [(L as any).ResizeRotateAction, (L as any).DistortAction] : []
-    ) as any[];
-    layer.setOptions({ actions: modeActions, draggable: isEditMode });
-
-    // isModified is owned by saveToHistory / undo / submission flows; mode transitions
-    // must not write to it (would clobber the cleared state after a submission round-trip).
     if (isEditMode) {
       const lastEdited = overlayObject.history.at(-1);
       const hasUserEdits = overlayObject.history.length > 1;
       if (hasUserEdits && lastEdited?.length === 4) {
-        const leafletCorners = lastEdited.map((corner) => L.latLng(corner.lat, corner.lng));
-        layer.setCorners(leafletCorners);
+        setOverlayImageCorners(overlayObject.id, lastEdited);
         updateMarkerPosition(overlayObject);
       }
     } else if (overlayObject.corners.length === 4) {
-      // Leaving edit mode: snap the visible layer back to the approved backend position.
+      // Leaving edit mode: snap back to the approved backend position.
       // History is intentionally preserved so re-entering edit mode restores the user's edits.
-      const leafletCorners = overlayObject.corners.map((corner) =>
-        L.latLng(corner.lat, corner.lng),
-      );
-      layer.setCorners(leafletCorners);
+      setOverlayImageCorners(overlayObject.id, overlayObject.corners);
       updateMarkerPosition(overlayObject);
     }
 
     updateMarkerTooltip(overlayObject);
   });
 
-  // Restore selection so editing handles reappear after mode switch.
-  if (wasSelected && selectedOverlayId) {
-    requestAnimationFrame(() => {
-      if (registry.hasReadyLayer(selectedOverlayId)) {
-        selectOverlay(selectedOverlayId);
-      }
-    });
+  // Re-show handles for the selected overlay after entering edit mode.
+  if (isEditMode && selectedOverlayId) {
+    const selected = overlayStore.overlays[selectedOverlayId];
+    if (selected && registry.getImageHandle(selectedOverlayId)) {
+      requestAnimationFrame(() => showEditHandles(selected));
+    }
   }
 }
 
@@ -105,6 +94,33 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     imageUrl,
     isModified: true, // New overlays need to be uploaded
     status: null, // null = local only, never submitted
+  });
+}
+
+// Read an image's aspect ratio (width / height). Falls back to square on failure.
+function loadImageAspect(imageUrl: string): Promise<number> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.addEventListener("load", () => {
+      resolve(img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1);
+    });
+    img.addEventListener("error", () => resolve(1));
+    img.src = imageUrl;
+  });
+}
+
+// Place a new overlay as a rectangle centered on the current view, sized from the image aspect.
+async function defaultCornersForNewOverlay(
+  imageUrl: string,
+): Promise<{ lat: number; lng: number }[]> {
+  const aspect = await loadImageAspect(imageUrl);
+  const center = map.value.getCenter();
+  const widthMeters = 100;
+  return transformToCorners({
+    center: { lat: center.lat, lng: center.lng },
+    width: widthMeters,
+    height: widthMeters / aspect,
+    bearing: 0,
   });
 }
 
@@ -159,25 +175,25 @@ export function addOverlay(
     }
   }
 
-  // Async to allow dynamic import of overlayRendering (keeps leaflet-distortableimage out of initial bundle)
   async function createAndSetupOverlay() {
-    const { createLeafletOverlay } = await import("@/services/overlay/overlayRendering");
-    // onAddedToMap fires after the image has loaded and the layer is confirmed on the map.
-    // createLeafletOverlay already registers the layer and waits for the image internally.
-    createLeafletOverlay(imageUrl, overlayObject, () => {
-      const layer = registry.getLayer(overlayObject.id);
-      overlayObject.corners = layer?.getCorners() ?? [];
+    const corners = await defaultCornersForNewOverlay(imageUrl);
+    overlayObject.corners = corners;
+    overlayObject.history = [structuredClone(corners)];
 
-      overlayStore.addOverlay(id, overlayObject);
-      createMarker(overlayObject);
+    overlayStore.addOverlay(id, overlayObject);
 
-      // Add to project AFTER storing in overlays to avoid "not found" error.
-      const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
-      if (isFirstOverlay) {
-        removeStandaloneProjectMarkerForProject(projectId);
-      }
-      selectOverlay(id);
-    });
+    const handle = createOverlayImage(overlayObject, corners);
+    if (!handle) return;
+    registry.setImageHandle(id, handle);
+
+    createMarker(overlayObject);
+
+    // Add to project AFTER storing in overlays to avoid "not found" error.
+    const isFirstOverlay = addOverlayToProjectWithId(projectId, id);
+    if (isFirstOverlay) {
+      removeStandaloneProjectMarkerForProject(projectId);
+    }
+    selectOverlay(id);
   }
 
   // If zoom level is too low, zoom to project location first, then create overlay
@@ -220,8 +236,7 @@ function applyHistoryAction(action: "undo" | "redo") {
   if (!overlayStore.idSelectedOverlay) return;
 
   const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
-  const layer = overlayObject ? registry.getLayer(overlayObject.id) : null;
-  if (!overlayObject || !layer) return;
+  if (!overlayObject || !registry.getImageHandle(overlayObject.id)) return;
 
   const { history, redoStack } = overlayObject;
   const isUndo = action === "undo";
@@ -238,7 +253,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     const previousState = history.at(-1);
     if (!previousState) return;
 
-    layer.setCorners(previousState);
+    setOverlayImageCorners(overlayObject.id, previousState);
 
     // Back to initial state on a submitted overlay (approved/pending/rejected) -- mark as
     // unmodified so the marker returns to its status color.
@@ -250,11 +265,12 @@ function applyHistoryAction(action: "undo" | "redo") {
     if (!stateToRestore) return;
 
     history.push(stateToRestore);
-    layer.setCorners(stateToRestore);
+    setOverlayImageCorners(overlayObject.id, stateToRestore);
 
     overlayObject.isModified = true;
   }
 
+  refreshEditHandles();
   updateMarkerPosition(overlayObject);
   updateMarkerTooltip(overlayObject);
 

@@ -10,6 +10,7 @@ import {
   getOverlayBounds,
 } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { clearAllMapContent } from "@/services/overlay/overlayLifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -122,7 +123,7 @@ export function useChangeRequestPreview() {
 
     let overlayObject = overlayStore.overlays[overlayForModeration.id];
 
-    if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
+    if (overlayObject && registry.getImageHandle(overlayObject.id) !== null) {
       return true;
     }
 
@@ -161,12 +162,12 @@ export function useChangeRequestPreview() {
     for (let i = 0; i < maxAttempts; i += 1) {
       await new Promise<void>((resolve) => void setTimeout(resolve, 100));
       overlayObject = overlayStore.overlays[overlayForModeration.id];
-      if (overlayObject && registry.getLayer(overlayObject.id) !== null) {
+      if (overlayObject && registry.getImageHandle(overlayObject.id) !== null) {
         break;
       }
     }
 
-    if (!overlayObject || registry.getLayer(overlayObject.id) === null) {
+    if (!overlayObject || registry.getImageHandle(overlayObject.id) === null) {
       toast.add({
         severity: "error",
         summary: t("overlay.loadFailed"),
@@ -185,8 +186,7 @@ export function useChangeRequestPreview() {
     wasAlreadyLoaded: boolean,
   ): void {
     const overlayObject = overlayStore.overlays[overlayId];
-    const overlayLayer = overlayObject ? registry.getLayer(overlayObject.id) : null;
-    if (!overlayObject || !overlayLayer) {
+    if (!overlayObject || registry.getImageHandle(overlayObject.id) === null) {
       return;
     }
 
@@ -211,7 +211,7 @@ export function useChangeRequestPreview() {
     }
 
     // Apply the position change
-    overlayLayer.setCorners(targetLatLngs);
+    setOverlayImageCorners(overlayId, targetLatLngs);
     updateMarkerPosition(overlayObject);
     updateMarkerTooltip(overlayObject);
 
@@ -237,7 +237,7 @@ export function useChangeRequestPreview() {
 
       const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
 
-      const wasAlreadyLoaded = registry.getLayer(change.entityId) !== null;
+      const wasAlreadyLoaded = registry.getImageHandle(change.entityId) !== null;
       const isTogglingActivePreview =
         previewState.value.type !== "none" && previewState.value.changeId === change.id;
 

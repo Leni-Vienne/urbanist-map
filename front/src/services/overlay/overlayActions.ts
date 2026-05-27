@@ -25,7 +25,8 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   // Fall back to marker position if bounds unavailable
   const marker = getMarker(overlay.id);
   if (marker) {
-    mobileAwareFlyTo(marker.getLatLng(), 17);
+    const lngLat = marker.getLngLat();
+    mobileAwareFlyTo(L.latLng(lngLat.lat, lngLat.lng), 17);
     return true;
   }
 

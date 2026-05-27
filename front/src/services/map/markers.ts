@@ -1,4 +1,5 @@
 import L from "leaflet";
+import type { Marker as MaplibreMarker } from "maplibre-gl";
 import { watchEffect } from "vue";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
@@ -100,6 +101,27 @@ export function createOverlayIcon(color: MarkerColor): L.DivIcon {
   return icon;
 }
 
+// Overlay status pin as a DOM element for maplibregl.Marker (anchor 'bottom' = pin tip).
+// The SVG is rendered at 32x40 to match createOverlayMarkerSVG.
+export function createOverlayMarkerElement(color: MarkerColor): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "custom-svg-marker overlay-marker";
+  el.style.width = "32px";
+  el.style.height = "40px";
+  el.style.cursor = "pointer";
+  el.innerHTML = createOverlayMarkerSVG(color);
+  el.dataset.cmorgColor = color;
+  return el;
+}
+
+// Re-render an overlay marker element in a new color, skipping no-op updates.
+export function updateOverlayMarkerColor(marker: MaplibreMarker, color: MarkerColor): void {
+  const el = marker.getElement();
+  if (el.dataset.cmorgColor === color) return;
+  el.innerHTML = createOverlayMarkerSVG(color);
+  el.dataset.cmorgColor = color;
+}
+
 // Create standalone/project marker icon with simple circle (for standalone projects)
 export function createStandaloneProjectIcon(color: MarkerColor): L.DivIcon {
   const cached = standaloneIconCache[color];
@@ -186,11 +208,7 @@ export function initializeMarkerColorTriggers(): void {
     for (const overlayObject of Object.values(overlayStore.overlays)) {
       const marker = getMarker(overlayObject.id);
       if (!marker) continue;
-      const color = getOverlayMarkerColor(overlayObject, mode);
-      const markerWithColor = marker as L.Marker & { _cmorgColor?: MarkerColor };
-      if (markerWithColor._cmorgColor === color) continue;
-      marker.setIcon(createOverlayIcon(color));
-      markerWithColor._cmorgColor = color;
+      updateOverlayMarkerColor(marker, getOverlayMarkerColor(overlayObject, mode));
     }
   });
 }

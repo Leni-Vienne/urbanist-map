@@ -12,6 +12,7 @@ import {
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
 import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
+import { dropImageHandlesForStyleSwitch } from "@/services/overlay/overlayRenderRegistry";
 import {
   selectedProjectTags,
   visibleStates,
@@ -370,6 +371,9 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (lastPendingProjectPointsGeojson) {
         updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
       }
+      // Overlay image sources were wiped by setStyle; drop their handles so vectorTileSync
+      // re-creates them on the next idle.
+      dropImageHandlesForStyleSwitch();
       resolve();
     });
     mlMap.setStyle(style);
