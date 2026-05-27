@@ -109,9 +109,6 @@ export const users = pgTable(
     emailVerificationToken: text("email_verification_token"),
     passwordResetToken: text("password_reset_token"),
     passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true }),
-    // Deprecated: OAuth identities now live in the oauth_accounts table. Kept for one
-    // release as a safety net after backfill; no longer read or written by the app.
-    googleId: text("google_id").unique(),
     // Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
     approvedCount: integer("approved_count").default(0).notNull(),
     rejectedCount: integer("rejected_count").default(0).notNull(),
@@ -136,7 +133,6 @@ export const users = pgTable(
     index("idx_users_email").on(users.email),
     index("idx_users_email_verification").on(users.emailVerificationToken),
     index("idx_users_password_reset").on(users.passwordResetToken),
-    index("idx_users_google_id").on(users.googleId), // Index for Google OAuth lookups
   ],
 );
 
@@ -240,6 +236,7 @@ export const projects = pgTable(
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
     detachedAt: timestamp("detached_at", { withTimezone: true }), // Set when OSM source was deleted/redrawn and project had overlays; import link is severed
+    importLockedAt: timestamp("import_locked_at", { withTimezone: true }), // Set when a user edit is approved on an imported project; the OSM import must not overwrite its fields
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

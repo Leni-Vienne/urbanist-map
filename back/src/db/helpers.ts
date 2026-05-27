@@ -145,6 +145,7 @@ export const PROJECT_COLUMNS = {
   centerCoordinate: projects.centerCoordinate,
   countryCode: projects.countryCode,
   detachedAt: projects.detachedAt,
+  importLockedAt: projects.importLockedAt,
 } as const;
 
 export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof schema>) {

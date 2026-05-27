@@ -56,6 +56,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     tags: data.tags ?? [],
     countryCode: data.countryCode ?? "",
     detachedAt: data.detachedAt ?? null,
+    importLockedAt: data.importLockedAt ?? null,
   };
 }
 
