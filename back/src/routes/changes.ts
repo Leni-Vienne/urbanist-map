@@ -10,7 +10,7 @@ import {
   users,
   userReports,
 } from "../db/schema";
-import { eq, and, inArray, sql, or } from "drizzle-orm";
+import { eq, and, inArray, sql, or, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import { enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
@@ -494,6 +494,17 @@ export const changesRouter = router({
 
             if (change.entityType === "project") {
               await tx.update(projects).set(updateData).where(eq(projects.id, change.entityId));
+              // Lock imported projects so the next OSM sync can't overwrite this approved edit.
+              await tx
+                .update(projects)
+                .set({ importLockedAt: new Date() })
+                .where(
+                  and(
+                    eq(projects.id, change.entityId),
+                    isNotNull(projects.importSourceId),
+                    isNull(projects.importLockedAt),
+                  ),
+                );
             } else {
               await tx.update(overlays).set(updateData).where(eq(overlays.id, change.entityId));
             }
