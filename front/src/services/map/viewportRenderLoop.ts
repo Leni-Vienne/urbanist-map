@@ -4,7 +4,6 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
 import {
@@ -88,7 +87,7 @@ function pruneOverlays(bounds: L.LatLngBounds, zoom: number) {
   pruneLocalOverlays();
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)
-  renderAllProjectShapes(legacyLeafletMap());
+  renderAllProjectShapes();
 }
 
 // Destroy markers/images for overlays that are filtered OUT by completion status, so

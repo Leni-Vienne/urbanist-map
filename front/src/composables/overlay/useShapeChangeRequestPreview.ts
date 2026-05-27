@@ -1,6 +1,5 @@
-import L from "leaflet";
+import { LngLatBounds } from "maplibre-gl";
 import { nextTick } from "vue";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
@@ -33,13 +32,15 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
   return gc as GeoJSON.GeometryCollection;
 }
 
-function computeBounds(geometry: GeoJSON.GeometryCollection): L.LatLngBounds | null {
-  const latLngs: L.LatLng[] = [];
+function computeBounds(geometry: GeoJSON.GeometryCollection): LngLatBounds | null {
+  let bounds: LngLatBounds | null = null;
   for (const geom of geometry.geometries) {
-    forEachPosition(geom, (lng, lat) => latLngs.push(L.latLng(lat, lng)));
+    forEachPosition(geom, (lng, lat) => {
+      if (bounds) bounds.extend([lng, lat]);
+      else bounds = new LngLatBounds([lng, lat], [lng, lat]);
+    });
   }
-  if (latLngs.length === 0) return null;
-  return L.latLngBounds(latLngs);
+  return bounds;
 }
 
 export function useShapeChangeRequestPreview() {
@@ -73,7 +74,6 @@ export function useShapeChangeRequestPreview() {
 
     renderPreviewShapes(
       geometry,
-      legacyLeafletMap(),
       type === "new" ? "suggested" : "current",
       project.id,
       (latlng) => {

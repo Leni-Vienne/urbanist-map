@@ -207,7 +207,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   clearProjectShapes(project.id);
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
-    renderProjectShapes(updatedProject, legacyLeafletMap());
+    renderProjectShapes(updatedProject);
   }
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });

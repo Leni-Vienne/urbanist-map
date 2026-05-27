@@ -1,6 +1,4 @@
-import type * as L from "leaflet";
 import { watch } from "vue";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import type { OverlayData, Project } from "@/types/index";
 import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
 import { hasProjectShapes } from "@/services/map/shapeLayerRegistry";
@@ -103,7 +101,6 @@ function getVisibleProjectsToRender() {
 function processAndRenderProjectShape(
   projectId: string,
   projectData: Project,
-  mapInstance: L.Map,
   isEditMode: boolean,
   isModeration: boolean,
 ) {
@@ -140,7 +137,6 @@ function processAndRenderProjectShape(
 
   renderProjectShapes(
     { ...projectToRender, geometry: finalGeometry },
-    mapInstance,
     isPending ? "yellow" : undefined,
   );
 }
@@ -149,7 +145,7 @@ function processAndRenderProjectShape(
  * Render shapes for all visible projects in edit/moderation mode.
  * Uses project store geometry (not tile data) so unsaved edits are reflected.
  */
-export function renderAllProjectShapes(mapInstance: L.Map) {
+export function renderAllProjectShapes() {
   const mapStore = useMapStore();
 
   // In view mode, shapes are rendered exclusively via MapLibre vector tiles.
@@ -163,7 +159,7 @@ export function renderAllProjectShapes(mapInstance: L.Map) {
   const projectsToRender = getVisibleProjectsToRender();
 
   for (const [projectId, projectData] of projectsToRender.entries()) {
-    processAndRenderProjectShape(projectId, projectData, mapInstance, isEditMode, isModeration);
+    processAndRenderProjectShape(projectId, projectData, isEditMode, isModeration);
   }
 }
 
@@ -181,7 +177,7 @@ export function initializeShapeRenderTriggers() {
     () => {
       if (mapStore.mode === "view") return;
       clearAllProjectShapes();
-      renderAllProjectShapes(legacyLeafletMap());
+      renderAllProjectShapes();
     },
   );
 
@@ -190,7 +186,7 @@ export function initializeShapeRenderTriggers() {
     (loaded) => {
       if (!loaded || mapStore.mode !== "moderation") return;
       clearAllProjectShapes();
-      renderAllProjectShapes(legacyLeafletMap());
+      renderAllProjectShapes();
     },
   );
 

@@ -1,157 +1,261 @@
-import L from "leaflet";
+import { type ExpressionSpecification, type MapMouseEvent, LngLatBounds } from "maplibre-gl";
+import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
+import { map } from "@/services/core/map";
 import { markerColors } from "@/services/map/markers";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectProject } from "@/services/map/projectSelection";
+import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { forEachPosition } from "@/utils/geojson";
 import {
   setShapeEntry,
-  getShapeEntry,
   hasProjectShapes,
   highlightProjectShapes,
   unhighlightProjectShapes,
   clearAllShapeEntries,
+  setProjectShapesVisible,
+  type ShapeEntry,
+  type ShapeEventBinding,
 } from "@/services/map/shapeLayerRegistry";
-
-// Ephemeral preview layer for change request previews (not in shapeLayerMap)
-let previewLayerGroup: L.LayerGroup | null = null;
-// The project whose regular shapes are temporarily hidden during preview
-let previewHiddenProjectId: string | null = null;
-let previewMapInstance: L.Map | null = null;
 
 const PREVIEW_COLORS = {
   current: "#22c55e", // green-500, matches "success" severity button
   suggested: "#f59e0b", // amber-500, matches "warn" severity button
 } as const;
 
-/** Convert a GeoJSON [lng, lat] position to a Leaflet LatLng. */
-function toLatLng(coord: number[]): L.LatLng {
-  return L.latLng(coord[1] ?? 0, coord[0] ?? 0);
+// Zoom-interpolated line widths, identical to the view-mode project-shapes MVT layers.
+const SHAPE_LINE_WIDTH: ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  1,
+  12,
+  3,
+];
+const SHAPE_LINE_WIDTH_HOVER: ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  2,
+  12,
+  4,
+];
+const SHAPE_LONG_DASH: [number, number] = [4, 2];
+const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
+const HOVER_FILL_OPACITY = 0.35;
+
+type LineGeomType = "LineString" | "MultiLineString";
+type PolygonGeomType = "Polygon" | "MultiPolygon";
+
+function isLineGeometry(type: GeoJSON.Geometry["type"]): type is LineGeomType {
+  return type === "LineString" || type === "MultiLineString";
 }
 
-/**
- * Build Leaflet path layers from a GeometryCollection.
- * Lines use `style` directly; polygons add `fillOpacity`.
- * Point/MultiPoint geometries are ignored.
- *
- * For line geometries a transparent wide polyline is added as a hit target so lines
- * are easy to click without changing their visual weight.
- *
- * LineString/Polygon are normalised to their Multi variants before constructing
- * the Leaflet layer, so each geometry family has a single branch.
- */
-function buildShapeLayers(
-  geometries: GeoJSON.Geometry[],
-  style: L.PathOptions,
-  fillOpacity: number,
-): { visual: L.Path[]; interactive: L.Path[] } {
-  const visual: L.Path[] = [];
-  const interactive: L.Path[] = [];
-  const polygonStyle = { ...style, fillOpacity };
-  // Transparent wide polyline used as a click/hover target for lines.
-  const hitStyle: L.PathOptions = { opacity: 0, fillOpacity: 0, weight: 20, stroke: true };
+function isPolygonGeometry(type: GeoJSON.Geometry["type"]): type is PolygonGeomType {
+  return type === "Polygon" || type === "MultiPolygon";
+}
 
-  for (const geom of geometries) {
-    if (geom.type === "LineString" || geom.type === "MultiLineString") {
-      const lines =
-        geom.type === "LineString"
-          ? [geom.coordinates.map(toLatLng)]
-          : geom.coordinates.map((line) => line.map(toLatLng));
-      visual.push(L.polyline(lines, { ...style, interactive: false }));
-      interactive.push(L.polyline(lines, hitStyle));
-    } else if (geom.type === "Polygon" || geom.type === "MultiPolygon") {
-      const polys =
-        geom.type === "Polygon"
-          ? [geom.coordinates.map((ring) => ring.map(toLatLng))]
-          : geom.coordinates.map((poly) => poly.map((ring) => ring.map(toLatLng)));
-      const layer = L.polygon(polys, polygonStyle); // polygons have a large area, no separate hit layer needed
-      visual.push(layer);
-      interactive.push(layer);
+/** Wrap each line/polygon geometry as a Feature; points are ignored (rendered as markers). */
+function toShapeFeatures(geometries: GeoJSON.Geometry[]): Feature[] {
+  const features: Feature[] = [];
+  for (const geometry of geometries) {
+    if (isLineGeometry(geometry.type) || isPolygonGeometry(geometry.type)) {
+      features.push({ type: "Feature", geometry, properties: {} });
     }
   }
-  return { visual, interactive };
+  return features;
 }
 
-/**
- * Render a project's GeometryCollection as Leaflet layers on the map.
- * Lines become L.polyline, polygons become L.polygon (with fill). Idempotent.
- * Hover/click handlers call selectProject + highlightProject/removeProjectOutlines directly.
- */
-export function renderProjectShapes(
-  project: Project,
-  mapInstance: L.Map,
-  colorKeyOverride?: keyof typeof markerColors,
-): void {
-  if (!project.geometry?.geometries.length) return;
-  if (hasProjectShapes(project.id)) return;
-
-  const mapStore = useMapStore();
-  const color = markerColors[colorKeyOverride ?? getProjectMarkerColor(project, mapStore.mode)];
-
-  const baseStyle: L.PathOptions = { color, weight: 3, opacity: 0.85 };
-  const hoverStyle: L.PathOptions = { color, weight: 5, opacity: 1 };
-
-  const { visual: layers, interactive: interactiveLayers } = buildShapeLayers(
-    project.geometry.geometries,
-    baseStyle,
-    0.15,
-  );
-
-  if (layers.length === 0) return;
-
-  for (const layer of interactiveLayers) {
-    layer.on("mouseover", () => {
-      highlightProjectShapes(project.id);
-      highlightProject(project.id);
-      (layer.getElement() as unknown as HTMLElement | undefined)?.style.setProperty(
-        "cursor",
-        "pointer",
-      );
-    });
-    layer.on("mouseout", () => {
-      // Keep highlight if the project info popup is open or one of its overlays is selected.
-      // Inlined check to avoid coupling to overlaySelection.getCurrentHighlightedProjectId
-      // beyond the existing import.
-      const overlayStore = useOverlayStore();
-      const uiStore = useUiStore();
-      const selected = overlayStore.idSelectedOverlay
-        ? overlayStore.overlays[overlayStore.idSelectedOverlay]
-        : null;
-      const highlightedId =
-        selected?.projectId ??
-        (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null);
-      if (highlightedId === project.id) return;
-
-      unhighlightProjectShapes(project.id);
-      removeProjectOutlines(project.id);
-      (layer.getElement() as unknown as HTMLElement | undefined)?.style.removeProperty("cursor");
-    });
-    layer.on("click", (e: L.LeafletMouseEvent) => {
-      L.DomEvent.stopPropagation(e);
-      selectProject(project, e.latlng);
+function computeBounds(geometries: GeoJSON.Geometry[]): LngLatBounds | null {
+  let bounds: LngLatBounds | null = null;
+  for (const geometry of geometries) {
+    if (geometry.type === "Point" || geometry.type === "MultiPoint") continue;
+    forEachPosition(geometry, (lng, lat) => {
+      if (bounds) bounds.extend([lng, lat]);
+      else bounds = new LngLatBounds([lng, lat], [lng, lat]);
     });
   }
+  return bounds;
+}
 
-  const group = L.layerGroup([...layers, ...interactiveLayers]);
-  group.addTo(mapInstance);
-  setShapeEntry(project.id, { group, layers, interactiveLayers, baseStyle, hoverStyle });
+// Dash pattern + line-cap matching the view-mode MVT styling for each timeline status.
+function lineLayoutAndDash(timelineStatus: Project["timelineStatus"]): {
+  cap: "butt" | "round";
+  dash: [number, number] | null;
+  opacity: number;
+} {
+  if (timelineStatus === "completed") return { cap: "round", dash: null, opacity: 1 };
+  if (timelineStatus === "proposed") return { cap: "round", dash: SHAPE_SHORT_DASH, opacity: 0.9 };
+  return { cap: "butt", dash: SHAPE_LONG_DASH, opacity: 1 };
+}
 
-  // Apply hover style immediately if the project is already focused (e.g. shapes
-  // re-rendered after a mode switch while the popup is open).
+function shapeSourceId(projectId: string): string {
+  return `project-shape-${projectId}`;
+}
+
+function isProjectFocused(projectId: string): boolean {
   const overlayStore = useOverlayStore();
   const uiStore = useUiStore();
   const selected = overlayStore.idSelectedOverlay
     ? overlayStore.overlays[overlayStore.idSelectedOverlay]
     : null;
-  const highlightedProjectId =
+  const highlightedId =
     selected?.projectId ??
     (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null);
-  if (highlightedProjectId === project.id) {
+  return highlightedId === projectId;
+}
+
+// Wire hover/click on the interaction layers (fill for polygons, transparent hit line for lines).
+// Click routes through suppressPopupCloseForClick so the canvas-level popup-close handler does not
+// close the popup we are about to open (same gotcha as the Phase-3 marker port).
+function wireShapeInteraction(
+  project: Project,
+  fillLayerId: string | null,
+  hitLayerId: string | null,
+): ShapeEventBinding[] {
+  const mlMap = map.value;
+  if (!mlMap) return [];
+  const bindings: ShapeEventBinding[] = [];
+
+  // When a line crosses this project's own polygon, one click hits both the fill and hit
+  // layers, firing onClick twice. selectProject toggles, so guard on the source DOM event.
+  let lastClickTimeStamp = -1;
+
+  function onEnter(): void {
     highlightProjectShapes(project.id);
+    highlightProject(project.id);
+    mlMap.getCanvas().style.cursor = "pointer";
   }
+  function onLeave(): void {
+    mlMap.getCanvas().style.cursor = "";
+    if (isProjectFocused(project.id)) return;
+    unhighlightProjectShapes(project.id);
+    removeProjectOutlines(project.id);
+  }
+  function onClick(e: MapMouseEvent): void {
+    if (e.originalEvent.timeStamp === lastClickTimeStamp) return;
+    lastClickTimeStamp = e.originalEvent.timeStamp;
+    suppressPopupCloseForClick();
+    selectProject(project, e.lngLat);
+  }
+
+  for (const layerId of [fillLayerId, hitLayerId]) {
+    if (!layerId) continue;
+    mlMap.on("mouseenter", layerId, onEnter);
+    mlMap.on("mouseleave", layerId, onLeave);
+    mlMap.on("click", layerId, onClick);
+    bindings.push(
+      { type: "mouseenter", layerId, handler: onEnter },
+      { type: "mouseleave", layerId, handler: onLeave },
+      { type: "click", layerId, handler: onClick },
+    );
+  }
+  return bindings;
+}
+
+/**
+ * Render a project's GeometryCollection as MapLibre layers. Idempotent: a project already in the
+ * registry is skipped. Lines/polygon outlines share one line layer, polygons add a fill layer, and
+ * line geometries get a transparent wide hit layer so thin lines are easy to click.
+ */
+export function renderProjectShapes(
+  project: Project,
+  colorKeyOverride?: keyof typeof markerColors,
+): void {
+  if (!project.geometry?.geometries.length) return;
+  if (hasProjectShapes(project.id)) return;
+
+  const mlMap = map.value;
+  if (!mlMap) return;
+
+  const features = toShapeFeatures(project.geometry.geometries);
+  if (features.length === 0) return;
+
+  const mapStore = useMapStore();
+  const color = markerColors[colorKeyOverride ?? getProjectMarkerColor(project, mapStore.mode)];
+  const { cap, dash, opacity } = lineLayoutAndDash(project.timelineStatus);
+
+  const hasPolygon = features.some((f) => isPolygonGeometry(f.geometry.type));
+  const hasLine = features.some((f) => isLineGeometry(f.geometry.type));
+  const baseFillOpacity = project.timelineStatus === "proposed" ? 0.05 : 0.2;
+
+  const sourceId = shapeSourceId(project.id);
+  const lineLayerId = `${sourceId}-line`;
+  const fillLayerId = `${sourceId}-fill`;
+  const hitLayerId = `${sourceId}-hit`;
+
+  mlMap.addSource(sourceId, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features },
+  });
+
+  const layerIds: string[] = [];
+
+  if (hasPolygon) {
+    mlMap.addLayer({
+      id: fillLayerId,
+      type: "fill",
+      source: sourceId,
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: { "fill-color": color, "fill-opacity": baseFillOpacity },
+    });
+    layerIds.push(fillLayerId);
+  }
+
+  mlMap.addLayer({
+    id: lineLayerId,
+    type: "line",
+    source: sourceId,
+    layout: { "line-cap": cap },
+    paint: {
+      "line-color": color,
+      "line-width": SHAPE_LINE_WIDTH,
+      "line-opacity": opacity,
+      ...(dash ? { "line-dasharray": dash } : {}),
+    },
+  });
+  layerIds.push(lineLayerId);
+
+  if (hasLine) {
+    mlMap.addLayer({
+      id: hitLayerId,
+      type: "line",
+      source: sourceId,
+      filter: ["==", ["geometry-type"], "LineString"],
+      paint: { "line-color": "#000000", "line-width": 20, "line-opacity": 0 },
+    });
+    layerIds.push(hitLayerId);
+  }
+
+  const eventBindings = wireShapeInteraction(
+    project,
+    hasPolygon ? fillLayerId : null,
+    hasLine ? hitLayerId : null,
+  );
+
+  const entry: ShapeEntry = {
+    sourceId,
+    layerIds,
+    lineLayerId,
+    fillLayerId: hasPolygon ? fillLayerId : null,
+    baseLineWidth: SHAPE_LINE_WIDTH,
+    hoverLineWidth: SHAPE_LINE_WIDTH_HOVER,
+    baseFillOpacity,
+    hoverFillOpacity: HOVER_FILL_OPACITY,
+    bounds: computeBounds(project.geometry.geometries),
+    eventBindings,
+  };
+  setShapeEntry(project.id, entry);
+
+  // Apply hover style immediately if the project is already focused (e.g. shapes
+  // re-rendered after a mode switch while the popup is open).
+  if (isProjectFocused(project.id)) highlightProjectShapes(project.id);
 }
 
 /** Remove all rendered shape layers and any active preview. */
@@ -160,76 +264,158 @@ export function clearAllProjectShapes(): void {
   clearPreviewShapes();
 }
 
+// ── Change-request preview (ephemeral, not registered in the shape registry) ──────────
+
+interface PreviewState {
+  sourceId: string;
+  layerIds: string[];
+  eventBindings: ShapeEventBinding[];
+}
+
+let preview: PreviewState | null = null;
+// The project whose regular shapes are temporarily hidden during preview.
+let previewHiddenProjectId: string | null = null;
+
 /**
- * Render a GeometryCollection as a temporary preview layer (dashed, colored by variant).
+ * Render a GeometryCollection as a temporary preview (dashed, colored by variant).
  * Not registered in the shape registry, call clearPreviewShapes() to remove.
  */
 export function renderPreviewShapes(
   geometry: GeoJSON.GeometryCollection,
-  mapInstance: L.Map,
   variant: "current" | "suggested",
   projectId?: string,
-  onShapeClick?: (latlng: L.LatLng) => void,
+  onShapeClick?: (latlng: { lat: number; lng: number }) => void,
 ): void {
   clearPreviewShapes();
 
-  // Temporarily hide this project's regular shapes so they don't overlap the preview
-  previewMapInstance = mapInstance;
+  const mlMap = map.value;
+  if (!mlMap) return;
+
+  // Temporarily hide this project's regular shapes so they don't overlap the preview.
   if (projectId) {
-    const existingEntry = getShapeEntry(projectId);
-    if (existingEntry) {
-      existingEntry.group.remove();
-    }
+    setProjectShapesVisible(projectId, false);
     previewHiddenProjectId = projectId;
   }
 
+  const features = toShapeFeatures(geometry.geometries);
+  if (features.length === 0) return;
+
   const color = PREVIEW_COLORS[variant];
-  const baseStyle = { color, weight: 4, opacity: 1, dashArray: "8 5" };
-  const hoverStyle = { weight: 6, opacity: 1 };
+  const hasPolygon = features.some((f) => isPolygonGeometry(f.geometry.type));
+  const hasLine = features.some((f) => isLineGeometry(f.geometry.type));
 
-  const { visual, interactive } = buildShapeLayers(geometry.geometries, baseStyle, 0.2);
+  const sourceId = `shape-preview-${variant}`;
+  const lineLayerId = `${sourceId}-line`;
+  const fillLayerId = `${sourceId}-fill`;
+  const hitLayerId = `${sourceId}-hit`;
 
-  if (visual.length === 0) return;
+  mlMap.addSource(sourceId, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features },
+  });
 
-  if (onShapeClick) {
-    // visual[k] and interactive[k] are paired: for lines interactive[k] is the hit target;
-    // for polygons they are the same object.
-    for (const [k, hitLayer] of interactive.entries()) {
-      const visualLayer = visual[k];
-      hitLayer.on("mouseover", () => {
-        visualLayer?.setStyle(hoverStyle);
-        (hitLayer.getElement() as unknown as HTMLElement | undefined)?.style.setProperty(
-          "cursor",
-          "pointer",
-        );
-      });
-      hitLayer.on("mouseout", () => {
-        visualLayer?.setStyle(baseStyle);
-        (hitLayer.getElement() as unknown as HTMLElement | undefined)?.style.removeProperty(
-          "cursor",
-        );
-      });
-      hitLayer.on("click", (e: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e);
-        onShapeClick(e.latlng);
-      });
-    }
+  const layerIds: string[] = [];
+
+  if (hasPolygon) {
+    mlMap.addLayer({
+      id: fillLayerId,
+      type: "fill",
+      source: sourceId,
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: { "fill-color": color, "fill-opacity": 0.2 },
+    });
+    layerIds.push(fillLayerId);
   }
 
-  previewLayerGroup = L.layerGroup([...visual, ...interactive]);
-  previewLayerGroup.addTo(mapInstance);
+  mlMap.addLayer({
+    id: lineLayerId,
+    type: "line",
+    source: sourceId,
+    layout: { "line-cap": "round" },
+    paint: {
+      "line-color": color,
+      "line-width": 4,
+      // Leaflet dashArray "8 5" at weight 4, expressed in line-widths.
+      "line-dasharray": [2, 1.25],
+    },
+  });
+  layerIds.push(lineLayerId);
+
+  if (hasLine) {
+    mlMap.addLayer({
+      id: hitLayerId,
+      type: "line",
+      source: sourceId,
+      filter: ["==", ["geometry-type"], "LineString"],
+      paint: { "line-color": "#000000", "line-width": 20, "line-opacity": 0 },
+    });
+    layerIds.push(hitLayerId);
+  }
+
+  const eventBindings = onShapeClick
+    ? wirePreviewInteraction(
+        lineLayerId,
+        hasPolygon ? fillLayerId : null,
+        hasLine ? hitLayerId : null,
+        onShapeClick,
+      )
+    : [];
+
+  preview = { sourceId, layerIds, eventBindings };
 }
 
-/** Remove the preview layer group and restore any hidden project shapes. */
-function clearPreviewShapes(): void {
-  previewLayerGroup?.remove();
-  previewLayerGroup = null;
+function wirePreviewInteraction(
+  lineLayerId: string,
+  fillLayerId: string | null,
+  hitLayerId: string | null,
+  onShapeClick: (latlng: { lat: number; lng: number }) => void,
+): ShapeEventBinding[] {
+  const mlMap = map.value;
+  if (!mlMap) return [];
+  const bindings: ShapeEventBinding[] = [];
 
-  if (previewHiddenProjectId && previewMapInstance) {
-    const entry = getShapeEntry(previewHiddenProjectId);
-    if (entry) {
-      entry.group.addTo(previewMapInstance);
+  function onEnter(): void {
+    mlMap.getCanvas().style.cursor = "pointer";
+    if (mlMap.getLayer(lineLayerId)) mlMap.setPaintProperty(lineLayerId, "line-width", 6);
+  }
+  function onLeave(): void {
+    mlMap.getCanvas().style.cursor = "";
+    if (mlMap.getLayer(lineLayerId)) mlMap.setPaintProperty(lineLayerId, "line-width", 4);
+  }
+  function onClick(e: MapMouseEvent): void {
+    onShapeClick(e.lngLat);
+  }
+
+  for (const layerId of [fillLayerId, hitLayerId]) {
+    if (!layerId) continue;
+    mlMap.on("mouseenter", layerId, onEnter);
+    mlMap.on("mouseleave", layerId, onLeave);
+    mlMap.on("click", layerId, onClick);
+    bindings.push(
+      { type: "mouseenter", layerId, handler: onEnter },
+      { type: "mouseleave", layerId, handler: onLeave },
+      { type: "click", layerId, handler: onClick },
+    );
+  }
+  return bindings;
+}
+
+/** Remove the preview layers and restore any hidden project shapes. */
+function clearPreviewShapes(): void {
+  const mlMap = map.value;
+  if (preview && mlMap) {
+    for (const binding of preview.eventBindings) {
+      mlMap.off(binding.type, binding.layerId, binding.handler);
     }
+    for (const layerId of preview.layerIds) {
+      if (mlMap.getLayer(layerId)) mlMap.removeLayer(layerId);
+    }
+    if (mlMap.getSource(preview.sourceId)) mlMap.removeSource(preview.sourceId);
+  }
+  preview = null;
+
+  if (previewHiddenProjectId) {
+    setProjectShapesVisible(previewHiddenProjectId, true);
     previewHiddenProjectId = null;
   }
 }
