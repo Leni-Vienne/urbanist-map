@@ -44,13 +44,12 @@
 import { ref, defineAsyncComponent } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
-import L from "leaflet";
+import maplibregl, { type MapMouseEvent } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import {
   getStandaloneProjectMarkerByProjectId,
@@ -58,7 +57,7 @@ import {
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { createStandaloneProjectIcon } from "@/services/map/markers";
+import { createStandaloneProjectMarkerElement } from "@/services/map/markers";
 import { addOverlay } from "@/services/overlay/overlayEditing";
 import { createProject } from "@/services/project/projectMutations";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -79,8 +78,8 @@ const uiStore = useUiStore();
 const toast = useToast();
 const { t: $t } = useI18n();
 const markerPlacementBar = ref();
-const tempMarker = ref<L.Marker | null>(null);
-const mapClickHandler = ref<((e: L.LeafletMouseEvent) => void) | null>(null);
+const tempMarker = ref<maplibregl.Marker | null>(null);
+const mapClickHandler = ref<((e: MapMouseEvent) => void) | null>(null);
 
 const { projects } = storeToRefs(projectStore);
 const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
@@ -195,22 +194,21 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
   });
 }
 
-function handleMapClick(e: L.LeafletMouseEvent) {
-  const coordinates = { lat: e.latlng.lat, lng: e.latlng.lng };
+function handleMapClick(e: MapMouseEvent) {
+  const coordinates = { lat: e.lngLat.lat, lng: e.lngLat.lng };
 
   if (tempMarker.value) {
     tempMarker.value.remove();
     tempMarker.value = null;
   }
 
-  const markerIcon = createStandaloneProjectIcon("orange");
   const mapValue = map.value;
   if (!mapValue) return;
 
-  tempMarker.value = L.marker([coordinates.lat, coordinates.lng], {
-    icon: markerIcon,
-    draggable: false,
-  }).addTo(legacyLeafletMap());
+  const element = createStandaloneProjectMarkerElement("orange");
+  tempMarker.value = new maplibregl.Marker({ element, anchor: "bottom" })
+    .setLngLat([coordinates.lng, coordinates.lat])
+    .addTo(mapValue);
 
   if (markerPlacementBar.value) {
     markerPlacementBar.value.setMarkerCoordinates(coordinates);

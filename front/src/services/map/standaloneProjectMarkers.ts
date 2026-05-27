@@ -1,8 +1,11 @@
-import L from "leaflet";
+import maplibregl from "maplibre-gl";
 import { watch } from "vue";
 import type { Project } from "@/types/index";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
-import { createStandaloneProjectIcon } from "@/services/map/markers";
+import { map } from "@/services/core/map";
+import {
+  createStandaloneProjectMarkerElement,
+  updateStandaloneMarkerColor,
+} from "@/services/map/markers";
 import { shouldShowStandaloneProject } from "@/services/overlay/statusFilters";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -14,7 +17,7 @@ import {
   cleanupProjectInfoTeleportTarget,
 } from "@/services/map/projectPopupTeleport";
 import { getProjectMarkerColor } from "@/utils/markerColors";
-import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
+import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
   highlightProjectShapes,
   unhighlightProjectShapes,
@@ -22,17 +25,18 @@ import {
 // t() is imported directly since useI18n() is only available inside component setup().
 import { t } from "@/locales";
 
-// Layer group for standalone projects (standalone project markers)
-let standaloneProjectsLayer: L.LayerGroup | null = null;
+const standaloneProjectMarkerMap = new Map<string, maplibregl.Marker>();
 
-// Map to store project ID to marker references for easy lookup
-const standaloneProjectMarkerMap = new Map<string, L.Marker>();
+// Project IDs whose marker is currently attached to the map (visibility tracking).
+const markersOnMap = new Set<string>();
 
 // Track the currently selected standalone project marker (for opacity control)
-let selectedStandaloneProjectMarker: L.Marker | null = null;
+let selectedStandaloneProjectMarker: maplibregl.Marker | null = null;
 
 /** Returns the standalone project marker for a given project ID. */
-export function getStandaloneProjectMarkerByProjectId(projectId: string): L.Marker | undefined {
+export function getStandaloneProjectMarkerByProjectId(
+  projectId: string,
+): maplibregl.Marker | undefined {
   return standaloneProjectMarkerMap.get(projectId);
 }
 
@@ -41,7 +45,6 @@ export function highlightStandaloneProjectMarker(projectId: string): void {
   const marker = standaloneProjectMarkerMap.get(projectId);
   if (!marker) return;
   const el = marker.getElement();
-  if (!el) return;
   const svg = el.querySelector("svg");
   if (svg) {
     svg.style.transformOrigin = "center bottom";
@@ -56,7 +59,6 @@ export function unhighlightStandaloneProjectMarker(projectId: string): void {
   const marker = standaloneProjectMarkerMap.get(projectId);
   if (!marker) return;
   const el = marker.getElement();
-  if (!el) return;
   const svg = el.querySelector("svg");
   if (svg) {
     svg.style.transform = "";
@@ -74,36 +76,25 @@ export function removeStandaloneProjectMarkerForProject(projectId: string): void
     uiStore.closeProjectInfoPopup();
   }
 
-  if (standaloneProjectsLayer?.hasLayer(marker)) {
-    standaloneProjectsLayer.removeLayer(marker);
-  }
-
+  marker.remove();
+  markersOnMap.delete(projectId);
   standaloneProjectMarkerMap.delete(projectId);
 }
 
 /** Remove all standalone project markers from the map. */
 export function clearAllStandaloneProjectMarkers(): void {
   for (const marker of standaloneProjectMarkerMap.values()) {
-    marker.off();
-    if (standaloneProjectsLayer?.hasLayer(marker)) {
-      standaloneProjectsLayer.removeLayer(marker);
-    }
-  }
-
-  if (standaloneProjectsLayer) {
-    legacyLeafletMap().removeLayer(standaloneProjectsLayer);
-    standaloneProjectsLayer = null;
+    marker.remove();
   }
 
   standaloneProjectMarkerMap.clear();
+  markersOnMap.clear();
   selectedStandaloneProjectMarker = null;
   clearAllProjectShapes();
 }
 
 /** Show/hide standalone markers based on the current completion filters. */
 export function refreshAllStandaloneMarkers(): void {
-  if (!standaloneProjectsLayer) return;
-
   const mapStore = useMapStore();
   const projectStore = useProjectStore();
 
@@ -113,27 +104,29 @@ export function refreshAllStandaloneMarkers(): void {
 
     const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
 
-    if (shouldBeVisible && !standaloneProjectsLayer.hasLayer(marker)) {
-      standaloneProjectsLayer.addLayer(marker);
-    } else if (!shouldBeVisible && standaloneProjectsLayer.hasLayer(marker)) {
-      standaloneProjectsLayer.removeLayer(marker);
+    if (shouldBeVisible && !markersOnMap.has(projectId)) {
+      marker.addTo(map.value);
+      markersOnMap.add(projectId);
+    } else if (!shouldBeVisible && markersOnMap.has(projectId)) {
+      marker.remove();
+      markersOnMap.delete(projectId);
     }
   }
 }
 
 /**
- * Bind or update the tooltip on a standalone marker.
+ * Set or clear the tooltip (title attribute) on a standalone marker.
  * Tooltips are only shown in edit and moderation modes.
  */
 export function updateStandaloneProjectMarkerTooltip(
-  marker: L.Marker,
+  marker: maplibregl.Marker,
   project: Project,
   mode: "view" | "edit" | "moderation",
 ): void {
+  const el = marker.getElement();
+
   if (mode === "view") {
-    if (marker.getTooltip()) {
-      marker.unbindTooltip();
-    }
+    el.removeAttribute("title");
     return;
   }
 
@@ -177,34 +170,20 @@ export function updateStandaloneProjectMarkerTooltip(
     }
   }
 
-  const finalTooltipText = modifierText ? `${tooltipText} (${modifierText})` : tooltipText;
-
-  if (marker.getTooltip()) {
-    marker.setTooltipContent(finalTooltipText);
-  } else {
-    marker.bindTooltip(finalTooltipText, {
-      permanent: false,
-      direction: "top",
-      offset: [0, -10],
-    });
-  }
+  el.title = modifierText ? `${tooltipText} (${modifierText})` : tooltipText;
 }
 
 /** Dim all standalone markers except the selected one. */
-export function updateStandaloneProjectMarkerOpacities(selectedMarker: L.Marker | null) {
-  if (!standaloneProjectsLayer) return;
-
+export function updateStandaloneProjectMarkerOpacities(selectedMarker: maplibregl.Marker | null) {
   selectedStandaloneProjectMarker = selectedMarker;
 
-  standaloneProjectsLayer.eachLayer((marker) => {
-    if (marker instanceof L.Marker) {
-      if (selectedMarker && marker === selectedMarker) {
-        marker.setOpacity(MARKER_OPACITY.standalone.hover);
-      } else {
-        marker.setOpacity(MARKER_OPACITY.standalone.default);
-      }
-    }
-  });
+  for (const marker of standaloneProjectMarkerMap.values()) {
+    const opacity =
+      selectedMarker && marker === selectedMarker
+        ? MARKER_OPACITY.standalone.hover
+        : MARKER_OPACITY.standalone.default;
+    marker.getElement().style.opacity = String(opacity);
+  }
 }
 
 /** Add a standalone project marker (called when the last overlay of a project is removed). */
@@ -213,18 +192,9 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
-  if (project.geometry?.geometries.length) {
-    renderProjectShapes(project, legacyLeafletMap());
-  }
-
   const mapStore = useMapStore();
   const markerColor = getProjectMarkerColor(project, mapStore.mode);
   const shouldBeVisible = shouldShowStandaloneProject(project, mapStore.mode);
-
-  if (!standaloneProjectsLayer) {
-    standaloneProjectsLayer = L.layerGroup();
-    standaloneProjectsLayer.addTo(legacyLeafletMap());
-  }
 
   // Store project in projectStore so color updates can find it later
   // (viewport-loaded markers aren't always loaded via the city fetch path).
@@ -236,35 +206,38 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     };
   }
 
-  const markerIcon = createStandaloneProjectIcon(markerColor);
+  const element = createStandaloneProjectMarkerElement(markerColor);
+  element.style.opacity = String(MARKER_OPACITY.standalone.default);
 
-  const marker = L.marker([project.lat, project.lng], {
-    icon: markerIcon,
-    opacity: MARKER_OPACITY.standalone.default,
-  });
+  const marker = new maplibregl.Marker({ element, anchor: "bottom" }).setLngLat([
+    project.lng,
+    project.lat,
+  ]);
 
-  // Store marker before adding to layer so refreshAllStandaloneMarkers can find it.
+  // Store marker before adding to map so refreshAllStandaloneMarkers can find it.
   standaloneProjectMarkerMap.set(project.id, marker);
 
   if (shouldBeVisible) {
-    standaloneProjectsLayer.addLayer(marker);
+    marker.addTo(map.value);
+    markersOnMap.add(project.id);
   }
 
-  marker.on("dblclick", (e) => {
-    L.DomEvent.stopPropagation(e);
+  // stopPropagation keeps the marker click off the canvas, so the map-level deselect /
+  // popup-close handlers never fire for it.
+  element.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
   });
 
-  marker.on("mouseover", () => {
-    marker.setOpacity(MARKER_OPACITY.standalone.hover);
+  element.addEventListener("mouseenter", () => {
+    element.style.opacity = String(MARKER_OPACITY.standalone.hover);
     highlightProjectShapes(project.id);
   });
 
-  marker.on("mouseout", () => {
-    if (selectedStandaloneProjectMarker === marker) {
-      marker.setOpacity(MARKER_OPACITY.standalone.hover);
-    } else {
-      marker.setOpacity(MARKER_OPACITY.standalone.default);
-    }
+  element.addEventListener("mouseleave", () => {
+    element.style.opacity =
+      selectedStandaloneProjectMarker === marker
+        ? String(MARKER_OPACITY.standalone.hover)
+        : String(MARKER_OPACITY.standalone.default);
     const uiStore = useUiStore();
     const popupIsOpenForThis =
       uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id;
@@ -275,8 +248,8 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   updateStandaloneProjectMarkerTooltip(marker, project, mapStore.mode);
 
-  marker.on("click", (e) => {
-    L.DomEvent.stopPropagation(e);
+  element.addEventListener("click", (e) => {
+    e.stopPropagation();
     const uiStore = useUiStore();
 
     if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
@@ -290,7 +263,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 }
 
 /** Returns the internal standalone marker map. */
-export function getStandaloneProjectMarkerMap(): Map<string, L.Marker> {
+export function getStandaloneProjectMarkerMap(): Map<string, maplibregl.Marker> {
   return standaloneProjectMarkerMap;
 }
 
@@ -301,8 +274,7 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
 
   const mapStore = useMapStore();
   const markerColor = getProjectMarkerColor(project, mapStore.mode);
-  const markerIcon = createStandaloneProjectIcon(markerColor);
-  marker.setIcon(markerIcon);
+  updateStandaloneMarkerColor(marker, markerColor);
 }
 
 /** Close the project popup and reset all marker opacities. */

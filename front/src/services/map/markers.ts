@@ -1,4 +1,3 @@
-import L from "leaflet";
 import type { Marker as MaplibreMarker } from "maplibre-gl";
 import { watchEffect } from "vue";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
@@ -78,29 +77,6 @@ function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
   });
 }
 
-// DivIcon instances are cached per color (only 7 colors exist) to avoid recreating
-// SVG strings and L.divIcon allocations on every render pass. Leaflet builds a fresh
-// DOM element per marker, so a single DivIcon instance is safe to share.
-const overlayIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
-const standaloneIconCache: Partial<Record<MarkerColor, L.DivIcon>> = {};
-
-// Create overlay marker icon with picture frame (for overlay markers specifically)
-export function createOverlayIcon(color: MarkerColor): L.DivIcon {
-  if (overlayIconCache[color]) {
-    return overlayIconCache[color];
-  }
-  const svgString = createOverlayMarkerSVG(color);
-  const icon = L.divIcon({
-    html: svgString,
-    className: "custom-svg-marker overlay-marker",
-    iconSize: [markerSize, markerHeight],
-    iconAnchor: [markerSize / 2, markerHeight], // Anchor at bottom center (pin tip)
-    popupAnchor: [0, -markerHeight],
-  });
-  overlayIconCache[color] = icon;
-  return icon;
-}
-
 // Overlay status pin as a DOM element for maplibregl.Marker (anchor 'bottom' = pin tip).
 // The SVG is rendered at 32x40 to match createOverlayMarkerSVG.
 export function createOverlayMarkerElement(color: MarkerColor): HTMLElement {
@@ -122,20 +98,24 @@ export function updateOverlayMarkerColor(marker: MaplibreMarker, color: MarkerCo
   el.dataset.cmorgColor = color;
 }
 
-// Create standalone/project marker icon with simple circle (for standalone projects)
-export function createStandaloneProjectIcon(color: MarkerColor): L.DivIcon {
-  const cached = standaloneIconCache[color];
-  if (cached) return cached;
+// Standalone project pin as a DOM element for maplibregl.Marker (anchor 'bottom' = pin tip).
+export function createStandaloneProjectMarkerElement(color: MarkerColor): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "custom-svg-marker standalone-marker";
+  el.style.width = `${markerSize}px`;
+  el.style.height = `${markerHeight}px`;
+  el.style.cursor = "pointer";
+  el.innerHTML = createStandaloneProjectMarkerSVG(color);
+  el.dataset.cmorgColor = color;
+  return el;
+}
 
-  const icon = L.divIcon({
-    html: createStandaloneProjectMarkerSVG(color),
-    className: "custom-svg-marker standalone-marker",
-    iconSize: [markerSize, markerHeight],
-    iconAnchor: [markerSize / 2, markerHeight], // Anchor at bottom center (pin tip)
-    popupAnchor: [0, -markerHeight],
-  });
-  standaloneIconCache[color] = icon;
-  return icon;
+// Re-render a standalone marker element in a new color, skipping no-op updates.
+export function updateStandaloneMarkerColor(marker: MaplibreMarker, color: MarkerColor): void {
+  const el = marker.getElement();
+  if (el.dataset.cmorgColor === color) return;
+  el.innerHTML = createStandaloneProjectMarkerSVG(color);
+  el.dataset.cmorgColor = color;
 }
 
 // Get raw marker SVG string for cursor display

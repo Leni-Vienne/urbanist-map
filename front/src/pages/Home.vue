@@ -213,9 +213,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
   if (reopenAt) {
     uiStore.openProjectInfoPopup(project.id, project);
-    const leafletModule = await import("leaflet");
-    const L = leafletModule.default;
-    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
+    createProjectInfoTeleportTargetAtLatLng({ lat: reopenAt.lat, lng: reopenAt.lng });
   }
 }
 
@@ -235,9 +233,7 @@ async function handleShapesCancel() {
   uiStore.closeShapeEditor();
   if (reopenAt && project) {
     uiStore.openProjectInfoPopup(project.id, project);
-    const leafletModule = await import("leaflet");
-    const L = leafletModule.default;
-    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
+    createProjectInfoTeleportTargetAtLatLng({ lat: reopenAt.lat, lng: reopenAt.lng });
   }
 }
 
