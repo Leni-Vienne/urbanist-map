@@ -11,7 +11,7 @@ const currentCameraBounds = ref<CameraBounds | null>(null);
 // multiplied to 100m, still well below the size of any overlay (max ~few hundred meters).
 const distanceThreshold = 10;
 
-export type LatLngInput = [number, number] | { lat: number; lng: number };
+type LatLngInput = [number, number] | { lat: number; lng: number };
 
 interface FlyOptions {
   /** Animation duration in seconds (converted to milliseconds for MapLibre). */
@@ -26,8 +26,8 @@ interface FlyToBoundsOptions extends FlyOptions {
   padding?: number | [number, number];
 }
 
-/** Structural bounds shape implemented by both Leaflet LatLngBounds and MapLibre LngLatBounds. */
-export interface BoundsLike {
+/** Structural bounds shape implemented by MapLibre LngLatBounds. */
+interface BoundsLike {
   getNorth(): number;
   getSouth(): number;
   getEast(): number;

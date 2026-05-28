@@ -52,7 +52,7 @@ type EntityUpdate =
       changeType: SubmissionChangeType;
       // Proposed caption/corners that aren't yet on the live store entry (tracked as deltas
       // in pendingModificationsStore). When absent, validate/buildSummary fall back to the
-      // live store + Leaflet layer.
+      // live store entry.
       proposed?: {
         caption?: string | null;
         corners?: OverlayCorners;

@@ -1,15 +1,14 @@
-// Centralized registry for all Leaflet layer references (image overlays + markers).
+// Centralized registry for all overlay layer references (image sources + markers).
 // Single source of truth for "is this overlay rendered on the map?".
 // Design principles:
-//   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
+//   - Pure map-layer lifecycle management, no Vue reactivity (not in Pinia)
 //   - All creation goes through beginCreation(), atomically prevents duplicate layers
 //   - clearAll() is the single cleanup path
 import type { Marker as MaplibreMarker } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import type { OverlayTransform } from "@/services/overlay/overlayTransform";
 
-// MapLibre image-source state for one overlay. Replaces the Leaflet `layer` field as the
-// edit path moves off leaflet-distortableimage; both coexist during the migration.
+// MapLibre image-source state for one overlay.
 export interface OverlayImageHandle {
   sourceId: string;
   rasterLayerId: string;
@@ -119,7 +118,7 @@ function removeImageFromMap(handle: OverlayImageHandle): void {
 // ─── Full entry lifecycle ─────────────────────────────────────────────────────
 
 /**
- * Remove a single overlay's layer and marker from the Leaflet map and clear the entry.
+ * Remove a single overlay's layer and marker from the map and clear the entry.
  * Used for targeted cleanup (e.g. overlay deletion, viewport exit).
  */
 export function clearEntry(id: string): void {

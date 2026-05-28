@@ -52,6 +52,33 @@ export const map = customRef<MaplibreMap>((track, trigger) => ({
 }));
 export const currentZoomLevel = ref(12);
 
+// True once the basemap style has loaded and project data + interaction are wired up.
+// Preserved across Vite HMR so onMlMapReady callers don't wait for a `load` event that
+// already fired on the still-alive map instance.
+let styleReady = (import.meta.hot?.data.styleReady as boolean | undefined) ?? false;
+const mlMapReadyCallbacks: (() => void)[] = [];
+
+/** The single MapLibre map, or null until its style has loaded. */
+export function getMlMap(): MaplibreMap | null {
+  return styleReady ? map.value : null;
+}
+
+/** Register a callback to run once (immediately if already ready) when the map is loaded. */
+export function onMlMapReady(cb: () => void): void {
+  if (styleReady) {
+    cb();
+  } else {
+    mlMapReadyCallbacks.push(cb);
+  }
+}
+
+/** Mark the style ready and flush queued onMlMapReady callbacks. Called once on first style load. */
+export function markMlMapReady(): void {
+  styleReady = true;
+  for (const cb of mlMapReadyCallbacks) cb();
+  mlMapReadyCallbacks.length = 0;
+}
+
 // Minimum zoom scales with display resolution to avoid black borders at the map edges.
 // 4K+ (>= 2560px): zoom 2, HD and below (<= 1920px): zoom 1, linearly interpolated between.
 function calculateMinZoom(): number {
@@ -95,8 +122,8 @@ export function initializeMap() {
   map.value = newMap;
 
   newMap.touchZoomRotate.disableRotation();
-  // Match the previous Leaflet behavior: the map does not capture keystrokes, so typing
-  // into overlaid UI panels never pans/zooms the map. Trade-off: no keyboard map control.
+  // The map does not capture keystrokes, so typing into overlaid UI panels never
+  // pans/zooms the map. Trade-off: no keyboard map control.
   newMap.keyboard.disable();
 
   // Attribution is collected automatically from each active style's source `attribution`
@@ -115,5 +142,8 @@ export function initializeMap() {
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
+  import.meta.hot.dispose((data) => {
+    data.styleReady = styleReady;
+  });
   import.meta.hot.accept();
 }

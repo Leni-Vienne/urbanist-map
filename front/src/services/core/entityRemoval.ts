@@ -108,7 +108,7 @@ export function removeProject(
 }
 
 /**
- * Safe to call from Leaflet toolbar handlers (outside Vue context).
+ * Safe to call from toolbar handlers (outside Vue context).
  * Returns true if deletion was successful.
  */
 export async function deleteOverlayDirect(

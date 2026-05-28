@@ -866,7 +866,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   });
 
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
-  // Leaflet fires mousemove at up to 500+/sec, which would saturate the main thread.
+  // mousemove fires at up to 500+/sec, which would saturate the main thread.
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
   // Position updates are exempt from throttling so the card follows the cursor smoothly.
   let hoverThrottlePending = false;

@@ -98,7 +98,7 @@ export type OverlayData = Omit<
 };
 
 // Frontend overlay type - extends OverlayData with editor state
-// Leaflet layer references (image overlay + marker) live in overlayRenderRegistry,
+// Map layer references (image overlay + marker) live in overlayRenderRegistry,
 // not on this type. OverlayObject is pure domain data.
 export interface OverlayObject extends OverlayData {
   // Computed fields

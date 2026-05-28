@@ -118,8 +118,11 @@ import {
   sendOverlayImageToBack,
 } from "@/services/overlay/overlayImageLayer";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
-import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
-import "@/services/overlay/overlayActions"; // ensure navigateOverlaySequence callback is registered
+import { navigateOverlaySequence } from "@/services/overlay/overlayActions";
+import {
+  undo as undoOverlayEdit,
+  redo as redoOverlayEdit,
+} from "@/services/overlay/overlayEditing";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -392,10 +395,10 @@ function onOpacityInput(e: Event) {
 }
 
 function goToPrevious() {
-  overlayCallbacks.focusCameraToOverlay?.("previous");
+  navigateOverlaySequence("previous");
 }
 function goToNext() {
-  overlayCallbacks.focusCameraToOverlay?.("next");
+  navigateOverlaySequence("next");
 }
 
 function stackToBack() {
@@ -404,10 +407,10 @@ function stackToBack() {
 }
 
 function undo() {
-  overlayCallbacks.undo?.();
+  undoOverlayEdit();
 }
 function redo() {
-  overlayCallbacks.redo?.();
+  redoOverlayEdit();
 }
 
 const projectStore = useProjectStore();

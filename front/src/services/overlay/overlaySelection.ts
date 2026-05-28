@@ -120,7 +120,7 @@ export function highlightOverlayById(overlayId: string): void {
   if (marker) {
     const markerElement = marker.getElement();
     if (markerElement) {
-      // Scale the SVG inside the marker to avoid interfering with Leaflet's translate3d positioning
+      // Scale the SVG inside the marker to avoid interfering with the marker's translate3d positioning
       const svg = markerElement.querySelector("svg");
       if (svg) {
         svg.style.transformOrigin = "center bottom";
@@ -172,13 +172,13 @@ export function removeProjectOutlines(projectId: string, force = false): void {
       return;
   }
 
-  // Unhighlight project shapes alongside the overlays (Leaflet layers in edit/moderation, vector tiles in view mode)
+  // Unhighlight project shapes alongside the overlays (GeoJSON layers in edit/moderation, vector tiles in view mode)
   unhighlightProjectShapes(projectId);
   refreshSelectionHighlight();
 }
 
 /**
- * Highlight everything related to a project: Leaflet shapes, sister overlays, and the
+ * Highlight everything related to a project: project shapes, sister overlays, and the
  * vector tile filters (via the external-hover state). Called from sidebar hover,
  * overlay DOM hover, overlay selection, and selection refresh after mode switch.
  */
@@ -187,7 +187,7 @@ export function highlightProject(projectId: string, overlayId?: string): void {
 
   setExternalHover(projectId, overlayId ?? null);
 
-  // Leaflet shape layers (standalone project geometry) exist in all modes
+  // Project shape layers (standalone project geometry) exist in all modes
   highlightProjectShapes(projectId);
 }
 

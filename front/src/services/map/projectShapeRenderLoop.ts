@@ -190,7 +190,7 @@ export function initializeShapeRenderTriggers() {
     },
   );
 
-  // Entering view mode: MapLibre vector tiles take over from Leaflet shape rendering.
+  // Entering view mode: MapLibre vector tiles take over shape rendering.
   watch(
     () => mapStore.mode,
     (newMode) => {

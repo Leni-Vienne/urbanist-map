@@ -12,7 +12,7 @@ import { createProjectObject } from "@/utils/typeFactories";
 
 /**
  * Open the project info popup and pin the teleport anchor for the given project.
- * Called from vector/point clicks, Leaflet shape clicks, and the Contribute sidebar.
+ * Called from vector/point clicks, project shape clicks, and the Contribute sidebar.
  * Popup-state side effects (vector hover, accordion scroll, marker opacity, overlay
  * deselect) are handled by the popup watcher initialized at boot in main.ts.
  */

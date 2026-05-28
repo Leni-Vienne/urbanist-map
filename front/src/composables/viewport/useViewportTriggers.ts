@@ -144,8 +144,8 @@ function bboxKey(bbox: { minLng: number; minLat: number; maxLng: number; maxLat:
   return `${roundCoord(bbox.minLng)},${roundCoord(bbox.minLat)},${roundCoord(bbox.maxLng)},${roundCoord(bbox.maxLat)}`;
 }
 
-// MapLibre's off() needs the exact handler reference (unlike Leaflet's off(type) which
-// removed every listener of a type), so the viewport handlers are kept at module scope.
+// MapLibre's off() needs the exact handler reference to remove a listener, so the viewport
+// handlers are kept at module scope.
 let viewportMoveEndHandler: (() => void) | null = null;
 let viewportZoomEndHandler: (() => void) | null = null;
 
@@ -376,7 +376,7 @@ export function useViewportTriggers() {
         // Reset bbox tracking on mode switch to force a fresh fetch
         lastBboxKey = "";
 
-        // Switching TO view mode: drop Leaflet refs (tile rendering takes over) but keep
+        // Switching TO view mode: drop rendered layer refs (tile rendering takes over) but keep
         // overlay store data so in-progress edits survive the round-trip back to edit mode.
         if (newMode === "view") {
           clearOverlayRenderState();

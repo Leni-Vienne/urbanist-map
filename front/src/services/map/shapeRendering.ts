@@ -335,7 +335,7 @@ export function renderPreviewShapes(
     paint: {
       "line-color": color,
       "line-width": 4,
-      // Leaflet dashArray "8 5" at weight 4, expressed in line-widths.
+      // Dash pattern expressed in line-widths (2 on, 1.25 off).
       "line-dasharray": [2, 1.25],
     },
   });

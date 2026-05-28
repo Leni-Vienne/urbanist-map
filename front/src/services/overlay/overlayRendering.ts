@@ -1,5 +1,4 @@
-// Leaflet overlay rendering and DOM manipulation
-// Handles all Leaflet-specific overlay creation, loading, and event binding
+// MapLibre overlay rendering: creates image sources/raster layers and status markers.
 
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -17,24 +16,15 @@ import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
  * Render backend CDN overlays on the map for view mode.
- * Returns true if at least one overlay render was actually started (beginCreation succeeded).
- * Returns false if all overlays were skipped (already rendering, already ready, zoom too low).
- * Callers that pass an onReady callback should only fall back to polling if this returns false.
  */
 export function renderViewModeOverlays(
   viewModeOverlays: OverlayData[],
   createMarkers = true,
-  onReady?: () => void,
-): boolean {
+): void {
   // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
-  let anyStarted = false;
   for (const cdnOverlay of viewModeOverlays) {
-    if (renderSingleOverlay(cdnOverlay, createMarkers, onReady)) {
-      anyStarted = true;
-    }
+    renderSingleOverlay(cdnOverlay, createMarkers);
   }
-
-  return anyStarted;
 }
 
 /**
@@ -61,29 +51,24 @@ export function createOverlayImageForObject(overlayObject: OverlayObject): void 
 
 /**
  * Render a single overlay as a MapLibre image source + raster layer.
- * Returns true if creation was started (beginCreation succeeded), false otherwise.
  */
-function renderSingleOverlay(
-  cdnOverlay: OverlayData,
-  createMarkers = true,
-  onReady?: () => void,
-): boolean {
+function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
   // Skip replaced overlays - their images are deleted and would cause 404 errors
   if (cdnOverlay.status === "replaced") {
-    return false;
+    return;
   }
 
   const authStore = useAuthStore();
   if (!isOverlayVisible(cdnOverlay, mapStore.mode, authStore.user?.id)) {
-    return false;
+    return;
   }
 
   // beginCreation atomically prevents a duplicate source for the same overlay.
   if (!registry.beginCreation(cdnOverlay.id)) {
-    return false;
+    return;
   }
 
   const existingOverlay = overlayStore.overlays[cdnOverlay.id];
@@ -104,20 +89,20 @@ function renderSingleOverlay(
   const corners = getCornersForOverlay(overlayObjectWithMethods);
   if (!corners) {
     registry.cancelCreation(cdnOverlay.id);
-    return false;
+    return;
   }
 
   const handle = createOverlayImage(overlayObjectWithMethods, corners);
   if (!handle) {
     registry.cancelCreation(cdnOverlay.id);
-    return false;
+    return;
   }
   registry.setImageHandle(cdnOverlay.id, handle);
 
   overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
 
-  // Markers are Leaflet-based (ported in a later phase step); view mode passes createMarkers=false
-  // and relies on the overlay-footprints MVT layer for low-zoom representation and click handling.
+  // View mode passes createMarkers=false and relies on the overlay-footprints MVT layer
+  // for low-zoom representation and click handling.
   if (createMarkers) {
     createSingleMarker(overlayObjectWithMethods);
     updateMarkerTooltip(overlayObjectWithMethods);
@@ -130,8 +115,6 @@ function renderSingleOverlay(
   }
 
   registry.cancelCreation(cdnOverlay.id);
-  onReady?.();
-  return true;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

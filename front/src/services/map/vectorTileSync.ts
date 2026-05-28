@@ -2,14 +2,14 @@
  * vectorTileSync.ts, idle-driven overlay sync for approved overlays.
  *
  * Listens to MapLibre's 'idle' event and diffs the rendered overlay-footprints
- * features against the overlay render registry to create/destroy Leaflet
- * DistortableImageOverlay instances for approved overlays.
+ * features against the overlay render registry to create/destroy overlay image
+ * layers for approved overlays.
  *
  * Runs in ALL modes (view, edit, moderation). Approved overlays are always
  * delivered via tiles, the bbox tRPC fetch only returns pending content.
  */
 
-import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
+import { getMlMap, onMlMapReady } from "@/services/core/map";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";

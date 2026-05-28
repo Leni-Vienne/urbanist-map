@@ -1,7 +1,7 @@
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
-import { map, OPENFREEMAP_STYLE_URL } from "@/services/core/map";
+import { map, OPENFREEMAP_STYLE_URL, getMlMap, markMlMapReady } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 import { useToast } from "@/composables/ui/useToast";
@@ -100,18 +100,8 @@ export type TileLayerType = "plan" | SatelliteLayerType;
 // Current active tile layer ("plan" = MapLibre vector basemap)
 export const currentTileLayer = ref<TileLayerType>("plan");
 
-// True once the basemap style has loaded and project data + interaction are wired up.
-// Preserved across Vite HMR so onMlMapReady callers don't wait for a `load` event that
-// already fired on the still-alive map instance.
-let styleReady = (import.meta.hot?.data.styleReady as boolean | undefined) ?? false;
 let interactionRegistered =
   (import.meta.hot?.data.interactionRegistered as boolean | undefined) ?? false;
-const mlMapReadyCallbacks: (() => void)[] = [];
-
-/** The single MapLibre map, or null until its style has loaded. */
-export function getMlMap(): MaplibreMap | null {
-  return styleReady ? map.value : null;
-}
 
 // Original extrusion height/base expressions per layer, captured before flattening
 // so 3D can be restored on toggle-back.
@@ -146,15 +136,6 @@ function applyBuildings3DState(extruded: boolean): void {
       mlMap.setPaintProperty(layer.id, "fill-extrusion-height", 0);
       mlMap.setPaintProperty(layer.id, "fill-extrusion-base", 0);
     }
-  }
-}
-
-/** Register a callback to run once (immediately if already ready) when the map is loaded. */
-export function onMlMapReady(cb: () => void): void {
-  if (styleReady) {
-    cb();
-  } else {
-    mlMapReadyCallbacks.push(cb);
   }
 }
 
@@ -326,9 +307,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
       });
     }
 
-    styleReady = true;
-    for (const cb of mlMapReadyCallbacks) cb();
-    mlMapReadyCallbacks.length = 0;
+    markMlMapReady();
 
     applyBuildings3DState(show3DBuildings.value);
 
@@ -630,7 +609,6 @@ function initEsriMetadataListener() {
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.dispose((data) => {
-    data.styleReady = styleReady;
     data.interactionRegistered = interactionRegistered;
   });
   import.meta.hot.accept();

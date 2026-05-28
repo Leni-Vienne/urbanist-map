@@ -12,11 +12,10 @@ import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 import { updateMarkerTooltip } from "@/services/map/markers";
 import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
-import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
-  // Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
+  // Try to get bounds from overlay data (works whether the image layer exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
     mobileAwareFlyToBounds(overlayBounds);
@@ -38,7 +37,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
  * Navigates between overlays in the current project based on direction.
  */
 
-function navigateOverlaySequence(direction: "next" | "previous") {
+export function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
 
@@ -235,7 +234,3 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 
   updateMarkerTooltip(overlayObject);
 }
-
-// Register navigation callback into overlayCallbacks.
-// overlayEditing reads overlayCallbacks.focusCameraToOverlay at call time without overriding it.
-overlayCallbacks.focusCameraToOverlay = navigateOverlaySequence;

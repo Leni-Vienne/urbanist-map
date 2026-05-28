@@ -26,7 +26,6 @@ import {
   refreshEditHandles,
 } from "@/services/overlay/overlayEditHandles";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 
 /**
@@ -219,11 +218,11 @@ export function addOverlay(
   return id;
 }
 
-function undo() {
+export function undo() {
   applyHistoryAction("undo");
 }
 
-function redo() {
+export function redo() {
   applyHistoryAction("redo");
 }
 
@@ -302,10 +301,6 @@ export function setupKeyboardShortcuts() {
   globalThis.addEventListener("keydown", handleKeyDown, true);
   keyboardShortcutsRegistered = true;
 }
-
-// Register undo/redo callbacks for overlayToolbar.ts (lazy chunk).
-// focusCameraToOverlay is set separately by overlayActions.ts.
-Object.assign(overlayCallbacks, { undo, redo });
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {

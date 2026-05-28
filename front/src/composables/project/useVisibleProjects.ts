@@ -1,10 +1,9 @@
 import { ref, computed, watch, onUnmounted } from "vue";
 import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
-import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { map } from "@/services/core/map";
+import { map, getMlMap, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { VECTOR_QUERY_LAYERS, getZoomForGeometrySize } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
@@ -264,7 +263,7 @@ export function useVisibleProjects() {
 
   function doRefresh() {
     const mlMap = getMlMap();
-    // Skip if Leaflet is still animating, or if tiles for the current viewport
+    // Skip if the map is still animating, or if tiles for the current viewport
     // haven't finished loading yet (e.g. mid-zoom). The idle/sourcedata handlers
     // will re-trigger once everything is ready.
     if (!mlMap || mapMoving || !mlMap.areTilesLoaded()) return;
@@ -374,7 +373,7 @@ export function useVisibleProjects() {
   });
 
   // Suppresses hover updates while the camera is flying after a project click.
-  // Cleared on Leaflet's moveend so accidental mouseover on reshuffled rows
+  // Cleared on the map's moveend so accidental mouseover on reshuffled rows
   // doesn't highlight a different project.
   let suppressHover = false;
 

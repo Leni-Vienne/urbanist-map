@@ -1,6 +1,6 @@
 <template>
   <div class="absolute inset-0 overflow-hidden">
-    <!-- Mode border overlay - separate from map container to avoid Leaflet rendering issues -->
+    <!-- Mode border overlay - separate from map container to avoid map rendering issues -->
     <div
       v-if="mapStore.mode !== 'view'"
       :class="[
@@ -157,9 +157,9 @@ async function initializeMapAndOverlays() {
   }
 }
 
-/* Move Leaflet attribution above mobile drawer handle */
+/* Move map attribution above mobile drawer handle */
 @media (max-width: 768px) {
-  :deep(.leaflet-control-attribution) {
+  :deep(.maplibregl-ctrl-attrib) {
     bottom: 4.5rem !important;
     right: 0.5rem !important;
     left: auto !important;

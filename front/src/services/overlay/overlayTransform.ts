@@ -8,7 +8,7 @@ export interface OverlayTransform {
   bearing: number; // degrees, clockwise in mercator space
 }
 
-// Corner order matches the DB ring and leaflet-distortableimage: [TL, TR, BR, BL].
+// Corner order matches the DB ring: [TL, TR, BR, BL].
 const SIGN: [number, number][] = [
   [-1, -1],
   [1, -1],
