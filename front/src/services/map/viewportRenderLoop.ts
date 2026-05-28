@@ -11,7 +11,7 @@ import {
   visibleStates,
   selectedProjectTags,
 } from "@/services/overlay/statusFilters";
-import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { refreshAllStandaloneMarkers } from "@/services/map/standaloneProjectMarkers";
@@ -141,7 +141,7 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
         overlaysToRender.push(data);
       } else if (!hasMarker) {
         const overlayObject = overlayStore.overlays[data.id];
-        if (overlayObject) createSingleMarker(overlayObject);
+        if (overlayObject) createOverlayMarker(overlayObject);
       }
     } else if (hasImage || hasMarker) {
       queueForDestruction(data.id);
@@ -191,7 +191,7 @@ function pruneLocalOverlays() {
         destructionQueue.delete(id);
       }
       if (!hasImage) editOverlaysToRecreate.push(overlay);
-      if (!hasMarker) createSingleMarker(overlay);
+      if (!hasMarker) createOverlayMarker(overlay);
     } else if (hasImage || hasMarker) {
       queueForDestruction(id);
     }

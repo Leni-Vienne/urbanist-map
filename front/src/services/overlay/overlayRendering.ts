@@ -9,7 +9,7 @@ import { removeStandaloneProjectMarkerForProject } from "@/services/map/standalo
 import { getCornersForOverlay } from "@/services/overlay/overlayHistory";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 import { updateMarkerTooltip } from "@/services/map/markers";
-import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { createOverlayImage } from "@/services/overlay/overlayImageLayer";
 import type { OverlayObject, OverlayData } from "@/types/index";
@@ -104,7 +104,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
   // View mode passes createMarkers=false and relies on the overlay-footprints MVT layer
   // for low-zoom representation and click handling.
   if (createMarkers) {
-    createSingleMarker(overlayObjectWithMethods);
+    createOverlayMarker(overlayObjectWithMethods);
     updateMarkerTooltip(overlayObjectWithMethods);
   }
 

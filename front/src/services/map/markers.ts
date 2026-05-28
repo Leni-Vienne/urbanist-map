@@ -260,7 +260,7 @@ export function getOverlayMarkerColor(
  * updateOverlayMarkersColors call sites; data mutations that go through overlayStore /
  * batchUpdateOverlays / updateOverlay trigger this automatically.
  *
- * Initial color is set by createSingleMarker / createMarker on creation; this effect
+ * Initial color is set by createOverlayMarker / createMarker on creation; this effect
  * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
  * no-op setIcon calls.
  */

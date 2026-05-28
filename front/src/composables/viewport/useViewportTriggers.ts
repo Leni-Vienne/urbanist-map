@@ -13,7 +13,7 @@ import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
 import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
 import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
 import {
@@ -97,7 +97,7 @@ function renderFullOverlays(overlaysData: OverlayData[]): void {
   hydrateOverlayStoreObjects(overlaysData);
 
   for (const overlayObject of Object.values(overlayStore.overlays)) {
-    createSingleMarker(overlayObject);
+    createOverlayMarker(overlayObject);
   }
 
   runViewportRenderLoop();
@@ -344,7 +344,7 @@ export function useViewportTriggers() {
 
     for (const overlayObject of Object.values(overlayStore.overlays)) {
       if (visibleOverlayIds.has(overlayObject.id)) {
-        createSingleMarker(overlayObject);
+        createOverlayMarker(overlayObject);
       }
     }
   }

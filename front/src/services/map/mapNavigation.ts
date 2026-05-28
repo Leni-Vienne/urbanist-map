@@ -218,6 +218,8 @@ export function mobileAwareFlyToBounds(
   options: FlyToBoundsOptions = {},
 ): boolean {
   const m = map.value;
+  if (!m) return false;
+
   const west = bounds.getWest();
   const south = bounds.getSouth();
   const east = bounds.getEast();
@@ -242,13 +244,22 @@ export function mobileAwareFlyToBounds(
   const currentZoom = m.getZoom();
   const currentCenter = m.getCenter();
 
-  const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding });
-
+  // cameraForBounds throws "Invalid LngLat (NaN, NaN)" for bounds/padding combos it can't fit
+  // (degenerate quads, padding larger than a tiny viewport). Treat any failure as "not already
+  // there" and let the guarded fitBounds below attempt the move.
   let targetZoom = currentZoom;
   let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
-  if (cam) {
-    targetZoom = cam.zoom ?? currentZoom;
-    if (cam.center) targetCenter = readLngLat(cam.center);
+  try {
+    const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding });
+    if (cam) {
+      if (typeof cam.zoom === "number" && Number.isFinite(cam.zoom)) targetZoom = cam.zoom;
+      if (cam.center) {
+        const c = readLngLat(cam.center);
+        if (Number.isFinite(c.lng) && Number.isFinite(c.lat)) targetCenter = c;
+      }
+    }
+  } catch {
+    // fall through; comparison uses the current camera, so the move below still runs
   }
 
   const centerDistance = haversineMeters(
@@ -267,12 +278,17 @@ export function mobileAwareFlyToBounds(
   const maxDuration = options.duration ?? 1.5;
   const duration = scaledDuration(centerDistance, zoomDiff, maxDuration);
 
-  m.fitBounds(llb, {
-    maxZoom: options.maxZoom,
-    padding,
-    duration: duration * 1000,
-    essential: true,
-  });
+  // fitBounds runs the same projection math as cameraForBounds, so guard it too.
+  try {
+    m.fitBounds(llb, {
+      maxZoom: options.maxZoom,
+      padding,
+      duration: duration * 1000,
+      essential: true,
+    });
+  } catch {
+    return false;
+  }
   return false;
 }
 

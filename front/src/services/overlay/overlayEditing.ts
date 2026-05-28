@@ -16,7 +16,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { recordOverlayModification } from "@/services/overlay/overlayHistory";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { createMarker } from "@/services/overlay/overlayMarkers";
+import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
 import { createOverlayImage, setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import { transformToCorners } from "@/services/overlay/overlayTransform";
@@ -182,7 +182,7 @@ export function addOverlay(
     if (!handle) return;
     registry.setImageHandle(id, handle);
 
-    createMarker(overlayObject);
+    createOverlayMarker(overlayObject);
 
     // Add to project AFTER storing in overlays to avoid "not found" error.
     const isFirstOverlay = addOverlayToProjectWithId(projectId, id);

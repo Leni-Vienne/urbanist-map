@@ -23,52 +23,74 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 
+type Corner = { lat: number; lng: number };
+
+// Web Mercator is undefined beyond ~±85.06°. A corner that is finite but out of range (or
+// otherwise malformed) projects to Infinity inside cameraForBounds and crashes the camera, so
+// bad quads are rejected here before they reach marker placement or navigation.
+const MAX_MERCATOR_LAT = 85.06;
+
+function isValidCorner(c: Corner): boolean {
+  return (
+    Number.isFinite(c.lng) &&
+    Number.isFinite(c.lat) &&
+    Math.abs(c.lat) <= MAX_MERCATOR_LAT &&
+    Math.abs(c.lng) <= 180
+  );
+}
+
+function isValidQuad(corners: Corner[] | undefined | null): corners is Corner[] {
+  return !!corners && corners.length === 4 && corners.every(isValidCorner);
+}
+
 /**
- * Create a single marker for an overlay (for view mode overlays)
+ * Resolve an overlay's current corners from the most accurate available source:
+ *   0. live image position (most accurate while the overlay is rendered)
+ *   1. edit-mode last-edited position from history (survives layer pruning when zooming)
+ *   2. stored corners
+ * Returns null when no source yields a valid 4-corner quad.
  */
-export function createSingleMarker(savedOverlay: OverlayObject): void {
+function resolveOverlayCorners(overlay: OverlayData): Corner[] | null {
   const overlayStore = useOverlayStore();
+  const mapStore = useMapStore();
+
+  const liveCorners = getOverlayImageCorners(overlay.id);
+  if (isValidQuad(liveCorners)) return liveCorners;
+
+  if (mapStore.mode === "edit") {
+    const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1);
+    if (isValidQuad(lastEdited)) return lastEdited;
+  }
+
+  if (isValidQuad(overlay.corners)) return overlay.corners;
+
+  return null;
+}
+
+/**
+ * Create the marker for an overlay (edit / moderation modes). Idempotent: skips overlays that
+ * already have a marker, are "replaced", or fail the mode/user visibility check.
+ */
+export function createOverlayMarker(overlay: OverlayObject): void {
   const mapStore = useMapStore();
   const mlMap = map.value;
   if (!mlMap) return;
 
-  // Skip replaced overlays - the replacement is at the same location, marker would be confusing
-  if (savedOverlay.status === "replaced") {
-    return;
-  }
+  // The replacement sits at the same spot, so a marker for the replaced one would confuse.
+  if (overlay.status === "replaced") return;
+  if (registry.getMarker(overlay.id)) return;
 
-  if (registry.getMarker(savedOverlay.id)) {
-    return;
-  }
-
-  // Visibility check: filters out overlays that don't pass mode/user conditions
   const authStore = useAuthStore();
-  if (!isOverlayVisible(savedOverlay, mapStore.mode, authStore.user?.id)) {
-    return;
-  }
+  if (!isOverlayVisible(overlay, mapStore.mode, authStore.user?.id)) return;
 
-  // Use the user's last edited position in edit mode to prevent marker flicker when zooming.
-  // history.at(-1) survives layer pruning since it lives on the OverlayObject in the store.
-  let corners = savedOverlay.corners;
-  if (mapStore.mode === "edit") {
-    const lastEdited = overlayStore.overlays[savedOverlay.id]?.history.at(-1);
-    if (lastEdited?.length === 4) {
-      corners = lastEdited;
-    }
-  }
-
-  if (corners.length !== 4) {
-    return;
-  }
+  const corners = resolveOverlayCorners(overlay);
+  if (!corners) return;
 
   const centroid = calculateCentroidFromCorners(corners);
-  if (!centroid) {
-    return;
-  }
+  if (!centroid) return;
 
-  // Enrich overlay with project data for proper marker color calculation
-  const tempOverlayObject = enrichOverlayWithProject(savedOverlay);
-  const markerColor = getOverlayMarkerColor(tempOverlayObject, mapStore.mode);
+  const enriched = enrichOverlayWithProject(overlay);
+  const markerColor = getOverlayMarkerColor(enriched, mapStore.mode);
   const element = createOverlayMarkerElement(markerColor);
 
   const marker = new maplibregl.Marker({ element, anchor: "bottom" })
@@ -77,83 +99,44 @@ export function createSingleMarker(savedOverlay: OverlayObject): void {
 
   element.addEventListener("click", (e) => {
     e.stopPropagation();
-
-    const overlayObject = overlayStore.overlays[savedOverlay.id];
-    if (!overlayObject) return;
-
-    // Selection drives the toolbar and edit handles, so it must run before the camera fly
-    // below, which can bail (or previously threw) on degenerate bounds.
-    if (overlayStore.idSelectedOverlay === savedOverlay.id) {
-      selectOverlay(null);
-      return;
-    }
-
-    // Default to viewing the approved position on first click
-    if (overlayObject.isViewingApprovedPosition === undefined) {
-      overlayObject.isViewingApprovedPosition = true;
-    }
-    syncPreviewStateOnNavigation(savedOverlay.id, overlayObject.isViewingApprovedPosition ?? true);
-
-    selectOverlay(savedOverlay.id);
-
-    const bounds = getOverlayBounds(overlayObject);
-    if (bounds) {
-      mobileAwareFlyToBounds(bounds);
-    }
+    onMarkerClick(overlay.id);
   });
 
-  // Capture projectId to avoid non-null assertion inside hover callbacks
-  const projectId = savedOverlay.projectId;
+  const projectId = overlay.projectId;
   if (projectId) {
-    element.addEventListener("mouseenter", () => {
-      highlightProject(projectId);
-    });
-    element.addEventListener("mouseleave", () => {
-      removeProjectOutlines(projectId);
-    });
+    element.addEventListener("mouseenter", () => highlightProject(projectId));
+    element.addEventListener("mouseleave", () => removeProjectOutlines(projectId));
   }
 
-  registry.setMarker(savedOverlay.id, marker);
-  updateMarkerTooltip(tempOverlayObject, markerColor);
+  registry.setMarker(overlay.id, marker);
+  updateMarkerTooltip(enriched, markerColor);
 }
 
-/**
- * Create a marker for new/replacement overlays (for edit mode)
- */
-export function createMarker(overlayObject: OverlayObject): void {
-  const mapStore = useMapStore();
-  const mlMap = map.value;
-  if (!mlMap) return;
+// Selection + change-request preview + camera flight for a marker click. Selection runs first
+// because it drives the toolbar and edit handles and must not depend on the camera, which can
+// skip on degenerate bounds.
+function onMarkerClick(overlayId: string): void {
+  const overlayStore = useOverlayStore();
+  const overlayObject = overlayStore.overlays[overlayId];
+  if (!overlayObject) return;
 
-  // Visibility check: filters out overlays that don't pass mode/user conditions
-  const authStore = useAuthStore();
-  if (!isOverlayVisible(overlayObject, mapStore.mode, authStore.user?.id)) {
+  // Second click on the selected marker deselects.
+  if (overlayStore.idSelectedOverlay === overlayId) {
+    selectOverlay(null);
     return;
   }
 
-  const markerColor = getOverlayMarkerColor(overlayObject, "edit");
-  const element = createOverlayMarkerElement(markerColor);
+  // Default to viewing the approved position on first click.
+  overlayObject.isViewingApprovedPosition ??= true;
+  syncPreviewStateOnNavigation(overlayId, overlayObject.isViewingApprovedPosition);
 
-  const marker = new maplibregl.Marker({ element, anchor: "bottom" })
-    .setLngLat(mlMap.getCenter())
-    .addTo(mlMap);
+  selectOverlay(overlayId);
 
-  element.addEventListener("click", (e) => {
-    // Marker DOM clicks bubble to the map container and would fire MapLibre's map "click",
-    // re-running the background hit-test on the same click. Stop it here.
-    e.stopPropagation();
-    selectOverlay(overlayObject.id);
-    const bounds = getOverlayBounds(overlayObject);
-    if (bounds) {
-      mobileAwareFlyToBounds(bounds);
-    }
-  });
-
-  registry.setMarker(overlayObject.id, marker);
-  updateMarkerTooltip(overlayObject);
+  const bounds = getOverlayBounds(overlayObject);
+  if (bounds) mobileAwareFlyToBounds(bounds);
 }
 
-function buildBounds(corners: { lat: number; lng: number }[]): LngLatBounds {
+function buildBounds(corners: Corner[]): LngLatBounds {
   const bounds = new LngLatBounds();
   for (const c of corners) {
     bounds.extend(new LngLat(c.lng, c.lat));
@@ -162,32 +145,12 @@ function buildBounds(corners: { lat: number; lng: number }[]): LngLatBounds {
 }
 
 /**
- * Get bounds for an overlay (for camera navigation)
+ * Bounds for an overlay, for camera navigation. Returns null when the overlay has no valid
+ * geometry so callers skip navigation instead of feeding NaN bounds to the camera.
  */
 export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  // Priority 0: live image position (most accurate when the overlay is rendered)
-  const liveCorners = getOverlayImageCorners(overlay.id);
-  if (liveCorners?.length === 4) {
-    return buildBounds(liveCorners);
-  }
-
-  // Priority 1: In edit mode use the user's last edited position from history
-  if (mapStore.mode === "edit") {
-    const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1);
-    if (lastEdited?.length === 4) {
-      return buildBounds(lastEdited);
-    }
-  }
-
-  // Priority 2: Use overlay corners from overlayData
-  if (overlay.corners.length === 4) {
-    return buildBounds(overlay.corners);
-  }
-
-  return null;
+  const corners = resolveOverlayCorners(overlay);
+  return corners ? buildBounds(corners) : null;
 }
 
 // oxlint-disable-next-line @typescript-eslint/no-unnecessary-condition
