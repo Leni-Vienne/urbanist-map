@@ -108,11 +108,11 @@ function syncSvgOutline(): void {
   if (!isVisible) return;
 
   const corners = transformToCorners(transform);
-  const pts = corners.map((c) => mlMap.project(c));
-  if (pts.length === 4 && pts.every((p) => p != null)) {
+  const [p0, p1, p2, p3] = corners.map((c) => mlMap.project(c));
+  if (p0 && p1 && p2 && p3) {
     session.svgPath.setAttribute(
       "d",
-      `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y} Z`,
+      `M ${p0.x} ${p0.y} L ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p3.x} ${p3.y} Z`,
     );
   }
 }

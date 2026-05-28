@@ -190,7 +190,7 @@ export function mobileAwareFlyTo(
  * Use instead of mobileAwareFlyTo when the zoom level is already correct, to avoid
  * the zoom-out arc that flyTo produces for same-zoom pans.
  */
-export function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
+function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   const m = map.value;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
@@ -274,6 +274,51 @@ export function mobileAwareFlyToBounds(
     essential: true,
   });
   return false;
+}
+
+/**
+ * Compute the MapLibre zoom level at which a geometry of `sizeMeters` fits
+ * within the map's shorter viewport dimension.
+ * Uses the Web Mercator ground resolution formula adjusted for latitude.
+ */
+function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): number {
+  // 111320m per degree latitude is a standard geodesic constant.
+  const halfDegLat = sizeMeters / 2 / 111_320;
+  const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
+  const cam = map.value.cameraForBounds([
+    [lng - halfDegLng, lat - halfDegLat],
+    [lng + halfDegLng, lat + halfDegLat],
+  ]);
+  const zoom = cam?.zoom ?? map.value.getZoom();
+  return Math.max(7, Math.min(15, zoom));
+}
+
+/**
+ * Fly to a project anchor, zooming in just enough to frame a geometry of `sizeM` meters
+ * (falls back to zoom 14 when the size is 0/unknown). Never zooms out, so a closer view the
+ * user already has is preserved. Returns true if the camera zoomed.
+ *
+ * When no zoom change is needed and `allowPan` is set, pans instead of flying to avoid the
+ * zoom-out arc that flyTo produces for same-zoom moves.
+ */
+export function flyToGeometry(
+  latlng: LatLngInput,
+  sizeM: number,
+  options: { allowPan?: boolean } = {},
+): boolean {
+  const target = toLatLng(latlng);
+  const currentZoom = map.value.getZoom();
+  const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
+  const targetZoom = Math.max(currentZoom, idealZoom);
+  const willZoom = targetZoom !== currentZoom;
+  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
+
+  if (willZoom) {
+    mobileAwareFlyTo(target, targetZoom, { duration });
+  } else if (options.allowPan) {
+    mobileAwarePanTo(target, { animate: true, duration });
+  }
+  return willZoom;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

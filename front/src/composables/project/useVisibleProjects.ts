@@ -5,9 +5,9 @@ import { highlightProject, removeProjectOutlines } from "@/services/overlay/over
 import { setExternalHover } from "@/services/map/vectorHoverState";
 import { map, getMlMap, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { VECTOR_QUERY_LAYERS, getZoomForGeometrySize } from "@/services/map/projectVectorLayers";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { flyToGeometry } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
 import { forEachPosition } from "@/utils/geojson";
 
@@ -403,15 +403,7 @@ export function useVisibleProjects() {
       }, 200);
     });
 
-    const currentZoom = map.value.getZoom();
-    const idealZoom =
-      project.sizeM > 0 ? getZoomForGeometrySize(project.sizeM, latlng.lat, latlng.lng) : 14;
-    const targetZoom = Math.max(currentZoom, idealZoom);
-    const needsZoom = targetZoom !== currentZoom;
-    if (needsZoom) {
-      const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-      mobileAwareFlyTo(latlng, targetZoom, { duration });
-    }
+    const needsZoom = flyToGeometry(latlng, project.sizeM);
 
     void handleProjectClickFromTile(project.id, latlng, needsZoom);
   }

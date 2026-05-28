@@ -33,8 +33,8 @@ import {
 } from "@/services/map/hoverPreviewState";
 import {
   mobileAwareFlyTo,
-  mobileAwarePanTo,
   mobileAwareFlyToBounds,
+  flyToGeometry,
 } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
@@ -351,9 +351,7 @@ function getSizeFilterExpressionForPoints(): FilterSpecification | null {
   if (maxSize !== Infinity) {
     conditions.push(["<=", ["coalesce", ["get", "min_size_m"], 0], maxSize]);
   }
-  const rangeFilter = (
-    conditions.length === 1 ? conditions[0] : ["all", ...conditions]
-  ) as FilterSpecification;
+  const rangeFilter = allOf(conditions);
   // Cells of only no-geometry projects have null max_size_m; let them pass like the shapes filter,
   // otherwise the default min size would hide every standalone/overlay-only project.
   return ["any", ["==", ["get", "max_size_m"], null], rangeFilter] as FilterSpecification;
@@ -373,9 +371,7 @@ function getSizeFilterExpressionForShapes(): FilterSpecification | null {
     conditions.push(["<=", ["get", "geometry_size_m"], maxSize]);
   }
 
-  const rangeFilter = (
-    conditions.length === 1 ? conditions[0] : ["all", ...conditions]
-  ) as FilterSpecification;
+  const rangeFilter = allOf(conditions);
   return ["any", ["==", ["get", "geometry_size_m"], null], rangeFilter] as FilterSpecification;
 }
 
@@ -411,6 +407,12 @@ function getLastModifiedDateFilterExpression(): FilterSpecification | null {
       Math.floor(maxMs / 1000),
     ]);
   }
+  return allOf(conditions);
+}
+
+// Combine raw filter conditions with "all", unwrapping the single-condition case so the
+// expression stays flat (MapLibre handles both, but flat is easier to read when debugging).
+function allOf(conditions: unknown[]): FilterSpecification {
   return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
 }
 
@@ -456,24 +458,6 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   }
 }
 
-/**
- * Compute the MapLibre zoom level at which a geometry of `sizeMeters` fits
- * within `targetFraction` of the map's shorter viewport dimension.
- * Uses the Web Mercator ground resolution formula adjusted for latitude.
- */
-export function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): number {
-  // Approximate a square bounding box centered on the point.
-  // 111320m per degree latitude is a standard geodesic constant.
-  const halfDegLat = sizeMeters / 2 / 111_320;
-  const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
-  const cam = map.value.cameraForBounds([
-    [lng - halfDegLng, lat - halfDegLat],
-    [lng + halfDegLng, lat + halfDegLat],
-  ]);
-  const zoom = cam?.zoom ?? map.value.getZoom();
-  return Math.max(7, Math.min(15, zoom));
-}
-
 function queryFeaturesAtPoint(
   point: { x: number; y: number },
   mlMap: MaplibreMap,
@@ -502,7 +486,7 @@ function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
     return { projectId: HOVER_NONE_ID, overlayId: HOVER_NONE_ID };
   }
 
-  const sourceLayer = (feature as any).sourceLayer;
+  const sourceLayer = feature.sourceLayer;
   if (sourceLayer === undefined) {
     return {
       projectId: getFeaturePropertyAsString(feature, "id") || HOVER_NONE_ID,
@@ -510,7 +494,7 @@ function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
     };
   }
 
-  const isFootprint = String(sourceLayer) === "overlay-footprints";
+  const isFootprint = sourceLayer === "overlay-footprints";
   const projectIdProp = isFootprint ? "project_id" : "id";
   const projectId = getFeaturePropertyAsString(feature, projectIdProp);
   const overlayId = isFootprint
@@ -646,17 +630,8 @@ function handleVectorFeatureClick(
 
   // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
   // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
-  const currentZoom = map.value.getZoom();
   const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
-  const idealZoom =
-    geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, latlng.lat, latlng.lng) : 14;
-  const targetZoom = Math.max(currentZoom, idealZoom);
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-
-  const willFly = targetZoom !== currentZoom;
-  if (willFly) {
-    mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
-  }
+  const willFly = flyToGeometry(latlng, geometrySizeM);
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
@@ -680,18 +655,12 @@ function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | nu
 
   const activeFilter = ["==", ["to-string", ["get", "id"]], hoveredId] as FilterSpecification;
 
-  // Also we must preserve tag/status filters if any
-  const tagFilter = getTagFilterExpression();
-  const statusFilter = getStatusFilterExpression();
-
-  let combinedFilter: any = activeFilter;
-  if (tagFilter && statusFilter) {
-    combinedFilter = ["all", activeFilter, tagFilter, statusFilter];
-  } else if (tagFilter) {
-    combinedFilter = ["all", activeFilter, tagFilter];
-  } else if (statusFilter) {
-    combinedFilter = ["all", activeFilter, statusFilter];
-  }
+  // Preserve any active tag/status filters alongside the hover match.
+  const combinedFilter = combineFilters(
+    activeFilter,
+    getTagFilterExpression(),
+    getStatusFilterExpression(),
+  );
 
   mlMap.setFilter("project-points-hover", combinedFilter);
   mlMap.setFilter("pending-project-points-hover", activeFilter); // pending points don't have status filters
@@ -712,27 +681,13 @@ function setHoveredProjectId(
   setPointHoverFilter(mlMap, projectId);
 }
 
-function navigateToLonePoint(
-  props: Record<string, unknown>,
-  lat: number,
-  lng: number,
-  currentZoom: number,
-): void {
+function navigateToLonePoint(props: Record<string, unknown>, lat: number, lng: number): void {
   const hasGeometry: boolean = props.has_geometry === true;
   // geometry_size_m is the representative project's own size, not max_size_m, which spans
   // all projects in the cluster cell and is only meaningful for the client-side size filter.
   const geometrySizeM: number = (props.geometry_size_m as number | null) ?? 0;
-  const idealZoom =
-    hasGeometry && geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, lat, lng) : 14;
-  const targetZoom = Math.max(currentZoom, idealZoom);
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-  if (targetZoom === currentZoom) {
-    // flyTo zooms out then back in even for pure pans, causing MapLibre canvas flicker.
-    // When no zoom change is needed, use panTo to avoid the zoom-out arc.
-    mobileAwarePanTo([lat, lng], { animate: true, duration });
-  } else {
-    mobileAwareFlyTo([lat, lng], targetZoom, { duration });
-  }
+  // allowPan avoids flyTo's zoom-out arc (and canvas flicker) when no zoom change is needed.
+  flyToGeometry([lat, lng], hasGeometry ? geometrySizeM : 0, { allowPan: true });
 }
 
 // Map a lat/lng to the tile index and pixel position inside the tile.
@@ -846,7 +801,7 @@ async function handlePointFeatureClick(
 
     if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_ZOOM) {
       willFly = true;
-      navigateToLonePoint(props, lat, lng, currentZoom);
+      navigateToLonePoint(props, lat, lng);
     } else {
       shouldOpenPanel = false;
       navigateToCluster(props, lat, lng, currentZoom);
