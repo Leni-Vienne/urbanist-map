@@ -292,8 +292,3 @@ export function hideEditHandles(): void {
   if (mlMap.getLayer(s.fillLayerId)) mlMap.removeLayer(s.fillLayerId);
   if (mlMap.getSource(s.fillSourceId)) mlMap.removeSource(s.fillSourceId);
 }
-
-// Re-show handles for the currently selected overlay (e.g. after the image is recreated).
-export function isEditingOverlay(id: string): boolean {
-  return session?.id === id;
-}

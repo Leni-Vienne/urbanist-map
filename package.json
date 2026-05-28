@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.19.3",
+    "@geoman-io/maplibre-geoman-free": "^0.7.1",
     "@hono/trpc-server": "^0.4.2",
     "@primeuix/themes": "^2.0.3",
     "@tailwindcss/vite": "^4.3.0",

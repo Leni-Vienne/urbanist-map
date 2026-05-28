@@ -87,7 +87,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
+
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -171,7 +171,7 @@ watch(
   async (newMode, oldMode) => {
     if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditor.project) {
       const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-      destroyShapeEditor(legacyLeafletMap());
+      destroyShapeEditor();
       uiStore.closeShapeEditor();
     }
   },
@@ -201,7 +201,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
   const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-  destroyShapeEditor(legacyLeafletMap());
+  destroyShapeEditor();
   // Re-render updated shapes immediately (Geoman layers were just removed by destroyShapeEditor,
   // and the viewport loop only covers backend overlays).
   clearProjectShapes(project.id);
@@ -229,7 +229,7 @@ async function handleShapesCancel() {
   const project = uiStore.shapeEditor.project;
   const reopenAt = uiStore.shapeEditor.reopenAt;
   const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-  destroyShapeEditor(legacyLeafletMap());
+  destroyShapeEditor();
   uiStore.closeShapeEditor();
   if (reopenAt && project) {
     uiStore.openProjectInfoPopup(project.id, project);

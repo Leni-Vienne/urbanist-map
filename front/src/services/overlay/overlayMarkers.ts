@@ -14,19 +14,13 @@ import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import { applyWarningRing, clearWarningRing } from "@/services/overlay/overlayStyle";
 import {
   selectOverlay,
   highlightProject,
   removeProjectOutlines,
 } from "@/services/overlay/overlaySelection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
-import {
-  calculateCentroidFromCorners,
-  validateOverlaySize,
-  leafletCornersToCorners,
-} from "@shared/overlayValidation";
-import { useToast } from "@/composables/ui/useToast";
+import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 import { t } from "@/locales";
 
@@ -266,61 +260,6 @@ export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
   }
 
   return null;
-}
-
-/**
- * Check overlay size in real-time and show visual warning if too large.
- * Moved here from overlayEditing to break the overlayRendering ↔ overlayEditing cycle.
- */
-export function checkOverlaySizeAndWarn(
-  overlay: L.DistortableImageOverlay,
-  overlayObject: OverlayObject,
-): void {
-  const corners = overlay.getCorners();
-
-  // Guard clause - corners can be undefined for newly created overlays
-  if (corners?.length !== 4) {
-    return;
-  }
-
-  const cornersArray = leafletCornersToCorners(corners);
-  const validation = validateOverlaySize(cornersArray);
-
-  const element = overlay.getElement();
-  if (!element) return;
-
-  // Resolve store once to sync isTooBig so that subsequent
-  // updateOverlay (Object.assign from store) propagates the correct value.
-  const overlayStore = useOverlayStore();
-
-  if (!validation.isValid) {
-    element.style.border = "4px solid #ef4444";
-    applyWarningRing(element);
-
-    if (!overlayObject.isTooBig) {
-      overlayObject.isTooBig = true;
-      overlayStore.updateOverlay(overlayObject.id, { isTooBig: true });
-      updateMarkerTooltip(overlayObject);
-    }
-
-    // Show toast every time overlay is edited while too large
-    const toast = useToast();
-    toast.add({
-      severity: "warn",
-      summary: t("upload.overlayTooLarge"),
-      detail: t("upload.maximumSizeOnMap"),
-      life: 3000,
-    });
-  } else {
-    element.style.border = "";
-    clearWarningRing(element);
-
-    if (overlayObject.isTooBig) {
-      overlayObject.isTooBig = false;
-      overlayStore.updateOverlay(overlayObject.id, { isTooBig: false });
-      updateMarkerTooltip(overlayObject);
-    }
-  }
 }
 
 // oxlint-disable-next-line @typescript-eslint/no-unnecessary-condition

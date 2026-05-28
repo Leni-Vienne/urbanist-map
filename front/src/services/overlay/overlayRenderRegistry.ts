@@ -55,34 +55,12 @@ export function isCreating(id: string): boolean {
   return creating.has(id);
 }
 
-// ─── Layer (DistortableImageOverlay) ─────────────────────────────────────────
-
-export function setLayer(id: string, layer: L.DistortableImageOverlay): void {
-  const entry = entries.get(id);
-  if (entry) {
-    entry.layer = layer;
-  } else {
-    entries.set(id, { layer, marker: null, imageHandle: null });
-  }
-}
-
 export function getLayer(id: string): L.DistortableImageOverlay | null {
   return entries.get(id)?.layer ?? null;
 }
 
 export function hasReadyLayer(id: string): boolean {
   return (entries.get(id)?.layer ?? null) !== null;
-}
-
-/**
- * Null the layer reference without touching the marker.
- * Used after the Leaflet layer has already been removed from the map (zoom threshold).
- */
-export function clearLayer(id: string): void {
-  const entry = entries.get(id);
-  if (entry) {
-    entry.layer = null;
-  }
 }
 
 // ─── Marker ──────────────────────────────────────────────────────────────────
@@ -194,14 +172,6 @@ export function clearAll(preserveMarkers = false): void {
       entries.delete(id);
     }
   }
-}
-
-export function getAllLayers(): [string, L.DistortableImageOverlay][] {
-  const result: [string, L.DistortableImageOverlay][] = [];
-  for (const [id, entry] of entries) {
-    if (entry.layer !== null) result.push([id, entry.layer]);
-  }
-  return result;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

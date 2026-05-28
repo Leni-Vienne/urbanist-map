@@ -1,4 +1,3 @@
-import type L from "leaflet";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
@@ -216,31 +215,6 @@ export function refreshSelectionHighlight(): void {
   if (projectId) {
     highlightProject(projectId);
   }
-}
-
-/**
- * Setup hover event listeners for project highlighting in edit/moderation mode.
- */
-export function setupProjectHoverEvents(
-  overlay: L.DistortableImageOverlay,
-  overlayObject: OverlayObject,
-): void {
-  if (!overlayObject.projectId) return;
-
-  const element = overlay.getElement();
-  if (!element) return;
-
-  element.addEventListener("mouseenter", () => {
-    if (overlayObject.projectId) {
-      highlightProject(overlayObject.projectId, overlayObject.id);
-    }
-  });
-
-  element.addEventListener("mouseleave", () => {
-    if (overlayObject.projectId) {
-      removeProjectOutlines(overlayObject.projectId);
-    }
-  });
 }
 
 /**

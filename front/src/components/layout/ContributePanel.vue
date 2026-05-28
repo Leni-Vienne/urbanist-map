@@ -152,7 +152,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
+
 import L from "leaflet";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
@@ -413,7 +413,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   uiStore.openShapeEditor(project);
   // Lazy-load geoman and initialise the toolbar with the best available geometry
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  await initShapeEditor(legacyLeafletMap(), existingGeometry ?? undefined);
+  await initShapeEditor(existingGeometry ?? undefined);
 }
 
 // Navigate to the external pinned project using the same logic as a map click.

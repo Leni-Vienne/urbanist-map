@@ -48,7 +48,7 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
+
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import {
   addLayersFromGeometry,
@@ -98,7 +98,7 @@ async function handleFileImport(event: Event) {
 
     if (geometry.geometries.length === 0) return;
 
-    const bounds = await addLayersFromGeometry(legacyLeafletMap(), geometry);
+    const bounds = await addLayersFromGeometry(geometry);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 17 });
     }
@@ -113,7 +113,7 @@ async function handleFileImport(event: Event) {
 }
 
 async function handleSave() {
-  const geometry = getDrawnGeometry(legacyLeafletMap());
+  const geometry = getDrawnGeometry();
   emit("done", geometry);
 }
 </script>
