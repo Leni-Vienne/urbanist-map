@@ -183,6 +183,8 @@ function wireSurfaceDrag(s: EditSession): void {
   };
   s.onDown = (e: MapMouseEvent) => {
     e.preventDefault();
+    if (s.cornerDrag) return; // Prevent surface drag if a corner is currently being dragged
+
     const handle = getImageHandle(overlayObject.id);
     if (!handle) return;
     const start = e.lngLat;
@@ -190,6 +192,8 @@ function wireSurfaceDrag(s: EditSession): void {
     mlMap.dragPan.disable();
 
     function onMove(ev: MapMouseEvent): void {
+      if (s.cornerDrag) return; // Prevent conflict
+
       const current = getImageHandle(overlayObject.id);
       if (!current) return;
       const transform: OverlayTransform = {
