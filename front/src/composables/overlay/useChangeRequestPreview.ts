@@ -1,4 +1,4 @@
-import L, { type LatLng } from "leaflet";
+import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
@@ -70,14 +70,20 @@ function isPreviewingChange(changeId: string): boolean {
 
 // Navigate to position, combining new and previous bounds for a smooth unzoom effect
 function navigateToPosition(
-  targetLatLngs: L.LatLng[],
-  previousBounds: L.LatLngBounds | null,
+  targetLatLngs: LngLat[],
+  previousBounds: LngLatBounds | null,
   overlayId: string,
 ): void {
-  const newBounds = L.latLngBounds(targetLatLngs);
+  const targetBounds = new LngLatBounds();
+  for (const pt of targetLatLngs) {
+    targetBounds.extend(pt);
+  }
 
   // Extend with previous bounds so both positions stay visible during transition
-  const targetBounds = previousBounds ? newBounds.extend(previousBounds) : newBounds;
+  if (previousBounds) {
+    targetBounds.extend(previousBounds.getSouthWest());
+    targetBounds.extend(previousBounds.getNorthEast());
+  }
 
   mobileAwareFlyToBounds(targetBounds);
 
@@ -87,22 +93,22 @@ function navigateToPosition(
   });
 }
 
-function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): L.LatLng[] | null {
+function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): LngLat[] | null {
   if (type === "new") {
     // Show suggested position
     if (overlayObject.suggestedCorners?.length !== 4) {
       console.warn("No suggested corners available for overlay", overlayObject.id);
       return null;
     }
-    return overlayObject.suggestedCorners.map((c: { lat: number; lng: number }) =>
-      L.latLng(c.lat, c.lng),
+    return overlayObject.suggestedCorners.map(
+      (c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat),
     );
   }
   // Show approved position (always in corners field)
   if (overlayObject.corners.length !== 4) {
     return null;
   }
-  return overlayObject.corners.map((c: { lat: number; lng: number }) => L.latLng(c.lat, c.lng));
+  return overlayObject.corners.map((c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat));
 }
 
 function getPreviewType(changeId: string): "current" | "suggested" | null {
@@ -117,7 +123,7 @@ export function useChangeRequestPreview() {
 
   async function ensureOverlayLoaded(
     overlayForModeration: OverlayForModeration,
-    targetCorners: LatLng[],
+    targetCorners: LngLat[],
   ): Promise<boolean> {
     const mapStore = useMapStore();
 
@@ -154,7 +160,10 @@ export function useChangeRequestPreview() {
     mapStore.selectedCountryCode = overlayForModeration.countryCode;
 
     // Step 4: Navigate to overlay position
-    const targetBounds = L.latLngBounds(targetCorners);
+    const targetBounds = new LngLatBounds();
+    for (const pt of targetCorners) {
+      targetBounds.extend(pt);
+    }
     mobileAwareFlyToBounds(targetBounds);
 
     // Poll until the overlay appears in the store and registry (up to 2s)
@@ -191,7 +200,7 @@ export function useChangeRequestPreview() {
     }
 
     // Capture current bounds before switching, so we can show both positions
-    let previousBounds: L.LatLngBounds | null = null;
+    let previousBounds: LngLatBounds | null = null;
     if (wasAlreadyLoaded) {
       previousBounds = getOverlayBounds(overlayObject);
     }
@@ -235,7 +244,7 @@ export function useChangeRequestPreview() {
         return;
       }
 
-      const latLngs = corners.map((c) => L.latLng(c.lat, c.lng));
+      const latLngs = corners.map((c) => new LngLat(c.lng, c.lat));
 
       const wasAlreadyLoaded = registry.getImageHandle(change.entityId) !== null;
       const isTogglingActivePreview =

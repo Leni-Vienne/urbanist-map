@@ -1,5 +1,5 @@
 import { ref, computed, watch, onUnmounted } from "vue";
-import L from "leaflet";
+import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
 import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
@@ -18,7 +18,7 @@ interface VisibleProject {
   id: string;
   name: string | null;
   /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
-  bbox: L.LatLngBounds | null;
+  bbox: LngLatBounds | null;
   /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as popup anchor. */
   midLat: number | null;
   midLng: number | null;
@@ -197,7 +197,7 @@ function getGeomClosestToCenter(
 /** Returns [centerLng, centerLat, bounds] from the geometry's coordinate bbox. */
 function getGeomBbox(
   geom: GeoJSON.Geometry | null,
-): [number | null, number | null, L.LatLngBounds | null] {
+): [number | null, number | null, LngLatBounds | null] {
   if (!geom) return [null, null, null];
   const coords = collectCoords(geom);
   if (coords.length === 0) return [null, null, null];
@@ -213,7 +213,7 @@ function getGeomBbox(
     if (y < minY) minY = y;
     if (y > maxY) maxY = y;
   }
-  const bounds = L.latLngBounds([minY, minX], [maxY, maxX]);
+  const bounds = new LngLatBounds([minX, minY], [maxX, maxY]);
   return [(minX + maxX) / 2, (minY + maxY) / 2, bounds];
 }
 

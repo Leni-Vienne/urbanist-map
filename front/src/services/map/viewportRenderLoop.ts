@@ -1,4 +1,4 @@
-import L from "leaflet";
+import { LngLatBounds } from "maplibre-gl";
 import { watch } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -45,11 +45,14 @@ export function runViewportRenderLoop() {
   const mlBounds = mlMap.getBounds();
   const zoom = mlMap.getZoom();
 
-  // Pad bounds slightly to pre-load items just outside view
-  const paddedBounds = L.latLngBounds(
-    [mlBounds.getSouth(), mlBounds.getWest()],
-    [mlBounds.getNorth(), mlBounds.getEast()],
-  ).pad(0.1);
+  const sw = mlBounds.getSouthWest();
+  const ne = mlBounds.getNorthEast();
+  const latPad = (ne.lat - sw.lat) * 0.1;
+  const lngPad = (ne.lng - sw.lng) * 0.1;
+  const paddedBounds = new LngLatBounds(
+    [sw.lng - lngPad, sw.lat - latPad],
+    [ne.lng + lngPad, ne.lat + latPad],
+  );
 
   pruneOverlays(paddedBounds, zoom);
 }
@@ -67,7 +70,7 @@ function queueForDestruction(id: string) {
  * Image draw visibility past MIN_ZOOM_FOR_OVERLAYS is handled by each raster layer's minzoom,
  * so this loop only decides whether the source/marker exist, not whether they draw.
  */
-function pruneOverlays(bounds: L.LatLngBounds, zoom: number) {
+function pruneOverlays(bounds: LngLatBounds, zoom: number) {
   if (zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
 
   const viewportBounds: ViewportBounds = {

@@ -102,13 +102,6 @@ export function getOverlayImageCorners(id: string): Corner[] | null {
   return transformToCorners(handle.transform);
 }
 
-// Replace the image without tearing down the source (used by the overlay-replace feature).
-export function updateOverlayImageUrl(id: string, imageUrl: string): void {
-  const handle = getImageHandle(id);
-  if (!handle) return;
-  getImageSource(handle.sourceId)?.updateImage({ url: imageUrl });
-}
-
 // Set raster opacity (0..1) for one overlay, persisting it on the handle.
 export function setOverlayImageOpacity(id: string, opacity: number): void {
   const mlMap = map.value;

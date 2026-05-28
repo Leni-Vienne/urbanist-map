@@ -1,4 +1,4 @@
-import L from "leaflet";
+import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -26,7 +26,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   const marker = getMarker(overlay.id);
   if (marker) {
     const lngLat = marker.getLngLat();
-    mobileAwareFlyTo(L.latLng(lngLat.lat, lngLat.lng), 17);
+    mobileAwareFlyTo(new LngLat(lngLat.lng, lngLat.lat), 17);
     return true;
   }
 
@@ -179,7 +179,10 @@ export async function navigateToOverlay(
   // Select now if it registered in time, otherwise fly directly to the backend corners.
   const navigated = selectAndCenterOverlay(overlayId);
   if (!navigated && loadResult?.corners && loadResult.corners.length >= 4) {
-    const bounds = L.latLngBounds(loadResult.corners.map((c) => L.latLng(c.lat, c.lng)));
+    const bounds = new LngLatBounds();
+    for (const c of loadResult.corners) {
+      bounds.extend(new LngLat(c.lng, c.lat));
+    }
     mobileAwareFlyToBounds(bounds);
   }
   return true;

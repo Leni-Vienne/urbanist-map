@@ -123,7 +123,7 @@ import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavi
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { map } from "@/services/core/map";
-import L from "leaflet";
+import { LngLat, LngLatBounds } from "maplibre-gl";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
@@ -189,13 +189,13 @@ async function handleContributionClick(contribution: LatestContribution) {
     if (contribution.geometryBbox) {
       // Fly to the actual geometry bounds instead of the project center point
       const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
-      const bounds = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
+      const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
       mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
       requestScrollTo("project", contribution.id);
       // Use a point on the geometry itself so the popup anchors on the actual vector
-      const popupLatLng = contribution.geometryPoint
-        ? L.latLng(contribution.geometryPoint.lat, contribution.geometryPoint.lng)
-        : L.latLng((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+      const popupLatLng = Object.hasOwn(contribution, "geometryPoint")
+        ? new LngLat(contribution.geometryPoint.lng, contribution.geometryPoint.lat)
+        : new LngLat((minLng + maxLng) / 2, (minLat + maxLat) / 2);
       map.value.once("moveend", () => {
         void handleProjectClickFromTile(contribution.id, popupLatLng);
       });

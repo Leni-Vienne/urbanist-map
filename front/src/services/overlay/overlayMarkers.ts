@@ -1,4 +1,4 @@
-import L from "leaflet";
+import { LngLat, LngLatBounds } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import { map } from "@/services/core/map";
 import {
@@ -236,27 +236,35 @@ export function createMarker(overlayObject: OverlayObject): void {
 /**
  * Get bounds for an overlay (for camera navigation)
  */
-export function getOverlayBounds(overlay: OverlayData): L.LatLngBounds | null {
+export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
+
+  function buildBounds(corners: { lat: number; lng: number }[]): LngLatBounds {
+    const bounds = new LngLatBounds();
+    for (const c of corners) {
+      bounds.extend(new LngLat(c.lng, c.lat));
+    }
+    return bounds;
+  }
 
   // Priority 0: live image position (most accurate when the overlay is rendered)
   const liveCorners = getOverlayImageCorners(overlay.id);
   if (liveCorners?.length === 4) {
-    return L.latLngBounds(liveCorners.map((c) => L.latLng(c.lat, c.lng)));
+    return buildBounds(liveCorners);
   }
 
   // Priority 1: In edit mode use the user's last edited position from history
   if (mapStore.mode === "edit") {
     const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1);
     if (lastEdited?.length === 4) {
-      return L.latLngBounds(lastEdited.map((corner) => L.latLng(corner.lat, corner.lng)));
+      return buildBounds(lastEdited);
     }
   }
 
   // Priority 2: Use overlay corners from overlayData
   if (overlay.corners.length === 4) {
-    return L.latLngBounds(overlay.corners.map((corner) => L.latLng(corner.lat, corner.lng)));
+    return buildBounds(overlay.corners);
   }
 
   return null;

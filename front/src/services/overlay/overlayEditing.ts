@@ -1,6 +1,6 @@
 // Overlay editing operations
 
-import L from "leaflet";
+import { LngLat } from "maplibre-gl";
 import { t } from "@/locales";
 import { map, currentZoomLevel } from "@/services/core/map";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
@@ -209,7 +209,7 @@ export function addOverlay(
       life: 4000,
     });
 
-    mobileAwareFlyTo(L.latLng(project.lat, project.lng), targetZoom);
+    mobileAwareFlyTo(new LngLat(project.lng, project.lat), targetZoom);
 
     // Wait for zoom to complete before creating overlay
     map.value.once("zoomend", () => {

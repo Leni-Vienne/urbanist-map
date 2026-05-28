@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 // Leaflet CSS now loaded from CDN in index.html
-import "leaflet-distortableimage/dist/leaflet.distortableimage.css";
+
 import { useTheme } from "./composables/core/useTheme";
 useTheme(); // Initialize theme on app startup (applies saved preference)
 import "./assets/style.css"; // Must be imported after leaflet's css otherwise it's overwritten by leaflet's default css

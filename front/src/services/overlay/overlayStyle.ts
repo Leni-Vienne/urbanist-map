@@ -25,21 +25,3 @@ function commit(element: HTMLElement, state: ShadowState): void {
   const parts = [state.selection, state.warning].filter(Boolean);
   element.style.boxShadow = parts.join(", ");
 }
-
-// ─── Size-warning ring ───────────────────────────────────────────────────────
-
-/**
- * Apply the red size-warning ring to an overlay element.
- * Composed with the selection ring so neither clobbers the other.
- */
-export function applyWarningRing(element: HTMLElement): void {
-  const state = getState(element);
-  state.warning = WARNING_SHADOW;
-  commit(element, state);
-}
-
-export function clearWarningRing(element: HTMLElement): void {
-  const state = getState(element);
-  state.warning = "";
-  commit(element, state);
-}

@@ -1,21 +1,6 @@
 // Leaflet overlay rendering and DOM manipulation
 // Handles all Leaflet-specific overlay creation, loading, and event binding
-import L from "leaflet";
-// leaflet-toolbar must be imported before leaflet-distortableimage because
-// the distortableimage IIFE uses L.Toolbar2.Action at module evaluation time (t[280]).
-// In ESM, imports are evaluated in declaration order, so this ordering is critical
-// to ensure L.Toolbar2 exists before the distortableimage bundle's IIFE runs.
-import "leaflet-toolbar";
-import "leaflet-distortableimage";
-import { map } from "@/services/core/map";
 
-// leaflet-distortableimage's addInitHook adds the 'ldi' class to the map container,
-// which is required for the CSS rule that sets pointer-events: all on overlay images.
-// Since this chunk loads lazily after map creation, the addInitHook never ran for the
-// existing map, we must apply it manually here.
-if (!L.DomUtil.hasClass(map.value.getContainer(), "ldi")) {
-  L.DomUtil.addClass(map.value.getContainer(), "ldi");
-}
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";

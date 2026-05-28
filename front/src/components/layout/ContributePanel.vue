@@ -153,7 +153,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 
-import L from "leaflet";
+import { LngLat } from "maplibre-gl";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
@@ -422,7 +422,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 function handleExternalProjectClick(_project: ProjectForModeration) {
   const fullProject = lastSelectedProject.value;
   if (!fullProject) return;
-  selectProject(fullProject, L.latLng(fullProject.lat ?? 0, fullProject.lng ?? 0));
+  selectProject(fullProject, new LngLat(fullProject.lng ?? 0, fullProject.lat ?? 0));
 }
 
 function handleEditProjectClick(project: ProjectForModeration) {

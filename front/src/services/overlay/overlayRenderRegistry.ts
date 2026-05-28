@@ -4,9 +4,7 @@
 //   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
 //   - All creation goes through beginCreation(), atomically prevents duplicate layers
 //   - clearAll() is the single cleanup path
-import type * as L from "leaflet";
 import type { Marker as MaplibreMarker } from "maplibre-gl";
-import { legacyLeafletMap } from "@/lib/legacyLeafletMap";
 import { map } from "@/services/core/map";
 import type { OverlayTransform } from "@/services/overlay/overlayTransform";
 
@@ -20,7 +18,6 @@ export interface OverlayImageHandle {
 }
 
 interface RegistryEntry {
-  layer: L.DistortableImageOverlay | null;
   marker: MaplibreMarker | null;
   imageHandle: OverlayImageHandle | null;
 }
@@ -42,7 +39,7 @@ const creating = new Set<string>();
 export function beginCreation(id: string): boolean {
   if (creating.has(id)) return false;
   const entry = entries.get(id);
-  if (entry !== undefined && (entry.layer !== null || entry.imageHandle !== null)) return false;
+  if (entry !== undefined && entry.imageHandle !== null) return false;
   creating.add(id);
   return true;
 }
@@ -55,12 +52,8 @@ export function isCreating(id: string): boolean {
   return creating.has(id);
 }
 
-export function getLayer(id: string): L.DistortableImageOverlay | null {
-  return entries.get(id)?.layer ?? null;
-}
-
 export function hasReadyLayer(id: string): boolean {
-  return (entries.get(id)?.layer ?? null) !== null;
+  return (entries.get(id)?.imageHandle ?? null) !== null;
 }
 
 // ─── Marker ──────────────────────────────────────────────────────────────────
@@ -70,7 +63,7 @@ export function setMarker(id: string, marker: MaplibreMarker): void {
   if (entry) {
     entry.marker = marker;
   } else {
-    entries.set(id, { layer: null, marker, imageHandle: null });
+    entries.set(id, { marker, imageHandle: null });
   }
 }
 
@@ -85,7 +78,7 @@ export function setImageHandle(id: string, handle: OverlayImageHandle): void {
   if (entry) {
     entry.imageHandle = handle;
   } else {
-    entries.set(id, { layer: null, marker: null, imageHandle: handle });
+    entries.set(id, { marker: null, imageHandle: handle });
   }
 }
 
@@ -109,7 +102,7 @@ export function getRenderedOverlayIds(): string[] {
 export function dropImageHandlesForStyleSwitch(): void {
   for (const [id, entry] of entries) {
     entry.imageHandle = null;
-    if (entry.layer === null && entry.marker === null) {
+    if (entry.marker === null) {
       entries.delete(id);
     }
   }
@@ -136,9 +129,6 @@ export function clearEntry(id: string): void {
   if (entry.imageHandle) {
     removeImageFromMap(entry.imageHandle);
   }
-  if (entry.layer && legacyLeafletMap().hasLayer(entry.layer)) {
-    entry.layer.remove();
-  }
   entry.marker?.remove();
 
   entries.delete(id);
@@ -158,14 +148,10 @@ export function clearAll(preserveMarkers = false): void {
     if (entry.imageHandle) {
       removeImageFromMap(entry.imageHandle);
     }
-    if (entry.layer && legacyLeafletMap().hasLayer(entry.layer)) {
-      entry.layer.remove();
-    }
 
     if (preserveMarkers) {
       // Zoom threshold: null the image refs but keep the marker alive on the map.
       // This prevents marker flicker when crossing the zoom 13/14 boundary.
-      entry.layer = null;
       entry.imageHandle = null;
     } else {
       entry.marker?.remove();
