@@ -21,7 +21,7 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
 import { getCityNameCache } from "@/utils/cityNameCache";
 import {
-  prepareProjectValidationData,
+  getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
@@ -151,12 +151,9 @@ function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrorsMap>
 }
 
 function validateProject(project: Project): string[] {
-  const validationData = prepareProjectValidationData(project, {
-    lat: project.lat,
-    lng: project.lng,
-  });
-  const result = projectSchema.safeParse(validationData);
-  return result.success ? [] : zodErrorsToMessages(result.error);
+  const errors = getProjectValidationErrors(project, { lat: project.lat, lng: project.lng });
+  if (!errors) return [];
+  return Object.values(errors).map((e) => t(e.key, e.params ?? {}));
 }
 
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {

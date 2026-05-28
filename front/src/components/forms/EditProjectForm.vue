@@ -45,7 +45,6 @@
         <Button
           type="submit"
           :disabled="!form.hasChanges.value"
-          :loading="form.isSubmitting.value"
           :label="$t('forms.saveChanges')"
           icon="pi pi-send"
         />
@@ -98,8 +97,6 @@ const form = useEditableProjectForm({
   entityId: props.project.id,
   initialData: projectData.value, // Original backend values for comparison
   currentData: currentProjectData.value, // Current values to display in form
-  entityStatus: props.project.status,
-  localOnly: true, // Save changes locally only, submit via dedicated "Submit Change Request" buttons
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),
