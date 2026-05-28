@@ -21,6 +21,7 @@ import {
   selectedNameFilters,
   lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 interface BoundingBox {
   minLat: number;
@@ -418,6 +419,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       // Overlay image sources were wiped by setStyle; drop their handles so vectorTileSync
       // re-creates them on the next idle.
       dropImageHandlesForStyleSwitch();
+      runViewportRenderLoop();
       resolve();
     });
     mlMap.setStyle(style);
