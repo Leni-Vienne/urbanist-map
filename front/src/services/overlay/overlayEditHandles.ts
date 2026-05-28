@@ -9,7 +9,7 @@ import {
 } from "@/services/overlay/overlayTransform";
 import { setOverlayImageTransform } from "@/services/overlay/overlayImageLayer";
 import { getCornersForOverlay, saveToHistory } from "@/services/overlay/overlayHistory";
-import { updateMarkerPosition } from "@/services/overlay/overlayMarkers";
+import { updateMarkerPosition } from "@/services/map/markers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";

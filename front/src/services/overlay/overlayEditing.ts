@@ -16,11 +16,8 @@ import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { recordOverlayModification } from "@/services/overlay/overlayHistory";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import {
-  updateMarkerPosition,
-  updateMarkerTooltip,
-  createMarker,
-} from "@/services/overlay/overlayMarkers";
+import { createMarker } from "@/services/overlay/overlayMarkers";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
 import { createOverlayImage, setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import { transformToCorners } from "@/services/overlay/overlayTransform";
 import {

@@ -16,7 +16,7 @@ import { useSubmissionService } from "./useSubmissionService";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
-import { updateMarkerTooltip, updateMarkerPosition } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip, updateMarkerPosition } from "@/services/map/markers";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";

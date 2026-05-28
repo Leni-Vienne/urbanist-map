@@ -10,7 +10,8 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
-import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip } from "@/services/map/markers";
+import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
 import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
 
 // Helper to zoom to overlay bounds

@@ -50,8 +50,8 @@ export function runViewportRenderLoop() {
   const latPad = (ne.lat - sw.lat) * 0.1;
   const lngPad = (ne.lng - sw.lng) * 0.1;
   const paddedBounds = new LngLatBounds(
-    [sw.lng - lngPad, sw.lat - latPad],
-    [ne.lng + lngPad, ne.lat + latPad],
+    [sw.lng - lngPad, Math.max(-90, sw.lat - latPad)],
+    [ne.lng + lngPad, Math.min(90, ne.lat + latPad)],
   );
 
   pruneOverlays(paddedBounds, zoom);

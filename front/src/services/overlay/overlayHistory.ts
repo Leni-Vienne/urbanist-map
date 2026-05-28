@@ -2,7 +2,7 @@ import type { OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
 /**

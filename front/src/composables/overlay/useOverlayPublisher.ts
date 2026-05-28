@@ -1,5 +1,5 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";

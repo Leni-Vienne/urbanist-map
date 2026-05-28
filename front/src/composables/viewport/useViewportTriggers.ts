@@ -125,9 +125,9 @@ function getMapBbox() {
   const padY = (north - south) * 0.15;
   return {
     minLng: west - padX,
-    minLat: south - padY,
+    minLat: Math.max(-90, south - padY),
     maxLng: east + padX,
-    maxLat: north + padY,
+    maxLat: Math.min(90, north + padY),
   };
 }
 

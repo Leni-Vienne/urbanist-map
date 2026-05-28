@@ -11,11 +11,11 @@ import type { OverlayObject } from "@/types/index";
 
 type Corner = { lat: number; lng: number };
 
-export function overlaySourceId(id: string): string {
+function overlaySourceId(id: string): string {
   return `overlay-image-${id}`;
 }
 
-export function overlayRasterLayerId(id: string): string {
+function overlayRasterLayerId(id: string): string {
   return `overlay-raster-${id}`;
 }
 

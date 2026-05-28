@@ -4,14 +4,14 @@ import { map } from "@/services/core/map";
 import {
   getOverlayMarkerColor,
   createOverlayMarkerElement,
-  updateOverlayMarkerColor,
+  updateMarkerTooltip,
 } from "@/services/map/markers";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
-import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
+import type { OverlayObject, OverlayData } from "@/types/index";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import {
@@ -22,89 +22,6 @@ import {
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
-import { t } from "@/locales";
-
-/**
- * Update the marker position based on the overlay's current center
- */
-export function updateMarkerPosition(overlayObject: OverlayObject): void {
-  const marker = registry.getMarker(overlayObject.id);
-  if (!marker) return;
-
-  // Centroid from the live image corners so the pin tracks the overlay during edits.
-  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.corners;
-  if (corners.length === 4) {
-    const centroid = calculateCentroidFromCorners(corners);
-    if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);
-  }
-}
-
-/**
- * Update marker color + tooltip based on overlay storage status
- * @param overlayObject - The overlay object to update
- * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
- */
-export function updateMarkerTooltip(
-  overlayObject: OverlayObject,
-  cachedMarkerColor?: MarkerColor,
-): void {
-  const mapStore = useMapStore();
-  const marker = registry.getMarker(overlayObject.id);
-
-  if (!marker) return;
-
-  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, mapStore.mode);
-  updateOverlayMarkerColor(marker, markerColor);
-
-  const element = marker.getElement();
-
-  // View mode shows no tooltip; edit & moderation modes do.
-  if (mapStore.mode === "view") {
-    element.removeAttribute("title");
-    return;
-  }
-
-  function getTooltipTextForOverlay(): string {
-    const hasBeenModified = overlayObject.isModified;
-    const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
-    const isReplacement = overlayObject.replacesOverlayId !== null;
-    const isApproved = overlayObject.status === "approved";
-    const isPending = overlayObject.status === "pending";
-    const isRejected = overlayObject.status === "rejected";
-    const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
-
-    let statusText = "";
-    let modifierText = "";
-
-    if (isReplacement && !isApproved) {
-      statusText = t("markerTooltip.status.replacementOverlay");
-    } else if (isPending) {
-      statusText = t("markerTooltip.status.pendingApproval");
-      if (hasBeenModified) {
-        modifierText = t("markerTooltip.modifiers.modified");
-      }
-    } else if (isApproved) {
-      statusText = t("common.approved");
-      if (hasPendingChanges && isViewingApprovedPosition === false) {
-        modifierText = t("markerTooltip.modifiers.viewingSuggested");
-      } else if (hasPendingChanges && isViewingApprovedPosition !== false) {
-        modifierText = t("markerTooltip.modifiers.hasPendingChanges");
-      } else if (hasBeenModified) {
-        modifierText = t("markerTooltip.modifiers.modified");
-      }
-    } else if (isRejected) {
-      statusText = t("markerTooltip.status.rejected");
-    } else if (hasBeenModified) {
-      statusText = t("markerTooltip.status.localOverlay");
-    } else {
-      statusText = t("markerTooltip.status.newOverlay");
-    }
-
-    return modifierText ? `${statusText} (${modifierText})` : statusText;
-  }
-
-  element.title = getTooltipTextForOverlay();
-}
 
 /**
  * Create a single marker for an overlay (for view mode overlays)
@@ -233,20 +150,20 @@ export function createMarker(overlayObject: OverlayObject): void {
   updateMarkerTooltip(overlayObject);
 }
 
+function buildBounds(corners: { lat: number; lng: number }[]): LngLatBounds {
+  const bounds = new LngLatBounds();
+  for (const c of corners) {
+    bounds.extend(new LngLat(c.lng, c.lat));
+  }
+  return bounds;
+}
+
 /**
  * Get bounds for an overlay (for camera navigation)
  */
 export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
-
-  function buildBounds(corners: { lat: number; lng: number }[]): LngLatBounds {
-    const bounds = new LngLatBounds();
-    for (const c of corners) {
-      bounds.extend(new LngLat(c.lng, c.lat));
-    }
-    return bounds;
-  }
 
   // Priority 0: live image position (most accurate when the overlay is rendered)
   const liveCorners = getOverlayImageCorners(overlay.id);

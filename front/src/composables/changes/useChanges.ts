@@ -6,7 +6,7 @@ import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/change
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
 import type { OverlayObject } from "@/types";
 import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";

@@ -4,8 +4,11 @@ import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
+import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { t } from "@/locales";
 
 const markerSize = 25;
 const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
@@ -121,6 +124,88 @@ export function updateStandaloneMarkerColor(marker: MaplibreMarker, color: Marke
 // Get raw marker SVG string for cursor display
 export function getMarkerSvg(color: MarkerColor): string {
   return createStandaloneProjectMarkerSVG(color);
+}
+
+/**
+ * Update marker color + tooltip based on overlay storage status
+ * @param overlayObject - The overlay object to update
+ * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
+ */
+export function updateMarkerTooltip(
+  overlayObject: OverlayObject,
+  cachedMarkerColor?: MarkerColor,
+): void {
+  const mapStore = useMapStore();
+  const marker = getMarker(overlayObject.id);
+
+  if (!marker) return;
+
+  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, mapStore.mode);
+  updateOverlayMarkerColor(marker, markerColor);
+
+  const element = marker.getElement();
+
+  // View mode shows no tooltip; edit & moderation modes do.
+  if (mapStore.mode === "view") {
+    element.removeAttribute("title");
+    return;
+  }
+
+  function getTooltipTextForOverlay(): string {
+    const hasBeenModified = overlayObject.isModified;
+    const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
+    const isReplacement = overlayObject.replacesOverlayId !== null;
+    const isApproved = overlayObject.status === "approved";
+    const isPending = overlayObject.status === "pending";
+    const isRejected = overlayObject.status === "rejected";
+    const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
+
+    let statusText = "";
+    let modifierText = "";
+
+    if (isReplacement && !isApproved) {
+      statusText = t("markerTooltip.status.replacementOverlay");
+    } else if (isPending) {
+      statusText = t("markerTooltip.status.pendingApproval");
+      if (hasBeenModified) {
+        modifierText = t("markerTooltip.modifiers.modified");
+      }
+    } else if (isApproved) {
+      statusText = t("common.approved");
+      if (hasPendingChanges && isViewingApprovedPosition === false) {
+        modifierText = t("markerTooltip.modifiers.viewingSuggested");
+      } else if (hasPendingChanges && isViewingApprovedPosition !== false) {
+        modifierText = t("markerTooltip.modifiers.hasPendingChanges");
+      } else if (hasBeenModified) {
+        modifierText = t("markerTooltip.modifiers.modified");
+      }
+    } else if (isRejected) {
+      statusText = t("markerTooltip.status.rejected");
+    } else if (hasBeenModified) {
+      statusText = t("markerTooltip.status.localOverlay");
+    } else {
+      statusText = t("markerTooltip.status.newOverlay");
+    }
+
+    return modifierText ? `${statusText} (${modifierText})` : statusText;
+  }
+
+  element.title = getTooltipTextForOverlay();
+}
+
+/**
+ * Update the marker position based on the overlay's current center
+ */
+export function updateMarkerPosition(overlayObject: OverlayObject): void {
+  const marker = getMarker(overlayObject.id);
+  if (!marker) return;
+
+  // Centroid from the live image corners so the pin tracks the overlay during edits.
+  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.corners;
+  if (corners.length === 4) {
+    const centroid = calculateCentroidFromCorners(corners);
+    if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);
+  }
 }
 
 export function getOverlayMarkerColor(

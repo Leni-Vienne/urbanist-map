@@ -6,7 +6,7 @@ import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import type { Project, OverlayObject, RemovableChange } from "@/types/index";
 import {
   projectSchema,

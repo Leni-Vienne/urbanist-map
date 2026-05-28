@@ -4,11 +4,8 @@ import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import {
-  updateMarkerPosition,
-  updateMarkerTooltip,
-  getOverlayBounds,
-} from "@/services/overlay/overlayMarkers";
+import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
