@@ -99,12 +99,6 @@ export function initializeMap() {
   // into overlaid UI panels never pans/zooms the map. Trade-off: no keyboard map control.
   newMap.keyboard.disable();
 
-  // MapLibre measures the container once at construction and otherwise only re-measures on
-  // window resize. A ResizeObserver keeps the canvas matched to the container through late
-  // layout settling, sidebar/drawer toggles, and orientation changes.
-  const resizeObserver = new ResizeObserver(() => newMap.resize());
-  resizeObserver.observe(newMap.getContainer());
-
   // Attribution is collected automatically from each active style's source `attribution`
   // fields, so it switches correctly between the plan basemap and satellite layers.
   newMap.addControl(new maplibre.AttributionControl({ compact: false }));
