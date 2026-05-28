@@ -2,7 +2,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { updateMarkerTooltip } from "@/services/map/markers";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
-import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
+import { validateOverlaySize, toCornerArray } from "@shared/overlayValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
@@ -71,7 +71,7 @@ export function useOverlayPublisher() {
     }
 
     // Validate overlay size constraints
-    const cornersArray = leafletCornersToCorners(corners);
+    const cornersArray = toCornerArray(corners);
     const sizeValidation = validateOverlaySize(cornersArray);
 
     if (!sizeValidation.isValid) {

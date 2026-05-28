@@ -1,4 +1,4 @@
-// Tile zoom inputs are MapLibre zoom (= Leaflet zoom - 1).
+// Tile zoom inputs are native MapLibre zoom.
 
 // Mirrors the cell_size lookup in tiles.sql. Must be a power of 2 that divides 4096
 // evenly, otherwise partial stub cells at tile edges break cross-tile cluster alignment.

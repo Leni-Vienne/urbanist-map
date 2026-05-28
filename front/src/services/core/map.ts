@@ -5,30 +5,25 @@ import { getApiUrl } from "@/client";
 
 export const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
-// The URL hash stores a Leaflet-equivalent zoom (MapLibre zoom + 1) so links shared
-// before the MapLibre migration keep rendering the same view. Internally we use native
-// MapLibre zoom everywhere else.
-const HASH_ZOOM_OFFSET = 1;
-
 // Parse #map=zoom/lat/lng from the URL hash. Returns native MapLibre zoom.
 function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
   const hash = globalThis.location.hash;
   if (!hash) return null;
   const match = /^#map=([0-9.]+)\/([-0-9.]+)\/([-0-9.]+)$/.exec(hash);
   if (!match) return null;
-  const hashZoom = Number(match[1]);
+  const zoom = Number(match[1]);
   const lat = Number(match[2]);
   const lng = Number(match[3]);
-  if (Number.isNaN(hashZoom) || Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  if (Number.isNaN(zoom) || Number.isNaN(lat) || Number.isNaN(lng)) return null;
   if (lat < -85 || lat > 85 || lng < -180 || lng > 180) return null;
-  return { lat, lng, zoom: hashZoom - HASH_ZOOM_OFFSET };
+  return { lat, lng, zoom };
 }
 
-// Update the URL hash with current map view, written as Leaflet-equivalent zoom.
+// Update the URL hash with current map view.
 function updateHash() {
   if (!_map) return;
   const center = _map.getCenter();
-  const zoom = _map.getZoom() + HASH_ZOOM_OFFSET;
+  const zoom = _map.getZoom();
   const hash = `#map=${zoom.toFixed(2)}/${center.lat.toFixed(4)}/${center.lng.toFixed(4)}`;
   history.replaceState(null, "", hash);
 }

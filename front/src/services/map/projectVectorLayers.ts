@@ -100,7 +100,7 @@ addProtocol("dedupe", async (params, _abortController) => {
 
 const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
-// ── Zoom level constants (MapLibre zoom = Leaflet zoom - 1) ─────────────────
+// ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
 /** Zoom level at which project points appear (prevents overloading with 20k+ points globally) */
 const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project points disappear because shapes take over */
@@ -213,7 +213,7 @@ function getProjectPointColorExpression(): ExpressionSpecification {
 
 /**
  * Zoom-dependent size gate for the project-shapes layer.
- * Mirrors the server-side logic in tiles.sql (all values are MapLibre zoom = Leaflet zoom - 1):
+ * Mirrors the server-side logic in tiles.sql (all values are native MapLibre zoom):
  *   z11+ → all shapes
  *   z10  → geometry_size_m >= 200 m
  *   z9   → geometry_size_m >= 500 m
@@ -457,7 +457,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
 }
 
 /**
- * Compute the Leaflet zoom level at which a geometry of `sizeMeters` fits
+ * Compute the MapLibre zoom level at which a geometry of `sizeMeters` fits
  * within `targetFraction` of the map's shorter viewport dimension.
  * Uses the Web Mercator ground resolution formula adjusted for latitude.
  */
@@ -582,7 +582,6 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
   const { projectId, overlayId } = getHoveredFeatureIds(feature);
 
   const selectedProjectId = getCurrentHighlightedProjectId() ?? HOVER_NONE_ID;
-  const selectedOverlayId = useOverlayStore().idSelectedOverlay ?? HOVER_NONE_ID;
   // The external hover (sidebar card, overlay DOM hover, popup pin) must be preserved
   // even when mousemove returns an empty result, so it's ORed into every hover filter.
   const externalProjectId = getExternalHoverId() ?? HOVER_NONE_ID;
