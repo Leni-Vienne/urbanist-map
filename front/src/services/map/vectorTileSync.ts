@@ -15,6 +15,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
+import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
 // Stores the last-synced set of OverlayData objects built from tile features.
@@ -105,8 +106,18 @@ function syncOverlaysFromTiles(mlMap: any): void {
     // via the visibility check in onOverlayFullyLoaded if they've since left view.
     for (const id of registry.getRenderedOverlayIds()) {
       if (!featureMap.has(id) && !registry.isCreating(id) && approvedOverlayDataCache.has(id)) {
-        registry.clearEntry(id);
-        approvedOverlayDataCache.delete(id);
+        const data = approvedOverlayDataCache.get(id);
+        const liveCorners = getOverlayImageCorners(id);
+        const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data?.corners;
+
+        if (effectiveCorners && cornersIntersectBounds(effectiveCorners, viewportBounds)) {
+          // The overlay's backend coordinates are no longer in the MVT tiles for this viewport,
+          // BUT its live edited image intersects the viewport. Keep it alive.
+          if (data) featureMap.set(id, data);
+        } else {
+          registry.clearEntry(id);
+          approvedOverlayDataCache.delete(id);
+        }
       }
     }
 

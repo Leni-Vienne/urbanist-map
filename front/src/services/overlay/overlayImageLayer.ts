@@ -6,6 +6,7 @@ import {
   type OverlayTransform,
 } from "@/services/overlay/overlayTransform";
 import { getImageHandle, type OverlayImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 
@@ -98,8 +99,20 @@ export function setOverlayImageTransform(id: string, transform: OverlayTransform
 // Live corners of the overlay's current rigid transform. The edited position during editing.
 export function getOverlayImageCorners(id: string): Corner[] | null {
   const handle = getImageHandle(id);
-  if (!handle) return null;
-  return transformToCorners(handle.transform);
+  if (handle) return transformToCorners(handle.transform);
+
+  // Fallback for when the handle is temporarily null (e.g., zoom out past threshold)
+  // but the overlay has a stored history (i.e., it's currently modified).
+  const overlayStore = useOverlayStore();
+  const overlay = overlayStore.overlays[id];
+  if (overlay && overlay.history && overlay.history.length > 0) {
+    const lastCorners = overlay.history[overlay.history.length - 1];
+    if (lastCorners && lastCorners.length === 4) {
+      return lastCorners;
+    }
+  }
+
+  return null;
 }
 
 // Set raster opacity (0..1) for one overlay, persisting it on the handle.

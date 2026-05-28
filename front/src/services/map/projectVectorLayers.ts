@@ -16,6 +16,7 @@ import {
   selectOverlay,
 } from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { watch } from "vue";
 
 import {
   getExternalHoverId,
@@ -479,15 +480,18 @@ function queryFeaturesAtPoint(
   layers: readonly string[],
   hitRadius: number,
 ): any[] {
+  const existingLayers = layers.filter((l) => mlMap.getLayer(l));
+  if (existingLayers.length === 0) return [];
+
   if (hitRadius > 0) {
     const bbox: [PointLike, PointLike] = [
       [point.x - hitRadius, point.y - hitRadius],
       [point.x + hitRadius, point.y + hitRadius],
     ];
-    return mlMap.queryRenderedFeatures(bbox, { layers: [...layers] });
+    return mlMap.queryRenderedFeatures(bbox, { layers: existingLayers });
   }
 
-  return mlMap.queryRenderedFeatures([point.x, point.y], { layers: [...layers] });
+  return mlMap.queryRenderedFeatures([point.x, point.y], { layers: existingLayers });
 }
 
 function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
@@ -527,6 +531,53 @@ function buildIdMatchFilter(ids: string[]): FilterSpecification {
   ] as FilterSpecification;
 }
 
+let hiddenOverlayIdsCache: string[] = [];
+
+function computeHiddenOverlayIds(): string[] {
+  const store = useOverlayStore();
+  const hidden = new Set<string>();
+  if (store.idSelectedOverlay) hidden.add(store.idSelectedOverlay);
+  for (const [id, o] of Object.entries(store.overlays)) {
+    if (o.isModified) hidden.add(id);
+  }
+  return Array.from(hidden);
+}
+
+function getHiddenOverlayIds(): string[] {
+  return hiddenOverlayIdsCache;
+}
+
+let isHiddenOverlaysWatcherInitialized = false;
+
+function initHiddenOverlaysWatcher(): void {
+  if (isHiddenOverlaysWatcherInitialized) return;
+  isHiddenOverlaysWatcherInitialized = true;
+
+  watch(
+    () => computeHiddenOverlayIds(),
+    (hiddenIds) => {
+      hiddenOverlayIdsCache = hiddenIds;
+      const mlMap = map.value;
+      if (!mlMap) return;
+
+      const filter =
+        hiddenIds.length > 0
+          ? ([
+              "!",
+              ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]],
+            ] as FilterSpecification)
+          : undefined;
+
+      if (mlMap.getLayer("overlay-footprints-outline")) {
+        mlMap.setFilter("overlay-footprints-outline", filter);
+      }
+      if (mlMap.getLayer("overlay-footprints-fill")) {
+        mlMap.setFilter("overlay-footprints-fill", filter);
+      }
+    },
+  );
+}
+
 function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature | null): void {
   const { projectId, overlayId } = getHoveredFeatureIds(feature);
 
@@ -538,7 +589,19 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
   const externalOverlayId = getExternalHoverOverlayId() ?? HOVER_NONE_ID;
 
   const projectMatch = buildIdMatchFilter([projectId, selectedProjectId, externalProjectId]);
-  const overlayMatch = buildIdMatchFilter([overlayId, selectedOverlayId, externalOverlayId]);
+  const overlayMatchBase = buildIdMatchFilter([overlayId, externalOverlayId]);
+
+  const hiddenIds = getHiddenOverlayIds();
+  let overlayMatch: FilterSpecification;
+  if (hiddenIds.length > 0) {
+    overlayMatch = [
+      "all",
+      overlayMatchBase,
+      ["!", ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]]],
+    ] as FilterSpecification;
+  } else {
+    overlayMatch = overlayMatchBase;
+  }
 
   mlMap.setFilter("project-shapes-hover", projectMatch);
   mlMap.setFilter("project-shapes-hover-fill", [
@@ -1133,6 +1196,13 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
+  const hiddenIds = computeHiddenOverlayIds();
+  hiddenOverlayIdsCache = hiddenIds;
+  const hiddenFilter =
+    hiddenIds.length > 0
+      ? (["!", ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]]] as FilterSpecification)
+      : undefined;
+
   // Transparent fill so queryRenderedFeatures hits the interior of each footprint polygon,
   // not just its outline pixels. Without this, hover only fires on the dashed border.
   mlMap.addLayer(
@@ -1142,6 +1212,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
         "fill-color": getProjectLineColorExpression(),
         "fill-opacity": 0.001,
@@ -1164,18 +1235,18 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // Permanent border for overlays whose project has no drawn geometry. Without a shape
-  // outline these images can blend into the basemap, so trace their footprint edge using
-  // the same styling as the hover border.
+  // Permanent border for overlays. Without a shape outline these images can
+  // blend into the basemap, so trace their footprint edge using the same
+  // styling as the hover border.
   mlMap.addLayer(
     {
-      id: "overlay-footprints-no-geometry",
+      id: "overlay-footprints-outline",
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: ["==", ["get", "has_geometry"], false],
       layout: { "line-cap": "round" },
+      ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1330,4 +1401,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
 
   // Apply current tag filters to MVT layers
   applyTagFiltersToVectorLayers(mlMap);
+
+  initHiddenOverlaysWatcher();
 }

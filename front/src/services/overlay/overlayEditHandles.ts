@@ -14,6 +14,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 
 type Corner = { lat: number; lng: number };
@@ -40,11 +41,13 @@ interface EditSession {
   cornerMarkers: maplibregl.Marker[];
   fillSourceId: string;
   fillLayerId: string;
-  outlineLayerId: string;
   cornerDrag: CornerDragState | null;
   onEnter?: () => void;
   onLeave?: () => void;
   onDown?: (e: MapMouseEvent) => void;
+  svgContainer?: SVGSVGElement;
+  svgPath?: SVGPathElement;
+  onRender?: () => void;
 }
 
 // Only one overlay is edited at a time (the selected one).
@@ -70,15 +73,59 @@ function cornerHandleElement(): HTMLElement {
   return el;
 }
 
+function getCurrentTransform(id: string): OverlayTransform | null {
+  const handle = getImageHandle(id);
+  if (handle) return handle.transform;
+  const overlayStore = useOverlayStore();
+  const overlay = overlayStore.overlays[id];
+  if (overlay && overlay.history && overlay.history.length > 0) {
+    const lastCorners = overlay.history[overlay.history.length - 1];
+    if (lastCorners && lastCorners.length === 4) {
+      return cornersToTransform(lastCorners);
+    }
+  }
+  return null;
+}
+
+function syncSvgOutline(): void {
+  if (!session || !session.svgPath) return;
+  const mlMap = map.value;
+  const transform = getCurrentTransform(session.id);
+  if (!mlMap || !transform) return;
+
+  const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
+  const isVisible = mlMap.getZoom() >= threshold;
+
+  if (session.svgContainer) {
+    session.svgContainer.style.display = isVisible ? "block" : "none";
+  }
+
+  session.cornerMarkers.forEach((marker) => {
+    const el = marker.getElement();
+    if (el) el.style.display = isVisible ? "block" : "none";
+  });
+
+  if (!isVisible) return;
+
+  const corners = transformToCorners(transform);
+  const pts = corners.map((c) => mlMap.project(c));
+  if (pts.length === 4 && pts.every((p) => p != null)) {
+    session.svgPath.setAttribute(
+      "d",
+      `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y} Z`,
+    );
+  }
+}
+
 // Sync the outline/fill polygon and reposition corner markers from the live transform.
 // skipCorner leaves the actively-dragged marker on the cursor until dragend.
 function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
   const mlMap = map.value;
-  const handle = getImageHandle(session.id);
-  if (!mlMap || !handle) return;
+  const transform = getCurrentTransform(session.id);
+  if (!mlMap || !transform) return;
 
-  const corners = transformToCorners(handle.transform);
+  const corners = transformToCorners(transform);
   mlMap.getSource<GeoJSONSource>(session.fillSourceId)?.setData(polygonFeature(corners));
 
   session.cornerMarkers.forEach((marker, i) => {
@@ -86,6 +133,8 @@ function refreshEditHandlesGeometry(skipCorner = -1): void {
     const corner = corners[i];
     if (corner) marker.setLngLat([corner.lng, corner.lat]);
   });
+
+  syncSvgOutline();
 }
 
 export function refreshEditHandles(): void {
@@ -93,9 +142,9 @@ export function refreshEditHandles(): void {
 }
 
 function flagSize(overlayObject: OverlayObject): void {
-  const handle = getImageHandle(overlayObject.id);
-  if (!handle) return;
-  const valid = validateOverlaySize(transformToCorners(handle.transform)).isValid;
+  const transform = getCurrentTransform(overlayObject.id);
+  if (!transform) return;
+  const valid = validateOverlaySize(transformToCorners(transform)).isValid;
   if (overlayObject.isTooBig !== !valid) {
     overlayObject.isTooBig = !valid;
     useOverlayStore().updateOverlay(overlayObject.id, { isTooBig: !valid });
@@ -115,9 +164,9 @@ function wireCornerDrag(s: EditSession): void {
 
   s.cornerMarkers.forEach((marker, i) => {
     marker.on("dragstart", () => {
-      const handle = getImageHandle(overlayObject.id);
-      if (!handle) return;
-      const opposite = transformToCorners(handle.transform)[(i + 2) % 4];
+      const transform = getCurrentTransform(overlayObject.id);
+      if (!transform) return;
+      const opposite = transformToCorners(transform)[(i + 2) % 4];
       if (!opposite) return;
       const a = maplibregl.MercatorCoordinate.fromLngLat({ lng: opposite.lng, lat: opposite.lat });
       s.cornerDrag = {
@@ -127,7 +176,7 @@ function wireCornerDrag(s: EditSession): void {
         sx: SIGN[i]![0],
         sy: SIGN[i]![1],
         /* oxlint-enable no-non-null-assertion */
-        ar: handle.transform.width / handle.transform.height,
+        ar: transform.width / transform.height,
       };
     });
 
@@ -185,10 +234,10 @@ function wireSurfaceDrag(s: EditSession): void {
     e.preventDefault();
     if (s.cornerDrag) return; // Prevent surface drag if a corner is currently being dragged
 
-    const handle = getImageHandle(overlayObject.id);
-    if (!handle) return;
+    const transform = getCurrentTransform(overlayObject.id);
+    if (!transform) return;
     const start = e.lngLat;
-    const startCenter = { lat: handle.transform.center.lat, lng: handle.transform.center.lng };
+    const startCenter = { lat: transform.center.lat, lng: transform.center.lng };
     mlMap.dragPan.disable();
 
     let didMove = false;
@@ -202,16 +251,16 @@ function wireSurfaceDrag(s: EditSession): void {
       if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
 
       didMove = true;
-      const current = getImageHandle(overlayObject.id);
-      if (!current) return;
-      const transform: OverlayTransform = {
-        ...current.transform,
+      const currentTransform = getCurrentTransform(overlayObject.id);
+      if (!currentTransform) return;
+      const newTransform: OverlayTransform = {
+        ...currentTransform,
         center: {
           lat: startCenter.lat + (ev.lngLat.lat - start.lat),
           lng: startCenter.lng + (ev.lngLat.lng - start.lng),
         },
       };
-      setOverlayImageTransform(overlayObject.id, transform);
+      setOverlayImageTransform(overlayObject.id, newTransform);
       refreshEditHandlesGeometry();
       updateMarkerPosition(overlayObject);
     }
@@ -246,27 +295,24 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   hideEditHandles();
 
   // Rectify so the image corners line up with the handles (skewed overlays snap to a rectangle).
-  const corners = getCornersForOverlay(overlayObject) ?? transformToCorners(handle.transform);
+  const transformToUse = getCurrentTransform(overlayObject.id);
+  const corners =
+    getCornersForOverlay(overlayObject) ??
+    (transformToUse ? transformToCorners(transformToUse) : overlayObject.corners);
   const transform = cornersToTransform(corners);
   setOverlayImageTransform(overlayObject.id, transform);
   const rectCorners = transformToCorners(transform);
 
   const fillSourceId = editSourceId(overlayObject.id);
   const fillLayerId = `${fillSourceId}-fill`;
-  const outlineLayerId = `${fillSourceId}-outline`;
 
   mlMap.addSource(fillSourceId, { type: "geojson", data: polygonFeature(rectCorners) });
   mlMap.addLayer({
     id: fillLayerId,
     type: "fill",
     source: fillSourceId,
+    minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
     paint: { "fill-color": "#000000", "fill-opacity": 0 },
-  });
-  mlMap.addLayer({
-    id: outlineLayerId,
-    type: "line",
-    source: fillSourceId,
-    paint: { "line-color": "#3b82f6", "line-width": 2 },
   });
 
   const cornerMarkers = rectCorners.map((corner) =>
@@ -275,14 +321,38 @@ export function showEditHandles(overlayObject: OverlayObject): void {
       .addTo(mlMap),
   );
 
+  const svgContainer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgContainer.style.position = "absolute";
+  svgContainer.style.top = "0";
+  svgContainer.style.left = "0";
+  svgContainer.style.width = "100%";
+  svgContainer.style.height = "100%";
+  svgContainer.style.pointerEvents = "none";
+  svgContainer.style.zIndex = "1"; // Above map canvas, below markers
+
+  const svgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  svgPath.setAttribute("stroke", "#3b82f6");
+  svgPath.setAttribute("stroke-width", "2");
+  svgPath.setAttribute("fill", "transparent");
+  svgContainer.appendChild(svgPath);
+
+  mlMap.getCanvasContainer().appendChild(svgContainer);
+
+  function onRender(): void {
+    syncSvgOutline();
+  }
+  mlMap.on("render", onRender);
+
   session = {
     id: overlayObject.id,
     overlayObject,
     cornerMarkers,
     fillSourceId,
     fillLayerId,
-    outlineLayerId,
     cornerDrag: null,
+    svgContainer,
+    svgPath,
+    onRender,
   };
 
   wireCornerDrag(session);
@@ -301,8 +371,13 @@ export function hideEditHandles(): void {
   if (s.onEnter) mlMap.off("mouseenter", s.fillLayerId, s.onEnter);
   if (s.onLeave) mlMap.off("mouseleave", s.fillLayerId, s.onLeave);
   if (s.onDown) mlMap.off("mousedown", s.fillLayerId, s.onDown);
+  if (s.onRender) mlMap.off("render", s.onRender);
+
+  if (s.svgContainer && s.svgContainer.parentNode) {
+    s.svgContainer.parentNode.removeChild(s.svgContainer);
+  }
+
   mlMap.getCanvas().style.cursor = "";
-  if (mlMap.getLayer(s.outlineLayerId)) mlMap.removeLayer(s.outlineLayerId);
   if (mlMap.getLayer(s.fillLayerId)) mlMap.removeLayer(s.fillLayerId);
   if (mlMap.getSource(s.fillSourceId)) mlMap.removeSource(s.fillSourceId);
 }
