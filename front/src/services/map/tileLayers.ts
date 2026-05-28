@@ -13,6 +13,7 @@ import {
 } from "./projectVectorLayers";
 import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/overlayRenderRegistry";
+import { show3DBuildings } from "@/composables/core/useBuildings3D";
 import {
   selectedProjectTags,
   visibleStates,
@@ -109,6 +110,42 @@ const mlMapReadyCallbacks: (() => void)[] = [];
 /** The single MapLibre map, or null until its style has loaded. */
 export function getMlMap(): MaplibreMap | null {
   return styleReady ? map.value : null;
+}
+
+// Original extrusion height/base expressions per layer, captured before flattening
+// so 3D can be restored on toggle-back.
+const originalExtrusionPaint = new Map<string, { height: unknown; base: unknown }>();
+
+/**
+ * Switch the basemap's buildings between 3D extrusion and flat footprints.
+ * Liberty's flat "building" fill only renders at z13-14; past z14 the footprint
+ * exists solely as the "building-3d" extrusion. So we flatten the extrusion to
+ * height 0 (keeping the footprint) rather than hiding it, which would leave no
+ * buildings when zoomed in. Satellite styles have no fill-extrusion layers.
+ */
+function applyBuildings3DState(extruded: boolean): void {
+  const mlMap = getMlMap();
+  if (!mlMap || !mlMap.isStyleLoaded()) return;
+
+  for (const layer of mlMap.getStyle().layers) {
+    if (layer.type !== "fill-extrusion") continue;
+
+    if (!originalExtrusionPaint.has(layer.id)) {
+      originalExtrusionPaint.set(layer.id, {
+        height: mlMap.getPaintProperty(layer.id, "fill-extrusion-height"),
+        base: mlMap.getPaintProperty(layer.id, "fill-extrusion-base"),
+      });
+    }
+
+    if (extruded) {
+      const original = originalExtrusionPaint.get(layer.id);
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-height", original?.height);
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-base", original?.base);
+    } else {
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-height", 0);
+      mlMap.setPaintProperty(layer.id, "fill-extrusion-base", 0);
+    }
+  }
 }
 
 /** Register a callback to run once (immediately if already ready) when the map is loaded. */
@@ -292,6 +329,8 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
     for (const cb of mlMapReadyCallbacks) cb();
     mlMapReadyCallbacks.length = 0;
 
+    applyBuildings3DState(show3DBuildings.value);
+
     if (lastPendingProjectPointsGeojson) {
       updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
     }
@@ -317,6 +356,10 @@ watch(
   },
   { deep: true },
 );
+
+watch(show3DBuildings, (extruded) => {
+  applyBuildings3DState(extruded);
+});
 
 /** Update the pending-project-points source with fresh GeoJSON data (edit/moderation mode). */
 export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
@@ -366,6 +409,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
+        applyBuildings3DState(show3DBuildings.value);
       }
       addProjectDataToMlMap(mlMap);
       if (lastPendingProjectPointsGeojson) {

@@ -241,6 +241,10 @@
       "filterByLastModified": "Filter by Last Modified",
       "lastModifiedFrom": "From",
       "lastModifiedTo": "To"
+    },
+    "buildings3D": {
+      "enable": "Enable 3D buildings",
+      "disable": "Disable 3D buildings"
     }
   },
   "search": {
@@ -445,7 +449,8 @@
       "out": "Zoom Out"
     },
     "filter": "Filter Projects",
-    "language": "Language"
+    "language": "Language",
+    "settings": "Settings"
   },
   "tooltips": {
     "editProject": "Edit Project",

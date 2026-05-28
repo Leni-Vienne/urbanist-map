@@ -13,7 +13,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgresJs from "postgres";
 import { projects, importSources, countries, type TimelineStatus } from "../db/schema";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, isNull } from "drizzle-orm";
 import { config } from "../config";
 
 const pgClient = postgresJs(config.DATABASE_URL);
@@ -251,6 +251,8 @@ async function waitForDb(): Promise<void> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
   if (batch.length === 0) return { ok: 0, fail: 0 };
+  // Rows with import_locked_at set carry a moderator-approved user edit; the upsert skips them
+  // (setWhere below) so OSM can't overwrite that edit. The prune likewise leaves them alone.
   const conflictSet = {
     name: sql`EXCLUDED.name`,
     description: sql`EXCLUDED.description`,
@@ -299,6 +301,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
       .onConflictDoUpdate({
         target: [projects.importSourceId, projects.externalId],
         set: conflictSet,
+        setWhere: isNull(projects.importLockedAt),
       });
     return { ok: batch.length, fail: 0 };
   } catch (batchErr) {
@@ -318,6 +321,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
           .onConflictDoUpdate({
             target: [projects.importSourceId, projects.externalId],
             set: conflictSet,
+            setWhere: isNull(projects.importLockedAt),
           });
         ok++;
       } catch (rowErr) {
@@ -331,6 +335,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
               .onConflictDoUpdate({
                 target: [projects.importSourceId, projects.externalId],
                 set: conflictSet,
+                setWhere: isNull(projects.importLockedAt),
               });
             ok++;
           } catch (retryErr) {
@@ -676,8 +681,10 @@ async function main() {
   // Prune stale projects that were not updated during this sync.
   // Projects with overlays are soft-detached (import link severed, geometry cleared, overlays kept).
   // Projects without overlays are hard-deleted.
+  // import_locked_at rows are exempt: they hold an approved user edit and were skipped by the upsert,
+  // so their last_imported_at is stale by design and must not be deleted or detached.
   console.log(`\nPruning stale projects not seen since ${syncStartTime.toISOString()}...`);
-  const staleCondition = sql`import_source_id = ${importSource.id} AND (last_imported_at IS NULL OR last_imported_at < ${syncStartTime.toISOString()})`;
+  const staleCondition = sql`import_source_id = ${importSource.id} AND import_locked_at IS NULL AND (last_imported_at IS NULL OR last_imported_at < ${syncStartTime.toISOString()})`;
   const hasOverlays = sql`EXISTS (SELECT 1 FROM overlays WHERE project_id = projects.id)`;
 
   try {

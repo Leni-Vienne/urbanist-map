@@ -241,6 +241,10 @@
       "filterByLastModified": "Filtrer par date de modification",
       "lastModifiedFrom": "Du",
       "lastModifiedTo": "Au"
+    },
+    "buildings3D": {
+      "enable": "Activer les bâtiments 3D",
+      "disable": "Désactiver les bâtiments 3D"
     }
   },
   "search": {
@@ -445,7 +449,8 @@
       "out": "Dézoomer"
     },
     "filter": "Filtrer les projets",
-    "language": "Langue"
+    "language": "Langue",
+    "settings": "Paramètres"
   },
   "tooltips": {
     "editProject": "Modifier le projet",
