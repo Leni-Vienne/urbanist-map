@@ -6,23 +6,6 @@ import { updateMarkerTooltip } from "@/services/map/markers";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
 /**
- * Initialize history for overlay if not already set
- */
-export function initializeOverlayHistory(overlayObject: OverlayObject): void {
-  if (overlayObject.history.length > 0) {
-    return;
-  }
-
-  const initialCorners =
-    getOverlayImageCorners(overlayObject.id) ??
-    (overlayObject.corners.length === 4 ? overlayObject.corners : null);
-  if (initialCorners?.length === 4) {
-    overlayObject.history = [structuredClone(initialCorners) as { lat: number; lng: number }[]];
-    overlayObject.redoStack = [];
-  }
-}
-
-/**
  * Get corners for overlay based on priority: history > backend corners > live image position.
  * History.at(-1) is the single source of truth for the user's last edited position; it
  * survives layer pruning because it lives on the OverlayObject in the store.
@@ -50,7 +33,7 @@ export function getCornersForOverlay(overlayObject: OverlayObject) {
 
   const currentCorners = getOverlayImageCorners(overlayObject.id);
   if (currentCorners?.length === 4) {
-    overlayObject.history = [structuredClone(currentCorners) as { lat: number; lng: number }[]];
+    overlayObject.history = [currentCorners.map((c) => ({ lat: c.lat, lng: c.lng }))];
     overlayObject.redoStack = [];
     return currentCorners;
   }
@@ -92,9 +75,18 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   const currentState = getOverlayImageCorners(overlayObject.id);
   if (!currentState) return;
 
+  // If history is empty, initialize it with the overlay's original backend corners
+  // before pushing the new state. This provides the base state for the first undo.
+  let baseHistory = overlayObject.history;
+  if (baseHistory.length === 0 && overlayObject.corners.length === 4) {
+    if (!overlayObject.corners.every((c) => c.lat === 0 && c.lng === 0)) {
+      baseHistory = [overlayObject.corners.map((c) => ({ lat: c.lat, lng: c.lng }))];
+    }
+  }
+
   // Check if current state is different from last saved state
-  if (overlayObject.history.length > 0) {
-    const lastState = overlayObject.history.at(-1);
+  if (baseHistory.length > 0) {
+    const lastState = baseHistory.at(-1);
     const currentStateStr = JSON.stringify(currentState);
     const lastStateStr = JSON.stringify(lastState);
 
@@ -107,10 +99,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
   // (non-proxied) object; mutating history first would make Vue's reactive set trap see the
   // same reference and skip the trigger. Calling updateOverlay with a fresh array first means
   // Vue sees oldArray !== newArray and fires.
-  const newHistory = [
-    ...overlayObject.history,
-    structuredClone(currentState) as { lat: number; lng: number }[],
-  ];
+  const newHistory = [...baseHistory, currentState.map((c) => ({ lat: c.lat, lng: c.lng }))];
 
   overlayObject.isModified = true;
 

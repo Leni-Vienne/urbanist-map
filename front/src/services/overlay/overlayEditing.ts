@@ -175,7 +175,7 @@ export function addOverlay(
   async function createAndSetupOverlay() {
     const corners = await defaultCornersForNewOverlay(imageUrl);
     overlayObject.corners = corners;
-    overlayObject.history = [structuredClone(corners)];
+    overlayObject.history = [corners.map((c) => ({ lat: c.lat, lng: c.lng }))];
 
     overlayStore.addOverlay(id, overlayObject);
 

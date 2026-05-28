@@ -191,9 +191,17 @@ function wireSurfaceDrag(s: EditSession): void {
     const startCenter = { lat: handle.transform.center.lat, lng: handle.transform.center.lng };
     mlMap.dragPan.disable();
 
+    let didMove = false;
+
     function onMove(ev: MapMouseEvent): void {
       if (s.cornerDrag) return; // Prevent conflict
 
+      // Require actual physical movement (threshold) to count as a drag, ignoring subpixel jitter
+      const dx = ev.point.x - e.point.x;
+      const dy = ev.point.y - e.point.y;
+      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+
+      didMove = true;
       const current = getImageHandle(overlayObject.id);
       if (!current) return;
       const transform: OverlayTransform = {
@@ -211,8 +219,10 @@ function wireSurfaceDrag(s: EditSession): void {
     function onUp(): void {
       mlMap.off("mousemove", onMove);
       mlMap.dragPan.enable();
-      flagSize(overlayObject);
-      saveToHistory(overlayObject);
+      if (didMove) {
+        flagSize(overlayObject);
+        saveToHistory(overlayObject);
+      }
     }
 
     mlMap.on("mousemove", onMove);
