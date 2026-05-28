@@ -96,23 +96,28 @@ export function setOverlayImageTransform(id: string, transform: OverlayTransform
   );
 }
 
+// Last edited corner set from history, or null. Fallback for when the image handle is
+// temporarily null (e.g. zoomed out past the overlay threshold) but the overlay is modified.
+function lastHistoryCorners(id: string): Corner[] | null {
+  const overlay = useOverlayStore().overlays[id];
+  const lastCorners = overlay?.history?.at(-1);
+  return lastCorners && lastCorners.length === 4 ? lastCorners : null;
+}
+
+// Live rigid transform of the overlay: from the image handle when rendered, else rebuilt from
+// the last history entry.
+export function getCurrentTransform(id: string): OverlayTransform | null {
+  const handle = getImageHandle(id);
+  if (handle) return handle.transform;
+  const corners = lastHistoryCorners(id);
+  return corners ? cornersToTransform(corners) : null;
+}
+
 // Live corners of the overlay's current rigid transform. The edited position during editing.
 export function getOverlayImageCorners(id: string): Corner[] | null {
   const handle = getImageHandle(id);
   if (handle) return transformToCorners(handle.transform);
-
-  // Fallback for when the handle is temporarily null (e.g., zoom out past threshold)
-  // but the overlay has a stored history (i.e., it's currently modified).
-  const overlayStore = useOverlayStore();
-  const overlay = overlayStore.overlays[id];
-  if (overlay && overlay.history && overlay.history.length > 0) {
-    const lastCorners = overlay.history[overlay.history.length - 1];
-    if (lastCorners && lastCorners.length === 4) {
-      return lastCorners;
-    }
-  }
-
-  return null;
+  return lastHistoryCorners(id);
 }
 
 // Set raster opacity (0..1) for one overlay, persisting it on the handle.

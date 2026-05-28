@@ -515,6 +515,11 @@ function buildIdMatchFilter(ids: string[]): FilterSpecification {
   ] as FilterSpecification;
 }
 
+// Build a MapLibre filter matching features whose "id" is NOT in the hidden set.
+function buildHiddenIdExclusionFilter(hiddenIds: string[]): FilterSpecification {
+  return ["!", ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]]] as FilterSpecification;
+}
+
 let hiddenOverlayIdsCache: string[] = [];
 
 function computeHiddenOverlayIds(): string[] {
@@ -544,13 +549,7 @@ function initHiddenOverlaysWatcher(): void {
       const mlMap = map.value;
       if (!mlMap) return;
 
-      const filter =
-        hiddenIds.length > 0
-          ? ([
-              "!",
-              ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]],
-            ] as FilterSpecification)
-          : undefined;
+      const filter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : undefined;
 
       if (mlMap.getLayer("overlay-footprints-outline")) {
         mlMap.setFilter("overlay-footprints-outline", filter);
@@ -580,7 +579,7 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
     overlayMatch = [
       "all",
       overlayMatchBase,
-      ["!", ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]]],
+      buildHiddenIdExclusionFilter(hiddenIds),
     ] as FilterSpecification;
   } else {
     overlayMatch = overlayMatchBase;
@@ -1152,10 +1151,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
 
   const hiddenIds = computeHiddenOverlayIds();
   hiddenOverlayIdsCache = hiddenIds;
-  const hiddenFilter =
-    hiddenIds.length > 0
-      ? (["!", ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]]] as FilterSpecification)
-      : undefined;
+  const hiddenFilter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : undefined;
 
   // Transparent fill so queryRenderedFeatures hits the interior of each footprint polygon,
   // not just its outline pixels. Without this, hover only fires on the dashed border.

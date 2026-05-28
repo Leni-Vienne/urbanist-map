@@ -9,7 +9,7 @@ export interface OverlayTransform {
 }
 
 // Corner order matches the DB ring: [TL, TR, BR, BL].
-const SIGN: [number, number][] = [
+export const SIGN: [number, number][] = [
   [-1, -1],
   [1, -1],
   [1, 1],

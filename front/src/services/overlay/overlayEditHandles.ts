@@ -5,9 +5,13 @@ import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
 import {
   transformToCorners,
   cornersToTransform,
+  SIGN,
   type OverlayTransform,
 } from "@/services/overlay/overlayTransform";
-import { setOverlayImageTransform } from "@/services/overlay/overlayImageLayer";
+import {
+  setOverlayImageTransform,
+  getCurrentTransform,
+} from "@/services/overlay/overlayImageLayer";
 import { getCornersForOverlay, saveToHistory } from "@/services/overlay/overlayHistory";
 import { updateMarkerPosition } from "@/services/map/markers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -18,14 +22,6 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 
 type Corner = { lat: number; lng: number };
-
-// Corner local-axis signs, matching overlayTransform's [TL, TR, BR, BL] order.
-const SIGN: [number, number][] = [
-  [-1, -1],
-  [1, -1],
-  [1, 1],
-  [-1, 1],
-];
 
 interface CornerDragState {
   ax: number;
@@ -71,20 +67,6 @@ function cornerHandleElement(): HTMLElement {
     "width:16px;height:16px;background:#ff8800;border:2px solid #fff;border-radius:2px;" +
     "box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:grab;";
   return el;
-}
-
-function getCurrentTransform(id: string): OverlayTransform | null {
-  const handle = getImageHandle(id);
-  if (handle) return handle.transform;
-  const overlayStore = useOverlayStore();
-  const overlay = overlayStore.overlays[id];
-  if (overlay && overlay.history && overlay.history.length > 0) {
-    const lastCorners = overlay.history[overlay.history.length - 1];
-    if (lastCorners && lastCorners.length === 4) {
-      return cornersToTransform(lastCorners);
-    }
-  }
-  return null;
 }
 
 function syncSvgOutline(): void {
