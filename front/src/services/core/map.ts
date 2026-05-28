@@ -93,6 +93,37 @@ function transformMapRequest(url: string): RequestParameters | undefined {
   return undefined;
 }
 
+// MapLibre's ScrollZoomHandler fixes the zoom focal point to the cursor position at the
+// moment a continuous scroll gesture starts, then keeps zooming toward it for the whole
+// gesture. Moving the cursor mid-scroll therefore keeps zooming toward the stale point.
+// Refresh the focal point on every wheel event so zoom always tracks the current cursor.
+// This reaches into the handler's private `_aroundPoint`, as there is no public API for it.
+function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
+  /* eslint-disable no-underscore-dangle -- mirrors MapLibre's private fields */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+  const handler = targetMap.scrollZoom as unknown as {
+    wheel: (e: WheelEvent) => void;
+    _aroundPoint?: { x: number; y: number };
+    _aroundCenter?: boolean;
+    cursorTrackingPatched?: boolean;
+  };
+  if (handler.cursorTrackingPatched) return;
+  handler.cursorTrackingPatched = true;
+
+  const canvas = targetMap.getCanvas();
+  const originalWheel = handler.wheel.bind(handler);
+  handler.wheel = function wheel(e: WheelEvent): void {
+    originalWheel(e);
+    // _aroundCenter means zoom-to-center is requested, so the cursor is irrelevant.
+    if (handler._aroundCenter || !handler._aroundPoint) return;
+    // Matches DOM.mousePos for an unscaled canvas (the basemap canvas has no CSS transform).
+    const rect = canvas.getBoundingClientRect();
+    handler._aroundPoint.x = e.clientX - rect.left - canvas.clientLeft;
+    handler._aroundPoint.y = e.clientY - rect.top - canvas.clientTop;
+  };
+  /* eslint-enable no-underscore-dangle */
+}
+
 export function initializeMap() {
   const hashCoords = parseHashCoords();
   const minZoom = calculateMinZoom();
@@ -120,6 +151,8 @@ export function initializeMap() {
   // The map does not capture keystrokes, so typing into overlaid UI panels never
   // pans/zooms the map. Trade-off: no keyboard map control.
   newMap.keyboard.disable();
+
+  enableCursorTrackingScrollZoom(newMap);
 
   // Attribution is collected automatically from each active style's source `attribution`
   // fields, so it switches correctly between the plan basemap and satellite layers.

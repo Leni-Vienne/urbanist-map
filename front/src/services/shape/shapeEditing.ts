@@ -1,6 +1,6 @@
 // Lazy chunk, only imported when a user activates the shape editor in edit mode.
 // Same pattern as overlayRendering.ts.
-import { createGeomanInstance, Geoman } from "@geoman-io/maplibre-geoman-free";
+import { createGeomanInstance, type Geoman } from "@geoman-io/maplibre-geoman-free";
 // @ts-expect-error Cannot find module or type declarations for side-effect import
 import "@geoman-io/maplibre-geoman-free/dist/maplibre-geoman.css";
 import { map } from "@/services/core/map";
@@ -133,7 +133,7 @@ export async function destroyShapeEditor(): Promise<void> {
  * so that saving always produces the full set of shapes (not just newly added ones).
  */
 export function getDrawnGeometry(): GeoJSON.GeometryCollection {
-  if (!gm || !gm.features) return { type: "GeometryCollection", geometries: [] };
+  if (!gm?.features) return { type: "GeometryCollection", geometries: [] };
 
   const fc = gm.features.exportGeoJson();
 
@@ -150,7 +150,7 @@ export function getDrawnGeometry(): GeoJSON.GeometryCollection {
 export async function addLayersFromGeometry(
   geometry: GeoJSON.GeometryCollection,
 ): Promise<LngLatBounds | null> {
-  if (!gm || !gm.features) return null;
+  if (!gm?.features) return null;
 
   const drawableGeoms = geometry.geometries.filter((item) => drawableGeometryTypes.has(item.type));
   if (drawableGeoms.length === 0) return null;

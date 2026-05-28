@@ -101,7 +101,7 @@ export function setOverlayImageTransform(id: string, transform: OverlayTransform
 function lastHistoryCorners(id: string): Corner[] | null {
   const overlay = useOverlayStore().overlays[id];
   const lastCorners = overlay?.history?.at(-1);
-  return lastCorners && lastCorners.length === 4 ? lastCorners : null;
+  return lastCorners?.length === 4 ? lastCorners : null;
 }
 
 // Live rigid transform of the overlay: from the image handle when rendered, else rebuilt from

@@ -529,7 +529,7 @@ function computeHiddenOverlayIds(): string[] {
   for (const [id, o] of Object.entries(store.overlays)) {
     if (o.isModified) hidden.add(id);
   }
-  return Array.from(hidden);
+  return [...hidden];
 }
 
 function getHiddenOverlayIds(): string[] {

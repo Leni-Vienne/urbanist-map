@@ -70,7 +70,7 @@ function cornerHandleElement(): HTMLElement {
 }
 
 function syncSvgOutline(): void {
-  if (!session || !session.svgPath) return;
+  if (!session?.svgPath) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
   if (!mlMap || !transform) return;
@@ -355,7 +355,7 @@ export function hideEditHandles(): void {
   if (s.onDown) mlMap.off("mousedown", s.fillLayerId, s.onDown);
   if (s.onRender) mlMap.off("render", s.onRender);
 
-  if (s.svgContainer && s.svgContainer.parentNode) {
+  if (s.svgContainer?.parentNode) {
     s.svgContainer.parentNode.removeChild(s.svgContainer);
   }
 

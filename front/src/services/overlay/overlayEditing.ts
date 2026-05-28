@@ -94,7 +94,7 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
 }
 
 // Read an image's aspect ratio (width / height). Falls back to square on failure.
-function loadImageAspect(imageUrl: string): Promise<number> {
+async function loadImageAspect(imageUrl: string): Promise<number> {
   return new Promise((resolve) => {
     const img = new Image();
     img.addEventListener("load", () => {
