@@ -107,17 +107,38 @@ function getMobileDrawerBottomPaddingPx(): number {
   return drawerHeightPx + 20; // 20px margin above the drawer
 }
 
-/**
- * Resolve the MapLibre padding for a camera move. On mobile with the drawer open, the
- * target is pushed above the drawer; otherwise the caller's inset (default 50px) is used.
- */
 function resolvePadding(p?: number | [number, number]): PaddingOptions | number {
+  let result: PaddingOptions | number = 50;
   if (shouldApplyMobileOffset()) {
-    return { top: 50, bottom: getMobileDrawerBottomPaddingPx(), left: 50, right: 50 };
+    result = { top: 50, bottom: getMobileDrawerBottomPaddingPx(), left: 50, right: 50 };
+  } else if (typeof p === "number") {
+    result = p;
+  } else if (Array.isArray(p)) {
+    result = { top: p[1], bottom: p[1], left: p[0], right: p[0] };
   }
-  if (typeof p === "number") return p;
-  if (Array.isArray(p)) return { top: p[1], bottom: p[1], left: p[0], right: p[0] };
-  return 50;
+
+  // Cap padding to the container, otherwise cameraForBounds produces a negative
+  // numerator and returns NaN scale (observed crash on small viewports + tight bounds).
+  const container = map.value?.getContainer();
+  if (!container) return result;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  if (w <= 0 || h <= 0) return result;
+
+  const capW = Math.max(0, (w - 1) / 2);
+  const capH = Math.max(0, (h - 1) / 2);
+  if (typeof result === "number") {
+    return Math.min(result, capW, capH);
+  }
+  if ((result.left ?? 0) + (result.right ?? 0) >= w) {
+    result.left = capW;
+    result.right = capW;
+  }
+  if ((result.top ?? 0) + (result.bottom ?? 0) >= h) {
+    result.top = capH;
+    result.bottom = capH;
+  }
+  return result;
 }
 
 /**
@@ -205,6 +226,13 @@ export function mobileAwareFlyToBounds(
     // Degenerate bounds (e.g. NaN corners) would throw in cameraForBounds; skip instead.
     return false;
   }
+
+  // Zero-area bounds make cameraForBounds return undefined scale; route to flyTo instead.
+  if (west === east && south === north) {
+    mobileAwareFlyTo([north, east], options.maxZoom ?? 17, options);
+    return false;
+  }
+
   const llb: [[number, number], [number, number]] = [
     [west, south],
     [east, north],
@@ -215,6 +243,7 @@ export function mobileAwareFlyToBounds(
   const currentCenter = m.getCenter();
 
   const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding });
+
   let targetZoom = currentZoom;
   let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
   if (cam) {

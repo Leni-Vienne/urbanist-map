@@ -64,23 +64,17 @@ export default defineConfig(({ mode }) => ({
   // Configure aliases and externals for CDN usage
   resolve: {
     alias: {
-      // Redirect leaflet imports to our CDN shim
-      leaflet: fileURLToPath(new URL("src/lib/leaflet-umd-shim.ts", import.meta.url)),
       // Use vue-i18n runtime-only build (no message compiler, uses JIT compilation)
       "vue-i18n": "vue-i18n/dist/vue-i18n.runtime.esm-bundler.js",
       "@/tables": fileURLToPath(new URL("../back/src/db/schema", import.meta.url)),
       "@": "/src",
       "@shared": fileURLToPath(new URL("../shared", import.meta.url)),
-
-      // Temporary alias for testing local library changes
-      //"leaflet-distortableimage": fileURLToPath(new URL("../../Leaflet.DistortableImage", import.meta.url)),
-      //"leaflet-toolbar": fileURLToPath(new URL("../../Leaflet.toolbar", import.meta.url)),
     },
   },
   // To prevent annoying automatic reloads in devmode
   optimizeDeps: {
     include: [
-      "@geoman-io/leaflet-geoman-free",
+      "@geoman-io/maplibre-geoman-free",
       "primevue/selectbutton",
       "primevue/autocomplete",
       "primevue/badge",
@@ -120,16 +114,11 @@ export default defineConfig(({ mode }) => ({
       "primevue/divider",
     ],
   },
-  // External leaflet to prevent bundling
   build: {
     sourcemap: false,
     license: true,
     cssCodeSplit: true, // Extract CSS per chunk for parallel loading
     rolldownOptions: {
-      external: (id) => {
-        // Mark CDN URLs as external so they don't get bundled
-        return id.includes("unpkg.com/leaflet");
-      },
       output: {
         codeSplitting: {
           groups: [

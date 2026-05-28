@@ -10,7 +10,11 @@ import {
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
-import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
+import {
+  getCurrentHighlightedProjectId,
+  handleBackgroundClick,
+  selectOverlay,
+} from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 import {
@@ -569,10 +573,10 @@ function handleVectorFeatureClick(
   latlng: { lat: number; lng: number },
 ): void {
   const sourceLayer = String(feature.sourceLayer);
-  const projectId =
-    sourceLayer === "overlay-footprints"
-      ? getFeaturePropertyAsString(feature, "project_id")
-      : getFeaturePropertyAsString(feature, "id");
+  const isFootprint = sourceLayer === "overlay-footprints";
+  const projectId = isFootprint
+    ? getFeaturePropertyAsString(feature, "project_id")
+    : getFeaturePropertyAsString(feature, "id");
 
   if (projectId.length === 0) {
     return;
@@ -592,15 +596,21 @@ function handleVectorFeatureClick(
     mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
   }
 
-  // Prevent the map-level click handler in projectPopupTeleport from closing the
-  // current popup before the new one opens (both fire on the same Leaflet click).
-  suppressPopupCloseForClick();
-
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
   setExternalHover(projectId);
 
-  void handleProjectClickFromTile(projectId, latlng, willFly);
+  if (isFootprint) {
+    const overlayId = getFeaturePropertyAsString(feature, "id");
+    if (overlayId) {
+      selectOverlay(overlayId);
+    }
+  } else {
+    // Stop the map-level click handler in projectPopupTeleport from closing the
+    // current popup before the new one opens (both fire on the same map click).
+    suppressPopupCloseForClick();
+    void handleProjectClickFromTile(projectId, latlng, willFly);
+  }
 }
 
 function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | null): void {
@@ -867,7 +877,6 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       CLICK_QUERY_LAYERS,
       VECTOR_HOVER_HIT_RADIUS_PX,
     );
-    if (!features.length) return;
 
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
@@ -880,7 +889,10 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     if (pointFeature) {
       void handlePointFeatureClick(pointFeature, event.lngLat);
+      return;
     }
+
+    handleBackgroundClick(event.lngLat);
   });
 }
 

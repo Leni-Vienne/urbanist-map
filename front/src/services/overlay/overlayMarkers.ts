@@ -138,7 +138,10 @@ export function createMarker(overlayObject: OverlayObject): void {
     .setLngLat(mlMap.getCenter())
     .addTo(mlMap);
 
-  element.addEventListener("click", () => {
+  element.addEventListener("click", (e) => {
+    // Marker DOM clicks bubble to the map container and would fire MapLibre's map "click",
+    // re-running the background hit-test on the same click. Stop it here.
+    e.stopPropagation();
     selectOverlay(overlayObject.id);
     const bounds = getOverlayBounds(overlayObject);
     if (bounds) {

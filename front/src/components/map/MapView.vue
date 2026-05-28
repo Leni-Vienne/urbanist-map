@@ -58,7 +58,6 @@ import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProje
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initVectorTileSync } from "@/services/map/vectorTileSync";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
-import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
@@ -135,7 +134,6 @@ async function initializeMapAndOverlays() {
     }
 
     viewportManager.setupModeWatcher();
-    setupMapClickToDeselect();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toast.add({

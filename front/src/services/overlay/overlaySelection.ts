@@ -1,6 +1,5 @@
-import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { getMarker } from "@/services/overlay/overlayRenderRegistry";
+import { getMarker, getRenderedOverlayIds } from "@/services/overlay/overlayRenderRegistry";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -13,6 +12,8 @@ import {
   unhighlightProjectShapes,
 } from "@/services/map/shapeLayerRegistry";
 import { setExternalHover } from "@/services/map/vectorHoverState";
+
+type Corner = { lat: number; lng: number };
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
@@ -217,14 +218,44 @@ export function refreshSelectionHighlight(): void {
   }
 }
 
+function isPointInCorners(point: { lat: number; lng: number }, corners: Corner[]): boolean {
+  if (corners.length < 3) return false;
+  let isInside = false;
+  for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
+    const a = corners[i];
+    const b = corners[j];
+    if (!a || !b) continue;
+    const intersect =
+      a.lat > point.lat !== b.lat > point.lat &&
+      point.lng < ((b.lng - a.lng) * (point.lat - a.lat)) / (b.lat - a.lat) + a.lng;
+    if (intersect) isInside = !isInside;
+  }
+  return isInside;
+}
+
 /**
- * Setup map click handler to deselect overlays when clicking the map background
+ * Map click fallthrough: no vector/point feature was hit. Select an unapproved overlay
+ * whose footprint contains the click (approved overlays go through the vector tile path),
+ * otherwise deselect.
  */
-export function setupMapClickToDeselect(): void {
-  map.value.on("click", () => {
-    const overlayStore = useOverlayStore();
-    if (overlayStore.idSelectedOverlay) {
-      selectOverlay(null);
+export function handleBackgroundClick(lngLat: { lng: number; lat: number }): void {
+  const overlayStore = useOverlayStore();
+  const renderedIds = getRenderedOverlayIds();
+
+  // Search in reverse order to prefer overlays rendered on top
+  for (let i = renderedIds.length - 1; i >= 0; i -= 1) {
+    const id = renderedIds[i];
+    if (!id) continue;
+    const overlay = overlayStore.overlays[id];
+    if (overlay && overlay.status !== "approved" && overlay.corners.length === 4) {
+      if (isPointInCorners(lngLat, overlay.corners)) {
+        selectOverlay(id);
+        return;
+      }
     }
-  });
+  }
+
+  if (overlayStore.idSelectedOverlay) {
+    selectOverlay(null);
+  }
 }
