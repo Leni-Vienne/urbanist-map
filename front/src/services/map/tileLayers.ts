@@ -271,7 +271,10 @@ function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): void {
   if (mlMap.isStyleLoaded()) {
     cb();
   } else {
-    mlMap.once("load", cb);
+    // style.load fires once the style JSON is parsed, before the initial basemap tiles
+    // finish downloading. Using it (instead of "load") lets the backend tile source register
+    // and start fetching in parallel with the OpenFreeMap/Natural Earth basemap tiles.
+    mlMap.once("style.load", cb);
   }
 }
 
