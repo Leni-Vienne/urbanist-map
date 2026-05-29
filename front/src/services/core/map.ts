@@ -153,6 +153,8 @@ export function initializeMap() {
   newMap.keyboard.disable();
 
   enableCursorTrackingScrollZoom(newMap);
+  // Larger zoom step per mouse-wheel notch (MapLibre default is 1/450).
+  newMap.scrollZoom.setWheelZoomRate(1 / 250);
 
   // Attribution is collected automatically from each active style's source `attribution`
   // fields, so it switches correctly between the plan basemap and satellite layers.
