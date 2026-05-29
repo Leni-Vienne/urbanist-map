@@ -35,6 +35,8 @@ async function deleteOverlay(overlayId: string): Promise<boolean> {
 
 export function useUserContributions() {
   const projectStore = useProjectStore();
+  const authStore = useAuthStore();
+  const overlayStore = useOverlayStore();
   const toast = useToast();
 
   const isLoading = computed(() => projectStore.userContributionsLoading);
@@ -44,8 +46,6 @@ export function useUserContributions() {
    * This allows My Contributions panel to show unsaved/unsubmitted work alongside submitted work
    */
   const allContributions = computed<UserContribution[]>(() => {
-    const authStore = useAuthStore();
-    const overlayStore = useOverlayStore();
     const user = authStore.user;
 
     if (!user) return [];
@@ -157,7 +157,6 @@ export function useUserContributions() {
   });
 
   async function fetchUserContributions() {
-    const authStore = useAuthStore();
     if (!authStore.user) return;
 
     if (projectStore.userContributionsLoaded) return;

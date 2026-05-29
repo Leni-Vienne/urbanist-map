@@ -193,17 +193,9 @@ const showApproved = ref(true);
 
 const { handleNewProjectClick } = useNewProject();
 
-// Handle new project button click with error feedback
-async function handleAddOverlayClick() {
-  const result = await handleNewProjectClick();
-  if (!result.success && result.reason === "edit_mode_error") {
-    toast.add({
-      severity: "error",
-      summary: t("moderation.modeSwitchError"),
-      detail: t("moderation.modeSwitchErrorDetail"),
-      life: 3000,
-    });
-  }
+// Handle new project button click (opens auth modal when unauthenticated, else the marker bar)
+function handleAddOverlayClick() {
+  handleNewProjectClick();
 }
 
 const toast = useToast();

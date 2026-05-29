@@ -1,3 +1,4 @@
+import { nextTick } from "vue";
 import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/overlayActions";
@@ -95,13 +96,10 @@ export function useOverlayClickHandler() {
           });
         }
 
-        // Wait for edit mode transition to complete and overlays to re-render
-        await new Promise<void>(
-          (resolve) =>
-            void setTimeout(() => {
-              resolve();
-            }, 100),
-        );
+        // Let the mode-change watchers run (they kick off overlay rendering) before navigating.
+        // navigateToOverlay loads the overlay itself and tolerates async registration, so no
+        // fixed delay is needed here.
+        await nextTick();
       }
 
       await navigateToOverlay(overlay.id, autoSelect);
@@ -149,8 +147,7 @@ async function navigateToReplacedOrRejectedOverlay(
     return;
   }
 
-  const contributions = await trpc.project.getUsersContributions.query({ limit: 100 });
-  const project = contributions.projects.find((p) => p.id === overlay.projectId);
+  const project = await trpc.project.getById.query({ id: overlay.projectId });
 
   if (project?.lat && project.lng) {
     await navigateToStandaloneProject(project.lat, project.lng, project.id);

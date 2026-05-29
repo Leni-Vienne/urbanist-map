@@ -60,7 +60,7 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
 export function useOverlayPublisher() {
   const projectStore = useProjectStore();
 
-  function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {
+  function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): void {
     if (!project) {
       throw new Error("Cannot Publish: Overlay must be assigned to a project");
     }
@@ -77,8 +77,6 @@ export function useOverlayPublisher() {
     if (!sizeValidation.isValid) {
       throw new Error(t("overlay.overlayTooLarge"));
     }
-
-    return true;
   }
 
   async function ensureProjectOnServer(project: Project): Promise<void> {
@@ -120,9 +118,7 @@ export function useOverlayPublisher() {
   }
 
   async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
-    if (!validateOverlayForPublishing(overlay, project)) {
-      return;
-    }
+    validateOverlayForPublishing(overlay, project);
 
     try {
       // For brand-new projects, publish the project first so the overlay can reference it.

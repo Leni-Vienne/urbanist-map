@@ -1,3 +1,4 @@
+import { nextTick } from "vue";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
@@ -144,12 +145,8 @@ export function useChangeRequestPreview() {
     const needsEditMode = mapStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
       mapStore.setMode("edit");
-      await new Promise<void>(
-        (resolve) =>
-          void setTimeout(() => {
-            resolve();
-          }, 100),
-      );
+      // Flush the mode-change watchers; the poll below waits for the overlay to actually load.
+      await nextTick();
     }
 
     // Clear map and navigate to the overlay's country
