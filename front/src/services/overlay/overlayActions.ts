@@ -1,4 +1,4 @@
-import L from "leaflet";
+import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -10,12 +10,12 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
-import { updateMarkerTooltip, getOverlayBounds } from "@/services/overlay/overlayMarkers";
-import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
+import { updateMarkerTooltip } from "@/services/map/markers";
+import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
-  // Try to get bounds from overlay data (works whether Leaflet overlay exists or not)
+  // Try to get bounds from overlay data (works whether the image layer exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
     mobileAwareFlyToBounds(overlayBounds);
@@ -25,7 +25,8 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   // Fall back to marker position if bounds unavailable
   const marker = getMarker(overlay.id);
   if (marker) {
-    mobileAwareFlyTo(marker.getLatLng(), 17);
+    const lngLat = marker.getLngLat();
+    mobileAwareFlyTo(new LngLat(lngLat.lng, lngLat.lat), 17);
     return true;
   }
 
@@ -36,7 +37,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
  * Navigates between overlays in the current project based on direction.
  */
 
-function navigateOverlaySequence(direction: "next" | "previous") {
+export function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
 
@@ -89,7 +90,7 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
   const projectStore = useProjectStore();
   const projectIds = Object.keys(projectStore.projects);
   if (projectIds.length === 0) {
-    throw new Error("No projects: Please create a project first");
+    return;
   }
 
   for (const projectId of projectIds) {
@@ -144,6 +145,9 @@ async function loadOverlay(
         throw new Error("Overlay not found");
       }
 
+      // Lazy-loaded as its own chunk: overlayRendering is dynamically imported here and in
+      // vectorTileSync / viewportRenderLoop. A static import would merge it into this chunk and
+      // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
       const { renderViewModeOverlays } = await import("@/services/overlay/overlayRendering");
 
       renderViewModeOverlays([result.overlay], true);
@@ -178,7 +182,10 @@ export async function navigateToOverlay(
   // Select now if it registered in time, otherwise fly directly to the backend corners.
   const navigated = selectAndCenterOverlay(overlayId);
   if (!navigated && loadResult?.corners && loadResult.corners.length >= 4) {
-    const bounds = L.latLngBounds(loadResult.corners.map((c) => L.latLng(c.lat, c.lng)));
+    const bounds = new LngLatBounds();
+    for (const c of loadResult.corners) {
+      bounds.extend(new LngLat(c.lng, c.lat));
+    }
     mobileAwareFlyToBounds(bounds);
   }
   return true;
@@ -230,7 +237,3 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 
   updateMarkerTooltip(overlayObject);
 }
-
-// Register navigation callback into overlayCallbacks.
-// overlayEditing reads overlayCallbacks.focusCameraToOverlay at call time without overriding it.
-overlayCallbacks.focusCameraToOverlay = navigateOverlaySequence;

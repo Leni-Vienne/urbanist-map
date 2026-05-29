@@ -7,9 +7,9 @@ export interface SimpleBounds {
 
 /**
  * AABB intersection test: true if the bounding box of `corners` overlaps `bounds`.
- * Works on raw {lat,lng} corners (or Leaflet LatLngs) to avoid allocating Leaflet
- * objects per call, which matters in the per-frame viewport loops. Correctly handles
- * the case where the viewport sits entirely inside a large overlay polygon.
+ * Works on raw {lat,lng} corners to avoid allocating bounds objects per call, which
+ * matters in the per-frame viewport loops. Correctly handles the case where the
+ * viewport sits entirely inside a large overlay polygon.
  */
 export function cornersIntersectBounds(
   corners: { lat: number; lng: number }[],

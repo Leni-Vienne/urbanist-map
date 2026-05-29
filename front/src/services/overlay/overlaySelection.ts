@@ -1,18 +1,20 @@
-import type L from "leaflet";
-import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { getMarker, getLayer } from "@/services/overlay/overlayRenderRegistry";
+import { getMarker, getRenderedOverlayIds } from "@/services/overlay/overlayRenderRegistry";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
-import { getOverlayMarkerColor, createOverlayIcon } from "@/services/map/markers";
+import { getOverlayMarkerColor, updateOverlayMarkerColor } from "@/services/map/markers";
 import {
   highlightProjectShapes,
   unhighlightProjectShapes,
 } from "@/services/map/shapeLayerRegistry";
 import { setExternalHover } from "@/services/map/vectorHoverState";
+import { resolveOverlayRenderCorners } from "@/services/overlay/overlayHistory";
+
+type Corner = { lat: number; lng: number };
 
 // Guard to prevent recursive selectOverlay calls when library fires select event
 let isSelectingOverlay = false;
@@ -29,11 +31,8 @@ function cleanupPreviousSelection(
     removeProjectOutlines(previouslySelected.projectId, true);
   }
 
-  // Call deselect on the Leaflet overlay to remove toolbar and handles
-  const prevLayer = getLayer(previouslySelected.id);
-  if (prevLayer) {
-    prevLayer.deselect();
-  }
+  // Remove editing handles from the previously selected overlay.
+  hideEditHandles();
 }
 
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
@@ -47,37 +46,20 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   const marker = getMarker(overlayId);
   if (marker) {
     const mode = useMapStore().mode;
-    marker.setIcon(createOverlayIcon(getOverlayMarkerColor(newlySelected, mode)));
+    updateOverlayMarkerColor(marker, getOverlayMarkerColor(newlySelected, mode));
   }
 
   // Sync preview state for reactive button highlighting in change request UI
   syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
 
-  // Call overlay.select() to show toolbar and handles (single source of truth)
-  const newLayer = getLayer(newlySelected.id);
-  if (newLayer) {
-    selectOverlayInLeaflet(newLayer);
-    // Bring selected overlay to front so it stays on top of overlapping images
-    newLayer.bringToFront();
+  // Show editing handles when selecting in edit mode.
+  if (useMapStore().mode === "edit") {
+    showEditHandles(newlySelected);
   }
 
   // Apply project highlights (sister overlays) when selecting
   if (newlySelected.projectId) {
     highlightProject(newlySelected.projectId, newlySelected.id);
-  }
-}
-
-function selectOverlayInLeaflet(overlay: L.DistortableImageOverlay): void {
-  const element = overlay.getElement();
-  const isInDOM = element && document.body.contains(element);
-
-  if (!isInDOM) {
-    // Wait for element to be added to DOM before selecting
-    requestAnimationFrame(() => {
-      overlay.select();
-    });
-  } else {
-    overlay.select();
   }
 }
 
@@ -138,7 +120,7 @@ export function highlightOverlayById(overlayId: string): void {
   if (marker) {
     const markerElement = marker.getElement();
     if (markerElement) {
-      // Scale the SVG inside the marker to avoid interfering with Leaflet's translate3d positioning
+      // Scale the SVG inside the marker to avoid interfering with the marker's translate3d positioning
       const svg = markerElement.querySelector("svg");
       if (svg) {
         svg.style.transformOrigin = "center bottom";
@@ -190,13 +172,13 @@ export function removeProjectOutlines(projectId: string, force = false): void {
       return;
   }
 
-  // Unhighlight project shapes alongside the overlays (Leaflet layers in edit/moderation, vector tiles in view mode)
+  // Unhighlight project shapes alongside the overlays (GeoJSON layers in edit/moderation, vector tiles in view mode)
   unhighlightProjectShapes(projectId);
   refreshSelectionHighlight();
 }
 
 /**
- * Highlight everything related to a project: Leaflet shapes, sister overlays, and the
+ * Highlight everything related to a project: project shapes, sister overlays, and the
  * vector tile filters (via the external-hover state). Called from sidebar hover,
  * overlay DOM hover, overlay selection, and selection refresh after mode switch.
  */
@@ -205,7 +187,7 @@ export function highlightProject(projectId: string, overlayId?: string): void {
 
   setExternalHover(projectId, overlayId ?? null);
 
-  // Leaflet shape layers (standalone project geometry) exist in all modes
+  // Project shape layers (standalone project geometry) exist in all modes
   highlightProjectShapes(projectId);
 }
 
@@ -237,39 +219,47 @@ export function refreshSelectionHighlight(): void {
   }
 }
 
-/**
- * Setup hover event listeners for project highlighting in edit/moderation mode.
- */
-export function setupProjectHoverEvents(
-  overlay: L.DistortableImageOverlay,
-  overlayObject: OverlayObject,
-): void {
-  if (!overlayObject.projectId) return;
-
-  const element = overlay.getElement();
-  if (!element) return;
-
-  element.addEventListener("mouseenter", () => {
-    if (overlayObject.projectId) {
-      highlightProject(overlayObject.projectId, overlayObject.id);
-    }
-  });
-
-  element.addEventListener("mouseleave", () => {
-    if (overlayObject.projectId) {
-      removeProjectOutlines(overlayObject.projectId);
-    }
-  });
+function isPointInCorners(point: { lat: number; lng: number }, corners: Corner[]): boolean {
+  if (corners.length < 3) return false;
+  let isInside = false;
+  for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
+    const a = corners[i];
+    const b = corners[j];
+    if (!a || !b) continue;
+    const intersect =
+      a.lat > point.lat !== b.lat > point.lat &&
+      point.lng < ((b.lng - a.lng) * (point.lat - a.lat)) / (b.lat - a.lat) + a.lng;
+    if (intersect) isInside = !isInside;
+  }
+  return isInside;
 }
 
 /**
- * Setup map click handler to deselect overlays when clicking the map background
+ * Map click fallthrough: no vector/point feature was hit. Select an unapproved overlay
+ * whose footprint contains the click (approved overlays go through the vector tile path),
+ * otherwise deselect.
  */
-export function setupMapClickToDeselect(): void {
-  map.value.on("click", () => {
-    const overlayStore = useOverlayStore();
-    if (overlayStore.idSelectedOverlay) {
-      selectOverlay(null);
+export function handleBackgroundClick(lngLat: { lng: number; lat: number }): void {
+  const overlayStore = useOverlayStore();
+  const renderedIds = getRenderedOverlayIds();
+
+  // Search in reverse order to prefer overlays rendered on top
+  for (let i = renderedIds.length - 1; i >= 0; i -= 1) {
+    const id = renderedIds[i];
+    if (!id) continue;
+    const overlay = overlayStore.overlays[id];
+    if (!overlay) continue;
+    // Approved overlays at their backend position are clicked via the vector-tile path.
+    // We only run point-in-polygon for overlays whose live image can sit elsewhere.
+    if (overlay.status === "approved" && !overlay.isModified) continue;
+    const corners = resolveOverlayRenderCorners(overlay);
+    if (corners?.length === 4 && isPointInCorners(lngLat, corners)) {
+      selectOverlay(id);
+      return;
     }
-  });
+  }
+
+  if (overlayStore.idSelectedOverlay) {
+    selectOverlay(null);
+  }
 }

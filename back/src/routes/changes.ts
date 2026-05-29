@@ -215,6 +215,24 @@ async function checkModeratorChangeRequestPermission(
   return countryCode;
 }
 
+// Shared guard for the approve/reject batch mutations: verify the moderator id and that they
+// may moderate every change request in the batch. Returns the moderator user id.
+async function authorizeChangeRequestBatch(
+  changeRequestIds: string[],
+  user: { id: string; role: string | null; moderatedCountries: string[] | null },
+): Promise<string> {
+  const moderatorUserId = user.id;
+  if (!moderatorUserId) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
+  }
+
+  for (const changeRequestId of changeRequestIds) {
+    await checkModeratorChangeRequestPermission(changeRequestId, user);
+  }
+
+  return moderatorUserId;
+}
+
 // Common select fields for change requests with user info
 const changeRequestSelectFields = {
   id: changeRequests.id,
@@ -472,15 +490,7 @@ export const changesRouter = router({
           return { success: true };
         }
 
-        const moderatorUserId = ctx.user.id;
-        if (!moderatorUserId) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
-        }
-
-        // Check moderator has permission for all change requests
-        for (const changeRequestId of input.changeRequestIds) {
-          await checkModeratorChangeRequestPermission(changeRequestId, ctx.user);
-        }
+        const moderatorUserId = await authorizeChangeRequestBatch(input.changeRequestIds, ctx.user);
 
         const changesToApprove = await db
           .select()
@@ -596,15 +606,7 @@ export const changesRouter = router({
           return { success: true };
         }
 
-        const moderatorUserId = ctx.user.id;
-        if (!moderatorUserId) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
-        }
-
-        // Check moderator has permission for all change requests
-        for (const changeRequestId of input.changeRequestIds) {
-          await checkModeratorChangeRequestPermission(changeRequestId, ctx.user);
-        }
+        const moderatorUserId = await authorizeChangeRequestBatch(input.changeRequestIds, ctx.user);
 
         // Get the requestedBy for each change request to increment their rejection counts
         const changesToReject = await db

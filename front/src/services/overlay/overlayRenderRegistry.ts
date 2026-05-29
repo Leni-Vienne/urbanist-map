@@ -1,15 +1,24 @@
-// Centralized registry for all Leaflet layer references (image overlays + markers).
+// Centralized registry for all overlay layer references (image sources + markers).
 // Single source of truth for "is this overlay rendered on the map?".
 // Design principles:
-//   - Pure Leaflet lifecycle management, no Vue reactivity (not in Pinia)
+//   - Pure map-layer lifecycle management, no Vue reactivity (not in Pinia)
 //   - All creation goes through beginCreation(), atomically prevents duplicate layers
 //   - clearAll() is the single cleanup path
-import type * as L from "leaflet";
+import type { Marker as MaplibreMarker } from "maplibre-gl";
 import { map } from "@/services/core/map";
+import type { OverlayTransform } from "@/services/overlay/overlayTransform";
+
+// MapLibre image-source state for one overlay.
+export interface OverlayImageHandle {
+  sourceId: string;
+  rasterLayerId: string;
+  transform: OverlayTransform;
+  opacity: number;
+}
 
 interface RegistryEntry {
-  layer: L.DistortableImageOverlay | null;
-  marker: L.Marker | null;
+  marker: MaplibreMarker | null;
+  imageHandle: OverlayImageHandle | null;
 }
 
 const entries = new Map<string, RegistryEntry>();
@@ -29,7 +38,7 @@ const creating = new Set<string>();
 export function beginCreation(id: string): boolean {
   if (creating.has(id)) return false;
   const entry = entries.get(id);
-  if (entry !== undefined && entry.layer !== null) return false;
+  if (entry !== undefined && entry.imageHandle !== null) return false;
   creating.add(id);
   return true;
 }
@@ -42,67 +51,84 @@ export function isCreating(id: string): boolean {
   return creating.has(id);
 }
 
-// ─── Layer (DistortableImageOverlay) ─────────────────────────────────────────
-
-export function setLayer(id: string, layer: L.DistortableImageOverlay): void {
-  const entry = entries.get(id);
-  if (entry) {
-    entry.layer = layer;
-  } else {
-    entries.set(id, { layer, marker: null });
-  }
-}
-
-export function getLayer(id: string): L.DistortableImageOverlay | null {
-  return entries.get(id)?.layer ?? null;
-}
-
 export function hasReadyLayer(id: string): boolean {
-  return (entries.get(id)?.layer ?? null) !== null;
-}
-
-/**
- * Null the layer reference without touching the marker.
- * Used after the Leaflet layer has already been removed from the map (zoom threshold).
- */
-export function clearLayer(id: string): void {
-  const entry = entries.get(id);
-  if (entry) {
-    entry.layer = null;
-  }
+  return (entries.get(id)?.imageHandle ?? null) !== null;
 }
 
 // ─── Marker ──────────────────────────────────────────────────────────────────
 
-export function setMarker(id: string, marker: L.Marker): void {
+export function setMarker(id: string, marker: MaplibreMarker): void {
   const entry = entries.get(id);
   if (entry) {
     entry.marker = marker;
   } else {
-    entries.set(id, { layer: null, marker });
+    entries.set(id, { marker, imageHandle: null });
   }
 }
 
-export function getMarker(id: string): L.Marker | null {
+export function getMarker(id: string): MaplibreMarker | null {
   return entries.get(id)?.marker ?? null;
+}
+
+// ─── Image handle (MapLibre image source) ────────────────────────────────────
+
+export function setImageHandle(id: string, handle: OverlayImageHandle): void {
+  const entry = entries.get(id);
+  if (entry) {
+    entry.imageHandle = handle;
+  } else {
+    entries.set(id, { marker: null, imageHandle: handle });
+  }
+}
+
+export function getImageHandle(id: string): OverlayImageHandle | null {
+  return entries.get(id)?.imageHandle ?? null;
+}
+
+// IDs of overlays currently rendered as MapLibre image layers. Used by vectorTileSync to
+// evict approved overlays that have left the rendered tile feature set.
+export function getRenderedOverlayIds(): string[] {
+  const ids: string[] = [];
+  for (const [id, entry] of entries) {
+    if (entry.imageHandle !== null) ids.push(id);
+  }
+  return ids;
+}
+
+// setStyle() (satellite switch) wipes every source and layer, including overlay image
+// sources, but leaves DOM markers untouched. Drop the now-dangling image handles so
+// vectorTileSync re-creates them once the new style loads. No map removal needed here.
+export function dropImageHandlesForStyleSwitch(): void {
+  for (const [id, entry] of entries) {
+    entry.imageHandle = null;
+    if (entry.marker === null) {
+      entries.delete(id);
+    }
+  }
+}
+
+// Remove an overlay's image source + raster layer from the MapLibre map.
+function removeImageFromMap(handle: OverlayImageHandle): void {
+  const mlMap = map.value;
+  if (!mlMap) return;
+  if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
+  if (mlMap.getSource(handle.sourceId)) mlMap.removeSource(handle.sourceId);
 }
 
 // ─── Full entry lifecycle ─────────────────────────────────────────────────────
 
 /**
- * Remove a single overlay's layer and marker from the Leaflet map and clear the entry.
+ * Remove a single overlay's layer and marker from the map and clear the entry.
  * Used for targeted cleanup (e.g. overlay deletion, viewport exit).
  */
 export function clearEntry(id: string): void {
   const entry = entries.get(id);
   if (!entry) return;
 
-  if (entry.layer && map.value.hasLayer(entry.layer)) {
-    entry.layer.remove();
+  if (entry.imageHandle) {
+    removeImageFromMap(entry.imageHandle);
   }
-  if (entry.marker && map.value.hasLayer(entry.marker)) {
-    entry.marker.remove();
-  }
+  entry.marker?.remove();
 
   entries.delete(id);
   creating.delete(id);
@@ -118,29 +144,19 @@ export function clearAll(preserveMarkers = false): void {
   creating.clear();
 
   for (const [id, entry] of entries) {
-    if (entry.layer && map.value.hasLayer(entry.layer)) {
-      entry.layer.remove();
+    if (entry.imageHandle) {
+      removeImageFromMap(entry.imageHandle);
     }
 
     if (preserveMarkers) {
-      // Zoom threshold: null the image layer but keep the marker alive on the map.
+      // Zoom threshold: null the image refs but keep the marker alive on the map.
       // This prevents marker flicker when crossing the zoom 13/14 boundary.
-      entry.layer = null;
+      entry.imageHandle = null;
     } else {
-      if (entry.marker && map.value.hasLayer(entry.marker)) {
-        entry.marker.remove();
-      }
+      entry.marker?.remove();
       entries.delete(id);
     }
   }
-}
-
-export function getAllLayers(): [string, L.DistortableImageOverlay][] {
-  const result: [string, L.DistortableImageOverlay][] = [];
-  for (const [id, entry] of entries) {
-    if (entry.layer !== null) result.push([id, entry.layer]);
-  }
-  return result;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

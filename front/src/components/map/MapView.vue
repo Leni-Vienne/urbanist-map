@@ -1,6 +1,6 @@
 <template>
   <div class="absolute inset-0 overflow-hidden">
-    <!-- Mode border overlay - separate from map container to avoid Leaflet rendering issues -->
+    <!-- Mode border overlay - separate from map container to avoid map rendering issues -->
     <div
       v-if="mapStore.mode !== 'view'"
       :class="[
@@ -9,7 +9,7 @@
       ]"
     ></div>
 
-    <div id="mapDiv" class="absolute inset-0">
+    <div id="mapDiv" class="absolute inset-0 w-full h-full">
       <div
         v-if="isLoading"
         class="absolute inset-0 flex justify-center items-center bg-content-hover-background"
@@ -53,12 +53,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } from "vue";
 
-import { initializeMap, disableLeafletKeyboardEvents, map } from "@/services/core/map";
+import { initializeMap, map } from "@/services/core/map";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initVectorTileSync } from "@/services/map/vectorTileSync";
 import { initializeCameraBounds } from "@/services/map/mapNavigation";
-import { setupMapClickToDeselect } from "@/services/overlay/overlaySelection";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
@@ -119,15 +118,14 @@ async function initializeMapAndOverlays() {
 
     await nextTick();
     if (map.value !== null) {
-      // Disable animation during initial size/bounds correction to avoid a slow pan that
-      // causes MapLibre to fetch tiles twice (once per view change).
-      map.value.invalidateSize(false);
+      // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
+      // fetch tiles twice (once per view change) when the dimensions correct.
+      map.value.resize();
 
       // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
       addTileLayer();
       initVectorTileSync();
 
-      // Small delay to ensure Leaflet updates bounds after invalidateSize
       setTimeout(() => {
         viewportManager.refreshViewport();
       }, 100);
@@ -136,8 +134,6 @@ async function initializeMapAndOverlays() {
     }
 
     viewportManager.setupModeWatcher();
-    setupMapClickToDeselect();
-    disableLeafletKeyboardEvents();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toast.add({
@@ -161,9 +157,9 @@ async function initializeMapAndOverlays() {
   }
 }
 
-/* Move Leaflet attribution above mobile drawer handle */
+/* Move map attribution above mobile drawer handle */
 @media (max-width: 768px) {
-  :deep(.leaflet-control-attribution) {
+  :deep(.maplibregl-ctrl-attrib) {
     bottom: 4.5rem !important;
     right: 0.5rem !important;
     left: auto !important;

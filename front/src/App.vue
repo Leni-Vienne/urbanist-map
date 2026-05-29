@@ -7,11 +7,9 @@
 </template>
 
 <script setup lang="ts">
-// Leaflet CSS now loaded from CDN in index.html
-import "leaflet-distortableimage/dist/leaflet.distortableimage.css";
 import { useTheme } from "./composables/core/useTheme";
 useTheme(); // Initialize theme on app startup (applies saved preference)
-import "./assets/style.css"; // Must be imported after leaflet's css otherwise it's overwritten by leaflet's default css
+import "./assets/style.css"; // Load app styles so they override vendor default CSS
 import "primeicons/primeicons.css";
 import MapSvgDefs from "@/components/map/MapSvgDefs.vue";
 

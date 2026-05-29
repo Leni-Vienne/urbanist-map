@@ -13,7 +13,7 @@ import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/overlayLifecycle";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { createSingleMarker } from "@/services/overlay/overlayMarkers";
+import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
 import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
 import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
 import {
@@ -97,7 +97,7 @@ function renderFullOverlays(overlaysData: OverlayData[]): void {
   hydrateOverlayStoreObjects(overlaysData);
 
   for (const overlayObject of Object.values(overlayStore.overlays)) {
-    createSingleMarker(overlayObject);
+    createOverlayMarker(overlayObject);
   }
 
   runViewportRenderLoop();
@@ -116,13 +116,18 @@ let lastBboxKey = "";
  */
 function getMapBbox() {
   const bounds = map.value.getBounds();
+  const west = bounds.getWest();
+  const east = bounds.getEast();
+  const south = bounds.getSouth();
+  const north = bounds.getNorth();
   // Pad slightly so panning a few pixels doesn't immediately refetch
-  const padded = bounds.pad(0.15);
+  const padX = (east - west) * 0.15;
+  const padY = (north - south) * 0.15;
   return {
-    minLng: padded.getWest(),
-    minLat: padded.getSouth(),
-    maxLng: padded.getEast(),
-    maxLat: padded.getNorth(),
+    minLng: west - padX,
+    minLat: Math.max(-90, south - padY),
+    maxLng: east + padX,
+    maxLat: Math.min(90, north + padY),
   };
 }
 
@@ -139,9 +144,20 @@ function bboxKey(bbox: { minLng: number; minLat: number; maxLng: number; maxLat:
   return `${roundCoord(bbox.minLng)},${roundCoord(bbox.minLat)},${roundCoord(bbox.maxLng)},${roundCoord(bbox.maxLat)}`;
 }
 
+// MapLibre's off() needs the exact handler reference to remove a listener, so the viewport
+// handlers are kept at module scope.
+let viewportMoveEndHandler: (() => void) | null = null;
+let viewportZoomEndHandler: (() => void) | null = null;
+
 function cleanupEventListeners() {
-  map.value.off("moveend");
-  map.value.off("zoomend");
+  if (viewportMoveEndHandler) {
+    map.value.off("moveend", viewportMoveEndHandler);
+    viewportMoveEndHandler = null;
+  }
+  if (viewportZoomEndHandler) {
+    map.value.off("zoomend", viewportZoomEndHandler);
+    viewportZoomEndHandler = null;
+  }
 }
 
 /**
@@ -328,7 +344,7 @@ export function useViewportTriggers() {
 
     for (const overlayObject of Object.values(overlayStore.overlays)) {
       if (visibleOverlayIds.has(overlayObject.id)) {
-        createSingleMarker(overlayObject);
+        createOverlayMarker(overlayObject);
       }
     }
   }
@@ -338,12 +354,14 @@ export function useViewportTriggers() {
   const debouncedRefreshViewport = debounce(refreshViewport, 100);
 
   function setupEventListeners() {
-    map.value.on("moveend", () => {
+    viewportMoveEndHandler = () => {
       debouncedRefreshViewport();
-    });
-    map.value.on("zoomend", () => {
+    };
+    viewportZoomEndHandler = () => {
       debouncedRefreshViewport();
-    });
+    };
+    map.value.on("moveend", viewportMoveEndHandler);
+    map.value.on("zoomend", viewportZoomEndHandler);
   }
 
   function setupModeWatcher() {
@@ -358,7 +376,7 @@ export function useViewportTriggers() {
         // Reset bbox tracking on mode switch to force a fresh fetch
         lastBboxKey = "";
 
-        // Switching TO view mode: drop Leaflet refs (tile rendering takes over) but keep
+        // Switching TO view mode: drop rendered layer refs (tile rendering takes over) but keep
         // overlay store data so in-progress edits survive the round-trip back to edit mode.
         if (newMode === "view") {
           clearOverlayRenderState();

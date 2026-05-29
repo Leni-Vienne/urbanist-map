@@ -1,11 +1,20 @@
 // Lazy chunk, only imported when a user activates the shape editor in edit mode.
 // Same pattern as overlayRendering.ts.
-import "@geoman-io/leaflet-geoman-free";
-// @ts-expect-error Cannot find module or type declarations for side-effect import
-import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
-import L from "leaflet";
+import {
+  TerraDraw,
+  TerraDrawLineStringMode,
+  TerraDrawPolygonMode,
+  TerraDrawSelectMode,
+  type GeoJSONStoreFeatures,
+} from "terra-draw";
+import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
+import { map } from "@/services/core/map";
+import { LngLatBounds } from "maplibre-gl";
+import { forEachPosition } from "@/utils/geojson";
 
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
+
+export type ShapeDrawMode = "linestring" | "polygon" | "select";
 
 // Number of geometries to add per batch before yielding to the browser's event loop.
 const BATCH_SIZE = 20;
@@ -39,112 +48,150 @@ function filterDrawableGeometries(
   };
 }
 
-// Track layers added from existing geometry (not tracked by Geoman as "drawn" layers).
-let geometryLayers: L.Layer[] = [];
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let pmCreateHandler: ((e: any) => void) | null = null;
+let draw: TerraDraw | null = null;
+
+const snappingConfig = { toLine: true, toCoordinate: true };
 
 /**
- * Activate the Geoman toolbar on the map with relevant draw tools only.
- * If existingGeometry is provided, the layers are added to the map.
+ * Activate the Terra Draw editor on the map with line and polygon tools.
+ * If existingGeometry is provided, the shapes are added to the map.
  */
 export async function initShapeEditor(
-  mapInstance: L.Map,
   existingGeometry?: GeoJSON.GeometryCollection,
 ): Promise<void> {
-  // Geoman uses addInitHook, so map instances created before this lazy chunk loads
-  // won't have .pm set. Manually initialize it on the existing instance.
-  if (!mapInstance.pm) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mapInstance as any).pm = new (L as any).PM.Map(mapInstance);
+  const mlMap = map.value;
+  if (!mlMap) return;
+
+  if (draw) {
+    // Double-init guard: clear existing features before re-initializing.
+    draw.clear();
+  } else {
+    // editable: drag vertices to move them, right click a vertex to delete it.
+    // showCoordinatePoints: render the draggable vertex handles.
+    // The select mode adds full editing of existing shapes: drag a midpoint to
+    // split a segment, drag a vertex to move it, right click a vertex to delete it.
+    const editCoordinateFlags = {
+      feature: {
+        draggable: true,
+        coordinates: {
+          midpoints: true,
+          draggable: true,
+          deletable: true,
+          snappable: snappingConfig,
+        },
+      },
+    };
+    draw = new TerraDraw({
+      adapter: new TerraDrawMapLibreGLAdapter({ map: mlMap }),
+      modes: [
+        new TerraDrawLineStringMode({
+          editable: true,
+          showCoordinatePoints: true,
+          snapping: snappingConfig,
+        }),
+        new TerraDrawPolygonMode({
+          editable: true,
+          showCoordinatePoints: true,
+          snapping: snappingConfig,
+        }),
+        new TerraDrawSelectMode({
+          flags: { linestring: editCoordinateFlags, polygon: editCoordinateFlags },
+        }),
+      ],
+    });
+    draw.start();
   }
-
-  mapInstance.pm.addControls({
-    drawRectangle: false,
-    drawMarker: false,
-    drawCircle: false,
-    drawCircleMarker: false,
-    drawText: false,
-    cutPolygon: false,
-    rotateMode: false,
-    removalMode: false,
-    editControls: false,
-  });
-
-  // Double-init guard: remove geometry layers from any previous init.
-  for (const layer of geometryLayers) layer.remove();
-  geometryLayers = [];
-
-  // Swap handler to avoid accumulating listeners; enable edit mode on newly drawn layers.
-  if (pmCreateHandler) {
-    mapInstance.off("pm:create", pmCreateHandler);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  pmCreateHandler = ({ layer }: { layer: any }) => {
-    layer.pm?.enable?.();
-  };
-  mapInstance.on("pm:create", pmCreateHandler);
 
   if (existingGeometry) {
-    await addLayersFromGeometry(mapInstance, existingGeometry, { editable: true });
+    await addLayersFromGeometry(existingGeometry);
   }
 
   // Pre-select the Line tool by default when the shape editor opens
-  mapInstance.pm.enableDraw("Line");
+  setDrawMode("linestring");
 }
 
 /**
- * Remove all geoman-drawn layers and the controls toolbar.
+ * Switch the active drawing tool. No-op if the editor is not active.
  */
-export function destroyShapeEditor(mapInstance: L.Map): void {
-  if (pmCreateHandler) {
-    mapInstance.off("pm:create", pmCreateHandler);
-    pmCreateHandler = null;
-  }
-  // Disable active global modes before removing controls; otherwise layers touched by Geoman
-  // (e.g. rendered project shapes) stay editable after the editor closes.
-  mapInstance.pm.disableDraw();
-  if (mapInstance.pm.globalEditModeEnabled()) mapInstance.pm.disableGlobalEditMode();
-  if (mapInstance.pm.globalDragModeEnabled()) mapInstance.pm.disableGlobalDragMode();
-  for (const layer of mapInstance.pm.getGeomanDrawLayers()) layer.remove();
-  // Also remove layers loaded from existing geometry (Geoman doesn't track these).
-  for (const layer of geometryLayers) layer.remove();
-  geometryLayers = [];
-  mapInstance.pm.removeControls();
+export function setDrawMode(mode: ShapeDrawMode): void {
+  if (!draw) return;
+  draw.setMode(mode);
 }
 
 /**
- * Extract all geoman-drawn layers as a GeoJSON GeometryCollection.
- * Includes both layers drawn in this session AND layers loaded from existing geometry,
+ * Remove all drawn layers and tear down the editor.
+ */
+export async function destroyShapeEditor(): Promise<void> {
+  if (!draw) return;
+  draw.clear();
+  draw.stop();
+  draw = null;
+}
+
+/**
+ * Extract all drawn shapes as a GeoJSON GeometryCollection.
+ * Includes both shapes drawn in this session AND shapes loaded from existing geometry,
  * so that saving always produces the full set of shapes (not just newly added ones).
+ * Internal vertex/snapping points (rendered as Point features) are filtered out by type.
  */
-export function getDrawnGeometry(mapInstance: L.Map): GeoJSON.GeometryCollection {
-  const allLayers = [...mapInstance.pm.getGeomanDrawLayers(), ...geometryLayers];
+export function getDrawnGeometry(): GeoJSON.GeometryCollection {
+  if (!draw) return { type: "GeometryCollection", geometries: [] };
 
-  const geometries = allLayers
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((layer) => (layer as L.Polyline | L.Polygon).toGeoJSON() as GeoJSON.Feature | undefined)
-    .filter((f): f is GeoJSON.Feature => f?.type === "Feature" && f.geometry !== null)
-    .map((f) => f.geometry)
+  const geometries = draw
+    .getSnapshot()
+    .map((f) => f.geometry as GeoJSON.Geometry)
     .filter((geometry) => drawableGeometryTypes.has(geometry.type));
 
   return { type: "GeometryCollection", geometries };
 }
 
 /**
- * Add layers from an existing GeometryCollection onto the map so the user can edit them.
+ * Convert a single GeoJSON geometry into Terra Draw features. Terra Draw modes
+ * only accept single LineString/Polygon geometries, so Multi* are split into parts.
+ * Each feature is tagged with the `mode` property Terra Draw uses for routing.
+ */
+function geometryToFeatures(geometry: GeoJSON.Geometry): GeoJSONStoreFeatures[] {
+  function makeFeature(geom: GeoJSON.Geometry, mode: ShapeDrawMode): GeoJSONStoreFeatures {
+    return {
+      type: "Feature",
+      id: draw!.getFeatureId(),
+      geometry: geom,
+      properties: { mode },
+    } as unknown as GeoJSONStoreFeatures;
+  }
+
+  switch (geometry.type) {
+    case "LineString":
+      return [makeFeature(geometry, "linestring")];
+    case "MultiLineString":
+      return geometry.coordinates.map((coords) =>
+        makeFeature({ type: "LineString", coordinates: coords }, "linestring"),
+      );
+    case "Polygon":
+      return [makeFeature(geometry, "polygon")];
+    case "MultiPolygon":
+      return geometry.coordinates.map((coords) =>
+        makeFeature({ type: "Polygon", coordinates: coords }, "polygon"),
+      );
+    default:
+      return [];
+  }
+}
+
+/**
+ * Add shapes from an existing GeometryCollection onto the map so the user can edit them.
  */
 export async function addLayersFromGeometry(
-  mapInstance: L.Map,
   geometry: GeoJSON.GeometryCollection,
-  { editable = false }: { editable?: boolean } = {},
-): Promise<L.LatLngBounds | null> {
-  const addedLayers: L.Layer[] = [];
+): Promise<LngLatBounds | null> {
+  if (!draw) return null;
 
   const drawableGeoms = geometry.geometries.filter((item) => drawableGeometryTypes.has(item.type));
+  if (drawableGeoms.length === 0) return null;
+
+  let bounds: LngLatBounds | null = null;
 
   // Process in batches to yield between each, keeping the browser responsive.
-  // Adding hundreds of Leaflet layers synchronously would freeze the main thread.
   for (let i = 0; i < drawableGeoms.length; i += 1) {
     if (i > 0 && i % BATCH_SIZE === 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -152,31 +199,15 @@ export async function addLayersFromGeometry(
 
     const geom = drawableGeoms[i]!;
 
-    // Wrap each geometry individually in a Feature rather than passing the whole
-    // GeometryCollection to L.geoJSON(). L.geoJSON(collection) produces a single
-    // FeatureGroup whose toGeoJSON() returns a FeatureCollection, which fails the
-    // Feature type check in getDrawnGeometry. Wrapping individually gives one Leaflet
-    // layer per geometry, each with a proper Feature from toGeoJSON().
-    const feature: GeoJSON.Feature = { type: "Feature", geometry: geom, properties: {} };
-    const layer = L.geoJSON(feature).getLayers()[0];
-    if (!layer) continue;
-    layer.addTo(mapInstance);
-    addedLayers.push(layer);
-    geometryLayers.push(layer);
-    if (editable) {
-      // Layers created via L.geoJSON() are not tracked by Geoman's draw pipeline.
-      // reInitLayer re-applies the PM mixin so vertex handles appear.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (L as any).PM?.reInitLayer?.(layer);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (layer as any).pm?.enable?.();
-    }
+    draw.addFeatures(geometryToFeatures(geom));
+
+    forEachPosition(geom, (lng, lat) => {
+      if (bounds) bounds.extend([lng, lat]);
+      else bounds = new LngLatBounds([lng, lat], [lng, lat]);
+    });
   }
 
-  if (addedLayers.length === 0) return null;
-
-  const groupBounds = L.featureGroup(addedLayers).getBounds();
-  return groupBounds.isValid() ? groupBounds : null;
+  return bounds;
 }
 
 /**

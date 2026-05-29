@@ -7,9 +7,7 @@ import {
   getUserOverlayChangeRequestIds,
   buildProjectVisibilityCondition,
   buildOverlayVisibilityCondition,
-  fetchOverlayChangeRequests,
-  transformOverlayDataWithChangeRequests,
-  fetchOverlaysWithLocation,
+  fetchOverlaysForMap,
   requireModeratorAccess,
 } from "../db/helpers";
 
@@ -212,28 +210,7 @@ export const citiesRouter = router({
           buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
         ];
 
-        const overlaysData = await fetchOverlaysWithLocation(whereConditions);
-
-        // Fetch and group change requests by overlay ID
-        const changeRequestsByOverlay = await fetchOverlayChangeRequests(ctx.user, mode);
-
-        // In moderation mode, count change requests per overlay
-        const allChangeRequestCounts = new Map<string, number>();
-        if (mode === "moderation") {
-          for (const [overlayId, requests] of changeRequestsByOverlay) {
-            allChangeRequestCounts.set(overlayId, requests.length);
-          }
-        }
-
-        const result = transformOverlayDataWithChangeRequests(
-          overlaysData,
-          changeRequestsByOverlay,
-          allChangeRequestCounts,
-          mode,
-          ctx.user?.id,
-        );
-
-        return result;
+        return await fetchOverlaysForMap(whereConditions, ctx.user, mode);
       } catch (error) {
         console.error("Error fetching city projects:", error);
         throw new TRPCError({

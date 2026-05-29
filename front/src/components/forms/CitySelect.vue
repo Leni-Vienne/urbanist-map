@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <Select
     :id="id"
     :modelValue="modelValue"
@@ -41,7 +41,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { cacheCityName } from "@/utils/cityNameCache";
 import { storeToRefs } from "pinia";
 import type { Project } from "@/types/index";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
 
 interface Props {
   modelValue: number | undefined;
@@ -113,15 +113,14 @@ function getReferenceLocation(): { lat: number; lng: number } | null {
       console.error("Overlay object not found for id", idSelectedOverlay.value);
       return null;
     }
-    const layer = registry.getLayer(overlayObject.id);
-    if (layer) {
-      try {
-        const bounds = layer.getBounds();
+    try {
+      const bounds = getOverlayBounds(overlayObject);
+      if (bounds) {
         const center = bounds.getCenter();
         return { lat: center.lat, lng: center.lng };
-      } catch (error) {
-        console.error("Error getting overlay center:", error);
       }
+    } catch (error) {
+      console.error("Error getting overlay center:", error);
     }
   }
 

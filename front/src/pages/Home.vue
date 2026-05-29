@@ -52,6 +52,15 @@
 
       <!-- Hover preview card, always mounted so it can show before any popup is opened -->
       <HoverPreviewCard />
+
+      <!-- Shape Editor Panel - lives in the map column (outside PopupContainer) so it stays
+           centered on the map and isn't destroyed when a popup closes. -->
+      <ShapeEditorPanel
+        v-if="uiStore.shapeEditor.project"
+        @done="handleShapesDone"
+        @cancel="handleShapesCancel"
+        @suggest-tags="handleSuggestTags"
+      />
     </div>
 
     <!-- Project Management Dialogs -->
@@ -68,14 +77,6 @@
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
     <SubmissionDialogWrapper v-if="showSubmissionDialog" />
-
-    <!-- Shape Editor Panel - lives outside PopupContainer so closing a popup doesn't destroy it -->
-    <ShapeEditorPanel
-      v-if="uiStore.shapeEditor.project"
-      @done="handleShapesDone"
-      @cancel="handleShapesCancel"
-      @suggest-tags="handleSuggestTags"
-    />
   </div>
 </template>
 
@@ -87,7 +88,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { map } from "@/services/core/map";
+
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -171,7 +172,7 @@ watch(
   async (newMode, oldMode) => {
     if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditor.project) {
       const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-      destroyShapeEditor(map.value);
+      destroyShapeEditor();
       uiStore.closeShapeEditor();
     }
   },
@@ -201,21 +202,19 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
   const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-  destroyShapeEditor(map.value);
+  destroyShapeEditor();
   // Re-render updated shapes immediately (Geoman layers were just removed by destroyShapeEditor,
   // and the viewport loop only covers backend overlays).
   clearProjectShapes(project.id);
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
-    renderProjectShapes(updatedProject, map.value);
+    renderProjectShapes(updatedProject);
   }
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
   if (reopenAt) {
     uiStore.openProjectInfoPopup(project.id, project);
-    const leafletModule = await import("leaflet");
-    const L = leafletModule.default;
-    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
+    createProjectInfoTeleportTargetAtLatLng({ lat: reopenAt.lat, lng: reopenAt.lng });
   }
 }
 
@@ -231,13 +230,11 @@ async function handleShapesCancel() {
   const project = uiStore.shapeEditor.project;
   const reopenAt = uiStore.shapeEditor.reopenAt;
   const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-  destroyShapeEditor(map.value);
+  destroyShapeEditor();
   uiStore.closeShapeEditor();
   if (reopenAt && project) {
     uiStore.openProjectInfoPopup(project.id, project);
-    const leafletModule = await import("leaflet");
-    const L = leafletModule.default;
-    createProjectInfoTeleportTargetAtLatLng(L.latLng(reopenAt.lat, reopenAt.lng));
+    createProjectInfoTeleportTargetAtLatLng({ lat: reopenAt.lat, lng: reopenAt.lng });
   }
 }
 

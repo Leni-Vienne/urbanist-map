@@ -1,9 +1,7 @@
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-import { maplibreLayer, type MaplibreGL } from "@/lib/MaplibreLayer";
-import { map } from "@/services/core/map";
+import { map, OPENFREEMAP_STYLE_URL, getMlMap, markMlMapReady } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 import { useToast } from "@/composables/ui/useToast";
@@ -14,6 +12,7 @@ import {
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
 import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
+import { dropImageHandlesForStyleSwitch } from "@/services/overlay/overlayRenderRegistry";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
 import {
   selectedProjectTags,
@@ -22,6 +21,7 @@ import {
   selectedNameFilters,
   lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 interface BoundingBox {
   minLat: number;
@@ -50,6 +50,11 @@ function toBoundingBox(bbox: number[]): BoundingBox {
 
 // Default max native zoom for Esri layer (safe baseline)
 const BASELINE_ESRI_MAX_ZOOM = 18;
+
+// Live Esri max native zoom for the current location, refined at runtime from the Esri
+// metadata API. Kept separate from the static satelliteLayerConfigs entry so the config
+// stays immutable.
+let currentEsriMaxZoom = BASELINE_ESRI_MAX_ZOOM;
 
 // Satellite tile layer configurations. "plan" is the MapLibre vector basemap
 // and is not listed here (it uses the OpenFreeMap style URL directly).
@@ -97,52 +102,11 @@ type SatelliteLayerType = keyof typeof satelliteLayerConfigs;
 type CountryCode = Exclude<SatelliteLayerType, "esri">;
 export type TileLayerType = "plan" | SatelliteLayerType;
 
-const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-const OPENFREEMAP_ATTRIBUTION =
-  '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/copyright" target="_blank" rel="noopener">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">&copy; OpenStreetMap contributors</a>';
-
-let currentAttribution = "";
-
-function updateLeafletAttribution(newAttribution: string) {
-  if (!map.value?.attributionControl) return;
-
-  if (currentAttribution) {
-    map.value.attributionControl.removeAttribution(currentAttribution);
-  }
-
-  if (newAttribution) {
-    map.value.attributionControl.addAttribution(newAttribution);
-  }
-
-  currentAttribution = newAttribution;
-}
-
 // Current active tile layer ("plan" = MapLibre vector basemap)
 export const currentTileLayer = ref<TileLayerType>("plan");
 
-/** Reference to the basemap MapLibre map instance (renders below overlays at z-200). */
-// During Vite HMR, the module re-executes but the MapLibre instance is still alive on the page.
-// Preserved via import.meta.hot.data so onMlMapReady callers don't get stuck waiting
-// for a `load` event that will never fire again.
-const mlMapRef = {
-  current: (import.meta.hot?.data.mlMap as MaplibreMap | null) ?? null,
-};
-const mlMapReadyCallbacks: (() => void)[] = [];
-
-/** Reference to the vector overlay MapLibre map instance (renders above overlays at z-450). */
-// This map contains project shapes, overlay footprints, and all project-related vector data.
-const vectorMapRef = {
-  current: (import.meta.hot?.data.vectorMap as MaplibreMap | null) ?? null,
-};
-
-// Export the vector map as the primary mlMap reference since that's where project data lives
-export function getMlMap(): MaplibreMap | null {
-  return vectorMapRef.current;
-}
-
-function getBasemapMlMap(): MaplibreMap | null {
-  return mlMapRef.current;
-}
+let interactionRegistered =
+  (import.meta.hot?.data.interactionRegistered as boolean | undefined) ?? false;
 
 // Original extrusion height/base expressions per layer, captured before flattening
 // so 3D can be restored on toggle-back.
@@ -156,7 +120,7 @@ const originalExtrusionPaint = new Map<string, { height: unknown; base: unknown 
  * buildings when zoomed in. Satellite styles have no fill-extrusion layers.
  */
 function applyBuildings3DState(extruded: boolean): void {
-  const mlMap = getBasemapMlMap();
+  const mlMap = getMlMap();
   if (!mlMap || !mlMap.isStyleLoaded()) return;
 
   for (const layer of mlMap.getStyle().layers) {
@@ -179,18 +143,6 @@ function applyBuildings3DState(extruded: boolean): void {
     }
   }
 }
-
-/** Register a callback to be called once (and immediately if already ready) when vector mlMap is loaded. */
-export function onMlMapReady(cb: () => void): void {
-  if (vectorMapRef.current) {
-    cb();
-  } else {
-    mlMapReadyCallbacks.push(cb);
-  }
-}
-
-/** Reference to the currently active MapLibre-GL Leaflet layer. Never removed from the map. */
-let activeBaseLayer: MaplibreGL | null = null;
 
 // Cached after first load, undefined until the user first uses satellite mode
 let countryBorders: CountryBorder[] | undefined = undefined;
@@ -314,102 +266,61 @@ async function detectCountryFromCoordinates(
   return undefined;
 }
 
-/** Initialize tile layers. */
-export function addTileLayer(): void {
-  // Check if tile layers were lost during hot reload
-  if (!activeBaseLayer) {
-    void addTileLayersToMap();
-  }
-
-  if (currentTileLayer.value === "plan") {
-    updateLeafletAttribution(OPENFREEMAP_ATTRIBUTION);
+/** Run a callback once the map style is loaded (immediately if it already is). */
+function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): void {
+  if (mlMap.isStyleLoaded()) {
+    cb();
   } else {
-    updateLeafletAttribution(satelliteLayerConfigs[currentTileLayer.value].attribution);
+    mlMap.once("load", cb);
   }
+}
+
+/** Initialize the map's project data layers and interaction once the basemap style is ready. */
+export function addTileLayer(): void {
+  const mlMap = map.value;
+  if (!mlMap) return;
+
+  // A dummy image prevents "styleimagemissing" errors for missing cluster icons.
+  // Registered once; the handler persists across setStyle() satellite switches.
+  mlMap.on("styleimagemissing", (e: { id: string }) => {
+    mlMap.addImage(e.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
+  });
+
+  whenStyleLoaded(mlMap, () => {
+    onFirstStyleReady(mlMap);
+  });
 
   initEsriMetadataListener(); // Start listening for potential high-res availability
   initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
 }
 
-/**
- * Initialize the two MapLibre-GL Leaflet layers:
- * - Basemap layer at tilePane (z-200): full OpenFreeMap style
- * - Vector overlay layer at vectorPane (z-450): transparent, project geometries only
- * The layers are permanent; satellite mode swaps the basemap style via setStyle().
- */
-async function addTileLayersToMap(): Promise<void> {
+/** Wire up project data + interaction on first style load, then mark the map ready. */
+function onFirstStyleReady(mlMap: MaplibreMap): void {
   try {
-    // Two MapLibre layers keep project geometry on top of distortable overlay images.
-    const vectorPane = map.value.createPane("vectorPane");
-    vectorPane.style.zIndex = "450";
-    // Prevent the vector canvas from capturing pointer events so overlays at z-400 remain
-    // interactive. Leaflet forwards map-level events to MapLibre via queryRenderedFeatures.
-    vectorPane.style.pointerEvents = "none";
+    applyPlanStyleRoadOverrides(mlMap);
+    applyRailStyleOverrides(mlMap);
+    addProjectDataToMlMap(mlMap);
 
-    // Basemap: padding 0.1 pre-fetches tiles just outside the viewport to avoid edge flicker.
-    const basemapLayer = maplibreLayer({
-      style: OPENFREEMAP_STYLE_URL,
-      fadeDuration: 0,
-      padding: 0.1,
-      pane: "tilePane", // Default pane at z-200
-    }).addTo(map.value);
-    activeBaseLayer = basemapLayer;
+    if (!interactionRegistered) {
+      registerHybridInteractionHandlers(() => map.value);
+      interactionRegistered = true;
+    }
 
-    const mlMap = basemapLayer.getMaplibreMap();
+    if (import.meta.env.DEV) {
+      void import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
+        (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(mlMap);
+      });
+    }
 
-    // Add a dummy image to prevent "styleimagemissing" errors for missing cluster icons.
-    mlMap.on("styleimagemissing", (e: { id: string }) => {
-      mlMap.addImage(e.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
-    });
+    markMlMapReady();
 
-    mlMap.on("load", () => {
-      mlMapRef.current = mlMap;
+    applyBuildings3DState(show3DBuildings.value);
 
-      applyPlanStyleRoadOverrides(mlMap);
-      applyRailStyleOverrides(mlMap);
-      applyBuildings3DState(show3DBuildings.value);
-
-      // Project data is added to the vector overlay layer, not here.
-
-      if (lastPendingProjectPointsGeojson) {
-        updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
-      }
-    });
-
-    // Vector overlay layer: transparent background, only project layers.
-    const vectorLayer = maplibreLayer({
-      style: {
-        version: 8,
-        sources: {},
-        layers: [],
-      },
-      fadeDuration: 0,
-      pane: "vectorPane", // Custom pane at z-450
-    }).addTo(map.value);
-
-    const vectorMap = vectorLayer.getMaplibreMap();
-
-    vectorMap.on("styleimagemissing", (e: { id: string }) => {
-      vectorMap.addImage(e.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
-    });
-
-    vectorMap.on("load", () => {
-      vectorMapRef.current = vectorMap;
-
-      addProjectDataToMlMap(vectorMap);
-      registerHybridInteractionHandlers(() => vectorMap);
-
-      if (import.meta.env.DEV) {
-        void import("@/services/map/debugClusterGrid").then(({ toggleClusterGrid }) => {
-          (globalThis as any).toggleClusterGrid = () => toggleClusterGrid(vectorMap);
-        });
-      }
-
-      for (const cb of mlMapReadyCallbacks) cb();
-      mlMapReadyCallbacks.length = 0;
-    });
+    if (lastPendingProjectPointsGeojson) {
+      updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
+    }
   } catch (error) {
-    console.error("Failed to initialize MapLibre tile layer:", error);
+    console.error("Failed to initialize MapLibre project layers:", error);
     useToast().add({
       severity: "error",
       summary: t("errors.mapInitFailed"),
@@ -419,13 +330,13 @@ async function addTileLayersToMap(): Promise<void> {
   }
 }
 
-// Watch for tag and status filter changes and update MVT layers on the vector overlay map
+// Watch for tag and status filter changes and update MVT layers on the map
 watch(
   [selectedProjectTags, visibleStates, sizeFilterRange, selectedNameFilters, lastModifiedDateRange],
   () => {
-    const vectorMap = vectorMapRef.current;
-    if (vectorMap) {
-      applyTagFiltersToVectorLayers(vectorMap);
+    const mlMap = getMlMap();
+    if (mlMap) {
+      applyTagFiltersToVectorLayers(mlMap);
     }
   },
   { deep: true },
@@ -439,10 +350,10 @@ watch(show3DBuildings, (extruded) => {
 export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
   lastPendingProjectPointsGeojson = geojson;
 
-  const vectorMap = vectorMapRef.current;
-  if (!vectorMap) return;
+  const mlMap = getMlMap();
+  if (!mlMap) return;
 
-  const source = vectorMap.getSource("pending-project-points-source") as GeoJSONSource | undefined;
+  const source = mlMap.getSource("pending-project-points-source") as GeoJSONSource | undefined;
   if (source) {
     source.setData(geojson);
   }
@@ -454,6 +365,9 @@ export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollect
  */
 function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification {
   const config = satelliteLayerConfigs[layerType];
+  // Esri's usable max zoom varies by location and is refined at runtime; all other
+  // layers use their fixed configured maxZoom.
+  const maxzoom = layerType === "esri" ? currentEsriMaxZoom : config.maxZoom;
   return {
     version: 8,
     sources: {
@@ -462,7 +376,7 @@ function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification 
         tiles: config.tiles,
         tileSize: config.tileSize,
         attribution: config.attribution,
-        maxzoom: config.maxZoom,
+        maxzoom,
       },
     },
     layers: [{ id: "satellite", type: "raster", source: "satellite" }],
@@ -470,11 +384,11 @@ function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification 
 }
 
 /**
- * Switch the basemap to a new style.
- * Project data stays on the separate vector overlay map and is not affected.
+ * Switch the basemap style. Because project data now lives on the same map as the basemap,
+ * setStyle() wipes the project source/layers, so they are re-added once the new style loads.
  */
 async function switchToStyle(style: StyleSpecification | string): Promise<void> {
-  const mlMap = mlMapRef.current;
+  const mlMap = getMlMap();
   if (!mlMap) return;
 
   await new Promise<void>((resolve) => {
@@ -485,6 +399,14 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
         applyRailStyleOverrides(mlMap);
         applyBuildings3DState(show3DBuildings.value);
       }
+      addProjectDataToMlMap(mlMap);
+      if (lastPendingProjectPointsGeojson) {
+        updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
+      }
+      // Overlay image sources were wiped by setStyle; drop their handles so vectorTileSync
+      // re-creates them on the next idle.
+      dropImageHandlesForStyleSwitch();
+      runViewportRenderLoop();
       resolve();
     });
     mlMap.setStyle(style);
@@ -515,10 +437,8 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
 
   if (resolvedLayerType === "plan") {
     await switchToStyle(OPENFREEMAP_STYLE_URL);
-    updateLeafletAttribution(OPENFREEMAP_ATTRIBUTION);
   } else {
     await switchToStyle(buildSatelliteStyle(resolvedLayerType));
-    updateLeafletAttribution(satelliteLayerConfigs[resolvedLayerType].attribution);
   }
 
   if (resolvedLayerType === "esri") {
@@ -541,7 +461,7 @@ async function checkEsriMaxZoom() {
   const center = map.value.getCenter();
   const zoom = map.value.getZoom();
 
-  if (zoom < 16) return;
+  if (zoom < 15) return;
 
   const cacheKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
   const cachedMaxZoom = maxZoomCache.get(cacheKey);
@@ -566,33 +486,28 @@ async function checkEsriMaxZoom() {
 }
 
 function applyEsriMaxZoom(zoomLevel: number) {
-  const esriConfig = satelliteLayerConfigs.esri;
+  if (currentEsriMaxZoom === zoomLevel) return;
+  currentEsriMaxZoom = zoomLevel;
 
-  if (esriConfig.maxZoom !== zoomLevel) {
-    esriConfig.maxZoom = zoomLevel;
+  if (currentTileLayer.value !== "esri") return;
+  const mlMap = getMlMap();
+  if (!mlMap) return;
 
-    if (currentTileLayer.value === "esri") {
-      const mlMap = getBasemapMlMap(); // Use basemap since satellite source is there
-      if (mlMap) {
-        // MapLibre GL JS doesn't officially support hot-swapping source maxzoom;
-        // update it via internal properties and force a tile refresh.
-        const source = mlMap.getSource("satellite");
-        if (source) {
-          (source as any).maxzoom = zoomLevel;
-          try {
-            const sourceCache = (mlMap.style as any).sourceCaches.satellite;
-            if (sourceCache) {
-              sourceCache.clearTiles();
-              sourceCache.update((mlMap as any).transform);
-            }
-          } catch {
-            // ignore
-          }
-          mlMap.triggerRepaint();
-        }
-      }
+  // MapLibre GL JS doesn't officially support hot-swapping source maxzoom;
+  // update it via internal properties and force a tile refresh.
+  const source = mlMap.getSource("satellite");
+  if (!source) return;
+  (source as any).maxzoom = zoomLevel;
+  try {
+    const sourceCache = (mlMap.style as any).sourceCaches.satellite;
+    if (sourceCache) {
+      sourceCache.clearTiles();
+      sourceCache.update((mlMap as any).transform);
     }
+  } catch {
+    // ignore
   }
+  mlMap.triggerRepaint();
 }
 
 // Interface for the Esri Identify API response
@@ -696,11 +611,8 @@ function initEsriMetadataListener() {
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 if (import.meta.hot) {
-  // Save the live MapLibre instances before the module is discarded so the
-  // replacement module can restore them and skip the stale `load` event wait.
   import.meta.hot.dispose((data) => {
-    data.mlMap = mlMapRef.current;
-    data.vectorMap = vectorMapRef.current;
+    data.interactionRegistered = interactionRegistered;
   });
   import.meta.hot.accept();
 }

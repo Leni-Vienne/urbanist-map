@@ -1,5 +1,5 @@
 <template>
-  <!-- Teleport into the Leaflet marker icon, Leaflet owns pan/zoom positioning -->
+  <!-- Teleport into the maplibregl.Marker element; MapLibre owns pan/zoom positioning -->
   <Teleport :to="markerIconEl" v-if="markerIconEl">
     <div
       class="absolute -translate-x-1/2 -translate-y-[calc(100%+20px)] pointer-events-auto flex flex-col items-center gap-1 font-sans"
@@ -103,7 +103,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, nextTick } from "vue";
-import L from "leaflet";
+import maplibregl from "maplibre-gl";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -111,16 +111,26 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
-import { getLayer, getAllLayers } from "@/services/overlay/overlayRenderRegistry";
+import { getImageHandle, getRenderedOverlayIds } from "@/services/overlay/overlayRenderRegistry";
+import {
+  getOverlayImageCorners,
+  setOverlayImageOpacity,
+  sendOverlayImageToBack,
+} from "@/services/overlay/overlayImageLayer";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
-import { overlayCallbacks } from "@/services/overlay/overlayLifecycle";
-import "@/services/overlay/overlayActions"; // ensure navigateOverlaySequence callback is registered
+import { navigateOverlaySequence } from "@/services/overlay/overlayActions";
+import {
+  undo as undoOverlayEdit,
+  redo as redoOverlayEdit,
+} from "@/services/overlay/overlayEditing";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
+
+type Corner = { lat: number; lng: number };
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
@@ -131,30 +141,25 @@ const { mode } = storeToRefs(mapStore);
 const selectedId = idSelectedOverlay;
 const isEditMode = computed(() => mode.value === "edit");
 
-// markerIconEl is the Leaflet marker's _icon div, we teleport our toolbar content inside it.
-// Leaflet handles pan + zoom animation via CSS transforms on the marker pane automatically.
+// markerIconEl is the maplibregl.Marker element; we teleport our toolbar content inside it.
+// MapLibre handles pan + zoom positioning via a transform on the element automatically.
 const markerIconEl = ref<HTMLElement | null>(null);
 const opacity = ref(100);
 const showInfoPopup = ref(false);
 const infoSlot = ref<HTMLElement | null>(null);
 
-let anchorMarker: L.Marker | null = null;
+let anchorMarker: maplibregl.Marker | null = null;
 let retryRafId: number | null = null;
 
-function getAnchorLatLng(): L.LatLng | null {
+// Top-center of the overlay ([lng, lat]) where the toolbar anchors.
+function getAnchorLngLat(): [number, number] | null {
   const id = selectedId.value;
   if (!id) return null;
-  const layer = getLayer(id);
-  if (!layer) return null;
-  try {
-    const corners = layer.getCorners();
-    if (!corners?.length) return null;
-    const maxLat = Math.max(...corners.map((c) => c.lat));
-    const center = L.latLngBounds(corners).getCenter();
-    return L.latLng(maxLat, center.lng);
-  } catch {
-    return null;
-  }
+  const corners = getOverlayImageCorners(id);
+  if (!corners?.length) return null;
+  const lats = corners.map((c) => c.lat);
+  const lngs = corners.map((c) => c.lng);
+  return [(Math.min(...lngs) + Math.max(...lngs)) / 2, Math.max(...lats)];
 }
 
 function destroyMarker() {
@@ -165,43 +170,33 @@ function destroyMarker() {
     cancelAnimationFrame(retryRafId);
     retryRafId = null;
   }
-  detachCollisionLayer();
   hasCollision.value = false;
 }
 
-function createMarker(latlng: L.LatLng) {
-  if (!map.value) return;
-  // Use a dedicated pane above markerPane (z-index 600) so the toolbar always renders on top of markers.
-  if (!map.value.getPane("overlayToolbarPane")) {
-    map.value.createPane("overlayToolbarPane").style.zIndex = "620";
-  }
-  anchorMarker = L.marker(latlng, {
-    icon: L.divIcon({
-      className: "overlay-toolbar-anchor",
-      iconSize: [0, 0],
-      iconAnchor: [0, 0],
-    }),
-    interactive: false,
-    keyboard: false,
-    pane: "overlayToolbarPane",
-  }).addTo(map.value);
-  // _icon is set synchronously by Leaflet's addTo → onAdd → _initIcon
-  markerIconEl.value = (anchorMarker as any)._icon ?? null;
+function createMarker(lngLat: [number, number]) {
+  const mlMap = map.value;
+  if (!mlMap) return;
+  const el = document.createElement("div");
+  el.style.zIndex = "620";
+  anchorMarker = new maplibregl.Marker({ element: el, anchor: "center" })
+    .setLngLat(lngLat)
+    .addTo(mlMap);
+  markerIconEl.value = el;
 }
 
-// RAF: Leaflet handles pan/zoom automatically. RAF only needed to update marker
-// latlng while the user drags overlay handles (corner changes, no map event fires).
+// RAF: MapLibre handles pan/zoom automatically. RAF only updates the anchor while the user
+// drags overlay handles (corner changes, no map event fires).
 let rafId: number | null = null;
 
 function startRAF() {
   if (rafId !== null) return;
   function tick() {
     if (anchorMarker && selectedId.value) {
-      const latlng = getAnchorLatLng();
-      if (latlng) {
-        anchorMarker.setLatLng(latlng);
+      const lngLat = getAnchorLngLat();
+      if (lngLat) {
+        anchorMarker.setLngLat(lngLat);
       } else {
-        // Layer removed from registry while still selected (e.g. zoom-out unload with
+        // Image removed from registry while still selected (e.g. zoom-out unload with
         // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
         overlayStore.idSelectedOverlay = null;
       }
@@ -219,7 +214,7 @@ function stopRAF() {
 }
 // ─── SAT collision (convex quad vs convex quad) ───────────────────────────────
 
-function projectOnAxis(corners: L.LatLng[], axLat: number, axLng: number) {
+function projectOnAxis(corners: Corner[], axLat: number, axLng: number) {
   let min = Infinity,
     max = -Infinity;
   for (const c of corners) {
@@ -230,7 +225,7 @@ function projectOnAxis(corners: L.LatLng[], axLat: number, axLng: number) {
   return { min, max };
 }
 
-function quadsOverlap(a: L.LatLng[], b: L.LatLng[]): boolean {
+function quadsOverlap(a: Corner[], b: Corner[]): boolean {
   for (const poly of [a, b]) {
     for (let i = 0; i < poly.length; i += 1) {
       /* oxlint-disable no-non-null-assertion */
@@ -250,7 +245,6 @@ function quadsOverlap(a: L.LatLng[], b: L.LatLng[]): boolean {
 // ─── Collision detection ───────────────────────────────────────────────────────
 
 const hasCollision = ref(false);
-let collisionLayer: L.DistortableImageOverlay | null = null;
 
 function checkCollision() {
   const id = selectedId.value;
@@ -258,62 +252,33 @@ function checkCollision() {
     hasCollision.value = false;
     return;
   }
-  const layer = getLayer(id);
-  if (!layer) {
+  const corners = getOverlayImageCorners(id);
+  if (!corners) {
     hasCollision.value = false;
     return;
   }
-  try {
-    const corners = layer.getCorners();
-    if (!corners) return;
-    hasCollision.value = getAllLayers().some(([otherId, other]) => {
-      if (otherId === id) return false;
-      try {
-        const otherCorners = other.getCorners();
-        if (!otherCorners) return false;
-        return quadsOverlap(corners, otherCorners);
-      } catch {
-        return false;
-      }
-    });
-  } catch {
-    hasCollision.value = false;
-  }
-}
-
-function attachCollisionLayer(id: string) {
-  const layer = getLayer(id) as L.DistortableImageOverlay | null;
-  if (!layer || layer === collisionLayer) return;
-  detachCollisionLayer();
-  collisionLayer = layer;
-  layer.on("edit dragend", checkCollision);
-}
-
-function detachCollisionLayer() {
-  if (collisionLayer) {
-    collisionLayer.off("edit dragend", checkCollision);
-    collisionLayer = null;
-  }
+  hasCollision.value = getRenderedOverlayIds().some((otherId) => {
+    if (otherId === id) return false;
+    const otherCorners = getOverlayImageCorners(otherId);
+    return otherCorners ? quadsOverlap(corners, otherCorners) : false;
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 function initForSelection() {
   if (!map.value) return;
-  const latlng = getAnchorLatLng();
-  if (!latlng) {
-    // Layer not yet in registry (render loop hasn't created it yet after navigation).
+  const lngLat = getAnchorLngLat();
+  if (!lngLat) {
+    // Image not yet in registry (render loop hasn't created it yet after navigation).
     // Retry each frame until it appears; destroyMarker() cancels if selection changes.
     retryRafId = requestAnimationFrame(initForSelection);
     return;
   }
   retryRafId = null;
-  createMarker(latlng);
+  createMarker(lngLat);
   opacity.value = readOpacity();
   startRAF();
-  if (selectedId.value) {
-    attachCollisionLayer(selectedId.value);
-  }
   checkCollision();
 }
 
@@ -345,14 +310,13 @@ watch(
 onUnmounted(() => {
   stopRAF();
   destroyMarker();
-  map.value.off("moveend", checkCollision);
+  map.value?.off("moveend", checkCollision);
 });
 
 function readOpacity(): number {
-  const layer = getLayer(selectedId.value ?? "");
-  const el = layer ? layer.getElement() : null;
-  const attr = el?.getAttribute("opacity");
-  return attr ? Math.round(Number.parseFloat(attr) * 100) : 100;
+  const id = selectedId.value;
+  const handle = id ? getImageHandle(id) : null;
+  return handle ? Math.round(handle.opacity * 100) : 100;
 }
 
 // Wire info slot as teleport target for PopupContainer's UnifiedProjectPopup
@@ -426,29 +390,27 @@ async function toggleInfoPopup() {
 function onOpacityInput(e: Event) {
   const val = Number.parseInt((e.target as HTMLInputElement).value, 10);
   opacity.value = val;
-  const layer = getLayer(selectedId.value ?? "");
-  if (layer) (layer as any).editing._setOpacities(val / 100);
+  const id = selectedId.value;
+  if (id) setOverlayImageOpacity(id, val / 100);
 }
 
 function goToPrevious() {
-  overlayCallbacks.focusCameraToOverlay?.("previous");
+  navigateOverlaySequence("previous");
 }
 function goToNext() {
-  overlayCallbacks.focusCameraToOverlay?.("next");
+  navigateOverlaySequence("next");
 }
 
 function stackToBack() {
-  const layer = getLayer(selectedId.value ?? "");
-  if (!layer) return;
-  layer.bringToBack();
-  (layer as any).editing._toggledImage = true;
+  const id = selectedId.value;
+  if (id) sendOverlayImageToBack(id);
 }
 
 function undo() {
-  overlayCallbacks.undo?.();
+  undoOverlayEdit();
 }
 function redo() {
-  overlayCallbacks.redo?.();
+  redoOverlayEdit();
 }
 
 const projectStore = useProjectStore();
@@ -502,12 +464,3 @@ function btnCls(opts?: { active?: boolean; danger?: boolean }): string {
   return `${base} bg-transparent text-muted-color hover:bg-content-hover-background`;
 }
 </script>
-
-<style>
-/* Reset Leaflet DivIcon styles on the anchor marker */
-.overlay-toolbar-anchor {
-  background: none !important;
-  border: none !important;
-  overflow: visible !important;
-}
-</style>

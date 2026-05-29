@@ -1,3 +1,4 @@
+import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
 import type { ProjectFormData } from "@/types/index";
 
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
@@ -16,6 +17,15 @@ export function prepareProjectValidationData(
     lng: options?.lng ?? 0,
     cityId: formData.cityId ?? options?.cityId ?? null,
   } as const;
+}
+
+// Returns the validation errors map for a project, or null when valid.
+export function getProjectValidationErrors(
+  formData: Parameters<typeof prepareProjectValidationData>[0],
+  options?: Parameters<typeof prepareProjectValidationData>[1],
+) {
+  const result = projectSchema.safeParse(prepareProjectValidationData(formData, options));
+  return result.success ? null : getValidationErrorsMap(result.error);
 }
 
 export function prepareOverlayValidationData(overlay: {

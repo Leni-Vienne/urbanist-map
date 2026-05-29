@@ -398,27 +398,17 @@ export function buildProjectVisibilityCondition(
     // Moderation mode (strict): only show projects that need moderation
     // This includes: pending projects OR projects with pending overlays OR projects with pending change requests
     // Excludes: approved projects with only approved content and no pending changes
-    return sql`(
-      ${projects.status} = 'pending'
-      OR EXISTS (
-        SELECT 1 FROM ${overlays}
-        WHERE ${overlays.projectId} = ${projects.id}
-        AND ${overlays.status} = 'pending'
+    return sql`
+      ${projects.id} IN (
+        SELECT ${projects.id} FROM ${projects} WHERE ${projects.status} = 'pending'
+        UNION
+        SELECT ${overlays.projectId} FROM ${overlays} WHERE ${overlays.status} = 'pending'
+        UNION
+        SELECT ${changeRequests.entityId} FROM ${changeRequests} WHERE ${changeRequests.entityType} = 'project' AND ${changeRequests.status} = 'pending'
+        UNION
+        SELECT ${overlays.projectId} FROM ${changeRequests} JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id} WHERE ${changeRequests.entityType} = 'overlay' AND ${changeRequests.status} = 'pending'
       )
-      OR EXISTS (
-        SELECT 1 FROM ${changeRequests}
-        WHERE ${changeRequests.entityType} = 'project'
-        AND ${changeRequests.entityId} = ${projects.id}
-        AND ${changeRequests.status} = 'pending'
-      )
-      OR EXISTS (
-        SELECT 1 FROM ${changeRequests}
-        INNER JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id}
-        WHERE ${changeRequests.entityType} = 'overlay'
-        AND ${overlays.projectId} = ${projects.id}
-        AND ${changeRequests.status} = 'pending'
-      )
-    )`;
+    `;
   }
 
   // Default (anonymous or unrecognized mode): only show approved projects
@@ -629,6 +619,33 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
     .where(and(...whereConditions))
     .orderBy(overlays.createdAt);
+}
+
+// Fetch overlays matching the given WHERE conditions and shape them for map rendering,
+// merging in each overlay's pending change requests. Shared by the city and viewport routers.
+export async function fetchOverlaysForMap(
+  whereConditions: SQL[],
+  user: UserContext,
+  mode: AppMode,
+) {
+  const overlaysData = await fetchOverlaysWithLocation(whereConditions);
+  const changeRequestsByOverlay = await fetchOverlayChangeRequests(user, mode);
+
+  // In moderation mode, count change requests per overlay
+  const allChangeRequestCounts = new Map<string, number>();
+  if (mode === "moderation") {
+    for (const [overlayId, requests] of changeRequestsByOverlay) {
+      allChangeRequestCounts.set(overlayId, requests.length);
+    }
+  }
+
+  return transformOverlayDataWithChangeRequests(
+    overlaysData,
+    changeRequestsByOverlay,
+    allChangeRequestCounts,
+    mode,
+    user?.id,
+  );
 }
 
 import { TRPCError } from "@trpc/server";

@@ -56,7 +56,7 @@ const COLOR_CHANGE = 0xf5_9e_0b;
 
 function buildShareUrl(frontendUrl: string, lat: number | null, lng: number | null): string {
   if (lat === null || lng === null) return frontendUrl;
-  return `${frontendUrl}/#map=16.00/${lat.toFixed(4)}/${lng.toFixed(4)}`;
+  return `${frontendUrl}/#map=15.00/${lat.toFixed(4)}/${lng.toFixed(4)}`;
 }
 
 function buildEmbed(notification: SubmissionNotification, envName: string): DiscordEmbed {

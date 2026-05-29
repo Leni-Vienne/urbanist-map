@@ -1,17 +1,14 @@
-import L from "leaflet";
 import { nextTick } from "vue";
-import { map } from "@/services/core/map";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/overlayLifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { renderPreviewShapes } from "@/services/map/shapeRendering";
+import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapeRendering";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
-import { forEachPosition } from "@/utils/geojson";
 import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
 
 interface PreviewShapesOptions {
@@ -33,15 +30,6 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
   return gc as GeoJSON.GeometryCollection;
 }
 
-function computeBounds(geometry: GeoJSON.GeometryCollection): L.LatLngBounds | null {
-  const latLngs: L.LatLng[] = [];
-  for (const geom of geometry.geometries) {
-    forEachPosition(geom, (lng, lat) => latLngs.push(L.latLng(lat, lng)));
-  }
-  if (latLngs.length === 0) return null;
-  return L.latLngBounds(latLngs);
-}
-
 export function useShapeChangeRequestPreview() {
   const toast = useToast();
   const mapStore = useMapStore();
@@ -59,7 +47,7 @@ export function useShapeChangeRequestPreview() {
       return;
     }
 
-    const bounds = computeBounds(geometry);
+    const bounds = computeShapeBounds(geometry.geometries);
     if (!bounds) return;
 
     // Navigate to the correct country context if not already there
@@ -73,7 +61,6 @@ export function useShapeChangeRequestPreview() {
 
     renderPreviewShapes(
       geometry,
-      map.value,
       type === "new" ? "suggested" : "current",
       project.id,
       (latlng) => {
