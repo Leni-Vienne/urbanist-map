@@ -138,15 +138,16 @@ const emit = defineEmits<Emits>();
 const { t } = useI18n();
 const toast = useToast();
 
-const { moderatedContributions, isLoading, fetchModeratedContributions, acknowledgeAll } =
+const { moderatedContributions, isLoading, ensureModeratedContributions, acknowledgeAll } =
   useModeratedContributions();
 
 const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);
 
-// Fetch on mount, dialog is always mounted with visible=true due to v-if in parent
+// Mounted with visible=true due to v-if in parent. Reuses authStore's preloaded data
+// on first open and fetches fresh on later reopens.
 onMounted(() => {
-  fetchModeratedContributions();
+  ensureModeratedContributions();
 });
 
 watch(
@@ -154,7 +155,7 @@ watch(
   (newVal) => {
     isVisible.value = newVal;
     if (newVal) {
-      fetchModeratedContributions();
+      ensureModeratedContributions();
     }
   },
 );
