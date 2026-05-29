@@ -1,5 +1,25 @@
 import maplibre from "maplibre-gl";
 
+type Corner = { lat: number; lng: number };
+
+// Web Mercator is undefined beyond ~±85.06°. A corner that is finite but out of range (or
+// otherwise malformed) projects to Infinity inside cameraForBounds and crashes the camera, so
+// bad quads are rejected before they reach marker placement, navigation, or image rendering.
+const MAX_MERCATOR_LAT = 85.06;
+
+function isValidCorner(c: Corner): boolean {
+  return (
+    Number.isFinite(c.lng) &&
+    Number.isFinite(c.lat) &&
+    Math.abs(c.lat) <= MAX_MERCATOR_LAT &&
+    Math.abs(c.lng) <= 180
+  );
+}
+
+export function isValidQuad(corners: Corner[] | undefined | null): corners is Corner[] {
+  return !!corners && corners.length === 4 && corners.every(isValidCorner);
+}
+
 // Rigid overlay model used while editing. Storage stays as 4 corners; this is in-memory only.
 export interface OverlayTransform {
   center: { lat: number; lng: number };

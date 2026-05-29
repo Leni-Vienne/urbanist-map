@@ -1,6 +1,5 @@
 import { computed } from "vue";
-import { trpc, type RouterInput } from "@/client";
-import type { FieldChange } from "@shared/validation/schemas";
+import { trpc } from "@/client";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/changeRequestStore";
 import { withErrorHandling } from "@/services/core/errorHandling";
@@ -10,8 +9,6 @@ import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/marker
 import type { OverlayObject } from "@/types";
 import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-
-type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
@@ -53,20 +50,6 @@ export async function refreshPendingChangeRequests() {
 
 export function useChangeRequests() {
   const store = useChangeRequestStore();
-
-  async function submitChangeRequest(input: SubmitChangeRequestInput) {
-    const result = await withErrorHandling(
-      async () => trpc.changes.submitChangeRequest.mutate(input),
-      { errorMessage: "Failed to submit change request" },
-    );
-
-    if (result) {
-      store.resetLoaded();
-      await refreshPendingChangeRequests();
-    }
-
-    return result;
-  }
 
   async function approveChangeRequests(changeRequestIds: string[]) {
     const result = await withErrorHandling(
@@ -147,22 +130,6 @@ export function useChangeRequests() {
     return result;
   }
 
-  async function submitMultipleFieldChanges(
-    entityType: "project" | "overlay",
-    entityId: string,
-    fieldChanges: FieldChange[],
-  ) {
-    return withErrorHandling(
-      async () =>
-        submitChangeRequest({
-          entityType,
-          entityId,
-          changes: fieldChanges,
-        }),
-      { errorMessage: "Failed to submit multiple field changes", rethrow: true },
-    );
-  }
-
   return {
     pendingChangeRequests: computed(() => store.pendingChangeRequests),
     refreshPendingChangeRequests,
@@ -170,7 +137,5 @@ export function useChangeRequests() {
     rejectChangeRequests,
     deleteChangeRequest,
     resetChangeRequestsLoaded: store.resetLoaded,
-
-    submitMultipleFieldChanges,
   };
 }

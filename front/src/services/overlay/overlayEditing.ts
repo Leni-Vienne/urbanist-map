@@ -8,7 +8,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import type { OverlayObject, Project } from "@/types/index";
+import type { OverlayObject } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
@@ -167,7 +167,7 @@ export function addOverlay(
   if (!project) {
     const userContribution = projectStore.userContributions.find((p) => p.id === projectId);
     if (userContribution) {
-      project = createProjectObject(userContribution as unknown as Partial<Project>);
+      project = createProjectObject(userContribution);
     }
   }
 

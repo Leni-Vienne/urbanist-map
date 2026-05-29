@@ -13,6 +13,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { isValidQuad } from "@/services/overlay/overlayTransform";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import {
   selectOverlay,
@@ -24,24 +25,6 @@ import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 
 type Corner = { lat: number; lng: number };
-
-// Web Mercator is undefined beyond ~±85.06°. A corner that is finite but out of range (or
-// otherwise malformed) projects to Infinity inside cameraForBounds and crashes the camera, so
-// bad quads are rejected here before they reach marker placement or navigation.
-const MAX_MERCATOR_LAT = 85.06;
-
-function isValidCorner(c: Corner): boolean {
-  return (
-    Number.isFinite(c.lng) &&
-    Number.isFinite(c.lat) &&
-    Math.abs(c.lat) <= MAX_MERCATOR_LAT &&
-    Math.abs(c.lng) <= 180
-  );
-}
-
-function isValidQuad(corners: Corner[] | undefined | null): corners is Corner[] {
-  return !!corners && corners.length === 4 && corners.every(isValidCorner);
-}
 
 /**
  * Resolve an overlay's current corners from the most accurate available source:

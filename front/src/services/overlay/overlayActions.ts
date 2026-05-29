@@ -90,7 +90,7 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
   const projectStore = useProjectStore();
   const projectIds = Object.keys(projectStore.projects);
   if (projectIds.length === 0) {
-    throw new Error("No projects: Please create a project first");
+    return;
   }
 
   for (const projectId of projectIds) {
@@ -145,6 +145,9 @@ async function loadOverlay(
         throw new Error("Overlay not found");
       }
 
+      // Lazy-loaded as its own chunk: overlayRendering is dynamically imported here and in
+      // vectorTileSync / viewportRenderLoop. A static import would merge it into this chunk and
+      // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
       const { renderViewModeOverlays } = await import("@/services/overlay/overlayRendering");
 
       renderViewModeOverlays([result.overlay], true);
