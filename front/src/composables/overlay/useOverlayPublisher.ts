@@ -1,22 +1,17 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import { map } from "@/services/core/map";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
-import { validateOverlaySize, leafletCornersToCorners } from "@shared/overlayValidation";
+import { validateOverlaySize, toCornerArray } from "@shared/overlayValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
-import { getLayer } from "@/services/overlay/overlayRenderRegistry";
 
-// Extract corners from overlay object, falling back to stored corners if layer isn't ready
+// The user's last edited position (history.at(-1)) is the source of truth; fall back to
+// the stored backend corners for an unedited overlay.
 function getCornersFromOverlay(overlay: OverlayObject) {
-  const layer = getLayer(overlay.id);
-  if (layer) {
-    const corners = layer.getCorners();
-    if (corners) return corners;
-  }
+  const lastEdited = overlay.history.at(-1);
+  if (lastEdited?.length === 4) return lastEdited;
   return overlay.corners;
 }
 
@@ -64,7 +59,6 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
 
 export function useOverlayPublisher() {
   const projectStore = useProjectStore();
-  const overlayStore = useOverlayStore();
 
   function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): boolean {
     if (!project) {
@@ -77,7 +71,7 @@ export function useOverlayPublisher() {
     }
 
     // Validate overlay size constraints
-    const cornersArray = leafletCornersToCorners(corners);
+    const cornersArray = toCornerArray(corners);
     const sizeValidation = validateOverlaySize(cornersArray);
 
     if (!sizeValidation.isValid) {
@@ -113,22 +107,6 @@ export function useOverlayPublisher() {
     filename: string,
   ): void {
     updateMarkerTooltip(overlay);
-
-    const layer = getLayer(overlay.id);
-    if (layer && !map.value.hasLayer(layer)) {
-      layer.addTo(map.value);
-      // If this overlay is selected, bring to front; otherwise keep the selected one on top.
-      requestAnimationFrame(() => {
-        if (overlayStore.idSelectedOverlay === overlay.id) {
-          layer.bringToFront();
-        } else if (overlayStore.idSelectedOverlay) {
-          const selectedLayer = getLayer(overlayStore.idSelectedOverlay);
-          if (selectedLayer) {
-            selectedLayer.bringToFront();
-          }
-        }
-      });
-    }
 
     if (project) {
       const authStore = useAuthStore();

@@ -6,7 +6,7 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
 import {
   getStandaloneProjectMarkerByProjectId,

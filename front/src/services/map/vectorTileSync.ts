@@ -2,18 +2,20 @@
  * vectorTileSync.ts, idle-driven overlay sync for approved overlays.
  *
  * Listens to MapLibre's 'idle' event and diffs the rendered overlay-footprints
- * features against the overlay render registry to create/destroy Leaflet
- * DistortableImageOverlay instances for approved overlays.
+ * features against the overlay render registry to create/destroy overlay image
+ * layers for approved overlays.
  *
  * Runs in ALL modes (view, edit, moderation). Approved overlays are always
  * delivered via tiles, the bbox tRPC fetch only returns pending content.
  */
 
-import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
+import { getMlMap, onMlMapReady } from "@/services/core/map";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
+import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
 // Stores the last-synced set of OverlayData objects built from tile features.
@@ -102,10 +104,20 @@ function syncOverlaysFromTiles(mlMap: any): void {
     // local/new layers are never in that cache, so they are never touched here.
     // Also skip entries currently being created, their in-flight async load will clean up
     // via the visibility check in onOverlayFullyLoaded if they've since left view.
-    for (const [id] of registry.getAllLayers()) {
+    for (const id of registry.getRenderedOverlayIds()) {
       if (!featureMap.has(id) && !registry.isCreating(id) && approvedOverlayDataCache.has(id)) {
-        registry.clearEntry(id);
-        approvedOverlayDataCache.delete(id);
+        const data = approvedOverlayDataCache.get(id);
+        const liveCorners = getOverlayImageCorners(id);
+        const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data?.corners;
+
+        if (effectiveCorners && cornersIntersectBounds(effectiveCorners, viewportBounds)) {
+          // The overlay's backend coordinates are no longer in the MVT tiles for this viewport,
+          // BUT its live edited image intersects the viewport. Keep it alive.
+          if (data) featureMap.set(id, data);
+        } else {
+          registry.clearEntry(id);
+          approvedOverlayDataCache.delete(id);
+        }
       }
     }
 
@@ -123,13 +135,15 @@ function syncOverlaysFromTiles(mlMap: any): void {
     }
 
     // Render new overlays. renderViewModeOverlays deduplicates via beginCreation inside.
-    // createMarkers=false: click handling is done by the overlay-footprints MapLibre layer.
+    // View mode handles clicks via the overlay-footprints MapLibre layer, so no DOM pin.
+    // Edit/moderation need a clickable status pin to select an approved overlay for editing.
     const toCreate = [...featureMap.values()];
     if (toCreate.length === 0) return;
 
+    const createMarkers = useMapStore().mode !== "view";
     import("@/services/overlay/overlayRendering")
       .then(({ renderViewModeOverlays }) => {
-        renderViewModeOverlays(toCreate, false);
+        renderViewModeOverlays(toCreate, createMarkers);
       })
       .catch((error: unknown) =>
         console.error("vectorTileSync: failed to load overlayRendering", error),

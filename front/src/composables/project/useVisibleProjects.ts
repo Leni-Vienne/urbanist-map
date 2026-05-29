@@ -1,14 +1,13 @@
 import { ref, computed, watch, onUnmounted } from "vue";
-import L from "leaflet";
+import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
-import { getMlMap, onMlMapReady } from "@/services/map/tileLayers";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { map } from "@/services/core/map";
+import { map, getMlMap, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { VECTOR_QUERY_LAYERS, getZoomForGeometrySize } from "@/services/map/projectVectorLayers";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { flyToGeometry } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
 import { forEachPosition } from "@/utils/geojson";
 
@@ -18,7 +17,7 @@ interface VisibleProject {
   id: string;
   name: string | null;
   /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
-  bbox: L.LatLngBounds | null;
+  bbox: LngLatBounds | null;
   /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as popup anchor. */
   midLat: number | null;
   midLng: number | null;
@@ -197,7 +196,7 @@ function getGeomClosestToCenter(
 /** Returns [centerLng, centerLat, bounds] from the geometry's coordinate bbox. */
 function getGeomBbox(
   geom: GeoJSON.Geometry | null,
-): [number | null, number | null, L.LatLngBounds | null] {
+): [number | null, number | null, LngLatBounds | null] {
   if (!geom) return [null, null, null];
   const coords = collectCoords(geom);
   if (coords.length === 0) return [null, null, null];
@@ -213,7 +212,7 @@ function getGeomBbox(
     if (y < minY) minY = y;
     if (y > maxY) maxY = y;
   }
-  const bounds = L.latLngBounds([minY, minX], [maxY, maxX]);
+  const bounds = new LngLatBounds([minX, minY], [maxX, maxY]);
   return [(minX + maxX) / 2, (minY + maxY) / 2, bounds];
 }
 
@@ -260,14 +259,14 @@ export function useVisibleProjects() {
   });
 
   // We gate doRefresh on this flag to avoid querying on every drag frame.
-  let leafletMoving = false;
+  let mapMoving = false;
 
   function doRefresh() {
     const mlMap = getMlMap();
-    // Skip if Leaflet is still animating, or if tiles for the current viewport
+    // Skip if the map is still animating, or if tiles for the current viewport
     // haven't finished loading yet (e.g. mid-zoom). The idle/sourcedata handlers
     // will re-trigger once everything is ready.
-    if (!mlMap || leafletMoving || !mlMap.areTilesLoaded()) return;
+    if (!mlMap || mapMoving || !mlMap.areTilesLoaded()) return;
 
     const canvas = mlMap.getCanvas();
     const dpr = window.devicePixelRatio || 1;
@@ -303,7 +302,7 @@ export function useVisibleProjects() {
 
   // Fallback for cases where the mlMap stops firing `render` altogether (e.g. nothing
   // visually changed after the triggering event). Bypasses the render-frame wait and
-  // queries directly. leafletMoving is rechecked inside doRefresh so this is safe.
+  // queries directly. mapMoving is rechecked inside doRefresh so this is safe.
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   function scheduleRefresh() {
     scheduleRefreshAfterRender();
@@ -325,17 +324,16 @@ export function useVisibleProjects() {
     const mlMap = getMlMap();
     if (!mlMap) return;
 
-    // MaplibreLayer forwards Leaflet movestart/moveend onto mlMap, so these fire
-    // correctly during Leaflet drags even though MapLibre itself isn't moving.
+    // Skip refreshes mid-move; refresh once the camera settles.
     moveStartHandler = () => {
-      leafletMoving = true;
+      mapMoving = true;
     };
     moveEndHandler = () => {
-      leafletMoving = false;
+      mapMoving = false;
       scheduleRefresh();
     };
-    mlMap.on("leaflet-movestart", moveStartHandler);
-    mlMap.on("leaflet-moveend", moveEndHandler);
+    mlMap.on("movestart", moveStartHandler);
+    mlMap.on("moveend", moveEndHandler);
 
     // `idle` fires when the map stops moving AND all tiles are loaded.
     // We still piggyback a render-frame defer to guarantee the paint is done.
@@ -364,32 +362,33 @@ export function useVisibleProjects() {
     if (fallbackTimer) clearTimeout(fallbackTimer);
     if (sourcedataTimer) clearTimeout(sourcedataTimer);
     pendingQuery = false;
-    leafletMoving = false;
+    mapMoving = false;
     const mlMap = getMlMap();
     if (mlMap) {
-      if (moveStartHandler) mlMap.off("leaflet-movestart", moveStartHandler);
-      if (moveEndHandler) mlMap.off("leaflet-moveend", moveEndHandler);
+      if (moveStartHandler) mlMap.off("movestart", moveStartHandler);
+      if (moveEndHandler) mlMap.off("moveend", moveEndHandler);
       if (idleHandler) mlMap.off("idle", idleHandler);
       if (sourcedataHandler) mlMap.off("sourcedata", sourcedataHandler);
     }
   });
 
   // Suppresses hover updates while the camera is flying after a project click.
-  // Cleared on Leaflet's moveend so accidental mouseover on reshuffled rows
+  // Cleared on the map's moveend so accidental mouseover on reshuffled rows
   // doesn't highlight a different project.
   let suppressHover = false;
 
   function navigateToProject(project: VisibleProject) {
     // Use the nearest vertex of the clipped tile geometry as the anchor (it's on the drawn line).
     // Fall back to popup_lat/popup_lng (ST_PointOnSurface of the full geometry) for standalone points.
-    function resolveAnchor(): L.LatLng {
+    function resolveAnchor(): { lat: number; lng: number } {
       if (project.midLat !== null && project.midLng !== null) {
-        return L.latLng(project.midLat, project.midLng);
+        return { lat: project.midLat, lng: project.midLng };
       }
       if (project.lat !== null && project.lng !== null) {
-        return L.latLng(project.lat, project.lng);
+        return { lat: project.lat, lng: project.lng };
       }
-      return map.value.getCenter();
+      const center = map.value.getCenter();
+      return { lat: center.lat, lng: center.lng };
     }
     const latlng = resolveAnchor();
 
@@ -404,15 +403,7 @@ export function useVisibleProjects() {
       }, 200);
     });
 
-    const currentZoom = map.value.getZoom();
-    const idealZoom =
-      project.sizeM > 0 ? getZoomForGeometrySize(project.sizeM, latlng.lat, latlng.lng) : 14;
-    const targetZoom = Math.max(currentZoom, idealZoom);
-    const needsZoom = targetZoom !== currentZoom;
-    if (needsZoom) {
-      const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-      mobileAwareFlyTo(latlng, targetZoom, { duration });
-    }
+    const needsZoom = flyToGeometry(latlng, project.sizeM);
 
     void handleProjectClickFromTile(project.id, latlng, needsZoom);
   }

@@ -152,8 +152,8 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
-import { map } from "@/services/core/map";
-import L from "leaflet";
+
+import { LngLat } from "maplibre-gl";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
@@ -411,9 +411,9 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 
   // Open the shape editor panel (no popup to reopen at)
   uiStore.openShapeEditor(project);
-  // Lazy-load geoman and initialise the toolbar with the best available geometry
+  // Lazy-load the shape editor and initialise it with the best available geometry
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  await initShapeEditor(map.value, existingGeometry ?? undefined);
+  await initShapeEditor(existingGeometry ?? undefined);
 }
 
 // Navigate to the external pinned project using the same logic as a map click.
@@ -422,7 +422,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 function handleExternalProjectClick(_project: ProjectForModeration) {
   const fullProject = lastSelectedProject.value;
   if (!fullProject) return;
-  selectProject(fullProject, L.latLng(fullProject.lat ?? 0, fullProject.lng ?? 0));
+  selectProject(fullProject, new LngLat(fullProject.lng ?? 0, fullProject.lat ?? 0));
 }
 
 function handleEditProjectClick(project: ProjectForModeration) {

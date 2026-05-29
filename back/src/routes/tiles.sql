@@ -19,17 +19,17 @@ WITH tile_env AS (
 shapes AS (
   -- Generate the 'project-shapes' vector tile layer containing physical structures (polygons/lines).
   -- Shapes are gated by both zoom and size to avoid noise in dense areas at mid-zoom.
-  -- All zoom values are MapLibre zoom = Leaflet zoom - 1.
+  -- All zoom values are native MapLibre zoom.
   -- The points CTE mirrors these thresholds to hide a center marker once its shape dominates,
   -- EXCEPT the z11 catch-all: small shapes (< 200m) never suppress their marker since they
   -- are too small to be dominant even at close zoom.
-  --   z4  (Lft z5):  >= 100 km
-  --   z5  (Lft z6):  >= 50 km
-  --   z7  (Lft z8):  >= 10 km
-  --   z8  (Lft z9):  >= 1 km
-  --   z9  (Lft z10): >= 500 m  (shapes visible; marker suppressed only at z11+)
-  --   z10 (Lft z11): >= 200 m  (shapes visible; marker suppressed only at z12+)
-  --   z11+(Lft z12+): all      (shapes visible; marker suppressed only at z13+)
+  --   z4:   >= 100 km
+  --   z5:   >= 50 km
+  --   z7:   >= 10 km
+  --   z8:   >= 1 km
+  --   z9:   >= 500 m  (shapes visible; marker suppressed only at z11+)
+  --   z10:  >= 200 m  (shapes visible; marker suppressed only at z12+)
+  --   z11+: all       (shapes visible; marker suppressed only at z13+)
   -- Building shapes are additionally suppressed below z13, EXCEPT buildings >= 1 km which follow
   -- normal size-based rules (so large structures like airports are visible at lower zooms).
   SELECT ST_AsMVT(q, 'project-shapes', 4096, 'mvt_geom') AS tile
@@ -161,7 +161,7 @@ points AS (
     -- Window functions compute the size range across ALL projects in the cell, not just the
     -- representative, so the client-side size filter remains accurate for the whole cluster.
     --
-    -- At low zoom (tile z < 7, Leaflet z < 8) we collapse the status dimension so that one point
+    -- At low zoom (tile z < 7) we collapse the status dimension so that one point
     -- per (cell, tag) is emitted rather than one per (cell, tag, status). This avoids a large
     -- point-count spike caused by e.g. 3 tags × 4 statuses = 12 points per cell. Tag drives
     -- the marker color so color diversity is fully preserved; status dashes only matter once

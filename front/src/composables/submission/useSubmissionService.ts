@@ -1,12 +1,12 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
-import { getLayer } from "@/services/overlay/overlayRenderRegistry";
+import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
-import { updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import type { Project, OverlayObject, RemovableChange } from "@/types/index";
 import {
   projectSchema,
@@ -21,7 +21,7 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
 import { getCityNameCache } from "@/utils/cityNameCache";
 import {
-  prepareProjectValidationData,
+  getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
@@ -52,7 +52,7 @@ type EntityUpdate =
       changeType: SubmissionChangeType;
       // Proposed caption/corners that aren't yet on the live store entry (tracked as deltas
       // in pendingModificationsStore). When absent, validate/buildSummary fall back to the
-      // live store + Leaflet layer.
+      // live store entry.
       proposed?: {
         caption?: string | null;
         corners?: OverlayCorners;
@@ -151,12 +151,9 @@ function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrorsMap>
 }
 
 function validateProject(project: Project): string[] {
-  const validationData = prepareProjectValidationData(project, {
-    lat: project.lat,
-    lng: project.lng,
-  });
-  const result = projectSchema.safeParse(validationData);
-  return result.success ? [] : zodErrorsToMessages(result.error);
+  const errors = getProjectValidationErrors(project, { lat: project.lat, lng: project.lng });
+  if (!errors) return [];
+  return Object.values(errors).map((e) => t(e.key, e.params ?? {}));
 }
 
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
@@ -352,7 +349,7 @@ export function useSubmissionService() {
     const liveOverlay = overlayStore.overlays[context.entityId];
     const corners =
       context.proposed?.corners ??
-      getLayer(context.entityId)?.getCorners() ??
+      getOverlayImageCorners(context.entityId) ??
       liveOverlay?.corners ??
       [];
 

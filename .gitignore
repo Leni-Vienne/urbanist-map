@@ -8,17 +8,11 @@ pnpm-debug.log*
 lerna-debug.log*
 
 .claude
+GEMINI.md
 CLAUDE.md
-.mcp.json
-.agent
 *instructions.md
 .github/agents
 .github/instructions
-.serena
-.playwright-mcp
-prompts
-.specify
-report
 
 .env.test
 test-results

@@ -58,7 +58,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
-import { map } from "@/services/core/map";
 
 import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlayActions";
 import { useToast } from "@/composables/ui/useToast";
@@ -256,7 +255,7 @@ async function handleDrawShapes(project: Project) {
   if (showOverlayPopup.value) overlayStore.hideInfoPopup();
   else closeProjectInfoPopup();
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  await initShapeEditor(map.value, existingGeometry ?? undefined);
+  await initShapeEditor(existingGeometry ?? undefined);
 }
 
 async function handleDeleteProject(project: Project) {

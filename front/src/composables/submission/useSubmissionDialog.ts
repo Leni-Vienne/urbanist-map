@@ -14,12 +14,12 @@ import {
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionService } from "./useSubmissionService";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
-import L from "leaflet";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
-import { updateMarkerTooltip, updateMarkerPosition } from "@/services/overlay/overlayMarkers";
+import { updateMarkerTooltip, updateMarkerPosition } from "@/services/map/markers";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import type {
   OverlayObject,
   Project,
@@ -213,10 +213,8 @@ function resetOverlayField(
       overlayObject.redoStack = [];
     }
 
-    const overlayLayer = registry.getLayer(overlayId);
-    if (overlayLayer && cornersToUse.length === 4) {
-      const leafletCorners = cornersToUse.map((corner) => L.latLng(corner.lat, corner.lng));
-      overlayLayer.setCorners(leafletCorners);
+    if (registry.getImageHandle(overlayId) && cornersToUse.length === 4) {
+      setOverlayImageCorners(overlayId, cornersToUse);
     }
 
     updateMarkerPosition(overlayObject);

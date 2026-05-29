@@ -1,6 +1,4 @@
-import type * as L from "leaflet";
 import { watch } from "vue";
-import { map } from "@/services/core/map";
 import type { OverlayData, Project } from "@/types/index";
 import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
 import { hasProjectShapes } from "@/services/map/shapeLayerRegistry";
@@ -103,7 +101,6 @@ function getVisibleProjectsToRender() {
 function processAndRenderProjectShape(
   projectId: string,
   projectData: Project,
-  mapInstance: L.Map,
   isEditMode: boolean,
   isModeration: boolean,
 ) {
@@ -119,20 +116,8 @@ function processAndRenderProjectShape(
     isModeration,
   );
 
-  let finalGeometry = resolved?.geometry;
-  let isPending = resolved?.isPending;
-
-  // Fallback: new local projects may lack an approved geometry.
-  // In edit mode, render their local geometry instead.
-  if (
-    !finalGeometry &&
-    isEditMode &&
-    storedProject?.status === null &&
-    storedProject.geometry?.geometries?.length
-  ) {
-    finalGeometry = storedProject.geometry;
-    isPending = false;
-  }
+  const finalGeometry = resolved?.geometry;
+  const isPending = resolved?.isPending;
 
   if (!finalGeometry) return;
 
@@ -140,7 +125,6 @@ function processAndRenderProjectShape(
 
   renderProjectShapes(
     { ...projectToRender, geometry: finalGeometry },
-    mapInstance,
     isPending ? "yellow" : undefined,
   );
 }
@@ -149,7 +133,7 @@ function processAndRenderProjectShape(
  * Render shapes for all visible projects in edit/moderation mode.
  * Uses project store geometry (not tile data) so unsaved edits are reflected.
  */
-export function renderAllProjectShapes(mapInstance: L.Map) {
+export function renderAllProjectShapes() {
   const mapStore = useMapStore();
 
   // In view mode, shapes are rendered exclusively via MapLibre vector tiles.
@@ -163,7 +147,7 @@ export function renderAllProjectShapes(mapInstance: L.Map) {
   const projectsToRender = getVisibleProjectsToRender();
 
   for (const [projectId, projectData] of projectsToRender.entries()) {
-    processAndRenderProjectShape(projectId, projectData, mapInstance, isEditMode, isModeration);
+    processAndRenderProjectShape(projectId, projectData, isEditMode, isModeration);
   }
 }
 
@@ -181,7 +165,7 @@ export function initializeShapeRenderTriggers() {
     () => {
       if (mapStore.mode === "view") return;
       clearAllProjectShapes();
-      renderAllProjectShapes(map.value);
+      renderAllProjectShapes();
     },
   );
 
@@ -190,11 +174,11 @@ export function initializeShapeRenderTriggers() {
     (loaded) => {
       if (!loaded || mapStore.mode !== "moderation") return;
       clearAllProjectShapes();
-      renderAllProjectShapes(map.value);
+      renderAllProjectShapes();
     },
   );
 
-  // Entering view mode: MapLibre vector tiles take over from Leaflet shape rendering.
+  // Entering view mode: MapLibre vector tiles take over shape rendering.
   watch(
     () => mapStore.mode,
     (newMode) => {

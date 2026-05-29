@@ -45,16 +45,13 @@ export async function updateGlobalPendingPoints(mode: AppMode): Promise<void> {
 /**
  * Create a GeoJSON Feature for a project point
  */
-function createProjectFeature(
-  project: {
-    id: string;
-    lat: number;
-    lng: number;
-    name: string | null;
-    tags: string[] | null;
-  },
-  isPending: boolean,
-): GeoJSON.Feature {
+function createProjectFeature(project: {
+  id: string;
+  lat: number;
+  lng: number;
+  name: string | null;
+  tags: string[] | null;
+}): GeoJSON.Feature {
   return {
     type: "Feature",
     geometry: {
@@ -65,14 +62,13 @@ function createProjectFeature(
       id: project.id,
       name: project.name,
       tags: project.tags,
-      is_pending: isPending,
       cell_count: 1,
     },
   };
 }
 
 /**
- * Add a project to the pending projects map if it meets criteria
+ * Add a pending project to the map. Non-pending and coordinate-less projects are skipped.
  */
 function addProjectToMap(
   project: {
@@ -90,16 +86,13 @@ function addProjectToMap(
 
   pendingProjects.set(
     project.id,
-    createProjectFeature(
-      {
-        id: project.id,
-        lat: project.lat,
-        lng: project.lng,
-        name: project.name,
-        tags: project.tags,
-      },
-      isPending,
-    ),
+    createProjectFeature({
+      id: project.id,
+      lat: project.lat,
+      lng: project.lng,
+      name: project.name,
+      tags: project.tags,
+    }),
   );
 }
 

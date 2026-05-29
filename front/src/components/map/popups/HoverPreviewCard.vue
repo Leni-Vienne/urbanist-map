@@ -112,13 +112,13 @@ function timelineDasharray(status: string | null): string {
   return STATUS_DASHARRAY[status ?? ""] ?? "";
 }
 
-// Position the card near the cursor with a small offset.
+// Position the card centered horizontally under the cursor.
 // Updated imperatively via watchEffect so mousemove position changes never trigger a re-render.
-// Flips to the opposite side when near an edge, keeping a small gap from the viewport boundary.
+// Clamps to the viewport horizontally and flips above the cursor when near the bottom edge.
 const OFFSET = 16;
 const EDGE_GAP = 6;
-const CARD_W = 224; // max-w-56 = 14rem = 224px
-const CARD_H = 90; // approximate height (name + status + tags row)
+const CARD_W = 224; // max-w-56 = 14rem = 224px, used as a fallback before first measure
+const CARD_H = 90; // approximate height, used as a fallback before first measure
 
 const cardEl = ref<HTMLElement | null>(null);
 
@@ -129,8 +129,10 @@ watchEffect(() => {
   const y = hoverPreviewY.value;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const left = x + OFFSET + CARD_W > vw ? vw - CARD_W - EDGE_GAP : x + OFFSET;
-  const top = y + OFFSET + CARD_H > vh ? vh - CARD_H - EDGE_GAP : y + OFFSET;
+  const w = el.offsetWidth || CARD_W;
+  const h = el.offsetHeight || CARD_H;
+  const left = Math.max(EDGE_GAP, Math.min(x - w / 2, vw - w - EDGE_GAP));
+  const top = y + OFFSET + h + EDGE_GAP > vh ? y - OFFSET - h : y + OFFSET;
   el.style.display = "";
   el.style.left = `${left}px`;
   el.style.top = `${top}px`;

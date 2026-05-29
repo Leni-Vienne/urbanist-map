@@ -1,17 +1,14 @@
 import { computed } from "vue";
-import { trpc, type RouterInput } from "@/client";
-import type { FieldChange } from "@shared/validation/schemas";
+import { trpc } from "@/client";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/changeRequestStore";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/services/overlay/overlayMarkers";
-import L from "leaflet";
+import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
 import type { OverlayObject } from "@/types";
-import { getLayer } from "@/services/overlay/overlayRenderRegistry";
-
-type SubmitChangeRequestInput = RouterInput["changes"]["submitChangeRequest"];
+import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
@@ -33,10 +30,8 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
   overlayObject.isModified = false;
   overlayObject.history = overlayObject.corners.length === 4 ? [overlayObject.corners] : [];
   overlayObject.redoStack = [];
-  const layer = getLayer(overlayId);
-  if (layer && overlayObject.corners.length === 4) {
-    const leafletCorners = overlayObject.corners.map((corner) => L.latLng(corner.lat, corner.lng));
-    layer.setCorners(leafletCorners);
+  if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
+    setOverlayImageCorners(overlayId, overlayObject.corners);
     updateMarkerPosition(overlayObject);
   }
 }
@@ -55,20 +50,6 @@ export async function refreshPendingChangeRequests() {
 
 export function useChangeRequests() {
   const store = useChangeRequestStore();
-
-  async function submitChangeRequest(input: SubmitChangeRequestInput) {
-    const result = await withErrorHandling(
-      async () => trpc.changes.submitChangeRequest.mutate(input),
-      { errorMessage: "Failed to submit change request" },
-    );
-
-    if (result) {
-      store.resetLoaded();
-      await refreshPendingChangeRequests();
-    }
-
-    return result;
-  }
 
   async function approveChangeRequests(changeRequestIds: string[]) {
     const result = await withErrorHandling(
@@ -149,22 +130,6 @@ export function useChangeRequests() {
     return result;
   }
 
-  async function submitMultipleFieldChanges(
-    entityType: "project" | "overlay",
-    entityId: string,
-    fieldChanges: FieldChange[],
-  ) {
-    return withErrorHandling(
-      async () =>
-        submitChangeRequest({
-          entityType,
-          entityId,
-          changes: fieldChanges,
-        }),
-      { errorMessage: "Failed to submit multiple field changes", rethrow: true },
-    );
-  }
-
   return {
     pendingChangeRequests: computed(() => store.pendingChangeRequests),
     refreshPendingChangeRequests,
@@ -172,7 +137,5 @@ export function useChangeRequests() {
     rejectChangeRequests,
     deleteChangeRequest,
     resetChangeRequestsLoaded: store.resetLoaded,
-
-    submitMultipleFieldChanges,
   };
 }

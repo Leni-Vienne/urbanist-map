@@ -1,4 +1,3 @@
-import type * as L from "leaflet";
 import type { RouterOutput } from "@/client";
 import type {
   DBProject,
@@ -21,73 +20,6 @@ export interface CameraBounds {
   east: number;
   west: number;
   zoom?: number;
-}
-
-// Extend Leaflet namespace to include custom actions
-declare module "leaflet" {
-  interface MapOptions {
-    doubleTapDragZoom?: boolean | "center";
-    doubleTapDragZoomOptions?: {
-      reverse?: boolean;
-    };
-  }
-
-  interface Marker {
-    overlayId?: string;
-  }
-
-  interface Map {
-    _animatingZoom?: boolean; // _animatingZoom isn't documented for some reason
-  }
-
-  // Minimal type for DistortableImage edit actions (ResizeRotateAction, DistortAction, etc.)
-  // leaflet-toolbar is loaded as a side-effect only; we never reference L.Toolbar2 directly.
-  type DistortableAction = abstract new (...args: any[]) => object;
-
-  // Definition for DistortableImageOverlay
-  interface DistortableImageOverlay extends L.ImageOverlay {
-    actions: DistortableAction[];
-    editing: {
-      _disableKeyboard: () => void;
-      addTool: (tool: InstanceType<DistortableAction>) => void;
-      removeTool: (tool: InstanceType<DistortableAction>) => void;
-    };
-    // Returns undefined if the layer hasn't been added to the map yet (_corners is set in onAdd)
-    getCorners: () => L.LatLng[] | undefined;
-    setCorners: (corners: L.LatLng[] | { lat: number; lng: number }[]) => void;
-    setOptions: (options: Partial<DistortableImageOverlayOptions>) => void;
-    bindTooltip: (content: string, options?: L.TooltipOptions) => this;
-    openTooltip: () => this;
-    select: () => void;
-    deselect: () => void;
-  }
-
-  interface DistortableImageOverlayOptions extends L.ImageOverlayOptions {
-    actions?: DistortableAction[];
-    // resizeRotate is the most convenient mode for this site
-    mode:
-      | "drag"
-      | "scale"
-      | "distort"
-      | "rotate"
-      | "freeRotate"
-      | "resizeRotate"
-      | "transform"
-      | "lock";
-    corners?: { lat: number; lng: number }[];
-    editable?: boolean;
-    keyboard?: boolean;
-    dragBehavior?: "map" | "overlay" | "auto";
-    selectOnDrag: boolean;
-    draggable: boolean;
-    suppressToolbar?: boolean;
-    cornersOrder?: "default" | "clockwise"; // 'default': [NW, NE, SW, SE], 'clockwise': [NW, NE, SE, SW]
-  }
-
-  function distortableImageOverlay(
-    imageUrl: string,
-    options?: DistortableImageOverlayOptions,
-  ): DistortableImageOverlay;
 }
 
 export type PendingChangeRequest =
@@ -166,7 +98,7 @@ export type OverlayData = Omit<
 };
 
 // Frontend overlay type - extends OverlayData with editor state
-// Leaflet layer references (image overlay + marker) live in overlayRenderRegistry,
+// Map layer references (image overlay + marker) live in overlayRenderRegistry,
 // not on this type. OverlayObject is pure domain data.
 export interface OverlayObject extends OverlayData {
   // Computed fields

@@ -1,16 +1,22 @@
-import L from "leaflet";
 import {
   type Map as MaplibreMap,
+  type MapMouseEvent,
   type PointLike,
   type FilterSpecification,
   type ExpressionSpecification,
+  LngLatBounds,
   addProtocol,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
-import { getCurrentHighlightedProjectId } from "@/services/overlay/overlaySelection";
+import {
+  getCurrentHighlightedProjectId,
+  handleBackgroundClick,
+  selectOverlay,
+} from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { watch } from "vue";
 
 import {
   getExternalHoverId,
@@ -27,12 +33,18 @@ import {
 } from "@/services/map/hoverPreviewState";
 import {
   mobileAwareFlyTo,
-  mobileAwarePanTo,
   mobileAwareFlyToBounds,
+  flyToGeometry,
 } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileGrid";
+import {
+  SHAPE_LINE_WIDTH,
+  SHAPE_LINE_WIDTH_HOVER,
+  SHAPE_LONG_DASH,
+  SHAPE_SHORT_DASH,
+} from "@/services/map/shapeStyleConstants";
 import {
   selectedProjectTags,
   selectedStatusFilters,
@@ -94,7 +106,7 @@ addProtocol("dedupe", async (params, _abortController) => {
 
 const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
-// ── Zoom level constants (MapLibre zoom = Leaflet zoom - 1) ─────────────────
+// ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
 /** Zoom level at which project points appear (prevents overloading with 20k+ points globally) */
 const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project points disappear because shapes take over */
@@ -110,19 +122,7 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-// Line width scales with zoom to avoid the "blobby" antialiasing artifact at low zoom levels.
-const SHAPE_LINE_WIDTH = ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3] as unknown as number;
-// +1 wider variant for hover/selected states
-const SHAPE_LINE_WIDTH_HOVER = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  5,
-  2,
-  12,
-  4,
-] as unknown as number;
-const FOOTPRINT_LINE_WIDTH = [
+const FOOTPRINT_LINE_WIDTH: ExpressionSpecification = [
   "interpolate",
   ["linear"],
   ["zoom"],
@@ -130,19 +130,16 @@ const FOOTPRINT_LINE_WIDTH = [
   0.7,
   12,
   2,
-] as unknown as number;
-
-const SHAPE_LONG_DASH: [number, number] = [4, 2];
-const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
+];
 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 // Viewport padding for flyToBounds to leave space around cluster cells.
 const CLUSTER_BOUNDS_PADDING_PX = 50;
-// Below this Leaflet zoom, lone points (cell_count===1) still zoom to cell bounds
+// Below this zoom, lone points (cell_count===1) still zoom to cell bounds
 // instead of opening the project, to avoid a jarring jump from low zoom to z14.
-const LONE_POINT_CLICK_MIN_LEAFLET_ZOOM = 8;
+const LONE_POINT_CLICK_MIN_ZOOM = 7;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
@@ -207,7 +204,7 @@ function getProjectPointColorExpression(): ExpressionSpecification {
 
 /**
  * Zoom-dependent size gate for the project-shapes layer.
- * Mirrors the server-side logic in tiles.sql (all values are MapLibre zoom = Leaflet zoom - 1):
+ * Mirrors the server-side logic in tiles.sql (all values are native MapLibre zoom):
  *   z11+ → all shapes
  *   z10  → geometry_size_m >= 200 m
  *   z9   → geometry_size_m >= 500 m
@@ -311,7 +308,7 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
       getIsProposedFilterExpression(),
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
-  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate: these are small stand-ins, already gated to z8+ by null size_m
+  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate in the filter: the layer's own minzoom controls visibility
   "project-shapes-proposed-dashed": () =>
     ["all", getIsProposedFilterExpression(), getShapeZoomVisibilityFilter()] as FilterSpecification,
   "project-points-hover": () => ["==", ["get", "id"], HOVER_NONE_ID] as FilterSpecification,
@@ -345,9 +342,7 @@ function getSizeFilterExpressionForPoints(): FilterSpecification | null {
   if (maxSize !== Infinity) {
     conditions.push(["<=", ["coalesce", ["get", "min_size_m"], 0], maxSize]);
   }
-  const rangeFilter = (
-    conditions.length === 1 ? conditions[0] : ["all", ...conditions]
-  ) as FilterSpecification;
+  const rangeFilter = allOf(conditions);
   // Cells of only no-geometry projects have null max_size_m; let them pass like the shapes filter,
   // otherwise the default min size would hide every standalone/overlay-only project.
   return ["any", ["==", ["get", "max_size_m"], null], rangeFilter] as FilterSpecification;
@@ -367,9 +362,7 @@ function getSizeFilterExpressionForShapes(): FilterSpecification | null {
     conditions.push(["<=", ["get", "geometry_size_m"], maxSize]);
   }
 
-  const rangeFilter = (
-    conditions.length === 1 ? conditions[0] : ["all", ...conditions]
-  ) as FilterSpecification;
+  const rangeFilter = allOf(conditions);
   return ["any", ["==", ["get", "geometry_size_m"], null], rangeFilter] as FilterSpecification;
 }
 
@@ -405,6 +398,12 @@ function getLastModifiedDateFilterExpression(): FilterSpecification | null {
       Math.floor(maxMs / 1000),
     ]);
   }
+  return allOf(conditions);
+}
+
+// Combine raw filter conditions with "all", unwrapping the single-condition case so the
+// expression stays flat (MapLibre handles both, but flat is easier to read when debugging).
+function allOf(conditions: unknown[]): FilterSpecification {
   return (conditions.length === 1 ? conditions[0] : ["all", ...conditions]) as FilterSpecification;
 }
 
@@ -450,61 +449,24 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   }
 }
 
-/**
- * Compute the Leaflet zoom level at which a geometry of `sizeMeters` fits
- * within `targetFraction` of the map's shorter viewport dimension.
- * Uses the Web Mercator ground resolution formula adjusted for latitude.
- */
-export function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): number {
-  // Approximate a square bounding box centered on the point.
-  // 111320m per degree latitude is a standard geodesic constant.
-  const halfDegLat = sizeMeters / 2 / 111_320;
-  const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
-  const bounds = L.latLngBounds(
-    [lat - halfDegLat, lng - halfDegLng],
-    [lat + halfDegLat, lng + halfDegLng],
-  );
-  return Math.max(8, Math.min(16, map.value.getBoundsZoom(bounds)));
-}
-
-function getMaplibrePointFromLeafletEvent(
-  event: L.LeafletMouseEvent,
-  mlMap: MaplibreMap,
-): {
-  x: number;
-  y: number;
-} {
-  return mlMap.project([event.latlng.lng, event.latlng.lat]);
-}
-
-// UI overlays (search bar, filter panel, etc) are direct children of the Leaflet container,
-// not inside any .leaflet-pane. Leaflet's mousemove/click still fire when those events bubble
-// up to the container, which triggers vector hover/click on whatever sits under the overlay.
-// Vue's @click.stop / @mousemove.stop on the overlay wrappers is unreliable here (touch->click
-// synthesis, PrimeVue internals), so we filter at the handler instead.
-function isEventOverMapContent(event: L.LeafletMouseEvent): boolean {
-  const target = event.originalEvent?.target;
-  if (!(target instanceof Element)) return true;
-  return target.closest(".leaflet-pane") !== null;
-}
-
-function queryFeaturesAtLeafletEvent(
-  event: L.LeafletMouseEvent,
+function queryFeaturesAtPoint(
+  point: { x: number; y: number },
   mlMap: MaplibreMap,
   layers: readonly string[],
   hitRadius: number,
 ): any[] {
-  const point = getMaplibrePointFromLeafletEvent(event, mlMap);
+  const existingLayers = layers.filter((l) => mlMap.getLayer(l));
+  if (existingLayers.length === 0) return [];
 
   if (hitRadius > 0) {
     const bbox: [PointLike, PointLike] = [
       [point.x - hitRadius, point.y - hitRadius],
       [point.x + hitRadius, point.y + hitRadius],
     ];
-    return mlMap.queryRenderedFeatures(bbox, { layers: [...layers] });
+    return mlMap.queryRenderedFeatures(bbox, { layers: existingLayers });
   }
 
-  return mlMap.queryRenderedFeatures([point.x, point.y], { layers: [...layers] });
+  return mlMap.queryRenderedFeatures([point.x, point.y], { layers: existingLayers });
 }
 
 function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
@@ -515,7 +477,7 @@ function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
     return { projectId: HOVER_NONE_ID, overlayId: HOVER_NONE_ID };
   }
 
-  const sourceLayer = (feature as any).sourceLayer;
+  const sourceLayer = feature.sourceLayer;
   if (sourceLayer === undefined) {
     return {
       projectId: getFeaturePropertyAsString(feature, "id") || HOVER_NONE_ID,
@@ -523,7 +485,7 @@ function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
     };
   }
 
-  const isFootprint = String(sourceLayer) === "overlay-footprints";
+  const isFootprint = sourceLayer === "overlay-footprints";
   const projectIdProp = isFootprint ? "project_id" : "id";
   const projectId = getFeaturePropertyAsString(feature, projectIdProp);
   const overlayId = isFootprint
@@ -544,18 +506,75 @@ function buildIdMatchFilter(ids: string[]): FilterSpecification {
   ] as FilterSpecification;
 }
 
+// Build a MapLibre filter matching features whose "id" is NOT in the hidden set.
+function buildHiddenIdExclusionFilter(hiddenIds: string[]): FilterSpecification {
+  return ["!", ["in", ["to-string", ["get", "id"]], ["literal", hiddenIds]]] as FilterSpecification;
+}
+
+let hiddenOverlayIdsCache: string[] = [];
+
+function computeHiddenOverlayIds(): string[] {
+  const store = useOverlayStore();
+  const hidden = new Set<string>();
+  if (store.idSelectedOverlay) hidden.add(store.idSelectedOverlay);
+  for (const [id, o] of Object.entries(store.overlays)) {
+    if (o.isModified) hidden.add(id);
+  }
+  return [...hidden];
+}
+
+function getHiddenOverlayIds(): string[] {
+  return hiddenOverlayIdsCache;
+}
+
+let isHiddenOverlaysWatcherInitialized = false;
+
+function initHiddenOverlaysWatcher(): void {
+  if (isHiddenOverlaysWatcherInitialized) return;
+  isHiddenOverlaysWatcherInitialized = true;
+
+  watch(
+    () => computeHiddenOverlayIds(),
+    (hiddenIds) => {
+      hiddenOverlayIdsCache = hiddenIds;
+      const mlMap = map.value;
+      if (!mlMap) return;
+
+      const filter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : undefined;
+
+      if (mlMap.getLayer("overlay-footprints-outline")) {
+        mlMap.setFilter("overlay-footprints-outline", filter);
+      }
+      if (mlMap.getLayer("overlay-footprints-fill")) {
+        mlMap.setFilter("overlay-footprints-fill", filter);
+      }
+    },
+  );
+}
+
 function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature | null): void {
   const { projectId, overlayId } = getHoveredFeatureIds(feature);
 
   const selectedProjectId = getCurrentHighlightedProjectId() ?? HOVER_NONE_ID;
-  const selectedOverlayId = useOverlayStore().idSelectedOverlay ?? HOVER_NONE_ID;
   // The external hover (sidebar card, overlay DOM hover, popup pin) must be preserved
   // even when mousemove returns an empty result, so it's ORed into every hover filter.
   const externalProjectId = getExternalHoverId() ?? HOVER_NONE_ID;
   const externalOverlayId = getExternalHoverOverlayId() ?? HOVER_NONE_ID;
 
   const projectMatch = buildIdMatchFilter([projectId, selectedProjectId, externalProjectId]);
-  const overlayMatch = buildIdMatchFilter([overlayId, selectedOverlayId, externalOverlayId]);
+  const overlayMatchBase = buildIdMatchFilter([overlayId, externalOverlayId]);
+
+  const hiddenIds = getHiddenOverlayIds();
+  let overlayMatch: FilterSpecification;
+  if (hiddenIds.length > 0) {
+    overlayMatch = [
+      "all",
+      overlayMatchBase,
+      buildHiddenIdExclusionFilter(hiddenIds),
+    ] as FilterSpecification;
+  } else {
+    overlayMatch = overlayMatchBase;
+  }
 
   mlMap.setFilter("project-shapes-hover", projectMatch);
   mlMap.setFilter("project-shapes-hover-fill", [
@@ -585,12 +604,15 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   return vectorFeature ?? null;
 }
 
-function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng): void {
+function handleVectorFeatureClick(
+  feature: RenderedMapFeature,
+  latlng: { lat: number; lng: number },
+): void {
   const sourceLayer = String(feature.sourceLayer);
-  const projectId =
-    sourceLayer === "overlay-footprints"
-      ? getFeaturePropertyAsString(feature, "project_id")
-      : getFeaturePropertyAsString(feature, "id");
+  const isFootprint = sourceLayer === "overlay-footprints";
+  const projectId = isFootprint
+    ? getFeaturePropertyAsString(feature, "project_id")
+    : getFeaturePropertyAsString(feature, "id");
 
   if (projectId.length === 0) {
     return;
@@ -598,27 +620,24 @@ function handleVectorFeatureClick(feature: RenderedMapFeature, latlng: L.LatLng)
 
   // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
   // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
-  const currentZoom = map.value.getZoom();
   const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
-  const idealZoom =
-    geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, latlng.lat, latlng.lng) : 14;
-  const targetZoom = Math.max(currentZoom, idealZoom);
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-
-  const willFly = targetZoom !== currentZoom;
-  if (willFly) {
-    mobileAwareFlyTo([latlng.lat, latlng.lng], targetZoom, { duration });
-  }
-
-  // Prevent the map-level click handler in projectPopupTeleport from closing the
-  // current popup before the new one opens (both fire on the same Leaflet click).
-  suppressPopupCloseForClick();
+  const willFly = flyToGeometry(latlng, geometrySizeM);
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
   setExternalHover(projectId);
 
-  void handleProjectClickFromTile(projectId, latlng, willFly);
+  if (isFootprint) {
+    const overlayId = getFeaturePropertyAsString(feature, "id");
+    if (overlayId) {
+      selectOverlay(overlayId);
+    }
+  } else {
+    // Stop the map-level click handler in projectPopupTeleport from closing the
+    // current popup before the new one opens (both fire on the same map click).
+    suppressPopupCloseForClick();
+    void handleProjectClickFromTile(projectId, latlng, willFly);
+  }
 }
 
 function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | null): void {
@@ -626,18 +645,12 @@ function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | nu
 
   const activeFilter = ["==", ["to-string", ["get", "id"]], hoveredId] as FilterSpecification;
 
-  // Also we must preserve tag/status filters if any
-  const tagFilter = getTagFilterExpression();
-  const statusFilter = getStatusFilterExpression();
-
-  let combinedFilter: any = activeFilter;
-  if (tagFilter && statusFilter) {
-    combinedFilter = ["all", activeFilter, tagFilter, statusFilter];
-  } else if (tagFilter) {
-    combinedFilter = ["all", activeFilter, tagFilter];
-  } else if (statusFilter) {
-    combinedFilter = ["all", activeFilter, statusFilter];
-  }
+  // Preserve any active tag/status filters alongside the hover match.
+  const combinedFilter = combineFilters(
+    activeFilter,
+    getTagFilterExpression(),
+    getStatusFilterExpression(),
+  );
 
   mlMap.setFilter("project-points-hover", combinedFilter);
   mlMap.setFilter("pending-project-points-hover", activeFilter); // pending points don't have status filters
@@ -658,27 +671,13 @@ function setHoveredProjectId(
   setPointHoverFilter(mlMap, projectId);
 }
 
-function navigateToLonePoint(
-  props: Record<string, unknown>,
-  lat: number,
-  lng: number,
-  currentZoom: number,
-): void {
+function navigateToLonePoint(props: Record<string, unknown>, lat: number, lng: number): void {
   const hasGeometry: boolean = props.has_geometry === true;
   // geometry_size_m is the representative project's own size, not max_size_m, which spans
   // all projects in the cluster cell and is only meaningful for the client-side size filter.
   const geometrySizeM: number = (props.geometry_size_m as number | null) ?? 0;
-  const idealZoom =
-    hasGeometry && geometrySizeM > 0 ? getZoomForGeometrySize(geometrySizeM, lat, lng) : 14;
-  const targetZoom = Math.max(currentZoom, idealZoom);
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
-  if (targetZoom === currentZoom) {
-    // flyTo zooms out then back in even for pure pans, causing MapLibre canvas flicker.
-    // When no zoom change is needed, use panTo to avoid the zoom-out arc.
-    mobileAwarePanTo([lat, lng], { animate: true, duration });
-  } else {
-    mobileAwareFlyTo([lat, lng], targetZoom, { duration });
-  }
+  // allowPan avoids flyTo's zoom-out arc (and canvas flicker) when no zoom change is needed.
+  flyToGeometry([lat, lng], hasGeometry ? geometrySizeM : 0, { allowPan: true });
 }
 
 // Map a lat/lng to the tile index and pixel position inside the tile.
@@ -697,9 +696,9 @@ function getTileCoordsForLatLng(
 }
 
 // Compute the exact bounds of the cluster cell containing the given point.
-// The cell bounds are tight (no padding) because Leaflet's flyToBounds will add
-// viewport padding controlled by CLUSTER_BOUNDS_PADDING_PX.
-function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.LatLngBounds {
+// The cell bounds are tight (no padding) because fitBounds adds viewport padding
+// controlled by CLUSTER_BOUNDS_PADDING_PX.
+function getClusterCellBounds(lat: number, lng: number, tileZoom: number): LngLatBounds {
   const safeZoom = Math.max(0, tileZoom);
   const { tileX, tileY, px, py } = getTileCoordsForLatLng(lat, lng, safeZoom);
   const cellSize = getGridCellSizeForTileZoom(safeZoom);
@@ -707,7 +706,7 @@ function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.Lat
   const cellY = Math.floor(py / cellSize);
 
   // Use exact cell boundaries without geographic padding.
-  // Padding will be applied in screen space by flyToBounds.
+  // Padding will be applied in screen space by fitBounds.
   const minPx = cellX * cellSize;
   const maxPx = (cellX + 1) * cellSize;
   const minPy = cellY * cellSize;
@@ -715,7 +714,10 @@ function getClusterCellBounds(lat: number, lng: number, tileZoom: number): L.Lat
 
   const nw = tilePxToLngLat(tileX, tileY, minPx, minPy, safeZoom);
   const se = tilePxToLngLat(tileX, tileY, maxPx, maxPy, safeZoom);
-  return L.latLngBounds([nw[1], nw[0]], [se[1], se[0]]);
+  const bounds = new LngLatBounds();
+  bounds.extend([nw[0], nw[1]]);
+  bounds.extend([se[0], se[1]]);
+  return bounds;
 }
 
 /**
@@ -743,14 +745,14 @@ function navigateToCluster(
 
   const repMatchesFilter = repMatchesSizeFilter && repMatchesDateFilter;
 
-  // Leaflet zoom = MapLibre zoom + 1. Use the integer tile zoom to match MVT grid logic.
-  const tileZoom = Math.floor(currentZoom - 1);
+  // Native MapLibre zoom is the integer tile zoom used by the MVT grid logic.
+  const tileZoom = Math.floor(currentZoom);
 
   if (repMatchesFilter) {
     // Fly to the exact cluster cell boundaries. The cell bounds are tight (no geographic padding),
-    // and flyToBounds will add viewport padding to keep points away from screen edges.
+    // and fitBounds will add viewport padding to keep points away from screen edges.
     const cellBounds = getClusterCellBounds(lat, lng, tileZoom);
-    const boundsZoom = map.value.getBoundsZoom(cellBounds, false);
+    const boundsZoom = map.value.cameraForBounds(cellBounds)?.zoom ?? currentZoom;
     mobileAwareFlyToBounds(cellBounds, {
       maxZoom: Math.max(currentZoom, boundsZoom),
       padding: [CLUSTER_BOUNDS_PADDING_PX, CLUSTER_BOUNDS_PADDING_PX],
@@ -765,7 +767,10 @@ function navigateToCluster(
   }
 }
 
-async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng): Promise<void> {
+async function handlePointFeatureClick(
+  pointFeature: any,
+  eventLatLng: { lat: number; lng: number },
+): Promise<void> {
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
@@ -782,11 +787,11 @@ async function handlePointFeatureClick(pointFeature: any, eventLatLng: L.LatLng)
     const cellCount: number = pointFeature.properties?.cell_count ?? 2;
     const props: Record<string, unknown> = pointFeature.properties ?? {};
 
-    targetLatLng = L.latLng(lat, lng);
+    targetLatLng = { lat, lng };
 
-    if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_LEAFLET_ZOOM) {
+    if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_ZOOM) {
       willFly = true;
-      navigateToLonePoint(props, lat, lng, currentZoom);
+      navigateToLonePoint(props, lat, lng);
     } else {
       shouldOpenPanel = false;
       navigateToCluster(props, lat, lng, currentZoom);
@@ -805,33 +810,19 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
   });
 
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
-  // Leaflet fires mousemove at up to 500+/sec, which would saturate the main thread.
+  // mousemove fires at up to 500+/sec, which would saturate the main thread.
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
   // Position updates are exempt from throttling so the card follows the cursor smoothly.
   let hoverThrottlePending = false;
 
-  map.value.on("mousemove", (event: L.LeafletMouseEvent) => {
-    if (
-      "pointerType" in event.originalEvent &&
-      (event.originalEvent as PointerEvent).pointerType === "touch"
-    ) {
+  map.value.on("mousemove", (event: MapMouseEvent) => {
+    const orig = event.originalEvent;
+    if ("pointerType" in orig && (orig as PointerEvent).pointerType === "touch") {
       return;
     }
 
-    if (!isEventOverMapContent(event)) {
-      // Cursor is on a UI overlay (search bar, filter panel, etc). Clear any leftover
-      // hover state so the previous highlight doesn't get stuck under the overlay.
-      const mlMap = mlMapGetter();
-      if (mlMap && getExternalHoverId() === null) {
-        setVectorHoverFilters(mlMap, null);
-        setPointHoverFilter(mlMap, null);
-      }
-      clearHoverPreview();
-      return;
-    }
-
-    const clientX = event.originalEvent.clientX;
-    const clientY = event.originalEvent.clientY;
+    const clientX = orig.clientX;
+    const clientY = orig.clientY;
 
     // Always update card position immediately, bypasses Vue render via direct DOM write.
     updateHoverPreviewPosition(clientX, clientY);
@@ -845,8 +836,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    const features = queryFeaturesAtLeafletEvent(
-      event,
+    const features = queryFeaturesAtPoint(
+      event.point,
       mlMap,
       CLICK_QUERY_LAYERS,
       VECTOR_HOVER_HIT_RADIUS_PX,
@@ -857,9 +848,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
     setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
-    // Set cursor on the Leaflet container instead of the MapLibre canvas
-    // Use proper class toggling instead of overwriting inline styles that plugins rely on
-    map.value.getContainer().classList.toggle("cursor-pointer", features.length > 0);
+    mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);
     // The overlay-driven hover (sidebar card, overlay DOM hover, popup pin) is preserved
     // by setVectorHoverFilters' OR-clause, so it's safe to update on every mousemove.
     setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
@@ -872,7 +861,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    map.value.getContainer().classList.remove("cursor-pointer");
+    mlMap.getContainer().classList.remove("cursor-pointer");
     clearHoverPreview();
 
     // If a project is pinned (popup open from a click), preserve the highlight.
@@ -883,25 +872,22 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setPointHoverFilter(mlMap, null);
   });
 
-  map.value.on("click", (event: L.LeafletMouseEvent) => {
+  map.value.on("click", (event: MapMouseEvent) => {
     const mlMap = mlMapGetter();
     if (!mlMap) return;
 
-    if (!isEventOverMapContent(event)) return;
-
     clearHoverPreview();
 
-    const features = queryFeaturesAtLeafletEvent(
-      event,
+    const features = queryFeaturesAtPoint(
+      event.point,
       mlMap,
       CLICK_QUERY_LAYERS,
       VECTOR_HOVER_HIT_RADIUS_PX,
     );
-    if (!features.length) return;
 
     const vectorFeature = getVectorFeatureFromFeatures(features);
     if (vectorFeature) {
-      handleVectorFeatureClick(vectorFeature, event.latlng);
+      handleVectorFeatureClick(vectorFeature, event.lngLat);
       return;
     }
 
@@ -909,8 +895,11 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
-      void handlePointFeatureClick(pointFeature, event.latlng);
+      void handlePointFeatureClick(pointFeature, event.lngLat);
+      return;
     }
+
+    handleBackgroundClick(event.lngLat);
   });
 }
 
@@ -1051,7 +1040,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3],
+        "line-width": SHAPE_LINE_WIDTH,
         "line-dasharray": SHAPE_LONG_DASH,
       },
     },
@@ -1151,6 +1140,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
+  const hiddenIds = computeHiddenOverlayIds();
+  hiddenOverlayIdsCache = hiddenIds;
+  const hiddenFilter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : undefined;
+
   // Transparent fill so queryRenderedFeatures hits the interior of each footprint polygon,
   // not just its outline pixels. Without this, hover only fires on the dashed border.
   mlMap.addLayer(
@@ -1160,6 +1153,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
         "fill-color": getProjectLineColorExpression(),
         "fill-opacity": 0.001,
@@ -1182,18 +1176,18 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     firstSymbolLayerId,
   );
 
-  // Permanent border for overlays whose project has no drawn geometry. Without a shape
-  // outline these images can blend into the basemap, so trace their footprint edge using
-  // the same styling as the hover border.
+  // Permanent border for overlays. Without a shape outline these images can
+  // blend into the basemap, so trace their footprint edge using the same
+  // styling as the hover border.
   mlMap.addLayer(
     {
-      id: "overlay-footprints-no-geometry",
+      id: "overlay-footprints-outline",
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
-      filter: ["==", ["get", "has_geometry"], false],
       layout: { "line-cap": "round" },
+      ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
@@ -1348,4 +1342,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
 
   // Apply current tag filters to MVT layers
   applyTagFiltersToVectorLayers(mlMap);
+
+  initHiddenOverlaysWatcher();
 }

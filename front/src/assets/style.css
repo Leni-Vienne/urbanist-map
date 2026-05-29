@@ -33,39 +33,9 @@ body {
   overflow: hidden;
 }
 
-/* Otherwise the UnifiedProjectPopup is in the Helvetica font */
-.leaflet-container {
-  font-family: inherit;
-}
-
 .ldi {
   user-select: none;
   -webkit-user-select: none;
-}
-
-.ldi .leaflet-pane .leaflet-overlay-pane img {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.leaflet-control-attribution a {
-  color: #005a7d !important;
-  /* Darker blue that passes WCAG AA against #ccc, otherwise ANDI flags the attribution link */
-}
-
-/* Push Geoman draw toolbar down so it doesn't overlap the top UI chrome */
-.leaflet-pm-toolbar {
-  margin-top: 180px !important;
-}
-
-/* Ensure overlay markers don't appear above the info popup */
-.leaflet-marker-icon {
-  z-index: 0 !important;
-}
-
-/* To prevent draggable corner icons from being shown above the info popup */
-.leaflet-interactive {
-  z-index: 200 !important;
 }
 
 /* Accordion card background: slight blue-white in light, normal content bg in dark */

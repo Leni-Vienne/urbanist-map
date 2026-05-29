@@ -1,31 +1,12 @@
-import { ref, computed, reactive } from "vue";
+import { computed, reactive } from "vue";
 import { formDataToProjectFields } from "@/utils/projectFormHelpers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
-import { useChangeRequests } from "@/composables/changes/useChanges";
-import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import {
-  projectSchema,
-  getValidationErrorsMap,
-  type FieldChange,
-} from "@shared/validation/schemas";
-import { prepareProjectValidationData } from "@/utils/validationHelpers";
+import { getProjectValidationErrors } from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
 import type { DBCity } from "../../../../back/src/db/schema";
-import type { ApprovalStatus } from "@shared/types";
-
-// Dates must be converted to ISO strings to prevent double-serialization in JSONB fields
-function serializeValue(value: unknown): unknown {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-  return value;
-}
 
 // Accepts a fieldName to satisfy FieldComparator's signature; without it all fields would be tagged as changed
 function projectComparator(
@@ -48,8 +29,6 @@ interface EditableProjectFormOptions {
   entityId: string;
   initialData: ProjectFormData; // Original backend values for "modified from X" comparison
   currentData?: ProjectFormData; // Current values to display in form (if different from initialData after local saves)
-  entityStatus: ApprovalStatus | null;
-  localOnly?: boolean;
   getAvailableCities?: () => {
     id: number;
     name: string;
@@ -63,12 +42,11 @@ interface EditableProjectFormOptions {
   onClose?: () => void;
 }
 
+// Local-edit form for a project: edits are written to the store with isModified, then
+// submitted to the backend later through the submission dialog (useSubmissionService).
 export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const projectStore = useProjectStore();
-  const { submitMultipleFieldChanges } = useChangeRequests();
   const toast = useToast();
-
-  const isSubmitting = ref(false);
 
   // originalData is the comparison baseline; formData is what the user edits
   const originalData = reactive({ ...options.initialData }) as ProjectFormData;
@@ -87,39 +65,10 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     Object.assign(formData, originalData);
   }
 
-  function getChangesToSubmit(): FieldChange[] {
-    const changes: FieldChange[] = [];
-
-    for (const key of Object.keys(formData)) {
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      const fieldName = key as keyof ProjectFormData;
-      if (hasChanged(fieldName)) {
-        changes.push({
-          fieldName,
-          oldValue: serializeValue(originalData[fieldName]),
-          newValue: serializeValue(formData[fieldName]),
-        });
-      }
-    }
-
-    return changes;
-  }
-
   function getFieldClasses(fieldName: keyof ProjectFormData) {
     return {
       "field-changed": hasChanged(fieldName),
     };
-  }
-
-  async function handleApprovedEntityUpdate(changes: FieldChange[]) {
-    await submitMultipleFieldChanges("project", options.entityId, changes);
-
-    toast.add({
-      severity: "success",
-      summary: t("submission.changeRequestSubmitted"),
-      detail: t("submission.changeRequestSubmitted"),
-      life: 3000,
-    });
   }
 
   function getCityObjectForUpdate(currentProject: Project): DBCity | null {
@@ -149,7 +98,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     return cityObject;
   }
 
-  function handleLocalOnlyUpdate() {
+  function applyLocalEdit() {
     const currentProject = projectStore.projects[options.entityId];
 
     const userContributionProject = projectStore.userContributions.find(
@@ -191,114 +140,39 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     }
   }
 
-  async function handlePendingProjectUpdate() {
-    const result = await trpc.project.getUsersContributions.query({ limit: 100 });
-    const project = result.projects.find((p) => p.id === options.entityId);
-
-    if (!project) {
-      throw new Error(t("errors.projectNotFound"));
-    }
-
-    const projectData = {
-      id: options.entityId,
-      name: formData.name,
-      description: formData.description,
-      cityId: project.cityId,
-      lat: project.lat,
-      lng: project.lng,
-      timelineStatus: formData.timelineStatus,
-      proposalDate: formData.proposalDate,
-      proposalDatePrecision: formData.proposalDate
-        ? (formData.proposalDatePrecision ?? project.proposalDatePrecision)
-        : null,
-      startDate: formData.startDate,
-      startDatePrecision: formData.startDate
-        ? (formData.startDatePrecision ?? project.startDatePrecision)
-        : null,
-      endDate: formData.endDate,
-      endDatePrecision: formData.endDate
-        ? (formData.endDatePrecision ?? project.endDatePrecision)
-        : null,
-      sourceUrl: formData.sourceUrl,
-      geometry: project.geometry ?? null,
-      tags: formData.tags,
-    };
-
-    await trpc.project.publishProject.mutate(projectSchema.parse(projectData));
-
-    toast.add({
-      severity: "info",
-      summary: t("moderation.projectUpdated"),
-      detail: t("submission.changesSaved"),
-      life: 3000,
-    });
-  }
-
   function validateFormData(): boolean {
     const currentProject = projectStore.projects[options.entityId];
 
-    const validationData = prepareProjectValidationData(formData, {
+    const errors = getProjectValidationErrors(formData, {
       lat: currentProject?.lat,
       lng: currentProject?.lng,
     });
 
-    const result = projectSchema.safeParse(validationData);
+    if (!errors) return true;
 
-    if (!result.success) {
-      const errors = getValidationErrorsMap(result.error);
-      const firstError = Object.values(errors)[0];
-      if (!firstError) return false;
-      toast.add({
-        severity: "error",
-        summary: t("toast.validationError"),
-        detail: t(firstError.key, firstError.params ?? {}),
-        life: 3000,
-      });
-      return false;
-    }
-
-    return true;
+    const firstError = Object.values(errors)[0];
+    if (!firstError) return false;
+    toast.add({
+      severity: "error",
+      summary: t("toast.validationError"),
+      detail: t(firstError.key, firstError.params ?? {}),
+      life: 3000,
+    });
+    return false;
   }
 
-  async function submitChanges() {
+  function submitChanges() {
     if (!hasChanges.value) return;
+    if (!validateFormData()) return;
 
-    try {
-      isSubmitting.value = true;
-
-      if (!validateFormData()) return;
-
-      if (options.localOnly) {
-        handleLocalOnlyUpdate();
-      } else {
-        const changes = getChangesToSubmit();
-
-        if (options.entityStatus === "pending") {
-          await handlePendingProjectUpdate();
-        } else {
-          await handleApprovedEntityUpdate(changes);
-        }
-      }
-
-      options.onSubmitted?.();
-      options.onClose?.();
-    } catch (error) {
-      console.error("Failed to submit changes:", error);
-      toast.add({
-        severity: "error",
-        summary: t("toast.submissionFailed"),
-        detail: t("moderation.rejectionFailedDetail"),
-        life: 3000,
-      });
-    } finally {
-      isSubmitting.value = false;
-    }
+    applyLocalEdit();
+    options.onSubmitted?.();
+    options.onClose?.();
   }
 
   return {
     formData,
     originalData,
-    isSubmitting,
     hasChanges,
     hasChanged,
     resetChanges,
