@@ -184,6 +184,10 @@ async function handleContributionClick(contribution: LatestContribution) {
       zoomToOverlayAndSelect(contribution.id, contribution.corners);
     } else if (contribution.centroid) {
       mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18);
+    } else if (contribution.lat !== undefined && contribution.lng !== undefined) {
+      mobileAwareFlyTo([contribution.lat, contribution.lng], 18);
+    } else {
+      console.warn("Contribution has no location data to fly to!", contribution);
     }
   } else if (contribution.type === "standalone") {
     if (contribution.geometryBbox) {
