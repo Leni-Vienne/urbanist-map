@@ -493,9 +493,6 @@ async function handleApproveChange(changeId: string) {
       detail: t("moderation.changeApprovedDetail"),
       life: 3000,
     });
-
-    // Refetch pending submissions to update UI (removes approved change and competing conflicted changes)
-    await fetchPendingSubmissions();
   } else {
     toast.add({
       severity: "error",
@@ -578,9 +575,6 @@ async function executeRejectChange(changeId: string) {
       detail: t("moderation.changeRejectedDetail"),
       life: 3000,
     });
-
-    // Refetch pending submissions to update UI
-    await fetchPendingSubmissions();
   } else {
     toast.add({
       severity: "error",

@@ -38,8 +38,25 @@ export const useModerationStore = defineStore("moderation", () => {
     changeRequests.value = [];
   }
 
+  // A project belongs in the moderation list only while it still has something pending:
+  // the project itself, one of its overlays, or a change request on either.
+  function hasPendingModerationContent(project: ProjectForModeration): boolean {
+    if (project.status === "pending") return true;
+    if (project.overlays.some((overlay) => overlay.status === "pending")) return true;
+
+    const overlayIds = new Set(project.overlays.map((overlay) => overlay.id));
+    return changeRequests.value.some(
+      (cr) =>
+        (cr.entityType === "project" && cr.entityId === project.id) ||
+        (cr.entityType === "overlay" && overlayIds.has(cr.entityId)),
+    );
+  }
+
   function removeChangeRequests(changeRequestIds: string[]) {
     changeRequests.value = changeRequests.value.filter((cr) => !changeRequestIds.includes(cr.id));
+    // Approving/rejecting a change can leave an otherwise-approved project with nothing pending;
+    // drop it here so the panel matches a fresh fetch without paying for getPendingSubmissions.
+    projects.value = projects.value.filter(hasPendingModerationContent);
   }
 
   function setAllCountries(countries: CountryItem[]) {
