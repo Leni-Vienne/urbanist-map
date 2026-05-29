@@ -116,20 +116,8 @@ function processAndRenderProjectShape(
     isModeration,
   );
 
-  let finalGeometry = resolved?.geometry;
-  let isPending = resolved?.isPending;
-
-  // Fallback: new local projects may lack an approved geometry.
-  // In edit mode, render their local geometry instead.
-  if (
-    !finalGeometry &&
-    isEditMode &&
-    storedProject?.status === null &&
-    storedProject.geometry?.geometries?.length
-  ) {
-    finalGeometry = storedProject.geometry;
-    isPending = false;
-  }
+  const finalGeometry = resolved?.geometry;
+  const isPending = resolved?.isPending;
 
   if (!finalGeometry) return;
 

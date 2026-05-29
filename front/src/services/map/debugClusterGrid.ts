@@ -15,7 +15,6 @@ import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileG
 
 const SOURCE_ID = "debug-cluster-grid";
 const LAYER_ID = "debug-cluster-grid-lines";
-const LABEL_LAYER_ID = "debug-cluster-grid-labels";
 
 function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
   // Use the integer tile zoom to match the MVT grid used by the backend.
@@ -38,7 +37,6 @@ function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
   const maxTileY = latToTileY(bounds.getSouth());
 
   const lines: GeoJSON.Feature[] = [];
-  const labels: GeoJSON.Feature[] = [];
 
   for (let tx = minTileX - 1; tx <= maxTileX + 1; tx += 1) {
     for (let ty = minTileY - 1; ty <= maxTileY + 1; ty += 1) {
@@ -62,27 +60,10 @@ function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
           properties: {},
         });
       }
-      // Cell index label at each cell center
-      for (let cx = 0; cx < numCells; cx += 1) {
-        for (let cy = 0; cy < numCells; cy += 1) {
-          const [lng, lat] = tilePxToLngLat(
-            tx,
-            ty,
-            cx * cellSize + cellSize / 2,
-            cy * cellSize + cellSize / 2,
-            z,
-          );
-          labels.push({
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [lng, lat] },
-            properties: { label: `${tx},${ty} [${cx},${cy}]` },
-          });
-        }
-      }
     }
   }
 
-  return { type: "FeatureCollection", features: [...lines, ...labels] };
+  return { type: "FeatureCollection", features: lines };
 }
 
 function addLayers(mlMap: MaplibreMap) {
@@ -122,7 +103,6 @@ export function toggleClusterGrid(mlMap?: MaplibreMap): void {
   if (_active) {
     _mlMap.off("moveend", _refresh);
     _mlMap.off("zoomend", _refresh);
-    if (_mlMap.getLayer(LABEL_LAYER_ID)) _mlMap.removeLayer(LABEL_LAYER_ID);
     if (_mlMap.getLayer(LAYER_ID)) _mlMap.removeLayer(LAYER_ID);
     if (_mlMap.getSource(SOURCE_ID)) _mlMap.removeSource(SOURCE_ID);
     _active = false;

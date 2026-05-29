@@ -16,8 +16,6 @@ type LatLngInput = [number, number] | { lat: number; lng: number };
 interface FlyOptions {
   /** Animation duration in seconds (converted to milliseconds for MapLibre). */
   duration?: number;
-  /** Accepted for call-site compatibility; MapLibre animates regardless. */
-  animate?: boolean;
 }
 
 interface FlyToBoundsOptions extends FlyOptions {
@@ -332,7 +330,7 @@ export function flyToGeometry(
   if (willZoom) {
     mobileAwareFlyTo(target, targetZoom, { duration });
   } else if (options.allowPan) {
-    mobileAwarePanTo(target, { animate: true, duration });
+    mobileAwarePanTo(target, { duration });
   }
   return willZoom;
 }

@@ -361,7 +361,6 @@ export function renderPreviewShapes(
   }
 
   const features = toShapeFeatures(geometry.geometries);
-  if (features.length === 0) return;
 
   const sourceId = `shape-preview-${variant}`;
   const { layerIds, lineLayerId, fillLayerId, hitLayerId } = buildShapeLayers(
