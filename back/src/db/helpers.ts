@@ -398,27 +398,17 @@ export function buildProjectVisibilityCondition(
     // Moderation mode (strict): only show projects that need moderation
     // This includes: pending projects OR projects with pending overlays OR projects with pending change requests
     // Excludes: approved projects with only approved content and no pending changes
-    return sql`(
-      ${projects.status} = 'pending'
-      OR EXISTS (
-        SELECT 1 FROM ${overlays}
-        WHERE ${overlays.projectId} = ${projects.id}
-        AND ${overlays.status} = 'pending'
+    return sql`
+      ${projects.id} IN (
+        SELECT id FROM ${projects} WHERE ${projects.status} = 'pending'
+        UNION
+        SELECT project_id FROM ${overlays} WHERE status = 'pending'
+        UNION
+        SELECT entity_id FROM ${changeRequests} WHERE entity_type = 'project' AND status = 'pending'
+        UNION
+        SELECT o.project_id FROM ${changeRequests} c JOIN ${overlays} o ON c.entity_id = o.id WHERE c.entity_type = 'overlay' AND c.status = 'pending'
       )
-      OR EXISTS (
-        SELECT 1 FROM ${changeRequests}
-        WHERE ${changeRequests.entityType} = 'project'
-        AND ${changeRequests.entityId} = ${projects.id}
-        AND ${changeRequests.status} = 'pending'
-      )
-      OR EXISTS (
-        SELECT 1 FROM ${changeRequests}
-        INNER JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id}
-        WHERE ${changeRequests.entityType} = 'overlay'
-        AND ${overlays.projectId} = ${projects.id}
-        AND ${changeRequests.status} = 'pending'
-      )
-    )`;
+    `;
   }
 
   // Default (anonymous or unrecognized mode): only show approved projects

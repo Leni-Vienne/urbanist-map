@@ -9,7 +9,10 @@ const isDev = process.env.NODE_ENV !== "production";
 // In dev, keep the pool small: hot reloads create new pool instances while old
 // connections linger on the PostgreSQL side until TCP keepalive expires,
 // so a large dev pool quickly exhausts max_connections after a few reloads.
-const client = new SQL(config.DATABASE_URL, {
+const mainDbUrl = new URL(config.DATABASE_URL);
+mainDbUrl.searchParams.set("options", "-c statement_timeout=15000");
+
+const client = new SQL(mainDbUrl.toString(), {
   max: isDev ? 3 : 20,
   idle_timeout: isDev ? 0 : 300,
   connect_timeout: 30,
