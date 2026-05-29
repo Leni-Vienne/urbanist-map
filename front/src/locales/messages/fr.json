@@ -819,8 +819,12 @@
   },
   "shapes": {
     "drawShapes": "Dessiner",
-    "editorInstructions": "Utilisez les outils à gauche pour dessiner des lignes et des polygones. Utilisez le clic droit pour supprimer des points.",
+    "drawLine": "Ligne",
+    "drawPolygon": "Polygone",
+    "editShapes": "Modifier",
+    "editorInstructions": "Utilisez Modifier pour déplacer des points, diviser aux points milieux, ou clic droit sur un point pour le supprimer.",
     "importGeoJSON": "Importer GeoJSON",
+    "importGeoJSONTooltip": "Importer des formes depuis un fichier GeoJSON",
     "importError": "Fichier GeoJSON invalide",
     "importSkippedGeometryTypes": "Types de géométrie non pris en charge ignorés : {types}",
     "saveShapes": "Enregistrer les formes",

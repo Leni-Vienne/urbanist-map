@@ -43,7 +43,7 @@
     "no-use-before-define": "off",
     "prefer-ternary": "off",
     "max-lines-per-function": "off", // seems irrelevant with vue composables since they are large
-    "no-explicit-any": "off", // many places where we can't type properly, especially with maplibre/geoman plugins
+    "no-explicit-any": "off", // many places where we can't type properly, especially with maplibre plugins
     "max-statements": "off",
     "no-undefined": "off",
     "no-alert": "off", // temp

@@ -1,18 +1,39 @@
 <template>
   <div
-    class="fixed bottom-6 left-1/2 -translate-x-1/2 z-1100 bg-content-background rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto px-4 py-3 flex flex-col gap-3 w-fit"
+    class="absolute bottom-6 left-1/2 -translate-x-1/2 z-1100 bg-content-background rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto px-4 py-3 flex flex-col gap-3 w-fit"
   >
     <!-- w-0 min-w-full: makes the paragraph match the container width without causing it to overflow -->
     <p class="text-sm text-muted-color w-0 min-w-full text-center">
       {{ $t("shapes.editorInstructions") }}
     </p>
     <div class="flex gap-2 items-center justify-center">
-      <!-- Import GeoJSON -->
+      <!-- Draw tools -->
+      <SelectButton
+        v-model="activeMode"
+        :options="drawModeOptions"
+        option-label="label"
+        option-value="value"
+        :allow-empty="false"
+        size="small"
+        @update:model-value="handleModeChange"
+      >
+        <template #option="{ option }">
+          <i :class="option.icon" />
+          <span class="ml-1">{{ option.label }}</span>
+        </template>
+      </SelectButton>
+
+      <span class="h-6 border-l border-surface" />
+
+      <!-- Import GeoJSON (icon only, label on hover). Native title: a PrimeVue tooltip
+           renders at z~1000 and is covered by this z-1100 panel. -->
       <Button
-        :label="$t('shapes.importGeoJSON')"
+        :title="$t('shapes.importGeoJSONTooltip')"
+        :aria-label="$t('shapes.importGeoJSONTooltip')"
         icon="pi pi-upload"
         severity="secondary"
-        outlined
+        text
+        rounded
         size="small"
         @click="triggerFileInput"
       />
@@ -24,11 +45,15 @@
         @change="handleFileImport"
       />
 
+      <span class="h-6 border-l border-surface" />
+
       <!-- Cancel -->
       <Button
         :label="$t('shapes.cancel')"
         severity="secondary"
+        text
         size="small"
+        class="whitespace-nowrap"
         @click="emit('cancel')"
       />
 
@@ -38,6 +63,7 @@
         icon="pi pi-check"
         severity="success"
         size="small"
+        class="whitespace-nowrap"
         @click="handleSave"
       />
     </div>
@@ -54,6 +80,8 @@ import {
   addLayersFromGeometry,
   getDrawnGeometry,
   loadGeoJSONFile,
+  setDrawMode,
+  type ShapeDrawMode,
 } from "@/services/shape/shapeEditing";
 import { extractTagsFromOsmProperties } from "@/config/projectTags";
 
@@ -67,6 +95,20 @@ const emit = defineEmits<{
 }>();
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
+
+// Terra Draw has no built-in toolbar, so the tool selection lives here.
+// initShapeEditor pre-selects "linestring", so the panel defaults to match.
+const activeMode = ref<ShapeDrawMode>("linestring");
+
+const drawModeOptions = [
+  { value: "linestring" as const, label: t("shapes.drawLine"), icon: "pi pi-minus" },
+  { value: "polygon" as const, label: t("shapes.drawPolygon"), icon: "pi pi-stop" },
+  { value: "select" as const, label: t("shapes.editShapes"), icon: "pi pi-pencil" },
+];
+
+function handleModeChange(mode: ShapeDrawMode) {
+  setDrawMode(mode);
+}
 
 function triggerFileInput() {
   fileInputRef.value?.click();

@@ -52,6 +52,15 @@
 
       <!-- Hover preview card, always mounted so it can show before any popup is opened -->
       <HoverPreviewCard />
+
+      <!-- Shape Editor Panel - lives in the map column (outside PopupContainer) so it stays
+           centered on the map and isn't destroyed when a popup closes. -->
+      <ShapeEditorPanel
+        v-if="uiStore.shapeEditor.project"
+        @done="handleShapesDone"
+        @cancel="handleShapesCancel"
+        @suggest-tags="handleSuggestTags"
+      />
     </div>
 
     <!-- Project Management Dialogs -->
@@ -68,14 +77,6 @@
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
     <SubmissionDialogWrapper v-if="showSubmissionDialog" />
-
-    <!-- Shape Editor Panel - lives outside PopupContainer so closing a popup doesn't destroy it -->
-    <ShapeEditorPanel
-      v-if="uiStore.shapeEditor.project"
-      @done="handleShapesDone"
-      @cancel="handleShapesCancel"
-      @suggest-tags="handleSuggestTags"
-    />
   </div>
 </template>
 

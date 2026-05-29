@@ -137,7 +137,6 @@ app.use(PrimeVue, {
     modal: 1100,
     overlay: 1200,
     menu: 1200,
-    tooltip: 1100,
   },
   theme: {
     preset: UrbanistmapPreset,

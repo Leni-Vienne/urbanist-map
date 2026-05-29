@@ -817,8 +817,12 @@
   },
   "shapes": {
     "drawShapes": "Draw",
-    "editorInstructions": "Use the tools on the left to draw lines and polygons. Use the right click to delete points",
+    "drawLine": "Line",
+    "drawPolygon": "Polygon",
+    "editShapes": "Edit",
+    "editorInstructions": "Use Edit to drag points, split at midpoints, or right click a point to delete it.",
     "importGeoJSON": "Import GeoJSON",
+    "importGeoJSONTooltip": "Import shapes from a GeoJSON file",
     "importError": "Invalid GeoJSON file",
     "importSkippedGeometryTypes": "Ignored unsupported geometry types: {types}",
     "saveShapes": "Save shapes",

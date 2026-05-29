@@ -74,7 +74,8 @@ export default defineConfig(({ mode }) => ({
   // To prevent annoying automatic reloads in devmode
   optimizeDeps: {
     include: [
-      "@geoman-io/maplibre-geoman-free",
+      "terra-draw",
+      "terra-draw-maplibre-gl-adapter",
       "primevue/selectbutton",
       "primevue/autocomplete",
       "primevue/badge",
