@@ -621,6 +621,33 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .orderBy(overlays.createdAt);
 }
 
+// Fetch overlays matching the given WHERE conditions and shape them for map rendering,
+// merging in each overlay's pending change requests. Shared by the city and viewport routers.
+export async function fetchOverlaysForMap(
+  whereConditions: SQL[],
+  user: UserContext,
+  mode: AppMode,
+) {
+  const overlaysData = await fetchOverlaysWithLocation(whereConditions);
+  const changeRequestsByOverlay = await fetchOverlayChangeRequests(user, mode);
+
+  // In moderation mode, count change requests per overlay
+  const allChangeRequestCounts = new Map<string, number>();
+  if (mode === "moderation") {
+    for (const [overlayId, requests] of changeRequestsByOverlay) {
+      allChangeRequestCounts.set(overlayId, requests.length);
+    }
+  }
+
+  return transformOverlayDataWithChangeRequests(
+    overlaysData,
+    changeRequestsByOverlay,
+    allChangeRequestCounts,
+    mode,
+    user?.id,
+  );
+}
+
 import { TRPCError } from "@trpc/server";
 
 export function isModeratorOrAdmin(user: UserContext): boolean {

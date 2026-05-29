@@ -22,6 +22,8 @@ import {
   type ShapeEventBinding,
 } from "@/services/map/shapeLayerRegistry";
 
+type MapLibreMap = NonNullable<typeof map.value>;
+
 const PREVIEW_COLORS = {
   current: "#22c55e", // green-500, matches "success" severity button
   suggested: "#f59e0b", // amber-500, matches "warn" severity button
@@ -111,6 +113,119 @@ function isProjectFocused(projectId: string): boolean {
   return highlightedId === projectId;
 }
 
+interface ShapeLayerStyle {
+  color: string;
+  fillOpacity: number;
+  lineCap: "butt" | "round";
+  lineWidth: number | ExpressionSpecification;
+  lineOpacity?: number;
+  // Dash pattern in line-width units, or null for a solid line.
+  lineDash?: [number, number] | null;
+}
+
+interface ShapeLayerIds {
+  layerIds: string[];
+  lineLayerId: string;
+  // null when the geometry collection has no polygon / no line.
+  fillLayerId: string | null;
+  hitLayerId: string | null;
+}
+
+// Add the geojson source plus the fill / line / transparent-hit layers shared by the
+// project-shape and change-request-preview renderers. The transparent hit line is wide so
+// thin lines are easy to click.
+function buildShapeLayers(
+  mlMap: MapLibreMap,
+  sourceId: string,
+  features: Feature[],
+  style: ShapeLayerStyle,
+): ShapeLayerIds {
+  const lineLayerId = `${sourceId}-line`;
+  const fillLayerId = `${sourceId}-fill`;
+  const hitLayerId = `${sourceId}-hit`;
+
+  const hasPolygon = features.some((f) => isPolygonGeometry(f.geometry.type));
+  const hasLine = features.some((f) => isLineGeometry(f.geometry.type));
+
+  mlMap.addSource(sourceId, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features },
+  });
+
+  const layerIds: string[] = [];
+
+  if (hasPolygon) {
+    mlMap.addLayer({
+      id: fillLayerId,
+      type: "fill",
+      source: sourceId,
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: { "fill-color": style.color, "fill-opacity": style.fillOpacity },
+    });
+    layerIds.push(fillLayerId);
+  }
+
+  mlMap.addLayer({
+    id: lineLayerId,
+    type: "line",
+    source: sourceId,
+    layout: { "line-cap": style.lineCap },
+    paint: {
+      "line-color": style.color,
+      "line-width": style.lineWidth,
+      ...(style.lineOpacity === undefined ? {} : { "line-opacity": style.lineOpacity }),
+      ...(style.lineDash ? { "line-dasharray": style.lineDash } : {}),
+    },
+  });
+  layerIds.push(lineLayerId);
+
+  if (hasLine) {
+    mlMap.addLayer({
+      id: hitLayerId,
+      type: "line",
+      source: sourceId,
+      filter: ["==", ["geometry-type"], "LineString"],
+      paint: { "line-color": "#000000", "line-width": 20, "line-opacity": 0 },
+    });
+    layerIds.push(hitLayerId);
+  }
+
+  return {
+    layerIds,
+    lineLayerId,
+    fillLayerId: hasPolygon ? fillLayerId : null,
+    hitLayerId: hasLine ? hitLayerId : null,
+  };
+}
+
+interface ShapeEventHandlers {
+  onEnter: () => void;
+  onLeave: () => void;
+  onClick: (e: MapMouseEvent) => void;
+}
+
+// Register hover/click handlers on each non-null layer and return the bindings needed to
+// detach them later.
+function bindLayerEvents(
+  mlMap: MapLibreMap,
+  layerIds: (string | null)[],
+  handlers: ShapeEventHandlers,
+): ShapeEventBinding[] {
+  const bindings: ShapeEventBinding[] = [];
+  for (const layerId of layerIds) {
+    if (!layerId) continue;
+    mlMap.on("mouseenter", layerId, handlers.onEnter);
+    mlMap.on("mouseleave", layerId, handlers.onLeave);
+    mlMap.on("click", layerId, handlers.onClick);
+    bindings.push(
+      { type: "mouseenter", layerId, handler: handlers.onEnter },
+      { type: "mouseleave", layerId, handler: handlers.onLeave },
+      { type: "click", layerId, handler: handlers.onClick },
+    );
+  }
+  return bindings;
+}
+
 // Wire hover/click on the interaction layers (fill for polygons, transparent hit line for lines).
 // Click routes through suppressPopupCloseForClick so the canvas-level popup-close handler does not
 // close the popup we are about to open (same gotcha as the Phase-3 marker port).
@@ -121,7 +236,6 @@ function wireShapeInteraction(
 ): ShapeEventBinding[] {
   const mlMap = map.value;
   if (!mlMap) return [];
-  const bindings: ShapeEventBinding[] = [];
 
   // When a line crosses this project's own polygon, one click hits both the fill and hit
   // layers, firing onClick twice. selectProject toggles, so guard on the source DOM event.
@@ -145,18 +259,7 @@ function wireShapeInteraction(
     selectProject(project, e.lngLat);
   }
 
-  for (const layerId of [fillLayerId, hitLayerId]) {
-    if (!layerId) continue;
-    mlMap.on("mouseenter", layerId, onEnter);
-    mlMap.on("mouseleave", layerId, onLeave);
-    mlMap.on("click", layerId, onClick);
-    bindings.push(
-      { type: "mouseenter", layerId, handler: onEnter },
-      { type: "mouseleave", layerId, handler: onLeave },
-      { type: "click", layerId, handler: onClick },
-    );
-  }
-  return bindings;
+  return bindLayerEvents(mlMap, [fillLayerId, hitLayerId], { onEnter, onLeave, onClick });
 }
 
 /**
@@ -180,70 +283,30 @@ export function renderProjectShapes(
   const mapStore = useMapStore();
   const color = markerColors[colorKeyOverride ?? getProjectMarkerColor(project, mapStore.mode)];
   const { cap, dash, opacity } = lineLayoutAndDash(project.timelineStatus);
-
-  const hasPolygon = features.some((f) => isPolygonGeometry(f.geometry.type));
-  const hasLine = features.some((f) => isLineGeometry(f.geometry.type));
   const baseFillOpacity = project.timelineStatus === "proposed" ? 0.05 : 0.2;
 
   const sourceId = shapeSourceId(project.id);
-  const lineLayerId = `${sourceId}-line`;
-  const fillLayerId = `${sourceId}-fill`;
-  const hitLayerId = `${sourceId}-hit`;
-
-  mlMap.addSource(sourceId, {
-    type: "geojson",
-    data: { type: "FeatureCollection", features },
-  });
-
-  const layerIds: string[] = [];
-
-  if (hasPolygon) {
-    mlMap.addLayer({
-      id: fillLayerId,
-      type: "fill",
-      source: sourceId,
-      filter: ["==", ["geometry-type"], "Polygon"],
-      paint: { "fill-color": color, "fill-opacity": baseFillOpacity },
-    });
-    layerIds.push(fillLayerId);
-  }
-
-  mlMap.addLayer({
-    id: lineLayerId,
-    type: "line",
-    source: sourceId,
-    layout: { "line-cap": cap },
-    paint: {
-      "line-color": color,
-      "line-width": SHAPE_LINE_WIDTH,
-      "line-opacity": opacity,
-      ...(dash ? { "line-dasharray": dash } : {}),
+  const { layerIds, lineLayerId, fillLayerId, hitLayerId } = buildShapeLayers(
+    mlMap,
+    sourceId,
+    features,
+    {
+      color,
+      fillOpacity: baseFillOpacity,
+      lineCap: cap,
+      lineWidth: SHAPE_LINE_WIDTH,
+      lineOpacity: opacity,
+      lineDash: dash,
     },
-  });
-  layerIds.push(lineLayerId);
-
-  if (hasLine) {
-    mlMap.addLayer({
-      id: hitLayerId,
-      type: "line",
-      source: sourceId,
-      filter: ["==", ["geometry-type"], "LineString"],
-      paint: { "line-color": "#000000", "line-width": 20, "line-opacity": 0 },
-    });
-    layerIds.push(hitLayerId);
-  }
-
-  const eventBindings = wireShapeInteraction(
-    project,
-    hasPolygon ? fillLayerId : null,
-    hasLine ? hitLayerId : null,
   );
+
+  const eventBindings = wireShapeInteraction(project, fillLayerId, hitLayerId);
 
   const entry: ShapeEntry = {
     sourceId,
     layerIds,
     lineLayerId,
-    fillLayerId: hasPolygon ? fillLayerId : null,
+    fillLayerId,
     baseLineWidth: SHAPE_LINE_WIDTH,
     hoverLineWidth: SHAPE_LINE_WIDTH_HOVER,
     baseFillOpacity,
@@ -300,65 +363,23 @@ export function renderPreviewShapes(
   const features = toShapeFeatures(geometry.geometries);
   if (features.length === 0) return;
 
-  const color = PREVIEW_COLORS[variant];
-  const hasPolygon = features.some((f) => isPolygonGeometry(f.geometry.type));
-  const hasLine = features.some((f) => isLineGeometry(f.geometry.type));
-
   const sourceId = `shape-preview-${variant}`;
-  const lineLayerId = `${sourceId}-line`;
-  const fillLayerId = `${sourceId}-fill`;
-  const hitLayerId = `${sourceId}-hit`;
-
-  mlMap.addSource(sourceId, {
-    type: "geojson",
-    data: { type: "FeatureCollection", features },
-  });
-
-  const layerIds: string[] = [];
-
-  if (hasPolygon) {
-    mlMap.addLayer({
-      id: fillLayerId,
-      type: "fill",
-      source: sourceId,
-      filter: ["==", ["geometry-type"], "Polygon"],
-      paint: { "fill-color": color, "fill-opacity": 0.2 },
-    });
-    layerIds.push(fillLayerId);
-  }
-
-  mlMap.addLayer({
-    id: lineLayerId,
-    type: "line",
-    source: sourceId,
-    layout: { "line-cap": "round" },
-    paint: {
-      "line-color": color,
-      "line-width": 4,
-      // Dash pattern expressed in line-widths (2 on, 1.25 off).
-      "line-dasharray": [2, 1.25],
+  const { layerIds, lineLayerId, fillLayerId, hitLayerId } = buildShapeLayers(
+    mlMap,
+    sourceId,
+    features,
+    {
+      color: PREVIEW_COLORS[variant],
+      fillOpacity: 0.2,
+      lineCap: "round",
+      lineWidth: 4,
+      // Dash pattern in line-widths (2 on, 1.25 off).
+      lineDash: [2, 1.25],
     },
-  });
-  layerIds.push(lineLayerId);
-
-  if (hasLine) {
-    mlMap.addLayer({
-      id: hitLayerId,
-      type: "line",
-      source: sourceId,
-      filter: ["==", ["geometry-type"], "LineString"],
-      paint: { "line-color": "#000000", "line-width": 20, "line-opacity": 0 },
-    });
-    layerIds.push(hitLayerId);
-  }
+  );
 
   const eventBindings = onShapeClick
-    ? wirePreviewInteraction(
-        lineLayerId,
-        hasPolygon ? fillLayerId : null,
-        hasLine ? hitLayerId : null,
-        onShapeClick,
-      )
+    ? wirePreviewInteraction(lineLayerId, fillLayerId, hitLayerId, onShapeClick)
     : [];
 
   preview = { sourceId, layerIds, eventBindings };
@@ -372,7 +393,6 @@ function wirePreviewInteraction(
 ): ShapeEventBinding[] {
   const mlMap = map.value;
   if (!mlMap) return [];
-  const bindings: ShapeEventBinding[] = [];
 
   function onEnter(): void {
     mlMap.getCanvas().style.cursor = "pointer";
@@ -386,18 +406,7 @@ function wirePreviewInteraction(
     onShapeClick(e.lngLat);
   }
 
-  for (const layerId of [fillLayerId, hitLayerId]) {
-    if (!layerId) continue;
-    mlMap.on("mouseenter", layerId, onEnter);
-    mlMap.on("mouseleave", layerId, onLeave);
-    mlMap.on("click", layerId, onClick);
-    bindings.push(
-      { type: "mouseenter", layerId, handler: onEnter },
-      { type: "mouseleave", layerId, handler: onLeave },
-      { type: "click", layerId, handler: onClick },
-    );
-  }
-  return bindings;
+  return bindLayerEvents(mlMap, [fillLayerId, hitLayerId], { onEnter, onLeave, onClick });
 }
 
 /** Remove the preview layers and restore any hidden project shapes. */
