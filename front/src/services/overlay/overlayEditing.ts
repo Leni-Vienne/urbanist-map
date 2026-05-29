@@ -283,7 +283,17 @@ function applyHistoryAction(action: "undo" | "redo") {
 // Guard against duplicate keyboard shortcut registration
 let keyboardShortcutsRegistered = false;
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
 function handleKeyDown(event: KeyboardEvent) {
+  // Let the browser's native undo/redo win while typing in a field, otherwise the global
+  // capture-phase handler would also revert the selected overlay's position.
+  if (isEditableTarget(event.target)) return;
+
   // Ctrl+Z
   if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
     undo();
