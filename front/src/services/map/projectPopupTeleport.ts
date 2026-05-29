@@ -28,6 +28,12 @@ function createAnchorMarker(lngLat: [number, number]): maplibregl.Marker {
   el.style.zIndex = "610";
   el.style.pointerEvents = "none";
   el.style.overflow = "visible";
+  // Keep the anchor box at 0x0 so MapLibre's anchor:"center" translate(-50%,-50%)
+  // resolves to 0. The teleported popup overflows this box and positions itself
+  // via its own placement transforms. Without this the box grows to the popup
+  // size and the -50% shift offsets the popup up/left.
+  el.style.width = "0";
+  el.style.height = "0";
   return new maplibregl.Marker({ element: el, anchor: "center" })
     .setLngLat(lngLat)
     .addTo(map.value);

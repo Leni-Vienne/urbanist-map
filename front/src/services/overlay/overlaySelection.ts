@@ -12,7 +12,7 @@ import {
   unhighlightProjectShapes,
 } from "@/services/map/shapeLayerRegistry";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { getCornersForOverlay } from "@/services/overlay/overlayHistory";
+import { resolveOverlayRenderCorners } from "@/services/overlay/overlayHistory";
 
 type Corner = { lat: number; lng: number };
 
@@ -252,7 +252,7 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     // Approved overlays at their backend position are clicked via the vector-tile path.
     // We only run point-in-polygon for overlays whose live image can sit elsewhere.
     if (overlay.status === "approved" && !overlay.isModified) continue;
-    const corners = getCornersForOverlay(overlay);
+    const corners = resolveOverlayRenderCorners(overlay);
     if (corners?.length === 4 && isPointInCorners(lngLat, corners)) {
       selectOverlay(id);
       return;

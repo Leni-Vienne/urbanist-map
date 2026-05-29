@@ -27,13 +27,15 @@ import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 type Corner = { lat: number; lng: number };
 
 /**
- * Resolve an overlay's current corners from the most accurate available source:
+ * Resolve where to place the overlay's status MARKER, biased toward where the image actually
+ * sits right now:
  *   0. live image position (most accurate while the overlay is rendered)
  *   1. edit-mode last-edited position from history (survives layer pruning when zooming)
  *   2. stored corners
- * Returns null when no source yields a valid 4-corner quad.
+ * Returns null when no source yields a valid 4-corner quad. Deliberately the inverse priority of
+ * resolveOverlayRenderCorners, which (re)creates the image and so prefers the remembered position.
  */
-function resolveOverlayCorners(overlay: OverlayData): Corner[] | null {
+function resolveOverlayMarkerCorners(overlay: OverlayData): Corner[] | null {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
 
@@ -66,7 +68,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   const authStore = useAuthStore();
   if (!isOverlayVisible(overlay, mapStore.mode, authStore.user?.id)) return;
 
-  const corners = resolveOverlayCorners(overlay);
+  const corners = resolveOverlayMarkerCorners(overlay);
   if (!corners) return;
 
   const centroid = calculateCentroidFromCorners(corners);
@@ -132,7 +134,7 @@ function buildBounds(corners: Corner[]): LngLatBounds {
  * geometry so callers skip navigation instead of feeding NaN bounds to the camera.
  */
 export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
-  const corners = resolveOverlayCorners(overlay);
+  const corners = resolveOverlayMarkerCorners(overlay);
   return corners ? buildBounds(corners) : null;
 }
 

@@ -6,7 +6,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import { getCornersForOverlay } from "@/services/overlay/overlayHistory";
+import { resolveOverlayRenderCorners } from "@/services/overlay/overlayHistory";
 import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
 import { updateMarkerTooltip } from "@/services/map/markers";
 import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
@@ -34,7 +34,7 @@ export function renderViewModeOverlays(
 export function createOverlayImageForObject(overlayObject: OverlayObject): void {
   if (!registry.beginCreation(overlayObject.id)) return;
 
-  const corners = getCornersForOverlay(overlayObject);
+  const corners = resolveOverlayRenderCorners(overlayObject);
   if (!corners) {
     registry.cancelCreation(overlayObject.id);
     return;
@@ -86,7 +86,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
 
   const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
 
-  const corners = getCornersForOverlay(overlayObjectWithMethods);
+  const corners = resolveOverlayRenderCorners(overlayObjectWithMethods);
   if (!corners) {
     registry.cancelCreation(cdnOverlay.id);
     return;

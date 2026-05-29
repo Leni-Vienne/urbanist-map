@@ -6,11 +6,12 @@ import { updateMarkerTooltip } from "@/services/map/markers";
 import { isValidQuad } from "@/services/overlay/overlayTransform";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 
-// Corners an overlay should render at, by priority: history > backend corners > live image.
-// In view mode, approved overlays render at their backend corners but keep history, so edit
-// mode can restore in-progress edits. (overlayMarkers' resolver prefers the live image first;
-// both share isValidQuad.)
-export function getCornersForOverlay(overlayObject: OverlayObject) {
+// Corners to (re)create and hit-test the overlay IMAGE at, biased toward the remembered/intended
+// position: history > backend corners > live image. In view mode, approved overlays render at
+// their backend corners but keep history, so edit mode can restore in-progress edits.
+// Deliberately the inverse of resolveOverlayMarkerCorners, which places the marker on the LIVE
+// image and so prefers the live position first; both share isValidQuad.
+export function resolveOverlayRenderCorners(overlayObject: OverlayObject) {
   const mapStore = useMapStore();
   const ignoreHistory = mapStore.mode === "view" && overlayObject.status === "approved";
 

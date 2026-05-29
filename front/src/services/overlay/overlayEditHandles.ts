@@ -12,7 +12,7 @@ import {
   setOverlayImageTransform,
   getCurrentTransform,
 } from "@/services/overlay/overlayImageLayer";
-import { getCornersForOverlay, saveToHistory } from "@/services/overlay/overlayHistory";
+import { resolveOverlayRenderCorners, saveToHistory } from "@/services/overlay/overlayHistory";
 import { updateMarkerPosition } from "@/services/map/markers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
@@ -44,6 +44,9 @@ interface EditSession {
   svgContainer?: SVGSVGElement;
   svgPath?: SVGPathElement;
   onRender?: () => void;
+  // Set while a surface drag is mid-flight so teardown can detach its transient map listeners
+  // and re-enable dragPan immediately instead of waiting for the next mouseup.
+  activeSurfaceDrag?: { onMove: (e: MapMouseEvent) => void; onUp: () => void };
 }
 
 // Only one overlay is edited at a time (the selected one).
@@ -250,6 +253,7 @@ function wireSurfaceDrag(s: EditSession): void {
     function onUp(): void {
       mlMap.off("mousemove", onMove);
       mlMap.dragPan.enable();
+      s.activeSurfaceDrag = undefined;
       if (didMove) {
         flagSize(overlayObject);
         saveToHistory(overlayObject);
@@ -258,6 +262,7 @@ function wireSurfaceDrag(s: EditSession): void {
 
     mlMap.on("mousemove", onMove);
     mlMap.once("mouseup", onUp);
+    s.activeSurfaceDrag = { onMove, onUp };
   };
 
   mlMap.on("mouseenter", s.fillLayerId, s.onEnter);
@@ -279,7 +284,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   // Rectify so the image corners line up with the handles (skewed overlays snap to a rectangle).
   const transformToUse = getCurrentTransform(overlayObject.id);
   const corners =
-    getCornersForOverlay(overlayObject) ??
+    resolveOverlayRenderCorners(overlayObject) ??
     (transformToUse ? transformToCorners(transformToUse) : overlayObject.corners);
   const transform = cornersToTransform(corners);
   setOverlayImageTransform(overlayObject.id, transform);
@@ -350,6 +355,15 @@ export function hideEditHandles(): void {
   s.cornerMarkers.forEach((marker) => marker.remove());
 
   if (!mlMap) return;
+
+  // Tear down an in-flight surface drag so its mousemove handler stops mutating a dead session
+  // and dragPan is restored now rather than on a mouseup that may never reach this overlay.
+  if (s.activeSurfaceDrag) {
+    mlMap.off("mousemove", s.activeSurfaceDrag.onMove);
+    mlMap.off("mouseup", s.activeSurfaceDrag.onUp);
+    mlMap.dragPan.enable();
+  }
+
   if (s.onEnter) mlMap.off("mouseenter", s.fillLayerId, s.onEnter);
   if (s.onLeave) mlMap.off("mouseleave", s.fillLayerId, s.onLeave);
   if (s.onDown) mlMap.off("mousedown", s.fillLayerId, s.onDown);

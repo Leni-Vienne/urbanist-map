@@ -400,13 +400,13 @@ export function buildProjectVisibilityCondition(
     // Excludes: approved projects with only approved content and no pending changes
     return sql`
       ${projects.id} IN (
-        SELECT id FROM ${projects} WHERE ${projects.status} = 'pending'
+        SELECT ${projects.id} FROM ${projects} WHERE ${projects.status} = 'pending'
         UNION
-        SELECT project_id FROM ${overlays} WHERE status = 'pending'
+        SELECT ${overlays.projectId} FROM ${overlays} WHERE ${overlays.status} = 'pending'
         UNION
-        SELECT entity_id FROM ${changeRequests} WHERE entity_type = 'project' AND status = 'pending'
+        SELECT ${changeRequests.entityId} FROM ${changeRequests} WHERE ${changeRequests.entityType} = 'project' AND ${changeRequests.status} = 'pending'
         UNION
-        SELECT o.project_id FROM ${changeRequests} c JOIN ${overlays} o ON c.entity_id = o.id WHERE c.entity_type = 'overlay' AND c.status = 'pending'
+        SELECT ${overlays.projectId} FROM ${changeRequests} JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id} WHERE ${changeRequests.entityType} = 'overlay' AND ${changeRequests.status} = 'pending'
       )
     `;
   }
