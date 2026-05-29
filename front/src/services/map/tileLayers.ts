@@ -51,6 +51,11 @@ function toBoundingBox(bbox: number[]): BoundingBox {
 // Default max native zoom for Esri layer (safe baseline)
 const BASELINE_ESRI_MAX_ZOOM = 18;
 
+// Live Esri max native zoom for the current location, refined at runtime from the Esri
+// metadata API. Kept separate from the static satelliteLayerConfigs entry so the config
+// stays immutable.
+let currentEsriMaxZoom = BASELINE_ESRI_MAX_ZOOM;
+
 // Satellite tile layer configurations. "plan" is the MapLibre vector basemap
 // and is not listed here (it uses the OpenFreeMap style URL directly).
 const satelliteLayerConfigs = {
@@ -360,6 +365,9 @@ export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollect
  */
 function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification {
   const config = satelliteLayerConfigs[layerType];
+  // Esri's usable max zoom varies by location and is refined at runtime; all other
+  // layers use their fixed configured maxZoom.
+  const maxzoom = layerType === "esri" ? currentEsriMaxZoom : config.maxZoom;
   return {
     version: 8,
     sources: {
@@ -368,7 +376,7 @@ function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification 
         tiles: config.tiles,
         tileSize: config.tileSize,
         attribution: config.attribution,
-        maxzoom: config.maxZoom,
+        maxzoom,
       },
     },
     layers: [{ id: "satellite", type: "raster", source: "satellite" }],
@@ -478,33 +486,28 @@ async function checkEsriMaxZoom() {
 }
 
 function applyEsriMaxZoom(zoomLevel: number) {
-  const esriConfig = satelliteLayerConfigs.esri;
+  if (currentEsriMaxZoom === zoomLevel) return;
+  currentEsriMaxZoom = zoomLevel;
 
-  if (esriConfig.maxZoom !== zoomLevel) {
-    esriConfig.maxZoom = zoomLevel;
+  if (currentTileLayer.value !== "esri") return;
+  const mlMap = getMlMap();
+  if (!mlMap) return;
 
-    if (currentTileLayer.value === "esri") {
-      const mlMap = getMlMap();
-      if (mlMap) {
-        // MapLibre GL JS doesn't officially support hot-swapping source maxzoom;
-        // update it via internal properties and force a tile refresh.
-        const source = mlMap.getSource("satellite");
-        if (source) {
-          (source as any).maxzoom = zoomLevel;
-          try {
-            const sourceCache = (mlMap.style as any).sourceCaches.satellite;
-            if (sourceCache) {
-              sourceCache.clearTiles();
-              sourceCache.update((mlMap as any).transform);
-            }
-          } catch {
-            // ignore
-          }
-          mlMap.triggerRepaint();
-        }
-      }
+  // MapLibre GL JS doesn't officially support hot-swapping source maxzoom;
+  // update it via internal properties and force a tile refresh.
+  const source = mlMap.getSource("satellite");
+  if (!source) return;
+  (source as any).maxzoom = zoomLevel;
+  try {
+    const sourceCache = (mlMap.style as any).sourceCaches.satellite;
+    if (sourceCache) {
+      sourceCache.clearTiles();
+      sourceCache.update((mlMap as any).transform);
     }
+  } catch {
+    // ignore
   }
+  mlMap.triggerRepaint();
 }
 
 // Interface for the Esri Identify API response

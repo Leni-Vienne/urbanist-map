@@ -21,6 +21,12 @@ import {
   type ShapeEntry,
   type ShapeEventBinding,
 } from "@/services/map/shapeLayerRegistry";
+import {
+  SHAPE_LINE_WIDTH,
+  SHAPE_LINE_WIDTH_HOVER,
+  SHAPE_LONG_DASH,
+  SHAPE_SHORT_DASH,
+} from "@/services/map/shapeStyleConstants";
 
 type MapLibreMap = NonNullable<typeof map.value>;
 
@@ -29,27 +35,6 @@ const PREVIEW_COLORS = {
   suggested: "#f59e0b", // amber-500, matches "warn" severity button
 } as const;
 
-// Zoom-interpolated line widths, identical to the view-mode project-shapes MVT layers.
-const SHAPE_LINE_WIDTH: ExpressionSpecification = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  5,
-  1,
-  12,
-  3,
-];
-const SHAPE_LINE_WIDTH_HOVER: ExpressionSpecification = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  5,
-  2,
-  12,
-  4,
-];
-const SHAPE_LONG_DASH: [number, number] = [4, 2];
-const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
 const HOVER_FILL_OPACITY = 0.35;
 
 type LineGeomType = "LineString" | "MultiLineString";
@@ -74,7 +59,8 @@ function toShapeFeatures(geometries: GeoJSON.Geometry[]): Feature[] {
   return features;
 }
 
-function computeBounds(geometries: GeoJSON.Geometry[]): LngLatBounds | null {
+/** Combined bounds of a collection's line/polygon geometries (points excluded), or null. */
+export function computeShapeBounds(geometries: GeoJSON.Geometry[]): LngLatBounds | null {
   let bounds: LngLatBounds | null = null;
   for (const geometry of geometries) {
     if (geometry.type === "Point" || geometry.type === "MultiPoint") continue;
@@ -311,7 +297,7 @@ export function renderProjectShapes(
     hoverLineWidth: SHAPE_LINE_WIDTH_HOVER,
     baseFillOpacity,
     hoverFillOpacity: HOVER_FILL_OPACITY,
-    bounds: computeBounds(project.geometry.geometries),
+    bounds: computeShapeBounds(project.geometry.geometries),
     eventBindings,
   };
   setShapeEntry(project.id, entry);

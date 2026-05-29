@@ -40,6 +40,11 @@ function clearTimer(): void {
   }
 }
 
+/** Hover previews are pointer-only; suppress them on mobile widths and touch frames. */
+function isHoverPreviewDisabled(): boolean {
+  return globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches;
+}
+
 /**
  * Trigger a hover preview for a single project after a short delay.
  * All display data comes directly from tile feature properties, no backend call.
@@ -53,8 +58,7 @@ export function triggerProjectHover(
   x: number,
   y: number,
 ): void {
-  // Disable hover preview on mobile/touch frames
-  if (globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches) return;
+  if (isHoverPreviewDisabled()) return;
 
   // Card already visible for this project, only update position refs (no content re-render)
   if (hoverPreview.value?.type === "project" && hoverPreview.value.projectId === projectId) {
@@ -89,8 +93,7 @@ export function triggerProjectHover(
  * Show a cluster count tooltip immediately (no delay, it carries no per-project data).
  */
 export function triggerClusterHover(count: number, x: number, y: number): void {
-  // Disable hover preview on mobile/touch frames
-  if (globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches) return;
+  if (isHoverPreviewDisabled()) return;
 
   clearTimer();
   _pendingId = null;

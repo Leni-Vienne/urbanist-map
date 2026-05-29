@@ -1,4 +1,3 @@
-import { LngLatBounds } from "maplibre-gl";
 import { nextTick } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -6,11 +5,10 @@ import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/overlayLifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { renderPreviewShapes } from "@/services/map/shapeRendering";
+import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapeRendering";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
-import { forEachPosition } from "@/utils/geojson";
 import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
 
 interface PreviewShapesOptions {
@@ -32,17 +30,6 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
   return gc as GeoJSON.GeometryCollection;
 }
 
-function computeBounds(geometry: GeoJSON.GeometryCollection): LngLatBounds | null {
-  let bounds: LngLatBounds | null = null;
-  for (const geom of geometry.geometries) {
-    forEachPosition(geom, (lng, lat) => {
-      if (bounds) bounds.extend([lng, lat]);
-      else bounds = new LngLatBounds([lng, lat], [lng, lat]);
-    });
-  }
-  return bounds;
-}
-
 export function useShapeChangeRequestPreview() {
   const toast = useToast();
   const mapStore = useMapStore();
@@ -60,7 +47,7 @@ export function useShapeChangeRequestPreview() {
       return;
     }
 
-    const bounds = computeBounds(geometry);
+    const bounds = computeShapeBounds(geometry.geometries);
     if (!bounds) return;
 
     // Navigate to the correct country context if not already there

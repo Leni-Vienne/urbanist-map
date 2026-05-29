@@ -40,6 +40,12 @@ import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileGrid";
 import {
+  SHAPE_LINE_WIDTH,
+  SHAPE_LINE_WIDTH_HOVER,
+  SHAPE_LONG_DASH,
+  SHAPE_SHORT_DASH,
+} from "@/services/map/shapeStyleConstants";
+import {
   selectedProjectTags,
   selectedStatusFilters,
   splitTagSelection,
@@ -116,19 +122,7 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-// Line width scales with zoom to avoid the "blobby" antialiasing artifact at low zoom levels.
-const SHAPE_LINE_WIDTH = ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3] as unknown as number;
-// +1 wider variant for hover/selected states
-const SHAPE_LINE_WIDTH_HOVER = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  5,
-  2,
-  12,
-  4,
-] as unknown as number;
-const FOOTPRINT_LINE_WIDTH = [
+const FOOTPRINT_LINE_WIDTH: ExpressionSpecification = [
   "interpolate",
   ["linear"],
   ["zoom"],
@@ -136,10 +130,7 @@ const FOOTPRINT_LINE_WIDTH = [
   0.7,
   12,
   2,
-] as unknown as number;
-
-const SHAPE_LONG_DASH: [number, number] = [4, 2];
-const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
+];
 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
@@ -317,7 +308,7 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
       getIsProposedFilterExpression(),
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
-  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate: these are small stand-ins, already gated to z8+ by null size_m
+  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate in the filter: the layer's own minzoom controls visibility
   "project-shapes-proposed-dashed": () =>
     ["all", getIsProposedFilterExpression(), getShapeZoomVisibilityFilter()] as FilterSpecification,
   "project-points-hover": () => ["==", ["get", "id"], HOVER_NONE_ID] as FilterSpecification,
@@ -1049,7 +1040,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 3],
+        "line-width": SHAPE_LINE_WIDTH,
         "line-dasharray": SHAPE_LONG_DASH,
       },
     },
