@@ -4,39 +4,20 @@ import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/overlayActions";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
 import { requestScrollTo } from "@/services/layout/accordionState";
+import {
+  canModerateCountry,
+  syncModerationCountry,
+} from "@/services/moderation/moderationCountrySync";
+
+export { canModerateCountry, syncModerationCountry };
 
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
-
-/**
- * Check if the current user can moderate a given country.
- * Admins can moderate all countries; moderators only their assigned ones.
- */
-export function canModerateCountry(countryCode: string): boolean {
-  const authStore = useAuthStore();
-  const user = authStore.user;
-  if (!user) return false;
-  if (user.role === "admin") {
-    return true;
-  }
-  return user.moderatedCountries?.includes(countryCode) ?? false;
-}
-
-/**
- * Set the active country so the moderation panel reloads its pending submissions.
- */
-export function syncModerationCountry(countryCode: string): void {
-  const mapStore = useMapStore();
-  if (mapStore.selectedCountryCode !== countryCode) {
-    mapStore.selectedCountryCode = countryCode;
-  }
-}
 
 /**
  * Shared composable for handling overlay clicks from moderation/contribution panels.

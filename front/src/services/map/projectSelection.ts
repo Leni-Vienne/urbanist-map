@@ -9,6 +9,7 @@ import {
 import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
+import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 
 /**
  * Open the project info popup and pin the teleport anchor for the given project.
@@ -32,6 +33,10 @@ export function selectProject(
   uiStore.openProjectInfoPopup(project.id, project);
   setPopupPlacementForLatLng(latlng, atCenter);
   createProjectInfoTeleportTargetAtLatLng(latlng);
+
+  // In moderation mode, switch the panel to this project's country so its pending
+  // submissions load and the popup watcher's scroll request can resolve.
+  syncModerationCountryFromMapClick(project.countryCode);
 }
 
 /**
