@@ -108,7 +108,9 @@
     "architect": "Architecte",
     "addImages": "Ajouter",
     "tags": "Catégories",
-    "additionalDetails": "Détails supplémentaires"
+    "additionalDetails": "Détails supplémentaires",
+    "osmSource": "OpenStreetMap",
+    "importedTooltip": "Importé depuis OpenStreetMap"
   },
   "tags": {
     "tram": "Tramway",

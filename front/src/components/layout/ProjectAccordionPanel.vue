@@ -52,6 +52,7 @@
               :name="pinnedExternalProject.name ?? ''"
               :status="pinnedExternalProject.status"
               :hide-status-badges="hideStatusBadges"
+              :import-source-type="pinnedExternalProject.importSource?.type ?? null"
             />
             <ProjectContent
               :project="pinnedExternalProject"
@@ -104,6 +105,7 @@
               :status="project.status"
               :hide-status-badges="hideStatusBadges"
               :pending-change-count="getPendingChangeCount(project)"
+              :import-source-type="project.importSource?.type ?? null"
             />
             <ProjectContent
               :project="project"
