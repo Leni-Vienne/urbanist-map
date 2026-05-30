@@ -393,8 +393,6 @@ export const overlayRouter = router({
           projectId: overlays.projectId,
           replacedByOverlayId: overlays.replacedByOverlayId,
           projectName: projects.name,
-          lat: sql<number | null>`NULL`,
-          lng: sql<number | null>`NULL`,
           cityId: projects.cityId,
           cityName: cities.name,
           countryCode: projects.countryCode,

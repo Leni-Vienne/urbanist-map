@@ -18,8 +18,8 @@ import {
 //   a) There is no duplication between tile-rendered and tRPC-rendered layers.
 //   b) The cluster source only gets augmented with pending content.
 // This is intentionally an inline override rather than a change to
-// buildOverlayVisibilityCondition in helpers.ts, because other callers
-// (getCityOverlaysAndProjects, moderation panel) still need the full set.
+// buildOverlayVisibilityCondition in helpers.ts, because moderation mode
+// still needs the full set.
 
 /**
  * Build the overlay visibility WHERE condition for the viewport bbox endpoint
@@ -61,7 +61,7 @@ const bboxSchema = z.object({
 
 const getOverlaysInViewportSchema = z.object({
   bbox: bboxSchema,
-  mode: z.enum(["view", "edit", "moderation"]).optional().default("view"),
+  mode: z.enum(["edit", "moderation"]),
 });
 
 const getProjectsInViewportSchema = z.object({
@@ -97,7 +97,6 @@ export const viewportRouter = router({
             lng: projects.lng,
             tags: projects.tags,
             name: projects.name,
-            status: projects.status,
           })
           .from(projects)
           .where(
@@ -121,7 +120,6 @@ export const viewportRouter = router({
             lng: projects.lng,
             tags: projects.tags,
             name: projects.name,
-            status: sql<string>`'pending'`,
           })
           .from(overlays)
           .innerJoin(projects, eq(overlays.projectId, projects.id))
@@ -149,7 +147,6 @@ export const viewportRouter = router({
     }),
 
   // Bbox-based overlay fetch for edit and moderation modes.
-  // Replaces getCityOverlaysAndProjects as the map rendering data source.
   // Uses ST_Intersects on overlay centroid against the viewport bbox.
   // Cache-Control: no-store (user-specific, session-gated).
   getOverlaysInViewport: publicProcedure

@@ -17,7 +17,6 @@ let globalPendingPoints: {
   lng: number | null;
   tags: string[] | null;
   name: string | null;
-  status: string;
 }[] = [];
 
 /**

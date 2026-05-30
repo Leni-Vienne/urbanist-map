@@ -1,15 +1,8 @@
 import * as z from "zod";
 import { publicProcedure, router, TRPCError } from "../trpc";
-import { cities, projects } from "../db/schema";
+import { cities } from "../db/schema";
 import { sql, eq } from "drizzle-orm";
 import { db } from "../database";
-import {
-  getUserOverlayChangeRequestIds,
-  buildProjectVisibilityCondition,
-  buildOverlayVisibilityCondition,
-  fetchOverlaysForMap,
-  requireModeratorAccess,
-} from "../db/helpers";
 
 const getCitiesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -22,11 +15,6 @@ const searchCitiesNearLocationSchema = z.object({
   lng: z.number().min(-180).max(180),
   search: z.string().min(1).max(100),
   limit: z.number().min(1).max(25).default(10),
-});
-
-const getCityOverlaysAndProjectsSchema = z.object({
-  cityId: z.number(),
-  mode: z.enum(["view", "edit", "moderation"]).optional().default("view"),
 });
 
 export const citiesRouter = router({
@@ -182,40 +170,6 @@ export const citiesRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to search cities near location",
-        });
-      }
-    }),
-
-  // Get all approved projects and overlays for a specific city
-  getCityOverlaysAndProjects: publicProcedure
-    .input(getCityOverlaysAndProjectsSchema)
-    .query(async ({ input, ctx }) => {
-      try {
-        const { cityId, mode } = input;
-
-        // SECURITY: Reject moderation mode for unauthenticated users
-        requireModeratorAccess(ctx.user, mode);
-
-        // Fetch user's overlay change request IDs if in edit mode
-        const overlayChangeRequestIds =
-          ctx.user && mode === "edit"
-            ? await getUserOverlayChangeRequestIds(db, ctx.user.id)
-            : undefined;
-
-        // Build visibility conditions using helper functions
-        const whereConditions = [
-          eq(projects.cityId, cityId),
-          // In moderation mode, disable strict filtering to show approved projects (context)
-          buildProjectVisibilityCondition(ctx.user, mode, false),
-          buildOverlayVisibilityCondition(ctx.user, mode, overlayChangeRequestIds),
-        ];
-
-        return await fetchOverlaysForMap(whereConditions, ctx.user, mode);
-      } catch (error) {
-        console.error("Error fetching city projects:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch city projects",
         });
       }
     }),

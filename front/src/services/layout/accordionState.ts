@@ -32,10 +32,12 @@ export function consumeScrollRequest(): ScrollRequest | null {
   return request;
 }
 
-function expandProjectAccordion(projectId: string) {
+function expandProjectAccordion(projectId: string): boolean {
   if (!activeAccordionPanels.value.includes(projectId)) {
     activeAccordionPanels.value.push(projectId);
+    return true;
   }
+  return false;
 }
 
 /**
@@ -69,6 +71,5 @@ export function expandAccordionForProject(
   const project = projects.find((p) => p.id === projectId);
   if (!project) return false;
 
-  expandProjectAccordion(project.id);
-  return true;
+  return expandProjectAccordion(project.id);
 }

@@ -66,7 +66,10 @@ export function useOverlayPublisher() {
     }
 
     const corners = getCornersFromOverlay(overlay);
-    if (corners.length !== 4 || corners.some((c) => !c.lat || !c.lng)) {
+    if (
+      corners.length !== 4 ||
+      corners.some((c) => !Number.isFinite(c.lat) || !Number.isFinite(c.lng))
+    ) {
       throw new Error("Cannot Publish: Overlay must have valid position (4 corners)");
     }
 
