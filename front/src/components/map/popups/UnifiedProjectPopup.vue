@@ -78,7 +78,7 @@
           <div class="flex gap-1 shrink-0">
             <!-- Edit button (owned = direct edit, non-owned = suggest changes) -->
             <button
-              v-if="!viewMode && project && user && !project.importSourceId"
+              v-if="!viewMode && project && user"
               type="button"
               :aria-label="
                 project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
@@ -157,7 +157,6 @@
       <div v-if="!viewMode" class="px-4 pb-4 pt-0 flex flex-col gap-2 shrink-0">
         <div class="flex gap-2">
           <Button
-            v-if="!project?.importSourceId"
             class="flex-1"
             type="button"
             :label="$t('shapes.drawShapes')"

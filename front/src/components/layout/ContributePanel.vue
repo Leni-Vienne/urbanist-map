@@ -72,12 +72,16 @@
     </template>
 
     <template #pinned-external-project-actions="{ project }">
-      <!-- For external (non-owned) selected projects: add image + submit only -->
+      <!-- For external (non-owned) selected projects: suggest changes, draw, add image, submit -->
       <ProjectActionButtons
         :project="project"
+        show-edit
+        show-draw
         show-add-image
         show-save
         :is-modified="isProjectModified(project.id)"
+        @edit="handleEditProjectClick"
+        @draw="handleDrawShapesClick"
         @add-image="handleAddImageToProject"
         @save="handleSaveProjectClick"
       />
