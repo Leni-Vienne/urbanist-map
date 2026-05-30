@@ -280,10 +280,12 @@ export const moderationRouter = router({
         const isAdmin = ctx.user.role === "admin";
         const moderatorId = ctx.user.id;
 
-        // Early permission check - validate country access before any DB queries
+        // Early permission check - validate country access before any DB queries.
+        // moderatorProcedure guarantees a non-admin has a non-empty moderatedCountries,
+        // so the country gate applies to every non-admin (fail closed via ?. below).
         let effectiveCountryCode = input.countryCode;
 
-        if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
+        if (!isAdmin) {
           if (!input.countryCode) {
             throw new TRPCError({
               code: "BAD_REQUEST",
@@ -291,7 +293,7 @@ export const moderationRouter = router({
             });
           }
 
-          if (!userModeratedCountries.includes(input.countryCode)) {
+          if (!userModeratedCountries?.includes(input.countryCode)) {
             throw new TRPCError({
               code: "FORBIDDEN",
               message: "You do not have permission to moderate this country",
@@ -389,10 +391,12 @@ export const moderationRouter = router({
       const userModeratedCountries = ctx.user.moderatedCountries;
       const isAdmin = ctx.user.role === "admin";
 
+      // moderatorProcedure guarantees a non-admin has a non-empty moderatedCountries.
       let countryFilter: SQL | undefined = sql`${projects.countryCode} IS NOT NULL`;
-      if (!isAdmin && userModeratedCountries && userModeratedCountries.length > 0) {
+      if (!isAdmin) {
+        const allowed = userModeratedCountries ?? [];
         countryFilter = sql`${projects.countryCode} = ANY(ARRAY[${sql.join(
-          userModeratedCountries.map((c) => sql`${c}`),
+          allowed.map((c) => sql`${c}`),
           sql`, `,
         )}]::text[])`;
       }
