@@ -26,18 +26,18 @@ import {
   convertOverlayToData,
   createOverlayObject,
   createProjectObject,
-  type StandaloneProject,
 } from "@/utils/typeFactories";
 import { trpc } from "@/client";
 import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
 } from "@/services/map/clusterSourceMerge";
-import type { OverlayData } from "@/types/index";
+import type { OverlayData, Project } from "@/types/index";
 
 function processStandaloneMarkers(
-  standaloneProjects: StandaloneProject[],
+  standaloneProjects: Project[],
   overlaysData: OverlayData[] | null,
+  overlayCountByProjectId: Map<string, number>,
 ): void {
   if (standaloneProjects.length === 0) return;
 
@@ -51,19 +51,11 @@ function processStandaloneMarkers(
   }
 
   for (const project of standaloneProjects) {
-    let overlayCount = 0;
-    if ("overlayCount" in project && typeof project.overlayCount === "number") {
-      overlayCount = project.overlayCount;
-    } else if ("overlayIds" in project && Array.isArray(project.overlayIds)) {
-      overlayCount = project.overlayIds.length;
-    } else if ("overlays" in project && Array.isArray(project.overlays)) {
-      overlayCount = project.overlays.length;
-    }
+    // Local (unsaved) projects aren't in the backend response, so they default to 0.
+    const overlayCount = overlayCountByProjectId.get(project.id) ?? 0;
 
     if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-      addStandaloneProjectMarkerForProject(
-        createProjectObject(project as Parameters<typeof createProjectObject>[0]),
-      );
+      addStandaloneProjectMarkerForProject(project);
     }
   }
 }
@@ -201,7 +193,11 @@ export function useViewportTriggers() {
       renderMarkersOnly(overlaysData);
     }
 
-    // Process standalone project markers (projects with 0 visible overlays)
+    // Process standalone project markers (projects with 0 visible overlays).
+    // Capture overlayCount before createProjectObject drops it.
+    const overlayCountByProjectId = new Map<string, number>(
+      projectsData.map((p) => [p.id, p.overlayCount]),
+    );
     const standaloneProjects = projectsData.map((p) =>
       createProjectObject(p as Parameters<typeof createProjectObject>[0]),
     );
@@ -218,7 +214,7 @@ export function useViewportTriggers() {
       }
     }
 
-    processStandaloneMarkers(standaloneProjects, overlaysData);
+    processStandaloneMarkers(standaloneProjects, overlaysData, overlayCountByProjectId);
 
     // Augment cluster source with pending projects visible in this mode
     mergeProjectPointsForMode(overlaysData, projectsData, mode);
