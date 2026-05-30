@@ -108,6 +108,9 @@
     "architect": "Architect",
     "addImages": "Add Images",
     "tags": "Tags",
+    "primaryTag": "Main category",
+    "setPrimaryTag": "Set as main category",
+    "removeTag": "Remove tag",
     "additionalDetails": "Additional Details",
     "osmSource": "OpenStreetMap",
     "importedTooltip": "Imported from OpenStreetMap"
