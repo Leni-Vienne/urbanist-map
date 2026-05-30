@@ -128,7 +128,7 @@ export function initializeMap() {
   const hashCoords = parseHashCoords();
   const minZoom = calculateMinZoom();
 
-  const newMap = new maplibre.Map({
+  const mapOptions: maplibre.MapOptions = {
     container: "mapDiv",
     style: OPENFREEMAP_STYLE_URL,
     center: hashCoords ? [hashCoords.lng, hashCoords.lat] : [10, 22],
@@ -137,17 +137,20 @@ export function initializeMap() {
     maxZoom: 21,
     attributionControl: false, // custom attribution control added below
     transformRequest: transformMapRequest,
-    // North-up, top-down only. Rotation and pitch are deliberately disabled (Phase 1 decision).
-    dragRotate: false,
-    pitchWithRotate: false,
+    dragRotate: true,
+    pitchWithRotate: true,
+    aroundCenter: false, // otherwise the control scheme is ass
     rollEnabled: false,
-    touchPitch: false,
-    maxPitch: 0,
+    touchPitch: true,
+    maxPitch: 70,
     fadeDuration: 0,
-  });
+  };
+  // Lower sensitivity (default is 0.8).
+  (mapOptions as Record<string, unknown>).rotateDegreesPerPixelMoved = 0.4;
+
+  const newMap = new maplibre.Map(mapOptions);
   map.value = newMap;
 
-  newMap.touchZoomRotate.disableRotation();
   // The map does not capture keystrokes, so typing into overlaid UI panels never
   // pans/zooms the map. Trade-off: no keyboard map control.
   newMap.keyboard.disable();
@@ -159,6 +162,14 @@ export function initializeMap() {
   // Attribution is collected automatically from each active style's source `attribution`
   // fields, so it switches correctly between the plan basemap and satellite layers.
   newMap.addControl(new maplibre.AttributionControl({ compact: false }));
+
+  // Compass to reset bearing/pitch (keyboard is disabled, so this is the only reset affordance).
+  // Zoom buttons are omitted; the app drives zoom through scroll and its own UI.
+  // Offset 100px down from the top via the :deep(.maplibregl-ctrl-top-left) rule in MapView.vue.
+  newMap.addControl(
+    new maplibre.NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }),
+    "top-left",
+  );
 
   currentZoomLevel.value = newMap.getZoom();
   newMap.on("zoomend", () => {
