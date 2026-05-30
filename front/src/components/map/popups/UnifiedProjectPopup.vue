@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     :class="[
       'unified-popup',
@@ -306,8 +306,8 @@ function handleDrawShapesClick() {
 
 // Check if project/overlay is published to backend (null status means not yet submitted)
 const hasChanges = computed(() => {
-  if (props.overlay) return isOverlayUnsaved(props.overlay);
-  if (props.project) return isProjectUnsaved(props.project);
+  if (props.overlay && isOverlayUnsaved(props.overlay)) return true;
+  if (props.project && isProjectUnsaved(props.project)) return true;
   return false;
 });
 
