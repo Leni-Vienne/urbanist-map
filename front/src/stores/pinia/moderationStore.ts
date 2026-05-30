@@ -73,6 +73,20 @@ export const useModerationStore = defineStore("moderation", () => {
     pendingCountsLoaded.value = false;
   }
 
+  // Adjust a country's pending badge locally after a successful approval/rejection,
+  // avoiding a full refetch. Removes the entry once it reaches zero.
+  function decrementPendingCount(countryCode: string | null, amount = 1) {
+    if (!countryCode) return;
+    const current = pendingCountsByCountry.value.get(countryCode);
+    if (current === undefined) return;
+    const next = current - amount;
+    if (next > 0) {
+      pendingCountsByCountry.value.set(countryCode, next);
+    } else {
+      pendingCountsByCountry.value.delete(countryCode);
+    }
+  }
+
   // Clear all state on logout or account switch.
   function clearAllState() {
     overlays.value = [];
@@ -100,6 +114,7 @@ export const useModerationStore = defineStore("moderation", () => {
     setAllCountries,
     setPendingCounts,
     resetPendingCounts,
+    decrementPendingCount,
     clearAllState,
   };
 });

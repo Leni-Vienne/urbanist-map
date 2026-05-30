@@ -397,35 +397,69 @@ export const moderationRouter = router({
         )}]::text[])`;
       }
 
-      const result = await db
-        .select({
-          countryCode: projects.countryCode,
-          pendingProjects: sql<string>`COUNT(DISTINCT CASE WHEN ${projects.status} = 'pending' THEN ${projects.id} END)`,
-          pendingOverlays: sql<string>`COUNT(DISTINCT CASE WHEN ${overlays.status} = 'pending' THEN ${overlays.id} END)`,
-          pendingChanges: sql<string>`COUNT(DISTINCT CASE WHEN ${changeRequests.status} = 'pending' THEN ${changeRequests.id} END)`,
-        })
+      // Count each pending entity type with its own simple GROUP BY, then sum
+      // them per country. Counting separately avoids the combinatorial row
+      // fan-out of joining projects x overlays x changeRequests in one query.
+      const countByCountry = sql<string>`COUNT(*)`.as("count");
+
+      const pendingProjects = db
+        .select({ countryCode: projects.countryCode, count: countByCountry })
         .from(projects)
-        .leftJoin(overlays, eq(overlays.projectId, projects.id))
-        .leftJoin(
-          changeRequests,
-          or(
-            and(eq(changeRequests.entityType, "project"), eq(changeRequests.entityId, projects.id)),
-            and(eq(changeRequests.entityType, "overlay"), eq(changeRequests.entityId, overlays.id)),
-          ),
-        )
-        .where(countryFilter)
+        .where(and(eq(projects.status, "pending"), countryFilter))
         .groupBy(projects.countryCode);
 
-      const countsWithTotals = result
-        .filter((row): row is typeof row & { countryCode: string } => row.countryCode !== null)
-        .map((row) => ({
-          countryCode: row.countryCode,
-          total:
-            Number(row.pendingProjects) + Number(row.pendingOverlays) + Number(row.pendingChanges),
-        }))
-        .filter((row) => row.total > 0);
+      const pendingOverlays = db
+        .select({ countryCode: projects.countryCode, count: countByCountry })
+        .from(overlays)
+        .innerJoin(projects, eq(overlays.projectId, projects.id))
+        .where(and(eq(overlays.status, "pending"), countryFilter))
+        .groupBy(projects.countryCode);
 
-      return countsWithTotals;
+      const pendingProjectChanges = db
+        .select({ countryCode: projects.countryCode, count: countByCountry })
+        .from(changeRequests)
+        .innerJoin(projects, eq(changeRequests.entityId, projects.id))
+        .where(
+          and(
+            eq(changeRequests.entityType, "project"),
+            eq(changeRequests.status, "pending"),
+            countryFilter,
+          ),
+        )
+        .groupBy(projects.countryCode);
+
+      const pendingOverlayChanges = db
+        .select({ countryCode: projects.countryCode, count: countByCountry })
+        .from(changeRequests)
+        .innerJoin(overlays, eq(changeRequests.entityId, overlays.id))
+        .innerJoin(projects, eq(overlays.projectId, projects.id))
+        .where(
+          and(
+            eq(changeRequests.entityType, "overlay"),
+            eq(changeRequests.status, "pending"),
+            countryFilter,
+          ),
+        )
+        .groupBy(projects.countryCode);
+
+      const pending = pendingProjects
+        .unionAll(pendingOverlays)
+        .unionAll(pendingProjectChanges)
+        .unionAll(pendingOverlayChanges)
+        .as("pending");
+
+      const result = await db
+        .select({
+          countryCode: pending.countryCode,
+          total: sql<string>`SUM(${pending.count})`,
+        })
+        .from(pending)
+        .groupBy(pending.countryCode);
+
+      return result
+        .filter((row): row is typeof row & { countryCode: string } => row.countryCode !== null)
+        .map((row) => ({ countryCode: row.countryCode, total: Number(row.total) }))
+        .filter((row) => row.total > 0);
     } catch (error) {
       console.error("Error fetching pending counts by country:", error);
       throw new TRPCError({

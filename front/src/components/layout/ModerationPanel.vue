@@ -486,7 +486,7 @@ async function handleApproveChange(changeId: string) {
   const result = await approveChangeRequests([changeId]);
 
   if (result) {
-    refetchPendingCounts();
+    moderationStore.decrementPendingCount(selectedCountryCode.value);
     toast.add({
       severity: "success",
       summary: t("moderation.changeApproved"),
@@ -568,7 +568,7 @@ async function executeRejectChange(changeId: string) {
   const result = await rejectChangeRequests([changeId]);
 
   if (result) {
-    refetchPendingCounts();
+    moderationStore.decrementPendingCount(selectedCountryCode.value);
     toast.add({
       severity: "info",
       summary: t("moderation.changeRejected"),
