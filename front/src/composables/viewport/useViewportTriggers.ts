@@ -236,11 +236,9 @@ export function useViewportTriggers() {
       const overlayThreshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
       // Detect low→high threshold crossing before pruning.
+      // zoom >= overlayThreshold already implies zoom >= loadThreshold (overlay threshold is higher).
       const crossedLowToHigh =
-        zoom >= loadThreshold &&
-        previousZoom !== null &&
-        previousZoom < overlayThreshold &&
-        zoom >= overlayThreshold;
+        previousZoom !== null && previousZoom < overlayThreshold && zoom >= overlayThreshold;
 
       // Prune overlays, standalone project markers, and shapes for the current viewport.
       // Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.

@@ -1,7 +1,7 @@
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
 import type { ProjectFormData } from "@/types/index";
-import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
+import { getProjectValidationErrors } from "@/utils/validationHelpers";
 
 export function useProjectFormValidation() {
   const toast = useToast();
@@ -27,14 +27,9 @@ export function useProjectFormValidation() {
       return false;
     }
 
-    // Use dummy lat/lng since this is form-level validation (no coordinates yet)
-    // Null values are coerced to empty strings to match schema expectations
-    const validationData = {
+    // Scope dates to the selected timeline status, then run the shared prep + schema parse.
+    const scopedFormData = {
       ...formData,
-      lat: 0,
-      lng: 0,
-      description: formData.description ?? "",
-      sourceUrl: formData.sourceUrl ?? "",
       timelineStatus,
       proposalDate: timelineStatus === "proposed" ? formData.proposalDate : null,
       proposalDatePrecision: timelineStatus === "proposed" ? formData.proposalDatePrecision : null,
@@ -43,19 +38,16 @@ export function useProjectFormValidation() {
       endDate: timelineStatus === "proposed" ? null : formData.endDate,
       endDatePrecision: timelineStatus === "proposed" ? null : formData.endDatePrecision,
     };
-    const result = projectSchema.safeParse(validationData);
 
-    if (!result.success) {
-      const errors = getValidationErrorsMap(result.error);
-      const firstError = Object.values(errors)[0];
-      if (!firstError) {
-        throw new Error("No error found");
-      }
-      showError(t(firstError.key, firstError.params ?? {}));
-      return false;
+    const errors = getProjectValidationErrors(scopedFormData);
+    if (!errors) return true;
+
+    const firstError = Object.values(errors)[0];
+    if (!firstError) {
+      throw new Error("No error found");
     }
-
-    return true;
+    showError(t(firstError.key, firstError.params ?? {}));
+    return false;
   }
 
   return { validateProjectForm };

@@ -8,9 +8,7 @@ import { getProjectValidationErrors } from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
 import type { DBCity } from "../../../../back/src/db/schema";
 
-// Accepts a fieldName to satisfy FieldComparator's signature; without it all fields would be tagged as changed
-function projectComparator(
-  _fieldName: keyof ProjectFormData,
+function fieldsDiffer(
   original: ProjectFormData[keyof ProjectFormData],
   current: ProjectFormData[keyof ProjectFormData],
 ): boolean {
@@ -53,7 +51,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const formData = reactive({ ...(options.currentData ?? options.initialData) }) as ProjectFormData;
 
   function hasChanged(fieldName: keyof ProjectFormData): boolean {
-    return projectComparator(fieldName, originalData[fieldName], formData[fieldName]);
+    return fieldsDiffer(originalData[fieldName], formData[fieldName]);
   }
 
   const hasChanges = computed(() => {
