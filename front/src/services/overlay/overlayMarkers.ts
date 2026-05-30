@@ -137,8 +137,3 @@ export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
   const corners = resolveOverlayMarkerCorners(overlay);
   return corners ? buildBounds(corners) : null;
 }
-
-// oxlint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
-}

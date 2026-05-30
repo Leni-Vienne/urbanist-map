@@ -108,7 +108,12 @@
     "architect": "Architect",
     "addImages": "Add Images",
     "tags": "Tags",
-    "additionalDetails": "Additional Details"
+    "primaryTag": "Main category",
+    "setPrimaryTag": "Set as main category",
+    "removeTag": "Remove tag",
+    "additionalDetails": "Additional Details",
+    "osmSource": "OpenStreetMap",
+    "importedTooltip": "Imported from OpenStreetMap"
   },
   "tags": {
     "tram": "Tram",

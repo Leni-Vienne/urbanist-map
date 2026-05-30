@@ -40,6 +40,9 @@ tilesDbUrl.searchParams.set("options", "-c jit=off -c work_mem=128MB -c statemen
 
 export const tilesSqlClient = new SQL(tilesDbUrl.toString(), {
   max: isDev ? 1 : 4,
-  idle_timeout: 30,
+  // Keep idle connections warm (never reap in dev, 5 min in prod), matching the main pool.
+  // An aggressive idle_timeout reaps the few pooled connections during quiet periods, and
+  // bun-sql can reject a query that lands on a connection mid-reap with "Idle timeout reached".
+  idle_timeout: isDev ? 0 : 300,
   connect_timeout: 30,
 });

@@ -58,10 +58,13 @@ export function useChangeRequests() {
     );
 
     if (result) {
-      // Competing changes for the same field are marked 'conflicted' by the backend;
-      // reset both stores so the UI reflects that.
+      // The approved changes plus any competing changes the backend marked 'conflicted' are no
+      // longer pending. Drop them from the moderation panel locally instead of refetching every
+      // pending submission for the country.
       const moderationStore = useModerationStore();
-      moderationStore.resetModerationLoaded();
+      moderationStore.removeChangeRequests(result.resolvedChangeRequestIds);
+      // The current user's own change requests are fetched lazily, so just invalidate; a conflicted
+      // change of theirs must reappear with its conflict badge on the next My Contributions load.
       store.resetLoaded();
     }
 

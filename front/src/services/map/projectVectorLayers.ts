@@ -447,6 +447,8 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     const merged = combineFilters(baseLayerFilter, baseFilter, sizeFilter);
     mlMap.setFilter(layerId, merged ?? baseLayerFilter);
   }
+
+  applyFootprintLayerFilters(mlMap);
 }
 
 function queryFeaturesAtPoint(
@@ -529,6 +531,20 @@ function getHiddenOverlayIds(): string[] {
 
 let isHiddenOverlaysWatcherInitialized = false;
 
+// Footprint border/fill filter: locally hidden/edited overlays + the date filter (kept in sync
+// with the images, which vectorTileSync date-filters separately).
+function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
+  const hiddenIds = getHiddenOverlayIds();
+  const hiddenFilter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : null;
+  const merged = combineFilters(hiddenFilter, getLastModifiedDateFilterExpression());
+
+  for (const layerId of ["overlay-footprints-outline", "overlay-footprints-fill"]) {
+    if (mlMap.getLayer(layerId)) {
+      mlMap.setFilter(layerId, merged ?? undefined);
+    }
+  }
+}
+
 function initHiddenOverlaysWatcher(): void {
   if (isHiddenOverlaysWatcherInitialized) return;
   isHiddenOverlaysWatcherInitialized = true;
@@ -539,15 +555,7 @@ function initHiddenOverlaysWatcher(): void {
       hiddenOverlayIdsCache = hiddenIds;
       const mlMap = map.value;
       if (!mlMap) return;
-
-      const filter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : undefined;
-
-      if (mlMap.getLayer("overlay-footprints-outline")) {
-        mlMap.setFilter("overlay-footprints-outline", filter);
-      }
-      if (mlMap.getLayer("overlay-footprints-fill")) {
-        mlMap.setFilter("overlay-footprints-fill", filter);
-      }
+      applyFootprintLayerFilters(mlMap);
     },
   );
 }
@@ -871,6 +879,10 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setVectorHoverFilters(mlMap, null);
     setPointHoverFilter(mlMap, null);
   });
+
+  // The card is anchored to cursor pixels, but MapLibre stops firing mousemove during a
+  // drag-pan, so it would freeze on screen while the map slides underneath. Hide it instead.
+  map.value.on("dragstart", clearHoverPreview);
 
   map.value.on("click", (event: MapMouseEvent) => {
     const mlMap = mlMapGetter();

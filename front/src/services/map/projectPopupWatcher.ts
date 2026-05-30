@@ -20,6 +20,7 @@ let isWatcherInitialized = false;
  */
 export function initializePopupWatcher() {
   if (isWatcherInitialized) return;
+  isWatcherInitialized = true;
 
   watch(
     () => {
@@ -58,11 +59,4 @@ export function initializePopupWatcher() {
       if (overlayStore.idSelectedOverlay) selectOverlay(null);
     },
   );
-
-  isWatcherInitialized = true;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
 }

@@ -1,12 +1,8 @@
 // Factory functions for creating type instances to reduce duplication
 import type { Project, OverlayObject, OverlayData } from "@/types/index";
-import type { RouterOutput } from "@/client";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-
-// Type definition for project data used in standalone marker rendering
-export type StandaloneProject = RouterOutput["viewport"]["getProjectsInViewport"][number] | Project;
 
 // Accepts any subset of Project fields, with null allowed for any field.
 // All coercion to non-null defaults happens inside the factory body.

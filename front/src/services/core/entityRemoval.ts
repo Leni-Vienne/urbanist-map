@@ -73,8 +73,6 @@ function removeOverlay(
   if (options.updateUserContributions) {
     projectStore.removeOverlayFromUserContributions(overlayId, authStore.user?.id);
   }
-
-  removeProjectMarkerFromMap(overlayId);
 }
 
 export function removeProject(

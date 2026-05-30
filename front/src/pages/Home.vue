@@ -95,6 +95,7 @@ import { useI18n } from "vue-i18n";
 import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { renderProjectShapes } from "@/services/map/shapeRendering";
 import { clearProjectShapes } from "@/services/map/shapeLayerRegistry";
+import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import MapView from "@/components/map/MapView.vue";
@@ -166,13 +167,11 @@ watch(maintenanceBannerText, (value) => {
 });
 
 // Discard in-progress shape edits when leaving edit mode.
-// Handled here rather than in useViewportTriggers since that composable has no access to the lazy shapeEditing chunk.
 watch(
   () => mapStore.mode,
   async (newMode, oldMode) => {
     if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditor.project) {
-      const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-      destroyShapeEditor();
+      await stopShapeEditing();
       uiStore.closeShapeEditor();
     }
   },
@@ -201,10 +200,9 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
     projectStore.projects = { ...projectStore.projects, [project.id]: project };
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
-  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-  destroyShapeEditor();
-  // Re-render updated shapes immediately (Geoman layers were just removed by destroyShapeEditor,
-  // and the viewport loop only covers backend overlays).
+  await stopShapeEditing();
+  // Re-render updated shapes immediately: the editor's own layers are gone after teardown,
+  // and the viewport loop only covers backend overlays.
   clearProjectShapes(project.id);
   if (geometry.geometries.length > 0) {
     const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
@@ -229,8 +227,7 @@ function handleSuggestTags(suggestedTags: string[]) {
 async function handleShapesCancel() {
   const project = uiStore.shapeEditor.project;
   const reopenAt = uiStore.shapeEditor.reopenAt;
-  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-  destroyShapeEditor();
+  await stopShapeEditing();
   uiStore.closeShapeEditor();
   if (reopenAt && project) {
     uiStore.openProjectInfoPopup(project.id, project);

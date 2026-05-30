@@ -7,6 +7,7 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
 import { getOverlayMarkerColor, updateOverlayMarkerColor } from "@/services/map/markers";
+import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import {
   highlightProjectShapes,
   unhighlightProjectShapes,
@@ -102,6 +103,10 @@ export function selectOverlay(overlayId: string | null): void {
     if (!newlySelected) return;
 
     setupNewSelection(newlySelected, overlayId);
+
+    // In moderation mode, switch the panel to this overlay's country so its pending
+    // submissions load (and the scroll request below can resolve once they do).
+    syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
 
     // Request scroll to overlay in accordion panel when selecting from map
     requestScrollTo("overlay", overlayId);

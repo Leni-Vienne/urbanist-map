@@ -155,7 +155,12 @@ export function renderAllProjectShapes() {
  * Shape-specific render triggers: change requests, moderation load, entering view mode.
  * Overlay-pruning triggers (filters, tags) live in viewportRenderLoop's initializeRenderTriggers.
  */
+let shapeRenderTriggersInitialized = false;
+
 export function initializeShapeRenderTriggers() {
+  if (shapeRenderTriggersInitialized) return;
+  shapeRenderTriggersInitialized = true;
+
   const mapStore = useMapStore();
   const changeRequestStore = useChangeRequestStore();
   const moderationStore = useModerationStore();
@@ -185,9 +190,4 @@ export function initializeShapeRenderTriggers() {
       if (newMode === "view") clearAllProjectShapes();
     },
   );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
 }

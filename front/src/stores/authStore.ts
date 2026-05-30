@@ -6,6 +6,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 
 // User type for our custom authentication
 interface User {
@@ -181,10 +182,12 @@ async function requestPasswordReset(email: string) {
 
 async function loadModeratedContributionsForUser() {
   try {
-    const contributions = await trpc.overlay.getModeratedContributions.query();
+    const { moderatedContributions, preloadModeratedContributions } = useModeratedContributions();
+    await preloadModeratedContributions();
+    const hasContributions = moderatedContributions.value.length > 0;
     const uiStore = useUiStore();
-    uiStore.hasUnacknowledgedModeratedContributions = contributions.length > 0;
-    if (contributions.length > 0) uiStore.moderatedContributionsDialogVisible = true;
+    uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
+    if (hasContributions) uiStore.moderatedContributionsDialogVisible = true;
   } catch (error) {
     console.error("Failed to check moderated contributions:", error);
   }
