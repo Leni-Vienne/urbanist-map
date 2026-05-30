@@ -66,7 +66,7 @@ import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProje
 import { getPopupLatLng } from "@/services/map/projectPopupTeleport";
 import type { OverlayData, OverlayObject, Project } from "@/types/index";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
-import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
+import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { createProjectObject } from "@/utils/typeFactories";
 
 const UnifiedProjectPopup = defineAsyncComponent(
@@ -248,14 +248,11 @@ async function handleDrawShapes(project: Project) {
   const fallbackGeometry =
     overlayObject.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
 
-  const existingGeometry = await resolveShapeEditorGeometry(project.id, fallbackGeometry);
-
   const reopenAt = showProjectPopup.value ? getPopupLatLng() : null;
   uiStore.openShapeEditor(project, reopenAt ?? undefined);
   if (showOverlayPopup.value) overlayStore.hideInfoPopup();
   else closeProjectInfoPopup();
-  const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  await initShapeEditor(existingGeometry ?? undefined);
+  await startShapeEditing(project.id, fallbackGeometry);
 }
 
 async function handleDeleteProject(project: Project) {
