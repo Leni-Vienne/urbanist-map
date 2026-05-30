@@ -16,6 +16,19 @@ import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { lastModifiedDateRange } from "@/services/overlay/statusFilters";
+
+// lastModifiedS is Unix seconds (tile units). querySourceFeatures bypasses MapLibre layer
+// filters, so images must be date-checked here rather than relying on setFilter.
+function matchesDateFilter(lastModifiedS: number): boolean {
+  const [minMs, maxMs] = lastModifiedDateRange.value;
+  if (minMs === 0 && maxMs === Infinity) return true;
+  if (!Number.isFinite(lastModifiedS)) return true;
+  const ms = lastModifiedS * 1000;
+  if (ms < minMs) return false;
+  if (maxMs !== Infinity && ms > maxMs) return false;
+  return true;
+}
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
 // Stores the last-synced set of OverlayData objects built from tile features.
@@ -87,10 +100,20 @@ function syncOverlaysFromTiles(mlMap: any): void {
 
     // Deduplicate by ID (promoteId means the id may live on feat.id, not feat.properties.id).
     const featureMap = new Map<string, OverlayData>();
+    // Ids excluded by the date filter; the eviction pass drops these instead of keep-alive resurrecting them.
+    const dateFiltered = new Set<string>();
+    const lastModifiedById = new Map<string, number>();
     for (const feat of allFeatures) {
       const id = String(feat.id ?? feat.properties?.id ?? "");
 
       if (!id || featureMap.has(id)) continue;
+
+      lastModifiedById.set(id, Number(feat.properties?.last_modified_s));
+
+      if (!matchesDateFilter(Number(feat.properties?.last_modified_s))) {
+        dateFiltered.add(id);
+        continue;
+      }
 
       const data = overlayDataFromFeature(feat);
       if (data && cornersIntersectBounds(data.corners, viewportBounds)) {
@@ -106,6 +129,12 @@ function syncOverlaysFromTiles(mlMap: any): void {
     // via the visibility check in onOverlayFullyLoaded if they've since left view.
     for (const id of registry.getRenderedOverlayIds()) {
       if (!featureMap.has(id) && !registry.isCreating(id) && approvedOverlayDataCache.has(id)) {
+        // Excluded by the date filter: remove it outright rather than keeping the image alive.
+        if (dateFiltered.has(id)) {
+          registry.clearEntry(id);
+          approvedOverlayDataCache.delete(id);
+          continue;
+        }
         const data = approvedOverlayDataCache.get(id);
         const liveCorners = getOverlayImageCorners(id);
         const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data?.corners;
@@ -143,7 +172,11 @@ function syncOverlaysFromTiles(mlMap: any): void {
     const createMarkers = useMapStore().mode !== "view";
     import("@/services/overlay/overlayRendering")
       .then(({ renderViewModeOverlays }) => {
-        renderViewModeOverlays(toCreate, createMarkers);
+        // Re-check the live filter: this import is async, so toCreate may be stale.
+        const stillVisible = toCreate.filter((o) =>
+          matchesDateFilter(lastModifiedById.get(o.id) ?? Number.NaN),
+        );
+        if (stillVisible.length > 0) renderViewModeOverlays(stillVisible, createMarkers);
       })
       .catch((error: unknown) =>
         console.error("vectorTileSync: failed to load overlayRendering", error),
@@ -151,6 +184,12 @@ function syncOverlaysFromTiles(mlMap: any): void {
   } catch (error) {
     console.error("vectorTileSync idle error:", error);
   }
+}
+
+// Force an immediate sync; used on filter changes so images evict without waiting for 'idle'.
+export function resyncOverlaysFromTiles(): void {
+  const mlMap = getMlMap();
+  if (mlMap) syncOverlaysFromTiles(mlMap);
 }
 
 /**
@@ -165,9 +204,4 @@ export function initVectorTileSync(): void {
     // Sync immediately in case the map is already idle (tiles loaded before listener registered)
     syncOverlaysFromTiles(mlMap);
   });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
 }

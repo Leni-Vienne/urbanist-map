@@ -264,7 +264,12 @@ export function getOverlayMarkerColor(
  * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
  * no-op setIcon calls.
  */
+let markerColorTriggersInitialized = false;
+
 export function initializeMarkerColorTriggers(): void {
+  if (markerColorTriggersInitialized) return;
+  markerColorTriggersInitialized = true;
+
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 
@@ -276,9 +281,4 @@ export function initializeMarkerColorTriggers(): void {
       updateOverlayMarkerColor(marker, getOverlayMarkerColor(overlayObject, mode));
     }
   });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
 }

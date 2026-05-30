@@ -22,6 +22,7 @@ import {
   lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
+import { resyncOverlaysFromTiles } from "@/services/map/vectorTileSync";
 
 interface BoundingBox {
   minLat: number;
@@ -105,8 +106,7 @@ export type TileLayerType = "plan" | SatelliteLayerType;
 // Current active tile layer ("plan" = MapLibre vector basemap)
 export const currentTileLayer = ref<TileLayerType>("plan");
 
-let interactionRegistered =
-  (import.meta.hot?.data.interactionRegistered as boolean | undefined) ?? false;
+let interactionRegistered = false;
 
 // Original extrusion height/base expressions per layer, captured before flattening
 // so 3D can be restored on toggle-back.
@@ -340,6 +340,8 @@ watch(
     const mlMap = getMlMap();
     if (mlMap) {
       applyTagFiltersToVectorLayers(mlMap);
+      // setFilter handles vector layers; this evicts the date-filtered overlay images.
+      resyncOverlaysFromTiles();
     }
   },
   { deep: true },
@@ -610,12 +612,4 @@ function initEsriMetadataListener() {
   map.value.on("moveend", () => {
     void checkEsriMaxZoom();
   });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.dispose((data) => {
-    data.interactionRegistered = interactionRegistered;
-  });
-  import.meta.hot.accept();
 }

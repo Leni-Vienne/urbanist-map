@@ -486,16 +486,13 @@ async function handleApproveChange(changeId: string) {
   const result = await approveChangeRequests([changeId]);
 
   if (result) {
-    refetchPendingCounts();
+    moderationStore.decrementPendingCount(selectedCountryCode.value);
     toast.add({
       severity: "success",
       summary: t("moderation.changeApproved"),
       detail: t("moderation.changeApprovedDetail"),
       life: 3000,
     });
-
-    // Refetch pending submissions to update UI (removes approved change and competing conflicted changes)
-    await fetchPendingSubmissions();
   } else {
     toast.add({
       severity: "error",
@@ -571,16 +568,13 @@ async function executeRejectChange(changeId: string) {
   const result = await rejectChangeRequests([changeId]);
 
   if (result) {
-    refetchPendingCounts();
+    moderationStore.decrementPendingCount(selectedCountryCode.value);
     toast.add({
       severity: "info",
       summary: t("moderation.changeRejected"),
       detail: t("moderation.changeRejectedDetail"),
       life: 3000,
     });
-
-    // Refetch pending submissions to update UI
-    await fetchPendingSubmissions();
   } else {
     toast.add({
       severity: "error",

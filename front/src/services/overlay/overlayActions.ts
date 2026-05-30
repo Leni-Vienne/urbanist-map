@@ -76,12 +76,9 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   const currentIndex = projectOverlayIds.indexOf(overlayStore.idSelectedOverlay);
   const step = direction === "next" ? 1 : -1;
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
-  const newOverlayId = projectOverlayIds[newIndex];
-
-  if (!newOverlayId) {
-    console.error("Overlay not found for ID:", newOverlayId);
-    return;
-  }
+  // newIndex is always in range: modulo over projectOverlayIds, which has length > 1 here.
+  // oxlint-disable-next-line no-non-null-assertion
+  const newOverlayId = projectOverlayIds[newIndex]!;
 
   selectAndCenterOverlay(newOverlayId);
 }
@@ -100,13 +97,10 @@ function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
       continue;
     }
     if (project.overlayIds.length > 0) {
-      // Select first overlay for 'next', last overlay for 'previous'
+      // index is 0 or length-1 on a non-empty array, so the lookup is always defined.
       const index = direction === "next" ? 0 : project.overlayIds.length - 1;
-      const overlayId = project.overlayIds[index];
-      if (!overlayId) {
-        console.error("Overlay not found for ID:", overlayId);
-        continue;
-      }
+      // oxlint-disable-next-line no-non-null-assertion
+      const overlayId = project.overlayIds[index]!;
 
       if (selectAndCenterOverlay(overlayId)) {
         return;

@@ -5,7 +5,7 @@
       v-if="showEdit"
       class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
       @click.stop="$emit('edit', project)"
-      v-tooltip.top="$t('tooltips.editProject')"
+      v-tooltip.top="editTooltip"
     >
       <i class="pi pi-pencil"></i>
     </button>
@@ -99,6 +99,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { storeToRefs } from "pinia";
+import { useAuthStore } from "@/stores/authStore";
 import type { ProjectForModeration } from "@/types/index";
 
 interface Props {
@@ -121,8 +123,17 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const { t } = useI18n();
+const { user } = storeToRefs(useAuthStore());
+
 const saveTooltip = computed(() =>
   props.isModified ? t("project.submitChangeRequest") : t("overlay.noChangesToSave"),
+);
+
+// Owned projects edit directly; others (including imported) go through a change request.
+const editTooltip = computed(() =>
+  user.value && props.project.ownerId === user.value.id
+    ? t("tooltips.editProject")
+    : t("tooltips.suggestChanges"),
 );
 
 defineEmits<{

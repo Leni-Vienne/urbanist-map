@@ -4,14 +4,16 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 
 const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
 const isLoading = ref(false);
+// Set when authStore preloads on login/session-restore so the dialog can render
+// its first open without a redundant fetch. Consumed (reset) on first dialog mount.
+let hasPreloaded = false;
 
 /**
  * Composable for managing moderated contributions (rejected/replaced overlays).
- * Only used in ModeratedContributionsDialog. Opening/closing the dialog is controlled via uiStore.
- * authStore triggers the dialog on login by checking the count directly via trpc.
+ * Shared module-level state is the single source of truth: authStore preloads it on
+ * login to decide whether to open the dialog, and the dialog reads it without refetching.
  */
 export function useModeratedContributions() {
-  // Always fetches fresh, no cache, avoids stale data if a different user logs in
   async function fetchModeratedContributions() {
     isLoading.value = true;
     try {
@@ -26,6 +28,22 @@ export function useModeratedContributions() {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  // Called once by authStore right after login/session-restore.
+  async function preloadModeratedContributions() {
+    await fetchModeratedContributions();
+    hasPreloaded = true;
+  }
+
+  // Called by the dialog on mount: reuse the preloaded data if present, otherwise
+  // fetch fresh (e.g. when the user reopens the dialog later from the menu).
+  async function ensureModeratedContributions() {
+    if (hasPreloaded) {
+      hasPreloaded = false;
+      return;
+    }
+    await fetchModeratedContributions();
   }
 
   /**
@@ -61,7 +79,8 @@ export function useModeratedContributions() {
   return {
     moderatedContributions,
     isLoading,
-    fetchModeratedContributions,
+    preloadModeratedContributions,
+    ensureModeratedContributions,
     acknowledgeAll,
   };
 }

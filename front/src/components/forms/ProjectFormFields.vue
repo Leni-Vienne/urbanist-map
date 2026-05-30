@@ -1,243 +1,262 @@
 ﻿<template>
   <!-- Shared project form fields component used by both CreateProjectForm and EditProjectForm -->
-  <div class="flex flex-col gap-4">
-    <!-- Project name field -->
-    <div class="flex flex-col gap-1">
-      <FloatLabel class="w-full" variant="in">
-        <InputText
-          id="project-name-input"
-          v-model="localFormData.name"
-          :class="getInputClass('name')"
-          required
-          minlength="8"
-          autocomplete="off"
-          dir="auto"
-          @blur="handleNameBlur"
-          @input="handleNameInput"
-        />
-        <label for="project-name-input" class="text-(--p-text-color-secondary)"
-          >{{ $t("project.name") }} *</label
-        >
-      </FloatLabel>
-      <small v-if="nameError" class="text-red-600 text-xs block">{{ nameError }}</small>
-      <small
-        v-if="showNameChangeIndicator"
-        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+  <!-- Project name field -->
+  <div class="flex flex-col gap-1">
+    <FloatLabel class="w-full" variant="in">
+      <InputText
+        id="project-name-input"
+        v-model="localFormData.name"
+        :class="getInputClass('name')"
+        required
+        minlength="8"
+        autocomplete="off"
+        dir="auto"
+        @blur="handleNameBlur"
+        @input="handleNameInput"
+      />
+      <label for="project-name-input" class="text-(--p-text-color-secondary)"
+        >{{ $t("project.name") }} *</label
       >
-        {{ $t("overlay.changedFrom") }}: "{{ originalData?.name || $t("overlay.notSet") }}"
-      </small>
-    </div>
-
-    <!-- Project description field -->
-    <div class="flex flex-col gap-1">
-      <FloatLabel class="w-full" variant="in">
-        <Textarea
-          id="project-description-input"
-          v-model="localFormData.description"
-          :class="getInputClass('description')"
-          rows="2"
-          dir="auto"
-          @blur="handleDescriptionBlur"
-          @input="handleDescriptionInput"
-        />
-        <label for="project-description-input" class="text-(--p-text-color-secondary)">{{
-          $t("common.description")
-        }}</label>
-      </FloatLabel>
-      <small v-if="descriptionError" class="text-red-600 text-xs block">{{
-        descriptionError
-      }}</small>
-      <small
-        v-if="showDescriptionChangeIndicator"
-        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-      >
-        {{ $t("overlay.changedFrom") }}: "{{ originalData?.description || $t("overlay.notSet") }}"
-      </small>
-    </div>
-
-    <!-- Timeline status selector -->
-    <TimelineStatusSelector
-      v-model="localTimelineStatus"
-      :id-prefix="idPrefix"
-      @change="handleTimelineStatusChange"
-    />
+    </FloatLabel>
+    <small v-if="nameError" class="text-red-600 text-xs block">{{ nameError }}</small>
     <small
-      v-if="showTimelineStatusChangeIndicator"
+      v-if="showNameChangeIndicator"
       class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
     >
-      {{ $t("overlay.changedFrom") }}: "{{ originalData?.timelineStatus || $t("overlay.notSet") }}"
+      {{ $t("overlay.changedFrom") }}: "{{ originalData?.name || $t("overlay.notSet") }}"
     </small>
+  </div>
 
-    <!-- Start and end date fields (always shown) -->
+  <!-- Project description field -->
+  <div class="flex flex-col gap-1">
+    <FloatLabel class="w-full" variant="in">
+      <Textarea
+        id="project-description-input"
+        v-model="localFormData.description"
+        :class="getInputClass('description')"
+        rows="2"
+        dir="auto"
+        @blur="handleDescriptionBlur"
+        @input="handleDescriptionInput"
+      />
+      <label for="project-description-input" class="text-(--p-text-color-secondary)">{{
+        $t("common.description")
+      }}</label>
+    </FloatLabel>
+    <small v-if="descriptionError" class="text-red-600 text-xs block">{{ descriptionError }}</small>
+    <small
+      v-if="showDescriptionChangeIndicator"
+      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+    >
+      {{ $t("overlay.changedFrom") }}: "{{ originalData?.description || $t("overlay.notSet") }}"
+    </small>
+  </div>
+
+  <!-- Timeline status selector -->
+  <TimelineStatusSelector
+    v-model="localTimelineStatus"
+    :id-prefix="idPrefix"
+    @change="handleTimelineStatusChange"
+  />
+  <small
+    v-if="showTimelineStatusChangeIndicator"
+    class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+  >
+    {{ $t("overlay.changedFrom") }}: "{{ originalData?.timelineStatus || $t("overlay.notSet") }}"
+  </small>
+
+  <!-- Start and end date fields (always shown) -->
+  <div class="flex flex-col gap-4">
+    <!-- Start Date -->
+    <div class="flex flex-col gap-1">
+      <FlexibleDatePicker
+        v-model="flexibleStartDate"
+        :label="$t('project.startDate')"
+        unique-id="start-date"
+        :error="startDateError ?? undefined"
+        @update:modelValue="handleDateChange"
+        @blur="handleDateChange"
+      />
+      <small
+        v-if="showStartDateChangeIndicator"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
+        {{ $t("overlay.changedFrom") }}: "{{
+          formatFlexibleDateFromProp(originalData?.startDate) || $t("overlay.notSet")
+        }}"
+      </small>
+    </div>
+
+    <!-- End Date -->
+    <div class="flex flex-col gap-1">
+      <FlexibleDatePicker
+        v-model="flexibleEndDate"
+        :label="$t('project.endDate')"
+        unique-id="end-date"
+        :error="endDateError ?? undefined"
+        @update:modelValue="handleDateChange"
+        @blur="handleDateChange"
+      />
+      <small
+        v-if="showEndDateChangeIndicator"
+        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+      >
+        {{ $t("overlay.changedFrom") }}: "{{
+          formatFlexibleDateFromProp(originalData?.endDate) || $t("overlay.notSet")
+        }}"
+      </small>
+    </div>
+  </div>
+
+  <!-- Additional details section (collapsible) -->
+  <Panel :header="$t('project.additionalDetails')" toggleable collapsed>
     <div class="flex flex-col gap-4">
-      <!-- Start Date -->
+      <!-- Country field -->
       <div class="flex flex-col gap-1">
-        <FlexibleDatePicker
-          v-model="flexibleStartDate"
-          :label="$t('project.startDate')"
-          unique-id="start-date"
-          :error="startDateError ?? undefined"
-          @update:modelValue="handleDateChange"
-          @blur="handleDateChange"
-        />
-        <small
-          v-if="showStartDateChangeIndicator"
-          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-        >
-          {{ $t("overlay.changedFrom") }}: "{{
-            formatFlexibleDateFromProp(originalData?.startDate) || $t("overlay.notSet")
-          }}"
-        </small>
-      </div>
-
-      <!-- End Date -->
-      <div class="flex flex-col gap-1">
-        <FlexibleDatePicker
-          v-model="flexibleEndDate"
-          :label="$t('project.endDate')"
-          unique-id="end-date"
-          :error="endDateError ?? undefined"
-          @update:modelValue="handleDateChange"
-          @blur="handleDateChange"
-        />
-        <small
-          v-if="showEndDateChangeIndicator"
-          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-        >
-          {{ $t("overlay.changedFrom") }}: "{{
-            formatFlexibleDateFromProp(originalData?.endDate) || $t("overlay.notSet")
-          }}"
-        </small>
-      </div>
-    </div>
-
-    <!-- Additional details section (collapsible) -->
-    <Panel :header="$t('project.additionalDetails')" toggleable collapsed>
-      <div class="flex flex-col gap-4">
-        <!-- Country field -->
-        <div class="flex flex-col gap-1">
-          <FloatLabel class="w-full" variant="in">
-            <Select
-              input-id="country-select"
-              v-model="localFormData.countryCode"
-              :options="countries"
-              option-label="name"
-              option-value="code"
-              :loading="countriesLoading"
-              class="w-full"
-              @update:modelValue="handleCountryCodeUpdate"
-            />
-            <label for="country-select" class="text-(--p-text-color-secondary)">
-              {{ $t("project.country") }}
-            </label>
-          </FloatLabel>
-          <small
-            v-if="showCountryCodeChangeIndicator"
-            class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-          >
-            {{ $t("overlay.changedFrom") }}: "{{
-              originalData?.countryCode || $t("overlay.notSet")
-            }}"
-          </small>
-        </div>
-
-        <!-- Proposal date field -->
-        <div class="flex flex-col gap-1">
-          <FlexibleDatePicker
-            v-model="flexibleProposalDate"
-            :label="$t('project.proposalDate')"
-            :max-date="new Date()"
-            unique-id="proposal-date"
-            :error="getFieldError('proposalDate') ?? undefined"
-            @update:modelValue="handleProposalDateChange"
-            @blur="handleProposalDateChange"
+        <FloatLabel class="w-full" variant="in">
+          <Select
+            input-id="country-select"
+            v-model="localFormData.countryCode"
+            :options="countries"
+            option-label="name"
+            option-value="code"
+            :loading="countriesLoading"
+            class="w-full"
+            @update:modelValue="handleCountryCodeUpdate"
           />
-          <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
-          <small
-            v-if="showProposalDateChangeIndicator"
-            class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-          >
-            {{ $t("overlay.changedFrom") }}: "{{
-              formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
-            }}"
-          </small>
-        </div>
-      </div>
-    </Panel>
-
-    <!-- City select field -->
-    <div class="flex flex-col gap-1">
-      <FloatLabel class="w-full" variant="in">
-        <CitySelect
-          ref="citySelectRef"
-          :model-value="cityIdForSelect"
-          :class="getInputClass('cityId')"
-          :prefilled-city="prefilledCity"
-          :marker-coordinates="markerCoordinates"
-          show-clear
-          @update:modelValue="handleCityIdUpdate"
-        />
-        <label for="city-select" class="text-(--p-text-color-secondary)">{{
-          $t("project.city")
-        }}</label>
-      </FloatLabel>
-      <small v-if="cityIdError" class="text-red-600 text-xs block">{{ cityIdError }}</small>
-      <small
-        v-if="showCityChangeIndicator"
-        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-      >
-        {{ $t("overlay.changedFrom") }}:
-        {{ getCityNameSafe(originalData?.cityId) }}
-      </small>
-    </div>
-
-    <!-- Source URL field -->
-    <div class="flex flex-col gap-1">
-      <FloatLabel class="w-full" variant="in">
-        <InputText
-          id="source-url-input"
-          type="url"
-          v-model="localFormData.sourceUrl"
-          :class="getInputClass('sourceUrl')"
-          autocomplete="off"
-          @blur="handleSourceUrlBlur"
-          @input="handleSourceUrlInput"
-        />
-        <label for="source-url-input" class="text-(--p-text-color-secondary)">{{
-          $t("project.sourceUrl")
-        }}</label>
-      </FloatLabel>
-      <small v-if="sourceUrlError" class="text-red-600 text-xs block">{{ sourceUrlError }}</small>
-      <small
-        v-if="showSourceUrlChangeIndicator"
-        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-      >
-        {{ $t("overlay.changedFrom") }}: "{{ originalData?.sourceUrl || $t("overlay.notSet") }}"
-      </small>
-    </div>
-
-    <!-- Tags field -->
-    <div class="flex flex-col gap-2">
-      <span class="text-sm text-(--p-text-color-secondary)">
-        {{ $t("project.tags") }}
-      </span>
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="tag in allTags"
-          :key="tag.slug"
-          type="button"
-          class="px-3 py-1 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-          :aria-pressed="localFormData.tags.includes(tag.slug)"
-          :style="
-            localFormData.tags.includes(tag.slug)
-              ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
-              : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
-          "
-          @click="toggleTag(tag.slug)"
+          <label for="country-select" class="text-(--p-text-color-secondary)">
+            {{ $t("project.country") }}
+          </label>
+        </FloatLabel>
+        <small
+          v-if="showCountryCodeChangeIndicator"
+          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
         >
-          {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
-        </button>
+          {{ $t("overlay.changedFrom") }}: "{{ originalData?.countryCode || $t("overlay.notSet") }}"
+        </small>
       </div>
+
+      <!-- Proposal date field -->
+      <div class="flex flex-col gap-1">
+        <FlexibleDatePicker
+          v-model="flexibleProposalDate"
+          :label="$t('project.proposalDate')"
+          :max-date="new Date()"
+          unique-id="proposal-date"
+          :error="getFieldError('proposalDate') ?? undefined"
+          @update:modelValue="handleProposalDateChange"
+          @blur="handleProposalDateChange"
+        />
+        <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
+        <small
+          v-if="showProposalDateChangeIndicator"
+          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+        >
+          {{ $t("overlay.changedFrom") }}: "{{
+            formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
+          }}"
+        </small>
+      </div>
+    </div>
+  </Panel>
+
+  <!-- City select field -->
+  <div class="flex flex-col gap-1">
+    <FloatLabel class="w-full" variant="in">
+      <CitySelect
+        ref="citySelectRef"
+        :model-value="cityIdForSelect"
+        :class="getInputClass('cityId')"
+        :prefilled-city="prefilledCity"
+        :marker-coordinates="markerCoordinates"
+        show-clear
+        @update:modelValue="handleCityIdUpdate"
+      />
+      <label for="city-select" class="text-(--p-text-color-secondary)">{{
+        $t("project.city")
+      }}</label>
+    </FloatLabel>
+    <small v-if="cityIdError" class="text-red-600 text-xs block">{{ cityIdError }}</small>
+    <small
+      v-if="showCityChangeIndicator"
+      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+    >
+      {{ $t("overlay.changedFrom") }}:
+      {{ getCityNameSafe(originalData?.cityId) }}
+    </small>
+  </div>
+
+  <!-- Source URL field -->
+  <div class="flex flex-col gap-1">
+    <FloatLabel class="w-full" variant="in">
+      <InputText
+        id="source-url-input"
+        type="url"
+        v-model="localFormData.sourceUrl"
+        :class="getInputClass('sourceUrl')"
+        autocomplete="off"
+        @blur="handleSourceUrlBlur"
+        @input="handleSourceUrlInput"
+      />
+      <label for="source-url-input" class="text-(--p-text-color-secondary)">{{
+        $t("project.sourceUrl")
+      }}</label>
+    </FloatLabel>
+    <small v-if="sourceUrlError" class="text-red-600 text-xs block">{{ sourceUrlError }}</small>
+    <small
+      v-if="showSourceUrlChangeIndicator"
+      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
+    >
+      {{ $t("overlay.changedFrom") }}: "{{ originalData?.sourceUrl || $t("overlay.notSet") }}"
+    </small>
+  </div>
+
+  <!-- Tags field -->
+  <div class="flex flex-col gap-2">
+    <span class="text-sm text-(--p-text-color-secondary)">
+      {{ $t("project.tags") }}
+    </span>
+
+    <!-- Selected tags: primary first (marked with a star), in chosen order -->
+    <div v-if="selectedTags.length > 0" class="flex flex-wrap gap-2">
+      <div
+        v-for="(tag, index) in selectedTags"
+        :key="tag.slug"
+        role="button"
+        tabindex="0"
+        class="flex items-center gap-1.5 pl-2 pr-2 py-1 rounded-full text-xs font-semibold border-2 cursor-pointer"
+        :style="{ backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }"
+        :title="$t('project.removeTag')"
+        @click="removeTag(tag.slug)"
+        @keydown.enter.prevent="removeTag(tag.slug)"
+        @keydown.space.prevent="removeTag(tag.slug)"
+      >
+        <i v-if="index === 0" class="pi pi-star-fill" style="font-size: 0.7rem"></i>
+        <button
+          v-else
+          type="button"
+          class="flex items-center cursor-pointer opacity-70 hover:opacity-100"
+          :title="$t('project.setPrimaryTag')"
+          @click.stop="makePrimary(tag.slug)"
+        >
+          <i class="pi pi-star" style="font-size: 0.7rem"></i>
+        </button>
+        <span>{{ tagLabel(tag.slug) }}</span>
+      </div>
+    </div>
+
+    <!-- Available tags to add -->
+    <div v-if="availableTags.length > 0" class="flex flex-wrap gap-2">
+      <button
+        v-for="tag in availableTags"
+        :key="tag.slug"
+        type="button"
+        class="px-3 py-1 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+        :style="{ backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }"
+        @click="addTag(tag.slug)"
+      >
+        {{ tagLabel(tag.slug) }}
+      </button>
     </div>
   </div>
 </template>
@@ -260,7 +279,7 @@ import type { FlexibleDateInput } from "@shared/types/flexibleDate";
 import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
-import { PROJECT_TAGS } from "@/config/projectTags";
+import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 
 // Re-export for backward compatibility
 export type { ProjectFormData };
@@ -294,7 +313,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const toast = useToast();
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
 
@@ -360,13 +379,35 @@ watch(
   },
 );
 
-function toggleTag(slug: string) {
-  const idx = localFormData.value.tags.indexOf(slug);
-  if (idx === -1) {
+// Selected tags in chosen order; index 0 is the primary tag (drives the marker color).
+// Resolved against the full tag map so an existing project's hidden tag still shows and can be removed.
+const selectedTags = computed(() =>
+  localFormData.value.tags
+    .map((slug) => PROJECT_TAG_MAP.get(slug))
+    .filter((tag): tag is (typeof PROJECT_TAGS)[number] => tag !== undefined),
+);
+
+// Pickable tags not yet selected (hidden tags are never offered for new selection).
+const availableTags = computed(() =>
+  allTags.filter((tag) => !localFormData.value.tags.includes(tag.slug)),
+);
+
+function tagLabel(slug: string) {
+  return te(`tags.${slug}`) ? t(`tags.${slug}`) : slug;
+}
+
+function addTag(slug: string) {
+  if (!localFormData.value.tags.includes(slug)) {
     localFormData.value.tags = [...localFormData.value.tags, slug];
-  } else {
-    localFormData.value.tags = localFormData.value.tags.filter((tag) => tag !== slug);
   }
+}
+
+function removeTag(slug: string) {
+  localFormData.value.tags = localFormData.value.tags.filter((tag) => tag !== slug);
+}
+
+function makePrimary(slug: string) {
+  localFormData.value.tags = [slug, ...localFormData.value.tags.filter((tag) => tag !== slug)];
 }
 
 // Local state for flexible dates

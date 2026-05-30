@@ -179,6 +179,12 @@ async function initializeMapAndOverlays() {
   }
 }
 
+/* Compass control: anchored top-left in map.ts, pushed 100px down to clear the top UI. */
+:deep(.maplibregl-ctrl-top-left) {
+  top: 105px;
+  left: 7px;
+}
+
 /* Global CSS for custom SVG markers */
 :global(.custom-svg-marker) {
   background: none !important;

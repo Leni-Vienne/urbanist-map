@@ -72,12 +72,16 @@
     </template>
 
     <template #pinned-external-project-actions="{ project }">
-      <!-- For external (non-owned) selected projects: add image + submit only -->
+      <!-- For external (non-owned) selected projects: suggest changes, draw, add image, submit -->
       <ProjectActionButtons
         :project="project"
+        show-edit
+        show-draw
         show-add-image
         show-save
         :is-modified="isProjectModified(project.id)"
+        @edit="handleEditProjectClick"
+        @draw="handleDrawShapesClick"
         @add-image="handleAddImageToProject"
         @save="handleSaveProjectClick"
       />
@@ -156,7 +160,7 @@ import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { LngLat } from "maplibre-gl";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
-import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
+import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { selectProject } from "@/services/map/projectSelection";
 import type { ChangeRequest } from "@/stores/pinia/changeRequestStore";
@@ -386,7 +390,6 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   }
 
   const fallbackGeometry = project.geometry ?? null;
-  const existingGeometry = await resolveShapeEditorGeometry(project.id, fallbackGeometry);
 
   // Close any open popups (overlay popup or standalone project popup) to ensure a clean slate
   if (overlayStore.showInfoPopup) {
@@ -401,11 +404,9 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
     }
   }
 
-  // Open the shape editor panel (no popup to reopen at)
+  // Open the shape editor panel (no popup to reopen at) and lazy-load the editor
   uiStore.openShapeEditor(project);
-  // Lazy-load the shape editor and initialise it with the best available geometry
-  const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  await initShapeEditor(existingGeometry ?? undefined);
+  await startShapeEditing(project.id, fallbackGeometry);
 }
 
 // Navigate to the external pinned project using the same logic as a map click.

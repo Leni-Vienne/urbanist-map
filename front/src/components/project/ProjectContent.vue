@@ -28,17 +28,20 @@
               v-if="project.timelineStatus"
               class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
             >
-              <i class="pi pi-calendar text-xs text-muted-color w-3.5 shrink-0"></i>
+              <i class="pi pi-flag text-xs text-muted-color w-3.5 shrink-0"></i>
               <span>{{
                 $te(`timelineStatus.${project.timelineStatus}`)
                   ? $t(`timelineStatus.${project.timelineStatus}`)
                   : project.timelineStatus
               }}</span>
             </div>
-            <div class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)">
-              <i class="pi pi-clock text-xs text-muted-color w-3.5 shrink-0"></i>
+            <div
+              v-if="contributorDate"
+              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
+            >
+              <i class="pi pi-pencil text-xs text-muted-color w-3.5 shrink-0"></i>
               <ContributorInfo
-                :date="project.updatedAt"
+                :date="contributorDate"
                 :contributor-id="project.ownerId"
                 :contributor-username="project.ownerUsername"
                 :report-count="project.ownerReportCount ?? 0"
@@ -310,6 +313,14 @@ const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
 const overlayCount = computed(
   () => props.project.overlayCount || (props.project.overlays?.length ?? 0),
+);
+
+// OSM-imported projects expose updatedAt as the import date, which carries no
+// meaning for users. Show the source's own last-modified date instead, and hide
+// the line entirely when that date is unknown.
+const isOsmImport = computed(() => props.project.importSource?.type === "osm");
+const contributorDate = computed(() =>
+  isOsmImport.value ? props.project.externalLastModified : props.project.updatedAt,
 );
 
 const shouldShowOverlays = computed(() => {

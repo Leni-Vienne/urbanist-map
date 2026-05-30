@@ -108,7 +108,12 @@
     "architect": "Architecte",
     "addImages": "Ajouter",
     "tags": "Catégories",
-    "additionalDetails": "Détails supplémentaires"
+    "primaryTag": "Catégorie principale",
+    "setPrimaryTag": "Définir comme catégorie principale",
+    "removeTag": "Retirer la catégorie",
+    "additionalDetails": "Détails supplémentaires",
+    "osmSource": "OpenStreetMap",
+    "importedTooltip": "Importé depuis OpenStreetMap"
   },
   "tags": {
     "tram": "Tramway",

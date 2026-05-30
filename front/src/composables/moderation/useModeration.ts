@@ -14,7 +14,7 @@ import {
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
 import { t } from "@/locales";
-import type { Project, ProjectForModeration } from "@/types/index";
+import type { ProjectForModeration } from "@/types/index";
 import { createProjectObject } from "@/utils/typeFactories";
 
 // Result type for approval operations
@@ -78,7 +78,7 @@ export function useModeration() {
     id: string,
     status: "approved" | "rejected",
     itemType: "overlay" | "project",
-    items: { id: string; name?: string | null; version: number }[],
+    items: { id: string; version: number }[],
     apiCall: (params: {
       id: string;
       expectedVersion: number;
@@ -202,23 +202,6 @@ export function useModeration() {
     return setOverlayStatus(id, "rejected", undefined, rejectionReason);
   }
 
-  onMounted(async () => {
-    const authStore = useAuthStore();
-    const user = authStore.user;
-    if (!user) return;
-
-    const isAdmin = user.role === "admin";
-    const mapCountryCode = mapStore.selectedCountryCode;
-    const canAccessMapCountry =
-      !user.moderatedCountries ||
-      (mapCountryCode !== null && user.moderatedCountries.includes(mapCountryCode));
-
-    // Admins fetch unfiltered; moderators only when the active country is one they can access.
-    if (isAdmin || (mapCountryCode && canAccessMapCountry)) {
-      await fetchPendingSubmissions();
-    }
-  });
-
   async function setProjectStatus(
     id: string,
     status: "approved" | "rejected",
@@ -239,11 +222,7 @@ export function useModeration() {
     );
 
     if (result.success && projectBeforeApproval) {
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      const projectWithNewStatus = createProjectObject({
-        ...projectBeforeApproval,
-        status,
-      } as unknown as Partial<Project>);
+      const projectWithNewStatus = createProjectObject({ ...projectBeforeApproval, status });
       updateStandaloneProjectMarkerColor(id, projectWithNewStatus);
 
       const marker = getStandaloneProjectMarkerByProjectId(id);
@@ -266,6 +245,23 @@ export function useModeration() {
   ): Promise<ApprovalResult> {
     return setProjectStatus(id, "rejected", rejectionReason, rejectAllOverlays);
   }
+
+  onMounted(async () => {
+    const authStore = useAuthStore();
+    const user = authStore.user;
+    if (!user) return;
+
+    const isAdmin = user.role === "admin";
+    const mapCountryCode = mapStore.selectedCountryCode;
+    const canAccessMapCountry =
+      !user.moderatedCountries ||
+      (mapCountryCode !== null && user.moderatedCountries.includes(mapCountryCode));
+
+    // Admins fetch unfiltered; moderators only when the active country is one they can access.
+    if (isAdmin || (mapCountryCode && canAccessMapCountry)) {
+      await fetchPendingSubmissions();
+    }
+  });
 
   return {
     projects,

@@ -116,8 +116,3 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
 
   registry.cancelCreation(cdnOverlay.id);
 }
-
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
-}

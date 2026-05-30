@@ -134,19 +134,12 @@ export function updateStandaloneProjectMarkerTooltip(
   let modifierText = "";
 
   if (mode === "moderation") {
-    switch (project.status) {
-      case "pending":
-        tooltipText = t("markerTooltip.project.pendingApproval");
-        break;
-      case "approved":
-        tooltipText = t("common.approved");
-        break;
-      case "rejected":
-        tooltipText = t("markerTooltip.project.rejected");
-        break;
-      default:
-        tooltipText = t("markerTooltip.project.newProject");
-    }
+    // Standalone markers in moderation come only from getProjectsInViewport (pending or
+    // approved-with-pending-content), so status is always "pending" or "approved" here.
+    tooltipText =
+      project.status === "approved"
+        ? t("common.approved")
+        : t("markerTooltip.project.pendingApproval");
   } else if (mode === "edit") {
     const hasBeenModified = project.isModified ?? false;
     const status = project.status;
@@ -311,9 +304,4 @@ export function initializeStandaloneMarkerModeWatcher() {
       }
     },
   );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.accept();
 }

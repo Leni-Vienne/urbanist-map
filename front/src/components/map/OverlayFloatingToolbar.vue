@@ -355,9 +355,10 @@ const canDelete = computed(() => {
   return selectedOverlay.value ? canDeleteOverlay(selectedOverlay.value) : false;
 });
 
+// Rejected overlays are never visible/selectable (isOverlayVisible filters them out in
+// edit and moderation), so the toolbar's overlay is only ever approved/pending/local here.
 const canReplaceImage = computed(() => {
-  const status = selectedOverlay.value?.status;
-  return status === "approved" || status === "rejected";
+  return selectedOverlay.value?.status === "approved";
 });
 
 const canUndo = computed(() => (selectedOverlay.value?.history?.length ?? 0) > 1);
@@ -451,7 +452,8 @@ async function onDelete() {
 
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {
   if (overlayObject.status === "approved") return false;
-  if (overlayObject.status === "pending" || overlayObject.status === "rejected") return true;
+  // Rejected overlays are never selectable here (isOverlayVisible filters them out).
+  if (overlayObject.status === "pending") return true;
   if (overlayObject.isModified) return true;
   return false;
 }

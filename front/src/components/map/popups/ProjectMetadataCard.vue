@@ -7,10 +7,7 @@
 
     <!-- Description: prefer OSM description, fall back to Wikidata description, hidden when both null and not editable -->
     <div
-      v-if="
-        showDescription &&
-        (project.description || wikidataDescription || (editMode && !project.importSourceId))
-      "
+      v-if="showDescription && (project.description || wikidataDescription || editMode)"
       :class="cls.row"
     >
       <span :class="cls.label">{{ $t("common.description") }}</span>
@@ -44,10 +41,7 @@
       </div>
 
       <!-- Location: hidden when null and not editable -->
-      <div
-        v-if="projectLocationDisplay !== '—' || (editMode && !project.importSourceId)"
-        :class="cls.row"
-      >
+      <div v-if="projectLocationDisplay !== '—' || editMode" :class="cls.row">
         <span :class="cls.label">{{ $t("project.city") }}</span>
         <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
           projectLocationDisplay
@@ -90,7 +84,7 @@
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
     </div>
-    <div v-else-if="editMode && !project.importSourceId" :class="cls.row">
+    <div v-else-if="editMode" :class="cls.row">
       <span :class="cls.label">{{ $t("project.source") }}</span>
       <button :class="cls.addBtn" @click="emit('field-click')">
         + {{ $t("common.addField") }}
