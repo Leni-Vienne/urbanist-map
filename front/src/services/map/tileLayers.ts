@@ -22,6 +22,7 @@ import {
   lastModifiedDateRange,
 } from "@/services/overlay/statusFilters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
+import { resyncOverlaysFromTiles } from "@/services/map/vectorTileSync";
 
 interface BoundingBox {
   minLat: number;
@@ -339,6 +340,8 @@ watch(
     const mlMap = getMlMap();
     if (mlMap) {
       applyTagFiltersToVectorLayers(mlMap);
+      // setFilter handles vector layers; this evicts the date-filtered overlay images.
+      resyncOverlaysFromTiles();
     }
   },
   { deep: true },
