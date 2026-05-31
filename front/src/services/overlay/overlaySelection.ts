@@ -1,5 +1,6 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { getMarker, getRenderedOverlayIds } from "@/services/overlay/overlayRenderRegistry";
+import { raiseOverlayImage } from "@/services/overlay/overlayImageLayer";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -42,6 +43,9 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   if (newlySelected.isViewingApprovedPosition === undefined) {
     newlySelected.isViewingApprovedPosition = true;
   }
+
+  // Raise the clicked image above its siblings so the one the user picked is never hidden.
+  raiseOverlayImage(overlayId);
 
   // Update marker icon to reflect isViewingApprovedPosition (may have just changed from undefined)
   const marker = getMarker(overlayId);

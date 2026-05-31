@@ -471,7 +471,9 @@
     "redo": "Rétablir (ctrl + y)",
     "delete": "Supprimer cette image",
     "replace": "Remplacer cette image",
-    "save": "Envoyer"
+    "save": "Envoyer",
+    "bringToFront": "Mettre l'image au premier plan",
+    "sendToBack": "Mettre l'image à l'arrière-plan"
   },
   "markerTooltip": {
     "status": {

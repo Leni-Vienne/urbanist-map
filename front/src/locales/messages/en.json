@@ -471,7 +471,9 @@
     "redo": "Redo (ctrl + y)",
     "delete": "Delete this image",
     "replace": "Replace this image",
-    "save": "Submit"
+    "save": "Submit",
+    "bringToFront": "Bring image to front",
+    "sendToBack": "Send image to back"
   },
   "markerTooltip": {
     "status": {

@@ -1,4 +1,4 @@
-import type { ImageSource } from "maplibre-gl";
+import type { ImageSource, Map as MaplibreMap, PointLike } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import {
   cornersToTransform,
@@ -21,6 +21,90 @@ function overlayRasterLayerId(id: string): string {
 }
 
 type ImageCoordinates = [[number, number], [number, number], [number, number], [number, number]];
+
+// Back rasters anchor just beneath the project geometry band so the vector styling stays visible on
+// top of them. The first project-shapes/overlay-footprints layer in stack order is the band bottom;
+// the cluster point layers are excluded since those sit below the basemap labels, not above them.
+function getVectorLayersBottomId(mlMap: MaplibreMap): string | undefined {
+  const anchor = mlMap
+    .getStyle()
+    .layers.find(
+      (layer) => layer.id.startsWith("project-shapes") || layer.id.startsWith("overlay-footprints"),
+    );
+  return anchor?.id;
+}
+
+// Overlay IDs the user pinned to the front (above the geometry); otherwise inter-image order follows
+// selection (clicked image rises to its band top). Held off the handle so the choice survives handle
+// re-creation (zoom threshold crossing, style switch, viewport re-entry).
+const frontOverlayIds = new Set<string>();
+
+// Per-overlay raster opacity (0..1), held off the handle for the same reason. Absent = full opacity.
+const overlayOpacities = new Map<string, number>();
+
+export function isOverlayInFront(id: string): boolean {
+  return frontOverlayIds.has(id);
+}
+
+// Front rasters move to the top of the stack; back rasters move just under the project geometry.
+function raiseToBandTop(mlMap: MaplibreMap, rasterLayerId: string, front: boolean): void {
+  if (front) {
+    mlMap.moveLayer(rasterLayerId);
+  } else {
+    mlMap.moveLayer(rasterLayerId, getVectorLayersBottomId(mlMap));
+  }
+}
+
+// Bring the selected overlay's image above all others in its band, so it can't stay hidden under a
+// sibling the user is trying to work with.
+export function raiseOverlayImage(id: string): void {
+  const mlMap = map.value;
+  const handle = getImageHandle(id);
+  if (!mlMap || !handle || !mlMap.getLayer(handle.rasterLayerId)) return;
+  raiseToBandTop(mlMap, handle.rasterLayerId, frontOverlayIds.has(id));
+}
+
+export function setOverlayInFront(id: string, front: boolean): void {
+  if (front) frontOverlayIds.add(id);
+  else frontOverlayIds.delete(id);
+
+  const mlMap = map.value;
+  const handle = getImageHandle(id);
+  if (!mlMap || !handle || !mlMap.getLayer(handle.rasterLayerId)) return;
+  raiseToBandTop(mlMap, handle.rasterLayerId, front);
+}
+
+// Project shape layers (lines + polygon fills) the overlay can sit over. The overlay's own
+// footprint outline and the cluster points are deliberately excluded: only a real project shape
+// makes the front/back toggle visually meaningful.
+const PROJECT_SHAPE_QUERY_LAYERS = [
+  "project-shapes-fill",
+  "project-shapes-proposed-fill",
+  "project-shapes",
+  "project-shapes-completed",
+  "project-shapes-proposed-dashed",
+];
+
+// True when the overlay's footprint overlaps a rendered project shape, so the front/back toggle
+// would produce a visible change. Queries the screen-space bounding box of the (possibly rotated)
+// footprint, which slightly over-covers, fine for gating a toolbar button.
+export function overlayOverlapsProjectShape(id: string): boolean {
+  const mlMap = map.value;
+  const corners = getOverlayImageCorners(id);
+  if (!mlMap || corners?.length !== 4) return false;
+
+  const layers = PROJECT_SHAPE_QUERY_LAYERS.filter((layer) => mlMap.getLayer(layer));
+  if (layers.length === 0) return false;
+
+  const points = corners.map((c) => mlMap.project([c.lng, c.lat]));
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const bbox: [PointLike, PointLike] = [
+    [Math.min(...xs), Math.min(...ys)],
+    [Math.max(...xs), Math.max(...ys)],
+  ];
+  return mlMap.queryRenderedFeatures(bbox, { layers }).length > 0;
+}
 
 // MapLibre image sources warp to any 4-corner quad, so view mode renders the raw stored
 // corners (pixel-exact for legacy skewed overlays). Order is [TL, TR, BR, BL] = [lng, lat].
@@ -53,19 +137,24 @@ export function createOverlayImage(
 
   if (mlMap.getSource(sourceId)) return null;
 
+  const opacity = overlayOpacities.get(overlayObject.id) ?? 1;
+
   try {
     mlMap.addSource(sourceId, {
       type: "image",
       url: overlayObject.imageUrl,
       coordinates: cornersToImageCoordinates(corners),
     });
-    mlMap.addLayer({
-      id: rasterLayerId,
-      type: "raster",
-      source: sourceId,
-      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
-      paint: { "raster-opacity": 1, "raster-fade-duration": 0 },
-    });
+    mlMap.addLayer(
+      {
+        id: rasterLayerId,
+        type: "raster",
+        source: sourceId,
+        minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
+        paint: { "raster-opacity": opacity, "raster-fade-duration": 0 },
+      },
+      frontOverlayIds.has(overlayObject.id) ? undefined : getVectorLayersBottomId(mlMap),
+    );
   } catch (error) {
     console.error("Failed to create overlay image:", overlayObject.id, error);
     if (mlMap.getLayer(rasterLayerId)) mlMap.removeLayer(rasterLayerId);
@@ -73,7 +162,7 @@ export function createOverlayImage(
     return null;
   }
 
-  return { sourceId, rasterLayerId, transform: cornersToTransform(corners), opacity: 1 };
+  return { sourceId, rasterLayerId, transform: cornersToTransform(corners), opacity };
 }
 
 // Re-render the image at exactly these corners (display / non-edit, e.g. restoring a saved
@@ -122,23 +211,12 @@ export function getOverlayImageCorners(id: string): Corner[] | null {
 
 // Set raster opacity (0..1) for one overlay, persisting it on the handle.
 export function setOverlayImageOpacity(id: string, opacity: number): void {
+  overlayOpacities.set(id, opacity);
   const mlMap = map.value;
   const handle = getImageHandle(id);
   if (!mlMap || !handle) return;
   handle.opacity = opacity;
   if (mlMap.getLayer(handle.rasterLayerId)) {
     mlMap.setPaintProperty(handle.rasterLayerId, "raster-opacity", opacity);
-  }
-}
-
-// Send one overlay's raster below all other overlay rasters (the toolbar "send to back").
-export function sendOverlayImageToBack(id: string): void {
-  const mlMap = map.value;
-  const handle = getImageHandle(id);
-  if (!mlMap || !handle) return;
-  const layers = mlMap.getStyle().layers;
-  const firstOverlayRaster = layers.find((layer) => layer.id.startsWith("overlay-raster-"));
-  if (firstOverlayRaster && firstOverlayRaster.id !== handle.rasterLayerId) {
-    mlMap.moveLayer(handle.rasterLayerId, firstOverlayRaster.id);
   }
 }

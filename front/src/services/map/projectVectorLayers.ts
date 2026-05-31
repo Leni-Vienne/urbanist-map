@@ -16,6 +16,7 @@ import {
   selectOverlay,
 } from "@/services/overlay/overlaySelection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { watch } from "vue";
 
 import {
@@ -518,7 +519,13 @@ let hiddenOverlayIdsCache: string[] = [];
 function computeHiddenOverlayIds(): string[] {
   const store = useOverlayStore();
   const hidden = new Set<string>();
-  if (store.idSelectedOverlay) hidden.add(store.idSelectedOverlay);
+  // Hide the selected overlay's static footprint only in edit mode, where edit handles draw their
+  // own outline and the image may be dragged off its DB position. In view/moderation there are no
+  // edit handles, so keeping the outline is what gives the image its permanent border (otherwise it
+  // vanishes once the cursor leaves and the hover border clears).
+  if (store.idSelectedOverlay && useMapStore().mode === "edit") {
+    hidden.add(store.idSelectedOverlay);
+  }
   for (const [id, o] of Object.entries(store.overlays)) {
     if (o.isModified) hidden.add(id);
   }
@@ -978,18 +985,23 @@ function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData 
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
-  // Find insertion point: after all fill-extrusion (3D buildings) layers but before labels.
-  // Inserting before the very first symbol layer risks landing under 3D buildings when the
-  // basemap style places fill-extrusion layers after its first symbol layers.
-  const layers = mlMap.getStyle().layers;
+  // Project shapes/outlines render on top of the whole basemap (undefined beforeId) so the geometry
+  // draws above the basemap labels: a sent-to-back overlay image is then covered only by the project
+  // vectors, not by distracting street/place names. Overlay rasters anchor to this group: "front"
+  // images go above it (top of stack), "back" images just below it (still above labels).
+  const geometryBeforeId: string | undefined = undefined;
+
+  // Cluster/point layers are the exception: they insert below the first basemap label layer (after
+  // any 3D-building extrusions) so place names stay readable on top of the dots.
+  const styleLayers = mlMap.getStyle().layers;
   let lastExtrusionIndex = -1;
-  for (let i = layers.length - 1; i >= 0; i -= 1) {
-    if (layers[i]?.type === "fill-extrusion") {
+  for (let i = styleLayers.length - 1; i >= 0; i -= 1) {
+    if (styleLayers[i]?.type === "fill-extrusion") {
       lastExtrusionIndex = i;
       break;
     }
   }
-  const firstSymbolLayerId = layers.find(
+  const firstLabelLayerId = styleLayers.find(
     (layer, i) => layer.type === "symbol" && i > lastExtrusionIndex,
   )?.id;
 
@@ -1020,7 +1032,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "fill-opacity": 0.2,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // Proposed project shapes fill, lower opacity to reduce visual weight
@@ -1037,7 +1049,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "fill-opacity": 0.05,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // Project geometry shapes (lines/polygons), visible from zoom 9
@@ -1056,7 +1068,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-dasharray": SHAPE_LONG_DASH,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // completed project shapes: solid line
@@ -1074,7 +1086,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-width": SHAPE_LINE_WIDTH,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // proposed project shapes: short dashes, reduced opacity to visually de-emphasize speculative projects
@@ -1094,7 +1106,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-dasharray": SHAPE_SHORT_DASH,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // Hover highlight for project shapes.
@@ -1111,7 +1123,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "fill-opacity": 0.35,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   mlMap.addLayer(
@@ -1128,7 +1140,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-width": SHAPE_LINE_WIDTH_HOVER,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   mlMap.addLayer(
@@ -1149,7 +1161,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-width": SHAPE_LINE_WIDTH_HOVER,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   const hiddenIds = computeHiddenOverlayIds();
@@ -1171,7 +1183,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "fill-opacity": 0.001,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // Invisible sentinel layer, no status filter needed since all footprints trigger overlay loading.
@@ -1185,7 +1197,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
       paint: { "line-width": 0 },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // Permanent border for overlays. Without a shape outline these images can
@@ -1208,7 +1220,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-opacity": 0.6,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   mlMap.addLayer(
@@ -1225,7 +1237,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-width": FOOTPRINT_LINE_WIDTH,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   mlMap.addLayer(
@@ -1246,7 +1258,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "line-width": FOOTPRINT_LINE_WIDTH,
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   mlMap.addLayer(
@@ -1264,7 +1276,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "circle-stroke-color": "#ffffff",
       },
     },
-    firstSymbolLayerId,
+    geometryBeforeId,
   );
 
   // Individual MVT points
@@ -1283,7 +1295,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "circle-stroke-color": "#ffffff",
       },
     },
-    firstSymbolLayerId,
+    firstLabelLayerId,
   );
 
   // MVT point hover
@@ -1308,7 +1320,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "circle-stroke-color": "#ffffff",
       },
     },
-    firstSymbolLayerId,
+    firstLabelLayerId,
   );
 
   // ── Pending points GeoJSON source ──
@@ -1333,7 +1345,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "circle-stroke-color": "#ffffff",
       },
     },
-    firstSymbolLayerId,
+    firstLabelLayerId,
   );
 
   mlMap.addLayer(
@@ -1349,7 +1361,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         "circle-stroke-color": "#ffffff",
       },
     },
-    firstSymbolLayerId,
+    firstLabelLayerId,
   );
 
   // Apply current tag filters to MVT layers
