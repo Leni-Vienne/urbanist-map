@@ -6,7 +6,6 @@
         :form-data="form.formData"
         :original-data="form.originalData"
         :show-change-indicators="true"
-        :show-latest-update-field="true"
         :timeline-status="timelineStatus"
         :prefilled-city="project.city"
         :marker-coordinates="markerCoordinates"
