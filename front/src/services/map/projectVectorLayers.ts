@@ -550,12 +550,16 @@ function getHiddenOverlayIds(): string[] {
 
 let isHiddenOverlaysWatcherInitialized = false;
 
-// Footprint border/fill filter: locally hidden/edited overlays + the date filter (kept in sync
-// with the images, which vectorTileSync date-filters separately).
+// Footprint border/fill filter: locally hidden/edited overlays + the status and date filters
+// (kept in sync with the images, which vectorTileSync status/date-filters separately).
 function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   const hiddenIds = getHiddenOverlayIds();
   const hiddenFilter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : null;
-  const merged = combineFilters(hiddenFilter, getLastModifiedDateFilterExpression());
+  const merged = combineFilters(
+    hiddenFilter,
+    getStatusFilterExpression(),
+    getLastModifiedDateFilterExpression(),
+  );
 
   for (const layerId of ["overlay-footprints-outline", "overlay-footprints-fill"]) {
     if (mlMap.getLayer(layerId)) {
