@@ -15,6 +15,7 @@
     "reset": "Reset",
     "reasonForChanges": "Reason for Changes",
     "explainChanges": "Briefly explain why you're making these changes",
+    "osmSyncNotice": "This map is separate from OpenStreetMap, so contributions here are sadly not sent there.",
     "current": "Current",
     "new": "New",
     "unknown": "Unknown",

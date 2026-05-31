@@ -15,6 +15,7 @@
     "reset": "Réinitialiser",
     "reasonForChanges": "Raison des modifications",
     "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications",
+    "osmSyncNotice": "Cette carte est indépendante d'OpenStreetMap, les contributions n'y sont malheureusement pas transmises.",
     "current": "Actuel",
     "new": "Nouveau",
     "unknown": "Inconnu",
