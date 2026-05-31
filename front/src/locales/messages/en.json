@@ -231,6 +231,8 @@
       "filterProjects": "Filter projects by status",
       "filterByStatus": "Timeline",
       "filterByName": "Name",
+      "filterByImages": "Images",
+      "onlyWithImages": "Only projects with images",
       "filterBySize": "Filter by Size",
       "resetSize": "Reset",
       "filterByStatusAndTags": "Filters",

@@ -134,6 +134,21 @@
         </label>
       </div>
 
+      <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+        {{ $t("map.controls.filterByImages") }}
+      </p>
+      <div class="flex flex-col gap-1 mb-4">
+        <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
+          <input
+            type="checkbox"
+            :checked="showOnlyWithImages"
+            @change="handleToggleImageFilter"
+            @click.stop
+          />
+          {{ $t("map.controls.onlyWithImages") }}
+        </label>
+      </div>
+
       <div class="mb-4">
         <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
           {{ $t("map.controls.filterBySize") }}
@@ -196,6 +211,8 @@ import {
   selectedNameFilters,
   toggleNameFilter,
   lastModifiedDateRange,
+  showOnlyWithImages,
+  toggleShowOnlyWithImages,
 } from "@/services/overlay/statusFilters";
 import Slider from "primevue/slider";
 
@@ -283,6 +300,11 @@ function handleToggleNameFilter(value: "named" | "unnamed") {
   emit("filter-overlays");
 }
 
+function handleToggleImageFilter() {
+  toggleShowOnlyWithImages();
+  emit("filter-overlays");
+}
+
 function formatSize(meters: number): string {
   if (!Number.isFinite(meters)) return "100km+";
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
@@ -340,6 +362,7 @@ const activeFilterCount = computed(() => {
   if (Number.isFinite(sizeFilterRange.value[1])) count += 1;
   if (lastModifiedDateRange.value[0] > 0) count += 1;
   if (Number.isFinite(lastModifiedDateRange.value[1])) count += 1;
+  if (showOnlyWithImages.value) count += 1;
   return count;
 });
 

@@ -231,6 +231,8 @@
       "filterProjects": "Filtrer les projets par statut",
       "filterByStatus": "Chronologie",
       "filterByName": "Nom",
+      "filterByImages": "Images",
+      "onlyWithImages": "Uniquement les projets avec images",
       "filterBySize": "Filtrer par taille",
       "resetSize": "Réinitialiser",
       "filterByStatusAndTags": "Filtres",

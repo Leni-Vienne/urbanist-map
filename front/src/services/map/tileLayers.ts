@@ -20,6 +20,7 @@ import {
   sizeFilterRange,
   selectedNameFilters,
   lastModifiedDateRange,
+  showOnlyWithImages,
 } from "@/services/overlay/statusFilters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { resyncOverlaysFromTiles } from "@/services/map/vectorTileSync";
@@ -335,7 +336,14 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
 
 // Watch for tag and status filter changes and update MVT layers on the map
 watch(
-  [selectedProjectTags, visibleStates, sizeFilterRange, selectedNameFilters, lastModifiedDateRange],
+  [
+    selectedProjectTags,
+    visibleStates,
+    sizeFilterRange,
+    selectedNameFilters,
+    lastModifiedDateRange,
+    showOnlyWithImages,
+  ],
   () => {
     const mlMap = getMlMap();
     if (mlMap) {
