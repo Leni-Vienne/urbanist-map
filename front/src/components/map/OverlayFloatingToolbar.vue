@@ -48,10 +48,15 @@
           </button>
         </template>
 
-        <template v-if="hasCollision">
+        <!-- Bring image to front / send to back, only when it overlaps a project shape -->
+        <template v-if="canStack">
           <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-          <button title="Send to back" :class="btnCls()" @click="stackToBack">
-            <i class="pi pi-arrow-down" />
+          <button
+            :title="isInFront ? t('toolbar.sendToBack') : t('toolbar.bringToFront')"
+            :class="btnCls()"
+            @click="toggleStacking"
+          >
+            <i :class="isInFront ? 'pi pi-arrow-down' : 'pi pi-arrow-up'" />
           </button>
         </template>
 
@@ -111,11 +116,13 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
-import { getImageHandle, getRenderedOverlayIds } from "@/services/overlay/overlayRenderRegistry";
+import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
 import {
   getOverlayImageCorners,
   setOverlayImageOpacity,
-  sendOverlayImageToBack,
+  setOverlayInFront,
+  isOverlayInFront,
+  overlayOverlapsProjectShape,
 } from "@/services/overlay/overlayImageLayer";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
 import { navigateOverlaySequence } from "@/services/overlay/overlayActions";
@@ -130,8 +137,6 @@ import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialo
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 
-type Corner = { lat: number; lng: number };
-
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
@@ -145,6 +150,8 @@ const isEditMode = computed(() => mode.value === "edit");
 // MapLibre handles pan + zoom positioning via a transform on the element automatically.
 const markerIconEl = ref<HTMLElement | null>(null);
 const opacity = ref(100);
+const isInFront = ref(false);
+const canStack = ref(false);
 const showInfoPopup = ref(false);
 const infoSlot = ref<HTMLElement | null>(null);
 
@@ -166,11 +173,18 @@ function destroyMarker() {
   anchorMarker?.remove();
   anchorMarker = null;
   markerIconEl.value = null;
+  canStack.value = false;
   if (retryRafId !== null) {
     cancelAnimationFrame(retryRafId);
     retryRafId = null;
   }
-  hasCollision.value = false;
+}
+
+// The front/back button only matters when the image sits over a project shape (otherwise toggling
+// has no visible effect). Re-evaluated on selection, map move, and while the overlay is dragged.
+function refreshCanStack() {
+  const id = selectedId.value;
+  canStack.value = id ? overlayOverlapsProjectShape(id) : false;
 }
 
 function createMarker(lngLat: [number, number]) {
@@ -188,9 +202,11 @@ function createMarker(lngLat: [number, number]) {
 // drags overlay handles (corner changes, no map event fires).
 let rafId: number | null = null;
 
+let lastOverlapCheckTs = 0;
+
 function startRAF() {
   if (rafId !== null) return;
-  function tick() {
+  function tick(ts: number) {
     if (anchorMarker && selectedId.value) {
       const lngLat = getAnchorLngLat();
       if (lngLat) {
@@ -199,6 +215,11 @@ function startRAF() {
         // Image removed from registry while still selected (e.g. zoom-out unload with
         // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
         overlayStore.idSelectedOverlay = null;
+      }
+      // Throttled so a drag onto/off a project shape updates the button without querying every frame.
+      if (ts - lastOverlapCheckTs > 200) {
+        lastOverlapCheckTs = ts;
+        refreshCanStack();
       }
     }
     rafId = requestAnimationFrame(tick);
@@ -212,59 +233,6 @@ function stopRAF() {
     rafId = null;
   }
 }
-// ─── SAT collision (convex quad vs convex quad) ───────────────────────────────
-
-function projectOnAxis(corners: Corner[], axLat: number, axLng: number) {
-  let min = Infinity,
-    max = -Infinity;
-  for (const c of corners) {
-    const p = c.lat * axLat + c.lng * axLng;
-    if (p < min) min = p;
-    if (p > max) max = p;
-  }
-  return { min, max };
-}
-
-function quadsOverlap(a: Corner[], b: Corner[]): boolean {
-  for (const poly of [a, b]) {
-    for (let i = 0; i < poly.length; i += 1) {
-      /* oxlint-disable no-non-null-assertion */
-      const p1 = poly[i]!;
-      const p2 = poly[(i + 1) % poly.length]!;
-      /* oxlint-enable no-non-null-assertion */
-      const dlat = p2.lat - p1.lat;
-      const dlng = p2.lng - p1.lng;
-      const pa = projectOnAxis(a, -dlng, dlat);
-      const pb = projectOnAxis(b, -dlng, dlat);
-      if (pa.max < pb.min || pb.max < pa.min) return false;
-    }
-  }
-  return true;
-}
-
-// ─── Collision detection ───────────────────────────────────────────────────────
-
-const hasCollision = ref(false);
-
-function checkCollision() {
-  const id = selectedId.value;
-  if (!id) {
-    hasCollision.value = false;
-    return;
-  }
-  const corners = getOverlayImageCorners(id);
-  if (!corners) {
-    hasCollision.value = false;
-    return;
-  }
-  hasCollision.value = getRenderedOverlayIds().some((otherId) => {
-    if (otherId === id) return false;
-    const otherCorners = getOverlayImageCorners(otherId);
-    return otherCorners ? quadsOverlap(corners, otherCorners) : false;
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function initForSelection() {
   if (!map.value) return;
@@ -278,8 +246,9 @@ function initForSelection() {
   retryRafId = null;
   createMarker(lngLat);
   opacity.value = readOpacity();
+  isInFront.value = selectedId.value ? isOverlayInFront(selectedId.value) : false;
+  refreshCanStack();
   startRAF();
-  checkCollision();
 }
 
 watch(
@@ -298,9 +267,9 @@ watch(
 watch(
   map,
   (newMap, oldMap) => {
-    oldMap?.off("moveend", checkCollision);
+    oldMap?.off("moveend", refreshCanStack);
     if (newMap) {
-      newMap.on("moveend", checkCollision);
+      newMap.on("moveend", refreshCanStack);
       if (selectedId.value && !anchorMarker) initForSelection();
     }
   },
@@ -310,7 +279,7 @@ watch(
 onUnmounted(() => {
   stopRAF();
   destroyMarker();
-  map.value?.off("moveend", checkCollision);
+  map.value?.off("moveend", refreshCanStack);
 });
 
 function readOpacity(): number {
@@ -402,9 +371,12 @@ function goToNext() {
   navigateOverlaySequence("next");
 }
 
-function stackToBack() {
+function toggleStacking() {
   const id = selectedId.value;
-  if (id) sendOverlayImageToBack(id);
+  if (!id) return;
+  const next = !isInFront.value;
+  setOverlayInFront(id, next);
+  isInFront.value = next;
 }
 
 function undo() {

@@ -11,6 +11,7 @@ import {
 import {
   setOverlayImageTransform,
   getCurrentTransform,
+  raiseOverlayImage,
 } from "@/services/overlay/overlayImageLayer";
 import { resolveOverlayRenderCorners, saveToHistory } from "@/services/overlay/overlayHistory";
 import { updateMarkerPosition } from "@/services/map/markers";
@@ -149,6 +150,7 @@ function wireCornerDrag(s: EditSession): void {
 
   s.cornerMarkers.forEach((marker, i) => {
     marker.on("dragstart", () => {
+      raiseOverlayImage(overlayObject.id);
       const transform = getCurrentTransform(overlayObject.id);
       if (!transform) return;
       const opposite = transformToCorners(transform)[(i + 2) % 4];
@@ -218,6 +220,10 @@ function wireSurfaceDrag(s: EditSession): void {
   s.onDown = (e: MapMouseEvent) => {
     e.preventDefault();
     if (s.cornerDrag) return; // Prevent surface drag if a corner is currently being dragged
+
+    // Raise above any sibling images that streamed in since selection, so the image being moved
+    // stays on top of others it slides over during the drag.
+    raiseOverlayImage(overlayObject.id);
 
     const transform = getCurrentTransform(overlayObject.id);
     if (!transform) return;
