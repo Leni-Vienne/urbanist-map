@@ -44,6 +44,13 @@ export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
 // [minTimestampMs, maxTimestampMs]. Uses externalLastModified when set, otherwise updated_at.
 export const lastModifiedDateRange = ref([0, Infinity] as [number, number]);
 
+// When true, only projects that have at least one approved overlay image are shown.
+export const showOnlyWithImages = ref(false);
+
+export function toggleShowOnlyWithImages(): void {
+  showOnlyWithImages.value = !showOnlyWithImages.value;
+}
+
 export function toggleNameFilter(value: "named" | "unnamed"): void {
   if (selectedNameFilters.value.includes(value)) {
     selectedNameFilters.value = selectedNameFilters.value.filter((v) => v !== value);

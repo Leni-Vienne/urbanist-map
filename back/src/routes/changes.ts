@@ -379,13 +379,21 @@ export const changesRouter = router({
           author: { email: ctx.user.email, username: ctx.user.username },
           entityType: input.entityType,
           entityId: input.entityId,
-          fieldNames: input.changes.map((change) => change.fieldName),
+          changes: input.changes.map((change) => ({
+            fieldName: change.fieldName,
+            oldValue: change.oldValue,
+            newValue: change.newValue,
+            changeReason: change.changeReason,
+          })),
           lat: entityLat,
           lng: entityLng,
         });
 
         return { success: true };
       } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
         console.error("Error submitting change request:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -602,6 +610,7 @@ export const changesRouter = router({
           ],
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error approving change requests:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -651,6 +660,7 @@ export const changesRouter = router({
 
         return { success: true };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error rejecting change requests:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",

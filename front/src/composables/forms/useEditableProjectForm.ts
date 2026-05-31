@@ -27,6 +27,9 @@ interface EditableProjectFormOptions {
   entityId: string;
   initialData: ProjectFormData; // Original backend values for "modified from X" comparison
   currentData?: ProjectFormData; // Current values to display in form (if different from initialData after local saves)
+  // Full project the form was opened with. Used to seed the store when the project
+  // isn't already present (e.g. opened from a tile/moderation source, or evicted by clearAllState).
+  getFallbackProject?: () => Project | undefined;
   getAvailableCities?: () => {
     id: number;
     name: string;
@@ -97,13 +100,14 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   function applyLocalEdit() {
-    const currentProject = projectStore.projects[options.entityId];
+    // UserContribution extends Project, so any of these can serve as the spread base.
+    // Fallback is the project the form was opened with, for sources not yet in the store.
+    const baseProject: Project | undefined =
+      projectStore.projects[options.entityId] ??
+      projectStore.userContributions.find((p) => p.id === options.entityId) ??
+      options.getFallbackProject?.();
 
-    const userContributionProject = projectStore.userContributions.find(
-      (p) => p.id === options.entityId,
-    );
-
-    if (!currentProject && !userContributionProject) {
+    if (!baseProject) {
       console.error("[useEditableProjectForm] project not found:", options.entityId);
       return;
     }
@@ -112,29 +116,17 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
     projectStore.updateProjectInUserContributions(options.entityId, formFields);
 
-    if (currentProject) {
-      const cityObject = getCityObjectForUpdate(currentProject);
-      projectStore.updateProject(options.entityId, {
-        ...currentProject,
-        ...formFields,
-        city: cityObject,
-        isModified: true,
-      });
+    projectStore.updateProject(options.entityId, {
+      ...baseProject,
+      ...formFields,
+      city: getCityObjectForUpdate(baseProject),
+      isModified: true,
+    });
 
-      const updatedProject = projectStore.projects[options.entityId];
-      const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0;
-      if (updatedProject && hasNoOverlays) {
-        updateStandaloneProjectMarkerColor(options.entityId, updatedProject);
-      }
-    } else if (userContributionProject) {
-      // Not yet in projects store. UserContribution extends Project, so we can spread directly.
-      const projectFromContribution: Project = {
-        ...userContributionProject,
-        ...formFields,
-        isModified: true,
-      };
-
-      projectStore.updateProject(options.entityId, projectFromContribution);
+    const updatedProject = projectStore.projects[options.entityId];
+    const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0;
+    if (updatedProject && hasNoOverlays) {
+      updateStandaloneProjectMarkerColor(options.entityId, updatedProject);
     }
   }
 

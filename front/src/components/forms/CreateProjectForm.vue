@@ -3,7 +3,6 @@
     <ProjectFormFields
       ref="formFieldsRef"
       :form-data="formData"
-      :show-latest-update-field="false"
       :timeline-status="timelineStatus"
       :prefilled-city="props.project.city"
       :marker-coordinates="markerCoordinates"

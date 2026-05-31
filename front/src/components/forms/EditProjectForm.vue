@@ -6,7 +6,6 @@
         :form-data="form.formData"
         :original-data="form.originalData"
         :show-change-indicators="true"
-        :show-latest-update-field="true"
         :timeline-status="timelineStatus"
         :prefilled-city="project.city"
         :marker-coordinates="markerCoordinates"
@@ -97,6 +96,7 @@ const form = useEditableProjectForm({
   entityId: props.project.id,
   initialData: projectData.value, // Original backend values for comparison
   currentData: currentProjectData.value, // Current values to display in form
+  getFallbackProject: () => props.project,
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),

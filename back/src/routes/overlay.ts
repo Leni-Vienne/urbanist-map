@@ -108,6 +108,7 @@ export const overlayRouter = router({
         intersectingOverlays,
       };
     } catch (error) {
+      if (error instanceof TRPCError) throw error;
       console.error("Error fetching overlay:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
@@ -221,8 +222,6 @@ export const overlayRouter = router({
           id: overlays.id,
           status: overlays.status,
           authorId: overlays.authorId,
-          createdAt: overlays.createdAt,
-          updatedAt: overlays.updatedAt,
         });
 
       const upsertedOverlay = upsertedOverlayResult[0];
@@ -230,7 +229,7 @@ export const overlayRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to upsert overlay" });
       }
 
-      const wasUpdate = upsertedOverlay.createdAt !== upsertedOverlay.updatedAt;
+      const wasUpdate = Boolean(existingOverlay[0]);
       if (!wasUpdate) {
         void notifyNewSubmission({
           kind: "overlay",
@@ -299,6 +298,7 @@ export const overlayRouter = router({
 
       return { success: true };
     } catch (error) {
+      if (error instanceof TRPCError) throw error;
       console.error("Error updating overlay:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to update overlay" });
     }
@@ -393,8 +393,6 @@ export const overlayRouter = router({
           projectId: overlays.projectId,
           replacedByOverlayId: overlays.replacedByOverlayId,
           projectName: projects.name,
-          lat: sql<number | null>`NULL`,
-          lng: sql<number | null>`NULL`,
           cityId: projects.cityId,
           cityName: cities.name,
           countryCode: projects.countryCode,

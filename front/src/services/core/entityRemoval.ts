@@ -5,6 +5,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/overlayRenderRegistry";
+import { hideEditHandles } from "@/services/overlay/overlayEditHandles";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
@@ -30,6 +31,9 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
 
   if (overlayStore.idSelectedOverlay === overlayId) {
+    // The selected overlay is the only one that can have an active edit session, so tear
+    // down its outline and corner handles here, otherwise they linger orphaned on the map.
+    hideEditHandles();
     overlayStore.idSelectedOverlay = null;
   }
 

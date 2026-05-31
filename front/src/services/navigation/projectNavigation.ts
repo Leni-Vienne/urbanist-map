@@ -2,7 +2,7 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
 import { map } from "@/services/core/map";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";

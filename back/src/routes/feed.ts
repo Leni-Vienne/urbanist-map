@@ -2,8 +2,7 @@ import { publicProcedure, router, TRPCError } from "../trpc";
 import { z } from "zod";
 import { db } from "../database";
 import { overlays, projects, cities, countries } from "../db/schema";
-import { sql, eq, and, desc } from "drizzle-orm";
-import type { SQL } from "drizzle-orm";
+import { sql, eq, and, desc, type SQL } from "drizzle-orm";
 
 const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(50).optional().default(20),
@@ -12,7 +11,7 @@ const getLatestContributionsSchema = z.object({
 // In-memory cache for latest contributions
 // Cache expires after 2 minutes or when invalidated
 let latestContributionsCache: {
-  data: any[];
+  data: LatestContributionItem[];
   timestamp: number;
   limit: number;
 } | null = null;
@@ -37,10 +36,6 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
       cityName: cities.name,
       countryCode: projects.countryCode,
       countryName: countries.name,
-      centroidLat: sql<null>`NULL`,
-      centroidLng: sql<null>`NULL`,
-      corners: sql<null>`NULL`,
-      status: projects.status,
       lat: projects.lat,
       lng: projects.lng,
       // Bounding box of project geometry for flying to the right area when clicked
@@ -97,7 +92,6 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
     countryName: p.countryName,
     lat: p.lat,
     lng: p.lng,
-    status: p.status,
     isImport,
     // Geometry bbox for flying to the right bounds when the project has vector shapes
     geometryBbox:
@@ -120,6 +114,68 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
   };
 }
 
+// One feed entry per project: the most recently updated approved overlay.
+// DISTINCT ON (project) collapses a multi-overlay project to a single row so a
+// batch approval can't bury every other contribution.
+function buildLatestOverlaysQuery(limit: number) {
+  const latestOverlayPerProject = db
+    .selectDistinctOn([overlays.projectId], {
+      type: sql<"overlay">`'overlay'`.as("type"),
+      id: overlays.id,
+      name: sql<string>`COALESCE(${overlays.caption}, ${projects.name})`.as("name"),
+      filename: overlays.filename,
+      updatedAt: overlays.updatedAt,
+      cityName: sql<string | null>`${cities.name}`.as("cityName"),
+      countryCode: projects.countryCode,
+      countryName: sql<string | null>`${countries.name}`.as("countryName"),
+      centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as("centroidLat"),
+      centroidLng: sql<number>`ST_X(${overlays.centroid})`.as("centroidLng"),
+      corners: sql<{ lat: number; lng: number }[]>`(
+        SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
+        FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
+        WHERE path[2] <= 4
+      )`.as("corners"),
+    })
+    .from(overlays)
+    .leftJoin(projects, eq(overlays.projectId, projects.id))
+    .leftJoin(cities, eq(projects.cityId, cities.id))
+    .leftJoin(countries, eq(projects.countryCode, countries.code))
+    .where(and(eq(overlays.status, "approved"), eq(projects.status, "approved")))
+    .orderBy(overlays.projectId, desc(overlays.updatedAt))
+    .as("latest_overlay_per_project");
+
+  return db
+    .select()
+    .from(latestOverlayPerProject)
+    .orderBy(desc(latestOverlayPerProject.updatedAt))
+    .limit(limit);
+}
+
+type LatestOverlayRow = Awaited<ReturnType<typeof buildLatestOverlaysQuery>>[number];
+
+function mapOverlayContribution(o: LatestOverlayRow) {
+  return {
+    type: "overlay" as const,
+    id: o.id,
+    name: o.name,
+    filename: o.filename,
+    updatedAt: o.updatedAt,
+    cityName: o.cityName,
+    countryCode: o.countryCode,
+    countryName: o.countryName,
+    centroid:
+      o.centroidLat !== null && o.centroidLng !== null
+        ? { lat: o.centroidLat, lng: o.centroidLng }
+        : null,
+    corners: o.corners,
+    isImport: false,
+  };
+}
+
+type LatestContributionItem =
+  | ReturnType<typeof mapStandaloneProject>
+  | ReturnType<typeof mapOverlayContribution>;
+
 export const feedRouter = router({
   getLatestContributions: publicProcedure
     .input(getLatestContributionsSchema)
@@ -134,43 +190,7 @@ export const feedRouter = router({
           return latestContributionsCache.data.slice(0, input.limit);
         }
 
-        // One feed entry per project: the most recently updated approved overlay.
-        // DISTINCT ON (project) collapses a multi-overlay project to a single row so a
-        // batch approval can't bury every other contribution.
-        const latestOverlayPerProject = db
-          .selectDistinctOn([overlays.projectId], {
-            type: sql<"overlay">`'overlay'`.as("type"),
-            id: overlays.id,
-            name: sql<string>`COALESCE(${overlays.caption}, ${projects.name})`.as("name"),
-            filename: overlays.filename,
-            updatedAt: overlays.updatedAt,
-            cityName: sql<string | null>`${cities.name}`.as("cityName"),
-            countryCode: projects.countryCode,
-            countryName: sql<string | null>`${countries.name}`.as("countryName"),
-            centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as("centroidLat"),
-            centroidLng: sql<number>`ST_X(${overlays.centroid})`.as("centroidLng"),
-            corners: sql<{ lat: number; lng: number }[]>`(
-              SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-              FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-              WHERE path[2] <= 4
-            )`.as("corners"),
-            status: overlays.status,
-            lat: sql<null>`NULL`.as("lat"),
-            lng: sql<null>`NULL`.as("lng"),
-          })
-          .from(overlays)
-          .leftJoin(projects, eq(overlays.projectId, projects.id))
-          .leftJoin(cities, eq(projects.cityId, cities.id))
-          .leftJoin(countries, eq(projects.countryCode, countries.code))
-          .where(and(eq(overlays.status, "approved"), eq(projects.status, "approved")))
-          .orderBy(overlays.projectId, desc(overlays.updatedAt))
-          .as("latest_overlay_per_project");
-
-        const overlaysQuery = db
-          .select()
-          .from(latestOverlayPerProject)
-          .orderBy(desc(latestOverlayPerProject.updatedAt))
-          .limit(input.limit);
+        const overlaysQuery = buildLatestOverlaysQuery(input.limit);
 
         const directProjectsQuery = buildStandaloneProjectsQuery(
           sql`${projects.importSourceId} IS NULL`,
@@ -187,23 +207,7 @@ export const feedRouter = router({
           importedProjectsQuery,
         ]);
 
-        const overlayContributions = latestOverlays.map((o) => ({
-          type: "overlay" as const,
-          id: o.id,
-          name: o.name,
-          filename: o.filename,
-          updatedAt: o.updatedAt,
-          cityName: o.cityName,
-          countryCode: o.countryCode,
-          countryName: o.countryName,
-          centroid:
-            o.centroidLat !== null && o.centroidLng !== null
-              ? { lat: o.centroidLat, lng: o.centroidLng }
-              : null,
-          corners: o.corners,
-          status: o.status,
-          isImport: false,
-        }));
+        const overlayContributions = latestOverlays.map(mapOverlayContribution);
 
         const directStandaloneContributions = directProjectRows.map((p) =>
           mapStandaloneProject(p, false),

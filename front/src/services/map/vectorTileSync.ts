@@ -16,7 +16,7 @@ import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import { lastModifiedDateRange } from "@/services/overlay/statusFilters";
+import { lastModifiedDateRange, visibleStates } from "@/services/overlay/statusFilters";
 
 // lastModifiedS is Unix seconds (tile units). querySourceFeatures bypasses MapLibre layer
 // filters, so images must be date-checked here rather than relying on setFilter.
@@ -28,6 +28,15 @@ function matchesDateFilter(lastModifiedS: number): boolean {
   if (ms < minMs) return false;
   if (maxMs !== Infinity && ms > maxMs) return false;
   return true;
+}
+
+// Same reason as matchesDateFilter: querySourceFeatures bypasses the setFilter applied to the
+// footprint layers, so images must be status-checked here. visibleStates is all-true when no
+// status is selected, so this is a no-op until the user filters. Missing status reads as proposed.
+function matchesStatusFilter(timelineStatus: string | null | undefined): boolean {
+  const states = visibleStates.value;
+  if (!timelineStatus) return states.proposed;
+  return (states as Record<string, boolean>)[timelineStatus] ?? states.proposed;
 }
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
@@ -100,18 +109,22 @@ function syncOverlaysFromTiles(mlMap: any): void {
 
     // Deduplicate by ID (promoteId means the id may live on feat.id, not feat.properties.id).
     const featureMap = new Map<string, OverlayData>();
-    // Ids excluded by the date filter; the eviction pass drops these instead of keep-alive resurrecting them.
-    const dateFiltered = new Set<string>();
+    // Ids excluded by a client-side filter; the eviction pass drops these instead of keep-alive resurrecting them.
+    const filtered = new Set<string>();
     const lastModifiedById = new Map<string, number>();
+    const statusById = new Map<string, string | null>();
     for (const feat of allFeatures) {
       const id = String(feat.id ?? feat.properties?.id ?? "");
 
       if (!id || featureMap.has(id)) continue;
 
-      lastModifiedById.set(id, Number(feat.properties?.last_modified_s));
+      const lastModifiedS = Number(feat.properties?.last_modified_s);
+      const timelineStatus = (feat.properties?.timeline_status as string | null) ?? null;
+      lastModifiedById.set(id, lastModifiedS);
+      statusById.set(id, timelineStatus);
 
-      if (!matchesDateFilter(Number(feat.properties?.last_modified_s))) {
-        dateFiltered.add(id);
+      if (!matchesDateFilter(lastModifiedS) || !matchesStatusFilter(timelineStatus)) {
+        filtered.add(id);
         continue;
       }
 
@@ -129,8 +142,8 @@ function syncOverlaysFromTiles(mlMap: any): void {
     // via the visibility check in onOverlayFullyLoaded if they've since left view.
     for (const id of registry.getRenderedOverlayIds()) {
       if (!featureMap.has(id) && !registry.isCreating(id) && approvedOverlayDataCache.has(id)) {
-        // Excluded by the date filter: remove it outright rather than keeping the image alive.
-        if (dateFiltered.has(id)) {
+        // Excluded by a client-side filter: remove it outright rather than keeping the image alive.
+        if (filtered.has(id)) {
           registry.clearEntry(id);
           approvedOverlayDataCache.delete(id);
           continue;
@@ -172,9 +185,11 @@ function syncOverlaysFromTiles(mlMap: any): void {
     const createMarkers = useMapStore().mode !== "view";
     import("@/services/overlay/overlayRendering")
       .then(({ renderViewModeOverlays }) => {
-        // Re-check the live filter: this import is async, so toCreate may be stale.
-        const stillVisible = toCreate.filter((o) =>
-          matchesDateFilter(lastModifiedById.get(o.id) ?? Number.NaN),
+        // Re-check the live filters: this import is async, so toCreate may be stale.
+        const stillVisible = toCreate.filter(
+          (o) =>
+            matchesDateFilter(lastModifiedById.get(o.id) ?? Number.NaN) &&
+            matchesStatusFilter(statusById.get(o.id)),
         );
         if (stillVisible.length > 0) renderViewModeOverlays(stillVisible, createMarkers);
       })

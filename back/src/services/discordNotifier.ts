@@ -46,9 +46,16 @@ type SubmissionNotification = SubmissionLocation &
         author: Author;
         entityType: "project" | "overlay";
         entityId: string;
-        fieldNames: string[];
+        changes: ChangeDetail[];
       }
   );
+
+type ChangeDetail = {
+  fieldName: string;
+  oldValue: unknown;
+  newValue: unknown;
+  changeReason?: string | null;
+};
 
 const COLOR_PROJECT = 0x3b_82_f6;
 const COLOR_OVERLAY = 0x10_b9_81;
@@ -97,17 +104,69 @@ function buildEmbed(notification: SubmissionNotification, envName: string): Disc
     };
   }
 
+  const fieldChanges = notification.changes.filter((change) => !isGeometryField(change.fieldName));
+  const geometryChanges = notification.changes.filter((change) =>
+    isGeometryField(change.fieldName),
+  );
+
+  const changeFields: DiscordEmbedField[] = fieldChanges.map((change) => ({
+    name: change.fieldName,
+    value: formatChange(change),
+  }));
+
+  const descriptionParts = [
+    `${notification.changes.length} field(s) on ${notification.entityType}`,
+  ];
+  for (const change of geometryChanges) {
+    descriptionParts.push(
+      `**${change.fieldName} (new):** ${truncate(formatValue(change.newValue), DESCRIPTION_LIMIT - 200)}`,
+    );
+  }
+
   return {
     title: "New change request submitted",
-    description: `${notification.fieldNames.length} field(s) on ${notification.entityType}`,
+    description: truncate(descriptionParts.join("\n\n"), DESCRIPTION_LIMIT),
     color: COLOR_CHANGE,
     fields: [
       ...commonFields,
-      { name: "Fields", value: notification.fieldNames.join(", ") || "—" },
       { name: `${notification.entityType} ID`, value: notification.entityId },
+      ...changeFields,
     ],
     timestamp: new Date().toISOString(),
   };
+}
+
+const FIELD_VALUE_LIMIT = 1024;
+const DESCRIPTION_LIMIT = 4096;
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "(empty)";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function truncate(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit - 1)}…`;
+}
+
+function isGeometryField(fieldName: string): boolean {
+  return fieldName === "geometry";
+}
+
+function formatChange(change: ChangeDetail): string {
+  const lines = [
+    `**Old:** ${truncate(formatValue(change.oldValue), 400)}`,
+    `**New:** ${truncate(formatValue(change.newValue), 400)}`,
+  ];
+  if (change.changeReason) {
+    lines.push(`**Reason:** ${truncate(change.changeReason, 200)}`);
+  }
+  return truncate(lines.join("\n"), FIELD_VALUE_LIMIT);
 }
 
 export async function notifyNewSubmission(notification: SubmissionNotification): Promise<void> {

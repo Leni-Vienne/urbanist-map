@@ -41,7 +41,7 @@ export function useOverlayClickHandler() {
 
       // For rejected or replaced overlays, navigate to overlay's centroid if available
       // Otherwise fall back to project center
-      if (overlay.status === "rejected" || overlay.status === "replaced") {
+      if ("status" in overlay && (overlay.status === "rejected" || overlay.status === "replaced")) {
         await navigateToReplacedOrRejectedOverlay(overlay, overlayStore);
         return;
       }
@@ -68,7 +68,7 @@ export function useOverlayClickHandler() {
         mapStore.setMode("edit");
 
         // Only show toast for pending overlays (for approved ones it's less critical)
-        if (overlay.status === "pending") {
+        if ("status" in overlay && overlay.status === "pending") {
           toast.add({
             severity: "info",
             summary: t("moderation.switchedToEditMode"),

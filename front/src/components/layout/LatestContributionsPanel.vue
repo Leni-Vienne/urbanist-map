@@ -7,7 +7,7 @@
       <div v-if="contributions.length > 0" ref="contentRef" class="flex flex-col">
         <template v-for="(contribution, index) in contributions" :key="contribution.id">
           <div
-            v-if="contribution.isImport && index > 0 && !contributions[index - 1].isImport"
+            v-if="contribution.isImport && index > 0 && !contributions[index - 1]?.isImport"
             class="flex items-center gap-2 px-3 pt-3 pb-1 select-none"
           >
             <span class="flex-1 border-t border-surface"></span>
@@ -184,8 +184,6 @@ async function handleContributionClick(contribution: LatestContribution) {
       zoomToOverlayAndSelect(contribution.id, contribution.corners);
     } else if (contribution.centroid) {
       mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18);
-    } else if (contribution.lat !== undefined && contribution.lng !== undefined) {
-      mobileAwareFlyTo([contribution.lat, contribution.lng], 18);
     } else {
       console.warn("Contribution has no location data to fly to!", contribution);
     }
@@ -197,7 +195,7 @@ async function handleContributionClick(contribution: LatestContribution) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
       requestScrollTo("project", contribution.id);
       // Use a point on the geometry itself so the popup anchors on the actual vector
-      const popupLatLng = Object.hasOwn(contribution, "geometryPoint")
+      const popupLatLng = contribution.geometryPoint
         ? new LngLat(contribution.geometryPoint.lng, contribution.geometryPoint.lat)
         : new LngLat((minLng + maxLng) / 2, (minLat + maxLat) / 2);
       map.value.once("moveend", () => {
