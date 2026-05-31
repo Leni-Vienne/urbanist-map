@@ -1,7 +1,7 @@
 import { db } from "../database";
 import { scheduledDeletions } from "../db/schema";
 import { lte, eq } from "drizzle-orm";
-import { appendFile } from "node:fs/promises";
+import { appendFile, readdir, unlink } from "node:fs/promises";
 import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from "./storage";
 import type { StorageInterface } from "./types";
 
@@ -50,6 +50,29 @@ async function deleteFilesFromStorage(
   }
 
   return failed;
+}
+
+/**
+ * Delete the retained local original for an image, if one was kept.
+ * Originals live at uploads/originals/<base>.<originalExt>. Only the compressed
+ * filename is known at cleanup time, so match on the shared base.
+ */
+async function deleteLocalOriginal(compressedFilename: string): Promise<void> {
+  const base = compressedFilename.replace(/\.[^./]+$/, "");
+  try {
+    const entries = await readdir("./uploads/originals");
+    await Promise.all(
+      entries
+        .filter((name) => name.replace(/\.[^./]+$/, "") === base)
+        .map((name) =>
+          unlink(`./uploads/originals/${name}`).catch((error: unknown) => {
+            console.warn(`Failed to delete original ${name}:`, error);
+          }),
+        ),
+    );
+  } catch {
+    // originals dir absent or unreadable: nothing to clean
+  }
 }
 
 async function appendOrphanLog(failedFiles: string[]): Promise<void> {
@@ -160,6 +183,9 @@ export async function deleteLocalImages(
 ): Promise<void> {
   const storage = new LocalFileStorage();
   const failed = await deleteFilesFromStorage(storage, filename, deleteType);
+  if (deleteType === "full" || deleteType === "both") {
+    await deleteLocalOriginal(filename);
+  }
   await appendOrphanLog(failed);
 }
 
@@ -173,5 +199,8 @@ export async function deleteImages(
   const storage =
     process.env.NODE_ENV === "production" ? createR2Storage() : new LocalFileStorage();
   const failed = await deleteFilesFromStorage(storage, filename, deleteType);
+  if (deleteType === "full" || deleteType === "both") {
+    await deleteLocalOriginal(filename);
+  }
   await appendOrphanLog(failed);
 }
