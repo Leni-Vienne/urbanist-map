@@ -39,9 +39,47 @@ export function selectProject(
   syncModerationCountryFromMapClick(project.countryCode);
 }
 
+// Resolve a project that isn't in the project store yet: first from the moderation
+// store (pending submissions), then from the backend. Returns null if neither has it.
+async function resolveProjectForTileClick(projectId: string): Promise<Project | null> {
+  const moderationStore = useModerationStore();
+  const pendingProject = moderationStore.projects.find((p) => p.id === projectId);
+  if (pendingProject) {
+    return createProjectObject({
+      ...pendingProject,
+      tags: pendingProject.tags ?? [],
+      overlayIds: [],
+      city: pendingProject.city
+        ? {
+            ...pendingProject.city,
+            createdAt: new Date(0),
+            updatedAt: new Date(0),
+            coordinates: { x: 0, y: 0 },
+            approvedProjectCount: 0,
+          }
+        : null,
+    });
+  }
+
+  try {
+    const result = await trpc.project.getById.query({ id: projectId });
+    if (!result) return null;
+    return createProjectObject({
+      ...result,
+      tags: result.tags ?? [],
+      overlayIds: [],
+    });
+  } catch (error) {
+    console.error("Failed to fetch project for tile click:", error);
+    return null;
+  }
+}
+
 /**
  * Handle a MapLibre tile click given only a project ID.
- * Looks up the project from the store or fetches it, then delegates to selectProject.
+ * Looks up the project from the store or resolves it, then delegates to selectProject.
+ * Any project resolved from outside the store is stored so it behaves like a loaded
+ * one (editable, re-selectable) for the rest of the session.
  */
 export async function handleProjectClickFromTile(
   projectId: string,
@@ -50,39 +88,13 @@ export async function handleProjectClickFromTile(
 ): Promise<void> {
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
+
   if (!project) {
-    const moderationStore = useModerationStore();
-    const pendingProject = moderationStore.projects.find((p) => p.id === projectId);
-    if (pendingProject) {
-      project = createProjectObject({
-        ...pendingProject,
-        tags: pendingProject.tags ?? [],
-        overlayIds: [],
-        city: pendingProject.city
-          ? {
-              ...pendingProject.city,
-              createdAt: new Date(0),
-              updatedAt: new Date(0),
-              coordinates: { x: 0, y: 0 },
-              approvedProjectCount: 0,
-            }
-          : null,
-      });
-    } else {
-      try {
-        const result = await trpc.project.getById.query({ id: projectId });
-        if (!result) return;
-        project = createProjectObject({
-          ...result,
-          tags: result.tags ?? [],
-          overlayIds: [],
-        });
-        projectStore.updateProject(projectId, project);
-      } catch (error) {
-        console.error("Failed to fetch project for tile click:", error);
-        return;
-      }
-    }
+    const resolved = await resolveProjectForTileClick(projectId);
+    if (!resolved) return;
+    project = resolved;
+    projectStore.updateProject(projectId, project);
   }
+
   selectProject(project, latlng, atCenter);
 }

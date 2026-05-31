@@ -96,6 +96,7 @@ const form = useEditableProjectForm({
   entityId: props.project.id,
   initialData: projectData.value, // Original backend values for comparison
   currentData: currentProjectData.value, // Current values to display in form
+  getFallbackProject: () => props.project,
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),
