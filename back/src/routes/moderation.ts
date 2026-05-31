@@ -725,8 +725,6 @@ export const moderationRouter = router({
             id: overlays.id,
             filename: overlays.filename,
             replacesOverlayId: overlays.replacesOverlayId,
-            status: overlays.status,
-            version: overlays.version,
             authorId: overlays.authorId,
           })
           .from(overlays)
@@ -820,30 +818,20 @@ export const moderationRouter = router({
           return transactionResult;
         }
 
-        if (
-          replacesOverlayId &&
-          input.handleReplacementConflicts &&
-          transactionResult.competingReplacements
-        ) {
+        if (replacesOverlayId && input.handleReplacementConflicts) {
           await cleanupReplacementImages(
-            transactionResult.competingReplacements,
+            transactionResult.competingReplacements ?? [],
             replacesOverlayId,
           );
         }
 
-        if (
-          input.status === "approved" &&
-          overlayFilename &&
-          process.env.NODE_ENV === "production"
-        ) {
+        // Rejection returned early above, so this path always approves the overlay.
+        if (overlayFilename && process.env.NODE_ENV === "production") {
           queueR2Migration(overlayFilename);
         }
 
         await invalidateOverlayTiles(input.id);
-
-        if (input.status === "approved") {
-          invalidateLatestContributionsCache();
-        }
+        invalidateLatestContributionsCache();
 
         return transactionResult;
       } catch (error) {

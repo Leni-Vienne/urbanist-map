@@ -49,6 +49,9 @@ shapes AS (
       ROUND(p.geometry_size_m)::int AS geometry_size_m,
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
+      -- Whether this project has at least one approved overlay image, so the client can
+      -- filter the map down to projects that carry imagery.
+      EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved') AS has_image,
       -- Stable popup anchor: a point on the geometry itself, unaffected by tile clipping
       ST_Y(p.center_coordinate) AS popup_lat,
       ST_X(p.center_coordinate) AS popup_lng
@@ -83,6 +86,8 @@ shapes AS (
       NULL::int AS geometry_size_m,
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
+      -- This branch only emits projects with no approved overlays (see NOT EXISTS below).
+      false AS has_image,
       ST_Y(p.center_coordinate) AS popup_lat,
       ST_X(p.center_coordinate) AS popup_lng
     FROM projects p, tile_env te
@@ -176,6 +181,9 @@ points AS (
       first_tag, -- used for the points/vectors color
       timeline_status,
       has_geometry,
+      -- Aggregated over the whole cluster group, so a cluster is kept by the client image
+      -- filter when ANY project in the cell has an approved overlay, not just the representative.
+      BOOL_OR(has_image) OVER (PARTITION BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END) AS has_image,
       is_named,
       last_modified_s, -- used for filtering by last modified date
       -- min/max last_modified_s are used for filtering clusters by date on the client
@@ -213,6 +221,7 @@ points AS (
           COALESCE(p.tags[1], '') AS first_tag,
           p.timeline_status,
           CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
+          EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved') AS has_image,
           p.geometry_size_m,
           CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
           EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,

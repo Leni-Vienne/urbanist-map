@@ -536,6 +536,15 @@ app.post("/api/upload-image", async (c) => {
     // LocalFileStorage.put also automatically generates 120x120 thumbnail
     await storage.put(filename, compressionResult.buffer);
 
+    // Keep the pre-compression original locally (never migrated to R2) so approved
+    // content retains a full-quality, uncapped source. Removed on rejection/deletion.
+    const originalFilename = `${timestamp}-${randomString}.${fileExtension}`;
+    try {
+      await storage.putOriginal(originalFilename, originalBuffer);
+    } catch (error) {
+      console.error("Failed to store original image:", error);
+    }
+
     // Always return local URL - images stay in local storage until approved
     const imageUrl = `/uploads/${filename}`;
     const thumbnailUrl = `/uploads/${getThumbnailFilename(filename)}`;

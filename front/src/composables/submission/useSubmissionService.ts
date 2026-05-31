@@ -273,14 +273,14 @@ export function useSubmissionService() {
       return t("shapes.geometrySummary", { count });
     }
 
-    // Special handling for cityId - show city name
-    if (fieldName === "cityId" && typeof value === "string") {
+    // Special handling for cityId - show city name (cityId is a number)
+    if (fieldName === "cityId") {
       // Check the cache (built from all projects and loaded cities)
-      const cachedName = cityNamesCache.value[value];
+      const cachedName = cityNamesCache.value[String(value)];
       if (cachedName) {
         return cachedName;
       }
-      return value; // Fallback to ID if city name not found
+      return String(value); // Fallback to ID if city name not found
     }
 
     if (value instanceof Date) {

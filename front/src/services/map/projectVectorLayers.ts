@@ -53,6 +53,7 @@ import {
   getNameFilterMode,
   sizeFilterRange,
   lastModifiedDateRange,
+  showOnlyWithImages,
 } from "@/services/overlay/statusFilters";
 
 /* oxlint-disable no-unsafe-type-assertion */ // disabled because maplibre-gl is clunky to type
@@ -368,6 +369,16 @@ function getSizeFilterExpressionForShapes(): FilterSpecification | null {
 }
 
 /**
+ * Build a filter expression keeping only features that have an approved overlay image.
+ * Returns null when the image filter is off. The tile carries has_image as a boolean on
+ * both the project-points (aggregated over the cluster) and project-shapes layers.
+ */
+function getImageFilterExpression(): FilterSpecification | null {
+  if (!showOnlyWithImages.value) return null;
+  return ["==", ["get", "has_image"], true] as FilterSpecification;
+}
+
+/**
  * Build a name filter expression. Returns null if no name filter is active.
  */
 function getNameFilterExpression(): FilterSpecification | null {
@@ -424,7 +435,8 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const statusFilter = getStatusFilterExpression();
   const nameFilter = getNameFilterExpression();
   const dateFilter = getLastModifiedDateFilterExpression();
-  const baseFilter = combineFilters(tagFilter, statusFilter, nameFilter, dateFilter);
+  const imageFilter = getImageFilterExpression();
+  const baseFilter = combineFilters(tagFilter, statusFilter, nameFilter, dateFilter, imageFilter);
 
   const pointsFilter = combineFilters(baseFilter, getSizeFilterExpressionForPoints());
 
@@ -538,12 +550,16 @@ function getHiddenOverlayIds(): string[] {
 
 let isHiddenOverlaysWatcherInitialized = false;
 
-// Footprint border/fill filter: locally hidden/edited overlays + the date filter (kept in sync
-// with the images, which vectorTileSync date-filters separately).
+// Footprint border/fill filter: locally hidden/edited overlays + the status and date filters
+// (kept in sync with the images, which vectorTileSync status/date-filters separately).
 function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   const hiddenIds = getHiddenOverlayIds();
   const hiddenFilter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : null;
-  const merged = combineFilters(hiddenFilter, getLastModifiedDateFilterExpression());
+  const merged = combineFilters(
+    hiddenFilter,
+    getStatusFilterExpression(),
+    getLastModifiedDateFilterExpression(),
+  );
 
   for (const layerId of ["overlay-footprints-outline", "overlay-footprints-fill"]) {
     if (mlMap.getLayer(layerId)) {

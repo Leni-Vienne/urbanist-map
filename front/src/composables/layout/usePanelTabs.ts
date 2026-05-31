@@ -100,16 +100,23 @@ export function usePanelTabs() {
   );
 
   /**
-   * Reset tab to "latest" when the user signs out.
+   * Keep the map mode in sync with auth changes.
+   * On sign-out: reset auth-only tabs to "latest".
+   * On sign-in: re-apply the active tab's mode, since setActiveTab leaves the mode on
+   * "view" for the contribute tab while unauthenticated (so the popup would still see
+   * view mode after login until the mode is synced).
    */
   watch(
     () => authStore.isAuthenticated,
     (isAuthenticated) => {
-      if (
-        !isAuthenticated &&
-        (uiStore.activeTab === "contribute" || uiStore.activeTab === "moderation")
-      ) {
-        setActiveTab("latest");
+      if (!isAuthenticated) {
+        if (uiStore.activeTab === "contribute" || uiStore.activeTab === "moderation") {
+          setActiveTab("latest");
+        }
+        return;
+      }
+      if (uiStore.activeTab === "contribute") {
+        mapStore.setMode("edit");
       }
     },
   );

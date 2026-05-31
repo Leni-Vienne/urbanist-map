@@ -64,35 +64,61 @@ export async function compressImageIfNeeded(
   const ext = originalExtension.toLowerCase();
 
   try {
-    // Convert to lossy WebP at quality 90 (high quality to minimize artifacts from re-encoding)
-    // This also handles lossless WebP -> lossy WebP conversion for size savings
-    const image = new Bun.Image(buffer);
-    const { width, height } = await image.metadata();
-    const pipeline =
-      width > MAX_DIMENSION_PX || height > MAX_DIMENSION_PX
-        ? image.resize(MAX_DIMENSION_PX, MAX_DIMENSION_PX, { fit: "inside" })
-        : image;
-    const webpBytes = await pipeline.webp({ quality: 90 }).bytes();
-    const webpSize = webpBytes.byteLength;
+    // Format is sniffed from the bytes, so a wrong extension (e.g. a PNG named
+    // .webp) is decoded transparently without any mismatch error.
+    const { width, height } = await new Bun.Image(buffer).metadata();
+    const oversized = width > MAX_DIMENSION_PX || height > MAX_DIMENSION_PX;
 
-    // Only use WebP if it's actually smaller (prevents quality loss with no size benefit)
-    if (webpSize < originalSize) {
+    // A Bun.Image pipeline is consumed by its terminal op, so each encode
+    // starts from a fresh decode bounded to the dimension cap. Lossy uses a
+    // smooth resampler (best for photos); lossless uses nearest, which keeps the
+    // flat colour palette that makes lossless WebP small on graphics / line-art
+    // (smooth resamplers add gradients that bloat the lossless stream).
+    function base(filter: "lanczos3" | "nearest") {
+      const image = new Bun.Image(buffer);
+      return oversized
+        ? image.resize(MAX_DIMENSION_PX, MAX_DIMENSION_PX, { fit: "inside", filter })
+        : image;
+    }
+
+    // Race lossy against lossless WebP: lossy wins on photos, while lossless
+    // often beats the source on flat-colour / line-art graphics.
+    const [lossy, lossless] = await Promise.all([
+      base("lanczos3").webp({ quality: 90 }).bytes(),
+      base("nearest").webp({ lossless: true }).bytes(),
+    ]);
+    const bestWebp = lossless.byteLength <= lossy.byteLength ? lossless : lossy;
+
+    // Keep the source only when it is within the cap and nothing beats it on
+    // size. An oversized source must be re-encoded to enforce the dimension cap
+    // (large textures render black on GPUs whose max texture size is 4096).
+    const keepOriginal = !oversized && originalSize <= bestWebp.byteLength;
+
+    function kb(bytes: number) {
+      return (bytes / 1024).toFixed(1);
+    }
+    console.log(
+      `[compressImage] ${width}x${height}${oversized ? ` -> cap ${MAX_DIMENSION_PX}` : ""} | ` +
+        `original ${kb(originalSize)}KB lossy ${kb(lossy.byteLength)}KB lossless ${kb(lossless.byteLength)}KB | ` +
+        `chose ${keepOriginal ? "original" : bestWebp === lossless ? "lossless-webp" : "lossy-webp"}`,
+    );
+
+    if (keepOriginal) {
       return {
-        buffer: toArrayBuffer(webpBytes),
-        extension: "webp",
-        wasCompressed: true,
+        buffer,
+        extension: ext,
+        wasCompressed: false,
         originalSize,
-        finalSize: webpSize,
+        finalSize: originalSize,
       };
     }
 
-    // Compressed version was larger, keep original format
     return {
-      buffer,
-      extension: ext,
-      wasCompressed: false,
+      buffer: toArrayBuffer(bestWebp),
+      extension: "webp",
+      wasCompressed: true,
       originalSize,
-      finalSize: originalSize,
+      finalSize: bestWebp.byteLength,
     };
   } catch (error) {
     // If compression fails, return original unchanged
@@ -134,6 +160,14 @@ export class LocalFileStorage implements StorageInterface {
       console.error(`Failed to generate thumbnail for ${filename}:`, error);
       throw error;
     }
+  }
+
+  // Persists the pre-compression original locally under uploads/originals/.
+  // Originals are never migrated to R2 and never get a thumbnail; they are a
+  // full-quality, uncapped archival copy kept only while the overlay is approved.
+  public async putOriginal(filename: string, buffer: ArrayBuffer): Promise<void> {
+    await mkdir("./uploads/originals", { recursive: true });
+    await Bun.write(`./uploads/originals/${filename}`, buffer);
   }
 
   public async get(

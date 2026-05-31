@@ -83,6 +83,13 @@
           dir="auto"
         />
       </div>
+
+      <div
+        class="flex items-start gap-2 p-2.5 rounded-md text-xs leading-relaxed bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+      >
+        <i class="pi pi-info-circle mt-0.5 shrink-0"></i>
+        <span>{{ $t("common.osmSyncNotice") }}</span>
+      </div>
     </div>
 
     <template #footer>
