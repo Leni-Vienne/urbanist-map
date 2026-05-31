@@ -221,8 +221,6 @@ export const overlayRouter = router({
           id: overlays.id,
           status: overlays.status,
           authorId: overlays.authorId,
-          createdAt: overlays.createdAt,
-          updatedAt: overlays.updatedAt,
         });
 
       const upsertedOverlay = upsertedOverlayResult[0];
@@ -230,7 +228,7 @@ export const overlayRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to upsert overlay" });
       }
 
-      const wasUpdate = upsertedOverlay.createdAt !== upsertedOverlay.updatedAt;
+      const wasUpdate = Boolean(existingOverlay[0]);
       if (!wasUpdate) {
         void notifyNewSubmission({
           kind: "overlay",

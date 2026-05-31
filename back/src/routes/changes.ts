@@ -379,7 +379,12 @@ export const changesRouter = router({
           author: { email: ctx.user.email, username: ctx.user.username },
           entityType: input.entityType,
           entityId: input.entityId,
-          fieldNames: input.changes.map((change) => change.fieldName),
+          changes: input.changes.map((change) => ({
+            fieldName: change.fieldName,
+            oldValue: change.oldValue,
+            newValue: change.newValue,
+            changeReason: change.changeReason,
+          })),
           lat: entityLat,
           lng: entityLng,
         });
