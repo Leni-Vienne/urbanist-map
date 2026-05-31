@@ -108,6 +108,7 @@ export const overlayRouter = router({
         intersectingOverlays,
       };
     } catch (error) {
+      if (error instanceof TRPCError) throw error;
       console.error("Error fetching overlay:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
@@ -297,6 +298,7 @@ export const overlayRouter = router({
 
       return { success: true };
     } catch (error) {
+      if (error instanceof TRPCError) throw error;
       console.error("Error updating overlay:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to update overlay" });
     }
