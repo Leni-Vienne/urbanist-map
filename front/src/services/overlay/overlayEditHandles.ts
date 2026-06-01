@@ -352,6 +352,33 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   wireSurfaceDrag(session);
 }
 
+// Re-adds the edit-handle source/layer that setStyle() drops on a basemap switch. The DOM corner
+// markers, SVG outline, and layer-scoped drag handlers survive the switch, but those handlers only
+// fire while their fill layer exists, so the overlay stays draggable only once the layer is back.
+export function reattachEditHandlesAfterStyleSwitch(): void {
+  if (!session) return;
+  const mlMap = map.value;
+  const transform = getCurrentTransform(session.id);
+  if (!mlMap || !transform) return;
+
+  const corners = transformToCorners(transform);
+
+  if (!mlMap.getSource(session.fillSourceId)) {
+    mlMap.addSource(session.fillSourceId, { type: "geojson", data: polygonFeature(corners) });
+  }
+  if (!mlMap.getLayer(session.fillLayerId)) {
+    mlMap.addLayer({
+      id: session.fillLayerId,
+      type: "fill",
+      source: session.fillSourceId,
+      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
+      paint: { "fill-color": "#000000", "fill-opacity": 0 },
+    });
+  }
+
+  refreshEditHandlesGeometry();
+}
+
 export function hideEditHandles(): void {
   if (!session) return;
   const mlMap = map.value;
