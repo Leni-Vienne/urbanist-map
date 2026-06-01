@@ -350,6 +350,7 @@
     "submitChangeRequest": "Submit Change Request",
     "updateOverlays": "Update Images",
     "removeChange": "Remove this change",
+    "changesLabel": "Changes",
     "noChangesToSubmit": "No changes to submit",
     "newOverlay": "New image",
     "createAction": "New submission",
