@@ -26,13 +26,20 @@ export function invalidateLatestContributionsCache() {
 // Builds the standalone-projects feed query (approved, named, no approved overlay).
 // importFilter splits user-created projects (importSourceId IS NULL) from OSM/citydata imports.
 function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
+  // Imported projects normally sort by their source modification date, but once a user edit
+  // has been approved (importLockedAt set) we switch to updatedAt so the approved contribution
+  // surfaces in the feed instead of staying buried at the stale OSM date.
+  const contributionDate = sql<Date>`CASE
+    WHEN ${projects.importLockedAt} IS NOT NULL THEN ${projects.updatedAt}
+    ELSE COALESCE(${projects.externalLastModified}, ${projects.updatedAt})
+  END`;
   return db
     .select({
       type: sql<"standalone">`'standalone'`,
       id: projects.id,
       name: projects.name,
       filename: sql<null>`NULL`,
-      updatedAt: sql<Date>`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
+      updatedAt: contributionDate,
       cityName: cities.name,
       countryCode: projects.countryCode,
       countryName: countries.name,
@@ -74,7 +81,7 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
         importFilter,
       ),
     )
-    .orderBy(sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt}) DESC`)
+    .orderBy(sql`${contributionDate} DESC`)
     .limit(limit);
 }
 
@@ -192,12 +199,14 @@ export const feedRouter = router({
 
         const overlaysQuery = buildLatestOverlaysQuery(input.limit);
 
+        // An import with an approved user edit (importLockedAt set) counts as a human
+        // contribution, so it joins the direct group rather than the "from OpenStreetMap" one.
         const directProjectsQuery = buildStandaloneProjectsQuery(
-          sql`${projects.importSourceId} IS NULL`,
+          sql`(${projects.importSourceId} IS NULL OR ${projects.importLockedAt} IS NOT NULL)`,
           input.limit,
         );
         const importedProjectsQuery = buildStandaloneProjectsQuery(
-          sql`${projects.importSourceId} IS NOT NULL`,
+          sql`(${projects.importSourceId} IS NOT NULL AND ${projects.importLockedAt} IS NULL)`,
           input.limit,
         );
 
