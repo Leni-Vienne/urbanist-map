@@ -6,7 +6,7 @@ import { sessionMiddleware, type Session } from "hono-sessions";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
-import { tilesApp } from "./routes/tiles";
+import { tilesApp, warmLowZoomTileCache } from "./routes/tiles";
 import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from "./lib/storage";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
 import { config as appConfig } from "./config";
@@ -727,6 +727,15 @@ const imageFileSchema = z.object({
 generateMissingThumbnails().catch((error: unknown) => {
   console.error("Failed to generate missing thumbnails:", error);
 });
+
+// Pre-warm the z0-z6 tile cache so zoom-out/pan from afar is always a memory hit.
+// Skipped in dev by default (hot reloads would re-run it on every reload); enable with
+// WARM_TILE_CACHE=true to test locally.
+if (process.env.NODE_ENV === "production" || process.env.WARM_TILE_CACHE === "true") {
+  warmLowZoomTileCache().catch((error: unknown) => {
+    console.error("Failed to warm low-zoom tile cache:", error);
+  });
+}
 
 // Start error alerting service
 startErrorAlerter();
