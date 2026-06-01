@@ -729,9 +729,9 @@ generateMissingThumbnails().catch((error: unknown) => {
 });
 
 // Pre-warm the z0-z6 tile cache so zoom-out/pan from afar is always a memory hit.
-// Skipped in dev by default (hot reloads would re-run it on every reload); enable with
-// WARM_TILE_CACHE=true to test locally.
-if (process.env.NODE_ENV === "production" || process.env.WARM_TILE_CACHE === "true") {
+// Runs on any deployed env (preview + production). Skipped in local dev by default (hot reloads
+// would re-run it on every reload); enable with WARM_TILE_CACHE=true to test locally.
+if (process.env.NODE_ENV !== "development" || process.env.WARM_TILE_CACHE === "true") {
   warmLowZoomTileCache().catch((error: unknown) => {
     console.error("Failed to warm low-zoom tile cache:", error);
   });

@@ -3,7 +3,10 @@ import { SQL } from "bun";
 import { config } from "./config";
 import * as schema from "./db/schema";
 
-const isDev = process.env.NODE_ENV !== "production";
+// Only the local `bun dev` process hot-reloads; the deployed preview and production containers
+// don't. So pool sizing keys off "development" specifically (matching the rest of the codebase),
+// not "not production" (which would wrongly shrink the preview pools to dev sizes).
+const isDev = process.env.NODE_ENV === "development";
 
 // Connection pool configuration
 // In dev, keep the pool small: hot reloads create new pool instances while old
