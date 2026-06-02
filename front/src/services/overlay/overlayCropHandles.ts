@@ -274,10 +274,6 @@ export function hideCropHandles(): void {
   if (s.svgContainer.parentNode) s.svgContainer.parentNode.removeChild(s.svgContainer);
 }
 
-export function isCropping(): boolean {
-  return session !== null;
-}
-
 // Read the source image into a canvas and return the crop window as a fresh WebP data URL.
 // crossOrigin matches the existing credentialed-vs-public rule so pending /uploads images are
 // readable; data URLs need no crossOrigin.

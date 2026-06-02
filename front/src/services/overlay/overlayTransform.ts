@@ -17,7 +17,7 @@ function isValidCorner(c: Corner): boolean {
 }
 
 export function isValidQuad(corners: Corner[] | undefined | null): corners is Corner[] {
-  return !!corners && corners.length === 4 && corners.every(isValidCorner);
+  return corners != null && corners.length === 4 && corners.every(isValidCorner);
 }
 
 // Rigid overlay model used while editing. Storage stays as 4 corners; this is in-memory only.

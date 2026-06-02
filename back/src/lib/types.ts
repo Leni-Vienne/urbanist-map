@@ -13,7 +13,7 @@ export type SessionUser = {
   emailVerified: boolean;
 };
 
-export type SessionData = {
+type SessionData = {
   user?: SessionUser;
   expiresAt?: string;
   // Transient CSRF state for the OSM OAuth redirect, set on /api/osm-login and

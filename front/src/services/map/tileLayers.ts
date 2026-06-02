@@ -367,7 +367,7 @@ export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollect
   const mlMap = getMlMap();
   if (!mlMap) return;
 
-  const source = mlMap.getSource("pending-project-points-source") as GeoJSONSource | undefined;
+  const source = mlMap.getSource<GeoJSONSource>("pending-project-points-source");
   if (source) {
     source.setData(geojson);
   }

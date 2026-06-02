@@ -12,7 +12,7 @@ export const tilesApp = new Hono();
 const LOW_ZOOM_MAX = 6;
 const HIGH_ZOOM_MAX = 10;
 const LOW_ZOOM_CACHE_MAX = 8000; // > 5461 (count of all z0-z6 tiles), so nothing ever evicts
-const HIGH_ZOOM_CACHE_MAX = 12000;
+const HIGH_ZOOM_CACHE_MAX = 12_000;
 
 // Map insertion order = LRU order (oldest first)
 const lowZoomCache = new Map<string, Buffer | null>();

@@ -26,10 +26,10 @@ interface FlyToBoundsOptions extends FlyOptions {
 
 /** Structural bounds shape implemented by MapLibre LngLatBounds. */
 interface BoundsLike {
-  getNorth(): number;
-  getSouth(): number;
-  getEast(): number;
-  getWest(): number;
+  getNorth: () => number;
+  getSouth: () => number;
+  getEast: () => number;
+  getWest: () => number;
 }
 
 function toLatLng(p: LatLngInput): { lat: number; lng: number } {

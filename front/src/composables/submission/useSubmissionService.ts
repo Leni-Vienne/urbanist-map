@@ -71,7 +71,7 @@ function normalizeFieldValue(
   value: unknown,
   projectSource: Partial<Project>,
 ): unknown {
-  const fieldStr = String(field);
+  const fieldStr = field;
   if (["proposalDate", "startDate", "endDate"].includes(fieldStr)) {
     return normalizeDate(value);
   }
@@ -252,7 +252,7 @@ export function useSubmissionService() {
           pushedNewValue = newValue;
         }
         changes.push({
-          fieldName: String(field),
+          fieldName: field,
           oldValue: pushedOldValue,
           newValue: pushedNewValue,
           changeReason: customReason ?? undefined,

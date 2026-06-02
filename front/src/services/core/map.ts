@@ -9,11 +9,11 @@ export const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liber
 function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
   const hash = globalThis.location.hash;
   if (!hash) return null;
-  const match = /^#map=([0-9.]+)\/([-0-9.]+)\/([-0-9.]+)$/.exec(hash);
-  if (!match) return null;
-  const zoom = Number(match[1]);
-  const lat = Number(match[2]);
-  const lng = Number(match[3]);
+  const match = /^#map=(?<zoom>[0-9.]+)\/(?<lat>[-0-9.]+)\/(?<lng>[-0-9.]+)$/.exec(hash);
+  if (!match?.groups) return null;
+  const zoom = Number(match.groups.zoom);
+  const lat = Number(match.groups.lat);
+  const lng = Number(match.groups.lng);
   if (Number.isNaN(zoom) || Number.isNaN(lat) || Number.isNaN(lng)) return null;
   if (lat < -85 || lat > 85 || lng < -180 || lng > 180) return null;
   return { lat, lng, zoom };

@@ -17,7 +17,7 @@ import type { AppEnv, SessionUser } from "../lib/types";
 export const authApp = new Hono<AppEnv>();
 
 // Session duration constants
-export const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
+const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
 export const SESSION_DURATION_LONG = 30 * 24 * 60 * 60; // 30 days for "Remember Me"
 
 const loginSchema = z.object({

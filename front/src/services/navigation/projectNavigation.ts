@@ -37,7 +37,7 @@ export function zoomToOverlayAndSelect(
     if (cam && typeof cam.zoom === "number") {
       targetZoom = cam.zoom;
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
 
@@ -57,7 +57,7 @@ export function zoomToOverlayAndSelect(
     Math.cos((currentCenter.lat * Math.PI) / 180) *
       Math.cos((center.lat * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2;
-  const centerDistanceMeters = 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(a)));
+  const centerDistanceMeters = 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(a)));
 
   const zoomDiff = Math.abs(currentZoom - targetZoom);
   const flightSkipped = centerDistanceMeters < 10 && zoomDiff < 0.1;
