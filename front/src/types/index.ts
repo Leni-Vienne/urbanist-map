@@ -100,13 +100,33 @@ export type OverlayData = Omit<
 // Frontend overlay type - extends OverlayData with editor state
 // Map layer references (image overlay + marker) live in overlayRenderRegistry,
 // not on this type. OverlayObject is pure domain data.
+// A normalized sub-rectangle of an image, u left->right, v top->bottom, each in [0, 1].
+export interface NormalizedRect {
+  u0: number;
+  u1: number;
+  v0: number;
+  v1: number;
+}
+
+// One step in an overlay's edit history. Carries both the footprint corners and the image they
+// belong to, so undo/redo restores the right pixels for a step (a crop changes the image, a
+// move/resize reuses the same imageUrl string by reference, so position steps cost no extra memory).
+// cropRect is the region of history[0].imageUrl (the pristine original) that this step's image
+// shows; absent means the full original. It lets each crop re-bake from the original instead of
+// the previous crop, so repeated crops stay a single compression generation from the source.
+export interface OverlayHistoryState {
+  corners: { lat: number; lng: number }[];
+  imageUrl: string;
+  cropRect?: NormalizedRect;
+}
+
 export interface OverlayObject extends OverlayData {
   // Computed fields
   imageUrl: string;
 
   // Editor state
-  history: { lat: number; lng: number }[][];
-  redoStack: { lat: number; lng: number }[][];
+  history: OverlayHistoryState[];
+  redoStack: OverlayHistoryState[];
   isTooBig?: boolean; // Flag for real-time size validation warning
   isViewingApprovedPosition?: boolean; // True when user is viewing approved position of overlay with pending changes
 }

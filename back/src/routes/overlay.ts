@@ -137,7 +137,11 @@ export const overlayRouter = router({
 
       // Check if overlay already exists and verify ownership
       const existingOverlay = await db
-        .select({ status: overlays.status, authorId: overlays.authorId })
+        .select({
+          status: overlays.status,
+          authorId: overlays.authorId,
+          filename: overlays.filename,
+        })
         .from(overlays)
         .where(eq(overlays.id, input.id))
         .limit(1);
@@ -230,6 +234,19 @@ export const overlayRouter = router({
       }
 
       const wasUpdate = Boolean(existingOverlay[0]);
+
+      // Re-publishing a pending overlay with new image bytes (e.g. after a crop) uploads a fresh
+      // file, leaving the previous one unreferenced. Pending overlays live only in local storage,
+      // so delete the superseded file now rather than leaking it until the manual sweep.
+      const previousFilename = existingOverlay[0]?.filename;
+      if (wasUpdate && previousFilename && previousFilename !== input.filename) {
+        try {
+          await deleteLocalImages(previousFilename, "both");
+        } catch (error) {
+          console.error("Failed to delete superseded overlay image:", previousFilename, error);
+        }
+      }
+
       if (!wasUpdate) {
         void notifyNewSubmission({
           kind: "overlay",

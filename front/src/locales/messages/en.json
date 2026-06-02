@@ -475,6 +475,11 @@
     "redo": "Redo (ctrl + y)",
     "delete": "Delete this image",
     "replace": "Replace this image",
+    "crop": "Crop the image",
+    "cropConfirm": "Apply crop",
+    "cropCancel": "Cancel crop",
+    "cropUnavailableTitle": "Cropping unavailable",
+    "cropUnavailableDetail": "This image has already been submitted. To re-frame it, delete it and upload the image again.",
     "save": "Submit",
     "bringToFront": "Bring image to front",
     "sendToBack": "Send image to back"
@@ -511,7 +516,11 @@
     "selectImageFile": "Please select an image file to upload",
     "overlayTooLarge": "Image is too large",
     "maximumSizeOnMap": "Maximum size is 1km × 1km",
-    "fileTooLarge": "File is too large. Maximum size is {maxSize}MB."
+    "fileTooLarge": "File is too large. Maximum size is {maxSize}MB.",
+    "error": {
+      "uploadFailed": "Failed to upload image to server.",
+      "storageQuotaExceeded": "You have reached your pending upload storage limit. Please wait for your existing submissions to be reviewed before uploading more."
+    }
   },
   "imageUpload": {
     "pdfExtractionDescription": "If your images are sourced from a PDF, it is recommended to use tools like {toolLink} to extract the images in the best possible quality.",

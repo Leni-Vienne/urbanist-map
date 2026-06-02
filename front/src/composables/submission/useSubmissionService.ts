@@ -2,6 +2,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { makeHistoryState } from "@/services/overlay/overlayHistory";
 import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
@@ -580,7 +581,9 @@ export function useSubmissionService() {
     const updates: Partial<OverlayObject> = { isModified: false };
     const submittedCorners = mod.corners?.current;
     if (submittedCorners?.length === 4 && !isChangeRequest) {
-      updates.history = [submittedCorners];
+      updates.history = [
+        makeHistoryState(submittedCorners, overlayStore.overlays[overlayId]?.imageUrl ?? ""),
+      ];
       updates.redoStack = [];
       updates.corners = submittedCorners;
     }
@@ -597,12 +600,12 @@ export function useSubmissionService() {
       if (!overlayObj) continue;
       await publishOverlay(overlayObj, project);
       // Collapse history so the just-published state is the new baseline.
-      const publishedCorners = overlayObj.history.at(-1);
-      if (publishedCorners?.length === 4) {
+      const publishedState = overlayObj.history.at(-1);
+      if (publishedState?.corners.length === 4) {
         overlayStore.updateOverlay(overlayId, {
-          history: [publishedCorners],
+          history: [makeHistoryState(publishedState.corners, overlayObj.imageUrl)],
           redoStack: [],
-          corners: publishedCorners,
+          corners: publishedState.corners,
         });
       }
     }

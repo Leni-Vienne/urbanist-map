@@ -9,6 +9,7 @@ import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/marker
 import type { OverlayObject } from "@/types";
 import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { makeHistoryState } from "@/services/overlay/overlayHistory";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
@@ -22,13 +23,17 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
 
   pendingModsStore.clearModification(overlayId);
   // Reset history to the approved baseline so re-entering edit mode doesn't restore the edits.
+  const baseline =
+    overlayObject.corners.length === 4
+      ? [makeHistoryState(overlayObject.corners, overlayObject.imageUrl)]
+      : [];
   overlayStore.updateOverlay(overlayId, {
     isModified: false,
-    history: overlayObject.corners.length === 4 ? [overlayObject.corners] : [],
+    history: baseline,
     redoStack: [],
   });
   overlayObject.isModified = false;
-  overlayObject.history = overlayObject.corners.length === 4 ? [overlayObject.corners] : [];
+  overlayObject.history = baseline;
   overlayObject.redoStack = [];
   if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
     setOverlayImageCorners(overlayId, overlayObject.corners);

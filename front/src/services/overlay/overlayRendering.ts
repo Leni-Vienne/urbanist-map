@@ -82,6 +82,12 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
     overlayObject.history = [...existingOverlay.history];
     overlayObject.redoStack = [...existingOverlay.redoStack];
     overlayObject.isModified = existingOverlay.isModified;
+    // Carry over an unsaved local image (e.g. a crop's data URL) so the re-rendered overlay keeps
+    // the edited pixels instead of reverting to the backend image the fresh object was built from.
+    if (existingOverlay.imageUrl.startsWith("data:")) {
+      overlayObject.imageUrl = existingOverlay.imageUrl;
+      overlayObject.filename = existingOverlay.filename;
+    }
   }
 
   const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);

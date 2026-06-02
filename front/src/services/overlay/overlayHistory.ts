@@ -1,10 +1,21 @@
-import type { OverlayObject } from "@/types/index";
+import type { NormalizedRect, OverlayHistoryState, OverlayObject } from "@/types/index";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerTooltip } from "@/services/map/markers";
 import { isValidQuad } from "@/services/overlay/overlayTransform";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+
+type Corner = { lat: number; lng: number };
+
+// Build a history step, cloning corners so later mutations don't alias a stored step.
+export function makeHistoryState(
+  corners: Corner[],
+  imageUrl: string,
+  cropRect?: NormalizedRect,
+): OverlayHistoryState {
+  return { corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })), imageUrl, cropRect };
+}
 
 // Corners to (re)create and hit-test the overlay IMAGE at, biased toward the remembered/intended
 // position: history > backend corners > live image. In view mode, approved overlays render at
@@ -16,7 +27,7 @@ export function resolveOverlayRenderCorners(overlayObject: OverlayObject) {
   const ignoreHistory = mapStore.mode === "view" && overlayObject.status === "approved";
 
   if (!ignoreHistory && overlayObject.history.length > 0) {
-    const lastCorners = overlayObject.history.at(-1);
+    const lastCorners = overlayObject.history.at(-1)?.corners;
     if (isValidQuad(lastCorners)) return lastCorners;
   }
 
@@ -51,15 +62,19 @@ export function recordOverlayModification(overlayObject: OverlayObject): void {
   );
 }
 
-export function saveToHistory(overlayObject: OverlayObject): void {
-  const currentState = getOverlayImageCorners(overlayObject.id);
-  if (!currentState) return;
+export function saveToHistory(overlayObject: OverlayObject, cropRect?: NormalizedRect): void {
+  const currentCorners = getOverlayImageCorners(overlayObject.id);
+  if (!currentCorners) return;
+  // A move/resize keeps the same image, so carry the prior step's crop window forward; a crop
+  // passes its new window explicitly so the next crop composes onto the right region.
+  const effectiveRect = cropRect ?? overlayObject.history.at(-1)?.cropRect;
+  const currentState = makeHistoryState(currentCorners, overlayObject.imageUrl, effectiveRect);
 
   // Seed empty history with the backend corners so the first undo has a base state.
   let baseHistory = overlayObject.history;
   if (baseHistory.length === 0 && overlayObject.corners.length === 4) {
     if (!overlayObject.corners.every((c) => c.lat === 0 && c.lng === 0)) {
-      baseHistory = [overlayObject.corners.map((c) => ({ lat: c.lat, lng: c.lng }))];
+      baseHistory = [makeHistoryState(overlayObject.corners, overlayObject.imageUrl)];
     }
   }
 
@@ -72,7 +87,7 @@ export function saveToHistory(overlayObject: OverlayObject): void {
 
   // Build a fresh array rather than pushing: overlayObject may be a raw (non-proxied) object,
   // so an in-place mutation would not trigger Vue's reactive set trap.
-  const newHistory = [...baseHistory, currentState.map((c) => ({ lat: c.lat, lng: c.lng }))];
+  const newHistory = [...baseHistory, currentState];
 
   overlayObject.isModified = true;
 

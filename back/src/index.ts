@@ -8,7 +8,9 @@ import { secureHeaders } from "hono/secure-headers";
 import { appRouter } from "./routes";
 import { tilesApp, warmLowZoomTileCache } from "./routes/tiles";
 import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from "./lib/storage";
+import { exceedsPendingStorageQuota } from "./lib/storageQuota";
 import type { FileUploadResult, FileUploadError } from "./lib/types";
+import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { config as appConfig } from "./config";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { generateMissingThumbnails } from "./lib/startup";
@@ -504,6 +506,13 @@ app.post("/api/upload-image", async (c) => {
     // This prevents double-compression artifacts on already-optimized images
     const compressionResult = await compressImageIfNeeded(originalBuffer, fileExtension);
 
+    // Both the compressed file and the uncapped original land in local storage until moderation,
+    // so weigh both against the user's pending quota before writing anything to disk.
+    const incomingBytes = compressionResult.finalSize + originalBuffer.byteLength;
+    if (await exceedsPendingStorageQuota(user.id, incomingBytes)) {
+      return c.json({ error: "upload.error.storageQuotaExceeded" } as FileUploadError, 413);
+    }
+
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).slice(2, 15);
     const filename = `${timestamp}-${randomString}.${compressionResult.extension}`;
@@ -715,7 +724,12 @@ const filenameParamSchema = z.object({
 });
 
 const imageFileSchema = z.object({
-  size: z.number().max(10 * 1024 * 1024, "File too large. Maximum size is 10MB"),
+  size: z
+    .number()
+    .max(
+      MAX_UPLOAD_FILE_SIZE_BYTES,
+      `File too large. Maximum size is ${MAX_UPLOAD_FILE_SIZE_MB}MB`,
+    ),
   type: z.enum(["image/jpeg", "image/png", "image/webp"], {
     message: "Invalid file type. Only JPEG, PNG, and WebP are allowed",
   }),

@@ -475,6 +475,11 @@
     "redo": "Rétablir (ctrl + y)",
     "delete": "Supprimer cette image",
     "replace": "Remplacer cette image",
+    "crop": "Rogner l'image",
+    "cropConfirm": "Appliquer",
+    "cropCancel": "Annuler",
+    "cropUnavailableTitle": "Rognage indisponible",
+    "cropUnavailableDetail": "Cette image a déjà été envoyée. Pour la rogner, supprimez l'image et importez à nouveau.",
     "save": "Envoyer",
     "bringToFront": "Mettre l'image au premier plan",
     "sendToBack": "Mettre l'image à l'arrière-plan"
@@ -511,7 +516,11 @@
     "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
     "overlayTooLarge": "L'image est trop grande",
     "maximumSizeOnMap": "La taille maximale est de 1km × 1km",
-    "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo."
+    "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo.",
+    "error": {
+      "uploadFailed": "Échec de l'envoi de l'image au serveur.",
+      "storageQuotaExceeded": "Vous avez atteint votre limite de stockage pour les envois en attente. Veuillez patienter jusqu'à la validation de vos contributions existantes avant d'en envoyer d'autres."
+    }
   },
   "imageUpload": {
     "pdfExtractionDescription": "Si vos images proviennent d'un PDF, il est recommandé d'utiliser des outils comme {toolLink} pour les extraire dans la meilleure qualité possible.",
