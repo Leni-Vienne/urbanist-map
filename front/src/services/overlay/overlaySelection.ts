@@ -1,5 +1,9 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { getMarker, getRenderedOverlayIds } from "@/services/overlay/overlayRenderRegistry";
+import {
+  getMarker,
+  getRenderedOverlayIds,
+  hasReadyLayer,
+} from "@/services/overlay/overlayRenderRegistry";
 import { raiseOverlayImage } from "@/services/overlay/overlayImageLayer";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -117,6 +121,46 @@ export function selectOverlay(overlayId: string | null): void {
   } finally {
     isSelectingOverlay = false;
   }
+}
+
+/**
+ * Re-apply the selection visuals that depend on the rendered image layer (edit handles, overlay
+ * outline, sister highlight, raised image). selectOverlay applies these immediately, but when
+ * selection is triggered from the side panel while zoomed out, the layer isn't rendered yet and
+ * those steps no-op. The camera then flies in and the layer renders later; this polls for it and
+ * applies the visuals once ready. No-op when the layer is already present at selection time.
+ */
+export function applySelectionVisualsWhenReady(overlayId: string): void {
+  if (hasReadyLayer(overlayId)) return;
+
+  const overlayStore = useOverlayStore();
+  let attempts = 0;
+
+  function tryApply(): void {
+    // Selection changed while we were waiting; abandon.
+    if (overlayStore.idSelectedOverlay !== overlayId) return;
+
+    if (!hasReadyLayer(overlayId)) {
+      attempts += 1;
+      // ~5s budget at 60fps, matching the overlay auto-select poll elsewhere.
+      if (attempts > 300) return;
+      requestAnimationFrame(tryApply);
+      return;
+    }
+
+    const overlay = overlayStore.overlays[overlayId];
+    if (!overlay) return;
+
+    raiseOverlayImage(overlayId);
+    if (useMapStore().mode === "edit") {
+      showEditHandles(overlay);
+    }
+    if (overlay.projectId) {
+      highlightProject(overlay.projectId, overlay.id);
+    }
+  }
+
+  requestAnimationFrame(tryApply);
 }
 
 /**

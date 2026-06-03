@@ -207,6 +207,43 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   });
 }
 
+/** Web Mercator latitude -> world-Y fraction in [0, 1]. */
+function mercatorY(lat: number): number {
+  const clamped = Math.max(-85.051_129, Math.min(85.051_129, lat));
+  const s = Math.sin((clamped * Math.PI) / 180);
+  return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+}
+
+/**
+ * Zoom level that fits a lng/lat bounds within the current viewport, computed directly from
+ * Web Mercator math so it works when MapLibre's cameraForBounds throws (NaN at low zoom for tiny
+ * far-away bounds). MapLibre uses 512px tiles, so a full world spans 512 * 2^zoom pixels.
+ */
+function mercatorZoomForBounds(
+  west: number,
+  south: number,
+  east: number,
+  north: number,
+  maxZoom?: number,
+): number {
+  const container = map.value?.getContainer();
+  // Shrink the usable viewport by a 50px inset per side so the bounds aren't framed edge-to-edge,
+  // matching the padding used by the cameraForBounds path.
+  const inset = 100;
+  const w = Math.max(1, (container?.clientWidth ?? 1) - inset);
+  const h = Math.max(1, (container?.clientHeight ?? 1) - inset);
+  const tile = 512;
+
+  const lngFraction = Math.max(Math.abs(east - west) / 360, 1e-9);
+  const latFraction = Math.max(Math.abs(mercatorY(north) - mercatorY(south)), 1e-9);
+
+  const zoomX = Math.log2(w / (tile * lngFraction));
+  const zoomY = Math.log2(h / (tile * latFraction));
+  let zoom = Math.min(zoomX, zoomY);
+  if (typeof maxZoom === "number" && Number.isFinite(maxZoom)) zoom = Math.min(zoom, maxZoom);
+  return Math.max(0, Math.min(zoom, 22));
+}
+
 /**
  * Fit a bounds, with mobile-aware padding.
  * Returns true if the flight was skipped (camera already at target), false otherwise.
@@ -243,13 +280,16 @@ export function mobileAwareFlyToBounds(
   const currentCenter = m.getCenter();
 
   // cameraForBounds throws "Invalid LngLat (NaN, NaN)" for bounds/padding combos it can't fit
-  // (degenerate quads, padding larger than a tiny viewport). Treat any failure as "not already
-  // there" and let the guarded fitBounds below attempt the move.
+  // (tiny far-away bounds at low zoom, degenerate quads, padding larger than the viewport).
+  // cameraForBoundsOk stays false on throw or empty result; targetZoom/targetCenter then keep
+  // the current camera and the Mercator fallback below takes over.
   let targetZoom = currentZoom;
   let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
+  let cameraForBoundsOk = false;
   try {
     const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding });
     if (cam) {
+      cameraForBoundsOk = true;
       if (typeof cam.zoom === "number" && Number.isFinite(cam.zoom)) targetZoom = cam.zoom;
       if (cam.center) {
         const c = readLngLat(cam.center);
@@ -257,7 +297,16 @@ export function mobileAwareFlyToBounds(
       }
     }
   } catch {
-    // fall through; comparison uses the current camera, so the move below still runs
+    // cameraForBounds throws on projection edge cases; handled by the fallback below.
+  }
+
+  // No usable target from cameraForBounds: fly to the bounds center at a Mercator-computed zoom,
+  // which needs no MapLibre projection and so can't hit the same NaN.
+  if (!cameraForBoundsOk) {
+    const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
+    const zoom = mercatorZoomForBounds(west, south, east, north, options.maxZoom);
+    mobileAwareFlyTo(center, zoom, { duration: options.duration });
+    return false;
   }
 
   const centerDistance = haversineMeters(

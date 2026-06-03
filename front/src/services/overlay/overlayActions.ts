@@ -8,7 +8,7 @@ import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { selectOverlay, applySelectionVisualsWhenReady } from "@/services/overlay/overlaySelection";
 import { getMarker } from "@/services/overlay/overlayRenderRegistry";
 import { updateMarkerTooltip } from "@/services/map/markers";
 import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
@@ -196,6 +196,9 @@ function selectAndCenterOverlay(overlayId: string) {
 
   selectOverlay(overlayId);
   zoomToOverlayBounds(overlay);
+  // When selecting from the side panel while zoomed out, the image layer isn't rendered yet, so
+  // the edit handles / outline from selectOverlay no-op. Re-apply them once the flight renders it.
+  applySelectionVisualsWhenReady(overlayId);
 
   return true;
 }
