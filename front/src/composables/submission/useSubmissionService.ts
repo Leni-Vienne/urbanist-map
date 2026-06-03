@@ -2,7 +2,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import { makeHistoryState } from "@/services/overlay/overlayHistory";
 import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
@@ -578,16 +577,12 @@ export function useSubmissionService() {
 
     // For direct updates we collapse history so the submitted state is the new baseline;
     // change requests keep history so the proposal stays visible on edit-mode re-entry.
-    const updates: Partial<OverlayObject> = { isModified: false };
     const submittedCorners = mod.corners?.current;
+    overlayStore.updateOverlay(overlayId, { isModified: false });
     if (submittedCorners?.length === 4 && !isChangeRequest) {
-      updates.history = [
-        makeHistoryState(submittedCorners, overlayStore.overlays[overlayId]?.imageUrl ?? ""),
-      ];
-      updates.redoStack = [];
-      updates.corners = submittedCorners;
+      overlayStore.updateOverlay(overlayId, { corners: submittedCorners });
+      overlayStore.resetHistoryBaseline(overlayId, submittedCorners);
     }
-    overlayStore.updateOverlay(overlayId, updates);
     const liveOverlay = overlayStore.overlays[overlayId];
     if (liveOverlay) {
       updateMarkerTooltip(liveOverlay);
@@ -602,11 +597,8 @@ export function useSubmissionService() {
       // Collapse history so the just-published state is the new baseline.
       const publishedState = overlayObj.history.at(-1);
       if (publishedState?.corners.length === 4) {
-        overlayStore.updateOverlay(overlayId, {
-          history: [makeHistoryState(publishedState.corners, overlayObj.imageUrl)],
-          redoStack: [],
-          corners: publishedState.corners,
-        });
+        overlayStore.updateOverlay(overlayId, { corners: publishedState.corners });
+        overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
       }
     }
   }

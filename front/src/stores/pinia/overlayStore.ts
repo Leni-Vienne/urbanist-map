@@ -49,6 +49,25 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlay.isModified = true;
   }
 
+  // Collapse history to a single baseline step at `corners` (cloned so later edits don't alias it)
+  // and clear redo. Used when a submitted/reverted position becomes the new starting point, so
+  // re-entering edit mode doesn't restore prior in-progress edits. imageUrl is read from the live
+  // overlay; invalid (non-4) corners clear history entirely. Does not touch isModified or corners.
+  function resetHistoryBaseline(overlayId: string, corners: { lat: number; lng: number }[]) {
+    const overlay = overlays.value[overlayId];
+    if (!overlay) return;
+    overlay.history =
+      corners.length === 4
+        ? [
+            {
+              corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
+              imageUrl: overlay.imageUrl,
+            },
+          ]
+        : [];
+    overlay.redoStack = [];
+  }
+
   // Step back one history entry. Returns the step to restore (for the GL effect), or null on no-op.
   function undoHistory(overlayId: string): OverlayHistoryState | null {
     const overlay = overlays.value[overlayId];
@@ -129,6 +148,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     updateOverlay,
     batchUpdateOverlays,
     commitHistory,
+    resetHistoryBaseline,
     undoHistory,
     redoHistory,
     requestOverlayReplacement,

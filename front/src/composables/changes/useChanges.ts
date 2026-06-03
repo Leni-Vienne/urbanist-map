@@ -10,7 +10,6 @@ import type { OverlayObject } from "@/types";
 import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import { refreshEditHandles } from "@/services/overlay/overlayEditHandles";
-import { makeHistoryState } from "@/services/overlay/overlayHistory";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
@@ -24,15 +23,8 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
 
   pendingModsStore.clearModification(overlayId);
   // Reset history to the approved baseline so re-entering edit mode doesn't restore the edits.
-  const baseline =
-    overlayObject.corners.length === 4
-      ? [makeHistoryState(overlayObject.corners, overlayObject.imageUrl)]
-      : [];
-  overlayStore.updateOverlay(overlayId, {
-    isModified: false,
-    history: baseline,
-    redoStack: [],
-  });
+  overlayStore.updateOverlay(overlayId, { isModified: false });
+  overlayStore.resetHistoryBaseline(overlayId, overlayObject.corners);
   if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
     setOverlayImageCorners(overlayId, overlayObject.corners);
     // Re-sync the edit handles (invisible drag surface, corner markers, outline) to the

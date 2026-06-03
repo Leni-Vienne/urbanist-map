@@ -21,7 +21,6 @@ import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import * as registry from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import { refreshEditHandles } from "@/services/overlay/overlayEditHandles";
-import { makeHistoryState } from "@/services/overlay/overlayHistory";
 import type {
   OverlayObject,
   Project,
@@ -207,11 +206,7 @@ function resetOverlayField(
     const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
     // Reset history to the baseline so re-entering edit mode doesn't restore the edits.
     if (cornersToUse.length === 4) {
-      const baseline = [makeHistoryState(cornersToUse, overlayObject.imageUrl)];
-      overlayStore.updateOverlay(overlayId, {
-        history: baseline,
-        redoStack: [],
-      });
+      overlayStore.resetHistoryBaseline(overlayId, cornersToUse);
     }
 
     if (registry.getImageHandle(overlayId) && cornersToUse.length === 4) {
