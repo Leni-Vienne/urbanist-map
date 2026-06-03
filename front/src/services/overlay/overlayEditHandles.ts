@@ -70,6 +70,11 @@ function cornerHandleElement(): HTMLElement {
   el.style.cssText =
     "width:16px;height:16px;background:#ff8800;border:2px solid #fff;border-radius:2px;" +
     "box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:grab;";
+  // Transparent hit area that overflows the visible to grab it easier. Absolutely positioned so it does not
+  // grow the element's box, keeping MapLibre's centering on the corner identical to the visible dot.
+  const hitArea = document.createElement("div");
+  hitArea.style.cssText = "position:absolute;inset:-9px;";
+  el.appendChild(hitArea);
   return el;
 }
 
