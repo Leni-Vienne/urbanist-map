@@ -5,7 +5,7 @@ import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from ".
 import { exceedsPendingStorageQuota } from "../lib/storageQuota";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { allowedDomains } from "../lib/corsConfig";
-import type { FileUploadResult, FileUploadError, AppEnv } from "../lib/types";
+import type { FileUploadResult, FileUploadError, AppEnv, SessionUser } from "../lib/types";
 import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import { logger } from "../services/logger";
@@ -24,6 +24,66 @@ const filenameParamSchema = z.object({
     .regex(/^[a-zA-Z0-9\-_./]+$/, "Invalid filename format")
     .refine((name) => !name.includes(".."), "Path traversal not allowed"),
 });
+
+function isAllowedCorsOrigin(origin: string | undefined): boolean {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    return (
+      url.protocol === "https:" &&
+      allowedDomains.some(
+        (domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Pending/rejected files are restricted to the author, admins, and moderators of the
+// overlay's country. Approved files are public and never reach this check.
+function isAuthorizedForOverlay(
+  user: SessionUser,
+  overlay: { authorId: string | null; countryCode: string | null },
+): boolean {
+  if (user.role === "admin") return true;
+  if (user.id === overlay.authorId) return true;
+  return Boolean(overlay.countryCode && user.moderatedCountries?.includes(overlay.countryCode));
+}
+
+function buildFileHeaders(
+  contentType: string | undefined,
+  etagFilename: string,
+  isApproved: boolean,
+  origin: string | undefined,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": contentType ?? "application/octet-stream",
+    // Approved images are public and immutable; pending/rejected are per-user authorized,
+    // so they must never be stored by shared caches and replayed to unauthorized clients.
+    "Cache-Control": isApproved ? "public, max-age=31536000, must-revalidate" : "private, no-store",
+    // Filenames are unique (timestamp-random) and content is immutable once stored,
+    // so a filename-based ETag is stable and lets conditional requests return 304.
+    ETag: `"${etagFilename}"`,
+    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+  };
+
+  if (process.env.NODE_ENV === "development") {
+    headers["Access-Control-Allow-Origin"] = origin ?? "*";
+    headers["Access-Control-Allow-Credentials"] = "true";
+  } else if (isAllowedCorsOrigin(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin ?? "";
+    headers["Access-Control-Allow-Credentials"] = "true";
+  } else {
+    headers["Access-Control-Allow-Origin"] = allowedDomains[0]
+      ? `https://${allowedDomains[0]}`
+      : "";
+  }
+
+  return headers;
+}
 
 const imageFileSchema = z.object({
   size: z
@@ -178,12 +238,11 @@ uploadsApp.get("/uploads/*", async (c) => {
 
     const validatedFilename = validationResult.data.filename;
 
-    // Extract actual filename (strip thumbnails/ prefix if present)
+    // Thumbnails are served under thumbnails/<name> but the DB row keys on the bare filename.
     const actualFilename = validatedFilename.startsWith("thumbnails/")
       ? validatedFilename.replace("thumbnails/", "")
       : validatedFilename;
 
-    // Query overlay info for authorization check
     const overlayInfo = await db
       .select({
         authorId: overlays.authorId,
@@ -195,75 +254,34 @@ uploadsApp.get("/uploads/*", async (c) => {
       .where(eq(overlays.filename, actualFilename))
       .limit(1);
 
-    // If overlay doesn't exist in DB, file not found
     const overlay = overlayInfo[0];
     if (!overlay) {
       return c.json({ error: "File not found" }, 404);
     }
 
-    // Authorization logic
-    // Approved images are public (legacy support)
-    if (overlay.status === "approved") {
-      // Allow access - approved images are public
-    } else {
-      // Pending/rejected images require authentication
-      const session = c.get("session");
-      const user = session.get("user");
-
+    // Approved images are public (legacy support); everything else is access-controlled.
+    if (overlay.status !== "approved") {
+      const user = c.get("session").get("user");
       if (!user) {
         return c.json({ error: "Authentication required" }, 401);
       }
-
-      // Check authorization for pending/rejected images
-      const isAuthor = user.id === overlay.authorId;
-      const isAdmin = user.role === "admin";
-      const isCountryModerator =
-        overlay.countryCode && user.moderatedCountries?.includes(overlay.countryCode);
-
-      if (!isAuthor && !isAdmin && !isCountryModerator) {
+      if (!isAuthorizedForOverlay(user, overlay)) {
         return c.json({ error: "Forbidden" }, 403);
       }
     }
 
-    // User is authorized, serve the file
     const file = await storage.get(validatedFilename);
-
-    if (file) {
-      const origin = c.req.header("Origin");
-      const isAllowedOrigin =
-        origin &&
-        allowedDomains.some(
-          (domain) => origin === `https://${domain}` || origin.endsWith(`.${domain}`),
-        );
-
-      const corsHeaders: Record<string, string> = {
-        "Content-Type": file.contentType ?? "application/octet-stream",
-        "Cache-Control": "public, max-age=31536000, must-revalidate",
-        // Filenames are unique (timestamp-random) and content is immutable once stored,
-        // so a filename-based ETag is stable and lets conditional requests return 304.
-        ETag: `"${filename}"`,
-        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Cross-Origin-Resource-Policy": "cross-origin",
-      };
-
-      if (process.env.NODE_ENV !== "development" && isAllowedOrigin) {
-        corsHeaders["Access-Control-Allow-Origin"] = origin;
-        corsHeaders["Access-Control-Allow-Credentials"] = "true";
-      } else if (process.env.NODE_ENV !== "development") {
-        corsHeaders["Access-Control-Allow-Origin"] = allowedDomains[0]
-          ? `https://${allowedDomains[0]}`
-          : "";
-      } else {
-        // Development: allow any origin
-        corsHeaders["Access-Control-Allow-Origin"] = origin ?? "*";
-        corsHeaders["Access-Control-Allow-Credentials"] = "true";
-      }
-
-      return new Response(file.body, { headers: corsHeaders });
+    if (!file) {
+      return c.json({ error: "File not found" }, 404);
     }
 
-    return c.json({ error: "File not found" }, 404);
+    const headers = buildFileHeaders(
+      file.contentType,
+      filename,
+      overlay.status === "approved",
+      c.req.header("Origin"),
+    );
+    return new Response(file.body, { headers });
   } catch (error) {
     console.error("Error serving file:", error);
     return c.json({ error: "Failed to serve file" }, 500);
