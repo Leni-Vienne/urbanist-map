@@ -220,8 +220,7 @@ function resetOverlayField(
     }
 
     updateMarkerPosition(overlayObject);
-    // oxlint-disable-next-line no-unnecessary-condition
-  } else if (field === "caption" && capturedOriginalCaption !== undefined) {
+  } else if (capturedOriginalCaption !== undefined) {
     overlayStore.updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });
   }
 }

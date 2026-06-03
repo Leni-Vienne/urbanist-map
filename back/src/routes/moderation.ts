@@ -283,7 +283,7 @@ export const moderationRouter = router({
         // Early permission check - validate country access before any DB queries.
         // moderatorProcedure guarantees a non-admin has a non-empty moderatedCountries,
         // so the country gate applies to every non-admin (fail closed via ?. below).
-        let effectiveCountryCode = input.countryCode;
+        const effectiveCountryCode = input.countryCode;
 
         if (!isAdmin) {
           if (!input.countryCode) {
@@ -299,8 +299,6 @@ export const moderationRouter = router({
               message: "You do not have permission to moderate this country",
             });
           }
-
-          effectiveCountryCode = input.countryCode;
         }
 
         // Step 1: Get hidden users and pending project IDs

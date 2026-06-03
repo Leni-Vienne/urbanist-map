@@ -196,12 +196,7 @@ uploadsApp.get("/uploads/*", async (c) => {
       .limit(1);
 
     // If overlay doesn't exist in DB, file not found
-    if (overlayInfo.length === 0) {
-      return c.json({ error: "File not found" }, 404);
-    }
-
     const overlay = overlayInfo[0];
-
     if (!overlay) {
       return c.json({ error: "File not found" }, 404);
     }
@@ -244,7 +239,9 @@ uploadsApp.get("/uploads/*", async (c) => {
       const corsHeaders: Record<string, string> = {
         "Content-Type": file.contentType ?? "application/octet-stream",
         "Cache-Control": "public, max-age=31536000, must-revalidate",
-        ETag: `"${filename}-${Date.now()}"`,
+        // Filenames are unique (timestamp-random) and content is immutable once stored,
+        // so a filename-based ETag is stable and lets conditional requests return 304.
+        ETag: `"${filename}"`,
         "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Cross-Origin-Resource-Policy": "cross-origin",

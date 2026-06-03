@@ -164,10 +164,8 @@ import { createProjectObject } from "@/utils/typeFactories";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
-import { useToast } from "@/composables/ui/useToast";
 
 const { t } = useI18n();
-const toast = useToast();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
@@ -452,19 +450,10 @@ function onSave() {
 }
 
 function startCrop() {
+  // Only local (status === null) overlays expose the crop button (see canCrop), so the image bytes
+  // here are always the un-submitted source, safe to re-bake and re-upload via the publish path.
   const overlay = selectedOverlay.value;
   if (!overlay) return;
-  // A submitted image is already server-compressed, so cropping it would re-encode that copy and
-  // lose quality. Re-framing means uploading the source again, not cropping the stored file.
-  if (overlay.status !== null) {
-    toast.add({
-      severity: "info",
-      summary: t("toolbar.cropUnavailableTitle"),
-      detail: t("toolbar.cropUnavailableDetail"),
-      life: 6000,
-    });
-    return;
-  }
   hideEditHandles();
   showCropHandles(overlay);
   isCropActive.value = true;

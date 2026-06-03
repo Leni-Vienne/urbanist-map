@@ -5,7 +5,6 @@
     :is-loading="isLoading"
     :change-requests="pendingChangeRequests"
     :show-edit-buttons="true"
-    :should-switch-to-edit-mode="false"
     :pinned-project-id="selectedProjectId"
     :pinned-external-project="pinnedExternalProject"
     @external-project-click="handleExternalProjectClick"
@@ -179,6 +178,7 @@ import type {
   OverlayForModeration,
 } from "@/types/index";
 import { createOverlayForModeration } from "@/utils/projectFactories";
+import { createProjectObject } from "@/utils/typeFactories";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
@@ -232,7 +232,11 @@ watchEffect(() => {
   if (!overlayId) return;
   const overlay = overlayStore.overlays[overlayId];
   const project = overlay?.project;
-  if (project) lastSelectedProject.value = project as unknown as Project;
+  if (project) {
+    lastSelectedProject.value = createProjectObject(
+      project as Parameters<typeof createProjectObject>[0],
+    );
+  }
 });
 
 const selectedProjectId = computed(() => lastSelectedProject.value?.id ?? null);
@@ -269,10 +273,8 @@ const filteredProjects = computed(() => {
   return allContributions.value.filter((project) => {
     // Treat unsaved/unsubmitted projects (status === null) as pending
     const isPending = project.status === "pending" || project.status === null;
-    const isApproved =
-      project.status === "approved" ||
-      project.status === "rejected" ||
-      project.status === "replaced";
+    // "rejected" is terminal like "approved": both are resolved, no longer awaiting moderation
+    const isResolved = project.status === "approved" || project.status === "rejected";
 
     // Check if project has pending or unsaved overlays/changes (contributes to "pending")
     const hasPendingOverlays =
@@ -299,8 +301,8 @@ const filteredProjects = computed(() => {
       return true;
     }
 
-    // Show if "approved" checkbox is on and project is approved (and has no pending items)
-    if (showApproved.value && isApproved && !hasAnyPending) {
+    // Show if "approved" checkbox is on and project is resolved (and has no pending items)
+    if (showApproved.value && isResolved && !hasAnyPending) {
       return true;
     }
 

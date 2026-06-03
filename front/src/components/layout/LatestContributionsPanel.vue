@@ -201,7 +201,7 @@ async function handleContributionClick(contribution: LatestContribution) {
       map.value.once("moveend", () => {
         void handleProjectClickFromTile(contribution.id, popupLatLng);
       });
-    } else if (contribution.lat && contribution.lng) {
+    } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
       await navigateToStandaloneProject(contribution.lat, contribution.lng, contribution.id);
     }
   }

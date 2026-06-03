@@ -535,8 +535,6 @@ async function handleSubmit() {
       } else {
         if (result.error === "auth.error.usernameTaken") {
           usernameError.value = $t("auth.error.usernameTaken");
-        } else if (result.error === "auth.error.emailAlreadyExists") {
-          emailError.value = $t("auth.error.emailAlreadyExists");
         } else {
           errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
         }

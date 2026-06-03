@@ -27,16 +27,9 @@ export async function generateMissingThumbnails(): Promise<void> {
     for (const imageFile of imageFiles) {
       const thumbnailPath = join(thumbnailsDir, imageFile);
 
-      try {
-        const thumbFile = Bun.file(thumbnailPath);
-        const exists = await thumbFile.exists();
-
-        if (exists) {
-          skippedCount += 1;
-          continue;
-        }
-      } catch {
-        // Thumbnail doesn't exist, continue to generate
+      if (await Bun.file(thumbnailPath).exists()) {
+        skippedCount += 1;
+        continue;
       }
 
       // Generate thumbnail directly without re-saving main image

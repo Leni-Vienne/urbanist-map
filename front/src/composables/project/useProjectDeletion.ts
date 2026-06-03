@@ -32,7 +32,12 @@ export function useProjectDeletion() {
 
     // If it was the last overlay, add a standalone project marker to show the project
     // (entityRemoval.removeOverlay also does this for backend projects; this is a safety net for local-only projects)
-    if (isLastOverlay && project?.id && project.lat && project.lng) {
+    if (
+      isLastOverlay &&
+      project?.id &&
+      typeof project.lat === "number" &&
+      typeof project.lng === "number"
+    ) {
       const remainingProject = projectStore.projects[project.id];
       if (remainingProject) {
         addStandaloneProjectMarkerForProject(remainingProject);

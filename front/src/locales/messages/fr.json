@@ -109,7 +109,6 @@
     "architect": "Architecte",
     "addImages": "Ajouter",
     "tags": "Catégories",
-    "primaryTag": "Catégorie principale",
     "setPrimaryTag": "Définir comme catégorie principale",
     "removeTag": "Retirer la catégorie",
     "additionalDetails": "Détails supplémentaires",
@@ -300,7 +299,6 @@
     "rememberMeHint": "Rester connecté pendant 30 jours",
     "error": {
       "emailUsesGoogleSignIn": "Cet email est enregistré avec Google Sign-In. Veuillez vous connecter avec Google.",
-      "emailAlreadyExists": "Un compte avec cet email existe déjà.",
       "usernameTaken": "Ce nom d'utilisateur est déjà pris.",
       "usernameTooShort": "Le nom d'utilisateur doit contenir au moins 3 caractères.",
       "usernameTooLong": "Le nom d'utilisateur ne doit pas dépasser 50 caractères.",
@@ -453,10 +451,6 @@
     }
   },
   "controls": {
-    "zoom": {
-      "in": "Zoomer",
-      "out": "Dézoomer"
-    },
     "filter": "Filtrer les projets",
     "language": "Langue",
     "settings": "Paramètres"
@@ -478,8 +472,6 @@
     "crop": "Rogner l'image",
     "cropConfirm": "Appliquer",
     "cropCancel": "Annuler",
-    "cropUnavailableTitle": "Rognage indisponible",
-    "cropUnavailableDetail": "Cette image a déjà été envoyée. Pour la rogner, supprimez l'image et importez à nouveau.",
     "save": "Envoyer",
     "bringToFront": "Mettre l'image au premier plan",
     "sendToBack": "Mettre l'image à l'arrière-plan"
@@ -567,7 +559,6 @@
     "genericError": "Entrée invalide"
   },
   "errors": {
-    "projectNotFound": "Projet introuvable",
     "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
     "checkConflictsFailed": "Échec de la vérification des conflits",
     "noChangesDetected": "Aucune modification détectée à soumettre",

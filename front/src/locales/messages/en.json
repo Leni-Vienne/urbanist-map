@@ -109,7 +109,6 @@
     "architect": "Architect",
     "addImages": "Add Images",
     "tags": "Tags",
-    "primaryTag": "Main category",
     "setPrimaryTag": "Set as main category",
     "removeTag": "Remove tag",
     "additionalDetails": "Additional Details",
@@ -300,7 +299,6 @@
     "rememberMeHint": "Stay signed in for 30 days",
     "error": {
       "emailUsesGoogleSignIn": "This email is registered with Google Sign-In. Please sign in with Google.",
-      "emailAlreadyExists": "An account with this email already exists.",
       "usernameTaken": "This username is already taken.",
       "usernameTooShort": "Username must be at least 3 characters long.",
       "usernameTooLong": "Username must not exceed 50 characters.",
@@ -453,10 +451,6 @@
     }
   },
   "controls": {
-    "zoom": {
-      "in": "Zoom In",
-      "out": "Zoom Out"
-    },
     "filter": "Filter Projects",
     "language": "Language",
     "settings": "Settings"
@@ -478,8 +472,6 @@
     "crop": "Crop the image",
     "cropConfirm": "Apply crop",
     "cropCancel": "Cancel crop",
-    "cropUnavailableTitle": "Cropping unavailable",
-    "cropUnavailableDetail": "This image has already been submitted. To re-frame it, delete it and upload the image again.",
     "save": "Submit",
     "bringToFront": "Bring image to front",
     "sendToBack": "Send image to back"
@@ -567,7 +559,6 @@
     "genericError": "Invalid input"
   },
   "errors": {
-    "projectNotFound": "Project not found",
     "projectRequired": "Project Required: A project must be selected to add an image",
     "checkConflictsFailed": "Failed to check for conflicts",
     "noChangesDetected": "No changes detected to submit",

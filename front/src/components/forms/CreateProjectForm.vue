@@ -40,7 +40,7 @@ const emit = defineEmits<{ cancel: []; submit: [project: Partial<Project>] }>();
 const { validateProjectForm } = useProjectFormValidation();
 
 const markerCoordinates =
-  props.project.lat && props.project.lng
+  typeof props.project.lat === "number" && typeof props.project.lng === "number"
     ? { lat: props.project.lat, lng: props.project.lng }
     : null;
 

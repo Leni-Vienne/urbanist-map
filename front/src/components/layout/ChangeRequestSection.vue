@@ -5,12 +5,10 @@
         <i class="pi pi-info-circle text-amber-700 dark:text-amber-400 text-[11px]"></i>
         <span class="text-[13px] font-medium text-amber-800 dark:text-amber-400">
           {{
-            isOverlayChanges
-              ? isMyContributions
-                ? $t("moderation.yourPendingChanges")
-                : $t("moderation.pendingChangesFor", { name: entityName })
-              : isMyContributions
-                ? $t("moderation.yourPendingChanges")
+            isMyContributions
+              ? $t("moderation.yourPendingChanges")
+              : isOverlayChanges
+                ? $t("moderation.pendingChangesFor", { name: entityName })
                 : $t("moderation.pendingChanges")
           }}
         </span>

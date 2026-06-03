@@ -429,7 +429,7 @@ export const overlayRouter = router({
           ),
         );
 
-      // Get rejected/replaced standalone projects OR new approved projects
+      // Get rejected standalone projects OR new approved projects
       const moderatedProjects = await db
         .select({
           id: projects.id,
@@ -456,7 +456,7 @@ export const overlayRouter = router({
           and(
             eq(projects.ownerId, userId),
             or(
-              sql`${projects.status} IN ('rejected', 'replaced')`,
+              eq(projects.status, "rejected"),
               and(eq(projects.status, "approved"), sql`${projects.updatedAt} > ${lastAck}`),
             ),
           ),
