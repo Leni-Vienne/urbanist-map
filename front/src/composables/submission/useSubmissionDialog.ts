@@ -211,8 +211,6 @@ function resetOverlayField(
         history: baseline,
         redoStack: [],
       });
-      overlayObject.history = baseline;
-      overlayObject.redoStack = [];
     }
 
     if (registry.getImageHandle(overlayId) && cornersToUse.length === 4) {

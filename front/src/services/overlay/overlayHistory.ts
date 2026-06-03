@@ -41,40 +41,46 @@ export function resolveOverlayRenderCorners(overlayObject: OverlayObject) {
 
 // Record the current image position as a change-request delta. No-op for new (status null)
 // overlays, whose position lives only in history; only submitted overlays track a delta.
-export function recordOverlayModification(overlayObject: OverlayObject): void {
+export function recordOverlayModification(id: string): void {
   const pendingModsStore = usePendingModificationsStore();
   const mapStore = useMapStore();
 
   if (mapStore.mode !== "edit") return;
-  if (overlayObject.status === null) return;
 
-  const corners = getOverlayImageCorners(overlayObject.id);
+  const overlay = useOverlayStore().overlays[id];
+  if (!overlay || overlay.status === null) return;
+
+  const corners = getOverlayImageCorners(id);
   if (!corners) return;
 
   const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
 
   pendingModsStore.saveCornersChange(
-    overlayObject.id,
-    overlayObject.projectId ?? null,
+    id,
+    overlay.projectId ?? null,
     mappedCorners,
-    overlayObject.corners,
-    overlayObject.status,
+    overlay.corners,
+    overlay.status,
   );
 }
 
-export function saveToHistory(overlayObject: OverlayObject, cropRect?: NormalizedRect): void {
-  const currentCorners = getOverlayImageCorners(overlayObject.id);
+export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
+  const overlayStore = useOverlayStore();
+  const overlay = overlayStore.overlays[id];
+  if (!overlay) return;
+
+  const currentCorners = getOverlayImageCorners(id);
   if (!currentCorners) return;
   // A move/resize keeps the same image, so carry the prior step's crop window forward; a crop
   // passes its new window explicitly so the next crop composes onto the right region.
-  const effectiveRect = cropRect ?? overlayObject.history.at(-1)?.cropRect;
-  const currentState = makeHistoryState(currentCorners, overlayObject.imageUrl, effectiveRect);
+  const effectiveRect = cropRect ?? overlay.history.at(-1)?.cropRect;
+  const currentState = makeHistoryState(currentCorners, overlay.imageUrl, effectiveRect);
 
   // Seed empty history with the backend corners so the first undo has a base state.
-  let baseHistory = overlayObject.history;
-  if (baseHistory.length === 0 && overlayObject.corners.length === 4) {
-    if (!overlayObject.corners.every((c) => c.lat === 0 && c.lng === 0)) {
-      baseHistory = [makeHistoryState(overlayObject.corners, overlayObject.imageUrl)];
+  let baseHistory = overlay.history;
+  if (baseHistory.length === 0 && overlay.corners.length === 4) {
+    if (!overlay.corners.every((c) => c.lat === 0 && c.lng === 0)) {
+      baseHistory = [makeHistoryState(overlay.corners, overlay.imageUrl)];
     }
   }
 
@@ -85,24 +91,8 @@ export function saveToHistory(overlayObject: OverlayObject, cropRect?: Normalize
     }
   }
 
-  // Build a fresh array rather than pushing: overlayObject may be a raw (non-proxied) object,
-  // so an in-place mutation would not trigger Vue's reactive set trap.
-  const newHistory = [...baseHistory, currentState];
+  overlayStore.commitHistory(id, [...baseHistory, currentState]);
 
-  overlayObject.isModified = true;
-
-  recordOverlayModification(overlayObject);
-
-  updateMarkerTooltip(overlayObject);
-
-  const overlayStore = useOverlayStore();
-  overlayStore.updateOverlay(overlayObject.id, {
-    isModified: true,
-    history: newHistory,
-    redoStack: [],
-  });
-
-  // Sync raw object so non-reactive code paths see fresh state.
-  overlayObject.history = newHistory;
-  overlayObject.redoStack = [];
+  recordOverlayModification(id);
+  updateMarkerTooltip(overlay);
 }

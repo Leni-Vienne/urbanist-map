@@ -90,28 +90,36 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
     }
   }
 
-  const overlayObjectWithMethods = enrichOverlayWithProject(overlayObject);
+  const enriched = enrichOverlayWithProject(overlayObject);
 
-  const corners = resolveOverlayRenderCorners(overlayObjectWithMethods);
+  const corners = resolveOverlayRenderCorners(enriched);
   if (!corners) {
     registry.cancelCreation(cdnOverlay.id);
     return;
   }
 
-  const handle = createOverlayImage(overlayObjectWithMethods, corners);
+  const handle = createOverlayImage(enriched, corners);
   if (!handle) {
     registry.cancelCreation(cdnOverlay.id);
     return;
   }
   registry.setImageHandle(cdnOverlay.id, handle);
 
-  overlayStore.addOverlay(cdnOverlay.id, overlayObjectWithMethods);
+  // One canonical object per id: refresh the stored instance in place so its identity is stable
+  // across re-renders (any service holding the reference keeps seeing live state). Only the first
+  // render creates the instance. The merge above already folded backend fields over edit state.
+  if (existingOverlay) {
+    overlayStore.updateOverlay(cdnOverlay.id, enriched);
+  } else {
+    overlayStore.addOverlay(cdnOverlay.id, enriched);
+  }
+  const overlay = overlayStore.overlays[cdnOverlay.id];
 
   // View mode passes createMarkers=false and relies on the overlay-footprints MVT layer
   // for low-zoom representation and click handling.
-  if (createMarkers) {
-    createOverlayMarker(overlayObjectWithMethods);
-    updateMarkerTooltip(overlayObjectWithMethods);
+  if (createMarkers && overlay) {
+    createOverlayMarker(overlay);
+    updateMarkerTooltip(overlay);
   }
 
   // A standalone project marker may have been shown for this project while its overlays

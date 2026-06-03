@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayObject, OverlayData, OverlayHistoryState } from "@/types/index";
 import { clearAll as clearAllLayers } from "@/services/overlay/overlayRenderRegistry";
 
 export const useOverlayStore = defineStore("overlay", () => {
@@ -37,6 +37,42 @@ export const useOverlayStore = defineStore("overlay", () => {
       const current = overlays.value[id];
       if (current) Object.assign(current, update);
     }
+  }
+
+  // Replace an overlay's edit history wholesale and mark it modified. Callers compute the new
+  // history array (seeding/dedup live in saveToHistory); this is the single reactive write.
+  function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
+    const overlay = overlays.value[overlayId];
+    if (!overlay) return;
+    overlay.history = history;
+    overlay.redoStack = [];
+    overlay.isModified = true;
+  }
+
+  // Step back one history entry. Returns the step to restore (for the GL effect), or null on no-op.
+  function undoHistory(overlayId: string): OverlayHistoryState | null {
+    const overlay = overlays.value[overlayId];
+    if (!overlay || overlay.history.length <= 1) return null;
+    const current = overlay.history.pop();
+    if (!current) return null;
+    overlay.redoStack.push(current);
+    const target = overlay.history.at(-1);
+    if (!target) return null;
+    // Back to the initial state on a submitted overlay: clear the modified flag so the marker
+    // returns to its status color.
+    if (overlay.history.length === 1 && overlay.status !== null) overlay.isModified = false;
+    return target;
+  }
+
+  // Step forward one history entry. Returns the step to restore, or null on no-op.
+  function redoHistory(overlayId: string): OverlayHistoryState | null {
+    const overlay = overlays.value[overlayId];
+    if (!overlay || overlay.redoStack.length === 0) return null;
+    const target = overlay.redoStack.pop();
+    if (!target) return null;
+    overlay.history.push(target);
+    overlay.isModified = true;
+    return target;
   }
 
   function clearPendingFile() {
@@ -92,6 +128,9 @@ export const useOverlayStore = defineStore("overlay", () => {
     addOverlay,
     updateOverlay,
     batchUpdateOverlays,
+    commitHistory,
+    undoHistory,
+    redoHistory,
     requestOverlayReplacement,
     resetReplacement,
     showInfoPopupForOverlay,

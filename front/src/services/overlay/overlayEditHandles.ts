@@ -206,7 +206,7 @@ function wireCornerDrag(s: EditSession): void {
       s.cornerDrag = null;
       refreshEditHandlesGeometry();
       flagSize(overlayObject);
-      saveToHistory(overlayObject);
+      saveToHistory(overlayObject.id);
     });
   });
 }
@@ -267,7 +267,7 @@ function wireSurfaceDrag(s: EditSession): void {
       s.activeSurfaceDrag = undefined;
       if (didMove) {
         flagSize(overlayObject);
-        saveToHistory(overlayObject);
+        saveToHistory(overlayObject.id);
       }
     }
 

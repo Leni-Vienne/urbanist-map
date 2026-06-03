@@ -32,9 +32,6 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
     history: baseline,
     redoStack: [],
   });
-  overlayObject.isModified = false;
-  overlayObject.history = baseline;
-  overlayObject.redoStack = [];
   if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
     setOverlayImageCorners(overlayId, overlayObject.corners);
     updateMarkerPosition(overlayObject);

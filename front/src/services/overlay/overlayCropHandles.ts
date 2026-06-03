@@ -353,8 +353,8 @@ export async function applyCrop(): Promise<boolean> {
   // Swap in the cropped pixels at the shrunk footprint, then record it as a normal history step.
   // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
   // original pixels and the original footprint.
-  replaceOverlayImageSource(overlay, dataUrl, newCorners);
-  saveToHistory(overlay, originalRect);
+  replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
+  saveToHistory(overlay.id, originalRect);
   updateMarkerPosition(overlay);
 
   return true;

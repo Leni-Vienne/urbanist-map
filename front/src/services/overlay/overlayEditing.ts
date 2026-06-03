@@ -53,7 +53,7 @@ export async function updateOverlayEditingState(): Promise<void> {
       const lastEdited = overlayObject.history.at(-1);
       const hasUserEdits = overlayObject.history.length > 1;
       if (hasUserEdits && lastEdited?.corners.length === 4) {
-        restoreOverlayToState(overlayObject, lastEdited);
+        restoreOverlayToState(overlayObject.id, lastEdited);
         updateMarkerPosition(overlayObject);
       }
     } else if (overlayObject.corners.length === 4) {
@@ -232,65 +232,41 @@ export function redo() {
 
 // Restore an overlay to a saved history step. A step from before a crop carries a different
 // image, so swap the source when it differs; otherwise just reposition the current image.
-function restoreOverlayToState(overlayObject: OverlayObject, state: OverlayHistoryState): void {
-  if (state.imageUrl !== overlayObject.imageUrl) {
-    replaceOverlayImageSource(overlayObject, state.imageUrl, state.corners);
+function restoreOverlayToState(id: string, state: OverlayHistoryState): void {
+  const overlay = useOverlayStore().overlays[id];
+  if (!overlay) return;
+  if (state.imageUrl !== overlay.imageUrl) {
+    replaceOverlayImageSource(id, state.imageUrl, state.corners);
   } else {
-    setOverlayImageCorners(overlayObject.id, state.corners);
+    setOverlayImageCorners(id, state.corners);
   }
 }
 
 function applyHistoryAction(action: "undo" | "redo") {
   const overlayStore = useOverlayStore();
 
-  if (!overlayStore.idSelectedOverlay) return;
+  const id = overlayStore.idSelectedOverlay;
+  if (!id || !registry.getImageHandle(id)) return;
 
-  const overlayObject = overlayStore.overlays[overlayStore.idSelectedOverlay];
-  if (!overlayObject || !registry.getImageHandle(overlayObject.id)) return;
+  const target = action === "undo" ? overlayStore.undoHistory(id) : overlayStore.redoHistory(id);
+  if (!target) return;
 
-  const { history, redoStack } = overlayObject;
-  const isUndo = action === "undo";
-
-  if ((isUndo && history.length <= 1) || (!isUndo && redoStack.length === 0)) {
-    return;
-  }
-
-  if (isUndo) {
-    const currentState = history.pop();
-    if (!currentState) return;
-
-    redoStack.push(currentState);
-    const previousState = history.at(-1);
-    if (!previousState) return;
-
-    restoreOverlayToState(overlayObject, previousState);
-
-    // Back to initial state on a submitted overlay (approved/pending/rejected) -- mark as
-    // unmodified so the marker returns to its status color.
-    if (history.length === 1 && overlayObject.status !== null) {
-      overlayObject.isModified = false;
-    }
-  } else {
-    const stateToRestore = redoStack.pop();
-    if (!stateToRestore) return;
-
-    history.push(stateToRestore);
-    restoreOverlayToState(overlayObject, stateToRestore);
-
-    overlayObject.isModified = true;
-  }
+  restoreOverlayToState(id, target);
 
   refreshEditHandles();
-  updateMarkerPosition(overlayObject);
-  updateMarkerTooltip(overlayObject);
+  const overlay = overlayStore.overlays[id];
+  if (overlay) {
+    updateMarkerPosition(overlay);
+    updateMarkerTooltip(overlay);
+  }
 
-  recordOverlayModification(overlayObject);
+  recordOverlayModification(id);
 
   // On full undo to original state, clear corners from pendingModsStore for any submitted
   // overlay (but not caption, which may have its own pending change).
-  if (isUndo && history.length === 1 && overlayObject.status !== null) {
+  if (action === "undo" && overlay?.history.length === 1 && overlay.status !== null) {
     const pendingModsStore = usePendingModificationsStore();
-    pendingModsStore.clearFieldModification(overlayObject.id, "corners");
+    pendingModsStore.clearFieldModification(id, "corners");
   }
 }
 
