@@ -42,6 +42,7 @@
     "no-inferrable-types": "off",
     "no-use-before-define": "off",
     "prefer-ternary": "off",
+    "unicorn/no-array-for-each": "off",
     "max-lines-per-function": "off", // seems irrelevant with vue composables since they are large
     "no-explicit-any": "off", // many places where we can't type properly, especially with maplibre plugins
     "max-statements": "off",

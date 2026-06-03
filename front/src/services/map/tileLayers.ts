@@ -13,6 +13,7 @@ import {
 } from "./projectVectorLayers";
 import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/overlayRenderRegistry";
+import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/overlayEditHandles";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
 import {
   selectedProjectTags,
@@ -366,7 +367,7 @@ export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollect
   const mlMap = getMlMap();
   if (!mlMap) return;
 
-  const source = mlMap.getSource("pending-project-points-source") as GeoJSONSource | undefined;
+  const source = mlMap.getSource<GeoJSONSource>("pending-project-points-source");
   if (source) {
     source.setData(geojson);
   }
@@ -416,9 +417,10 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (lastPendingProjectPointsGeojson) {
         updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
       }
-      // Overlay image sources were wiped by setStyle; drop their handles so vectorTileSync
-      // re-creates them on the next idle.
+      // Drop overlay image handles so vectorTileSync re-creates them on the next idle.
       dropImageHandlesForStyleSwitch();
+      // Re-add the selected overlay's edit-handle layer so it stays draggable.
+      reattachEditHandlesAfterStyleSwitch();
       runViewportRenderLoop();
       resolve();
     });

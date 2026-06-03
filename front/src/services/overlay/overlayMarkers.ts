@@ -43,7 +43,7 @@ function resolveOverlayMarkerCorners(overlay: OverlayData): Corner[] | null {
   if (isValidQuad(liveCorners)) return liveCorners;
 
   if (mapStore.mode === "edit") {
-    const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1);
+    const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1)?.corners;
     if (isValidQuad(lastEdited)) return lastEdited;
   }
 

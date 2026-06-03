@@ -20,6 +20,8 @@ export const logger =
       })
     : pino({
         level: process.env.LOG_LEVEL ?? "info",
+        // pid is always 1
+        base: undefined,
         // Production: JSON to stdout
         // Grafana Alloy captures stdout and ships to Loki
       });

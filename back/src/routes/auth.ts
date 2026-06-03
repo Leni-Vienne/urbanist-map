@@ -1,587 +1,323 @@
-import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { TRPCError } from "@trpc/server";
+import { Hono, type Context } from "hono";
+import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
+import crypto from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db } from "../database";
+import { users, config } from "../db/schema";
 import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
-import crypto from "node:crypto";
-import { eq, gt } from "drizzle-orm";
-import { publicProcedure, loggedInProcedure, router } from "../trpc";
-import { db } from "../database";
-import { users, projects, overlays, changeRequests, oauthAccounts } from "../db/schema";
-import { getUserOAuthProviders } from "../utils/oauthAccounts";
-import {
-  registerSchema,
-  resetPasswordRequestSchema,
-  resetPasswordSchema,
-} from "../../../shared/validation/schemas";
-import { sendEmail } from "../services/emailService";
-import { verifyTurnstileToken } from "../utils/captcha";
-import { renderEmailTemplate } from "../email/templateRenderer";
+import { verifyGoogleToken } from "../utils/googleAuth";
+import { findOrCreateOAuthUser } from "../utils/oauthAccounts";
+import { buildOsmAuthorizeUrl, exchangeOsmCodeForUser, isOsmConfigured } from "../utils/osmAuth";
+import { SYNTHETIC_EMAIL_DOMAIN } from "@shared/types";
+import type { AppEnv, SessionUser } from "../lib/types";
 
-// Use shared validation schemas
+// Cookie-session HTTP endpoints (login, OAuth, logout, session check).
+// The tRPC account router (./account) covers registration/verification/reset.
+export const authApp = new Hono<AppEnv>();
 
-// Utility functions
-function generateToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
+// Session duration constants
+const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
+export const SESSION_DURATION_LONG = 30 * 24 * 60 * 60; // 30 days for "Remember Me"
 
-async function sendVerificationEmail(email: string, token: string): Promise<void> {
-  try {
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
-    const { subject, html } = await renderEmailTemplate("verification", { verificationUrl });
+const loginSchema = z.object({
+  email: z.email(),
+  password: z.string().min(1, "Password is required"),
+  rememberMe: z.boolean().optional().default(false),
+});
 
-    await sendEmail(email, subject, html);
-    console.log(`Verification email sent successfully to ${email}`);
-  } catch (error) {
-    console.error("Failed to send verification email:", error);
-    // In development, fallback to console logging
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[DEV FALLBACK] Verification email to ${email} with token: ${token}`);
-      console.log(`Verification link: ${process.env.FRONTEND_URL}/verify?token=${token}`);
-    } else {
-      throw error;
-    }
+// Enforce a minimum execution time to mitigate timing attacks
+async function enforceMinExecutionTime(startTime: number) {
+  const MIN_EXEC_TIME = 200; // 200ms target duration
+  const elapsed = Date.now() - startTime;
+  if (elapsed < MIN_EXEC_TIME) {
+    await Bun.sleep(MIN_EXEC_TIME - elapsed);
   }
 }
 
-async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
-  try {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl });
+function setUserSession(c: Context<AppEnv>, user: SessionUser, rememberMe: boolean) {
+  const session = c.get("session");
 
-    await sendEmail(email, subject, html);
-    console.log(`Password reset email sent successfully to ${email}`);
-  } catch (error) {
-    console.error("Failed to send password reset email:", error);
-    // In development, fallback to console logging
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[DEV FALLBACK] Password reset email to ${email} with token: ${token}`);
-      console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${token}`);
-    } else {
-      throw error;
-    }
-  }
+  const sessionDuration = rememberMe ? SESSION_DURATION_LONG : SESSION_DURATION_SHORT;
+  const expiresAt = new Date(Date.now() + sessionDuration * 1000);
+
+  session.set("user", {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    moderatedCountries: user.moderatedCountries,
+    emailVerified: user.emailVerified,
+  });
+
+  session.set("expiresAt", expiresAt.toISOString());
 }
 
-export const authRouter = router({
-  // User registration
-  register: publicProcedure.input(registerSchema).mutation(async ({ input, ctx }) => {
-    try {
-      const { email, password, username, captchaToken } = input;
+async function validateGoogleLoginRequest(body: unknown) {
+  const googleLoginSchema = z.object({
+    token: z.string().min(1, "Google token is required"),
+    rememberMe: z.boolean().optional().default(false),
+  });
 
-      // Rate limit: 5 registrations per IP per hour
-      const ip = getClientIp(ctx.hono);
-      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "auth.error.tooManyRequests",
-        });
+  const validationResult = googleLoginSchema.safeParse(body);
+  if (!validationResult.success) {
+    const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
+    throw Object.assign(new Error(errorMessage), { statusCode: 400 });
+  }
+
+  return validationResult.data;
+}
+
+authApp.post("/api/login", async (c) => {
+  // Measure start time to enforce constant time response
+  const startTime = Date.now();
+
+  try {
+    // Rate limit: 10 attempts per IP per minute
+    const ip = getClientIp(c);
+    if (!rateLimit.check(ip, 10, 60 * 1000)) {
+      return c.json({ error: "auth.error.tooManyRequests" }, 429);
+    }
+
+    const body = await c.req.json();
+
+    // Validate request body with Zod
+    const validationResult = loginSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
+      return c.json({ error: errorMessage }, 400);
+    }
+
+    const { email, password, rememberMe } = validationResult.data;
+
+    // Find user (same logic as tRPC route)
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    // SECURITY: Mitigate timing attack
+    // Always perform password verification even if user doesn't exist
+    // This ensures consistent response time (~80ms) for both valid and invalid emails
+    const dummyHash =
+      "$argon2id$v=19$m=65536,t=2,p=1$WzgfyslW80m4IOmzoEo0MiRnRnyqnFVzaFLp/S1kQIQ$RO1WV3KLiIMekWVluRf8a2oDncmEoVmUPD9MCN1wMd4";
+    const targetHash = user?.passwordHash ?? dummyHash;
+
+    // Verify password (always executed)
+    const isValidPassword = await Bun.password.verify(password, targetHash);
+
+    // Now check user existence and validity
+    if (!user?.passwordHash || !isValidPassword) {
+      // Check if it was an OAuth account (only if user exists, but we return generic error anyway)
+      if (user && !user.passwordHash) {
+        // Still wait for min time before returning
+        await enforceMinExecutionTime(startTime);
+        return c.json({ error: "auth.error.accountUsesGoogleSignIn" }, 401);
       }
 
-      // Validate CAPTCHA. Skipped only when no secret is configured (verifyTurnstileToken returns true).
-      if (process.env.TURNSTILE_SECRET_KEY) {
-        const isValidCaptcha = await verifyTurnstileToken(captchaToken ?? "", ip);
-        if (!isValidCaptcha) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "auth.error.invalidCaptcha",
-          });
-        }
-      }
+      // Still wait for min time before returning
+      await enforceMinExecutionTime(startTime);
+      return c.json({ error: "auth.error.invalidCredentials" }, 401);
+    }
 
-      // Check username uniqueness first so it always surfaces before email obscuring
-      if (username) {
-        const existingUsername = await db
-          .select()
-          .from(users)
-          .where(eq(users.username, username))
-          .limit(1);
-        if (existingUsername.length > 0) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "auth.error.usernameTaken",
-          });
-        }
-      }
+    if (!user.emailVerified) {
+      await enforceMinExecutionTime(startTime);
+      return c.json({ error: "auth.error.emailNotVerified" }, 403);
+    }
 
-      // Check if user already exists
-      const existingUserResult = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-      const existingUser = existingUserResult[0];
-      if (existingUser) {
-        // If user exists but email is not verified, allow re-registration (overwrite)
-        if (!existingUser.emailVerified) {
-          // Delete the unverified user
-          await db.delete(users).where(eq(users.id, existingUser.id));
-        } else {
-          // OAuth-only account (a linked provider, no password): point them to it
-          if (!existingUser.passwordHash) {
-            const providers = await getUserOAuthProviders(existingUser.id);
-            if (providers.length > 0) {
-              throw new TRPCError({
-                code: "CONFLICT",
-                message: "auth.error.emailUsesGoogleSignIn",
-              });
-            }
-          }
+    setUserSession(c, user, rememberMe);
 
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "auth.error.registrationFailed",
-          });
-        }
-      }
+    // Constant time mitigation: Ensure request takes at least MIN_EXEC_TIME ms
+    // This masks the difference between DB lookup times (found vs not found)
+    await enforceMinExecutionTime(startTime);
 
-      // Hash password with Bun
-      const passwordHash = await Bun.password.hash(password);
+    return c.json({
+      success: true,
+      message: "auth.success.loggedIn",
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        moderatedCountries: user.moderatedCountries,
+        emailVerified: user.emailVerified,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
 
-      // Generate verification token
-      const plainVerificationToken = generateToken();
-      const emailVerificationToken = await Bun.password.hash(plainVerificationToken);
+    // Even on error, try to maintain timing if possible
+    await enforceMinExecutionTime(startTime);
 
-      // Create user
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          email,
-          passwordHash,
-          username,
-          emailVerificationToken,
-          emailVerified: false,
-          moderatedCountries: [],
-        })
-        .returning();
+    return c.json({ error: "auth.error.loginFailed" }, 500);
+  }
+});
 
-      if (!newUser) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "auth.error.registrationFailed",
-        });
-      }
+// Google OAuth login endpoint
+authApp.post("/api/google-login", async (c) => {
+  try {
+    // Rate limit: 20 attempts per IP per minute (slightly higher for OAuth)
+    const ip = getClientIp(c);
+    if (!rateLimit.check(ip, 20, 60 * 1000)) {
+      return c.json({ error: "auth.error.tooManyRequests" }, 429);
+    }
 
-      // Send verification email
-      await sendVerificationEmail(email, plainVerificationToken);
+    const body = await c.req.json();
+    const { token, rememberMe } = await validateGoogleLoginRequest(body);
 
-      return {
-        success: true,
-        message: "auth.success.registered",
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          username: newUser.username,
-          emailVerified: newUser.emailVerified,
+    // Verify Google token
+    const googleUser = await verifyGoogleToken(token);
+
+    if (!googleUser) {
+      return c.json({ error: "auth.error.invalidGoogleToken" }, 401);
+    }
+
+    const user = await findOrCreateOAuthUser({
+      provider: "google",
+      providerAccountId: googleUser.googleId,
+      email: googleUser.email,
+      name: googleUser.name,
+      // Only link to / update an existing account when Google says this email is verified
+      trustProviderEmail: googleUser.emailVerified,
+    });
+
+    setUserSession(c, user, rememberMe);
+
+    return c.json({
+      success: true,
+      message: "auth.success.googleAuthSuccess",
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        moderatedCountries: user.moderatedCountries,
+        emailVerified: user.emailVerified,
+      },
+    });
+  } catch (error: any) {
+    console.error("Google login error:", error);
+
+    // Handle account conflict error or validation error with explicit status code
+    if (error.statusCode) {
+      return c.json(
+        {
+          error: error.message,
+          action: error.action,
         },
-      };
-    } catch (error) {
-      // If the code threw a TRPCError (intentional client/server error), rethrow it
-      // So that the specific message (i18n key) is preserved and can be translated on the client.
-      if (error instanceof TRPCError) {
-        throw error;
-      }
-
-      console.error("Registration error:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "auth.error.registrationFailed",
-      });
-    }
-  }),
-
-  // Verify email
-  verifyEmail: publicProcedure
-    .input(z.object({ token: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      try {
-        // Rate limit: 5 verify attempts per IP per hour (brute force protection)
-        const ip = getClientIp(ctx.hono);
-        if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "auth.error.tooManyRequests",
-          });
-        }
-
-        const { token } = input;
-
-        // Find all users with verification tokens and check each one
-        const usersWithTokens = await db.select().from(users).where(eq(users.emailVerified, false));
-
-        let matchedUser = null;
-        for (const user of usersWithTokens) {
-          if (
-            user.emailVerificationToken &&
-            (await Bun.password.verify(token, user.emailVerificationToken))
-          ) {
-            matchedUser = user;
-            break;
-          }
-        }
-
-        if (!matchedUser) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Invalid verification token",
-          });
-        }
-
-        // Update user as verified
-        await db
-          .update(users)
-          .set({
-            emailVerified: true,
-            emailVerificationToken: null,
-          })
-          .where(eq(users.id, matchedUser.id));
-
-        // Create session for auto-login (30-day duration)
-        const session = ctx.hono.get("session");
-        const sessionDuration = 30 * 24 * 60 * 60; // 30 days in seconds
-        const expiresAt = new Date(Date.now() + sessionDuration * 1000);
-
-        session.set("user", {
-          id: matchedUser.id,
-          email: matchedUser.email,
-          username: matchedUser.username,
-          role: matchedUser.role,
-          moderatedCountries: matchedUser.moderatedCountries,
-          emailVerified: true,
-        });
-
-        session.set("expiresAt", expiresAt.toISOString());
-
-        // Return user data for frontend to update state
-        return {
-          success: true,
-          message: "Email verified successfully",
-          user: {
-            id: matchedUser.id,
-            email: matchedUser.email,
-            username: matchedUser.username,
-            role: matchedUser.role,
-            moderatedCountries: matchedUser.moderatedCountries,
-            emailVerified: true,
-          },
-        };
-      } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        console.error("Email verification error:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Email verification failed",
-        });
-      }
-    }),
-
-  // Request password reset
-  requestPasswordReset: publicProcedure
-    .input(resetPasswordRequestSchema)
-    .mutation(({ input, ctx }) => {
-      const { email } = input;
-
-      // Rate limit: 5 password reset requests per IP per hour
-      const ip = getClientIp(ctx.hono);
-      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "auth.error.tooManyRequests",
-        });
-      }
-
-      // SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
-      // Void the promise to indicate intentional fire-and-forget behavior
-      // eslint-disable-next-line @eslint/no-void
-      void (async () => {
-        try {
-          // Find user
-          const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-
-          if (!user) {
-            // User doesn't exist - silently fail for security
-            return;
-          }
-
-          // SECURITY: Check if email is verified
-          // Prevent password reset bypass for unverified emails
-          if (!user.emailVerified) {
-            return;
-          }
-
-          // SECURITY: OAuth-only users can't reset password - silently fail to prevent enumeration
-          if (!user.passwordHash) {
-            const providers = await getUserOAuthProviders(user.id);
-            if (providers.length > 0) {
-              return;
-            }
-          }
-
-          // Generate reset token and expiry (1 hour)
-          const plainResetToken = generateToken();
-          const resetToken = await Bun.password.hash(plainResetToken);
-          const resetExpiry = new Date();
-          resetExpiry.setHours(resetExpiry.getHours() + 1);
-
-          // Update user with reset token
-          await db
-            .update(users)
-            .set({
-              passwordResetToken: resetToken,
-              passwordResetExpiresAt: resetExpiry,
-            })
-            .where(eq(users.id, user.id));
-
-          // Send password reset email
-          await sendPasswordResetEmail(email, plainResetToken);
-        } catch (error) {
-          // Log error but don't expose it to client
-          console.error("Password reset background processing error:", error);
-        }
-      })();
-      // SECURITY: Always return the same response immediately (no timing leak, no info leak)
-      return {
-        success: true,
-        message: "If an account with this email exists, a password reset link has been sent.",
-      };
-    }),
-
-  // Reset password
-  resetPassword: publicProcedure.input(resetPasswordSchema).mutation(async ({ input }) => {
-    try {
-      const { token, password } = input;
-
-      // Find users with valid reset tokens and check each one
-      const usersWithResetTokens = await db
-        .select()
-        .from(users)
-        .where(gt(users.passwordResetExpiresAt, new Date()));
-
-      let matchedUser = null;
-      for (const user of usersWithResetTokens) {
-        if (
-          user.passwordResetToken &&
-          (await Bun.password.verify(token, user.passwordResetToken))
-        ) {
-          matchedUser = user;
-          break;
-        }
-      }
-
-      if (!matchedUser) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invalid or expired reset token",
-        });
-      }
-
-      // Hash new password with Bun
-      const passwordHash = await Bun.password.hash(password);
-
-      // Update user password and clear reset token
-      await db
-        .update(users)
-        .set({
-          passwordHash,
-          passwordResetToken: null,
-          passwordResetExpiresAt: null,
-        })
-        .where(eq(users.id, matchedUser.id));
-
-      // Sessions are handled by Hono middleware, no need to invalidate here
-
-      return {
-        success: true,
-        email: matchedUser.email,
-        message: "Password reset successfully. Please log in with your new password.",
-      };
-    } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      console.error("Password reset error:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Password reset failed",
-      });
-    }
-  }),
-
-  // GDPR Right of Access - Export all user data
-  exportMyData: loggedInProcedure.query(async ({ ctx }) => {
-    try {
-      const userId = ctx.user.id;
-
-      // Rate limit: 5 data exports per hour per user (prevent abuse)
-      const ip = getClientIp(ctx.hono);
-      if (!rateLimit.check(`export:${userId}`, 5, 60 * 60 * 1000)) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "Too many data export requests. Please try again later.",
-        });
-      }
-
-      // Get user account data (exclude sensitive fields)
-      const [user] = await db
-        .select({
-          id: users.id,
-          email: users.email,
-          username: users.username,
-          role: users.role,
-          emailVerified: users.emailVerified,
-          approvedCount: users.approvedCount,
-          rejectedCount: users.rejectedCount,
-          banned: users.banned,
-          bannedAt: users.bannedAt,
-          banReason: users.banReason,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-        })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-      if (!user) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
-        });
-      }
-
-      // GDPR requires ALL statuses (approved, pending, rejected). Independent queries, fan out.
-      const [userProjects, userOverlays, userChangeRequests, userOAuthAccounts] = await Promise.all(
-        [
-          db.select().from(projects).where(eq(projects.ownerId, userId)),
-          db.select().from(overlays).where(eq(overlays.authorId, userId)),
-          db.select().from(changeRequests).where(eq(changeRequests.requestedBy, userId)),
-          db
-            .select({
-              provider: oauthAccounts.provider,
-              providerAccountId: oauthAccounts.providerAccountId,
-              createdAt: oauthAccounts.createdAt,
-            })
-            .from(oauthAccounts)
-            .where(eq(oauthAccounts.userId, userId)),
-        ],
+        error.statusCode, // 400 or 409
       );
-
-      // Audit log: Record data export for compliance
-      console.log(`[GDPR] Data export requested by user ${userId} (${user.email}) from IP ${ip}`);
-
-      // Return complete data export
-      return {
-        account: user,
-        projects: userProjects,
-        overlays: userOverlays,
-        changeRequests: userChangeRequests,
-        oauthAccounts: userOAuthAccounts,
-        exportedAt: new Date(),
-      };
-    } catch (error) {
-      console.error("Data export error:", error);
-      if (error instanceof TRPCError) throw error;
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to export data",
-      });
     }
-  }),
 
-  // GDPR Right to Erasure - Delete account and anonymize contributions
-  deleteAccount: loggedInProcedure
-    .input(
-      z.object({
-        confirmEmail: z.email(),
-        currentPassword: z.string().min(8),
-      }),
-    )
-    .mutation(async ({ input, ctx }) => {
-      try {
-        const userId = ctx.user.id;
-        const { confirmEmail, currentPassword } = input;
+    // Handle unexpected errors securely (don't leak raw error message)
+    return c.json({ error: "auth.error.googleAuthFailed" }, 500);
+  }
+});
 
-        // Rate limit: 3 deletion attempts per hour per IP (prevent brute force)
-        const ip = getClientIp(ctx.hono);
-        if (!rateLimit.check(`delete:${ip}`, 3, 60 * 60 * 1000)) {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "Too many deletion attempts. Please try again later.",
-          });
-        }
+// OpenStreetMap OAuth: kick off the authorization-code flow by redirecting the
+// browser to OSM. CSRF state is stashed in the session for validation on return.
+authApp.get("/api/osm-login", (c) => {
+  const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
+  try {
+    const ip = getClientIp(c);
+    if (!rateLimit.check(ip, 20, 60 * 1000)) {
+      return c.redirect(`${frontendUrl}/?error=too_many_requests`);
+    }
 
-        // Get user to verify email confirmation
-        const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!isOsmConfigured()) {
+      console.error("OSM OAuth not configured (missing OSM_CLIENT_ID / OSM_CLIENT_SECRET)");
+      return c.redirect(`${frontendUrl}/?error=unexpected`);
+    }
 
-        if (!user) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "User not found",
-          });
-        }
+    const rememberMe = c.req.query("rememberMe") === "true";
+    const state = crypto.randomBytes(32).toString("hex");
 
-        // Verify email confirmation matches
-        if (user.email !== confirmEmail) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Email confirmation does not match",
-          });
-        }
+    const session = c.get("session");
+    session.set("osmOauth", { state, rememberMe });
 
-        // SECURITY: Verify password before allowing deletion (critical safeguard)
-        // Prevents session hijacking from deleting accounts
-        if (!user.passwordHash) {
-          // OAuth-only users (no password) cannot self-delete via API
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Accounts created with OAuth cannot be deleted from this endpoint. Please contact support at contact@urbanistmap.org to request account deletion.`,
-          });
-        }
+    return c.redirect(buildOsmAuthorizeUrl(state));
+  } catch (error) {
+    console.error("OSM login initiation error:", error);
+    return c.redirect(`${frontendUrl}/?error=unexpected`);
+  }
+});
 
-        const validPassword = await Bun.password.verify(currentPassword, user.passwordHash);
-        if (!validPassword) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Invalid password. Account deletion cancelled.",
-          });
-        }
+// OpenStreetMap OAuth callback: validate state, exchange the code for the user's
+// profile, resolve or create the account, then redirect back to the SPA.
+authApp.get("/api/osm-callback", async (c) => {
+  const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
+  const session = c.get("session");
+  const osmOauth = session.get("osmOauth");
+  session.set("osmOauth", undefined); // single-use, cleared regardless of outcome
 
-        // Audit log: Record account deletion for compliance and forensics
-        console.log(
-          `[GDPR] Account deletion initiated by user ${userId} (${user.email}) from IP ${ip}`,
-        );
+  try {
+    const code = c.req.query("code");
+    const state = c.req.query("state");
+    const denied = c.req.query("error"); // e.g. "access_denied" when the user cancels
 
-        // Use transaction to ensure atomic operation
-        await db.transaction(async (tx) => {
-          // Anonymize user contributions (set ownerId/authorId/requestedBy to NULL)
-          // This preserves public contributions while removing personal data linkage
-          await tx.update(projects).set({ ownerId: null }).where(eq(projects.ownerId, userId));
+    if (denied || !code || !state) {
+      return c.redirect(`${frontendUrl}/?error=no_session`);
+    }
 
-          await tx.update(overlays).set({ authorId: null }).where(eq(overlays.authorId, userId));
+    if (!osmOauth || osmOauth.state !== state) {
+      return c.redirect(`${frontendUrl}/?error=auth_failed`);
+    }
 
-          await tx
-            .update(changeRequests)
-            .set({ requestedBy: null })
-            .where(eq(changeRequests.requestedBy, userId));
+    const osmUser = await exchangeOsmCodeForUser(code);
+    if (!osmUser) {
+      return c.redirect(`${frontendUrl}/?error=auth_failed`);
+    }
 
-          // Delete user account (removes all personal data)
-          await tx.delete(users).where(eq(users.id, userId));
-        });
+    // OSM never exposes an email, so synthesize a stable, non-routable one.
+    const user = await findOrCreateOAuthUser({
+      provider: "osm",
+      providerAccountId: osmUser.osmId,
+      email: `osm-${osmUser.osmId}@${SYNTHETIC_EMAIL_DOMAIN}`,
+      name: osmUser.displayName,
+      trustProviderEmail: false,
+    });
 
-        // Invalidate the active session so the deleted user is immediately logged out
-        const session = ctx.hono.get("session");
-        session.deleteSession();
+    setUserSession(c, user, osmOauth.rememberMe);
 
-        // Audit log: Confirm successful deletion
-        console.log(`[GDPR] Account ${userId} (${user.email}) successfully deleted`);
+    return c.redirect(`${frontendUrl}/?auth=success&provider=osm`);
+  } catch (error) {
+    console.error("OSM callback error:", error);
+    return c.redirect(`${frontendUrl}/?error=unexpected`);
+  }
+});
 
-        return {
-          success: true,
-          message: "Account deleted successfully. All personal data has been removed.",
-        };
-      } catch (error) {
-        console.error("Account deletion error:", error);
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete account",
-        });
-      }
-    }),
+authApp.post("/api/logout", (c) => {
+  try {
+    const session = c.get("session");
+    session.deleteSession();
+    return c.json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return c.json({ error: "Logout failed" }, 500);
+  }
+});
+
+authApp.get("/api/check-session", async (c) => {
+  try {
+    const session = c.get("session");
+    const sessionUser = session.get("user");
+
+    // Fetch config for info message (if exists)
+    const [dbConfig] = await db.select().from(config).where(eq(config.id, 1)).limit(1);
+
+    return c.json({
+      userId: sessionUser?.id,
+      isAuthenticated: Boolean(sessionUser),
+      user: sessionUser ?? null,
+      infoMessage: dbConfig?.infoMessage ?? null,
+    });
+  } catch (error) {
+    console.error("Error fetching session:", error);
+    // Return session info even if config fetch fails
+    const session = c.get("session");
+    const sessionUser = session.get("user");
+    return c.json({
+      userId: sessionUser?.id,
+      isAuthenticated: Boolean(sessionUser),
+      user: sessionUser ?? null,
+      infoMessage: null,
+    });
+  }
 });

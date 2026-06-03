@@ -54,7 +54,8 @@ export async function requestLogger(c: Context, next: Next) {
     const status = c.res.status;
     const userId = getUserId(c);
 
-    logger.info({
+    const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
+    logger[level]({
       method,
       path,
       status,
@@ -62,8 +63,9 @@ export async function requestLogger(c: Context, next: Next) {
       ip,
       cfCountry: cloudflare.cfCountry,
       cfRay: cloudflare.cfRay,
-      userAgent,
       userId,
+      // userAgent is wide and low-signal on success; keep it only on failures
+      ...(status >= 400 ? { userAgent } : {}),
     });
 
     // Track errors for alerting (4xx and 5xx), but only for routes we serve
@@ -78,7 +80,9 @@ export async function requestLogger(c: Context, next: Next) {
     }
   } catch (error) {
     const duration = Date.now() - startTime;
-    const status = c.res.status ?? 500;
+    // Reaching here means an unhandled throw bubbled past Hono's error handler,
+    // so no real response was set (c.res lazily defaults to 200): treat as 500
+    const status = 500;
 
     logger.error({
       method,

@@ -11,88 +11,114 @@
       <div
         class="flex items-center gap-0.5 bg-content-background border border-surface rounded-lg py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
       >
-        <!-- Info toggle -->
-        <button
-          :title="t('toolbar.info')"
-          :class="btnCls({ active: showInfoPopup })"
-          @click="toggleInfoPopup"
-        >
-          <i class="pi pi-ellipsis-v" />
-        </button>
-
-        <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-
-        <!-- Opacity slider -->
-        <input
-          type="range"
-          min="0"
-          max="100"
-          :value="opacity"
-          @input="onOpacityInput"
-          :title="`Opacity: ${opacity}%`"
-          class="w-18 h-1 cursor-pointer accent-indigo-600"
-        />
-        <span class="text-[13px] text-muted-color min-w-7 text-right">{{ opacity }}%</span>
-
-        <!-- Nav prev/next + index -->
-        <template v-if="showNav">
-          <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-          <button :title="t('toolbar.previousOverlay')" :class="btnCls()" @click="goToPrevious">
-            <i class="pi pi-chevron-left" />
+        <!-- Crop sub-mode: trim the image, then confirm or cancel -->
+        <template v-if="isCropActive">
+          <button :title="t('toolbar.cropConfirm')" :class="btnCls()" @click="confirmCrop">
+            <i class="pi pi-check" />
           </button>
-          <span v-if="overlayIndex" class="text-[13px] text-muted-color min-w-7 text-center"
-            >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
-          >
-          <button :title="t('toolbar.nextOverlay')" :class="btnCls()" @click="goToNext">
-            <i class="pi pi-chevron-right" />
+          <button :title="t('toolbar.cropCancel')" :class="btnCls()" @click="cancelCrop">
+            <i class="pi pi-times" />
           </button>
         </template>
+        <template v-else>
+          <!-- Info toggle -->
+          <button
+            :title="t('toolbar.info')"
+            :class="btnCls({ active: showInfoPopup })"
+            @click="toggleInfoPopup"
+          >
+            <i class="pi pi-ellipsis-v" />
+          </button>
 
-        <!-- Bring image to front / send to back, only when it overlaps a project shape -->
-        <template v-if="canStack">
           <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-          <button
-            :title="isInFront ? t('toolbar.sendToBack') : t('toolbar.bringToFront')"
-            :class="btnCls()"
-            @click="toggleStacking"
-          >
-            <i :class="isInFront ? 'pi pi-arrow-down' : 'pi pi-arrow-up'" />
-          </button>
-        </template>
 
-        <!-- Edit-only tools -->
-        <template v-if="isEditMode">
-          <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-          <button :title="t('toolbar.undo')" :disabled="!canUndo" :class="btnCls()" @click="undo">
-            <i class="pi pi-undo" />
-          </button>
-          <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo">
-            <i class="pi pi-refresh" />
-          </button>
-          <button
-            v-if="canReplaceImage"
-            :title="t('toolbar.replace')"
-            :class="btnCls()"
-            @click="onReplace"
-          >
-            <i class="pi pi-image" />
-          </button>
-          <button
-            v-if="canDelete"
-            :title="t('toolbar.delete')"
-            :class="btnCls({ danger: true })"
-            @click="onDelete"
-          >
-            <i class="pi pi-trash" />
-          </button>
-          <button
-            :title="t('toolbar.save')"
-            :disabled="!hasUnsavedModifications"
-            :class="btnCls()"
-            @click="onSave"
-          >
-            <i class="pi pi-send" />
-          </button>
+          <!-- Opacity slider -->
+          <input
+            type="range"
+            min="0"
+            max="100"
+            :value="opacity"
+            @input="onOpacityInput"
+            :title="`Opacity: ${opacity}%`"
+            class="w-18 h-1 cursor-pointer accent-indigo-600"
+          />
+          <span class="text-[13px] text-muted-color min-w-7 text-right">{{ opacity }}%</span>
+
+          <!-- Nav prev/next + index -->
+          <template v-if="showNav">
+            <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
+            <button :title="t('toolbar.previousOverlay')" :class="btnCls()" @click="goToPrevious">
+              <i class="pi pi-chevron-left" />
+            </button>
+            <span v-if="overlayIndex" class="text-[13px] text-muted-color min-w-7 text-center"
+              >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
+            >
+            <button :title="t('toolbar.nextOverlay')" :class="btnCls()" @click="goToNext">
+              <i class="pi pi-chevron-right" />
+            </button>
+          </template>
+
+          <!-- Bring image to front / send to back, only when it overlaps a project shape -->
+          <template v-if="canStack">
+            <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
+            <button
+              :title="isInFront ? t('toolbar.sendToBack') : t('toolbar.bringToFront')"
+              :class="btnCls()"
+              @click="toggleStacking"
+            >
+              <i :class="isInFront ? 'pi pi-arrow-down' : 'pi pi-arrow-up'" />
+            </button>
+          </template>
+
+          <!-- Edit-only tools -->
+          <template v-if="isEditMode">
+            <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
+            <button :title="t('toolbar.undo')" :disabled="!canUndo" :class="btnCls()" @click="undo">
+              <i class="pi pi-undo" />
+            </button>
+            <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo">
+              <i class="pi pi-refresh" />
+            </button>
+            <button
+              v-if="canReplaceImage"
+              :title="t('toolbar.replace')"
+              :class="btnCls()"
+              @click="onReplace"
+            >
+              <i class="pi pi-image" />
+            </button>
+            <button v-if="canCrop" :title="t('toolbar.crop')" :class="btnCls()" @click="startCrop">
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M6.13 1 6 16a2 2 0 0 0 2 2h15" />
+                <path d="M1 6.13 16 6a2 2 0 0 1 2 2v15" />
+              </svg>
+            </button>
+            <button
+              v-if="canDelete"
+              :title="t('toolbar.delete')"
+              :class="btnCls({ danger: true })"
+              @click="onDelete"
+            >
+              <i class="pi pi-trash" />
+            </button>
+            <button
+              :title="t('toolbar.save')"
+              :disabled="!hasUnsavedModifications"
+              :class="btnCls()"
+              @click="onSave"
+            >
+              <i class="pi pi-send" />
+            </button>
+          </template>
         </template>
       </div>
 
@@ -130,6 +156,8 @@ import {
   undo as undoOverlayEdit,
   redo as redoOverlayEdit,
 } from "@/services/overlay/overlayEditing";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
+import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/overlayCropHandles";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -154,6 +182,7 @@ const isInFront = ref(false);
 const canStack = ref(false);
 const showInfoPopup = ref(false);
 const infoSlot = ref<HTMLElement | null>(null);
+const isCropActive = ref(false);
 
 let anchorMarker: maplibregl.Marker | null = null;
 let retryRafId: number | null = null;
@@ -254,7 +283,13 @@ function initForSelection() {
 watch(
   selectedId,
   (id, prev) => {
-    if (id !== prev) showInfoPopup.value = false;
+    if (id !== prev) {
+      showInfoPopup.value = false;
+      if (isCropActive.value) {
+        hideCropHandles();
+        isCropActive.value = false;
+      }
+    }
     destroyMarker();
     stopRAF();
     // nextTick: let Teleport unmount cleanly from the old marker before we create a new one
@@ -276,9 +311,19 @@ watch(
   { immediate: true },
 );
 
+// Leaving edit mode (e.g. via the mode toggle) tears down edit handles elsewhere; abandon any
+// in-progress crop so its handles and mask don't dangle.
+watch(isEditMode, (editing) => {
+  if (!editing && isCropActive.value) {
+    hideCropHandles();
+    isCropActive.value = false;
+  }
+});
+
 onUnmounted(() => {
   stopRAF();
   destroyMarker();
+  if (isCropActive.value) hideCropHandles();
   map.value?.off("moveend", refreshCanStack);
 });
 
@@ -329,6 +374,11 @@ const canDelete = computed(() => {
 const canReplaceImage = computed(() => {
   return selectedOverlay.value?.status === "approved";
 });
+
+// Crop only local (not yet submitted) overlays, whose image bytes can still be re-baked and
+// re-uploaded through the normal publish path. Once submitted, the stored copy is already
+// server-compressed, so startCrop refuses it and points the user to delete + re-upload instead.
+const canCrop = computed(() => selectedOverlay.value?.status === null);
 
 const canUndo = computed(() => (selectedOverlay.value?.history?.length ?? 0) > 1);
 const canRedo = computed(() => (selectedOverlay.value?.redoStack?.length ?? 0) > 0);
@@ -397,6 +447,32 @@ function onSave() {
   if (!overlay) return;
   const project = projectStore.projects[overlay.projectId ?? ""] ?? null;
   prepareOverlaySubmission(overlay, project ?? undefined);
+}
+
+function startCrop() {
+  // Only local (status === null) overlays expose the crop button (see canCrop), so the image bytes
+  // here are always the un-submitted source, safe to re-bake and re-upload via the publish path.
+  const overlay = selectedOverlay.value;
+  if (!overlay) return;
+  hideEditHandles();
+  showCropHandles(overlay);
+  isCropActive.value = true;
+}
+
+function endCrop() {
+  hideCropHandles();
+  isCropActive.value = false;
+  const overlay = selectedOverlay.value;
+  if (overlay && isEditMode.value) showEditHandles(overlay);
+}
+
+async function confirmCrop() {
+  await applyCrop();
+  endCrop();
+}
+
+function cancelCrop() {
+  endCrop();
 }
 
 function onReplace() {

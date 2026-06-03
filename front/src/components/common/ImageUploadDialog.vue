@@ -141,6 +141,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
 import { addOverlay } from "@/services/overlay/overlayEditing";
+import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 
 const { t } = useI18n();
 const uiStore = useUiStore();
@@ -217,12 +218,10 @@ function processFile(file: File) {
   try {
     fileSizeError.value = "";
 
-    // Validate file size (10MB limit matches backend)
-    const MAX_FILE_SIZE_MB = 10;
-    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    // Validate file size (shared cap, matches the backend Zod guard)
+    if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
       fileSizeError.value = t("upload.fileTooLarge", {
-        maxSize: MAX_FILE_SIZE_MB,
+        maxSize: MAX_UPLOAD_FILE_SIZE_MB,
       });
       // Reset file input to allow re-selecting a different file
       if (fileInputRef.value) {

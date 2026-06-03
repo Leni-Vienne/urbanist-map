@@ -1,6 +1,6 @@
 <template>
   <span>
-    <!-- City link (if available) -->
+    <!-- City link (clickable only when we have the id needed to navigate) -->
     <span
       v-if="cityId && cityName"
       class="app-link"
@@ -9,8 +9,16 @@
       >{{ cityName }}, {{ countryName }}</span
     >
 
+    <!-- City known but not navigable -->
+    <span v-else-if="cityName"
+      >{{ cityName }}<template v-if="countryName">, {{ countryName }}</template></span
+    >
+
+    <!-- Country only -->
+    <span v-else-if="countryName">{{ countryName }}</span>
+
     <!-- Fallback if no location data -->
-    <span v-if="!cityName && !countryName">{{ $t("overlay.unknownLocation") }}</span>
+    <span v-else>{{ $t("overlay.unknownLocation") }}</span>
   </span>
 </template>
 

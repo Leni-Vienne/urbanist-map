@@ -64,7 +64,11 @@ function removeOverlay(
     projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds });
 
     const isLastOverlay = updatedOverlayIds.length === 0;
-    if (isLastOverlay && projectWithOverlay.lat && projectWithOverlay.lng) {
+    if (
+      isLastOverlay &&
+      typeof projectWithOverlay.lat === "number" &&
+      typeof projectWithOverlay.lng === "number"
+    ) {
       // Small delay ensures map is ready after removal animations
       setTimeout(() => {
         addStandaloneProjectMarkerForProject(projectWithOverlay);

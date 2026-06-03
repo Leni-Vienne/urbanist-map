@@ -11,7 +11,7 @@ interface ToastMessage {
 }
 
 interface ToastServiceMethods {
-  add(message: ToastMessage): void;
+  add: (message: ToastMessage) => void;
 }
 
 export function useToast(): ToastServiceMethods {

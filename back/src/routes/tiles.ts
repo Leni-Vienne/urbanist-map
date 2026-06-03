@@ -1,20 +1,34 @@
 import { Hono } from "hono";
-import { tilesSqlClient, db } from "../database"; // client with jit=off and work_mem=128MB
+import { tilesSqlClientLowZoom, tilesSqlClientHighZoom, db } from "../database";
 import { projects, overlays } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 export const tilesApp = new Hono();
 
-// In-memory LRU tile cache (low-zoom tiles only, z <= 6).
-// null = empty tile (204), Buffer = tile data.
-const TILE_CACHE_MAX = 6000;
+// In-memory tile caches. null = empty tile (204), Buffer = tile data.
+// Two caches so high-zoom LRU churn never evicts the bounded, pre-warmed low-zoom set.
+//   low-zoom  (z0-z6): ~5.5k tiles total, pre-warmed at startup and effectively permanent.
+//   high-zoom (z7-z10): an LRU sized for active panning; cold tiles regenerate on demand.
 const LOW_ZOOM_MAX = 6;
+const HIGH_ZOOM_MAX = 10;
+const LOW_ZOOM_CACHE_MAX = 8000; // > 5461 (count of all z0-z6 tiles), so nothing ever evicts
+const HIGH_ZOOM_CACHE_MAX = 12_000;
 
 // Map insertion order = LRU order (oldest first)
-const tileCache = new Map<string, Buffer | null>();
+const lowZoomCache = new Map<string, Buffer | null>();
+const highZoomCache = new Map<string, Buffer | null>();
+
+function cacheForZoom(z: number): Map<string, Buffer | null> {
+  return z <= LOW_ZOOM_MAX ? lowZoomCache : highZoomCache;
+}
+
+function maxForCache(cache: Map<string, Buffer | null>): number {
+  return cache === lowZoomCache ? LOW_ZOOM_CACHE_MAX : HIGH_ZOOM_CACHE_MAX;
+}
 
 function clearTileCache() {
-  tileCache.clear();
+  lowZoomCache.clear();
+  highZoomCache.clear();
 }
 
 function lngLatToTileXY(lng: number, lat: number, z: number): [number, number] {
@@ -25,29 +39,30 @@ function lngLatToTileXY(lng: number, lat: number, z: number): [number, number] {
   return [x, Math.max(0, Math.min(n - 1, y))];
 }
 
-// Evicts the single tile at each zoom level z0..LOW_ZOOM_MAX that contains the given point.
+// Evicts the single tile at each cached zoom level z0..HIGH_ZOOM_MAX that contains the given point.
+// A point maps to exactly one tile per zoom, so this stays precise and cheap across both caches.
 function invalidateTilesForPoint(lat: number, lng: number) {
-  for (let z = 0; z <= LOW_ZOOM_MAX; z += 1) {
+  for (let z = 0; z <= HIGH_ZOOM_MAX; z += 1) {
     const [x, y] = lngLatToTileXY(lng, lat, z);
-    tileCache.delete(`${z}/${x}/${y}`);
+    cacheForZoom(z).delete(`${z}/${x}/${y}`);
   }
 }
 
-function getCachedTile(key: string): Buffer | null | undefined {
-  const val = tileCache.get(key);
+function getCachedTile(cache: Map<string, Buffer | null>, key: string): Buffer | null | undefined {
+  const val = cache.get(key);
   if (val === undefined) return undefined;
   // Promote to end (most recently used)
-  tileCache.delete(key);
-  tileCache.set(key, val);
+  cache.delete(key);
+  cache.set(key, val);
   return val;
 }
 
-function setCachedTile(key: string, val: Buffer | null) {
-  if (tileCache.size >= TILE_CACHE_MAX) {
-    const firstKey = tileCache.keys().next().value;
-    if (firstKey !== undefined) tileCache.delete(firstKey);
+function setCachedTile(cache: Map<string, Buffer | null>, key: string, val: Buffer | null) {
+  if (cache.size >= maxForCache(cache)) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) cache.delete(firstKey);
   }
-  tileCache.set(key, val);
+  cache.set(key, val);
 }
 
 export async function invalidateProjectTiles(projectId: string) {
@@ -113,6 +128,72 @@ function markerSuppressMinSizeM(z: number): number | null {
   return null;
 }
 
+// In Docker prod, routes/ is bind-mounted next to the bundle at /home/bun/app.
+// In dev, import.meta.dir points to the source directory where tiles.sql lives.
+const sqlPath =
+  process.env.NODE_ENV !== "development"
+    ? "/home/bun/app/routes/tiles.sql"
+    : `${import.meta.dir}/tiles.sql`;
+
+// Runs tiles.sql against the zoom-appropriate pool. Returns the MVT Buffer, or null for an empty tile.
+async function generateTile(z: number, x: number, y: number): Promise<Buffer | null> {
+  const client = z <= LOW_ZOOM_MAX ? tilesSqlClientLowZoom : tilesSqlClientHighZoom;
+  const [row] = await client.file(sqlPath, [z, x, y, shapesMinSizeM(z), markerSuppressMinSizeM(z)]);
+  const rawTile = row?.tile;
+  return Buffer.isBuffer(rawTile) && rawTile.length > 0 ? rawTile : null;
+}
+
+function tileResponse(tileData: Buffer, z: number): Response {
+  return new Response(new Uint8Array(tileData), {
+    headers: {
+      "Content-Type": "application/vnd.mapbox-vector-tile",
+      "Access-Control-Allow-Origin": "*",
+      // Low-zoom tiles (z0-z6) contain only OSM-imported data that changes at most
+      // monthly, so cache them aggressively. High-zoom tiles may include freshly
+      // approved overlays, so keep their TTL short.
+      "Cache-Control": z <= 6 ? "public, max-age=86400" : "public, max-age=3600",
+    },
+  });
+}
+
+// Pre-generates every z0-z6 tile into the low-zoom cache so a continental zoom-out or pan is a
+// memory hit instead of a cold 1-2s query. The z0-z6 set is fixed (~5.5k tiles) and the data is
+// static OSM, so this is a one-time cost per process. Bounded concurrency on the low-zoom pool;
+// individual failures are logged and skipped.
+export async function warmLowZoomTileCache(): Promise<void> {
+  const started = Date.now();
+  const coords: [number, number, number][] = [];
+  for (let z = 0; z <= LOW_ZOOM_MAX; z += 1) {
+    const n = 2 ** z;
+    for (let x = 0; x < n; x += 1) {
+      for (let y = 0; y < n; y += 1) coords.push([z, x, y]);
+    }
+  }
+
+  let next = 0;
+  let warmed = 0;
+  async function worker(): Promise<void> {
+    while (next < coords.length) {
+      const coord = coords[next];
+      next += 1;
+      if (coord === undefined) continue;
+      const [z, x, y] = coord;
+      try {
+        const tile = await generateTile(z, x, y);
+        setCachedTile(lowZoomCache, `${z}/${x}/${y}`, tile);
+        warmed += 1;
+      } catch (error) {
+        console.error(`Tile cache warm failed for ${z}/${x}/${y}:`, error);
+      }
+    }
+  }
+
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < 3; i += 1) workers.push(worker());
+  await Promise.all(workers);
+  console.log(`Warmed ${warmed}/${coords.length} low-zoom tiles in ${Date.now() - started}ms`);
+}
+
 // GET /api/tiles/projects/:z/:x/:y
 // Serves MVT tiles with two layers:
 //   - project-shapes: approved project geometry (lines/polygons)
@@ -136,58 +217,28 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
     }
 
     const cacheKey = `${z}/${x}/${y}`;
-    const useCache = z <= LOW_ZOOM_MAX;
+    const useCache = z <= HIGH_ZOOM_MAX;
+    const cache = cacheForZoom(z);
 
     if (useCache) {
-      const cached = getCachedTile(cacheKey);
+      const cached = getCachedTile(cache, cacheKey);
       if (cached !== undefined) {
         if (cached === null) return new Response(null, { status: 204 });
-        return new Response(new Uint8Array(cached), {
-          headers: {
-            "Content-Type": "application/vnd.mapbox-vector-tile",
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=86400",
-          },
-        });
+        return tileResponse(cached, z);
       }
     }
 
-    // using the jit=off + work_mem=128MB client
-    // In Docker prod, routes/ is bind-mounted next to the bundle at /home/bun/app.
-    // In dev, import.meta.dir points to the source directory where tiles.sql lives.
-    const sqlPath =
-      process.env.NODE_ENV !== "development"
-        ? "/home/bun/app/routes/tiles.sql"
-        : `${import.meta.dir}/tiles.sql`;
-    const [row] = await tilesSqlClient.file(sqlPath, [
-      z,
-      x,
-      y,
-      shapesMinSizeM(z),
-      markerSuppressMinSizeM(z),
-    ]);
+    const tileData = await generateTile(z, x, y);
 
-    const rawTile = row?.tile;
-    const tileData = Buffer.isBuffer(rawTile) ? rawTile : undefined;
-
-    if (!tileData || tileData.length === 0) {
-      if (useCache) setCachedTile(cacheKey, null);
+    if (tileData === null) {
       // Return empty 204 No Content for empty tiles (standard for MVT)
+      if (useCache) setCachedTile(cache, cacheKey, null);
       return new Response(null, { status: 204 });
     }
 
-    if (useCache) setCachedTile(cacheKey, tileData);
+    if (useCache) setCachedTile(cache, cacheKey, tileData);
 
-    return new Response(new Uint8Array(tileData), {
-      headers: {
-        "Content-Type": "application/vnd.mapbox-vector-tile",
-        "Access-Control-Allow-Origin": "*",
-        // Low-zoom tiles (z0-z6) contain only OSM-imported data that changes at most
-        // monthly, so cache them aggressively. High-zoom tiles may include freshly
-        // approved overlays, so keep their TTL short.
-        "Cache-Control": z <= 6 ? "public, max-age=86400" : "public, max-age=3600",
-      },
-    });
+    return tileResponse(tileData, z);
   } catch (error) {
     // SQLSTATE 57014 = query_canceled, raised by Postgres when statement_timeout fires.
     const isTimeout =

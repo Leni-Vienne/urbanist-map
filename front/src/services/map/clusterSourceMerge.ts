@@ -80,7 +80,7 @@ function addProjectToMap(
   isPending: boolean,
   pendingProjects: Map<string, GeoJSON.Feature>,
 ): void {
-  if (!project.lat || !project.lng || !isPending) return;
+  if (typeof project.lat !== "number" || typeof project.lng !== "number" || !isPending) return;
   if (pendingProjects.has(project.id)) return;
 
   pendingProjects.set(
@@ -125,7 +125,7 @@ export function mergeProjectPointsForMode(
 
   for (const overlay of overlaysData) {
     const project = overlay.project;
-    if (!project?.lat || !project.lng) continue;
+    if (!project || typeof project.lat !== "number" || typeof project.lng !== "number") continue;
     const isPending = project.status !== "approved" || overlay.status !== "approved";
     addProjectToMap(project, isPending, pendingProjects);
   }

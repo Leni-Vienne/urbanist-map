@@ -578,15 +578,14 @@ function handleProposalDateChange() {
 function handleCityIdUpdate(cityId: number | undefined | "") {
   // Convert empty string or undefined to null (PrimeVue Select emits "" when cleared)
   const normalizedCityId = cityId === "" || cityId === undefined ? null : cityId;
-  // Update local form data (will trigger watch to emit)
+  // Update local form data. The cityId watcher emits "cityChange" for parent components
+  // (e.g. to switch tile layer), so no explicit emit is needed here.
   localFormData.value.cityId = normalizedCityId;
   // Prefill countryCode from the selected city
   if (normalizedCityId !== null) {
     const city = citySelectRef.value?.cities.find((c) => c.id === normalizedCityId);
     if (city) localFormData.value.countryCode = city.countryCode;
   }
-  // Emit city change event for parent components (e.g., to switch tile layer)
-  emit("cityChange", normalizedCityId);
   // Validate city field when it changes
   validateFieldHelper("cityId");
 }

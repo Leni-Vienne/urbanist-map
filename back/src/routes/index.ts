@@ -5,13 +5,13 @@ import { citiesRouter } from "./cities";
 import { countriesRouter } from "./countries";
 import { moderationRouter } from "./moderation";
 import { changesRouter } from "./changes";
-import { authRouter } from "./auth";
+import { accountRouter } from "./account";
 import { adminRouter } from "./admin";
 import { viewportRouter } from "./viewport";
 import { feedRouter } from "./feed";
 
 export const appRouter = router({
-  auth: authRouter,
+  account: accountRouter,
   project: projectRouter,
   moderation: moderationRouter,
   cities: citiesRouter,

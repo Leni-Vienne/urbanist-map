@@ -123,7 +123,7 @@ function createOAuthCallbackHandler<TResponse>(options: {
 // Sign up with email and password
 async function signUp(email: string, password: string, username: string, captchaToken?: string) {
   try {
-    const result = await trpc.auth.register.mutate({
+    const result = await trpc.account.register.mutate({
       email,
       password,
       username,
@@ -148,7 +148,7 @@ async function signUp(email: string, password: string, username: string, captcha
 // Verify email
 async function verifyEmail(token: string) {
   try {
-    const result = await trpc.auth.verifyEmail.mutate({ token });
+    const result = await trpc.account.verifyEmail.mutate({ token });
     return {
       success: result.success,
       user: result.user ?? null,
@@ -166,7 +166,7 @@ async function verifyEmail(token: string) {
 
 async function requestPasswordReset(email: string) {
   try {
-    const result = await trpc.auth.requestPasswordReset.mutate({ email });
+    const result = await trpc.account.requestPasswordReset.mutate({ email });
     return {
       success: result.success,
       error: result.success ? null : result.message,
@@ -195,7 +195,7 @@ async function loadModeratedContributionsForUser() {
 
 async function resetPassword(token: string, password: string) {
   try {
-    const result = await trpc.auth.resetPassword.mutate({ token, password });
+    const result = await trpc.account.resetPassword.mutate({ token, password });
     return {
       success: result.success,
       email: result.success ? result.email : null,

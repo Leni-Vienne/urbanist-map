@@ -205,7 +205,7 @@ export function useViewportTriggers() {
     // In edit mode, merge local (unsaved) projects into the standalone list
     if (mode === "edit") {
       const localProjects = Object.values(projectStore.projects).filter(
-        (p) => p.status === null && p.lat && p.lng,
+        (p) => p.status === null && typeof p.lat === "number" && typeof p.lng === "number",
       );
       for (const lp of localProjects) {
         if (!standaloneProjects.some((sp) => sp.id === lp.id)) {

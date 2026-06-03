@@ -22,13 +22,7 @@
       >
         <!-- Section label: external selected project or pinned own contribution -->
         <div
-          v-if="pinnedExternalProject"
-          class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
-        >
-          {{ $t("contribute.selectedProject") }}
-        </div>
-        <div
-          v-else-if="pinnedProject"
+          v-if="pinnedExternalProject || pinnedProject"
           class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
         >
           {{ $t("contribute.selectedProject") }}
@@ -224,7 +218,6 @@ interface Props {
   hideStatusBadges?: boolean;
   disableAutoModeSwitch?: boolean;
   showEditButtons?: boolean;
-  shouldSwitchToEditMode?: boolean;
   pinnedProjectId?: string | null;
   pinnedExternalProject?: ProjectForModeration | null;
 }
@@ -237,7 +230,6 @@ const props = withDefaults(defineProps<Props>(), {
   hideStatusBadges: false,
   disableAutoModeSwitch: false,
   showEditButtons: false,
-  shouldSwitchToEditMode: false,
   pinnedProjectId: null,
   pinnedExternalProject: null,
 });
@@ -614,7 +606,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration) {
 
 async function handleStandaloneProjectClick(project: ProjectForModeration) {
   try {
-    if (!project.lat || !project.lng) {
+    if (typeof project.lat !== "number" || typeof project.lng !== "number") {
       toast.add({
         severity: "warn",
         summary: t("project.noLocation"),

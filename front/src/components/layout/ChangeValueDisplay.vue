@@ -95,8 +95,8 @@
       <ContributorInfo
         :date="change.createdAt"
         :contributor-id="change.requestedBy"
-        :contributor-username="(change as any).requestedByUsername"
-        :report-count="(change as any).requestedByReportCount ?? 0"
+        :contributor-username="change.requestedByUsername"
+        :report-count="change.requestedByReportCount ?? 0"
         :clickable="showUserStatsLink"
         @click-contributor="handleClickContributor"
       />

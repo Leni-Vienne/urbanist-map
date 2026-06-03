@@ -267,7 +267,7 @@ async function displayProjectMarkerAndPopup(
     uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
 
     const project = projectStore.projects[projectId];
-    if (project?.lat && project?.lng) {
+    if (project && typeof project.lat === "number" && typeof project.lng === "number") {
       const currentZoom = map.value.getZoom();
       const targetZoom = Math.max(currentZoom, 16);
       map.value.flyTo({
@@ -287,7 +287,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   });
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
-  if (hasNoOverlays && project.lat && project.lng) {
+  if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
     if (project.city) {
       await displayProjectMarkerAndPopup(projectId, project.city);
     } else {

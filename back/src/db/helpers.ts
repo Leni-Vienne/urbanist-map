@@ -457,7 +457,7 @@ export function buildOverlayVisibilityCondition(
   return eq(overlays.status, "approved");
 }
 
-export async function fetchOverlayChangeRequests(
+async function fetchOverlayChangeRequests(
   user: UserContext,
   mode: AppMode,
 ): Promise<
@@ -527,7 +527,7 @@ export async function fetchOverlayChangeRequests(
   return changeRequestsByOverlay;
 }
 
-export function transformOverlayDataWithChangeRequests(
+function transformOverlayDataWithChangeRequests(
   overlaysData: Awaited<ReturnType<typeof fetchOverlaysWithLocation>>,
   changeRequestsByOverlay: Map<
     string,

@@ -68,7 +68,7 @@ const projectStore = useProjectStore();
 const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null);
 
 const markerCoordinates =
-  props.project.lat && props.project.lng
+  typeof props.project.lat === "number" && typeof props.project.lng === "number"
     ? { lat: props.project.lat, lng: props.project.lng }
     : null;
 
@@ -89,7 +89,7 @@ const currentProjectData = computed(() => {
   }
   // Fall back to originalProject (authoritative backend state) rather than props.project,
   // which may hold stale data from the userContributions cache
-  return projectToFormData(originalProject.value ?? props.project);
+  return projectToFormData(originalProject.value);
 });
 
 const form = useEditableProjectForm({

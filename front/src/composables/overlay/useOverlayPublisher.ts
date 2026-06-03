@@ -4,13 +4,14 @@ import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
 import { validateOverlaySize, toCornerArray } from "@shared/overlayValidation";
 import { projectSchema } from "@shared/validation/schemas";
+import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
 
 // The user's last edited position (history.at(-1)) is the source of truth; fall back to
 // the stored backend corners for an unedited overlay.
 function getCornersFromOverlay(overlay: OverlayObject) {
-  const lastEdited = overlay.history.at(-1);
+  const lastEdited = overlay.history.at(-1)?.corners;
   if (lastEdited?.length === 4) return lastEdited;
   return overlay.corners;
 }
@@ -21,13 +22,16 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     const response = await fetch(overlay.imageUrl);
     const blob = await response.blob();
 
-    const MAX_FILE_SIZE_MB = 10;
-    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-    if (blob.size > MAX_FILE_SIZE_BYTES) {
-      throw new Error(t("upload.fileTooLarge", { maxSize: MAX_FILE_SIZE_MB }));
+    if (blob.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+      throw new Error(t("upload.fileTooLarge", { maxSize: MAX_UPLOAD_FILE_SIZE_MB }));
     }
 
-    const file = new File([blob], "overlay-image.webp", { type: blob.type || "image/webp" });
+    // Name the file from its real type so the backend records the correct source extension
+    // (it stores the pre-compression original under this extension, and a wrong .webp name on
+    // PNG/JPEG bytes would mislabel a kept-as-is original).
+    const type = blob.type || "image/webp";
+    const extension = type === "image/png" ? "png" : type === "image/jpeg" ? "jpg" : "webp";
+    const file = new File([blob], `overlay-image.${extension}`, { type });
 
     const formData = new FormData();
     formData.append("image", file);
@@ -39,7 +43,16 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     });
 
     if (!uploadResponse.ok) {
-      throw new Error("Failed to upload image to server");
+      // The endpoint returns { error } where error is an i18n key (e.g. the storage quota or
+      // rate-limit message); translate it so the user sees the real reason, not a generic failure.
+      let message = t("upload.error.uploadFailed");
+      try {
+        const body: { error?: string } = await uploadResponse.json();
+        if (body.error) message = t(body.error);
+      } catch {
+        // Non-JSON body: keep the generic message.
+      }
+      throw new Error(message);
     }
     const uploadResult: { filename: string } = await uploadResponse.json();
 

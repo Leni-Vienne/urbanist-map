@@ -181,7 +181,7 @@ export function updateStandaloneProjectMarkerOpacities(selectedMarker: maplibreg
 
 /** Add a standalone project marker (called when the last overlay of a project is removed). */
 export function addStandaloneProjectMarkerForProject(project: Project): void {
-  if (!project.lat || !project.lng) return;
+  if (typeof project.lat !== "number" || typeof project.lng !== "number") return;
 
   if (standaloneProjectMarkerMap.has(project.id)) return;
 
@@ -297,7 +297,9 @@ export function initializeStandaloneMarkerModeWatcher() {
       const userId = authStore.user?.id;
       const userProjects = Object.values(projectStore.projects).filter(
         (p) =>
-          p.lat && p.lng && (p.status === null || (p.status === "pending" && p.ownerId === userId)),
+          typeof p.lat === "number" &&
+          typeof p.lng === "number" &&
+          (p.status === null || (p.status === "pending" && p.ownerId === userId)),
       );
       for (const project of userProjects) {
         addStandaloneProjectMarkerForProject(project);

@@ -109,7 +109,6 @@
     "architect": "Architecte",
     "addImages": "Ajouter",
     "tags": "Catégories",
-    "primaryTag": "Catégorie principale",
     "setPrimaryTag": "Définir comme catégorie principale",
     "removeTag": "Retirer la catégorie",
     "additionalDetails": "Détails supplémentaires",
@@ -300,7 +299,6 @@
     "rememberMeHint": "Rester connecté pendant 30 jours",
     "error": {
       "emailUsesGoogleSignIn": "Cet email est enregistré avec Google Sign-In. Veuillez vous connecter avec Google.",
-      "emailAlreadyExists": "Un compte avec cet email existe déjà.",
       "usernameTaken": "Ce nom d'utilisateur est déjà pris.",
       "usernameTooShort": "Le nom d'utilisateur doit contenir au moins 3 caractères.",
       "usernameTooLong": "Le nom d'utilisateur ne doit pas dépasser 50 caractères.",
@@ -350,6 +348,7 @@
     "submitChangeRequest": "Soumettre une demande de modification",
     "updateOverlays": "Mettre à jour les images",
     "removeChange": "Retirer cette modification",
+    "changesLabel": "Modifications",
     "noChangesToSubmit": "Aucune modification à soumettre",
     "newOverlay": "Nouvelle image",
     "createAction": "Nouvelle soumission",
@@ -452,10 +451,6 @@
     }
   },
   "controls": {
-    "zoom": {
-      "in": "Zoomer",
-      "out": "Dézoomer"
-    },
     "filter": "Filtrer les projets",
     "language": "Langue",
     "settings": "Paramètres"
@@ -474,6 +469,9 @@
     "redo": "Rétablir (ctrl + y)",
     "delete": "Supprimer cette image",
     "replace": "Remplacer cette image",
+    "crop": "Rogner l'image",
+    "cropConfirm": "Appliquer",
+    "cropCancel": "Annuler",
     "save": "Envoyer",
     "bringToFront": "Mettre l'image au premier plan",
     "sendToBack": "Mettre l'image à l'arrière-plan"
@@ -510,7 +508,11 @@
     "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
     "overlayTooLarge": "L'image est trop grande",
     "maximumSizeOnMap": "La taille maximale est de 1km × 1km",
-    "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo."
+    "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo.",
+    "error": {
+      "uploadFailed": "Échec de l'envoi de l'image au serveur.",
+      "storageQuotaExceeded": "Vous avez atteint votre limite de stockage pour les envois en attente. Veuillez patienter jusqu'à la validation de vos contributions existantes avant d'en envoyer d'autres."
+    }
   },
   "imageUpload": {
     "pdfExtractionDescription": "Si vos images proviennent d'un PDF, il est recommandé d'utiliser des outils comme {toolLink} pour les extraire dans la meilleure qualité possible.",
@@ -557,7 +559,6 @@
     "genericError": "Entrée invalide"
   },
   "errors": {
-    "projectNotFound": "Projet introuvable",
     "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
     "checkConflictsFailed": "Échec de la vérification des conflits",
     "noChangesDetected": "Aucune modification détectée à soumettre",

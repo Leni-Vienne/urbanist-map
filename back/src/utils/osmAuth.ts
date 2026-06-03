@@ -66,7 +66,7 @@ export async function exchangeOsmCodeForUser(
     }
 
     return {
-      osmId: String(userData.sub),
+      osmId: userData.sub,
       displayName: userData.preferred_username ?? `osm_${userData.sub}`,
     };
   } catch (error) {

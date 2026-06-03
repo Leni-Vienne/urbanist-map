@@ -5,7 +5,11 @@ import {
   transformToCorners,
   type OverlayTransform,
 } from "@/services/overlay/overlayTransform";
-import { getImageHandle, type OverlayImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import {
+  getImageHandle,
+  setImageHandle,
+  type OverlayImageHandle,
+} from "@/services/overlay/overlayRenderRegistry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
@@ -185,11 +189,39 @@ export function setOverlayImageTransform(id: string, transform: OverlayTransform
   );
 }
 
+// Swap an overlay's image bytes (and footprint) on the map: tear down the existing source/layer
+// and rebuild it from a new imageUrl at the given corners. Used when an edit changes the pixels
+// (crop apply, or undo/redo stepping across a crop), not just the position. Opacity and front/back
+// order are keyed by overlay id and so survive the rebuild.
+export function replaceOverlayImageSource(
+  overlayObject: OverlayObject,
+  imageUrl: string,
+  corners: Corner[],
+): void {
+  const mlMap = map.value;
+  const handle = getImageHandle(overlayObject.id);
+  if (mlMap && handle) {
+    if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
+    if (mlMap.getSource(handle.sourceId)) mlMap.removeSource(handle.sourceId);
+  }
+
+  const filename = imageUrl.startsWith("data:")
+    ? `pending-${overlayObject.id}.webp`
+    : (imageUrl.split("/").pop() ?? overlayObject.filename);
+
+  overlayObject.imageUrl = imageUrl;
+  overlayObject.filename = filename;
+  useOverlayStore().updateOverlay(overlayObject.id, { imageUrl, filename });
+
+  const newHandle = createOverlayImage(overlayObject, corners);
+  if (newHandle) setImageHandle(overlayObject.id, newHandle);
+}
+
 // Last edited corner set from history, or null. Fallback for when the image handle is
 // temporarily null (e.g. zoomed out past the overlay threshold) but the overlay is modified.
 function lastHistoryCorners(id: string): Corner[] | null {
   const overlay = useOverlayStore().overlays[id];
-  const lastCorners = overlay?.history?.at(-1);
+  const lastCorners = overlay?.history?.at(-1)?.corners;
   return lastCorners?.length === 4 ? lastCorners : null;
 }
 

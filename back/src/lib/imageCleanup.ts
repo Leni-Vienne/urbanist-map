@@ -64,7 +64,7 @@ async function deleteLocalOriginal(compressedFilename: string): Promise<void> {
     await Promise.all(
       entries
         .filter((name) => name.replace(/\.[^./]+$/, "") === base)
-        .map((name) =>
+        .map(async (name) =>
           unlink(`./uploads/originals/${name}`).catch((error: unknown) => {
             console.warn(`Failed to delete original ${name}:`, error);
           }),

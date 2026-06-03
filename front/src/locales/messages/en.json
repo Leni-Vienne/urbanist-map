@@ -109,7 +109,6 @@
     "architect": "Architect",
     "addImages": "Add Images",
     "tags": "Tags",
-    "primaryTag": "Main category",
     "setPrimaryTag": "Set as main category",
     "removeTag": "Remove tag",
     "additionalDetails": "Additional Details",
@@ -300,7 +299,6 @@
     "rememberMeHint": "Stay signed in for 30 days",
     "error": {
       "emailUsesGoogleSignIn": "This email is registered with Google Sign-In. Please sign in with Google.",
-      "emailAlreadyExists": "An account with this email already exists.",
       "usernameTaken": "This username is already taken.",
       "usernameTooShort": "Username must be at least 3 characters long.",
       "usernameTooLong": "Username must not exceed 50 characters.",
@@ -350,6 +348,7 @@
     "submitChangeRequest": "Submit Change Request",
     "updateOverlays": "Update Images",
     "removeChange": "Remove this change",
+    "changesLabel": "Changes",
     "noChangesToSubmit": "No changes to submit",
     "newOverlay": "New image",
     "createAction": "New submission",
@@ -452,10 +451,6 @@
     }
   },
   "controls": {
-    "zoom": {
-      "in": "Zoom In",
-      "out": "Zoom Out"
-    },
     "filter": "Filter Projects",
     "language": "Language",
     "settings": "Settings"
@@ -474,6 +469,9 @@
     "redo": "Redo (ctrl + y)",
     "delete": "Delete this image",
     "replace": "Replace this image",
+    "crop": "Crop the image",
+    "cropConfirm": "Apply crop",
+    "cropCancel": "Cancel crop",
     "save": "Submit",
     "bringToFront": "Bring image to front",
     "sendToBack": "Send image to back"
@@ -510,7 +508,11 @@
     "selectImageFile": "Please select an image file to upload",
     "overlayTooLarge": "Image is too large",
     "maximumSizeOnMap": "Maximum size is 1km × 1km",
-    "fileTooLarge": "File is too large. Maximum size is {maxSize}MB."
+    "fileTooLarge": "File is too large. Maximum size is {maxSize}MB.",
+    "error": {
+      "uploadFailed": "Failed to upload image to server.",
+      "storageQuotaExceeded": "You have reached your pending upload storage limit. Please wait for your existing submissions to be reviewed before uploading more."
+    }
   },
   "imageUpload": {
     "pdfExtractionDescription": "If your images are sourced from a PDF, it is recommended to use tools like {toolLink} to extract the images in the best possible quality.",
@@ -557,7 +559,6 @@
     "genericError": "Invalid input"
   },
   "errors": {
-    "projectNotFound": "Project not found",
     "projectRequired": "Project Required: A project must be selected to add an image",
     "checkConflictsFailed": "Failed to check for conflicts",
     "noChangesDetected": "No changes detected to submit",

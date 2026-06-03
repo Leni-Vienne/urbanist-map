@@ -112,11 +112,6 @@ function handleModeSwitch() {
       newMode = currentMode === "edit" ? "view" : "edit";
     }
 
-    if (currentMode === newMode) {
-      isSwitchingMode = false;
-      return;
-    }
-
     mapStore.setMode(newMode);
 
     const now = Date.now();

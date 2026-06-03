@@ -8,17 +8,21 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayHistoryState, OverlayObject } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { recordOverlayModification } from "@/services/overlay/overlayHistory";
+import { recordOverlayModification, makeHistoryState } from "@/services/overlay/overlayHistory";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
-import { createOverlayImage, setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import {
+  createOverlayImage,
+  setOverlayImageCorners,
+  replaceOverlayImageSource,
+} from "@/services/overlay/overlayImageLayer";
 import { transformToCorners } from "@/services/overlay/overlayTransform";
 import {
   showEditHandles,
@@ -48,8 +52,8 @@ export async function updateOverlayEditingState(): Promise<void> {
     if (isEditMode) {
       const lastEdited = overlayObject.history.at(-1);
       const hasUserEdits = overlayObject.history.length > 1;
-      if (hasUserEdits && lastEdited?.length === 4) {
-        setOverlayImageCorners(overlayObject.id, lastEdited);
+      if (hasUserEdits && lastEdited?.corners.length === 4) {
+        restoreOverlayToState(overlayObject, lastEdited);
         updateMarkerPosition(overlayObject);
       }
     } else if (overlayObject.corners.length === 4) {
@@ -174,7 +178,7 @@ export function addOverlay(
   async function createAndSetupOverlay() {
     const corners = await defaultCornersForNewOverlay(imageUrl);
     overlayObject.corners = corners;
-    overlayObject.history = [corners.map((c) => ({ lat: c.lat, lng: c.lng }))];
+    overlayObject.history = [makeHistoryState(corners, overlayObject.imageUrl)];
 
     overlayStore.addOverlay(id, overlayObject);
 
@@ -193,7 +197,7 @@ export function addOverlay(
   }
 
   // If zoom level is too low, zoom to project location first, then create overlay
-  if (needsZoom && project?.lat && project.lng) {
+  if (needsZoom && project && typeof project.lat === "number" && typeof project.lng === "number") {
     const targetZoom = 16;
 
     // Show toast to inform user about auto-zoom
@@ -226,6 +230,16 @@ export function redo() {
   applyHistoryAction("redo");
 }
 
+// Restore an overlay to a saved history step. A step from before a crop carries a different
+// image, so swap the source when it differs; otherwise just reposition the current image.
+function restoreOverlayToState(overlayObject: OverlayObject, state: OverlayHistoryState): void {
+  if (state.imageUrl !== overlayObject.imageUrl) {
+    replaceOverlayImageSource(overlayObject, state.imageUrl, state.corners);
+  } else {
+    setOverlayImageCorners(overlayObject.id, state.corners);
+  }
+}
+
 function applyHistoryAction(action: "undo" | "redo") {
   const overlayStore = useOverlayStore();
 
@@ -249,7 +263,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     const previousState = history.at(-1);
     if (!previousState) return;
 
-    setOverlayImageCorners(overlayObject.id, previousState);
+    restoreOverlayToState(overlayObject, previousState);
 
     // Back to initial state on a submitted overlay (approved/pending/rejected) -- mark as
     // unmodified so the marker returns to its status color.
@@ -261,7 +275,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     if (!stateToRestore) return;
 
     history.push(stateToRestore);
-    setOverlayImageCorners(overlayObject.id, stateToRestore);
+    restoreOverlayToState(overlayObject, stateToRestore);
 
     overlayObject.isModified = true;
   }
