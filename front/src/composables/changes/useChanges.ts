@@ -9,6 +9,7 @@ import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/marker
 import type { OverlayObject } from "@/types";
 import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
 import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { refreshEditHandles } from "@/services/overlay/overlayEditHandles";
 import { makeHistoryState } from "@/services/overlay/overlayHistory";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
@@ -34,6 +35,9 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
   });
   if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
     setOverlayImageCorners(overlayId, overlayObject.corners);
+    // Re-sync the edit handles (invisible drag surface, corner markers, outline) to the
+    // reverted position; otherwise they stay over the old spot and still grab drags there.
+    refreshEditHandles();
     updateMarkerPosition(overlayObject);
   }
 }
