@@ -16,7 +16,11 @@ import { projects, importSources, countries, type TimelineStatus } from "../db/s
 import { sql, eq, isNull } from "drizzle-orm";
 import { config } from "../config";
 
-const pgClient = postgresJs(config.DATABASE_URL);
+// synchronous_commit=off lets commits return without waiting for the WAL fsync, which is the main
+// cost of the thousands of small batch commits. Set as a startup parameter so every pooled
+// connection inherits it (a per-session SET would only affect one connection in the pool).
+// The import is idempotent and replayable, so losing the last few commits to a crash is fine: re-run.
+const pgClient = postgresJs(config.DATABASE_URL, { connection: { synchronous_commit: "off" } });
 const db = drizzle({ client: pgClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -27,7 +31,9 @@ const GEOJSON_PATHS = [
   path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_areal.geojson"),
 ];
 
-const UPSERT_BATCH_SIZE = 200;
+// A large batch cuts the commit (and thus fsync) count. Each row binds ~22 params, so 1000 rows =
+// ~22k params, well under Postgres' 65535 bind-parameter limit per statement.
+const UPSERT_BATCH_SIZE = 1000;
 
 // Import source configuration
 const IMPORT_SOURCE_SLUG = "osm_world";
@@ -39,6 +45,21 @@ const IMPORT_SOURCE_CONFIG = {
   attribution: "© OpenStreetMap contributors",
   enabled: true,
 };
+
+function log(message: string): void {
+  console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
+}
+
+// Throttled progress logger: emits at most one line every 3s so large datasets
+// don't flood the terminal with thousands of identical-looking lines.
+let lastProgressAt = 0;
+function logProgress(message: string): void {
+  const t = Date.now();
+  if (t - lastProgressAt >= 3000) {
+    lastProgressAt = t;
+    log(message);
+  }
+}
 
 function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   // OSM project_status values: "proposed" or "under_construction"
@@ -268,10 +289,14 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
     startDatePrecision: sql`EXCLUDED.start_date_precision`,
     endDate: sql`EXCLUDED.end_date`,
     endDatePrecision: sql`EXCLUDED.end_date_precision`,
-    lat: sql`EXCLUDED.lat`,
-    lng: sql`EXCLUDED.lng`,
     geometry: sql`EXCLUDED.geometry`,
-    centerCoordinate: sql`EXCLUDED.center_coordinate`,
+    // lat/lng/center_coordinate carry the JS arithmetic centroid here. When geometry is unchanged
+    // we keep the existing value, which the post-import pass already corrected to ST_PointOnSurface;
+    // overwriting it would flip the anchor back to the arithmetic centroid every run. When geometry
+    // changes we take the new arithmetic centroid, then the post-import pass corrects it.
+    lat: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN EXCLUDED.lat ELSE projects.lat END`,
+    lng: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN EXCLUDED.lng ELSE projects.lng END`,
+    centerCoordinate: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN EXCLUDED.center_coordinate ELSE projects.center_coordinate END`,
     // Reset geometry_size_m to NULL when geometry changes so it gets recomputed below.
     // Keeps the existing value when geometry is unchanged to avoid redundant PostGIS work.
     geometrySizeM: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
@@ -353,7 +378,8 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
 }
 
 async function main() {
-  console.log(`Setting up import source: ${IMPORT_SOURCE_SLUG}`);
+  log(`synchronous_commit=off, batch size ${UPSERT_BATCH_SIZE}`);
+  log(`Setting up import source: ${IMPORT_SOURCE_SLUG}`);
   let importSource = await db
     .select()
     .from(importSources)
@@ -362,7 +388,7 @@ async function main() {
     .then((rows) => rows[0]);
 
   if (!importSource) {
-    console.log(`Import source not found, creating: ${IMPORT_SOURCE_SLUG}`);
+    log(`Import source not found, creating: ${IMPORT_SOURCE_SLUG}`);
     const created = await db.insert(importSources).values(IMPORT_SOURCE_CONFIG).returning();
     importSource = created[0];
   }
@@ -371,14 +397,36 @@ async function main() {
     throw new Error(`Failed to create or retrieve import source: ${IMPORT_SOURCE_SLUG}`);
   }
 
-  console.log(`Using import source: ${importSource.name} (id=${importSource.id})`);
+  log(`Using import source: ${importSource.name} (id=${importSource.id})`);
 
   // Load valid country codes once to guard against KNN returning codes not in our countries table
   // (e.g. XKX for Kosovo, which uses a user-assigned code not in ISO 3166-1)
   const validCountryCodes = new Set(
     (await db.select({ code: countries.code }).from(countries)).map((r) => r.code),
   );
-  console.log(`Loaded ${validCountryCodes.size} valid country codes`);
+  log(`Loaded ${validCountryCodes.size} valid country codes`);
+
+  // Preload externalId -> countryCode for rows already resolved in a prior run. A nearest-city KNN
+  // is the dominant per-run cost, so we only resolve new features below and reuse this for the rest.
+  // Tradeoff: a feature whose geometry drifts across a border keeps its old country until something
+  // forces re-resolution; acceptable since the country is already an approximation (nearest city).
+  const existingCountryByExternalId = new Map<string, string>();
+  try {
+    const existing = await db
+      .select({ externalId: projects.externalId, countryCode: projects.countryCode })
+      .from(projects)
+      .where(
+        sql`${projects.importSourceId} = ${importSource.id} AND ${projects.externalId} IS NOT NULL AND ${projects.countryCode} IS NOT NULL`,
+      );
+    for (const row of existing) {
+      if (row.externalId && row.countryCode) {
+        existingCountryByExternalId.set(row.externalId, row.countryCode);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to preload existing country codes (will resolve all via KNN):", err);
+  }
+  log(`Preloaded ${existingCountryByExternalId.size} existing country codes`);
 
   // Record sync start time for pruning stale data later
   const syncStartTime = new Date();
@@ -397,14 +445,13 @@ async function main() {
     }
 
     console.log(`\n======================================================`);
-    console.log(`Processing ${path.basename(geojsonPath)}...`);
+    log(`Processing ${path.basename(geojsonPath)}...`);
     console.log(`======================================================`);
 
     const geojson = JSON.parse(fs.readFileSync(geojsonPath, "utf8")) as GeoJSON.FeatureCollection;
-    console.log(`Found ${geojson.features.length} features to import`);
+    log(`Found ${geojson.features.length} features to import`);
 
     const allStatuses = new Map<string, number>();
-    const allTransportTypes = new Map<string, number>();
     let noName = 0,
       noEndDate = 0,
       noStartDate = 0,
@@ -413,8 +460,6 @@ async function main() {
       const p = (f.properties ?? {}) as Record<string, unknown>;
       const status = String(p["project_status"] ?? "missing");
       allStatuses.set(status, (allStatuses.get(status) ?? 0) + 1);
-      const tt = String(p["transport_type"] ?? "missing");
-      allTransportTypes.set(tt, (allTransportTypes.get(tt) ?? 0) + 1);
       if (!(p["display_name"] as string | undefined)?.trim()) noName++;
       if (!parseOsmDate(p["opening_date"]) && !parseOsmDate(p["end_date"])) noEndDate++;
       if (!parseOsmDate(p["start_date"]) && !parseOsmDate(p["construction_start_expected"]))
@@ -422,7 +467,6 @@ async function main() {
       if (extractTags(p).length === 0) noTags++;
     }
     console.log("\nproject_status breakdown:  ", Object.fromEntries(allStatuses));
-    console.log("transport_type breakdown:  ", Object.fromEntries(allTransportTypes));
     console.log(
       `No display_name: ${noName}, no end_date: ${noEndDate}, no start_date: ${noStartDate}, no tags: ${noTags}\n`,
     );
@@ -430,14 +474,33 @@ async function main() {
     let inserted = 0;
     let skipped = 0;
 
-    // Resolve countryCode for all features via batched KNN lookup before the upsert loop
-    console.log(`Resolving country codes for ${geojson.features.length} features...`);
-    const featureCentroids = geojson.features.map((f) => {
+    // Resolve countryCode for each feature before the upsert loop. Reuse the preloaded value when the
+    // feature already exists, and only feed the misses (new features) into the KNN lookup.
+    log(`Resolving country codes for ${geojson.features.length} features...`);
+    const countryCodes: Array<string | null> = new Array(geojson.features.length).fill(null);
+    const centroidsToResolve: Array<{ lat: number; lng: number } | null> = new Array(
+      geojson.features.length,
+    ).fill(null);
+    let reusedCount = 0;
+    for (let i = 0; i < geojson.features.length; i++) {
+      const f = geojson.features[i]!;
+      const externalId = f.id ? String(f.id) : null;
+      const cached = externalId ? existingCountryByExternalId.get(externalId) : undefined;
+      if (cached) {
+        countryCodes[i] = cached;
+        reusedCount++;
+        continue;
+      }
       const geom = f.geometry as GeoJSON.Geometry | null;
-      return geom ? centroid(geom) : null;
-    });
-    const countryCodes = await resolveCountryCodes(featureCentroids);
-    console.log(`Country code resolution complete.`);
+      centroidsToResolve[i] = geom ? centroid(geom) : null;
+    }
+    const resolved = await resolveCountryCodes(centroidsToResolve);
+    for (let i = 0; i < resolved.length; i++) {
+      if (countryCodes[i] == null) countryCodes[i] = resolved[i] ?? null;
+    }
+    log(
+      `Country code resolution complete (${reusedCount} reused, ${geojson.features.length - reusedCount} resolved via KNN).`,
+    );
 
     // Build rows and flush in batches.
     // geometrySizeM is intentionally omitted here, it is computed in a single bulk UPDATE after all
@@ -553,7 +616,7 @@ async function main() {
         inserted += ok;
         skipped += fail;
         pendingRows.length = 0;
-        console.log(`Progress: ${i + 1} / ${geojson.features.length}`);
+        logProgress(`Upserted ${i + 1} / ${geojson.features.length} features`);
       }
     }
 
@@ -567,17 +630,20 @@ async function main() {
 
     globalInserted += inserted;
     globalSkipped += skipped;
-    console.log(
-      `Finished ${path.basename(geojsonPath)}. Inserted: ${inserted}, skipped: ${skipped}`,
-    );
+    log(`Finished ${path.basename(geojsonPath)}. Inserted: ${inserted}, skipped: ${skipped}`);
   }
 
-  console.log(`\nDONE. Total Inserted: ${globalInserted}, Total Skipped: ${globalSkipped}`);
+  console.log("");
+  log(`DONE. Total Inserted: ${globalInserted}, Total Skipped: ${globalSkipped}`);
 
-  // Compute geometry_size_m in a single bulk UPDATE across all newly imported/updated rows.
-  // This avoids the double geometryJson parse that would occur inline per row, and lets
-  // PostGIS pipeline geography computations (ST_Length, ST_Perimeter, ST_Distance) across
-  // all rows in one efficient pass.
+  // Compute geometry_size_m and the lat/lng/center_coordinate anchor in a single bulk UPDATE over
+  // the changed/new rows. This avoids the double geometryJson parse that would occur inline per row,
+  // and lets PostGIS pipeline the geography computations (ST_Length, ST_Perimeter, ST_Distance,
+  // ST_PointOnSurface) across all rows in one efficient pass.
+  // The anchor uses ST_PointOnSurface so lat/lng and center_coordinate land on the geometry itself
+  // (e.g. the midpoint of a railroad line) rather than the JS arithmetic centroid set during upsert,
+  // which can fall off curved or asymmetric shapes. It is what popup placement and tile-based
+  // navigation snap to. Unchanged rows keep the anchor a prior run already computed (see conflictSet).
   // Spatial size in meters, used to:
   //   - decide zoom level when flying to a project
   //   - progressively hide center-point markers when the shape is large enough
@@ -594,9 +660,12 @@ async function main() {
   //   - 100x100m parking lot (400m perimeter):            LEAST(400m, 100m)   = 100m   correct
   //   - Circular park r=500m (3141m perimeter):           LEAST(3141m, 1000m) = 1000m  correct (diameter)
   // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
-  console.log(`\nComputing geometry sizes for all imported rows (batched)...`);
+  console.log("");
+  log(`Computing geometry sizes and anchors for changed rows (batched)...`);
   try {
     // Fetch IDs of all rows that need updating. This is cheap, no geography ops yet.
+    // geometry_size_m IS NULL means the geometry changed (the upsert nulls it on change) or the row
+    // is new, so this set is exactly the rows whose size and anchor need (re)computing.
     const idsToUpdate = (
       await db.execute<{ id: string }>(sql`
         SELECT id
@@ -608,7 +677,7 @@ async function main() {
       `)
     ).map((r) => r.id);
 
-    console.log(`  ${idsToUpdate.length} rows to process`);
+    log(`${idsToUpdate.length} rows to process`);
 
     const GEOMETRY_BATCH_SIZE = 2000;
     let sizesDone = 0;
@@ -620,9 +689,13 @@ async function main() {
       );
       await db.execute(sql`
         UPDATE projects AS p
-        SET geometry_size_m = sizes.size
+        SET geometry_size_m = sizes.size,
+            lat               = ST_Y(sizes.anchor),
+            lng               = ST_X(sizes.anchor),
+            center_coordinate = sizes.anchor
         FROM (
           SELECT id,
+            ST_PointOnSurface(geometry) AS anchor,
             CASE
               WHEN ST_Area(geometry) > 0 THEN
                 LEAST(
@@ -650,32 +723,11 @@ async function main() {
         WHERE p.id = sizes.id
       `);
       sizesDone += batchIds.length;
-      console.log(`  ${sizesDone} / ${idsToUpdate.length}`);
+      logProgress(`Geometry sizes + anchors: ${sizesDone} / ${idsToUpdate.length}`);
     }
-    console.log(`Geometry sizes computed.`);
+    log(`Geometry sizes and anchors computed.`);
   } catch (err) {
-    console.error("Failed to compute geometry sizes (non-fatal):", err);
-  }
-
-  // Replace the JS arithmetic centroid with ST_PointOnSurface so that lat/lng and
-  // center_coordinate land on the geometry itself (e.g. the midpoint of a railroad line)
-  // rather than the average of all coordinates, which can fall off curved or asymmetric shapes.
-  // This is the anchor used for popup placement and tile-based navigation.
-  console.log(`\nUpdating center coordinates to ST_PointOnSurface...`);
-  try {
-    await db.execute(sql`
-      UPDATE projects
-      SET
-        lat               = ST_Y(ST_PointOnSurface(geometry)),
-        lng               = ST_X(ST_PointOnSurface(geometry)),
-        center_coordinate = ST_PointOnSurface(geometry)
-      WHERE import_source_id = ${importSource.id}
-        AND geometry IS NOT NULL
-        AND last_imported_at >= ${syncStartTime.toISOString()}
-    `);
-    console.log(`Center coordinates updated.`);
-  } catch (err) {
-    console.error("Failed to update center coordinates (non-fatal):", err);
+    console.error("Failed to compute geometry sizes and anchors (non-fatal):", err);
   }
 
   // Prune stale projects that were not updated during this sync.
@@ -683,7 +735,8 @@ async function main() {
   // Projects without overlays are hard-deleted.
   // import_locked_at rows are exempt: they hold an approved user edit and were skipped by the upsert,
   // so their last_imported_at is stale by design and must not be deleted or detached.
-  console.log(`\nPruning stale projects not seen since ${syncStartTime.toISOString()}...`);
+  console.log("");
+  log(`Pruning stale projects not seen since ${syncStartTime.toISOString()}...`);
   const staleCondition = sql`import_source_id = ${importSource.id} AND import_locked_at IS NULL AND (last_imported_at IS NULL OR last_imported_at < ${syncStartTime.toISOString()})`;
   const hasOverlays = sql`EXISTS (SELECT 1 FROM overlays WHERE project_id = projects.id)`;
 
@@ -692,7 +745,7 @@ async function main() {
       .delete(projects)
       .where(sql`${staleCondition} AND NOT (${hasOverlays})`)
       .returning({ id: projects.id });
-    console.log(`Hard-deleted ${hardDeleted.length} stale projects with no overlays`);
+    log(`Hard-deleted ${hardDeleted.length} stale projects with no overlays`);
   } catch (err) {
     console.error("Failed to hard-delete stale projects:", err);
   }
@@ -711,7 +764,7 @@ async function main() {
       })
       .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
       .returning({ id: projects.id });
-    console.log(`Soft-detached ${softDetached.length} stale projects with overlays`);
+    log(`Soft-detached ${softDetached.length} stale projects with overlays`);
   } catch (err) {
     console.error("Failed to soft-detach stale projects:", err);
   }
@@ -727,15 +780,15 @@ async function main() {
   // selectivity estimates assume uniform geographic distribution, so they will
   // still under-count clustered regions, but scalar column stats (tags,
   // geometry_size_m, timeline_status) benefit meaningfully from a fresh ANALYZE.
-  console.log(`Running ANALYZE on projects table...`);
+  log(`Running ANALYZE on projects table...`);
   try {
     await db.execute(sql`ANALYZE projects`);
-    console.log(`ANALYZE complete.`);
+    log(`ANALYZE complete.`);
   } catch (err) {
     console.error("ANALYZE failed (non-fatal):", err);
   }
 
-  console.log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
+  log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
   await pgClient.end();
 }
 
