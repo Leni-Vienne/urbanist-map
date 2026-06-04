@@ -47,6 +47,23 @@ export function applyPlanStyleRoadOverrides(mlMap: MaplibreMap): void {
 }
 
 /**
+ * Adds an atmospheric sky so the area above the horizon at high pitch shows a
+ * sky gradient instead of plain white. Tuned to a light haze matching the basemap.
+ */
+export function applySky(mlMap: MaplibreMap): void {
+  mlMap.setSky({
+    "sky-color": "#a7c7e7",
+    "sky-horizon-blend": 0.8,
+    "horizon-color": "#eef2f5",
+    "horizon-fog-blend": 0.6,
+    "fog-color": "#eef2f5",
+    "fog-ground-blend": 0.0,
+    // Fade the sky out as we zoom in so the 3D buildings keep their flat backdrop up close.
+    "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 12, 1, 14, 0],
+  });
+}
+
+/**
  * Applies overrides to the Liberty basemap's railway styling to visually
  * differentiate it from our tram project geometries.
  * Makes existing railways orange and semi-transparent.

@@ -11,7 +11,11 @@ import {
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
-import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
+import {
+  applyPlanStyleRoadOverrides,
+  applyRailStyleOverrides,
+  applySky,
+} from "./basemapStyleOverrides";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/overlayRenderRegistry";
 import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/overlayEditHandles";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
@@ -304,6 +308,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
   try {
     applyPlanStyleRoadOverrides(mlMap);
     applyRailStyleOverrides(mlMap);
+    applySky(mlMap);
     addProjectDataToMlMap(mlMap);
 
     if (!interactionRegistered) {
@@ -411,6 +416,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
+        applySky(mlMap);
         applyBuildings3DState(show3DBuildings.value);
       }
       addProjectDataToMlMap(mlMap);

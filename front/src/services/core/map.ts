@@ -142,7 +142,7 @@ export function initializeMap() {
     aroundCenter: false, // otherwise the control scheme is ass
     rollEnabled: false,
     touchPitch: true,
-    maxPitch: 70,
+    maxPitch: 85,
     fadeDuration: 0,
   };
   // Lower sensitivity (default is 0.8).
