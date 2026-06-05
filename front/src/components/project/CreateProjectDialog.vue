@@ -44,6 +44,7 @@
 import { ref } from "vue";
 import type CreateProjectForm from "@/components/forms/CreateProjectForm.vue";
 import type { Project } from "@/types/index";
+import type { StagedRender } from "@/composables/submission/stagedRenderStore";
 
 defineProps<{
   visible: boolean;
@@ -52,7 +53,7 @@ defineProps<{
 
 const emit = defineEmits<{
   "update:visible": [visible: boolean];
-  submit: [project: Partial<Project>];
+  submit: [project: Partial<Project>, render: StagedRender | null];
   cancel: [];
 }>();
 
@@ -62,8 +63,8 @@ function handleVisibilityChange(newVisible: boolean) {
   emit("update:visible", newVisible);
 }
 
-function handleSubmit(project: Partial<Project>) {
-  emit("submit", project);
+function handleSubmit(project: Partial<Project>, render: StagedRender | null) {
+  emit("submit", project, render);
 }
 
 function handleCancel() {

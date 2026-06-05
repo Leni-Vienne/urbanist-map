@@ -13,12 +13,15 @@
           (fieldName: string) => form.getFieldClasses(fieldName as keyof ProjectFormData)
         "
         :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
+        :current-render-url="currentRenderUrl"
+        :staged-render-preview="stagedRender?.previewUrl ?? null"
         id-prefix="edit"
         @update:timeline-status="
           timelineStatus = $event;
           form.formData.timelineStatus = $event;
         "
         @update:form-data="Object.assign(form.formData, $event)"
+        @render-selected="stagedRender = $event"
       />
 
       <!-- Form actions -->
@@ -28,7 +31,7 @@
         <Button
           v-if="form.hasChanges.value"
           type="button"
-          @click="form.resetChanges"
+          @click="handleReset"
           :label="$t('common.reset')"
           severity="secondary"
           outlined
@@ -60,6 +63,8 @@ import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { Project, ProjectFormData } from "@/types/index";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";
+import { buildImageUrl } from "@/utils/imageUrl";
+import { setStagedRender, type StagedRender } from "@/composables/submission/stagedRenderStore";
 
 const props = defineProps<{ project: Project }>();
 const emit = defineEmits<{ close: []; submitted: [] }>();
@@ -73,6 +78,17 @@ const markerCoordinates =
     : null;
 
 const timelineStatus = ref<TimelineStatus>(props.project.timelineStatus ?? "proposed");
+
+// A render staged in this form, committed to the staged-render store on save so the submission
+// dialog picks it up alongside the project's other changes.
+const stagedRender = ref<StagedRender | null>(null);
+
+// Existing render image (pending renders live in local storage, so force the backend URL).
+const currentRenderUrl = computed(() => {
+  const render = props.project.render;
+  if (!render) return null;
+  return buildImageUrl(render.filename, render.status !== "approved");
+});
 
 // Get original backend project if available (for comparison baseline)
 // Uses centralized helper that checks both originalBackendProjects and originalUserContributions
@@ -98,7 +114,17 @@ const form = useEditableProjectForm({
   currentData: currentProjectData.value, // Current values to display in form
   getFallbackProject: () => props.project,
   getAvailableCities: () => formFieldsRef.value?.cities ?? [],
-  onSubmitted: () => emit("submitted"),
+  // A staged render counts as a change even when no scalar field was edited.
+  extraDirty: () => stagedRender.value !== null,
+  onSubmitted: () => {
+    if (stagedRender.value) setStagedRender(props.project.id, stagedRender.value);
+    emit("submitted");
+  },
   onClose: () => emit("close"),
 });
+
+function handleReset() {
+  stagedRender.value = null;
+  form.resetChanges();
+}
 </script>

@@ -149,9 +149,12 @@
           @mouseenter="$emit('highlight-overlay', overlay.id)"
           @mouseleave="$emit('remove-highlight', overlay.id)"
         >
-          <!-- Overlay thumbnail -->
+          <!-- Overlay thumbnail (click to view the full image, e.g. renders that have no map view) -->
           <div
             class="w-15 h-15 rounded-xl overflow-hidden bg-content-hover-background flex items-center justify-center shrink-0"
+            :class="!imageErrors[overlay.id] ? 'cursor-zoom-in' : ''"
+            @click.stop="!imageErrors[overlay.id] && openLightbox(overlay)"
+            v-tooltip.top="!imageErrors[overlay.id] ? $t('overlay.viewFullImage') : undefined"
           >
             <img
               v-if="!imageErrors[overlay.id]"
@@ -180,7 +183,10 @@
                   overlay.caption ? 'text-color' : 'italic text-muted-color',
                 ]"
               >
-                {{ overlay.caption || $t("overlay.untitled") }}
+                {{
+                  overlay.caption ||
+                  (overlay.kind === "render" ? $t("render.label") : $t("overlay.untitled"))
+                }}
               </p>
             </div>
             <div class="text-xs text-muted-color mb-2">
@@ -244,15 +250,34 @@
         </div>
       </div>
     </div>
+
+    <!-- Full-image lightbox, opened from an overlay thumbnail -->
+    <Dialog
+      v-model:visible="lightboxVisible"
+      modal
+      dismissableMask
+      :draggable="false"
+      :header="lightbox?.caption || $t('overlay.untitled')"
+      :style="{ width: 'auto', maxWidth: '90vw' }"
+      :pt="{ content: { class: 'p-0' } }"
+    >
+      <img
+        v-if="lightbox"
+        :src="lightbox.url"
+        :alt="lightbox.caption ?? undefined"
+        :crossorigin="imageRequiresCredentials(lightbox.url) ? 'use-credentials' : undefined"
+        class="block max-h-[80vh] max-w-[90vw] object-contain"
+      />
+    </Dialog>
   </AccordionContent>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { AccordionContent, Tag } from "primevue";
+import { computed, ref } from "vue";
+import { AccordionContent, Tag, Dialog } from "primevue";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { formatSourceUrl } from "@/utils/urlFormat";
-import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type {
   ProjectForModeration,
@@ -363,6 +388,13 @@ function handleOverlayContributorClick(
 }
 
 async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
+  // Renders aren't on the map, so navigating to them is meaningless (and crashes the corner-based
+  // intersection lookup). Show the full image instead.
+  if (overlay.kind === "render") {
+    openLightbox(overlay);
+    return;
+  }
+
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, shouldFitBounds);
   } else {
@@ -388,5 +420,23 @@ function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeReq
 function getOverlayImageUrl(filename: string, status?: string | null): string {
   const forceBackendUrl = status === "pending" || status === null;
   return buildThumbnailUrl(filename, forceBackendUrl);
+}
+
+// Full-image lightbox for inspecting an overlay/render beyond its sidebar thumbnail.
+const lightbox = ref<{ url: string; caption: string | null } | null>(null);
+const lightboxVisible = computed({
+  get: () => lightbox.value !== null,
+  set: (value: boolean) => {
+    if (!value) lightbox.value = null;
+  },
+});
+
+function openLightbox(overlay: OverlayForModeration): void {
+  if (!overlay.filename && !overlay.imageUrl) return;
+  const forceBackendUrl = overlay.status === "pending" || overlay.status === null;
+  lightbox.value = {
+    url: overlay.imageUrl || buildImageUrl(overlay.filename, forceBackendUrl),
+    caption: overlay.caption,
+  };
 }
 </script>

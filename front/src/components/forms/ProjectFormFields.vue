@@ -211,6 +211,47 @@
     </small>
   </div>
 
+  <!-- Render (artist's impression) field: a non-georeferenced project image shown in the popup -->
+  <div class="flex flex-col gap-2">
+    <span class="text-sm text-(--p-text-color-secondary) font-medium">
+      {{ $t("render.label") }}
+    </span>
+    <small class="flex items-start gap-1.5 text-muted-color text-xs">
+      <i class="pi pi-info-circle mt-0.5 shrink-0"></i>
+      <span>{{ $t("render.disclaimer") }}</span>
+    </small>
+    <div class="flex items-center gap-3">
+      <input
+        ref="renderInputRef"
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        class="hidden"
+        @change="handleRenderInputChange"
+      />
+      <div
+        v-if="renderDisplayUrl"
+        class="w-20 h-20 rounded-lg overflow-hidden bg-content-hover-background flex items-center justify-center shrink-0 border border-surface"
+      >
+        <img
+          :src="renderDisplayUrl"
+          :crossorigin="renderDisplayCrossorigin"
+          class="w-full h-full object-cover"
+          alt=""
+        />
+      </div>
+      <Button
+        type="button"
+        :label="renderDisplayUrl ? $t('render.replace') : $t('render.add')"
+        :icon="renderDisplayUrl ? 'pi pi-refresh' : 'pi pi-image'"
+        severity="secondary"
+        outlined
+        size="small"
+        @click="renderInputRef?.click()"
+      />
+    </div>
+    <small v-if="renderError" class="text-red-600 text-xs block">{{ renderError }}</small>
+  </div>
+
   <!-- Tags field -->
   <div class="flex flex-col gap-2">
     <span class="text-sm text-(--p-text-color-secondary)">
@@ -280,6 +321,8 @@ import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
+import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
+import { imageRequiresCredentials } from "@/utils/imageUrl";
 
 // Re-export for backward compatibility
 export type { ProjectFormData };
@@ -295,12 +338,17 @@ interface Props {
   markerCoordinates?: { lat: number; lng: number } | null;
   fieldClasses?: (fieldName: string) => string | object | undefined;
   hasChanged?: (fieldName: string) => boolean;
+  // Existing render image URL (when editing a project that already has one).
+  currentRenderUrl?: string | null;
+  // Preview of a render staged in this form but not yet submitted.
+  stagedRenderPreview?: string | null;
 }
 
 type Emits = {
   (e: "update:formData", value: ProjectFormData): void;
   (e: "update:timelineStatus", value: TimelineStatus): void;
   (e: "cityChange", cityId: number | null): void;
+  (e: "renderSelected", payload: { file: File; previewUrl: string }): void;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -316,6 +364,40 @@ const emit = defineEmits<Emits>();
 const { t, te } = useI18n();
 const toast = useToast();
 const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
+
+// Render image picker state. The staged preview takes precedence over any existing render.
+const renderInputRef = ref<HTMLInputElement | null>(null);
+const renderError = ref("");
+
+const renderDisplayUrl = computed(
+  () => props.stagedRenderPreview || props.currentRenderUrl || null,
+);
+const renderDisplayCrossorigin = computed(() =>
+  renderDisplayUrl.value && imageRequiresCredentials(renderDisplayUrl.value)
+    ? "use-credentials"
+    : undefined,
+);
+
+function handleRenderInputChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  // Reset so re-selecting the same file fires change again.
+  input.value = "";
+  if (!file) return;
+
+  renderError.value = "";
+
+  if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+    renderError.value = t("upload.fileTooLarge", { maxSize: MAX_UPLOAD_FILE_SIZE_MB });
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    emit("renderSelected", { file, previewUrl: reader.result as string });
+  });
+  reader.readAsDataURL(file);
+}
 
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
 

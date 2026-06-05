@@ -210,6 +210,7 @@
     "coordinatesViewOnMap": "Coordonnées (voir sur la carte)",
     "replaces": "Remplace",
     "viewOriginalOverlay": "Voir l'image d'origine",
+    "viewFullImage": "Voir l'image en grand",
     "viewPositionRequired": "Voir la position d'abord (requis pour les images de remplacement)",
     "overlayCreated": "Image créée",
     "positionOverlayOnMap": "Positionnez maintenant l'image sur la carte",
@@ -525,6 +526,14 @@
     "orClick": "ou cliquez pour parcourir les fichiers",
     "supportedFormats": "Formats supportés : PNG, JPEG, JPG, WebP",
     "changeImage": "Changer l'image"
+  },
+  "render": {
+    "label": "Vue d'artiste",
+    "add": "Ajouter une image",
+    "replace": "Remplacer l'image",
+    "pendingReview": "En attente de validation",
+    "disclaimer": "Une vue d'artiste ou un rendu. Elle apparaît uniquement dans le panneau d'information du projet, à ne pas confondre avec les images superposées sur la carte.",
+    "imageChange": "Nouvelle image"
   },
   "toast": {
     "validationError": "Erreur de validation",

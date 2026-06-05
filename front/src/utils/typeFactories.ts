@@ -53,6 +53,9 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     countryCode: data.countryCode ?? "",
     detachedAt: data.detachedAt ?? null,
     importLockedAt: data.importLockedAt ?? null,
+    // Left undefined when the source didn't carry it (e.g. viewport payload), so the popup knows
+    // to hydrate it via getById. null only after getById confirms there is no render.
+    render: data.render,
   };
 }
 

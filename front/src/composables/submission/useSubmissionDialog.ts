@@ -4,6 +4,7 @@ import {
   pendingSubmissionContext,
   isSubmitting,
 } from "./submissionDialogState";
+import { getStagedRender, clearStagedRender } from "./stagedRenderStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -335,6 +336,19 @@ export function useSubmissionDialog() {
         projectChanges,
       );
 
+      // A render staged in the project form is published as its own moderated entity, so it never
+      // affects the project/overlay changeType; it only adds a row and forces the moderation pill.
+      const stagedRender = getStagedRender(project.id);
+      if (stagedRender) {
+        changes.push({
+          field: "render",
+          oldValue: "",
+          newValue: t("render.imageChange"),
+          displayLabel: t("render.label"),
+          thumbnailUrl: stagedRender.previewUrl,
+        });
+      }
+
       // Determine submission metadata
       const requiresModeration = checkRequiresModeration(
         pendingMods,
@@ -354,7 +368,7 @@ export function useSubmissionDialog() {
         action,
         entityName: project.name,
         changes,
-        requiresModeration,
+        requiresModeration: requiresModeration || Boolean(stagedRender),
         entityType: projectHasChanges || projectIsNew ? "project" : "overlay",
         changeType,
       };
@@ -365,6 +379,7 @@ export function useSubmissionDialog() {
         projectModified: projectHasChanges,
         existingOverlayModifications: pendingMods,
         newOverlayIds,
+        pendingRender: stagedRender ? { file: stagedRender.file } : undefined,
       };
       showSubmissionDialog.value = true;
     } catch (error: unknown) {
@@ -541,7 +556,11 @@ export function useSubmissionDialog() {
     // Remove the change at the specified index from the summary
     submissionSummary.value.changes.splice(index, 1);
 
-    if (overlayId) {
+    if (field === "render") {
+      const renderProjectId = pendingSubmissionContext.value?.projectId;
+      if (renderProjectId) clearStagedRender(renderProjectId);
+      if (pendingSubmissionContext.value) pendingSubmissionContext.value.pendingRender = undefined;
+    } else if (overlayId) {
       await handleRemoveOverlayChange(overlayId, field);
     } else {
       handleRemoveProjectChange(field);

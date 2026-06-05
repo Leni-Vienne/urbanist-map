@@ -1,6 +1,8 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
+import { uploadImageFile } from "@/utils/uploadImageFile";
+import { clearStagedRender } from "./stagedRenderStore";
 import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
 import {
   addStandaloneProjectMarkerForProject,
@@ -603,6 +605,25 @@ export function useSubmissionService() {
     }
   }
 
+  // Publish a render staged in the project form. Its own moderated entity, attached to an
+  // existing project row, so callers must ensure the project is published first.
+  async function publishStagedRender(projectId: string, file: File): Promise<void> {
+    const filename = await uploadImageFile(file);
+    await trpc.overlay.publishRender.mutate({ projectId, filename });
+    // Optimistically attach the pending render so the popup shows it immediately in edit mode.
+    // Clear isModified too: a render-only edit marks the project modified but submits nothing
+    // through the project change paths, so nothing else resets the flag.
+    projectStore.updateProject(projectId, {
+      render: { filename, caption: null, status: "pending" },
+      isModified: false,
+    });
+    const updatedProject = projectStore.projects[projectId];
+    if (updatedProject && updatedProject.overlayIds.length === 0) {
+      updateStandaloneProjectMarkerColor(projectId, updatedProject);
+    }
+    clearStagedRender(projectId);
+  }
+
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
     const project = ctx.projectId ? projectStore.getProjectById(ctx.projectId) : null;
 
@@ -633,6 +654,11 @@ export function useSubmissionService() {
     // 4. Brand-new project with no overlays: publish the project on its own.
     if (newOverlayIds.length === 0 && ctx.changeType === "create" && project?.status === null) {
       await submitEntity(createProjectContext(project, "create"), reason);
+    }
+
+    // 5. Publish a staged render last, once the project is guaranteed to exist server-side.
+    if (ctx.pendingRender && ctx.projectId) {
+      await publishStagedRender(ctx.projectId, ctx.pendingRender.file);
     }
   }
 

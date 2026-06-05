@@ -6,10 +6,12 @@
       :timeline-status="timelineStatus"
       :prefilled-city="props.project.city"
       :marker-coordinates="markerCoordinates"
+      :staged-render-preview="stagedRender?.previewUrl ?? null"
       id-prefix="create"
       @update:timeline-status="timelineStatus = $event"
       @update:form-data="Object.assign(formData, $event)"
       @city-change="handleCityChange"
+      @render-selected="stagedRender = $event"
     />
   </form>
 </template>
@@ -22,6 +24,7 @@ import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { ProjectFormData } from "@/components/forms/ProjectFormFields.vue";
 import type { Project } from "@/types/index";
 import { projectToFormData, formDataToProjectFields } from "@/utils/projectFormHelpers";
+import type { StagedRender } from "@/composables/submission/stagedRenderStore";
 
 const props = defineProps<{
   project: Partial<Project>;
@@ -31,11 +34,18 @@ const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null);
 
 const formData = reactive<ProjectFormData>(projectToFormData(props.project));
 
+// A render staged in the form. The new project has no id yet, so it travels with the submit event
+// and is keyed by the freshly created project id by the parent.
+const stagedRender = ref<StagedRender | null>(null);
+
 const timelineStatus = ref<
   "proposed" | "planned" | "under_construction" | "completed" | "canceled"
 >("proposed");
 
-const emit = defineEmits<{ cancel: []; submit: [project: Partial<Project>] }>();
+const emit = defineEmits<{
+  cancel: [];
+  submit: [project: Partial<Project>, render: StagedRender | null];
+}>();
 
 const { validateProjectForm } = useProjectFormValidation();
 
@@ -87,7 +97,7 @@ function handleSubmit() {
     };
   }
 
-  emit("submit", result);
+  emit("submit", result, stagedRender.value);
 }
 
 defineExpose({ handleSubmit });

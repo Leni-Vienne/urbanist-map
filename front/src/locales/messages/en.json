@@ -210,6 +210,7 @@
     "coordinatesViewOnMap": "Coordinates (view on map)",
     "replaces": "Replaces",
     "viewOriginalOverlay": "View Original Image",
+    "viewFullImage": "View full image",
     "viewPositionRequired": "View position first (required for replacement images)",
     "overlayCreated": "Image Created",
     "positionOverlayOnMap": "Now position the image on the map",
@@ -525,6 +526,14 @@
     "orClick": "or click to browse files",
     "supportedFormats": "Supported formats: PNG, JPEG, JPG, WebP",
     "changeImage": "Change Image"
+  },
+  "render": {
+    "label": "Artist's impression",
+    "add": "Add image",
+    "replace": "Replace image",
+    "pendingReview": "Pending review",
+    "disclaimer": "An artist's impression or render. It only appears in the project info panel. This is not to be confused with overlay images that are aligned onto the map.",
+    "imageChange": "New image"
   },
   "toast": {
     "validationError": "Validation Error",
