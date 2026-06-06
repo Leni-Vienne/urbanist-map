@@ -257,7 +257,10 @@
       modal
       dismissableMask
       :draggable="false"
-      :header="lightbox?.caption || $t('overlay.untitled')"
+      :header="
+        lightbox?.caption ||
+        (lightbox?.kind === 'render' ? $t('render.label') : $t('overlay.untitled'))
+      "
       :style="{ width: 'auto', maxWidth: '90vw' }"
       :pt="{ content: { class: 'p-0' } }"
     >
@@ -423,7 +426,11 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
 }
 
 // Full-image lightbox for inspecting an overlay/render beyond its sidebar thumbnail.
-const lightbox = ref<{ url: string; caption: string | null } | null>(null);
+const lightbox = ref<{
+  url: string;
+  caption: string | null;
+  kind: OverlayForModeration["kind"];
+} | null>(null);
 const lightboxVisible = computed({
   get: () => lightbox.value !== null,
   set: (value: boolean) => {
@@ -437,6 +444,7 @@ function openLightbox(overlay: OverlayForModeration): void {
   lightbox.value = {
     url: overlay.imageUrl || buildImageUrl(overlay.filename, forceBackendUrl),
     caption: overlay.caption,
+    kind: overlay.kind,
   };
 }
 </script>

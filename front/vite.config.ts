@@ -66,7 +66,6 @@ export default defineConfig(({ mode }) => ({
     alias: {
       // Use vue-i18n runtime-only build (no message compiler, uses JIT compilation)
       "vue-i18n": "vue-i18n/dist/vue-i18n.runtime.esm-bundler.js",
-      "@/tables": fileURLToPath(new URL("../back/src/db/schema", import.meta.url)),
       "@": "/src",
       "@shared": fileURLToPath(new URL("../shared", import.meta.url)),
     },

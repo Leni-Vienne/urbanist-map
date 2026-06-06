@@ -60,7 +60,7 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
 }
 
 // A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
-export interface ProjectRender {
+interface ProjectRender {
   filename: string;
   caption: string | null;
   status: ApprovalStatus;
