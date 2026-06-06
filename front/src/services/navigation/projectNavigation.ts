@@ -1,7 +1,7 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { selectOverlay } from "@/services/overlay/selection";
 import { map } from "@/services/core/map";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
+import * as registry from "@/services/overlay/renderRegistry";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";

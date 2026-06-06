@@ -9,9 +9,9 @@
 // edit (corners or caption) to its captured baseline in the stores, then syncs the map to match.
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
-import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import { refreshEditHandles } from "@/services/overlay/overlayEditHandles";
+import { getImageHandle } from "@/services/overlay/renderRegistry";
+import { setOverlayImageCorners } from "@/services/overlay/imageLayer";
+import { refreshEditHandles } from "@/services/overlay/editHandles";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
 import type { ModifiableField, OverlayObject } from "@/types/index";
 

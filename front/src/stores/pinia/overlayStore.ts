@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { OverlayObject, OverlayData, OverlayHistoryState } from "@/types/index";
-import { clearAll as clearAllLayers } from "@/services/overlay/overlayRenderRegistry";
+import { clearAll as clearAllLayers } from "@/services/overlay/renderRegistry";
 
 export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});

@@ -4,12 +4,12 @@ import {
   cornersToTransform,
   transformToCorners,
   type OverlayTransform,
-} from "@/services/overlay/overlayTransform";
+} from "@/services/overlay/transform";
 import {
   getImageHandle,
   setImageHandle,
   type OverlayImageHandle,
-} from "@/services/overlay/overlayRenderRegistry";
+} from "@/services/overlay/renderRegistry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";

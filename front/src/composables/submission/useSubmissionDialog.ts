@@ -23,7 +23,7 @@ import type {
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
-import { revertOverlayFieldModification } from "@/services/overlay/overlaySync";
+import { revertOverlayFieldModification } from "@/services/overlay/sync";
 import type {
   OverlayObject,
   Project,

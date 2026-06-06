@@ -118,7 +118,7 @@ import {
   zoomToOverlayAndSelect,
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
-import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { requestScrollTo } from "@/services/layout/accordionState";

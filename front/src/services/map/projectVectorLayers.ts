@@ -14,7 +14,7 @@ import {
   getCurrentHighlightedProjectId,
   handleBackgroundClick,
   selectOverlay,
-} from "@/services/overlay/overlaySelection";
+} from "@/services/overlay/selection";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { watch } from "vue";

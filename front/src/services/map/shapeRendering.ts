@@ -9,7 +9,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectProject } from "@/services/map/projectSelection";
 import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/selection";
 import { forEachPosition } from "@/utils/geojson";
 import {
   setShapeEntry,

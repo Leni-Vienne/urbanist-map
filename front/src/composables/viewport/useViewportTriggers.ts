@@ -9,13 +9,13 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
+import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
-import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/overlayLifecycle";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
-import { updateOverlayEditingState } from "@/services/overlay/overlayEditing";
-import { refreshSelectionHighlight } from "@/services/overlay/overlaySelection";
+import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/lifecycle";
+import * as registry from "@/services/overlay/renderRegistry";
+import { createOverlayMarker } from "@/services/overlay/markers";
+import { updateOverlayEditingState } from "@/services/overlay/editing";
+import { refreshSelectionHighlight } from "@/services/overlay/selection";
 import {
   addStandaloneProjectMarkerForProject,
   clearAllStandaloneProjectMarkers,

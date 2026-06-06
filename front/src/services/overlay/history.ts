@@ -3,8 +3,8 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerTooltip } from "@/services/map/markers";
-import { isValidQuad } from "@/services/overlay/overlayTransform";
-import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { isValidQuad } from "@/services/overlay/transform";
+import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
 
 type Corner = { lat: number; lng: number };
 

@@ -140,7 +140,7 @@ import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useToast } from "@/composables/ui/useToast";
-import { addOverlay } from "@/services/overlay/overlayEditing";
+import { addOverlay } from "@/services/overlay/editing";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 
 const { t } = useI18n();

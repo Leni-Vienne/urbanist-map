@@ -7,7 +7,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { updateMarkerTooltip } from "@/services/map/markers";
 import type { OverlayObject } from "@/types";
-import { applyOverlayCorners } from "@/services/overlay/overlaySync";
+import { applyOverlayCorners } from "@/services/overlay/sync";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;

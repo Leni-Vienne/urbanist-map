@@ -58,7 +58,7 @@ import {
 } from "@/services/map/standaloneProjectMarkers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectMarkerElement } from "@/services/map/markers";
-import { addOverlay } from "@/services/overlay/overlayEditing";
+import { addOverlay } from "@/services/overlay/editing";
 import { createProject } from "@/services/project/projectMutations";
 import { setStagedRender, type StagedRender } from "@/composables/submission/stagedRenderStore";
 import { createProjectObject } from "@/utils/typeFactories";

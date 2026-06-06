@@ -13,24 +13,24 @@ import { createOverlayObject, createProjectObject } from "@/utils/typeFactories"
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
 import { useToast } from "@/composables/ui/useToast";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { recordOverlayModification, makeHistoryState } from "@/services/overlay/overlayHistory";
+import { selectOverlay } from "@/services/overlay/selection";
+import { recordOverlayModification, makeHistoryState } from "@/services/overlay/history";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
+import { createOverlayMarker } from "@/services/overlay/markers";
 import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
 import {
   createOverlayImage,
   setOverlayImageCorners,
   replaceOverlayImageSource,
-} from "@/services/overlay/overlayImageLayer";
-import { transformToCorners } from "@/services/overlay/overlayTransform";
+} from "@/services/overlay/imageLayer";
+import { transformToCorners } from "@/services/overlay/transform";
 import {
   showEditHandles,
   hideEditHandles,
   refreshEditHandles,
-} from "@/services/overlay/overlayEditHandles";
+} from "@/services/overlay/editHandles";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
+import * as registry from "@/services/overlay/renderRegistry";
 
 /**
  * Update overlay editing state when switching modes.

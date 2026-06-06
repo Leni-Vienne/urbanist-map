@@ -3,7 +3,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { trpc } from "@/client";
 import { uploadImageFile } from "@/utils/uploadImageFile";
 import { clearStagedRender } from "./stagedRenderStore";
-import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
 import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
