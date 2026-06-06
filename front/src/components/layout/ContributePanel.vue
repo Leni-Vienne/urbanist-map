@@ -196,7 +196,7 @@ const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 
-const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
+const { prepareSubmission } = useSubmissionDialog();
 
 // Filter state - both true by default to show everything
 const showPending = ref(true);
@@ -379,12 +379,7 @@ function isProjectModified(projectId: string): boolean {
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return;
 
-  // Check if project itself has changes (not just overlays)
-  const projectInStore = projectStore.projects[project.id];
-  const projectHasChanges = projectInStore?.isModified ?? false;
-
-  // Use composable to prepare and show submission dialog
-  prepareProjectWithOverlaysSubmission(project, projectHasChanges);
+  prepareSubmission(project);
 }
 
 // Handle draw shapes click, mirrors handleDrawShapes in PopupContainer

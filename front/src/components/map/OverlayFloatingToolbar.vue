@@ -445,8 +445,7 @@ const { prepareOverlaySubmission } = useSubmissionDialog();
 function onSave() {
   const overlay = selectedOverlay.value;
   if (!overlay) return;
-  const project = projectStore.projects[overlay.projectId ?? ""] ?? null;
-  prepareOverlaySubmission(overlay, project ?? undefined);
+  prepareOverlaySubmission(overlay);
 }
 
 function startCrop() {
