@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
+import { isMobileViewport } from "@/composables/ui/useIsMobile";
 
 // State for tracking teleport targets
 // This eliminates the need for MutationObservers in PopupContainer
@@ -52,7 +53,7 @@ export function setPopupPlacementForLatLng(
   const mapEl = map.value.getContainer();
   const mapW = mapEl.clientWidth;
   const mapH = mapEl.clientHeight;
-  const isMobile = window.innerWidth < 768;
+  const isMobile = isMobileViewport();
   // After an at-center flight the anchor lands at the viewport center on mobile (the drawer
   // padding is compensated for via mobileBlockedPx below) but at the upper-third fraction on
   // desktop, matching the fly offset applied in mapNavigation.

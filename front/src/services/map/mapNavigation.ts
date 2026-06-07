@@ -2,6 +2,7 @@ import { ref } from "vue";
 import type { LngLatLike, PaddingOptions } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
+import { isMobileViewport } from "@/composables/ui/useIsMobile";
 import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/services/map/popupState";
 import type { CameraBounds } from "@/types/index";
 
@@ -125,8 +126,7 @@ export function getCameraBounds() {
  * Only apply offset when on mobile AND drawer is open.
  */
 function shouldApplyMobileOffset(): boolean {
-  const isMobile = globalThis.innerWidth <= 768;
-  if (!isMobile) return false;
+  if (!isMobileViewport()) return false;
 
   const uiStore = useUiStore();
   return uiStore.mobileDrawerVisible;
@@ -427,7 +427,7 @@ export function flyToGeometry(
  * mobile, where the drawer-aware padding in resolvePadding already biases the camera instead.
  */
 function popupAnchorOffset(): [number, number] | undefined {
-  if (globalThis.innerWidth < 768) return undefined;
+  if (isMobileViewport()) return undefined;
   const h = map.value?.getContainer()?.clientHeight ?? 0;
   if (h <= 0) return undefined;
   return [0, h * (DESKTOP_POPUP_ANCHOR_Y_FRACTION - 0.5)];
