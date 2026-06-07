@@ -16,8 +16,8 @@ import {
   applyRailStyleOverrides,
   applySky,
 } from "./basemapStyleOverrides";
-import { dropImageHandlesForStyleSwitch } from "@/services/overlay/overlayRenderRegistry";
-import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/overlayEditHandles";
+import { dropImageHandlesForStyleSwitch } from "@/services/overlay/renderRegistry";
+import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editHandles";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
 import {
   selectedProjectTags,

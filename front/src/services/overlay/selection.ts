@@ -1,11 +1,7 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import {
-  getMarker,
-  getRenderedOverlayIds,
-  hasReadyLayer,
-} from "@/services/overlay/overlayRenderRegistry";
-import { raiseOverlayImage } from "@/services/overlay/overlayImageLayer";
-import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
+import { getMarker, getRenderedOverlayIds, hasReadyLayer } from "@/services/overlay/renderRegistry";
+import { raiseOverlayImage } from "@/services/overlay/imageLayer";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
@@ -18,7 +14,7 @@ import {
   unhighlightProjectShapes,
 } from "@/services/map/shapeLayerRegistry";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { resolveOverlayRenderCorners } from "@/services/overlay/overlayHistory";
+import { resolveOverlayRenderCorners } from "@/services/overlay/history";
 
 type Corner = { lat: number; lng: number };
 

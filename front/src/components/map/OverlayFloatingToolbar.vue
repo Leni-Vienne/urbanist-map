@@ -142,22 +142,19 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import { getImageHandle } from "@/services/overlay/renderRegistry";
 import {
   getOverlayImageCorners,
   setOverlayImageOpacity,
   setOverlayInFront,
   isOverlayInFront,
   overlayOverlapsProjectShape,
-} from "@/services/overlay/overlayImageLayer";
+} from "@/services/overlay/imageLayer";
 import { setOverlayPopupTarget } from "@/services/map/popupState";
-import { navigateOverlaySequence } from "@/services/overlay/overlayActions";
-import {
-  undo as undoOverlayEdit,
-  redo as redoOverlayEdit,
-} from "@/services/overlay/overlayEditing";
-import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
-import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/overlayCropHandles";
+import { navigateOverlaySequence } from "@/services/overlay/actions";
+import { undo as undoOverlayEdit, redo as redoOverlayEdit } from "@/services/overlay/editing";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
+import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -445,8 +442,7 @@ const { prepareOverlaySubmission } = useSubmissionDialog();
 function onSave() {
   const overlay = selectedOverlay.value;
   if (!overlay) return;
-  const project = projectStore.projects[overlay.projectId ?? ""] ?? null;
-  prepareOverlaySubmission(overlay, project ?? undefined);
+  prepareOverlaySubmission(overlay);
 }
 
 function startCrop() {

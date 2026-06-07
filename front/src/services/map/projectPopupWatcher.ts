@@ -3,7 +3,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { unhighlightProjectShapes } from "@/services/map/shapeLayerRegistry";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { selectOverlay } from "@/services/overlay/selection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import {

@@ -127,14 +127,48 @@
           @field-click="emit('edit-project', project)"
         />
 
-        <!-- Wikidata main image (P18) shown at the bottom of the metadata section -->
+        <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
         <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">
           <img
             :src="wikidataEntity.imageUrl"
-            class="w-full rounded-lg object-cover max-h-48"
+            class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
             referrerpolicy="no-referrer"
             loading="lazy"
+            v-tooltip.top="$t('overlay.viewFullImage')"
+            @click="
+              openLightbox({
+                url: wikidataEntity.imageUrl,
+                header: project?.name || $t('project.unnamed'),
+                referrerpolicy: 'no-referrer',
+              })
+            "
           />
+        </div>
+
+        <!-- Render (artist's impression): a user-contributed, non-georeferenced project image.
+             Added/replaced via the project edit form, not here. Click to view full size. -->
+        <div v-if="renderImageUrl" class="mt-3 pt-3 border-t border-surface flex flex-col gap-1.5">
+          <span class="text-xs font-semibold text-muted-color">{{ $t("render.label") }}</span>
+          <img
+            :src="renderImageUrl"
+            :crossorigin="renderImageCrossorigin"
+            class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
+            loading="lazy"
+            v-tooltip.top="$t('overlay.viewFullImage')"
+            @click="
+              openLightbox({
+                url: renderImageUrl,
+                header: $t('render.label'),
+                crossorigin: renderImageCrossorigin,
+              })
+            "
+          />
+          <span
+            v-if="renderImage && renderImage.status !== 'approved'"
+            class="text-xs italic text-muted-color"
+          >
+            {{ $t("render.pendingReview") }}
+          </span>
         </div>
 
         <!-- Show view original button for pending replacements -->
@@ -229,10 +263,53 @@
       </div>
     </div>
   </div>
+
+  <!-- Full-size image lightbox: scroll to zoom (toward cursor), drag to pan, double-click to reset -->
+  <Dialog
+    v-model:visible="lightboxVisible"
+    modal
+    dismissableMask
+    :draggable="false"
+    :header="lightboxImage?.header"
+    :style="{ width: 'auto', maxWidth: '90vw' }"
+    :pt="{ content: { class: 'p-0' } }"
+  >
+    <div
+      class="overflow-hidden max-h-[80vh] max-w-[90vw] flex items-center justify-center touch-none"
+      @wheel.prevent="handleLightboxWheel"
+      @pointerdown="handleLightboxPointerDown"
+      @pointermove="handleLightboxPointerMove"
+      @pointerup="handleLightboxPointerUp"
+      @pointerleave="handleLightboxPointerUp"
+      @dblclick="resetLightboxZoom"
+    >
+      <img
+        v-if="lightboxImage"
+        ref="lightboxImgRef"
+        :src="lightboxImage.url"
+        :crossorigin="lightboxImage.crossorigin"
+        :referrerpolicy="lightboxImage.referrerpolicy"
+        class="block max-h-[80vh] max-w-[90vw] object-contain select-none"
+        :class="
+          lightboxZoom > 1
+            ? isPanningLightbox
+              ? 'cursor-grabbing'
+              : 'cursor-grab'
+            : 'cursor-zoom-in'
+        "
+        :style="{
+          transform: `translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom})`,
+        }"
+        draggable="false"
+        alt=""
+      />
+    </div>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, reactive, ref, watch } from "vue";
+import { Dialog } from "primevue";
 import { projectPopupPlacement, projectPopupMaxHeight } from "@/services/map/popupState";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { storeToRefs } from "pinia";
@@ -241,7 +318,10 @@ import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import type { OverlayObject, Project } from "@/types/index";
 import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
+import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { trpc } from "@/client";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
@@ -282,6 +362,126 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
+const projectStore = useProjectStore();
+
+// Project render (artist's impression), delivered with the project by project.getById. The backend
+// already scopes this to approved or the user's own pending render; we just hide a pending render
+// while in view mode (so the live view<->edit toggle is purely a computed, no refetch).
+const renderImage = computed(() => props.project?.render ?? null);
+
+// Shared lightbox: any image in the popup (render, wikidata) opens here with scroll-to-zoom
+// (toward the cursor) and drag-to-pan.
+interface LightboxImage {
+  url: string;
+  header: string;
+  crossorigin?: "use-credentials" | "anonymous" | "";
+  referrerpolicy?: ReferrerPolicy;
+}
+const lightboxImage = ref<LightboxImage | null>(null);
+const lightboxImgRef = ref<HTMLImageElement | null>(null);
+const lightboxZoom = ref(1);
+const lightboxPan = reactive({ x: 0, y: 0 });
+const isPanningLightbox = ref(false);
+const panStart = { x: 0, y: 0 };
+
+const MIN_LIGHTBOX_ZOOM = 1;
+const MAX_LIGHTBOX_ZOOM = 8;
+
+const lightboxVisible = computed({
+  get: () => lightboxImage.value !== null,
+  set: (value: boolean) => {
+    if (!value) lightboxImage.value = null;
+  },
+});
+
+function openLightbox(image: LightboxImage) {
+  lightboxImage.value = image;
+}
+
+function resetLightboxZoom() {
+  lightboxZoom.value = 1;
+  lightboxPan.x = 0;
+  lightboxPan.y = 0;
+}
+
+// Zoom toward the cursor: keep the image point under the cursor fixed by shifting the pan by the
+// cursor's offset from the rendered center, scaled by how much the zoom changed.
+function handleLightboxWheel(event: WheelEvent) {
+  const img = lightboxImgRef.value;
+  if (!img) return;
+
+  const oldZoom = lightboxZoom.value;
+  const next = Math.min(
+    MAX_LIGHTBOX_ZOOM,
+    Math.max(MIN_LIGHTBOX_ZOOM, oldZoom * (event.deltaY < 0 ? 1.2 : 1 / 1.2)),
+  );
+  if (next === oldZoom) return;
+
+  if (next === 1) {
+    resetLightboxZoom();
+    return;
+  }
+
+  const rect = img.getBoundingClientRect();
+  const offsetX = event.clientX - (rect.left + rect.width / 2);
+  const offsetY = event.clientY - (rect.top + rect.height / 2);
+  const factor = next / oldZoom;
+  lightboxPan.x += offsetX * (1 - factor);
+  lightboxPan.y += offsetY * (1 - factor);
+  lightboxZoom.value = next;
+}
+
+function handleLightboxPointerDown(event: PointerEvent) {
+  if (lightboxZoom.value <= 1) return;
+  isPanningLightbox.value = true;
+  panStart.x = event.clientX - lightboxPan.x;
+  panStart.y = event.clientY - lightboxPan.y;
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+}
+
+function handleLightboxPointerMove(event: PointerEvent) {
+  if (!isPanningLightbox.value) return;
+  lightboxPan.x = event.clientX - panStart.x;
+  lightboxPan.y = event.clientY - panStart.y;
+}
+
+function handleLightboxPointerUp() {
+  isPanningLightbox.value = false;
+}
+
+// Reset zoom whenever the lightbox opens or closes so it never reopens mid-zoom.
+watch(lightboxVisible, resetLightboxZoom);
+
+// Marker popups load their project via getById (render included), but overlay popups build it from
+// the viewport payload, which omits render (undefined). Hydrate that one case via getById.
+watch(
+  () => props.project?.id,
+  async (id) => {
+    const project = props.project;
+    if (!id || !project || project.status === null || project.render !== undefined) return;
+    try {
+      const fresh = await trpc.project.getById.query({ id });
+      if (fresh) projectStore.updateProject(id, { render: fresh.render ?? null });
+    } catch (error) {
+      console.error("Failed to hydrate project render:", error);
+    }
+  },
+  { immediate: true },
+);
+
+const renderImageUrl = computed(() => {
+  const render = renderImage.value;
+  if (!render) return null;
+  if (props.viewMode && render.status !== "approved") return null;
+  // Pending renders live in local storage (not yet on R2), so force the backend URL.
+  return buildImageUrl(render.filename, render.status !== "approved");
+});
+
+const renderImageCrossorigin = computed(() =>
+  renderImageUrl.value && imageRequiresCredentials(renderImageUrl.value)
+    ? "use-credentials"
+    : undefined,
+);
 
 // Wikidata entity for the current project (logo, description, height)
 const wikidataId = computed(() => {

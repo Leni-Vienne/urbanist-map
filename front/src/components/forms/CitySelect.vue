@@ -41,7 +41,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { cacheCityName } from "@/utils/cityNameCache";
 import { storeToRefs } from "pinia";
 import type { Project } from "@/types/index";
-import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
+import { getOverlayBounds } from "@/services/overlay/markers";
 
 interface Props {
   modelValue: number | undefined;

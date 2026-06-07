@@ -13,6 +13,8 @@ export interface SubmissionContext {
   existingOverlayModifications?: PendingOverlayModification[];
   // Brand-new overlays (status null) to publish.
   newOverlayIds?: string[];
+  // A render image staged in the project form, uploaded and published after the project exists.
+  pendingRender?: { file: File };
 }
 
 export interface SubmissionChange {

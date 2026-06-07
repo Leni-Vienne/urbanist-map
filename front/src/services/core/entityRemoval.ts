@@ -4,8 +4,8 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { clearEntry as clearRegistryEntry } from "@/services/overlay/overlayRenderRegistry";
-import { hideEditHandles } from "@/services/overlay/overlayEditHandles";
+import { clearEntry as clearRegistryEntry } from "@/services/overlay/renderRegistry";
+import { hideEditHandles } from "@/services/overlay/editHandles";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,

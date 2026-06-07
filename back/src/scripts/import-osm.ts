@@ -731,7 +731,10 @@ async function main() {
   }
 
   // Prune stale projects that were not updated during this sync.
-  // Projects with overlays are soft-detached (import link severed, geometry cleared, overlays kept).
+  // Projects with overlays are soft-detached: the OSM link (import source + external id) is severed,
+  // but geometry and external_properties are kept so the project keeps its shape and its osm_ids stay
+  // available for later re-linking to a redrawn OSM feature. The frontend gates OSM attribution on
+  // import_source_id, so a severed project shows no stale OSM link despite retaining the raw properties.
   // Projects without overlays are hard-deleted.
   // import_locked_at rows are exempt: they hold an approved user edit and were skipped by the upsert,
   // so their last_imported_at is stale by design and must not be deleted or detached.
@@ -757,10 +760,7 @@ async function main() {
         detachedAt: new Date(),
         importSourceId: null,
         externalId: null,
-        externalProperties: null,
         externalLastModified: null,
-        geometry: null,
-        geometrySizeM: null,
       })
       .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
       .returning({ id: projects.id });

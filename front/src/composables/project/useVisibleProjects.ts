@@ -1,7 +1,7 @@
 import { ref, computed, watch, onUnmounted } from "vue";
 import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/selection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
 import { map, getMlMap, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";

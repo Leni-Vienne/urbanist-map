@@ -5,11 +5,9 @@ import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/change
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import type { OverlayObject } from "@/types";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
-import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import { refreshEditHandles } from "@/services/overlay/overlayEditHandles";
+import { applyOverlayCorners } from "@/services/overlay/sync";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
@@ -18,20 +16,12 @@ function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
 }
 
 function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
-  const overlayStore = useOverlayStore();
-  const pendingModsStore = usePendingModificationsStore();
-
-  pendingModsStore.clearModification(overlayId);
-  // Reset history to the approved baseline so re-entering edit mode doesn't restore the edits.
-  overlayStore.updateOverlay(overlayId, { isModified: false });
-  overlayStore.resetHistoryBaseline(overlayId, overlayObject.corners);
-  if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
-    setOverlayImageCorners(overlayId, overlayObject.corners);
-    // Re-sync the edit handles (invisible drag surface, corner markers, outline) to the
-    // reverted position; otherwise they stay over the old spot and still grab drags there.
-    refreshEditHandles();
-    updateMarkerPosition(overlayObject);
-  }
+  usePendingModificationsStore().clearModification(overlayId);
+  useOverlayStore().updateOverlay(overlayId, { isModified: false });
+  applyOverlayCorners(overlayObject, overlayObject.corners, {
+    resetHistory: true,
+    refreshHandles: true,
+  });
 }
 
 /** Ensures the current user's pending change requests are loaded. Safe to call outside Vue setup. */

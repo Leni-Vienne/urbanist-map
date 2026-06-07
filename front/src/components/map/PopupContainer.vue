@@ -59,7 +59,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
 
-import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/overlayActions";
+import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/actions";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
@@ -89,8 +89,7 @@ const {
 } = useProjectDeletion();
 
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
-const { isSubmitting, prepareOverlaySubmission, prepareProjectWithOverlaysSubmission } =
-  useSubmissionDialog();
+const { isSubmitting, prepareOverlaySubmission, prepareSubmission } = useSubmissionDialog();
 
 // Ref for overlay editor component
 const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
@@ -168,16 +167,14 @@ async function handlePublishOverlay() {
   const overlay = overlayObject.value;
   if (!overlay) return;
 
-  const project = activeProject.value;
-  prepareOverlaySubmission(overlay, project);
+  prepareOverlaySubmission(overlay, activeProject.value);
 }
 
 async function handlePublishProject() {
   const project = activeProject.value;
   if (!project) return;
 
-  const projectModified = project.isModified ?? false;
-  prepareProjectWithOverlaysSubmission(project, projectModified);
+  prepareSubmission(project);
 }
 
 function handleEditProject(project: Project) {

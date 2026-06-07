@@ -1,12 +1,9 @@
 import maplibregl from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
-import { transformToCorners, type OverlayTransform } from "@/services/overlay/overlayTransform";
-import {
-  getCurrentTransform,
-  replaceOverlayImageSource,
-} from "@/services/overlay/overlayImageLayer";
-import { saveToHistory } from "@/services/overlay/overlayHistory";
+import { getImageHandle } from "@/services/overlay/renderRegistry";
+import { transformToCorners, type OverlayTransform } from "@/services/overlay/transform";
+import { getCurrentTransform, replaceOverlayImageSource } from "@/services/overlay/imageLayer";
+import { saveToHistory } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";

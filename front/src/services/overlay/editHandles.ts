@@ -1,19 +1,19 @@
 import maplibregl, { type GeoJSONSource, type MapMouseEvent } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import { getImageHandle } from "@/services/overlay/renderRegistry";
 import {
   transformToCorners,
   cornersToTransform,
   SIGN,
   type OverlayTransform,
-} from "@/services/overlay/overlayTransform";
+} from "@/services/overlay/transform";
 import {
   setOverlayImageTransform,
   getCurrentTransform,
   raiseOverlayImage,
-} from "@/services/overlay/overlayImageLayer";
-import { resolveOverlayRenderCorners, saveToHistory } from "@/services/overlay/overlayHistory";
+} from "@/services/overlay/imageLayer";
+import { resolveOverlayRenderCorners, saveToHistory } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/map/markers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { validateOverlaySize } from "@shared/overlayValidation";

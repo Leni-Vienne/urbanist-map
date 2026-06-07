@@ -207,16 +207,8 @@ export interface ValidationError {
   params?: Record<string, unknown>;
 }
 
-export function getValidationError(error: z.ZodError, fieldPath?: string): ValidationError {
-  const issues = fieldPath
-    ? error.issues.filter((issue) => issue.path.join(".") === fieldPath)
-    : error.issues;
-
-  const issue = issues[0];
-  if (!issue) {
-    return { key: "validation.genericError" };
-  }
-  const key = issue?.message.startsWith("validation.") ? issue.message : "validation.genericError";
+function issueToValidationError(issue: z.core.$ZodIssue): ValidationError {
+  const key = issue.message.startsWith("validation.") ? issue.message : "validation.genericError";
 
   const params: Record<string, unknown> = {};
 
@@ -231,6 +223,19 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   return { key, params: Object.keys(params).length > 0 ? params : undefined };
 }
 
+export function getValidationError(error: z.ZodError, fieldPath?: string): ValidationError {
+  const issues = fieldPath
+    ? error.issues.filter((issue) => issue.path.join(".") === fieldPath)
+    : error.issues;
+
+  const issue = issues[0];
+  if (!issue) {
+    return { key: "validation.genericError" };
+  }
+
+  return issueToValidationError(issue);
+}
+
 // Map of field path -> ValidationError for all validation errors in a ZodError
 export function getValidationErrorsMap(error: z.ZodError): Record<string, ValidationError> {
   const errorMap: Record<string, ValidationError> = {};
@@ -238,20 +243,7 @@ export function getValidationErrorsMap(error: z.ZodError): Record<string, Valida
   for (const issue of error.issues) {
     const fieldPath = issue.path.join(".");
     if (!errorMap[fieldPath]) {
-      const key = issue?.message.startsWith("validation.")
-        ? issue.message
-        : "validation.genericError";
-      const params: Record<string, unknown> = {};
-
-      if (issue.code === "too_small") {
-        params.min = issue.minimum;
-        params.expected = issue.minimum;
-      } else if (issue.code === "too_big") {
-        params.max = issue.maximum;
-        params.expected = issue.maximum;
-      }
-
-      errorMap[fieldPath] = { key, params: Object.keys(params).length > 0 ? params : undefined };
+      errorMap[fieldPath] = issueToValidationError(issue);
     }
   }
 

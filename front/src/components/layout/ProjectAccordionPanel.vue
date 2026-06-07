@@ -200,7 +200,7 @@ import {
   unhighlightStandaloneProjectMarker,
 } from "@/services/map/standaloneProjectMarkers";
 import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
-import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useMapStore } from "@/stores/pinia/mapStore";

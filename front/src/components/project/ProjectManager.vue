@@ -58,8 +58,9 @@ import {
 } from "@/services/map/standaloneProjectMarkers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectMarkerElement } from "@/services/map/markers";
-import { addOverlay } from "@/services/overlay/overlayEditing";
+import { addOverlay } from "@/services/overlay/editing";
 import { createProject } from "@/services/project/projectMutations";
+import { setStagedRender, type StagedRender } from "@/composables/submission/stagedRenderStore";
 import { createProjectObject } from "@/utils/typeFactories";
 import type { Project } from "@/types/index";
 
@@ -342,7 +343,7 @@ function handleProjectUpdate(project: Partial<Project>): string {
   return projectId;
 }
 
-async function handleProjectSubmitted(project: Partial<Project>) {
+async function handleProjectSubmitted(project: Partial<Project>, render?: StagedRender | null) {
   if (!project) return;
 
   try {
@@ -351,6 +352,12 @@ async function handleProjectSubmitted(project: Partial<Project>) {
     const projectId = project.id
       ? handleProjectUpdate(project)
       : await handleNewProjectCreation(project);
+
+    // The project now exists in the store with an id, so the staged render can be keyed by it
+    // and will be uploaded alongside the project when the user confirms the submission.
+    if (render && projectId) {
+      setStagedRender(projectId, render);
+    }
 
     if (pendingImageFile.value) {
       await onProjectSelected(projectId);

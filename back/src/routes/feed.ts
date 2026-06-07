@@ -77,6 +77,7 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
           SELECT 1 FROM ${overlays}
           WHERE ${overlays.projectId} = ${projects.id}
           AND ${overlays.status} = 'approved'
+          AND ${overlays.kind} = 'map'
         )`,
         importFilter,
       ),
@@ -147,7 +148,13 @@ function buildLatestOverlaysQuery(limit: number) {
     .leftJoin(projects, eq(overlays.projectId, projects.id))
     .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(projects.countryCode, countries.code))
-    .where(and(eq(overlays.status, "approved"), eq(projects.status, "approved")))
+    .where(
+      and(
+        eq(overlays.status, "approved"),
+        eq(projects.status, "approved"),
+        eq(overlays.kind, "map"),
+      ),
+    )
     .orderBy(overlays.projectId, desc(overlays.updatedAt))
     .as("latest_overlay_per_project");
 

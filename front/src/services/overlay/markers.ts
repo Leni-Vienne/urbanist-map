@@ -10,19 +10,19 @@ import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
+import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { isValidQuad } from "@/services/overlay/overlayTransform";
-import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import * as registry from "@/services/overlay/renderRegistry";
+import { isValidQuad } from "@/services/overlay/transform";
+import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
 import {
   selectOverlay,
   highlightProject,
   removeProjectOutlines,
-} from "@/services/overlay/overlaySelection";
+} from "@/services/overlay/selection";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
+import { enrichOverlayWithProject } from "@/services/overlay/data";
 
 type Corner = { lat: number; lng: number };
 

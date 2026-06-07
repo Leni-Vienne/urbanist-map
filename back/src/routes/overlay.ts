@@ -25,6 +25,19 @@ const getOverlaySchema = z.object({
   includeStatus: z.array(z.enum(["pending", "approved", "rejected"])).optional(), // Optional status filter for admins
 });
 
+// Renders are non-georeferenced project images (no corners), so they have their own
+// lightweight publish schema rather than reusing the corner-centric overlaySchema.
+const publishRenderSchema = z.object({
+  projectId: z.uuid({ message: "validation.projectRequired" }),
+  filename: z.string().min(1, "validation.filenameRequired").max(255, "validation.filenameTooLong"),
+  caption: z
+    .string()
+    .max(500, "validation.captionTooLong")
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val))
+    .optional(),
+});
+
 // Schema for updating overlay fields directly
 const updateOverlaySchema = z.object({
   id: z.uuid(),
@@ -95,12 +108,15 @@ export const overlayRouter = router({
 
       let intersectingOverlays: Awaited<ReturnType<typeof findIntersectingOverlays>> = [];
 
-      // If includeIntersecting is true, find overlays that intersect with the queried overlay
+      // If includeIntersecting is true, find overlays that intersect with the queried overlay.
+      // Renders have no corners, so there is nothing to intersect (and the polygon build would fail).
       if (input.includeIntersecting) {
         const queriedOverlay = overlay[0];
         if (!queriedOverlay)
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
-        intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
+        if (queriedOverlay.corners?.length === 4) {
+          intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
+        }
       }
 
       return {
@@ -114,6 +130,69 @@ export const overlayRouter = router({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to fetch overlay",
       });
+    }
+  }),
+
+  // Publish a render (artist's impression). Goes through the same moderation queue and
+  // local->R2 image lifecycle as overlays, but is not placed on the map (no corners).
+  publishRender: loggedInProcedure.input(publishRenderSchema).mutation(async ({ input, ctx }) => {
+    try {
+      if (await isUserBlocked(ctx.user.id)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Your account has been flagged for review. Please contact support.",
+        });
+      }
+
+      await checkTotalContributionLimit(ctx.user.id);
+
+      // Verify the project exists and grab its center for the moderation notification link.
+      const projectRow = await db
+        .select({ lat: projects.lat, lng: projects.lng })
+        .from(projects)
+        .where(eq(projects.id, input.projectId))
+        .limit(1);
+
+      const project = projectRow[0];
+      if (!project) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      }
+
+      const id = crypto.randomUUID();
+      await checkPendingLimitForNewContribution(ctx.user.id, id);
+
+      const insertedResult = await db
+        .insert(overlays)
+        .values({
+          id,
+          filename: input.filename,
+          caption: input.caption,
+          projectId: input.projectId,
+          authorId: ctx.user.id,
+          kind: "render",
+        })
+        .returning({ id: overlays.id, status: overlays.status, authorId: overlays.authorId });
+
+      const inserted = insertedResult[0];
+      if (!inserted) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create render" });
+      }
+
+      void notifyNewSubmission({
+        kind: "overlay",
+        author: { email: ctx.user.email, username: ctx.user.username },
+        overlayId: inserted.id,
+        caption: input.caption ?? null,
+        projectId: input.projectId,
+        lat: project.lat,
+        lng: project.lng,
+      });
+
+      return { id: inserted.id, status: inserted.status, authorId: inserted.authorId };
+    } catch (error) {
+      if (error instanceof TRPCError) throw error;
+      console.error("Error publishing render:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to publish render" });
     }
   }),
 
