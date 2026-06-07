@@ -4,30 +4,22 @@ import { useUiStore } from "@/stores/uiStore";
 import { isMobileViewport } from "@/composables/ui/useIsMobile";
 import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/constants/mapConstants";
 
-// `map.value` is typed non-null but is null until the map is initialized (see core/map.ts).
-// Contract for this module: public entry points guard with `if (!map.value) return`; private
-// helpers run only after that guard and may treat it as non-null.
+// `map.value` is typed non-null but is null until init (see core/map.ts). Public entry points here
+// guard with `if (!map.value) return`; private helpers run after that guard and assume non-null.
 
-// Minimum distance in meters to skip re-animation when the camera is already close enough.
-// 10m is a few map pixels at street-level zoom.
+// Skip re-animation when the camera is already within this many meters of the target.
 const distanceThreshold = 10;
-
-// Threshold for the bounds skip check: we compare bounds centers rather than corners, so it's
-// looser than distanceThreshold, but 100m is still well below any overlay (max ~few hundred m).
+// Looser threshold for bounds, which compare centers rather than corners.
 const boundsDistanceThreshold = distanceThreshold * 10;
 
 type LatLngInput = [number, number] | { lat: number; lng: number };
 
 interface FlyOptions {
-  /**
-   * Maximum animation duration in seconds. The actual duration is scaled down toward 0.3s for
-   * short / small-zoom moves via `scaledDuration`, so this is the cap for a long, far flight.
-   */
+  /** Max animation duration in seconds; scaled down toward 0.3s for short / small-zoom moves. */
   duration?: number;
   /**
-   * Screen-space offset [x, y] in pixels of the target relative to the container center at the
-   * end of the animation. A negative y lands the target above center. When set, the skip-when-
-   * already-there check is done in screen space against the resulting anchor position.
+   * Screen-space [x, y] offset of the target from container center at rest (negative y = above
+   * center). When set, the skip-if-already-there check runs in screen space against that anchor.
    */
   offset?: [number, number];
 }
@@ -65,15 +57,11 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-// Pixel tolerance for the screen-space skip check used when an anchor offset is in play.
 const screenSkipPx = 4;
 
-/**
- * Whether a move to `target` can be skipped because the camera is effectively already there.
- * With no offset this compares geographic centers (meters). With an offset the target won't sit
- * at the screen center, so we instead check whether the target already projects to the desired
- * on-screen anchor (centerPoint + offset), otherwise an at-anchor click would never reposition.
- */
+// Whether the camera is already at `target` so the move can be skipped. With an offset the target
+// won't sit at screen center, so we compare its projected position to the anchor (center + offset)
+// rather than comparing geographic centers.
 function shouldSkipMove(
   target: { lat: number; lng: number },
   zoomDiff: number,
@@ -95,25 +83,16 @@ function shouldSkipMove(
   return distance < distanceThreshold;
 }
 
-/**
- * Check if mobile drawer is covering the map.
- * Only apply offset when on mobile AND drawer is open.
- */
+// The drawer only covers the map on mobile while it's open.
 function shouldApplyMobileOffset(): boolean {
   if (!isMobileViewport()) return false;
-
-  const uiStore = useUiStore();
-  return uiStore.mobileDrawerVisible;
+  return useUiStore().mobileDrawerVisible;
 }
 
-/**
- * Returns the actual drawer height in pixels based on the current draggable height percentage.
- * Adds a small margin so the target point isn't flush against the drawer edge.
- */
 function getMobileDrawerBottomPaddingPx(): number {
   const uiStore = useUiStore();
   const drawerHeightPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
-  return drawerHeightPx + 20; // 20px margin above the drawer
+  return drawerHeightPx + 20; // margin above the drawer edge
 }
 
 // Caps padding so opposing insets never exceed the container; otherwise cameraForBounds produces
@@ -155,12 +134,7 @@ function resolvePadding(p?: number | [number, number]): PaddingOptions | number 
   return capPaddingToContainer(result);
 }
 
-/**
- * Scale flight duration based on how far the camera needs to travel.
- * Breakpoints (linear interpolation between them):
- *   centerDistance < 200 m  AND zoomDiff < 1  →  minDuration (0.3 s)
- *   centerDistance > 5 000 m OR  zoomDiff > 3  →  maxDuration (caller value)
- */
+// Interpolate between 0.3s (tiny move) and maxDuration, saturating at 5000m or 3 zoom levels.
 function scaledDuration(centerDistance: number, zoomDiff: number, maxDuration: number): number {
   const minDuration = 0.3;
   const distanceFactor = Math.min(centerDistance / 5000, 1);
@@ -170,25 +144,25 @@ function scaledDuration(centerDistance: number, zoomDiff: number, maxDuration: n
 }
 
 /**
- * Fly to a point, accounting for the mobile drawer covering the bottom of the screen.
+ * Fly to a point, accounting for the mobile drawer covering the bottom of the screen. Returns true
+ * if a flight started, false if it was skipped (camera already there) so callers waiting on
+ * `moveend` can act immediately instead of hanging.
  */
 export function mobileAwareFlyTo(
   latlng: LatLngInput,
   zoom?: number,
   options: FlyOptions = {},
-): void {
+): boolean {
   const m = map.value;
-  if (!m) return;
+  if (!m) return false;
   const target = toLatLng(latlng);
-  if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
+  if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return false;
   const center = m.getCenter();
   const currentZoom = m.getZoom();
   const targetZoom = zoom ?? currentZoom;
 
   const zoomDiff = Math.abs(currentZoom - targetZoom);
-  if (shouldSkipMove(target, zoomDiff, options.offset)) {
-    return; // Already at target, skip animation
-  }
+  if (shouldSkipMove(target, zoomDiff, options.offset)) return false;
 
   const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
@@ -201,6 +175,7 @@ export function mobileAwareFlyTo(
     ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
   });
+  return true;
 }
 
 /**
@@ -214,9 +189,7 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
 
-  if (shouldSkipMove(target, 0, options.offset)) {
-    return; // Already at target, skip animation
-  }
+  if (shouldSkipMove(target, 0, options.offset)) return;
 
   const center = m.getCenter();
   const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
@@ -268,30 +241,22 @@ function mercatorZoomForBounds(
   return Math.max(0, Math.min(zoom, 22));
 }
 
-/**
- * Fit a bounds, with mobile-aware padding.
- * Returns true if the flight was skipped (camera already at target), false otherwise.
- */
-export function mobileAwareFlyToBounds(
-  bounds: BoundsLike,
-  options: FlyToBoundsOptions = {},
-): boolean {
+/** Fit a bounds, with mobile-aware padding. */
+export function mobileAwareFlyToBounds(bounds: BoundsLike, options: FlyToBoundsOptions = {}): void {
   const m = map.value;
-  if (!m) return false;
+  if (!m) return;
 
   const west = bounds.getWest();
   const south = bounds.getSouth();
   const east = bounds.getEast();
   const north = bounds.getNorth();
-  if (![west, south, east, north].every((n) => Number.isFinite(n))) {
-    // Degenerate bounds (e.g. NaN corners) would throw in cameraForBounds; skip instead.
-    return false;
-  }
+  // Degenerate (NaN) corners would throw in cameraForBounds.
+  if (![west, south, east, north].every((n) => Number.isFinite(n))) return;
 
   // Zero-area bounds make cameraForBounds return undefined scale; route to flyTo instead.
   if (west === east && south === north) {
     mobileAwareFlyTo([north, east], options.maxZoom ?? 17, options);
-    return false;
+    return;
   }
 
   const llb: [[number, number], [number, number]] = [
@@ -303,10 +268,9 @@ export function mobileAwareFlyToBounds(
   const currentZoom = m.getZoom();
   const currentCenter = m.getCenter();
 
-  // cameraForBounds throws "Invalid LngLat (NaN, NaN)" for bounds/padding combos it can't fit
-  // (tiny far-away bounds at low zoom, degenerate quads, padding larger than the viewport).
-  // cameraForBoundsOk stays false on throw or empty result; targetZoom/targetCenter then keep
-  // the current camera and the Mercator fallback below takes over.
+  // cameraForBounds throws "Invalid LngLat (NaN, NaN)" for combos it can't fit (tiny far-away
+  // bounds, degenerate quads, padding larger than the viewport). On throw/empty, cameraForBoundsOk
+  // stays false and the Mercator fallback below takes over.
   let targetZoom = currentZoom;
   let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
   let cameraForBoundsOk = false;
@@ -324,13 +288,13 @@ export function mobileAwareFlyToBounds(
     // cameraForBounds throws on projection edge cases; handled by the fallback below.
   }
 
-  // No usable target from cameraForBounds: fly to the bounds center at a Mercator-computed zoom,
-  // which needs no MapLibre projection and so can't hit the same NaN.
+  // No usable target: fly to the bounds center at a Mercator-computed zoom, which needs no
+  // MapLibre projection and so can't hit the same NaN.
   if (!cameraForBoundsOk) {
     const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
     const zoom = mercatorZoomForBounds(west, south, east, north, options.maxZoom);
     mobileAwareFlyTo(center, zoom, { duration: options.duration });
-    return false;
+    return;
   }
 
   const centerDistance = haversineMeters(
@@ -341,12 +305,9 @@ export function mobileAwareFlyToBounds(
   );
   const zoomDiff = Math.abs(currentZoom - targetZoom);
 
-  if (centerDistance < boundsDistanceThreshold && zoomDiff < 0.1) {
-    return true; // Already viewing these bounds, skip animation
-  }
+  if (centerDistance < boundsDistanceThreshold && zoomDiff < 0.1) return; // already framed
 
-  const maxDuration = options.duration ?? 1.5;
-  const duration = scaledDuration(centerDistance, zoomDiff, maxDuration);
+  const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
 
   // fitBounds runs the same projection math as cameraForBounds, so guard it too.
   try {
@@ -357,9 +318,8 @@ export function mobileAwareFlyToBounds(
       essential: true,
     });
   } catch {
-    return false;
+    /* projection edge case, see above */
   }
-  return false;
 }
 
 /**
@@ -380,16 +340,10 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 }
 
 /**
- * Fly to a project anchor, zooming in just enough to frame a geometry of `sizeM` meters
- * (falls back to zoom 14 when the size is 0/unknown). Never zooms out, so a closer view the
- * user already has is preserved.
- *
- * When no zoom change is needed and `allowPan` is set, pans instead of flying to avoid the
- * zoom-out arc that flyTo produces for same-zoom moves.
- *
- * Returns true when the camera moved the anchor to its resting on-screen position (so popup
- * placement should be computed from that predicted position), false when the camera did not
- * move at all (placement should use the anchor's current projected position).
+ * Zoom in just enough to frame a `sizeM`-meter geometry (zoom 14 when size is unknown), never
+ * zooming out. With `allowPan`, pans instead when no zoom is needed, avoiding flyTo's zoom-out arc.
+ * Returns true if the anchor was moved to its resting position (so popup placement uses that
+ * predicted spot), false if the camera didn't move (placement uses the current projected spot).
  */
 export function flyToGeometry(
   latlng: LatLngInput,
@@ -404,8 +358,6 @@ export function flyToGeometry(
   const targetZoom = Math.max(currentZoom, idealZoom);
   const offset = popupAnchorOffset();
 
-  // The anchor settles at its predicted position whenever the camera flies (zoom) or pans to it;
-  // only when neither happens does it stay under the original click point.
   if (targetZoom !== currentZoom) {
     mobileAwareFlyTo(target, targetZoom, { offset });
     return true;

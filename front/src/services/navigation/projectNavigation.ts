@@ -46,25 +46,7 @@ export function zoomToOverlayAndSelect(
   targetZoom = Math.max(targetZoom, minRequiredZoom);
 
   const center = bounds.getCenter();
-  const currentCenter = map.value.getCenter();
-  const currentZoom = map.value.getZoom();
-
-  // Simple haversine approximation for skipping
-  const dLat = ((center.lat - currentCenter.lat) * Math.PI) / 180;
-  const dLng = ((center.lng - currentCenter.lng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((currentCenter.lat * Math.PI) / 180) *
-      Math.cos((center.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  const centerDistanceMeters = 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(a)));
-
-  const zoomDiff = Math.abs(currentZoom - targetZoom);
-  const flightSkipped = centerDistanceMeters < 10 && zoomDiff < 0.1;
-
-  if (!flightSkipped) {
-    mobileAwareFlyTo(center, targetZoom);
-  }
+  const flightSkipped = !mobileAwareFlyTo(center, targetZoom);
 
   // Poll per animation frame until the overlay element exists and its image is loaded.
   let attempts = 0;
@@ -120,13 +102,20 @@ export async function navigateToStandaloneProject(
       requestScrollTo("project", projectId);
     }
 
-    mobileAwareFlyTo([lat, lng], 18);
+    const flew = mobileAwareFlyTo([lat, lng], 18);
 
-    map.value.once("moveend", () => {
-      if (projectId) {
-        void handleProjectClickFromTile(projectId, new LngLat(lng, lat));
+    if (projectId) {
+      const id = projectId;
+      function openPopup(): void {
+        void handleProjectClickFromTile(id, new LngLat(lng, lat));
       }
-    });
+      // moveend never fires when the flight is skipped, so open the popup directly in that case.
+      if (flew) {
+        map.value.once("moveend", openPopup);
+      } else {
+        openPopup();
+      }
+    }
   } catch (error) {
     console.error("Failed to navigate to marker project:", error);
     throw error;

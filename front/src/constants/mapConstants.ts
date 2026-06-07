@@ -14,13 +14,9 @@ export const MAP_CONFIG = {
   MIN_ZOOM_FOR_OVERLAYS: 13,
 } as const;
 
-/**
- * On desktop, a freshly-selected project is flown so its anchor lands at this fraction of the
- * viewport height (upper third) rather than dead-center, leaving room for the downward popup.
- * The fly offset (mapNavigation) and the popup placement math (popupState) both derive from this
- * value, so the predicted on-screen anchor matches where the camera actually lands. Lives here,
- * in a leaf constants module, so neither of those sibling modules has to import the other.
- */
+// Desktop: a selected project's anchor is flown to this fraction of the viewport height (upper
+// third), leaving room below for the popup. Shared by the fly offset (mapNavigation) and the
+// placement math (popupState) so the predicted anchor matches where the camera lands.
 export const DESKTOP_POPUP_ANCHOR_Y_FRACTION = 0.32;
 
 /**

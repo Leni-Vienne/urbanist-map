@@ -34,13 +34,10 @@ const POPUP_ANCHOR_GAP = 28;
 const POPUP_EDGE_MARGIN = 50;
 const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
 
-// Picks the popup opening direction that maximises available height, then sets
-// projectPopupMaxHeight so the popup CSS can clamp itself to exactly that space.
-// Preference: down → up → right → left (most common cases first).
-// Pass atAnchor=true when the map is about to fly/pan the point to its resting anchor position
-// (viewport center on mobile, upper-third on desktop): we then compute placement from that
-// predicted position rather than the current (pre-flight) screen position, avoiding a placement
-// jump when moveend fires.
+// Picks the opening direction (down → up → right → left) that maximises available height and sets
+// projectPopupMaxHeight to clamp the popup to that space. Pass atAnchor=true when the camera is
+// flying the point to its resting position, so placement uses that predicted position rather than
+// the pre-flight one, avoiding a jump when moveend fires.
 export function setPopupPlacementForLatLng(
   latlng: { lat: number; lng: number },
   atAnchor = false,
@@ -49,9 +46,7 @@ export function setPopupPlacementForLatLng(
   const mapW = mapEl.clientWidth;
   const mapH = mapEl.clientHeight;
   const isMobile = isMobileViewport();
-  // After an at-center flight the anchor lands at the viewport center on mobile (the drawer
-  // padding is compensated for via mobileBlockedPx below) but at the upper-third fraction on
-  // desktop, matching the fly offset applied in mapNavigation.
+  // Resting anchor: viewport center on mobile, upper-third on desktop (matches the fly offset).
   const anchorY = isMobile ? mapH / 2 : mapH * DESKTOP_POPUP_ANCHOR_Y_FRACTION;
   const point = atAnchor
     ? { x: mapW / 2, y: anchorY }
