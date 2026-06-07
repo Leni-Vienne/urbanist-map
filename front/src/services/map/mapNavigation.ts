@@ -2,6 +2,7 @@ import { ref } from "vue";
 import type { LngLatLike, PaddingOptions } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
+import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/services/map/popupState";
 import type { CameraBounds } from "@/types/index";
 
 const currentCameraBounds = ref<CameraBounds | null>(null);
@@ -16,6 +17,12 @@ type LatLngInput = [number, number] | { lat: number; lng: number };
 interface FlyOptions {
   /** Animation duration in seconds (converted to milliseconds for MapLibre). */
   duration?: number;
+  /**
+   * Screen-space offset [x, y] in pixels of the target relative to the container center at the
+   * end of the animation. A negative y lands the target above center. When set, the skip-when-
+   * already-there check is done in screen space against the resulting anchor position.
+   */
+  offset?: [number, number];
 }
 
 interface FlyToBoundsOptions extends FlyOptions {
@@ -49,6 +56,36 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+// Pixel tolerance for the screen-space skip check used when an anchor offset is in play.
+const screenSkipPx = 4;
+
+/**
+ * Whether a move to `target` can be skipped because the camera is effectively already there.
+ * With no offset this compares geographic centers (meters). With an offset the target won't sit
+ * at the screen center, so we instead check whether the target already projects to the desired
+ * on-screen anchor (centerPoint + offset), otherwise an at-anchor click would never reposition.
+ */
+function shouldSkipMove(
+  target: { lat: number; lng: number },
+  zoomDiff: number,
+  offset?: [number, number],
+): boolean {
+  const m = map.value;
+  if (zoomDiff >= 0.1) return false;
+
+  if (offset) {
+    const el = m.getContainer();
+    const desiredX = el.clientWidth / 2 + offset[0];
+    const desiredY = el.clientHeight / 2 + offset[1];
+    const current = m.project([target.lng, target.lat]);
+    return Math.hypot(current.x - desiredX, current.y - desiredY) < screenSkipPx;
+  }
+
+  const center = m.getCenter();
+  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+  return distance < distanceThreshold;
 }
 
 /**
@@ -164,13 +201,11 @@ export function mobileAwareFlyTo(
   const m = map.value;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
-  const center = m.getCenter();
   const currentZoom = m.getZoom();
   const targetZoom = zoom ?? currentZoom;
 
-  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const zoomDiff = Math.abs(currentZoom - targetZoom);
-  if (distance < distanceThreshold && zoomDiff < 0.1) {
+  if (shouldSkipMove(target, zoomDiff, options.offset)) {
     return; // Already at target, skip animation
   }
 
@@ -179,6 +214,7 @@ export function mobileAwareFlyTo(
     zoom: targetZoom,
     duration: (options.duration ?? 1.5) * 1000,
     padding: resolvePadding(),
+    ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
   });
 }
@@ -192,10 +228,8 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   const m = map.value;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
-  const center = m.getCenter();
-  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
 
-  if (distance < distanceThreshold) {
+  if (shouldSkipMove(target, 0, options.offset)) {
     return; // Already at target, skip animation
   }
 
@@ -203,6 +237,7 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
     center: [target.lng, target.lat],
     duration: (options.duration ?? 0.3) * 1000,
     padding: resolvePadding(),
+    ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
   });
 }
@@ -376,10 +411,24 @@ export function flyToGeometry(
   const willZoom = targetZoom !== currentZoom;
   const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
 
+  const offset = popupAnchorOffset();
+
   if (willZoom) {
-    mobileAwareFlyTo(target, targetZoom, { duration });
+    mobileAwareFlyTo(target, targetZoom, { duration, offset });
   } else if (options.allowPan) {
-    mobileAwarePanTo(target, { duration });
+    mobileAwarePanTo(target, { duration, offset });
   }
   return willZoom;
+}
+
+/**
+ * Screen-space offset that lands a selected project's anchor at the upper-third of the viewport
+ * on desktop, leaving room below for the (usually downward) project popup. Returns undefined on
+ * mobile, where the drawer-aware padding in resolvePadding already biases the camera instead.
+ */
+function popupAnchorOffset(): [number, number] | undefined {
+  if (globalThis.innerWidth < 768) return undefined;
+  const h = map.value?.getContainer()?.clientHeight ?? 0;
+  if (h <= 0) return undefined;
+  return [0, h * (DESKTOP_POPUP_ANCHOR_Y_FRACTION - 0.5)];
 }
