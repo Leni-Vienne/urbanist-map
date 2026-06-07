@@ -95,6 +95,18 @@ function getMobileDrawerBottomPaddingPx(): number {
   return drawerHeightPx + 20; // margin above the drawer edge
 }
 
+// Mode controls + drawer grip below the drawer edge that an upward popup must also clear.
+const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
+// Gap kept between the resting anchor and the mobile UI it sits above.
+const MOBILE_ANCHOR_BOTTOM_GAP = 24;
+
+/** Bottom px covered by mobile UI (drawer + mode controls) that the project popup opens above. */
+export function mobileBottomBlockedPx(): number {
+  const uiStore = useUiStore();
+  const drawerPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
+  return drawerPx + MOBILE_DRAWER_CONTROLS_BUFFER;
+}
+
 // Caps padding so opposing insets never exceed the container; otherwise cameraForBounds produces
 // a negative numerator and returns a NaN scale (observed crash on small viewports + tight bounds).
 function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions | number {
@@ -376,13 +388,42 @@ export function flyToGeometry(
 }
 
 /**
- * Screen-space offset that lands a selected project's anchor at the upper-third of the viewport
- * on desktop, leaving room below for the (usually downward) project popup. Returns undefined on
- * mobile, where the drawer-aware padding in resolvePadding already biases the camera instead.
+ * Screen-space offset that biases a selected project's anchor so the popup has room to open:
+ * upper-third on desktop (downward popup), and just above the bottom drawer on mobile (where the
+ * drawer forces the popup to open upward). Mirrors desktop, flipped because the obstruction is at
+ * the bottom on mobile instead of leaving room below.
  */
 export function popupAnchorOffset(): [number, number] | undefined {
-  if (isMobileViewport()) return undefined;
-  const h = map.value.getContainer().clientHeight;
+  const m = map.value;
+  if (!m) return undefined;
+  const h = m.getContainer().clientHeight;
   if (h <= 0) return undefined;
+  if (isMobileViewport()) {
+    // Land the anchor just above the drawer-blocked region (floored at 0.3h so a very tall drawer
+    // can't push it off the top). predictedRestingY adds this to the padded center, so the flight
+    // and placement agree on where it lands.
+    const desiredY = Math.max(h - mobileBottomBlockedPx() - MOBILE_ANCHOR_BOTTOM_GAP, h * 0.3);
+    return [0, desiredY - paddedCenterY()];
+  }
   return [0, h * (DESKTOP_POPUP_ANCHOR_Y_FRACTION - 0.5)];
+}
+
+/** Screen-Y (px) of the viewport center after drawer-aware padding, before any popup offset. */
+function paddedCenterY(): number {
+  const m = map.value;
+  if (!m) return 0;
+  const h = m.getContainer().clientHeight;
+  const padding = resolvePadding();
+  const top = typeof padding === "number" ? padding : (padding.top ?? 0);
+  const bottom = typeof padding === "number" ? padding : (padding.bottom ?? 0);
+  return (top + (h - bottom)) / 2;
+}
+
+/**
+ * Screen-Y (px) a camera move will leave the target at, given the current drawer-aware padding and
+ * popup anchor offset. Popup placement uses this to predict the resting anchor before `moveend`
+ * fires (atAnchor), so the predicted spot matches where the flight actually lands.
+ */
+export function predictedRestingY(): number {
+  return paddedCenterY() + (popupAnchorOffset()?.[1] ?? 0);
 }

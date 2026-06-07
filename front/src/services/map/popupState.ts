@@ -1,8 +1,7 @@
 import { ref } from "vue";
 import { map } from "@/services/core/map";
-import { useUiStore } from "@/stores/uiStore";
 import { isMobileViewport } from "@/composables/ui/useIsMobile";
-import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/constants/mapConstants";
+import { predictedRestingY, mobileBottomBlockedPx } from "@/services/map/mapNavigation";
 
 // State for tracking teleport targets
 // This eliminates the need for MutationObservers in PopupContainer
@@ -31,8 +30,7 @@ const POPUP_EST_W = 320;
 const POPUP_EST_HALF_W = POPUP_EST_W / 2;
 const POPUP_MIN_H = 160;
 const POPUP_ANCHOR_GAP = 28;
-const POPUP_EDGE_MARGIN = 50;
-const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
+const POPUP_EDGE_MARGIN = 55;
 
 // Picks the opening direction (down → up → right → left) that maximises available height and sets
 // projectPopupMaxHeight to clamp the popup to that space. Pass atAnchor=true when the camera is
@@ -46,17 +44,14 @@ export function setPopupPlacementForLatLng(
   const mapW = mapEl.clientWidth;
   const mapH = mapEl.clientHeight;
   const isMobile = isMobileViewport();
-  // Resting anchor: viewport center on mobile, upper-third on desktop (matches the fly offset).
-  const anchorY = isMobile ? mapH / 2 : mapH * DESKTOP_POPUP_ANCHOR_Y_FRACTION;
+  // Resting anchor predicted from the same framing the flight uses (drawer padding + offset), so the
+  // popup placed before moveend matches where the camera actually lands.
   const point = atAnchor
-    ? { x: mapW / 2, y: anchorY }
+    ? { x: mapW / 2, y: predictedRestingY() }
     : map.value.project([latlng.lng, latlng.lat]);
 
   // On mobile, subtract the drawer height + mode controls buffer from available bottom space.
-  const uiStore = useUiStore();
-  const mobileBlockedPx = isMobile
-    ? (uiStore.mobileDrawerHeightPercent / 100) * window.innerHeight + MOBILE_DRAWER_CONTROLS_BUFFER
-    : 0;
+  const mobileBlockedPx = isMobile ? mobileBottomBlockedPx() : 0;
 
   const availableBelow = mapH - point.y - POPUP_ANCHOR_GAP - mobileBlockedPx - POPUP_EDGE_MARGIN;
   const availableAbove = point.y - POPUP_ANCHOR_GAP - POPUP_EDGE_MARGIN;
