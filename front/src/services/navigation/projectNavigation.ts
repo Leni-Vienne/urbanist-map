@@ -90,13 +90,6 @@ export async function navigateToStandaloneProject(
   projectId?: string,
 ): Promise<void> {
   try {
-    await new Promise<void>(
-      (resolve) =>
-        void setTimeout(() => {
-          resolve();
-        }, 200),
-    );
-
     // Scroll the side panel to this project before the flight completes.
     if (projectId) {
       requestScrollTo("project", projectId);

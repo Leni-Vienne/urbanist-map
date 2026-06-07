@@ -799,7 +799,7 @@ function navigateToCluster(
 }
 
 async function handlePointFeatureClick(
-  pointFeature: any,
+  pointFeature: RenderedMapFeature,
   eventLatLng: { lat: number; lng: number },
 ): Promise<void> {
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
@@ -815,7 +815,7 @@ async function handlePointFeatureClick(
   if (coordinates && coordinates.length >= 2) {
     const [lng, lat] = coordinates;
     const currentZoom = map.value.getZoom();
-    const cellCount: number = pointFeature.properties?.cell_count ?? 2;
+    const cellCount = Number(pointFeature.properties?.cell_count ?? 2);
     const props: Record<string, unknown> = pointFeature.properties ?? {};
 
     targetLatLng = { lat, lng };
