@@ -1215,7 +1215,140 @@ def assign_unique_relation_members(relations, ways):
         owned = [wid for wid in rel['member_way_ids'] if wid in ways and owner.get(wid, (None,))[0] == rel_id]
         if owned:
             result[rel_id] = {'tags': rel['tags'], 'member_way_ids': owned}
-    
+
+    return result
+
+
+def _relation_geometry(member_way_ids, ways):
+    """Merged geometry of a relation's kept member ways, or None."""
+    lines = [LineString(ways[wid]['coords'])
+             for wid in member_way_ids
+             if wid in ways and len(ways[wid]['coords']) >= 2]
+    if not lines:
+        return None
+    try:
+        return linemerge(lines)
+    except Exception:
+        return lines[0]
+
+
+def _relation_broad_type(member_way_ids, ways):
+    """Majority broad transport group across a relation's member ways."""
+    counts = defaultdict(int)
+    for wid in member_way_ids:
+        if wid in ways:
+            counts[broad_group(get_transport_type(ways[wid]['tags']))] += 1
+    return max(counts.items(), key=lambda kv: kv[1])[0] if counts else 'other'
+
+
+def _relation_status(member_way_ids, ways):
+    """Majority project status across a relation's member ways."""
+    counts = defaultdict(int)
+    for wid in member_way_ids:
+        if wid in ways:
+            counts[get_project_status(ways[wid]['tags'])] += 1
+    return max(counts.items(), key=lambda kv: kv[1])[0] if counts else 'proposed'
+
+
+def merge_coincident_relations(relations, ways, buffer_m=25,
+                               overlap_threshold=0.8, length_ratio_min=0.6):
+    """Merge route relations that trace the same physical line.
+
+    The common case is a tram/bus/rail line modelled as two directional route
+    relations that share no member ways (each direction has its own ways) and
+    carry no parent route_master, so neither prune_overlapping_relations (which
+    keys on shared ways) nor the orphan merge strategies (which never see
+    relation members) ever combine them.
+
+    Two relations merge when, for the same broad transport type and project
+    status, each one's geometry lies mostly within buffer_m of the other
+    (>= overlap_threshold of its length) and their lengths are comparable
+    (>= length_ratio_min). The bidirectional overlap plus similar-length test
+    targets directional pairs while rejecting different lines that merely share
+    a trunk corridor (the longer line's overlap fraction stays low). Conflicting
+    ref tags block the merge as a safety net for distinct lines sharing tracks.
+    """
+    if len(relations) < 2:
+        return relations
+
+    info = {}
+    for rel_id, rel in relations.items():
+        member_ids = rel['member_way_ids']
+        g = _relation_geometry(member_ids, ways)
+        if g is None or g.is_empty or g.length == 0:
+            continue
+        info[rel_id] = {
+            'geom': g,
+            'length': g.length,
+            'btype': _relation_broad_type(member_ids, ways),
+            'status': _relation_status(member_ids, ways),
+            'ref': rel['tags'].get('ref', '').strip(),
+        }
+
+    if len(info) < 2:
+        return relations
+
+    buf_deg = meters_to_degrees(buffer_m)
+
+    by_group = defaultdict(list)
+    for rel_id, d in info.items():
+        by_group[(d['btype'], d['status'])].append(rel_id)
+
+    uf = UnionFind(list(info.keys()))
+    for rel_ids in by_group.values():
+        if len(rel_ids) < 2:
+            continue
+        bufs = [info[rid]['geom'].buffer(buf_deg) for rid in rel_ids]
+        tree = STRtree(bufs)
+        for i, ri in enumerate(rel_ids):
+            gi, li, refi = info[ri]['geom'], info[ri]['length'], info[ri]['ref']
+            for idx in tree.query(bufs[i]):
+                if idx <= i:
+                    continue
+                rj = rel_ids[idx]
+                gj, lj, refj = info[rj]['geom'], info[rj]['length'], info[rj]['ref']
+                if refi and refj and refi != refj:
+                    continue
+                if min(li, lj) / max(li, lj) < length_ratio_min:
+                    continue
+                try:
+                    oi = gi.intersection(bufs[idx]).length / li
+                    oj = gj.intersection(bufs[i]).length / lj
+                except Exception:
+                    continue
+                if min(oi, oj) >= overlap_threshold:
+                    uf.union(ri, rj)
+
+    groups = uf.groups()
+    merged_groups = sum(1 for g in groups.values() if len(g) > 1)
+    if merged_groups == 0:
+        return relations
+
+    # Relations with no usable geometry never entered the union-find; pass them
+    # through untouched so nothing is silently dropped.
+    result = {rid: rel for rid, rel in relations.items() if rid not in info}
+    for root, members in groups.items():
+        if len(members) == 1:
+            rid = members[0]
+            result[rid] = relations[rid]
+            continue
+        # Winner (canonical id/tags) is the highest-priority relation; lower
+        # priority relations fill in any identity tags it is missing.
+        ordered = sorted(
+            members,
+            key=lambda rid: relation_priority({
+                'id': rid, 'tags': relations[rid]['tags'],
+                'kept_member_way_ids': [w for w in relations[rid]['member_way_ids'] if w in ways],
+            }),
+        )
+        winner = ordered[-1]
+        combined_tags = {}
+        all_member_ids = []
+        for rid in ordered:
+            combined_tags.update(relations[rid]['tags'])
+            all_member_ids.extend(relations[rid]['member_way_ids'])
+        result[winner] = {'tags': combined_tags, 'member_way_ids': all_member_ids}
+
     return result
 
 
@@ -1227,7 +1360,12 @@ def build_features(ways, relations):
     """Build all features from ways and relations."""
     relations = prune_overlapping_relations(relations, ways)
     relations = assign_unique_relation_members(relations, ways)
-    
+    before_coincident = len(relations)
+    relations = merge_coincident_relations(relations, ways)
+    if len(relations) < before_coincident:
+        print(f"  merge_coincident_relations: {before_coincident:,} → {len(relations):,} relations "
+              f"({before_coincident - len(relations):,} directional pairs merged)")
+
     features = []
     processed_ways = set()
     
