@@ -619,7 +619,7 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     if (!props.disableAutoModeSwitch && mapStore.mode !== "edit") {
       mapStore.setMode("edit");
     }
-    await navigateToStandaloneProject(project.lat, project.lng, project.id);
+    navigateToStandaloneProject(project.lat, project.lng, project.id);
   } catch (error) {
     console.error("Failed to navigate to project:", error);
     toast.add({

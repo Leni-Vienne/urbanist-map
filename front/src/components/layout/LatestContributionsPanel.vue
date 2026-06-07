@@ -115,14 +115,12 @@ import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
   navigateToStandaloneProject,
+  navigateToStandaloneProjectBounds,
   zoomToOverlayAndSelect,
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { requestScrollTo } from "@/services/layout/accordionState";
-import { map } from "@/services/core/map";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 
 const { t } = useI18n();
@@ -189,20 +187,16 @@ async function handleContributionClick(contribution: LatestContribution) {
     }
   } else if (contribution.type === "standalone") {
     if (contribution.geometryBbox) {
-      // Fly to the actual geometry bounds instead of the project center point
+      // Fly to the actual geometry bounds instead of the project center point.
       const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
       const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
-      mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
-      requestScrollTo("project", contribution.id);
-      // Use a point on the geometry itself so the popup anchors on the actual vector
+      // Anchor the popup on a point on the geometry itself, falling back to the bbox center.
       const popupLatLng = contribution.geometryPoint
         ? new LngLat(contribution.geometryPoint.lng, contribution.geometryPoint.lat)
         : new LngLat((minLng + maxLng) / 2, (minLat + maxLat) / 2);
-      map.value.once("moveend", () => {
-        void handleProjectClickFromTile(contribution.id, popupLatLng);
-      });
+      navigateToStandaloneProjectBounds(bounds, popupLatLng, contribution.id);
     } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
-      await navigateToStandaloneProject(contribution.lat, contribution.lng, contribution.id);
+      navigateToStandaloneProject(contribution.lat, contribution.lng, contribution.id);
     }
   }
 }

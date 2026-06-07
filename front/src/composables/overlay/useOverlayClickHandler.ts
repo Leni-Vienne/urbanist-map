@@ -131,6 +131,6 @@ async function navigateToReplacedOrRejectedOverlay(
   const project = await trpc.project.getById.query({ id: overlay.projectId });
 
   if (project && typeof project.lat === "number" && typeof project.lng === "number") {
-    await navigateToStandaloneProject(project.lat, project.lng, project.id);
+    navigateToStandaloneProject(project.lat, project.lng, project.id);
   }
 }

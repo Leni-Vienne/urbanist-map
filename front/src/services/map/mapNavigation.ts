@@ -241,22 +241,27 @@ function mercatorZoomForBounds(
   return Math.max(0, Math.min(zoom, 22));
 }
 
-/** Fit a bounds, with mobile-aware padding. */
-export function mobileAwareFlyToBounds(bounds: BoundsLike, options: FlyToBoundsOptions = {}): void {
+/**
+ * Fit a bounds, with mobile-aware padding. Returns true if a move started, false if it was skipped
+ * (bounds already framed) so callers waiting on `moveend` can act immediately instead of hanging.
+ */
+export function mobileAwareFlyToBounds(
+  bounds: BoundsLike,
+  options: FlyToBoundsOptions = {},
+): boolean {
   const m = map.value;
-  if (!m) return;
+  if (!m) return false;
 
   const west = bounds.getWest();
   const south = bounds.getSouth();
   const east = bounds.getEast();
   const north = bounds.getNorth();
   // Degenerate (NaN) corners would throw in cameraForBounds.
-  if (![west, south, east, north].every((n) => Number.isFinite(n))) return;
+  if (![west, south, east, north].every((n) => Number.isFinite(n))) return false;
 
   // Zero-area bounds make cameraForBounds return undefined scale; route to flyTo instead.
   if (west === east && south === north) {
-    mobileAwareFlyTo([north, east], options.maxZoom ?? 17, options);
-    return;
+    return mobileAwareFlyTo([north, east], options.maxZoom ?? 17, options);
   }
 
   const llb: [[number, number], [number, number]] = [
@@ -293,8 +298,7 @@ export function mobileAwareFlyToBounds(bounds: BoundsLike, options: FlyToBoundsO
   if (!cameraForBoundsOk) {
     const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
     const zoom = mercatorZoomForBounds(west, south, east, north, options.maxZoom);
-    mobileAwareFlyTo(center, zoom, { duration: options.duration });
-    return;
+    return mobileAwareFlyTo(center, zoom, { duration: options.duration });
   }
 
   const centerDistance = haversineMeters(
@@ -305,7 +309,7 @@ export function mobileAwareFlyToBounds(bounds: BoundsLike, options: FlyToBoundsO
   );
   const zoomDiff = Math.abs(currentZoom - targetZoom);
 
-  if (centerDistance < boundsDistanceThreshold && zoomDiff < 0.1) return; // already framed
+  if (centerDistance < boundsDistanceThreshold && zoomDiff < 0.1) return false; // already framed
 
   const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
 
@@ -317,8 +321,10 @@ export function mobileAwareFlyToBounds(bounds: BoundsLike, options: FlyToBoundsO
       duration: duration * 1000,
       essential: true,
     });
+    return true;
   } catch {
     /* projection edge case, see above */
+    return false;
   }
 }
 
@@ -374,7 +380,7 @@ export function flyToGeometry(
  * on desktop, leaving room below for the (usually downward) project popup. Returns undefined on
  * mobile, where the drawer-aware padding in resolvePadding already biases the camera instead.
  */
-function popupAnchorOffset(): [number, number] | undefined {
+export function popupAnchorOffset(): [number, number] | undefined {
   if (isMobileViewport()) return undefined;
   const h = map.value.getContainer().clientHeight;
   if (h <= 0) return undefined;
