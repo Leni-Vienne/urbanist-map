@@ -793,8 +793,7 @@ function navigateToCluster(
     // other project in the cell matched. Nudge in by 2 zoom levels without committing to the
     // representative's exact location.
     const targetZoom = currentZoom + 2;
-    const duration = Math.min(0.3 + 2 * 0.25, 1.5);
-    mobileAwareFlyTo([lat, lng], targetZoom, { duration });
+    mobileAwareFlyTo([lat, lng], targetZoom);
   }
 }
 

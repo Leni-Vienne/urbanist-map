@@ -16,7 +16,10 @@ const distanceThreshold = 10;
 type LatLngInput = [number, number] | { lat: number; lng: number };
 
 interface FlyOptions {
-  /** Animation duration in seconds (converted to milliseconds for MapLibre). */
+  /**
+   * Maximum animation duration in seconds. The actual duration is scaled down toward 0.3s for
+   * short / small-zoom moves via `scaledDuration`, so this is the cap for a long, far flight.
+   */
   duration?: number;
   /**
    * Screen-space offset [x, y] in pixels of the target relative to the container center at the
@@ -201,6 +204,7 @@ export function mobileAwareFlyTo(
   const m = map.value;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
+  const center = m.getCenter();
   const currentZoom = m.getZoom();
   const targetZoom = zoom ?? currentZoom;
 
@@ -209,10 +213,13 @@ export function mobileAwareFlyTo(
     return; // Already at target, skip animation
   }
 
+  const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+  const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
+
   m.flyTo({
     center: [target.lng, target.lat],
     zoom: targetZoom,
-    duration: (options.duration ?? 1.5) * 1000,
+    duration: duration * 1000,
     padding: resolvePadding(),
     ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
@@ -233,9 +240,13 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
     return; // Already at target, skip animation
   }
 
+  const center = m.getCenter();
+  const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+  const duration = scaledDuration(centerDistance, 0, options.duration ?? 0.3);
+
   m.easeTo({
     center: [target.lng, target.lat],
-    duration: (options.duration ?? 0.3) * 1000,
+    duration: duration * 1000,
     padding: resolvePadding(),
     ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
@@ -409,14 +420,13 @@ export function flyToGeometry(
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
   const willZoom = targetZoom !== currentZoom;
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
 
   const offset = popupAnchorOffset();
 
   if (willZoom) {
-    mobileAwareFlyTo(target, targetZoom, { duration, offset });
+    mobileAwareFlyTo(target, targetZoom, { offset });
   } else if (options.allowPan) {
-    mobileAwarePanTo(target, { duration, offset });
+    mobileAwarePanTo(target, { offset });
   }
   return willZoom;
 }
