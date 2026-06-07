@@ -211,8 +211,9 @@
     </small>
   </div>
 
-  <!-- Render (artist's impression) field: a non-georeferenced project image shown in the popup -->
-  <div class="flex flex-col gap-2">
+  <!-- Render (artist's impression) field: a non-georeferenced project image shown in the popup.
+       Hidden on the edit form, where renders are added through the popup's "Add images" dialog. -->
+  <div v-if="showRender" class="flex flex-col gap-2">
     <span class="text-sm text-(--p-text-color-secondary) font-medium">
       {{ $t("render.label") }}
     </span>
@@ -342,6 +343,8 @@ interface Props {
   currentRenderUrl?: string | null;
   // Preview of a render staged in this form but not yet submitted.
   stagedRenderPreview?: string | null;
+  // Whether to show the render picker. Off for the edit form (renders go through the popup dialog).
+  showRender?: boolean;
 }
 
 type Emits = {
@@ -357,6 +360,7 @@ const props = withDefaults(defineProps<Props>(), {
   timelineStatus: "proposed",
   prefilledCity: undefined,
   markerCoordinates: null,
+  showRender: true,
 });
 
 const emit = defineEmits<Emits>();

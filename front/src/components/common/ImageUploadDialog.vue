@@ -1,9 +1,7 @@
-﻿<template>
+<template>
   <Dialog
     v-model:visible="isVisible"
-    :header="
-      isReplacementMode ? $t('imageUpload.replacementDialogTitle') : $t('imageUpload.dialogTitle')
-    "
+    :header="dialogHeader"
     :modal="true"
     :closable="true"
     :closeOnEscape="true"
@@ -13,13 +11,57 @@
     :style="{ width: '600px' }"
     @hide="handleClose"
   >
-    <div class="flex flex-col gap-4 py-2">
+    <!-- Step 1: choose which kind of image to add -->
+    <div v-if="step === 'choose'" class="flex flex-col gap-3 py-2">
       <p class="text-sm text-(--p-text-color-secondary) leading-relaxed m-0">
-        {{ $t("imageUpload.uploadDescription") }}
+        {{ $t("imageUpload.chooseDescription") }}
       </p>
 
-      <!-- PDF Extraction Section -->
-      <div class="flex flex-col gap-1">
+      <button
+        type="button"
+        class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-400 hover:bg-content-hover-background"
+        @click="selectMode('overlay')"
+      >
+        <i class="pi pi-map text-xl text-primary-500 mt-0.5 shrink-0"></i>
+        <span class="flex flex-col gap-0.5">
+          <span class="text-sm font-semibold text-color">
+            {{ $t("imageUpload.overlayOption.title") }}
+          </span>
+          <span class="text-xs text-muted-color leading-relaxed">
+            {{ $t("imageUpload.overlayOption.description") }}
+          </span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-400 hover:bg-content-hover-background"
+        @click="selectMode('render')"
+      >
+        <i class="pi pi-image text-xl text-primary-500 mt-0.5 shrink-0"></i>
+        <span class="flex flex-col gap-0.5">
+          <span class="text-sm font-semibold text-color">
+            {{ $t("imageUpload.renderOption.title") }}
+          </span>
+          <span class="text-xs text-muted-color leading-relaxed">
+            {{ $t("imageUpload.renderOption.description") }}
+          </span>
+        </span>
+      </button>
+    </div>
+
+    <!-- Step 2: upload (shared UI between overlay and render) -->
+    <div v-else class="flex flex-col gap-4 py-2">
+      <p class="text-sm text-(--p-text-color-secondary) leading-relaxed m-0">
+        {{
+          step === "render"
+            ? $t("imageUpload.renderUploadDescription")
+            : $t("imageUpload.uploadDescription")
+        }}
+      </p>
+
+      <!-- PDF Extraction Section (overlay only: renders need no alignment) -->
+      <div v-if="step === 'overlay'" class="flex flex-col gap-1">
         <h3 class="text-base font-semibold text-color m-0">
           {{ $t("imageUpload.pdfExtraction") }}
         </h3>
@@ -104,6 +146,15 @@
         </div>
       </div>
 
+      <!-- Note when a render will replace the existing one -->
+      <p
+        v-if="step === 'render' && hasExistingRender"
+        class="flex items-start gap-2 text-(--p-text-color-secondary) text-xs m-0"
+      >
+        <i class="pi pi-info-circle mt-0.5 shrink-0"></i>
+        {{ $t("imageUpload.renderReplaceNote") }}
+      </p>
+
       <!-- Inline error message for file validation -->
       <p
         v-if="fileSizeError"
@@ -116,7 +167,15 @@
 
     <template #footer>
       <Button
-        v-if="selectedFile"
+        v-if="step !== 'choose' && !isReplacementMode"
+        :label="$t('common.back')"
+        icon="pi pi-arrow-left"
+        @click="goBack"
+        severity="secondary"
+        text
+      />
+      <Button
+        v-if="step !== 'choose' && selectedFile"
         :label="$t('common.confirm')"
         icon="pi pi-check"
         @click="handleConfirm"
@@ -139,13 +198,18 @@ import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useToast } from "@/composables/ui/useToast";
 import { addOverlay } from "@/services/overlay/editing";
+import { setStagedRender } from "@/composables/submission/stagedRenderStore";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
+
+type UploadMode = "choose" | "overlay" | "render";
 
 const { t } = useI18n();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
+const projectStore = useProjectStore();
 const toast = useToast();
 
 const fileInputRef = ref<HTMLInputElement>();
@@ -155,7 +219,21 @@ const imagePreviewUrl = ref("");
 const imageDataUrl = ref("");
 const fileSizeError = ref("");
 
+// Which step of the dialog is showing. Replacement is overlay-specific, so it skips the chooser.
+const step = ref<UploadMode>("choose");
+
 const isReplacementMode = computed(() => Boolean(overlayStore.replacementOverlayId));
+
+const dialogHeader = computed(() => {
+  if (isReplacementMode.value) return t("imageUpload.replacementDialogTitle");
+  if (step.value === "render") return t("imageUpload.renderDialogTitle");
+  return t("imageUpload.dialogTitle");
+});
+
+const hasExistingRender = computed(() => {
+  const projectId = uiStore.imageUploadDialog.projectId;
+  return Boolean(projectId && projectStore.projects[projectId]?.render);
+});
 
 // Computed visibility from store
 const isVisible = computed({
@@ -167,21 +245,36 @@ const isVisible = computed({
   },
 });
 
-// Reset state when dialog opens/closes
+// Initialize the step when the dialog opens, and clear state when it closes.
 watch(
   () => uiStore.imageUploadDialog.visible,
   (visible) => {
-    if (!visible) {
-      selectedFile.value = null;
-      selectedFileName.value = "";
-      imagePreviewUrl.value = "";
-      imageDataUrl.value = "";
-      if (fileInputRef.value) {
-        fileInputRef.value.value = "";
-      }
+    clearSelection();
+    if (visible) {
+      step.value = isReplacementMode.value ? "overlay" : "choose";
     }
   },
 );
+
+function clearSelection() {
+  selectedFile.value = null;
+  selectedFileName.value = "";
+  imagePreviewUrl.value = "";
+  imageDataUrl.value = "";
+  fileSizeError.value = "";
+  if (fileInputRef.value) {
+    fileInputRef.value.value = "";
+  }
+}
+
+function selectMode(mode: Exclude<UploadMode, "choose">) {
+  step.value = mode;
+}
+
+function goBack() {
+  clearSelection();
+  step.value = "choose";
+}
 
 function triggerFileInput() {
   fileInputRef.value?.click();
@@ -251,7 +344,7 @@ function processFile(file: File) {
   }
 }
 
-async function handleConfirm() {
+function handleConfirm() {
   if (!selectedFile.value || !imageDataUrl.value) return;
 
   const projectId = uiStore.imageUploadDialog.projectId;
@@ -265,6 +358,14 @@ async function handleConfirm() {
     return;
   }
 
+  if (step.value === "render") {
+    confirmRender(projectId, selectedFile.value);
+  } else {
+    confirmOverlay(projectId);
+  }
+}
+
+function confirmOverlay(projectId: string) {
   try {
     const replacementId = overlayStore.replacementOverlayId;
 
@@ -288,7 +389,6 @@ async function handleConfirm() {
       });
     }
 
-    // Close dialog
     uiStore.closeImageUploadDialog();
   } catch (error) {
     console.error("Error creating overlay:", error);
@@ -296,6 +396,31 @@ async function handleConfirm() {
       severity: "error",
       summary: t("overlay.uploadFailed"),
       detail: t("overlay.uploadFailedDetail"),
+      life: 3000,
+    });
+  }
+}
+
+function confirmRender(projectId: string, file: File) {
+  try {
+    // Stage the render exactly like the project form does, then mark the project modified so the
+    // popup's "Submit change request" picks it up. It rides the same submission pipeline as every
+    // other change; nothing uploads until the user confirms the submission.
+    setStagedRender(projectId, { file, previewUrl: imageDataUrl.value });
+    projectStore.updateProject(projectId, { isModified: true });
+    toast.add({
+      severity: "success",
+      summary: t("imageUpload.renderStaged"),
+      detail: t("imageUpload.renderStagedDetail"),
+      life: 4000,
+    });
+    uiStore.closeImageUploadDialog();
+  } catch (error) {
+    console.error("Error staging render:", error);
+    toast.add({
+      severity: "error",
+      summary: t("overlay.uploadFailed"),
+      detail: error instanceof Error ? error.message : t("overlay.uploadFailedDetail"),
       life: 3000,
     });
   }

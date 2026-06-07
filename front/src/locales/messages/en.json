@@ -525,13 +525,28 @@
     "dragDrop": "Drag and drop your image here",
     "orClick": "or click to browse files",
     "supportedFormats": "Supported formats: PNG, JPEG, JPG, WebP",
-    "changeImage": "Change Image"
+    "changeImage": "Change Image",
+    "chooseDescription": "What kind of image do you want to add?",
+    "overlayOption": {
+      "title": "Map overlay",
+      "description": "A top-down plan or aerial view that you position and resize on the map."
+    },
+    "renderOption": {
+      "title": "Artist's impression",
+      "description": "A render or photo shown in the project info panel, not placed on the map."
+    },
+    "renderDialogTitle": "Add artist's impression",
+    "renderUploadDescription": "Upload a render or photo of the project. It appears in the project info panel only, it is not aligned onto the map.",
+    "renderReplaceNote": "This will replace the project's current artist's impression.",
+    "renderStaged": "Render added",
+    "renderStagedDetail": "Submit your changes to send it for review."
   },
   "render": {
     "label": "Artist's impression",
     "add": "Add image",
     "replace": "Replace image",
     "pendingReview": "Pending review",
+    "notSubmitted": "Not submitted yet, send your changes for review",
     "disclaimer": "An artist's impression or render. It only appears in the project info panel. This is not to be confused with overlay images that are aligned onto the map.",
     "imageChange": "New image"
   },

@@ -127,8 +127,10 @@ export async function deleteOverlayDirect(
   const overlayObject = overlayStore.overlays[overlayId];
 
   try {
-    // Brand new overlays (status null/undefined) only exist locally
-    const existsInBackend = (overlayObject?.status ?? null) !== null;
+    // Brand new overlays (status null) only exist locally, and always live in the store.
+    // An overlay missing from the store is therefore a persisted backend overlay (e.g.
+    // renders, which are never loaded into the overlay store), so it must be deleted in the backend.
+    const existsInBackend = overlayObject ? overlayObject.status !== null : true;
 
     if (existsInBackend) {
       await trpc.overlay.deleteOverlay.mutate({ id: overlayId });

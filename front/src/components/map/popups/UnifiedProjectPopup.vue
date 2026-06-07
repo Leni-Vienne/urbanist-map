@@ -163,8 +163,11 @@
               })
             "
           />
+          <span v-if="stagedRender" class="text-xs italic text-muted-color">
+            {{ $t("render.notSubmitted") }}
+          </span>
           <span
-            v-if="renderImage && renderImage.status !== 'approved'"
+            v-else-if="renderImage && renderImage.status !== 'approved'"
             class="text-xs italic text-muted-color"
           >
             {{ $t("render.pendingReview") }}
@@ -321,6 +324,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { getStagedRender } from "@/composables/submission/stagedRenderStore";
 import { trpc } from "@/client";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
@@ -469,7 +473,15 @@ watch(
   { immediate: true },
 );
 
+// A render staged through the "Add images" dialog but not yet submitted. View mode shows approved
+// content only, so it never surfaces there. Reactive via stagedRenderStore, so it appears the
+// moment it is staged and disappears once submission promotes it to project.render.
+const stagedRender = computed(() =>
+  props.viewMode || !props.project?.id ? null : (getStagedRender(props.project.id) ?? null),
+);
+
 const renderImageUrl = computed(() => {
+  if (stagedRender.value) return stagedRender.value.previewUrl;
   const render = renderImage.value;
   if (!render) return null;
   if (props.viewMode && render.status !== "approved") return null;

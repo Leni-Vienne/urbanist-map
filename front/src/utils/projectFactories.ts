@@ -46,13 +46,13 @@ export function createLocalOverlayContribution(
     countryName: string | null | undefined;
   },
   username: string | null,
+  kind: UserContributionOverlay["kind"] = "map",
 ): UserContributionOverlay {
   return {
     id: overlay.id,
     caption: overlay.caption,
     filename: overlay.filename,
-    // Locally-created contributions are always georeferenced map overlays, not renders.
-    kind: "map",
+    kind,
     status: overlay.status !== undefined ? overlay.status : null,
     version: overlay.version ?? 1,
     projectId: overlay.projectId ?? "",
