@@ -20,7 +20,7 @@ import { syncModerationCountryFromMapClick } from "@/services/moderation/moderat
 export function selectProject(
   project: Project,
   latlng: { lat: number; lng: number },
-  atCenter = false,
+  atAnchor = false,
 ): void {
   const uiStore = useUiStore();
 
@@ -31,7 +31,7 @@ export function selectProject(
   }
 
   uiStore.openProjectInfoPopup(project.id, project);
-  setPopupPlacementForLatLng(latlng, atCenter);
+  setPopupPlacementForLatLng(latlng, atAnchor);
   createProjectInfoTeleportTargetAtLatLng(latlng);
 
   // In moderation mode, switch the panel to this project's country so its pending
@@ -84,7 +84,7 @@ async function resolveProjectForTileClick(projectId: string): Promise<Project | 
 export async function handleProjectClickFromTile(
   projectId: string,
   latlng: { lat: number; lng: number },
-  atCenter = false,
+  atAnchor = false,
 ): Promise<void> {
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
@@ -96,5 +96,5 @@ export async function handleProjectClickFromTile(
     projectStore.updateProject(projectId, project);
   }
 
-  selectProject(project, latlng, atCenter);
+  selectProject(project, latlng, atAnchor);
 }

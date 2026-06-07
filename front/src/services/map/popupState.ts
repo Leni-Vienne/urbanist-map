@@ -2,6 +2,7 @@ import { ref } from "vue";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobileViewport } from "@/composables/ui/useIsMobile";
+import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/constants/mapConstants";
 
 // State for tracking teleport targets
 // This eliminates the need for MutationObservers in PopupContainer
@@ -33,22 +34,16 @@ const POPUP_ANCHOR_GAP = 28;
 const POPUP_EDGE_MARGIN = 50;
 const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
 
-// On desktop, a freshly-selected project is flown so its anchor lands at this fraction of the
-// viewport height (upper third) rather than dead-center, leaving room for the downward popup.
-// The fly offset (mapNavigation) and the placement math below both derive from this value, so
-// the predicted on-screen anchor matches where the camera actually lands.
-export const DESKTOP_POPUP_ANCHOR_Y_FRACTION = 0.32;
-
 // Picks the popup opening direction that maximises available height, then sets
 // projectPopupMaxHeight so the popup CSS can clamp itself to exactly that space.
 // Preference: down → up → right → left (most common cases first).
-// Pass atCenter=true when the map is about to fly/pan to the latlng: after the
-// animation the point will be centered in the viewport, so we compute placement
-// from the center rather than the current (pre-flight) screen position, avoiding
-// a placement jump when moveend fires.
+// Pass atAnchor=true when the map is about to fly/pan the point to its resting anchor position
+// (viewport center on mobile, upper-third on desktop): we then compute placement from that
+// predicted position rather than the current (pre-flight) screen position, avoiding a placement
+// jump when moveend fires.
 export function setPopupPlacementForLatLng(
   latlng: { lat: number; lng: number },
-  atCenter = false,
+  atAnchor = false,
 ): void {
   const mapEl = map.value.getContainer();
   const mapW = mapEl.clientWidth;
@@ -58,7 +53,7 @@ export function setPopupPlacementForLatLng(
   // padding is compensated for via mobileBlockedPx below) but at the upper-third fraction on
   // desktop, matching the fly offset applied in mapNavigation.
   const anchorY = isMobile ? mapH / 2 : mapH * DESKTOP_POPUP_ANCHOR_Y_FRACTION;
-  const point = atCenter
+  const point = atAnchor
     ? { x: mapW / 2, y: anchorY }
     : map.value.project([latlng.lng, latlng.lat]);
 

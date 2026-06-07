@@ -652,7 +652,7 @@ function handleVectorFeatureClick(
   // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
   // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
   const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
-  const willFly = flyToGeometry(latlng, geometrySizeM);
+  const anchored = flyToGeometry(latlng, geometrySizeM);
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
@@ -667,7 +667,7 @@ function handleVectorFeatureClick(
     // Stop the map-level click handler in projectPopupTeleport from closing the
     // current popup before the new one opens (both fire on the same map click).
     suppressPopupCloseForClick();
-    void handleProjectClickFromTile(projectId, latlng, willFly);
+    void handleProjectClickFromTile(projectId, latlng, anchored);
   }
 }
 
@@ -702,13 +702,14 @@ function setHoveredProjectId(
   setPointHoverFilter(mlMap, projectId);
 }
 
-function navigateToLonePoint(props: Record<string, unknown>, lat: number, lng: number): void {
+// Returns flyToGeometry's "anchored at predicted position" result for popup placement.
+function navigateToLonePoint(props: Record<string, unknown>, lat: number, lng: number): boolean {
   const hasGeometry: boolean = props.has_geometry === true;
   // geometry_size_m is the representative project's own size, not max_size_m, which spans
   // all projects in the cluster cell and is only meaningful for the client-side size filter.
   const geometrySizeM: number = (props.geometry_size_m as number | null) ?? 0;
   // allowPan avoids flyTo's zoom-out arc (and canvas flicker) when no zoom change is needed.
-  flyToGeometry([lat, lng], hasGeometry ? geometrySizeM : 0, { allowPan: true });
+  return flyToGeometry([lat, lng], hasGeometry ? geometrySizeM : 0, { allowPan: true });
 }
 
 // Map a lat/lng to the tile index and pixel position inside the tile.
@@ -809,7 +810,7 @@ async function handlePointFeatureClick(
   const coordinates = pointFeature.geometry?.coordinates;
   let targetLatLng = eventLatLng;
   let shouldOpenPanel = true;
-  let willFly = false;
+  let anchored = false;
 
   if (coordinates && coordinates.length >= 2) {
     const [lng, lat] = coordinates;
@@ -820,8 +821,7 @@ async function handlePointFeatureClick(
     targetLatLng = { lat, lng };
 
     if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_ZOOM) {
-      willFly = true;
-      navigateToLonePoint(props, lat, lng);
+      anchored = navigateToLonePoint(props, lat, lng);
     } else {
       shouldOpenPanel = false;
       navigateToCluster(props, lat, lng, currentZoom);
@@ -829,7 +829,7 @@ async function handlePointFeatureClick(
   }
 
   if (shouldOpenPanel) {
-    await handleProjectClickFromTile(projectId, targetLatLng, willFly);
+    await handleProjectClickFromTile(projectId, targetLatLng, anchored);
   }
 }
 

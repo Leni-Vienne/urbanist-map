@@ -1,17 +1,20 @@
-import { ref } from "vue";
 import type { LngLatLike, PaddingOptions } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobileViewport } from "@/composables/ui/useIsMobile";
-import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/services/map/popupState";
-import type { CameraBounds } from "@/types/index";
+import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/constants/mapConstants";
 
-const currentCameraBounds = ref<CameraBounds | null>(null);
+// `map.value` is typed non-null but is null until the map is initialized (see core/map.ts).
+// Contract for this module: public entry points guard with `if (!map.value) return`; private
+// helpers run only after that guard and may treat it as non-null.
 
 // Minimum distance in meters to skip re-animation when the camera is already close enough.
-// 10m is a few map pixels at street-level zoom. For bounds comparison the threshold is
-// multiplied to 100m, still well below the size of any overlay (max ~few hundred meters).
+// 10m is a few map pixels at street-level zoom.
 const distanceThreshold = 10;
+
+// Threshold for the bounds skip check: we compare bounds centers rather than corners, so it's
+// looser than distanceThreshold, but 100m is still well below any overlay (max ~few hundred m).
+const boundsDistanceThreshold = distanceThreshold * 10;
 
 type LatLngInput = [number, number] | { lat: number; lng: number };
 
@@ -93,38 +96,6 @@ function shouldSkipMove(
 }
 
 /**
- * Initialize camera bounds tracking.
- */
-export function initializeCameraBounds() {
-  const m = map.value;
-
-  function updateBounds() {
-    try {
-      const bounds = m.getBounds();
-      currentCameraBounds.value = {
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest(),
-        zoom: m.getZoom(),
-      };
-    } catch (error) {
-      console.error("Error updating camera bounds:", error);
-    }
-  }
-
-  updateBounds();
-
-  m.on("load", updateBounds);
-  m.on("moveend", updateBounds);
-  m.on("zoomend", updateBounds);
-}
-
-export function getCameraBounds() {
-  return currentCameraBounds;
-}
-
-/**
  * Check if mobile drawer is covering the map.
  * Only apply offset when on mobile AND drawer is open.
  */
@@ -145,6 +116,33 @@ function getMobileDrawerBottomPaddingPx(): number {
   return drawerHeightPx + 20; // 20px margin above the drawer
 }
 
+// Caps padding so opposing insets never exceed the container; otherwise cameraForBounds produces
+// a negative numerator and returns a NaN scale (observed crash on small viewports + tight bounds).
+function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions | number {
+  const container = map.value.getContainer();
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  if (w <= 0 || h <= 0) return padding;
+
+  const capW = Math.max(0, (w - 1) / 2);
+  const capH = Math.max(0, (h - 1) / 2);
+  if (typeof padding === "number") {
+    return Math.min(padding, capW, capH);
+  }
+  if ((padding.left ?? 0) + (padding.right ?? 0) >= w) {
+    padding.left = capW;
+    padding.right = capW;
+  }
+  if ((padding.top ?? 0) + (padding.bottom ?? 0) >= h) {
+    padding.top = capH;
+    padding.bottom = capH;
+  }
+  return padding;
+}
+
+// Resolves the padding for a camera move, then caps it to the container. When the mobile drawer
+// is open this intentionally overrides any caller-provided `p` so the target clears the drawer;
+// otherwise `p` is used (single inset, or [horizontal, vertical]), defaulting to 50px.
 function resolvePadding(p?: number | [number, number]): PaddingOptions | number {
   let result: PaddingOptions | number = 50;
   if (shouldApplyMobileOffset()) {
@@ -154,29 +152,7 @@ function resolvePadding(p?: number | [number, number]): PaddingOptions | number 
   } else if (Array.isArray(p)) {
     result = { top: p[1], bottom: p[1], left: p[0], right: p[0] };
   }
-
-  // Cap padding to the container, otherwise cameraForBounds produces a negative
-  // numerator and returns NaN scale (observed crash on small viewports + tight bounds).
-  const container = map.value?.getContainer();
-  if (!container) return result;
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  if (w <= 0 || h <= 0) return result;
-
-  const capW = Math.max(0, (w - 1) / 2);
-  const capH = Math.max(0, (h - 1) / 2);
-  if (typeof result === "number") {
-    return Math.min(result, capW, capH);
-  }
-  if ((result.left ?? 0) + (result.right ?? 0) >= w) {
-    result.left = capW;
-    result.right = capW;
-  }
-  if ((result.top ?? 0) + (result.bottom ?? 0) >= h) {
-    result.top = capH;
-    result.bottom = capH;
-  }
-  return result;
+  return capPaddingToContainer(result);
 }
 
 /**
@@ -202,6 +178,7 @@ export function mobileAwareFlyTo(
   options: FlyOptions = {},
 ): void {
   const m = map.value;
+  if (!m) return;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
   const center = m.getCenter();
@@ -233,6 +210,7 @@ export function mobileAwareFlyTo(
  */
 function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   const m = map.value;
+  if (!m) return;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
 
@@ -272,12 +250,12 @@ function mercatorZoomForBounds(
   north: number,
   maxZoom?: number,
 ): number {
-  const container = map.value?.getContainer();
+  const container = map.value.getContainer();
   // Shrink the usable viewport by a 50px inset per side so the bounds aren't framed edge-to-edge,
   // matching the padding used by the cameraForBounds path.
   const inset = 100;
-  const w = Math.max(1, (container?.clientWidth ?? 1) - inset);
-  const h = Math.max(1, (container?.clientHeight ?? 1) - inset);
+  const w = Math.max(1, container.clientWidth - inset);
+  const h = Math.max(1, container.clientHeight - inset);
   const tile = 512;
 
   const lngFraction = Math.max(Math.abs(east - west) / 360, 1e-9);
@@ -363,8 +341,7 @@ export function mobileAwareFlyToBounds(
   );
   const zoomDiff = Math.abs(currentZoom - targetZoom);
 
-  // Larger threshold for bounds since we compare centers, not corners.
-  if (centerDistance < distanceThreshold * 10 && zoomDiff < 0.1) {
+  if (centerDistance < boundsDistanceThreshold && zoomDiff < 0.1) {
     return true; // Already viewing these bounds, skip animation
   }
 
@@ -405,30 +382,39 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 /**
  * Fly to a project anchor, zooming in just enough to frame a geometry of `sizeM` meters
  * (falls back to zoom 14 when the size is 0/unknown). Never zooms out, so a closer view the
- * user already has is preserved. Returns true if the camera zoomed.
+ * user already has is preserved.
  *
  * When no zoom change is needed and `allowPan` is set, pans instead of flying to avoid the
  * zoom-out arc that flyTo produces for same-zoom moves.
+ *
+ * Returns true when the camera moved the anchor to its resting on-screen position (so popup
+ * placement should be computed from that predicted position), false when the camera did not
+ * move at all (placement should use the anchor's current projected position).
  */
 export function flyToGeometry(
   latlng: LatLngInput,
   sizeM: number,
   options: { allowPan?: boolean } = {},
 ): boolean {
+  const m = map.value;
+  if (!m) return false;
   const target = toLatLng(latlng);
-  const currentZoom = map.value.getZoom();
+  const currentZoom = m.getZoom();
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
-  const willZoom = targetZoom !== currentZoom;
-
   const offset = popupAnchorOffset();
 
-  if (willZoom) {
+  // The anchor settles at its predicted position whenever the camera flies (zoom) or pans to it;
+  // only when neither happens does it stay under the original click point.
+  if (targetZoom !== currentZoom) {
     mobileAwareFlyTo(target, targetZoom, { offset });
-  } else if (options.allowPan) {
-    mobileAwarePanTo(target, { offset });
+    return true;
   }
-  return willZoom;
+  if (options.allowPan) {
+    mobileAwarePanTo(target, { offset });
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -438,7 +424,7 @@ export function flyToGeometry(
  */
 function popupAnchorOffset(): [number, number] | undefined {
   if (isMobileViewport()) return undefined;
-  const h = map.value?.getContainer()?.clientHeight ?? 0;
+  const h = map.value.getContainer().clientHeight;
   if (h <= 0) return undefined;
   return [0, h * (DESKTOP_POPUP_ANCHOR_Y_FRACTION - 0.5)];
 }
