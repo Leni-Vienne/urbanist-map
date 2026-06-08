@@ -358,18 +358,19 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 }
 
 /**
- * Zoom in just enough to frame a `sizeM`-meter geometry (zoom 14 when size is unknown), never
- * zooming out. With `allowPan`, pans instead when no zoom is needed, avoiding flyTo's zoom-out arc.
- * Returns true if the anchor was moved to its resting position (so popup placement uses that
- * predicted spot), false if the camera didn't move (placement uses the current projected spot).
+ * Zoom in to frame a `sizeM`-meter geometry (zoom 14 when unknown), never out, then anchor the point
+ * for its popup. `fromMapClick` keeps the desktop camera still since the feature is already on-screen
+ * and the popup places itself around it. Returns whether the anchor sits at its resting position.
  */
 export function flyToGeometry(
   latlng: LatLngInput,
   sizeM: number,
-  options: { allowPan?: boolean } = {},
+  options: { fromMapClick?: boolean } = {},
 ): boolean {
   const m = map.value;
   if (!m) return false;
+  if (options.fromMapClick && !isMobileViewport()) return false;
+
   const target = toLatLng(latlng);
   const currentZoom = m.getZoom();
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
@@ -380,7 +381,9 @@ export function flyToGeometry(
     mobileAwareFlyTo(target, targetZoom, { offset });
     return true;
   }
-  if (options.allowPan) {
+  // Mobile pans the marker above the drawer so the popup can open attached (panTo self-skips if
+  // already there); desktop leaves the camera put.
+  if (isMobileViewport()) {
     mobileAwarePanTo(target, { offset });
     return true;
   }
@@ -388,10 +391,8 @@ export function flyToGeometry(
 }
 
 /**
- * Screen-space offset that biases a selected project's anchor so the popup has room to open:
- * upper-third on desktop (downward popup), and just above the bottom drawer on mobile (where the
- * drawer forces the popup to open upward). Mirrors desktop, flipped because the obstruction is at
- * the bottom on mobile instead of leaving room below.
+ * Screen-space offset biasing a selected project's anchor so the popup has room: upper-third on
+ * desktop (opens downward), just above the drawer on mobile (opens upward).
  */
 export function popupAnchorOffset(): [number, number] | undefined {
   const m = map.value;
@@ -399,9 +400,7 @@ export function popupAnchorOffset(): [number, number] | undefined {
   const h = m.getContainer().clientHeight;
   if (h <= 0) return undefined;
   if (isMobileViewport()) {
-    // Land the anchor just above the drawer-blocked region (floored at 0.3h so a very tall drawer
-    // can't push it off the top). predictedRestingY adds this to the padded center, so the flight
-    // and placement agree on where it lands.
+    // Just above the drawer-blocked region, floored at 0.3h so a tall drawer can't push it off-top.
     const desiredY = Math.max(h - mobileBottomBlockedPx() - MOBILE_ANCHOR_BOTTOM_GAP, h * 0.3);
     return [0, desiredY - paddedCenterY()];
   }
@@ -419,11 +418,7 @@ function paddedCenterY(): number {
   return (top + (h - bottom)) / 2;
 }
 
-/**
- * Screen-Y (px) a camera move will leave the target at, given the current drawer-aware padding and
- * popup anchor offset. Popup placement uses this to predict the resting anchor before `moveend`
- * fires (atAnchor), so the predicted spot matches where the flight actually lands.
- */
+/** Screen-Y (px) a camera move will leave the target at, so placement can match it before moveend. */
 export function predictedRestingY(): number {
   return paddedCenterY() + (popupAnchorOffset()?.[1] ?? 0);
 }

@@ -652,7 +652,7 @@ function handleVectorFeatureClick(
   // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
   // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
   const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
-  const anchored = flyToGeometry(latlng, geometrySizeM);
+  const anchored = flyToGeometry(latlng, geometrySizeM, { fromMapClick: true });
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
@@ -708,8 +708,7 @@ function navigateToLonePoint(props: Record<string, unknown>, lat: number, lng: n
   // geometry_size_m is the representative project's own size, not max_size_m, which spans
   // all projects in the cluster cell and is only meaningful for the client-side size filter.
   const geometrySizeM: number = (props.geometry_size_m as number | null) ?? 0;
-  // allowPan avoids flyTo's zoom-out arc (and canvas flicker) when no zoom change is needed.
-  return flyToGeometry([lat, lng], hasGeometry ? geometrySizeM : 0, { allowPan: true });
+  return flyToGeometry([lat, lng], hasGeometry ? geometrySizeM : 0, { fromMapClick: true });
 }
 
 // Map a lat/lng to the tile index and pixel position inside the tile.

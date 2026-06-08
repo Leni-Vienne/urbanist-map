@@ -1,10 +1,12 @@
 <template>
   <div
+    ref="rootEl"
     :class="[
       'unified-popup',
       `popup-source-${props.source}`,
       props.source === 'marker' ? `popup-placement-${projectPopupPlacement}` : '',
     ]"
+    :style="rootStyle"
     class="w-max min-w-60 max-w-80 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
     @click.stop
     @mousedown.stop
@@ -311,9 +313,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { Dialog } from "primevue";
-import { projectPopupPlacement, projectPopupMaxHeight } from "@/services/map/popupState";
+import {
+  projectPopupPlacement,
+  projectPopupMaxHeight,
+  projectPopupShiftBounds,
+} from "@/services/map/popupState";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
@@ -367,6 +373,64 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 const projectStore = useProjectStore();
+
+// A left/right popup is centered on the anchor, but slides (--popup-shift) to stay within the usable
+// band; the arrow counter-shifts (--popup-arrow-shift), clamped to the popup edge so it never floats
+// off into the gap when the anchor is out of reach.
+const rootEl = ref<HTMLElement | null>(null);
+const measuredHeight = ref(0);
+let popupResizeObserver: ResizeObserver | null = null;
+
+// Rounded-corner radius + half the triangle height: how far the arrow stays from the popup corners.
+const ARROW_EDGE_PAD = 24;
+
+function measurePopupHeight() {
+  if (rootEl.value) measuredHeight.value = rootEl.value.offsetHeight;
+}
+
+function computeSideOffsets(): { shift: number; arrowShift: number } {
+  if (props.source !== "marker") return { shift: 0, arrowShift: 0 };
+  const placement = projectPopupPlacement.value;
+  if (placement !== "left" && placement !== "right") return { shift: 0, arrowShift: 0 };
+  const bounds = projectPopupShiftBounds.value;
+  if (!bounds || measuredHeight.value === 0) return { shift: 0, arrowShift: 0 };
+
+  const half = measuredHeight.value / 2;
+  const top = bounds.anchorY - half;
+  const bottom = bounds.anchorY + half;
+  let shift = 0;
+  if (top < bounds.top) shift = bounds.top - top;
+  else if (bottom > bounds.bottom) shift = bounds.bottom - bottom;
+
+  const maxArrowOffset = Math.max(0, half - ARROW_EDGE_PAD);
+  const arrowShift = Math.max(-maxArrowOffset, Math.min(maxArrowOffset, -shift));
+  return { shift, arrowShift };
+}
+const sideOffsets = computed(computeSideOffsets);
+
+function computeRootStyle(): Record<string, string> {
+  if (props.source !== "marker") return {};
+  return {
+    "--popup-shift": `${sideOffsets.value.shift}px`,
+    "--popup-arrow-shift": `${sideOffsets.value.arrowShift}px`,
+  };
+}
+const rootStyle = computed(computeRootStyle);
+
+function handlePopupMounted() {
+  measurePopupHeight();
+  if (rootEl.value && typeof ResizeObserver !== "undefined") {
+    popupResizeObserver = new ResizeObserver(measurePopupHeight);
+    popupResizeObserver.observe(rootEl.value);
+  }
+}
+onMounted(handlePopupMounted);
+
+function handlePopupUnmount() {
+  popupResizeObserver?.disconnect();
+  popupResizeObserver = null;
+}
+onBeforeUnmount(handlePopupUnmount);
 
 // Project render (artist's impression), delivered with the project by project.getById. The backend
 // already scopes this to approved or the user's own pending render; we just hide a pending render
@@ -632,22 +696,22 @@ const canDeleteProject = computed(() => {
 @keyframes popup-enter-right {
   from {
     opacity: 0;
-    transform: translateX(20px) translateY(-50%) scaleX(0.4);
+    transform: translateX(20px) translateY(calc(-50% + var(--popup-shift, 0px))) scaleX(0.4);
   }
   to {
     opacity: 1;
-    transform: translateX(20px) translateY(-50%) scaleX(1);
+    transform: translateX(20px) translateY(calc(-50% + var(--popup-shift, 0px))) scaleX(1);
   }
 }
 .popup-source-marker.popup-placement-right {
-  transform: translateX(20px) translateY(-50%);
+  transform: translateX(20px) translateY(calc(-50% + var(--popup-shift, 0px)));
   animation: popup-enter-right 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
   transform-origin: left center;
 }
 .popup-source-marker.popup-placement-right::before {
   left: -8px;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% + var(--popup-arrow-shift, 0px)));
   border-top: 10px solid transparent;
   border-bottom: 10px solid transparent;
   border-right: 10px solid var(--p-content-background);
@@ -657,22 +721,24 @@ const canDeleteProject = computed(() => {
 @keyframes popup-enter-left {
   from {
     opacity: 0;
-    transform: translateX(calc(-100% - 20px)) translateY(-50%) scaleX(0.4);
+    transform: translateX(calc(-100% - 20px)) translateY(calc(-50% + var(--popup-shift, 0px)))
+      scaleX(0.4);
   }
   to {
     opacity: 1;
-    transform: translateX(calc(-100% - 20px)) translateY(-50%) scaleX(1);
+    transform: translateX(calc(-100% - 20px)) translateY(calc(-50% + var(--popup-shift, 0px)))
+      scaleX(1);
   }
 }
 .popup-source-marker.popup-placement-left {
-  transform: translateX(calc(-100% - 20px)) translateY(-50%);
+  transform: translateX(calc(-100% - 20px)) translateY(calc(-50% + var(--popup-shift, 0px)));
   animation: popup-enter-left 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
   transform-origin: right center;
 }
 .popup-source-marker.popup-placement-left::before {
   right: -8px;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% + var(--popup-arrow-shift, 0px)));
   border-top: 10px solid transparent;
   border-bottom: 10px solid transparent;
   border-left: 10px solid var(--p-content-background);
