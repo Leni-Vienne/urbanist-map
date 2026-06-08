@@ -1,6 +1,6 @@
 import { computed, reactive, ref, useTemplateRef, watch } from "vue";
 
-export interface LightboxImage {
+interface LightboxImage {
   url: string;
   header: string;
   crossorigin?: "use-credentials" | "anonymous" | "";
@@ -85,7 +85,9 @@ export function useImageLightbox() {
   // Reset zoom whenever the lightbox opens or closes so it never reopens mid-zoom.
   watch(visible, reset);
 
-  return {
+  // Reactive namespace so the consumer keeps it whole (const lightbox = useImageLightbox())
+  // and reads lightbox.image / lightbox.zoom in the template without ref-unwrapping noise.
+  return reactive({
     image,
     zoom,
     pan,
@@ -97,5 +99,5 @@ export function useImageLightbox() {
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
-  };
+  });
 }

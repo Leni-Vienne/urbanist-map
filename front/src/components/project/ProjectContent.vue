@@ -12,39 +12,23 @@
             :project="project"
             :show-name="false"
             :show-description="true"
-            :edit-mode="showEditButtons"
             show-wikidata-media
-            @field-click="$emit('edit-project', project)"
           />
 
-          <!-- Contributor + overlay count: accordion-only context the metadata card omits -->
-          <div class="flex flex-col gap-2 mt-3">
-            <div
-              v-if="contributorDate"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-pencil text-xs text-muted-color w-3.5 shrink-0"></i>
-              <ContributorInfo
-                :date="contributorDate"
-                :contributor-id="project.ownerId"
-                :contributor-username="project.ownerUsername"
-                :report-count="project.ownerReportCount ?? 0"
-                :clickable="showUserStatsLink && Boolean(project.ownerId)"
-                @click-contributor="handleProjectContributorClick"
-              />
-            </div>
-            <div
-              v-if="overlayCount > 0"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-images text-xs text-muted-color w-3.5 shrink-0"></i>
-              <span
-                >{{ overlayCount }}
-                {{
-                  overlayCount === 1 ? $t("overlay.overlayImage") : $t("overlay.overlayImages")
-                }}</span
-              >
-            </div>
+          <!-- Contributor line: accordion-only context the metadata card omits -->
+          <div
+            v-if="contributorDate"
+            class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary) mt-3"
+          >
+            <i class="pi pi-pencil text-xs text-muted-color w-3.5 shrink-0"></i>
+            <ContributorInfo
+              :date="contributorDate"
+              :contributor-id="project.ownerId"
+              :contributor-username="project.ownerUsername"
+              :report-count="project.ownerReportCount ?? 0"
+              :clickable="showUserStatsLink && Boolean(project.ownerId)"
+              @click-contributor="handleProjectContributorClick"
+            />
           </div>
         </div>
 
@@ -301,10 +285,6 @@ const emit = defineEmits<{
 }>();
 
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
-
-const overlayCount = computed(
-  () => props.project.overlayCount || (props.project.overlays?.length ?? 0),
-);
 
 // OSM-imported projects have no on-site contributor and their updatedAt is just
 // the import date, so the contributor line carries no meaning: hide it for them.

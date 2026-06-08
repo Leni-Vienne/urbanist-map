@@ -189,8 +189,6 @@
     "sortStatus": "Trier par statut chronologique"
   },
   "overlay": {
-    "overlayImage": "image",
-    "overlayImages": "images",
     "overlayInformation": "Informations sur l'image",
     "notSet": "Non défini",
     "changedFrom": "Modifié depuis",

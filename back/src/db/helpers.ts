@@ -156,10 +156,12 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
       cityName: cities.name,
       countryName: countries.name,
       city: cities,
+      importSource: importSources,
     })
     .from(projects)
     .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code));
+    .leftJoin(countries, eq(projects.countryCode, countries.code))
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId));
 }
 
 /**

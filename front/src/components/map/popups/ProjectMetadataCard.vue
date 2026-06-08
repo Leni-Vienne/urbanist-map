@@ -5,21 +5,13 @@
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
 
-    <!-- Description: prefer OSM description, fall back to Wikidata description, hidden when both null and not editable -->
-    <div
-      v-if="showDescription && (project.description || wikidataDescription || editMode)"
-      :class="cls.row"
-    >
+    <!-- Description: prefer OSM description, fall back to Wikidata description -->
+    <div v-if="showDescription && (project.description || wikidataDescription)" :class="cls.row">
       <span :class="cls.label">{{ $t("common.description") }}</span>
-      <span v-if="project.description || wikidataDescription" :class="cls.value">{{
-        project.description || wikidataDescription
-      }}</span>
-      <button v-else :class="cls.addBtn" @click.stop="emit('field-click')">
-        + {{ $t("common.addField") }}
-      </button>
+      <span :class="cls.value">{{ project.description || wikidataDescription }}</span>
     </div>
 
-    <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+    <div class="flex flex-wrap gap-x-6 gap-y-3">
       <!-- Timeline Status -->
       <div :class="cls.row">
         <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
@@ -40,15 +32,10 @@
         }}</span>
       </div>
 
-      <!-- Location: hidden when null and not editable -->
-      <div v-if="projectLocationDisplay !== '—' || editMode" :class="cls.row">
+      <!-- Location: hidden when null (empty-state add handled by the consolidated affordance) -->
+      <div v-if="projectLocationDisplay !== '—'" :class="cls.row">
         <span :class="cls.label">{{ $t("project.city") }}</span>
-        <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
-          projectLocationDisplay
-        }}</span>
-        <button v-else :class="cls.addBtn" @click.stop="emit('field-click')">
-          + {{ $t("common.addField") }}
-        </button>
+        <span :class="cls.value">{{ projectLocationDisplay }}</span>
       </div>
 
       <!-- Period: hidden when empty -->
@@ -85,12 +72,6 @@
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
     </div>
-    <div v-else-if="editMode" :class="cls.row">
-      <span :class="cls.label">{{ $t("project.source") }}</span>
-      <button :class="cls.addBtn" @click.stop="emit('field-click')">
-        + {{ $t("common.addField") }}
-      </button>
-    </div>
 
     <!-- Modify on source link (imported projects only, edit mode) -->
     <div v-if="osmEditUrl" :class="cls.row">
@@ -110,7 +91,7 @@
     <!-- External properties (OSM tags) for imported projects -->
     <template v-if="project.importSourceId && externalProperties">
       <!-- Architect, Wikipedia, Wikidata -->
-      <div v-if="externalEntries.length > 0" class="grid grid-cols-2 gap-x-6 gap-y-3">
+      <div v-if="externalEntries.length > 0" class="flex flex-wrap gap-x-6 gap-y-3">
         <div v-for="entry in externalEntries" :key="entry.key" class="flex flex-col gap-0.5">
           <span :class="cls.label">{{ entry.label }}</span>
           <a
@@ -171,7 +152,6 @@ interface Props {
   project: Project | null;
   showName?: boolean;
   showDescription?: boolean;
-  editMode?: boolean;
   // Render the Wikidata logo + main image inside the card. Off by default because the detail
   // panel renders its own (logo next to the name, image with a zoom lightbox).
   showWikidataMedia?: boolean;
@@ -180,7 +160,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   showName: true,
   showDescription: false,
-  editMode: false,
   showWikidataMedia: false,
 });
 
@@ -192,8 +171,6 @@ const wikidataId = computed(() => {
 });
 const { entity: wikidataEntityData } = useWikidataEntity(wikidataId);
 const wikidataDescription = computed(() => wikidataEntityData.value?.description ?? null);
-
-const emit = defineEmits<{ "field-click": [] }>();
 
 const cls = {
   row: "flex flex-col gap-0.5",

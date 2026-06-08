@@ -189,8 +189,6 @@
     "sortStatus": "Sort by timeline status"
   },
   "overlay": {
-    "overlayImage": "image",
-    "overlayImages": "images",
     "overlayInformation": "Image Information",
     "notSet": "Not set",
     "changedFrom": "Changed from",

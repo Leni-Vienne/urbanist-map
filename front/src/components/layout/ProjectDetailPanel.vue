@@ -94,13 +94,7 @@
 
       <!-- Project fields + overlay section -->
       <div class="px-4 pt-3 pb-4 flex-1 overflow-y-auto overscroll-contain">
-        <ProjectMetadataCard
-          :project="project"
-          :show-name="false"
-          :show-description="true"
-          :edit-mode="!viewMode"
-          @field-click="handleEditProject(project)"
-        />
+        <ProjectMetadataCard :project="project" :show-name="false" :show-description="true" />
 
         <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
         <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">
@@ -111,7 +105,7 @@
             loading="lazy"
             v-tooltip.top="$t('overlay.viewFullImage')"
             @click="
-              openLightbox({
+              lightbox.open({
                 url: wikidataEntity.imageUrl,
                 header: project?.name || $t('project.unnamed'),
                 referrerpolicy: 'no-referrer',
@@ -131,7 +125,7 @@
             loading="lazy"
             v-tooltip.top="$t('overlay.viewFullImage')"
             @click="
-              openLightbox({
+              lightbox.open({
                 url: renderImageUrl,
                 header: $t('render.label'),
                 crossorigin: renderImageCrossorigin,
@@ -246,39 +240,39 @@
 
     <!-- Full-size image lightbox: scroll to zoom (toward cursor), drag to pan, double-click to reset -->
     <Dialog
-      v-model:visible="lightboxVisible"
+      v-model:visible="lightbox.visible"
       modal
       dismissableMask
       :draggable="false"
-      :header="lightboxImage?.header"
+      :header="lightbox.image?.header"
       :style="{ width: 'auto', maxWidth: '90vw' }"
       :pt="{ content: { class: 'p-0' } }"
     >
       <div
         class="overflow-hidden max-h-[80vh] max-w-[90vw] flex items-center justify-center touch-none"
-        @wheel.prevent="handleLightboxWheel"
-        @pointerdown="handleLightboxPointerDown"
-        @pointermove="handleLightboxPointerMove"
-        @pointerup="handleLightboxPointerUp"
-        @pointerleave="handleLightboxPointerUp"
-        @dblclick="resetLightbox"
+        @wheel.prevent="lightbox.handleWheel"
+        @pointerdown="lightbox.handlePointerDown"
+        @pointermove="lightbox.handlePointerMove"
+        @pointerup="lightbox.handlePointerUp"
+        @pointerleave="lightbox.handlePointerUp"
+        @dblclick="lightbox.reset"
       >
         <img
-          v-if="lightboxImage"
+          v-if="lightbox.image"
           ref="lightboxImg"
-          :src="lightboxImage.url"
-          :crossorigin="lightboxImage.crossorigin"
-          :referrerpolicy="lightboxImage.referrerpolicy"
+          :src="lightbox.image.url"
+          :crossorigin="lightbox.image.crossorigin"
+          :referrerpolicy="lightbox.image.referrerpolicy"
           class="block max-h-[80vh] max-w-[90vw] object-contain select-none"
           :class="
-            lightboxZoom > 1
-              ? isPanningLightbox
+            lightbox.zoom > 1
+              ? lightbox.isPanning
                 ? 'cursor-grabbing'
                 : 'cursor-grab'
               : 'cursor-zoom-in'
           "
           :style="{
-            transform: `translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom})`,
+            transform: `translate(${lightbox.pan.x}px, ${lightbox.pan.y}px) scale(${lightbox.zoom})`,
           }"
           draggable="false"
           alt=""
@@ -323,19 +317,7 @@ import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue
 const { t: $t, t } = useI18n();
 const toast = useToast();
 const { isMobile } = useIsMobile();
-const {
-  image: lightboxImage,
-  zoom: lightboxZoom,
-  pan: lightboxPan,
-  isPanning: isPanningLightbox,
-  visible: lightboxVisible,
-  open: openLightbox,
-  reset: resetLightbox,
-  handleWheel: handleLightboxWheel,
-  handlePointerDown: handleLightboxPointerDown,
-  handlePointerMove: handleLightboxPointerMove,
-  handlePointerUp: handleLightboxPointerUp,
-} = useImageLightbox();
+const lightbox = useImageLightbox();
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);

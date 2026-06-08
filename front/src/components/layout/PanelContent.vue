@@ -1,10 +1,8 @@
 <template>
   <div :class="contentContainerClass">
-    <!-- A selected map feature drives the panel into a detail state, replacing the tab content. -->
-    <ProjectDetailPanel v-if="detailVisible" />
-    <!-- KeepAlive preserves component state (scroll, data) when switching tabs -->
-    <KeepAlive v-else>
-      <LatestContributionsPanel v-if="activeTab === 'latest'" />
+    <KeepAlive>
+      <ProjectDetailPanel v-if="detailVisible" />
+      <LatestContributionsPanel v-else-if="activeTab === 'latest'" />
       <CurrentLocationPanel v-else-if="activeTab === 'currentLocation'" />
       <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
       <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
