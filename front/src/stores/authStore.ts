@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
-import { trpc } from "@/client";
+import { trpc, getApiUrl } from "@/client";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -70,11 +70,11 @@ function setLastUsedMethod(method: LastUsedMethod, email: string | null = null) 
 // never returns; the backend handles the callback and redirects back to the SPA.
 function startOsmLogin(rememberMe: boolean): void {
   const rememberParam = rememberMe ? "true" : "false";
-  globalThis.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/osm-login?rememberMe=${rememberParam}`;
+  globalThis.location.href = `${getApiUrl()}/api/osm-login?rememberMe=${rememberParam}`;
 }
 
 async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean) {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/google-login`, {
+  const response = await fetch(`${getApiUrl()}/api/google-login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -232,7 +232,7 @@ export const useAuthStore = defineStore("auth", () => {
     initPromise = (async () => {
       try {
         // Try to get current user from server (will use session cookies)
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/check-session`, {
+        const response = await fetch(`${getApiUrl()}/api/check-session`, {
           credentials: "include",
         });
 
@@ -258,7 +258,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function signIn(email: string, password: string, rememberMe = false) {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/login`, {
+      const response = await fetch(`${getApiUrl()}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -358,7 +358,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   async function signOut() {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/logout`, {
+      const response = await fetch(`${getApiUrl()}/api/logout`, {
         method: "POST",
         credentials: "include",
       });

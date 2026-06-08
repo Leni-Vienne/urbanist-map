@@ -68,7 +68,7 @@
       <!-- Inline action buttons row, aligned to the bottom of the card -->
       <div
         v-if="$slots['project-actions']"
-        class="flex flex-row flex-wrap gap-1.5 mt-3"
+        class="flex flex-row flex-wrap gap-1.5 mt-3 py-1"
         @click.stop
       >
         <slot name="project-actions" :project="project"></slot>
