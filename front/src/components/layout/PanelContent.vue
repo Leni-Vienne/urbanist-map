@@ -1,7 +1,7 @@
 <template>
   <div :class="contentContainerClass">
     <!-- A selected map feature drives the panel into a detail state, replacing the tab content. -->
-    <ProjectDetailHost v-if="detailVisible" />
+    <ProjectDetailPanel v-if="detailVisible" />
     <!-- KeepAlive preserves component state (scroll, data) when switching tabs -->
     <KeepAlive v-else>
       <LatestContributionsPanel v-if="activeTab === 'latest'" />
@@ -42,9 +42,7 @@ const CurrentLocationPanel = defineAsyncComponent(() => import("./CurrentLocatio
 const ModerationPanel = defineAsyncComponent(() => import("./ModerationPanel.vue"));
 const ContributePanel = defineAsyncComponent(() => import("./ContributePanel.vue"));
 const ContributeGuestPanel = defineAsyncComponent(() => import("./ContributeGuestPanel.vue"));
-const ProjectDetailHost = defineAsyncComponent(
-  () => import("@/components/map/popups/ProjectDetailHost.vue"),
-);
+const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();

@@ -1,6 +1,16 @@
 <template>
   <div class="flex flex-col h-full min-h-0 bg-content-background">
-    <div v-if="loading" class="flex justify-center items-center flex-1 p-4">
+    <!-- Back header: returns to the panel's tab content -->
+    <button
+      type="button"
+      class="flex items-center gap-2 px-4 py-2.5 border-b border-surface text-sm font-medium text-muted-color hover:text-color hover:bg-content-hover-background cursor-pointer bg-transparent shrink-0 text-left"
+      @click="handleBack"
+    >
+      <i class="pi pi-arrow-left text-xs"></i>
+      {{ $t("common.back") }}
+    </button>
+
+    <div v-if="!project" class="flex-1 flex justify-center items-center p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
     <template v-else>
@@ -34,7 +44,7 @@
                 v-if="!viewMode && user"
                 type="button"
                 class="text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
-                @click="emit('edit-overlay', overlay)"
+                @click="handleEditOverlay(overlay)"
               >
                 {{ $t("common.edit") }}
               </button>
@@ -44,7 +54,7 @@
                 "
                 type="button"
                 class="text-xs italic text-red-400 hover:text-red-600 dark:hover:text-red-300 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
-                @click="emit('delete-overlay', overlay)"
+                @click="handleDeleteOverlay(overlay)"
               >
                 {{ $t("common.delete") }}
               </button>
@@ -60,7 +70,7 @@
                 project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
               "
               class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
-              @click="emit('edit-project', project)"
+              @click="handleEditProject(project)"
               v-tooltip.top="
                 project.ownerId === user.id ? $t('project.edit') : $t('tooltips.suggestChanges')
               "
@@ -73,7 +83,7 @@
               type="button"
               :aria-label="$t('contribute.deleteProject')"
               class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
-              @click="emit('delete-project', project)"
+              @click="handleDeleteProject(project)"
               v-tooltip.top="$t('contribute.deleteProject')"
             >
               <i class="pi pi-trash"></i>
@@ -89,7 +99,7 @@
           :show-name="false"
           :show-description="true"
           :edit-mode="!viewMode"
-          @field-click="emit('edit-project', project)"
+          @field-click="handleEditProject(project)"
         />
 
         <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
@@ -147,7 +157,7 @@
           <button
             type="button"
             class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 bg-purple-50 border border-purple-200 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 hover:border-purple-300 hover:text-purple-700"
-            @click.stop="emit('view-original-overlay', overlay.replacesOverlayId)"
+            @click.stop="handleViewOriginalOverlay(overlay.replacesOverlayId)"
           >
             <i class="pi pi-arrow-left text-sm"></i>
             {{ $t("overlay.viewOriginalOverlay") }}
@@ -198,7 +208,7 @@
             :label="$t('project.addImages')"
             severity="secondary"
             outlined
-            @click="emit('add-images')"
+            @click="handleAddImages"
           >
             <template #icon>
               <svg
@@ -227,7 +237,7 @@
           :label="$t('project.submitChangeRequest')"
           icon="pi pi-send"
           severity="success"
-          :loading="publishLoading"
+          :loading="isSubmitting"
           :disabled="!hasChanges"
           @click="handlePublishClick"
         />
@@ -251,11 +261,11 @@
         @pointermove="handleLightboxPointerMove"
         @pointerup="handleLightboxPointerUp"
         @pointerleave="handleLightboxPointerUp"
-        @dblclick="resetLightboxZoom"
+        @dblclick="resetLightbox"
       >
         <img
           v-if="lightboxImage"
-          ref="lightboxImgRef"
+          ref="lightboxImg"
           :src="lightboxImage.url"
           :crossorigin="lightboxImage.crossorigin"
           :referrerpolicy="lightboxImage.referrerpolicy"
@@ -279,153 +289,146 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { Dialog } from "primevue";
-import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
+
+import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
-import type { OverlayObject, Project } from "@/types/index";
+import { useImageLightbox } from "@/composables/ui/useImageLightbox";
+import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
+import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { getStagedRender } from "@/composables/submission/stagedRenderStore";
+
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+
+import { navigateToOverlay } from "@/services/overlay/actions";
+import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
+
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
-import { getStagedRender } from "@/composables/submission/stagedRenderStore";
+import { createProjectObject } from "@/utils/typeFactories";
 import { trpc } from "@/client";
+import type { OverlayData, OverlayObject, Project } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
-const { t: $t } = useI18n();
+const { t: $t, t } = useI18n();
 const toast = useToast();
 const { isMobile } = useIsMobile();
-
-interface Props {
-  project: Project;
-  overlay?: OverlayObject | null;
-  viewMode?: boolean;
-  publishLoading?: boolean;
-  loading?: boolean;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  overlay: null,
-  viewMode: false,
-  publishLoading: false,
-  loading: false,
-});
-
-const emit = defineEmits<{
-  "edit-project": [project: Project];
-  "edit-overlay": [overlay: OverlayObject];
-  "publish-overlay": [];
-  "publish-project": [];
-  "add-images": [];
-  "draw-shapes": [project: Project];
-  "view-original-overlay": [overlayId: string];
-  "delete-project": [project: Project];
-  "delete-overlay": [overlay: OverlayObject];
-}>();
+const {
+  image: lightboxImage,
+  zoom: lightboxZoom,
+  pan: lightboxPan,
+  isPanning: isPanningLightbox,
+  visible: lightboxVisible,
+  open: openLightbox,
+  reset: resetLightbox,
+  handleWheel: handleLightboxWheel,
+  handlePointerDown: handleLightboxPointerDown,
+  handlePointerMove: handleLightboxPointerMove,
+  handlePointerUp: handleLightboxPointerUp,
+} = useImageLightbox();
 
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 const projectStore = useProjectStore();
+const overlayStore = useOverlayStore();
+const mapStore = useMapStore();
+const uiStore = useUiStore();
+const { overlays, showInfoPopup, infoPopupOverlayId } = storeToRefs(overlayStore);
+const { projects } = storeToRefs(projectStore);
+const { projectInfoPopup } = storeToRefs(uiStore);
+
+const {
+  handleDeleteOverlay: deleteOverlayWithMarker,
+  handleDeleteProject: deleteProjectWithConfirm,
+} = useProjectDeletion();
+const { isSubmitting, prepareOverlaySubmission, prepareSubmission } = useSubmissionDialog();
+
+const viewMode = computed(() => mapStore.mode !== "edit");
+
+const overlay = computed(() => {
+  if (
+    !showInfoPopup.value ||
+    !infoPopupOverlayId.value ||
+    !overlays.value[infoPopupOverlayId.value]
+  ) {
+    return null;
+  }
+  return overlays.value[infoPopupOverlayId.value];
+});
+
+function convertAndCacheBackendProject(
+  backendProject: NonNullable<OverlayData["project"]>,
+): Project {
+  const existing = projects.value[backendProject.id];
+  if (existing) return existing;
+
+  const overlayIds = Object.values(overlays.value)
+    .filter((o) => o.projectId === backendProject.id)
+    .map((o) => o.id);
+
+  const project = createProjectObject({ ...backendProject, overlayIds });
+  projects.value = { ...projects.value, [project.id]: project };
+  if (project.status !== null) projectStore.cacheProjectBackendState(project.id);
+
+  return project;
+}
+
+// In view mode, show original approved data for locally-modified projects.
+function getEffectiveProject(projectId: string): Project | undefined {
+  const localProject = projects.value[projectId];
+  if (!localProject) return undefined;
+  if (mapStore.mode !== "edit" && localProject.isModified) {
+    const original = projectStore.getOriginalProject(projectId);
+    if (original) return original as Project;
+  }
+  return localProject;
+}
+
+const project = computed<Project | undefined>(() => {
+  // Check overlay popup first.
+  const currentOverlay = overlay.value;
+  if (currentOverlay?.projectId) {
+    const localProject = getEffectiveProject(currentOverlay.projectId);
+    if (localProject) return localProject;
+
+    const backendProject =
+      currentOverlay.project?.id === currentOverlay.projectId ? currentOverlay.project : null;
+    if (backendProject) return convertAndCacheBackendProject(backendProject);
+  }
+
+  // Fall back to project popup.
+  if (projectInfoPopup.value.visible && projectInfoPopup.value.projectId) {
+    const localProject = getEffectiveProject(projectInfoPopup.value.projectId);
+    if (localProject) return localProject;
+
+    if (projectInfoPopup.value.project) return projectInfoPopup.value.project;
+  }
+
+  return undefined;
+});
 
 // Project render (artist's impression), delivered with the project by project.getById. The backend
 // already scopes this to approved or the user's own pending render; we just hide a pending render
 // while in view mode (so the live view<->edit toggle is purely a computed, no refetch).
-const renderImage = computed(() => props.project?.render ?? null);
-
-// Shared lightbox: any image in the popup (render, wikidata) opens here with scroll-to-zoom
-// (toward the cursor) and drag-to-pan.
-interface LightboxImage {
-  url: string;
-  header: string;
-  crossorigin?: "use-credentials" | "anonymous" | "";
-  referrerpolicy?: ReferrerPolicy;
-}
-const lightboxImage = ref<LightboxImage | null>(null);
-const lightboxImgRef = ref<HTMLImageElement | null>(null);
-const lightboxZoom = ref(1);
-const lightboxPan = reactive({ x: 0, y: 0 });
-const isPanningLightbox = ref(false);
-const panStart = { x: 0, y: 0 };
-
-const MIN_LIGHTBOX_ZOOM = 1;
-const MAX_LIGHTBOX_ZOOM = 8;
-
-const lightboxVisible = computed({
-  get: () => lightboxImage.value !== null,
-  set: (value: boolean) => {
-    if (!value) lightboxImage.value = null;
-  },
-});
-
-function openLightbox(image: LightboxImage) {
-  lightboxImage.value = image;
-}
-
-function resetLightboxZoom() {
-  lightboxZoom.value = 1;
-  lightboxPan.x = 0;
-  lightboxPan.y = 0;
-}
-
-// Zoom toward the cursor: keep the image point under the cursor fixed by shifting the pan by the
-// cursor's offset from the rendered center, scaled by how much the zoom changed.
-function handleLightboxWheel(event: WheelEvent) {
-  const img = lightboxImgRef.value;
-  if (!img) return;
-
-  const oldZoom = lightboxZoom.value;
-  const next = Math.min(
-    MAX_LIGHTBOX_ZOOM,
-    Math.max(MIN_LIGHTBOX_ZOOM, oldZoom * (event.deltaY < 0 ? 1.2 : 1 / 1.2)),
-  );
-  if (next === oldZoom) return;
-
-  if (next === 1) {
-    resetLightboxZoom();
-    return;
-  }
-
-  const rect = img.getBoundingClientRect();
-  const offsetX = event.clientX - (rect.left + rect.width / 2);
-  const offsetY = event.clientY - (rect.top + rect.height / 2);
-  const factor = next / oldZoom;
-  lightboxPan.x += offsetX * (1 - factor);
-  lightboxPan.y += offsetY * (1 - factor);
-  lightboxZoom.value = next;
-}
-
-function handleLightboxPointerDown(event: PointerEvent) {
-  if (lightboxZoom.value <= 1) return;
-  isPanningLightbox.value = true;
-  panStart.x = event.clientX - lightboxPan.x;
-  panStart.y = event.clientY - lightboxPan.y;
-  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-}
-
-function handleLightboxPointerMove(event: PointerEvent) {
-  if (!isPanningLightbox.value) return;
-  lightboxPan.x = event.clientX - panStart.x;
-  lightboxPan.y = event.clientY - panStart.y;
-}
-
-function handleLightboxPointerUp() {
-  isPanningLightbox.value = false;
-}
-
-// Reset zoom whenever the lightbox opens or closes so it never reopens mid-zoom.
-watch(lightboxVisible, resetLightboxZoom);
+const renderImage = computed(() => project.value?.render ?? null);
 
 // Marker popups load their project via getById (render included), but overlay popups build it from
 // the viewport payload, which omits render (undefined). Hydrate that one case via getById.
 watch(
-  () => props.project?.id,
+  () => project.value?.id,
   async (id) => {
-    const project = props.project;
-    if (!id || !project || project.status === null || project.render !== undefined) return;
+    const current = project.value;
+    if (!id || !current || current.status === null || current.render !== undefined) return;
     try {
       const fresh = await trpc.project.getById.query({ id });
       if (fresh) projectStore.updateProject(id, { render: fresh.render ?? null });
@@ -440,14 +443,14 @@ watch(
 // content only, so it never surfaces there. Reactive via stagedRenderStore, so it appears the
 // moment it is staged and disappears once submission promotes it to project.render.
 const stagedRender = computed(() =>
-  props.viewMode || !props.project?.id ? null : (getStagedRender(props.project.id) ?? null),
+  viewMode.value || !project.value?.id ? null : (getStagedRender(project.value.id) ?? null),
 );
 
 const renderImageUrl = computed(() => {
   if (stagedRender.value) return stagedRender.value.previewUrl;
   const render = renderImage.value;
   if (!render) return null;
-  if (props.viewMode && render.status !== "approved") return null;
+  if (viewMode.value && render.status !== "approved") return null;
   // Pending renders live in local storage (not yet on R2), so force the backend URL.
   return buildImageUrl(render.filename, render.status !== "approved");
 });
@@ -460,45 +463,121 @@ const renderImageCrossorigin = computed(() =>
 
 // Wikidata entity for the current project (logo, description, height)
 const wikidataId = computed(() => {
-  const p = props.project?.externalProperties;
+  const p = project.value?.externalProperties;
   if (!p || typeof p !== "object") return null;
   const id = (p as Record<string, unknown>)["wikidata"];
   return typeof id === "string" ? id : null;
 });
 const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
 
-function handleDrawShapesClick() {
-  if (isMobile.value) {
-    toast.add({
-      severity: "warn",
-      summary: $t("shapes.desktopOnly"),
-      life: 3000,
-    });
-    return;
-  }
-  emit("draw-shapes", props.project);
-}
-
-// Check if project/overlay is published to backend (null status means not yet submitted)
 const hasChanges = computed(() => {
-  if (props.overlay && isOverlayUnsaved(props.overlay)) return true;
-  if (props.project && isProjectUnsaved(props.project)) return true;
+  if (overlay.value && isOverlayUnsaved(overlay.value)) return true;
+  if (project.value && isProjectUnsaved(project.value)) return true;
   return false;
 });
 
+const canDeleteProject = computed(() => {
+  if (!project.value || !user.value || viewMode.value) return false;
+  const isDeletable = project.value.status === null || project.value.status === "pending";
+  const isOwner = project.value.ownerId === user.value.id;
+  return isDeletable && isOwner;
+});
+
 function handlePublishClick() {
-  if (props.overlay) {
-    emit("publish-overlay");
-  } else {
-    emit("publish-project");
+  if (overlay.value) {
+    prepareOverlaySubmission(overlay.value, project.value);
+  } else if (project.value) {
+    prepareSubmission(project.value);
   }
 }
 
-// Computed property for delete button visibility
-const canDeleteProject = computed(() => {
-  if (!props.project || !user.value || props.viewMode) return false;
-  const isDeletable = props.project.status === null || props.project.status === "pending";
-  const isOwner = props.project.ownerId === user.value.id;
-  return isDeletable && isOwner;
-});
+function handleEditProject(target: Project) {
+  uiStore.openProjectEditForm(target);
+}
+
+function handleEditOverlay(target: OverlayObject) {
+  uiStore.openOverlayEditDialog({ id: target.id, caption: target.caption });
+}
+
+function handleAddImages() {
+  if (project.value) uiStore.openImageUploadDialog(project.value.id);
+}
+
+function closeProjectInfoPopup() {
+  uiStore.closeProjectInfoPopup();
+  closeProjectPopupAndResetMarkers();
+}
+
+// Back returns to the panel's tab list, closing whichever detail is open.
+function handleBack() {
+  if (showInfoPopup.value) {
+    overlayStore.hideInfoPopup();
+  } else {
+    closeProjectInfoPopup();
+  }
+}
+
+async function handleViewOriginalOverlay(originalOverlayId: string) {
+  try {
+    const success = await navigateToOverlay(originalOverlayId, true);
+    if (!success) {
+      toast.add({
+        severity: "error",
+        summary: t("overlay.navigationFailed"),
+        detail: t("overlay.failedToNavigate"),
+        life: 3000,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to navigate to original overlay:", error);
+    toast.add({
+      severity: "error",
+      summary: t("overlay.navigationFailed"),
+      detail: error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+      life: 3000,
+    });
+  }
+}
+
+async function handleDeleteOverlay(target: OverlayObject) {
+  const currentProject = project.value;
+  const projectId = currentProject?.id;
+
+  const overlayCount = projectId
+    ? Object.values(overlays.value).filter((o) => o.projectId === projectId).length
+    : 0;
+
+  await deleteOverlayWithMarker(target.id, currentProject, overlayCount, target.caption, () => {
+    overlayStore.hideInfoPopup();
+  });
+}
+
+async function handleDeleteProject(target: Project) {
+  await deleteProjectWithConfirm(target.id, target.name, target.overlayIds?.length ?? 0, () => {
+    if (showInfoPopup.value) {
+      overlayStore.hideInfoPopup();
+    } else {
+      closeProjectInfoPopup();
+    }
+  });
+}
+
+async function handleDrawShapesClick() {
+  const currentProject = project.value;
+  if (!currentProject) return;
+
+  if (isMobile.value) {
+    toast.add({ severity: "warn", summary: $t("shapes.desktopOnly"), life: 3000 });
+    return;
+  }
+
+  // Capture geometry from the active overlay/project before closing the detail.
+  const fallbackGeometry =
+    overlay.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
+
+  uiStore.openShapeEditor(currentProject, true);
+  if (showInfoPopup.value) overlayStore.hideInfoPopup();
+  else closeProjectInfoPopup();
+  await startShapeEditing(currentProject.id, fallbackGeometry);
+}
 </script>

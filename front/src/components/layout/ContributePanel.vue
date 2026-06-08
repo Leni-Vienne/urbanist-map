@@ -382,7 +382,7 @@ async function handleSaveProjectClick(project: ProjectForModeration) {
   prepareSubmission(project);
 }
 
-// Handle draw shapes click, mirrors handleDrawShapes in ProjectDetailHost
+// Handle draw shapes click, mirrors handleDrawShapesClick in ProjectDetailPanel
 async function handleDrawShapesClick(project: ProjectForModeration) {
   if (isMobile.value) {
     toast.add({

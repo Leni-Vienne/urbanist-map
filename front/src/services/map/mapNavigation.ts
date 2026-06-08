@@ -100,7 +100,7 @@ const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
 const MOBILE_ANCHOR_BOTTOM_GAP = 24;
 
 /** Bottom px covered by mobile UI (drawer + mode controls) that the project popup opens above. */
-export function mobileBottomBlockedPx(): number {
+function mobileBottomBlockedPx(): number {
   const uiStore = useUiStore();
   const drawerPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
   return drawerPx + MOBILE_DRAWER_CONTROLS_BUFFER;
