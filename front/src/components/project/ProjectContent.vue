@@ -48,11 +48,10 @@
           </div>
         </div>
 
-        <!-- Actions column - either slot actions, edit button, or chevron -->
+        <!-- Actions column - edit button or chevron (inline action buttons render at card bottom) -->
         <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
-          <slot v-if="$slots['project-actions']" name="project-actions" :project="project"></slot>
           <button
-            v-else-if="showEditButtons"
+            v-if="!$slots['project-actions'] && showEditButtons"
             class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
             @click.stop="$emit('edit-project', project)"
             v-tooltip.top="$t('common.edit')"
@@ -64,6 +63,15 @@
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150"
           ></i>
         </div>
+      </div>
+
+      <!-- Inline action buttons row, aligned to the bottom of the card -->
+      <div
+        v-if="$slots['project-actions']"
+        class="flex flex-row flex-wrap gap-1.5 mt-3"
+        @click.stop
+      >
+        <slot name="project-actions" :project="project"></slot>
       </div>
 
       <div class="cursor-default" @click.stop>

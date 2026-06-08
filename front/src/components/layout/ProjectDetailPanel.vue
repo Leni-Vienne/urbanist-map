@@ -1,15 +1,5 @@
 <template>
   <div class="flex flex-col h-full min-h-0 bg-content-background">
-    <!-- Back header: returns to the panel's tab content -->
-    <button
-      type="button"
-      class="flex items-center gap-2 px-4 py-2.5 border-b border-surface text-sm font-medium text-muted-color hover:text-color hover:bg-content-hover-background cursor-pointer bg-transparent shrink-0 text-left"
-      @click="handleBack"
-    >
-      <i class="pi pi-arrow-left text-xs"></i>
-      {{ $t("common.back") }}
-    </button>
-
     <div v-if="!project" class="flex-1 flex justify-center items-center p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
@@ -87,6 +77,16 @@
               v-tooltip.top="$t('contribute.deleteProject')"
             >
               <i class="pi pi-trash"></i>
+            </button>
+            <!-- Close: returns to the panel's tab content -->
+            <button
+              type="button"
+              :aria-label="$t('common.close')"
+              class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color hover:text-color hover:bg-content-hover-background bg-transparent border-none"
+              @click="handleBack"
+              v-tooltip.top="$t('common.close')"
+            >
+              <i class="pi pi-times"></i>
             </button>
           </div>
         </div>
