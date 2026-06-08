@@ -8,33 +8,17 @@
     >
       <div class="flex flex-row items-start gap-3">
         <div class="flex-1 min-w-0">
-          <div v-if="project.description" class="mb-4">
-            <p class="text-sm leading-relaxed text-color m-0">
-              {{ project.description }}
-            </p>
-          </div>
-          <div v-if="project.tags && project.tags.length > 0" class="flex flex-wrap gap-1.5 mb-3">
-            <span
-              v-for="tag in project.tags"
-              :key="tag"
-              class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-              :style="getTagStyle(tag)"
-            >
-              {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
-            </span>
-          </div>
-          <div class="flex flex-col gap-2">
-            <div
-              v-if="project.timelineStatus"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-flag text-xs text-muted-color w-3.5 shrink-0"></i>
-              <span>{{
-                $te(`timelineStatus.${project.timelineStatus}`)
-                  ? $t(`timelineStatus.${project.timelineStatus}`)
-                  : project.timelineStatus
-              }}</span>
-            </div>
+          <ProjectMetadataCard
+            :project="project"
+            :show-name="false"
+            :show-description="true"
+            :edit-mode="showEditButtons"
+            show-wikidata-media
+            @field-click="$emit('edit-project', project)"
+          />
+
+          <!-- Contributor + overlay count: accordion-only context the metadata card omits -->
+          <div class="flex flex-col gap-2 mt-3">
             <div
               v-if="contributorDate"
               class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
@@ -59,27 +43,6 @@
                 {{
                   overlayCount === 1 ? $t("overlay.overlayImage") : $t("overlay.overlayImages")
                 }}</span
-              >
-            </div>
-            <div
-              v-if="project.startDate || project.endDate || project.proposalDate"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-calendar text-xs text-muted-color w-3.5 shrink-0"></i>
-              <span>{{ formatProjectDateRange(project, $t) }}</span>
-            </div>
-            <div
-              v-if="project.sourceUrl"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-link text-xs text-muted-color w-3.5 shrink-0"></i>
-              <a
-                :href="project.sourceUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-primary-color no-underline hover:underline"
-                @click.stop
-                >{{ formatSourceUrl(project.sourceUrl) }}</a
               >
             </div>
           </div>
@@ -279,7 +242,6 @@
 import { computed, ref } from "vue";
 import { AccordionContent, Tag, Dialog } from "primevue";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import { formatSourceUrl } from "@/utils/urlFormat";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type {
@@ -291,16 +253,9 @@ import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
-import { formatProjectDateRange } from "@/utils/projectDateFormat";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
-
-function getTagStyle(slug: string): Record<string, string> {
-  const tag = PROJECT_TAG_MAP.get(slug);
-  if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
-  return { backgroundColor: tag.color, color: tag.textColor };
-}
 
 interface Props {
   project: ProjectForModeration;
@@ -343,12 +298,10 @@ const overlayCount = computed(
   () => props.project.overlayCount || (props.project.overlays?.length ?? 0),
 );
 
-// OSM-imported projects expose updatedAt as the import date, which carries no
-// meaning for users. Show the source's own last-modified date instead, and hide
-// the line entirely when that date is unknown.
-const isOsmImport = computed(() => props.project.importSource?.type === "osm");
+// OSM-imported projects have no on-site contributor and their updatedAt is just
+// the import date, so the contributor line carries no meaning: hide it for them.
 const contributorDate = computed(() =>
-  isOsmImport.value ? props.project.externalLastModified : props.project.updatedAt,
+  props.project.importSource?.type === "osm" ? null : props.project.updatedAt,
 );
 
 const shouldShowOverlays = computed(() => {

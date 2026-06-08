@@ -14,7 +14,7 @@
       <span v-if="project.description || wikidataDescription" :class="cls.value">{{
         project.description || wikidataDescription
       }}</span>
-      <button v-else :class="cls.addBtn" @click="emit('field-click')">
+      <button v-else :class="cls.addBtn" @click.stop="emit('field-click')">
         + {{ $t("common.addField") }}
       </button>
     </div>
@@ -46,7 +46,7 @@
         <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
           projectLocationDisplay
         }}</span>
-        <button v-else :class="cls.addBtn" @click="emit('field-click')">
+        <button v-else :class="cls.addBtn" @click.stop="emit('field-click')">
           + {{ $t("common.addField") }}
         </button>
       </div>
@@ -81,12 +81,13 @@
         target="_blank"
         rel="noopener noreferrer"
         class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
+        @click.stop
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
     </div>
     <div v-else-if="editMode" :class="cls.row">
       <span :class="cls.label">{{ $t("project.source") }}</span>
-      <button :class="cls.addBtn" @click="emit('field-click')">
+      <button :class="cls.addBtn" @click.stop="emit('field-click')">
         + {{ $t("common.addField") }}
       </button>
     </div>
@@ -101,6 +102,7 @@
         target="_blank"
         rel="noopener noreferrer"
         class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline"
+        @click.stop
         >{{ project.externalId }}</a
       >
     </div>
@@ -117,6 +119,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
+            @click.stop
             >{{ entry.display }}</a
           >
           <span v-else :class="cls.value">{{ entry.display }}</span>
@@ -130,6 +133,7 @@
         target="_blank"
         rel="noopener noreferrer"
         class="block"
+        @click.stop
       >
         <img
           :src="externalImageUrl"
@@ -139,6 +143,16 @@
         />
       </a>
     </template>
+
+    <!-- Wikidata main image (P18). Opt-in: the detail panel renders its own (with a zoom
+         lightbox), so only standalone surfaces enable it here. -->
+    <img
+      v-if="showWikidataMedia && wikidataEntityData?.imageUrl"
+      :src="wikidataEntityData.imageUrl"
+      class="w-full rounded-lg object-cover max-h-36"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+    />
   </div>
 </template>
 
@@ -158,12 +172,16 @@ interface Props {
   showName?: boolean;
   showDescription?: boolean;
   editMode?: boolean;
+  // Render the Wikidata logo + main image inside the card. Off by default because the detail
+  // panel renders its own (logo next to the name, image with a zoom lightbox).
+  showWikidataMedia?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showName: true,
   showDescription: false,
   editMode: false,
+  showWikidataMedia: false,
 });
 
 const wikidataId = computed(() => {

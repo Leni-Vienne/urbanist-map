@@ -48,9 +48,20 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 
+// The Contribute and Moderation tabs render the selected project/overlay inside their own
+// accordion (which carries the edit and approve/reject action buttons), so the detail panel
+// must not take over there. It is only used by the view-mode tabs (latest, current location),
+// which have no project list of their own.
+const panelOwnsProjectList = computed(
+  () =>
+    (uiStore.activeTab === "contribute" && authStore.isAuthenticated) ||
+    (uiStore.activeTab === "moderation" && authStore.isModerator),
+);
+
 // A selected overlay (info popup) or standalone project marker drives the panel into a detail state.
 const detailVisible = computed(
-  () => overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible,
+  () =>
+    !panelOwnsProjectList.value && (overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible),
 );
 
 defineProps<{

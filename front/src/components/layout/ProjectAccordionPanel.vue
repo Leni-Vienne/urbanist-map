@@ -47,6 +47,7 @@
               :status="pinnedExternalProject.status"
               :hide-status-badges="hideStatusBadges"
               :import-source-type="pinnedExternalProject.importSource?.type ?? null"
+              :external-properties="pinnedExternalProject.externalProperties"
             />
             <ProjectContent
               :project="pinnedExternalProject"
@@ -100,6 +101,7 @@
               :hide-status-badges="hideStatusBadges"
               :pending-change-count="getPendingChangeCount(project)"
               :import-source-type="project.importSource?.type ?? null"
+              :external-properties="project.externalProperties"
             />
             <ProjectContent
               :project="project"
