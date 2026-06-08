@@ -403,9 +403,9 @@ export function useVisibleProjects() {
       }, 200);
     });
 
-    const needsZoom = flyToGeometry(latlng, project.sizeM);
+    flyToGeometry(latlng, project.sizeM);
 
-    void handleProjectClickFromTile(project.id, latlng, needsZoom);
+    void handleProjectClickFromTile(project.id, latlng);
   }
 
   let lastHoveredProjectId: string | null = null;

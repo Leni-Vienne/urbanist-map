@@ -29,7 +29,8 @@ interface ImageUploadDialogState {
 
 interface ShapeEditorState {
   project: Project | null;
-  reopenAt: { lat: number; lng: number } | null;
+  // Whether to reopen the project's docked detail once shape editing ends.
+  reopen: boolean;
 }
 
 export const useUiStore = defineStore("ui", () => {
@@ -81,7 +82,7 @@ export const useUiStore = defineStore("ui", () => {
   });
 
   // Shape editor state
-  const shapeEditor = ref<ShapeEditorState>({ project: null, reopenAt: null });
+  const shapeEditor = ref<ShapeEditorState>({ project: null, reopen: false });
 
   // Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
@@ -167,12 +168,12 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Shape editor actions
-  function openShapeEditor(project: Project, reopenAt?: { lat: number; lng: number }) {
-    shapeEditor.value = { project, reopenAt: reopenAt ?? null };
+  function openShapeEditor(project: Project, reopen = false) {
+    shapeEditor.value = { project, reopen };
   }
 
   function closeShapeEditor() {
-    shapeEditor.value = { project: null, reopenAt: null };
+    shapeEditor.value = { project: null, reopen: false };
   }
 
   function executePostLoginCallback() {

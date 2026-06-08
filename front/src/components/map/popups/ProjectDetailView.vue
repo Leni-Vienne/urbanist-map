@@ -1,31 +1,9 @@
 <template>
-  <div
-    ref="rootEl"
-    :class="[
-      'unified-popup',
-      `popup-source-${props.source}`,
-      props.source === 'marker' ? `popup-placement-${projectPopupPlacement}` : '',
-    ]"
-    :style="rootStyle"
-    class="w-max min-w-60 max-w-80 min-h-50 bg-content-background cursor-text select-text rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto relative z-1000"
-    @click.stop
-    @mousedown.stop
-    @touchstart.stop
-    @touchmove.stop
-    @touchend.stop
-  >
-    <div v-if="loading" class="flex justify-center items-center h-50 p-4">
+  <div class="flex flex-col h-full min-h-0 bg-content-background">
+    <div v-if="loading" class="flex justify-center items-center flex-1 p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
-    <div
-      v-else
-      class="flex flex-col overflow-hidden"
-      :style="
-        props.source === 'marker'
-          ? { maxHeight: projectPopupMaxHeight + 'px' }
-          : { maxHeight: '31.25rem' }
-      "
-    >
+    <template v-else>
       <!-- Project header: project name + action buttons -->
       <div class="px-4 pt-3 pb-2 border-b border-surface shrink-0">
         <div :class="['flex gap-2', overlay ? 'items-start' : 'items-center']">
@@ -41,12 +19,8 @@
                 loading="eager"
               />
               <span
-                class="text-sm font-semibold leading-snug"
-                :class="[
-                  project?.name ? 'text-color' : 'text-muted-color italic',
-                  isMobile ? 'wrap-break-word' : 'truncate',
-                ]"
-                v-tooltip.bottom="!isMobile ? project?.name || undefined : undefined"
+                class="text-sm font-semibold leading-snug wrap-break-word"
+                :class="project?.name ? 'text-color' : 'text-muted-color italic'"
               >
                 {{ project?.name || $t("project.unnamed") }}
               </span>
@@ -104,23 +78,12 @@
             >
               <i class="pi pi-trash"></i>
             </button>
-            <!-- Close button (only for project-only view) -->
-            <button
-              v-if="!overlay"
-              type="button"
-              :aria-label="$t('common.close')"
-              class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color hover:text-color hover:bg-content-hover-background"
-              @click="emit('close-popup')"
-              v-tooltip.top="$t('common.close')"
-            >
-              <i class="pi pi-times"></i>
-            </button>
           </div>
         </div>
       </div>
 
-      <!-- Project fields + overlay section, wheel.stop prevents map zoom while scrolling -->
-      <div class="px-4 pt-3 pb-4 overflow-y-auto touch-pan-y overscroll-contain" @wheel.stop>
+      <!-- Project fields + overlay section -->
+      <div class="px-4 pt-3 pb-4 flex-1 overflow-y-auto overscroll-contain">
         <ProjectMetadataCard
           :project="project"
           :show-name="false"
@@ -193,7 +156,10 @@
       </div>
 
       <!-- Action buttons footer, stays visible while the content above scrolls -->
-      <div v-if="!viewMode" class="px-4 pb-4 pt-0 flex flex-col gap-2 shrink-0">
+      <div
+        v-if="!viewMode"
+        class="px-4 pb-4 pt-2 flex flex-col gap-2 shrink-0 border-t border-surface"
+      >
         <div class="flex gap-2">
           <Button
             class="flex-1"
@@ -266,60 +232,55 @@
           @click="handlePublishClick"
         />
       </div>
-    </div>
-  </div>
+    </template>
 
-  <!-- Full-size image lightbox: scroll to zoom (toward cursor), drag to pan, double-click to reset -->
-  <Dialog
-    v-model:visible="lightboxVisible"
-    modal
-    dismissableMask
-    :draggable="false"
-    :header="lightboxImage?.header"
-    :style="{ width: 'auto', maxWidth: '90vw' }"
-    :pt="{ content: { class: 'p-0' } }"
-  >
-    <div
-      class="overflow-hidden max-h-[80vh] max-w-[90vw] flex items-center justify-center touch-none"
-      @wheel.prevent="handleLightboxWheel"
-      @pointerdown="handleLightboxPointerDown"
-      @pointermove="handleLightboxPointerMove"
-      @pointerup="handleLightboxPointerUp"
-      @pointerleave="handleLightboxPointerUp"
-      @dblclick="resetLightboxZoom"
+    <!-- Full-size image lightbox: scroll to zoom (toward cursor), drag to pan, double-click to reset -->
+    <Dialog
+      v-model:visible="lightboxVisible"
+      modal
+      dismissableMask
+      :draggable="false"
+      :header="lightboxImage?.header"
+      :style="{ width: 'auto', maxWidth: '90vw' }"
+      :pt="{ content: { class: 'p-0' } }"
     >
-      <img
-        v-if="lightboxImage"
-        ref="lightboxImgRef"
-        :src="lightboxImage.url"
-        :crossorigin="lightboxImage.crossorigin"
-        :referrerpolicy="lightboxImage.referrerpolicy"
-        class="block max-h-[80vh] max-w-[90vw] object-contain select-none"
-        :class="
-          lightboxZoom > 1
-            ? isPanningLightbox
-              ? 'cursor-grabbing'
-              : 'cursor-grab'
-            : 'cursor-zoom-in'
-        "
-        :style="{
-          transform: `translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom})`,
-        }"
-        draggable="false"
-        alt=""
-      />
-    </div>
-  </Dialog>
+      <div
+        class="overflow-hidden max-h-[80vh] max-w-[90vw] flex items-center justify-center touch-none"
+        @wheel.prevent="handleLightboxWheel"
+        @pointerdown="handleLightboxPointerDown"
+        @pointermove="handleLightboxPointerMove"
+        @pointerup="handleLightboxPointerUp"
+        @pointerleave="handleLightboxPointerUp"
+        @dblclick="resetLightboxZoom"
+      >
+        <img
+          v-if="lightboxImage"
+          ref="lightboxImgRef"
+          :src="lightboxImage.url"
+          :crossorigin="lightboxImage.crossorigin"
+          :referrerpolicy="lightboxImage.referrerpolicy"
+          class="block max-h-[80vh] max-w-[90vw] object-contain select-none"
+          :class="
+            lightboxZoom > 1
+              ? isPanningLightbox
+                ? 'cursor-grabbing'
+                : 'cursor-grab'
+              : 'cursor-zoom-in'
+          "
+          :style="{
+            transform: `translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom})`,
+          }"
+          draggable="false"
+          alt=""
+        />
+      </div>
+    </Dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { Dialog } from "primevue";
-import {
-  projectPopupPlacement,
-  projectPopupMaxHeight,
-  projectPopupShiftBounds,
-} from "@/services/map/popupState";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
@@ -345,8 +306,6 @@ interface Props {
   viewMode?: boolean;
   publishLoading?: boolean;
   loading?: boolean;
-  // Source determines popup positioning - overlay toolbar vs project marker
-  source?: "overlay" | "marker";
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -354,7 +313,6 @@ const props = withDefaults(defineProps<Props>(), {
   viewMode: false,
   publishLoading: false,
   loading: false,
-  source: "overlay",
 });
 
 const emit = defineEmits<{
@@ -362,7 +320,6 @@ const emit = defineEmits<{
   "edit-overlay": [overlay: OverlayObject];
   "publish-overlay": [];
   "publish-project": [];
-  "close-popup": [];
   "add-images": [];
   "draw-shapes": [project: Project];
   "view-original-overlay": [overlayId: string];
@@ -373,64 +330,6 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 const projectStore = useProjectStore();
-
-// A left/right popup is centered on the anchor, but slides (--popup-shift) to stay within the usable
-// band; the arrow counter-shifts (--popup-arrow-shift), clamped to the popup edge so it never floats
-// off into the gap when the anchor is out of reach.
-const rootEl = ref<HTMLElement | null>(null);
-const measuredHeight = ref(0);
-let popupResizeObserver: ResizeObserver | null = null;
-
-// Rounded-corner radius + half the triangle height: how far the arrow stays from the popup corners.
-const ARROW_EDGE_PAD = 24;
-
-function measurePopupHeight() {
-  if (rootEl.value) measuredHeight.value = rootEl.value.offsetHeight;
-}
-
-function computeSideOffsets(): { shift: number; arrowShift: number } {
-  if (props.source !== "marker") return { shift: 0, arrowShift: 0 };
-  const placement = projectPopupPlacement.value;
-  if (placement !== "left" && placement !== "right") return { shift: 0, arrowShift: 0 };
-  const bounds = projectPopupShiftBounds.value;
-  if (!bounds || measuredHeight.value === 0) return { shift: 0, arrowShift: 0 };
-
-  const half = measuredHeight.value / 2;
-  const top = bounds.anchorY - half;
-  const bottom = bounds.anchorY + half;
-  let shift = 0;
-  if (top < bounds.top) shift = bounds.top - top;
-  else if (bottom > bounds.bottom) shift = bounds.bottom - bottom;
-
-  const maxArrowOffset = Math.max(0, half - ARROW_EDGE_PAD);
-  const arrowShift = Math.max(-maxArrowOffset, Math.min(maxArrowOffset, -shift));
-  return { shift, arrowShift };
-}
-const sideOffsets = computed(computeSideOffsets);
-
-function computeRootStyle(): Record<string, string> {
-  if (props.source !== "marker") return {};
-  return {
-    "--popup-shift": `${sideOffsets.value.shift}px`,
-    "--popup-arrow-shift": `${sideOffsets.value.arrowShift}px`,
-  };
-}
-const rootStyle = computed(computeRootStyle);
-
-function handlePopupMounted() {
-  measurePopupHeight();
-  if (rootEl.value && typeof ResizeObserver !== "undefined") {
-    popupResizeObserver = new ResizeObserver(measurePopupHeight);
-    popupResizeObserver.observe(rootEl.value);
-  }
-}
-onMounted(handlePopupMounted);
-
-function handlePopupUnmount() {
-  popupResizeObserver?.disconnect();
-  popupResizeObserver = null;
-}
-onBeforeUnmount(handlePopupUnmount);
 
 // Project render (artist's impression), delivered with the project by project.getById. The backend
 // already scopes this to approved or the user's own pending render; we just hide a pending render
@@ -603,144 +502,3 @@ const canDeleteProject = computed(() => {
   return isDeletable && isOwner;
 });
 </script>
-
-<style scoped>
-/* Entrance animation for overlay-source popup (resting transform: translateY(20px)) */
-@keyframes popup-enter-overlay {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scaleY(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(20px) scaleY(1);
-  }
-}
-
-/* Arrow pointing to the triggering element */
-.unified-popup::before {
-  content: "";
-  position: absolute;
-  width: 0;
-  height: 0;
-}
-
-/* Positioning for overlay toolbar source */
-.popup-source-overlay {
-  transform: translateY(20px);
-  animation: popup-enter-overlay 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-  transform-origin: top left;
-}
-
-.popup-source-overlay::before {
-  top: -8px;
-  left: 10px;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-bottom: 10px solid var(--p-content-background);
-}
-
-/* --- Marker source: placement-aware positioning --- */
-
-/* down: popup opens below anchor, arrow at top center */
-@keyframes popup-enter-down {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px) scaleY(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(20px) scaleY(1);
-  }
-}
-.popup-source-marker.popup-placement-down {
-  transform: translateX(-50%) translateY(20px);
-  animation: popup-enter-down 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-  transform-origin: top center;
-}
-.popup-source-marker.popup-placement-down::before {
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-bottom: 10px solid var(--p-content-background);
-}
-
-/* up: popup opens above anchor, arrow at bottom center */
-@keyframes popup-enter-up {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(calc(-100% - 20px)) scaleY(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(calc(-100% - 20px)) scaleY(1);
-  }
-}
-.popup-source-marker.popup-placement-up {
-  transform: translateX(-50%) translateY(calc(-100% - 20px));
-  animation: popup-enter-up 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-  transform-origin: bottom center;
-}
-.popup-source-marker.popup-placement-up::before {
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-top: 10px solid var(--p-content-background);
-}
-
-/* right: popup opens to the right of anchor, arrow on left side */
-@keyframes popup-enter-right {
-  from {
-    opacity: 0;
-    transform: translateX(20px) translateY(calc(-50% + var(--popup-shift, 0px))) scaleX(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(20px) translateY(calc(-50% + var(--popup-shift, 0px))) scaleX(1);
-  }
-}
-.popup-source-marker.popup-placement-right {
-  transform: translateX(20px) translateY(calc(-50% + var(--popup-shift, 0px)));
-  animation: popup-enter-right 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-  transform-origin: left center;
-}
-.popup-source-marker.popup-placement-right::before {
-  left: -8px;
-  top: 50%;
-  transform: translateY(calc(-50% + var(--popup-arrow-shift, 0px)));
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
-  border-right: 10px solid var(--p-content-background);
-}
-
-/* left: popup opens to the left of anchor, arrow on right side */
-@keyframes popup-enter-left {
-  from {
-    opacity: 0;
-    transform: translateX(calc(-100% - 20px)) translateY(calc(-50% + var(--popup-shift, 0px)))
-      scaleX(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(calc(-100% - 20px)) translateY(calc(-50% + var(--popup-shift, 0px)))
-      scaleX(1);
-  }
-}
-.popup-source-marker.popup-placement-left {
-  transform: translateX(calc(-100% - 20px)) translateY(calc(-50% + var(--popup-shift, 0px)));
-  animation: popup-enter-left 0.25s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
-  transform-origin: right center;
-}
-.popup-source-marker.popup-placement-left::before {
-  right: -8px;
-  top: 50%;
-  transform: translateY(calc(-50% + var(--popup-arrow-shift, 0px)));
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
-  border-left: 10px solid var(--p-content-background);
-}
-</style>

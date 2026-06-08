@@ -8,7 +8,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectProject } from "@/services/map/projectSelection";
-import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
 import { highlightProject, removeProjectOutlines } from "@/services/overlay/selection";
 import { forEachPosition } from "@/utils/geojson";
 import {
@@ -213,8 +212,6 @@ function bindLayerEvents(
 }
 
 // Wire hover/click on the interaction layers (fill for polygons, transparent hit line for lines).
-// Click routes through suppressPopupCloseForClick so the canvas-level popup-close handler does not
-// close the popup we are about to open (same gotcha as the Phase-3 marker port).
 function wireShapeInteraction(
   project: Project,
   fillLayerId: string | null,
@@ -241,7 +238,6 @@ function wireShapeInteraction(
   function onClick(e: MapMouseEvent): void {
     if (e.originalEvent.timeStamp === lastClickTimeStamp) return;
     lastClickTimeStamp = e.originalEvent.timeStamp;
-    suppressPopupCloseForClick();
     selectProject(project, e.lngLat);
   }
 

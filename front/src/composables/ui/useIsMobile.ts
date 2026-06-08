@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from "vue";
 
-export const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT = 768;
 
 /**
  * Non-reactive viewport check for use outside component setup (services, plain modules) where

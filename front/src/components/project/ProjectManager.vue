@@ -50,7 +50,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
@@ -261,7 +260,6 @@ async function displayProjectMarkerAndPopup(
   }
 
   if (actualMarker) {
-    createProjectInfoTeleportTarget(actualMarker);
     if (overlayStore.showInfoPopup) {
       overlayStore.hideInfoPopup();
     }
@@ -297,7 +295,6 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
         addStandaloneProjectMarkerForProject(storedProject);
         const marker = getStandaloneProjectMarkerByProjectId(projectId);
         if (marker) {
-          createProjectInfoTeleportTarget(marker);
           uiStore.openProjectInfoPopup(projectId, storedProject);
         }
       }

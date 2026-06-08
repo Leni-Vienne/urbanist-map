@@ -2,37 +2,25 @@ import type { Project } from "@/types/index";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import {
-  createProjectInfoTeleportTargetAtLatLng,
-  cleanupProjectInfoTeleportTarget,
-} from "@/services/map/projectPopupTeleport";
-import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 
 /**
- * Open the project info popup and pin the teleport anchor for the given project.
+ * Open the project detail in the docked panel for the given project.
  * Called from vector/point clicks, project shape clicks, and the Contribute sidebar.
- * Popup-state side effects (vector hover, accordion scroll, marker opacity, overlay
+ * Detail-state side effects (vector hover, accordion scroll, marker opacity, overlay
  * deselect) are handled by the popup watcher initialized at boot in main.ts.
  */
-export function selectProject(
-  project: Project,
-  latlng: { lat: number; lng: number },
-  atAnchor = false,
-): void {
+export function selectProject(project: Project, _latlng?: { lat: number; lng: number }): void {
   const uiStore = useUiStore();
 
   if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
     uiStore.closeProjectInfoPopup();
-    cleanupProjectInfoTeleportTarget();
     return;
   }
 
   uiStore.openProjectInfoPopup(project.id, project);
-  setPopupPlacementForLatLng(latlng, atAnchor);
-  createProjectInfoTeleportTargetAtLatLng(latlng);
 
   // In moderation mode, switch the panel to this project's country so its pending
   // submissions load and the popup watcher's scroll request can resolve.
@@ -84,7 +72,6 @@ async function resolveProjectForTileClick(projectId: string): Promise<Project | 
 export async function handleProjectClickFromTile(
   projectId: string,
   latlng: { lat: number; lng: number },
-  atAnchor = false,
 ): Promise<void> {
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
@@ -96,5 +83,5 @@ export async function handleProjectClickFromTile(
     projectStore.updateProject(projectId, project);
   }
 
-  selectProject(project, latlng, atAnchor);
+  selectProject(project, latlng);
 }

@@ -12,10 +12,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
-import {
-  createProjectInfoTeleportTarget,
-  cleanupProjectInfoTeleportTarget,
-} from "@/services/map/projectPopupTeleport";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
@@ -251,7 +247,6 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     }
 
     uiStore.openProjectInfoPopup(project.id, project);
-    createProjectInfoTeleportTarget(marker);
   });
 }
 
@@ -270,9 +265,8 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   updateStandaloneMarkerColor(marker, markerColor);
 }
 
-/** Close the project popup and reset all marker opacities. */
+/** Reset all standalone marker opacities (e.g. after the project detail closes). */
 export function closeProjectPopupAndResetMarkers() {
-  cleanupProjectInfoTeleportTarget();
   updateStandaloneProjectMarkerOpacities(null);
 }
 

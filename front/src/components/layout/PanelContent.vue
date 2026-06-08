@@ -1,7 +1,9 @@
 <template>
   <div :class="contentContainerClass">
+    <!-- A selected map feature drives the panel into a detail state, replacing the tab content. -->
+    <ProjectDetailHost v-if="detailVisible" />
     <!-- KeepAlive preserves component state (scroll, data) when switching tabs -->
-    <KeepAlive>
+    <KeepAlive v-else>
       <LatestContributionsPanel v-if="activeTab === 'latest'" />
       <CurrentLocationPanel v-else-if="activeTab === 'currentLocation'" />
       <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
@@ -26,9 +28,11 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import type { PanelTab } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 
@@ -38,8 +42,18 @@ const CurrentLocationPanel = defineAsyncComponent(() => import("./CurrentLocatio
 const ModerationPanel = defineAsyncComponent(() => import("./ModerationPanel.vue"));
 const ContributePanel = defineAsyncComponent(() => import("./ContributePanel.vue"));
 const ContributeGuestPanel = defineAsyncComponent(() => import("./ContributeGuestPanel.vue"));
+const ProjectDetailHost = defineAsyncComponent(
+  () => import("@/components/map/popups/ProjectDetailHost.vue"),
+);
 
 const authStore = useAuthStore();
+const uiStore = useUiStore();
+const overlayStore = useOverlayStore();
+
+// A selected overlay (info popup) or standalone project marker drives the panel into a detail state.
+const detailVisible = computed(
+  () => overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible,
+);
 
 defineProps<{
   activeTab: PanelTab;

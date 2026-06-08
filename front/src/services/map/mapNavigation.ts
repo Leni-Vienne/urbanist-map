@@ -2,7 +2,6 @@ import type { LngLatLike, PaddingOptions } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobileViewport } from "@/composables/ui/useIsMobile";
-import { DESKTOP_POPUP_ANCHOR_Y_FRACTION } from "@/constants/mapConstants";
 
 // `map.value` is typed non-null but is null until init (see core/map.ts). Public entry points here
 // guard with `if (!map.value) return`; private helpers run after that guard and assume non-null.
@@ -358,9 +357,10 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 }
 
 /**
- * Zoom in to frame a `sizeM`-meter geometry (zoom 14 when unknown), never out, then anchor the point
- * for its popup. `fromMapClick` keeps the desktop camera still since the feature is already on-screen
- * and the popup places itself around it. Returns whether the anchor sits at its resting position.
+ * Zoom in to frame a `sizeM`-meter geometry (zoom 14 when unknown), never out, then bring the point
+ * into the unobstructed map area. `fromMapClick` keeps the desktop camera still since the feature is
+ * already on-screen and the docked detail sits beside the map, not over it. Returns whether a move
+ * was started.
  */
 export function flyToGeometry(
   latlng: LatLngInput,
@@ -375,14 +375,14 @@ export function flyToGeometry(
   const currentZoom = m.getZoom();
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
-  const offset = popupAnchorOffset();
+  const offset = featureAnchorOffset();
 
   if (targetZoom !== currentZoom) {
     mobileAwareFlyTo(target, targetZoom, { offset });
     return true;
   }
-  // Mobile pans the marker above the drawer so the popup can open attached (panTo self-skips if
-  // already there); desktop leaves the camera put.
+  // Mobile pans the feature above the drawer (panTo self-skips if already there); desktop leaves
+  // the camera put since the side panel is a layout sibling and never covers the feature.
   if (isMobileViewport()) {
     mobileAwarePanTo(target, { offset });
     return true;
@@ -391,23 +391,21 @@ export function flyToGeometry(
 }
 
 /**
- * Screen-space offset biasing a selected project's anchor so the popup has room: upper-third on
- * desktop (opens downward), just above the drawer on mobile (opens upward).
+ * Screen-space offset lifting a selected feature above the mobile drawer so it stays visible while
+ * the docked detail is open. Desktop centers the feature (the side panel is a layout sibling, not
+ * an overlay), so no offset is applied there.
  */
-export function popupAnchorOffset(): [number, number] | undefined {
+export function featureAnchorOffset(): [number, number] | undefined {
   const m = map.value;
-  if (!m) return undefined;
+  if (!m || !isMobileViewport()) return undefined;
   const h = m.getContainer().clientHeight;
   if (h <= 0) return undefined;
-  if (isMobileViewport()) {
-    // Just above the drawer-blocked region, floored at 0.3h so a tall drawer can't push it off-top.
-    const desiredY = Math.max(h - mobileBottomBlockedPx() - MOBILE_ANCHOR_BOTTOM_GAP, h * 0.3);
-    return [0, desiredY - paddedCenterY()];
-  }
-  return [0, h * (DESKTOP_POPUP_ANCHOR_Y_FRACTION - 0.5)];
+  // Just above the drawer-blocked region, floored at 0.3h so a tall drawer can't push it off-top.
+  const desiredY = Math.max(h - mobileBottomBlockedPx() - MOBILE_ANCHOR_BOTTOM_GAP, h * 0.3);
+  return [0, desiredY - paddedCenterY()];
 }
 
-/** Screen-Y (px) of the viewport center after drawer-aware padding, before any popup offset. */
+/** Screen-Y (px) of the viewport center after drawer-aware padding, before any feature offset. */
 function paddedCenterY(): number {
   const m = map.value;
   if (!m) return 0;
@@ -416,9 +414,4 @@ function paddedCenterY(): number {
   const top = typeof padding === "number" ? padding : (padding.top ?? 0);
   const bottom = typeof padding === "number" ? padding : (padding.bottom ?? 0);
   return (top + (h - bottom)) / 2;
-}
-
-/** Screen-Y (px) a camera move will leave the target at, so placement can match it before moveend. */
-export function predictedRestingY(): number {
-  return paddedCenterY() + (popupAnchorOffset()?.[1] ?? 0);
 }

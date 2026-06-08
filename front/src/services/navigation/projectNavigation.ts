@@ -5,7 +5,7 @@ import * as registry from "@/services/overlay/renderRegistry";
 import {
   mobileAwareFlyTo,
   mobileAwareFlyToBounds,
-  popupAnchorOffset,
+  featureAnchorOffset,
 } from "@/services/map/mapNavigation";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
@@ -112,9 +112,9 @@ export function navigateToStandaloneProject(lat: number, lng: number, projectId?
       requestScrollTo("project", projectId);
     }
 
-    // Offset so the marker rests in the upper-third, leaving room below for the downward popup,
-    // matching how map clicks on lone points fly (flyToGeometry).
-    const flew = mobileAwareFlyTo([lat, lng], 18, { offset: popupAnchorOffset() });
+    // On mobile, lift the feature above the drawer so the docked detail doesn't cover it; desktop
+    // centers it (featureAnchorOffset returns undefined there).
+    const flew = mobileAwareFlyTo([lat, lng], 18, { offset: featureAnchorOffset() });
 
     if (projectId) {
       openPopupAfterFlight(flew, projectId, new LngLat(lng, lat));

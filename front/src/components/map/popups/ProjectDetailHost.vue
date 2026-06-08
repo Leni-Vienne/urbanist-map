@@ -1,16 +1,23 @@
 <template>
-  <!-- Unified Project Popup - for overlays -->
-  <Teleport
-    :to="overlayPopupTarget"
-    v-if="showOverlayPopup && overlayObject && activeProject && overlayPopupTarget"
-  >
-    <UnifiedProjectPopup
+  <div class="flex flex-col h-full min-h-0 bg-content-background">
+    <!-- Back header: returns to the panel's tab content -->
+    <button
+      type="button"
+      class="flex items-center gap-2 px-4 py-2.5 border-b border-surface text-sm font-medium text-muted-color hover:text-color hover:bg-content-hover-background cursor-pointer bg-transparent shrink-0 text-left"
+      @click="handleBack"
+    >
+      <i class="pi pi-arrow-left text-xs"></i>
+      {{ $t("common.back") }}
+    </button>
+
+    <ProjectDetailView
+      v-if="activeProject"
+      class="flex-1 min-h-0"
       :project="activeProject"
       :overlay="overlayObject"
       :viewMode="mapStore.mode !== 'edit'"
       :publishLoading="isSubmitting"
       :loading="false"
-      source="overlay"
       @publish-overlay="handlePublishOverlay"
       @publish-project="handlePublishProject"
       @edit-project="handleEditProject"
@@ -21,58 +28,31 @@
       @delete-overlay="handleDeleteOverlay"
       @draw-shapes="handleDrawShapes"
     />
-  </Teleport>
-
-  <!-- Unified Project Popup - for projects without overlay -->
-  <Teleport :to="projectPopupTarget" v-if="showProjectPopup && activeProject && projectPopupTarget">
-    <UnifiedProjectPopup
-      :project="activeProject"
-      :viewMode="mapStore.mode !== 'edit'"
-      :publishLoading="isSubmitting"
-      :loading="false"
-      source="marker"
-      @publish-project="handlePublishProject"
-      @edit-project="handleEditProject"
-      @close-popup="closeProjectInfoPopup"
-      @add-images="handleAddImages"
-      @delete-project="handleDeleteProject"
-      @draw-shapes="handleDrawShapes"
-    />
-  </Teleport>
-
-  <!-- Overlay Editor Dialog - only in edit mode -->
-  <OverlayEditor
-    v-if="mapStore.mode === 'edit' && (overlayObject || uiStore.overlayEditDialog.overlay)"
-    ref="overlayEditorRef"
-    :overlayObject="overlayObject"
-    @update="handleOverlayUpdate"
-  />
+    <div v-else class="flex-1 flex justify-center items-center p-4">
+      <i class="pi pi-spin pi-spinner"></i>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, defineAsyncComponent } from "vue";
+import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { overlayPopupTarget, projectPopupTarget } from "@/services/map/popupState";
 
-import { navigateToOverlay, updateOverlayInfo } from "@/services/overlay/actions";
+import { navigateToOverlay } from "@/services/overlay/actions";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
-import { getPopupLatLng } from "@/services/map/projectPopupTeleport";
 import type { OverlayData, OverlayObject, Project } from "@/types/index";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { createProjectObject } from "@/utils/typeFactories";
 
-const UnifiedProjectPopup = defineAsyncComponent(
-  () => import("@/components/map/popups/UnifiedProjectPopup.vue"),
-);
-const OverlayEditor = defineAsyncComponent(() => import("@/components/map/OverlayEditor.vue"));
+import ProjectDetailView from "@/components/map/popups/ProjectDetailView.vue";
 
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
@@ -91,22 +71,13 @@ const {
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
 const { isSubmitting, prepareOverlaySubmission, prepareSubmission } = useSubmissionDialog();
 
-// Ref for overlay editor component
-const overlayEditorRef = ref<InstanceType<typeof OverlayEditor> | null>(null);
-
-// Track teleport target existence using reactive state (no MutationObserver)
-
-// Computed for overlay popup visibility
-const showOverlayPopup = computed(() => showInfoPopup.value && overlayPopupTarget.value);
-
-// Computed for project popup visibility
-const showProjectPopup = computed(() => {
-  return projectInfoPopup.value.visible && activeProject.value && projectPopupTarget.value;
-});
-
 // Get the overlay object for the info popup
 const overlayObject = computed(() => {
-  if (!infoPopupOverlayId.value || !overlays.value[infoPopupOverlayId.value]) {
+  if (
+    !showInfoPopup.value ||
+    !infoPopupOverlayId.value ||
+    !overlays.value[infoPopupOverlayId.value]
+  ) {
     return null;
   }
   return overlays.value[infoPopupOverlayId.value];
@@ -153,7 +124,7 @@ const activeProject = computed(() => {
   }
 
   // Fall back to project popup.
-  if (projectInfoPopup.value.projectId) {
+  if (projectInfoPopup.value.visible && projectInfoPopup.value.projectId) {
     const localProject = getEffectiveProject(projectInfoPopup.value.projectId);
     if (localProject) return localProject;
 
@@ -181,19 +152,22 @@ function handleEditProject(project: Project) {
   uiStore.openProjectEditForm(project);
 }
 
-function handleEditOverlay() {
-  overlayEditorRef.value?.openDialog();
-}
-
-function handleOverlayUpdate(overlayId: string, caption?: string) {
-  if (caption === undefined) return;
-
-  updateOverlayInfo(overlayId, { caption });
+function handleEditOverlay(overlay: OverlayObject) {
+  uiStore.openOverlayEditDialog({ id: overlay.id, caption: overlay.caption });
 }
 
 function closeProjectInfoPopup() {
   uiStore.closeProjectInfoPopup();
   closeProjectPopupAndResetMarkers();
+}
+
+// Back returns to the panel's tab list, closing whichever detail is open.
+function handleBack() {
+  if (showInfoPopup.value) {
+    overlayStore.hideInfoPopup();
+  } else {
+    closeProjectInfoPopup();
+  }
 }
 
 async function handleViewOriginalOverlay(originalOverlayId: string) {
@@ -241,22 +215,21 @@ async function handleDeleteOverlay(overlay: OverlayObject) {
 }
 
 async function handleDrawShapes(project: Project) {
-  // Capture geometry from popup context before closing popups (refs become null after).
+  // Capture geometry from the active overlay/project before closing the detail.
   const fallbackGeometry =
     overlayObject.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
 
-  const reopenAt = showProjectPopup.value ? getPopupLatLng() : null;
-  uiStore.openShapeEditor(project, reopenAt ?? undefined);
-  if (showOverlayPopup.value) overlayStore.hideInfoPopup();
+  uiStore.openShapeEditor(project, true);
+  if (showInfoPopup.value) overlayStore.hideInfoPopup();
   else closeProjectInfoPopup();
   await startShapeEditing(project.id, fallbackGeometry);
 }
 
 async function handleDeleteProject(project: Project) {
   await deleteProjectWithConfirm(project.id, project.name, project.overlayIds?.length ?? 0, () => {
-    if (showOverlayPopup.value) {
+    if (showInfoPopup.value) {
       overlayStore.hideInfoPopup();
-    } else if (showProjectPopup.value) {
+    } else {
       closeProjectInfoPopup();
     }
   });

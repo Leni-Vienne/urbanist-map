@@ -9,7 +9,6 @@ import {
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
 import {
   getCurrentHighlightedProjectId,
   handleBackgroundClick,
@@ -652,7 +651,7 @@ function handleVectorFeatureClick(
   // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
   // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
   const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
-  const anchored = flyToGeometry(latlng, geometrySizeM, { fromMapClick: true });
+  flyToGeometry(latlng, geometrySizeM, { fromMapClick: true });
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
@@ -664,10 +663,7 @@ function handleVectorFeatureClick(
       selectOverlay(overlayId);
     }
   } else {
-    // Stop the map-level click handler in projectPopupTeleport from closing the
-    // current popup before the new one opens (both fire on the same map click).
-    suppressPopupCloseForClick();
-    void handleProjectClickFromTile(projectId, latlng, anchored);
+    void handleProjectClickFromTile(projectId, latlng);
   }
 }
 
@@ -804,12 +800,9 @@ async function handlePointFeatureClick(
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
-  suppressPopupCloseForClick();
-
   const coordinates = pointFeature.geometry?.coordinates;
   let targetLatLng = eventLatLng;
   let shouldOpenPanel = true;
-  let anchored = false;
 
   if (coordinates && coordinates.length >= 2) {
     const [lng, lat] = coordinates;
@@ -820,7 +813,7 @@ async function handlePointFeatureClick(
     targetLatLng = { lat, lng };
 
     if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_ZOOM) {
-      anchored = navigateToLonePoint(props, lat, lng);
+      navigateToLonePoint(props, lat, lng);
     } else {
       shouldOpenPanel = false;
       navigateToCluster(props, lat, lng, currentZoom);
@@ -828,7 +821,7 @@ async function handlePointFeatureClick(
   }
 
   if (shouldOpenPanel) {
-    await handleProjectClickFromTile(projectId, targetLatLng, anchored);
+    await handleProjectClickFromTile(projectId, targetLatLng);
   }
 }
 

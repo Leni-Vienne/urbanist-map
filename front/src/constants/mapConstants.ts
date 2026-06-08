@@ -14,11 +14,6 @@ export const MAP_CONFIG = {
   MIN_ZOOM_FOR_OVERLAYS: 13,
 } as const;
 
-// Desktop: a selected project's anchor is flown to this fraction of the viewport height (upper
-// third), leaving room below for the popup. Shared by the fly offset (mapNavigation) and the
-// placement math (popupState) so the predicted anchor matches where the camera lands.
-export const DESKTOP_POPUP_ANCHOR_Y_FRACTION = 0.32;
-
 /**
  * Returns the effective zoom threshold for the current viewport.
  * Mobile screens (≤768px) display a smaller geographic area at any given zoom level,

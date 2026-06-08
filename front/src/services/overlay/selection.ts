@@ -1,4 +1,7 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { trpc } from "@/client";
+import { createProjectObject } from "@/utils/typeFactories";
 import { getMarker, getRenderedOverlayIds, hasReadyLayer } from "@/services/overlay/renderRegistry";
 import { raiseOverlayImage } from "@/services/overlay/imageLayer";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
@@ -78,8 +81,12 @@ export function selectOverlay(overlayId: string | null): void {
 
   const overlayStore = useOverlayStore();
 
-  // Early exit if already selected
-  if (overlayId === overlayStore.idSelectedOverlay) return;
+  // Already selected: skip the reselect work, but re-show its docked detail in case a prior
+  // action (e.g. the detail's Back button) hid it while keeping the overlay selected.
+  if (overlayId === overlayStore.idSelectedOverlay) {
+    if (overlayId) overlayStore.showInfoPopupForOverlay(overlayId);
+    return;
+  }
 
   isSelectingOverlay = true;
   try {
@@ -94,7 +101,11 @@ export function selectOverlay(overlayId: string | null): void {
       cleanupPreviousSelection(previouslySelected, previouslySelectedId, overlayId);
     }
 
-    if (!overlayId) return;
+    // Deselecting clears the docked overlay detail.
+    if (!overlayId) {
+      overlayStore.hideInfoPopup();
+      return;
+    }
 
     // Close standalone project popup when selecting an overlay (mutual exclusivity)
     const uiStore = useUiStore();
@@ -114,8 +125,36 @@ export function selectOverlay(overlayId: string | null): void {
 
     // Request scroll to overlay in accordion panel when selecting from map
     requestScrollTo("overlay", overlayId);
+
+    // Drive the docked panel into this overlay's detail view, fetching its project if the
+    // selection came from the map (vector tiles don't always carry the full project).
+    overlayStore.showInfoPopupForOverlay(overlayId);
+    void hydrateOverlayProject(overlayId);
   } finally {
     isSelectingOverlay = false;
+  }
+}
+
+// The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
+// carry minimal data, so fetch and cache the project when neither the store nor the overlay has it.
+async function hydrateOverlayProject(overlayId: string): Promise<void> {
+  const overlayStore = useOverlayStore();
+  const overlay = overlayStore.overlays[overlayId];
+  if (!overlay?.projectId) return;
+
+  const projectStore = useProjectStore();
+  if (projectStore.projects[overlay.projectId] || overlay.project) return;
+
+  try {
+    const result = await trpc.project.getById.query({ id: overlay.projectId });
+    if (result) {
+      projectStore.updateProject(
+        overlay.projectId,
+        createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }),
+      );
+    }
+  } catch (error) {
+    console.error("Failed to fetch project for overlay detail:", error);
   }
 }
 
@@ -310,5 +349,12 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
 
   if (overlayStore.idSelectedOverlay) {
     selectOverlay(null);
+    return;
+  }
+
+  // No overlay under the click: a background click also closes an open project detail.
+  const uiStore = useUiStore();
+  if (uiStore.projectInfoPopup.visible) {
+    uiStore.closeProjectInfoPopup();
   }
 }
