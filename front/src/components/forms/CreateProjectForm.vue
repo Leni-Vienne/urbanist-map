@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent="handleSubmit">
+  <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
     <ProjectFormFields
       ref="formFieldsRef"
       :form-data="formData"

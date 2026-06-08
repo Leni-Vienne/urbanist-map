@@ -7,6 +7,7 @@
     :show-edit-buttons="true"
     :pinned-project-id="selectedProjectId"
     :pinned-external-project="pinnedExternalProject"
+    :keep-content-visible="allContributions.length > 0"
     @external-project-click="handleExternalProjectClick"
     title=""
     panel-class="my-contributions-panel"
@@ -93,56 +94,60 @@
       >
         {{ $t("contribute.guest.description") }}
       </p>
+      <Button
+        @click="handleAddOverlayClick"
+        severity="primary"
+        size="small"
+        icon="pi pi-plus"
+        :label="$t('common.add')"
+        class="font-semibold mt-4"
+        v-tooltip.bottom="$t('dialog.createNewProject')"
+      />
     </template>
 
-    <template #header-actions>
-      <div class="flex gap-4 items-center justify-between w-full">
-        <div class="flex flex-col gap-3 w-full">
-          <!-- First row - title and buttons -->
-          <div class="flex gap-4 items-center justify-between w-full">
-            <span class="text-base font-semibold text-color">
-              {{ $t("contribute.myContributions") }}
-            </span>
-            <div class="flex gap-2">
-              <Button
-                @click="handleAddOverlayClick"
-                severity="primary"
-                size="small"
-                icon="pi pi-plus"
-                :label="$t('common.add')"
-                class="font-semibold"
-                v-tooltip.bottom="$t('dialog.createNewProject')"
-              />
-            </div>
-          </div>
-          <!-- Second row - filters (hidden when no contributions yet) -->
-          <div v-if="allContributions.length > 0" class="flex items-center gap-4 flex-wrap">
-            <div class="flex items-center gap-2">
-              <Checkbox v-model="showPending" inputId="showPending" binary />
-              <label
-                for="showPending"
-                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >
-                {{ $t("help.filters.showPending") }}
-              </label>
-            </div>
-            <div class="flex items-center gap-2">
-              <Checkbox v-model="showApproved" inputId="showApproved" binary />
-              <label
-                for="showApproved"
-                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >
-                {{ $t("help.filters.showApproved") }}
-              </label>
-            </div>
-          </div>
-          <!-- OpenStreetMap sync disclaimer -->
-          <div
-            class="flex items-start gap-2 p-2.5 rounded-md text-xs leading-relaxed bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+    <!-- Controls below the selected project: "New" button and the status filter tabs -->
+    <template #contributions-header>
+      <div class="flex flex-col gap-3 pt-1 pb-1">
+        <div class="flex items-center justify-between gap-4">
+          <span
+            v-if="allContributions.length > 0"
+            class="text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
           >
-            <i class="pi pi-info-circle mt-0.5 shrink-0"></i>
-            <span>{{ $t("common.osmSyncNotice") }}</span>
-          </div>
+            {{ $t("contribute.yourContributions") }}
+          </span>
+          <Button
+            @click="handleAddOverlayClick"
+            severity="primary"
+            size="small"
+            icon="pi pi-plus"
+            :label="$t('common.add')"
+            class="font-semibold ml-auto"
+            v-tooltip.bottom="$t('dialog.createNewProject')"
+          />
+        </div>
+        <div v-if="allContributions.length > 0" class="flex items-center gap-2">
+          <button
+            v-for="tab in filterTabs"
+            :key="tab.key"
+            type="button"
+            @click="activeFilter = tab.key"
+            :class="[
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-colors duration-150',
+              activeFilter === tab.key
+                ? 'bg-[color-mix(in_srgb,var(--p-primary-color)_12%,transparent)] border-primary-color text-primary-color font-semibold'
+                : 'bg-transparent border-surface text-muted-color hover:text-color hover:bg-content-hover-background',
+            ]"
+          >
+            <span>{{ tab.label }}</span>
+            <span
+              class="text-xs"
+              :class="
+                activeFilter === tab.key ? 'text-primary-color opacity-70' : 'text-muted-color'
+              "
+            >
+              {{ tab.count }}
+            </span>
+          </button>
         </div>
       </div>
     </template>
@@ -198,9 +203,9 @@ const projectStore = useProjectStore();
 
 const { prepareSubmission } = useSubmissionDialog();
 
-// Filter state - both true by default to show everything
-const showPending = ref(true);
-const showApproved = ref(true);
+// Filter state - which status group of contributions to show
+type ContributionFilter = "all" | "pending" | "approved";
+const activeFilter = ref<ContributionFilter>("all");
 
 const { handleNewProjectClick } = useNewProject();
 
@@ -258,56 +263,50 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   return { ...project, overlays };
 });
 
-const filteredProjects = computed(() => {
-  // If neither checkbox is selected, show nothing
-  if (!showPending.value && !showApproved.value) {
-    return [];
-  }
+// A contribution counts as "pending" when its own status is unresolved, or any of its overlays
+// or change requests are still awaiting moderation. Everything else is "approved" (resolved).
+function isContributionPending(project: UserContribution): boolean {
+  // Treat unsaved/unsubmitted projects (status === null) as pending
+  const isPending = project.status === "pending" || project.status === null;
 
-  // If both are selected, show everything
-  if (showPending.value && showApproved.value) {
-    return allContributions.value;
-  }
-
-  // Filter based on which checkbox(es) are selected
-  return allContributions.value.filter((project) => {
-    // Treat unsaved/unsubmitted projects (status === null) as pending
-    const isPending = project.status === "pending" || project.status === null;
-    // "rejected" is terminal like "approved": both are resolved, no longer awaiting moderation
-    const isResolved = project.status === "approved" || project.status === "rejected";
-
-    // Check if project has pending or unsaved overlays/changes (contributes to "pending")
-    const hasPendingOverlays =
+  const hasPendingOverlays =
+    project.overlays?.some(
+      (overlay: UserContributionOverlay) => overlay.status === "pending" || overlay.status === null,
+    ) ?? false;
+  const hasPendingChanges = pendingChangeRequests.value.some((change) => {
+    if (change.entityType === "project" && change.entityId === project.id) {
+      return true;
+    }
+    return (
       project.overlays?.some(
         (overlay: UserContributionOverlay) =>
-          overlay.status === "pending" || overlay.status === null,
-      ) ?? false;
-    const hasPendingChanges = pendingChangeRequests.value.some((change) => {
-      if (change.entityType === "project" && change.entityId === project.id) {
-        return true;
-      }
-      return (
-        project.overlays?.some(
-          (overlay: UserContributionOverlay) =>
-            change.entityType === "overlay" && change.entityId === overlay.id,
-        ) ?? false
-      );
-    });
-
-    const hasAnyPending = isPending || hasPendingOverlays || hasPendingChanges;
-
-    // Show if "pending" checkbox is on and project has pending items
-    if (showPending.value && hasAnyPending) {
-      return true;
-    }
-
-    // Show if "approved" checkbox is on and project is resolved (and has no pending items)
-    if (showApproved.value && isResolved && !hasAnyPending) {
-      return true;
-    }
-
-    return false;
+          change.entityType === "overlay" && change.entityId === overlay.id,
+      ) ?? false
+    );
   });
+
+  return isPending || hasPendingOverlays || hasPendingChanges;
+}
+
+const pendingCount = computed(
+  () => allContributions.value.filter((project) => isContributionPending(project)).length,
+);
+const approvedCount = computed(() => allContributions.value.length - pendingCount.value);
+
+const filterTabs = computed<{ key: ContributionFilter; label: string; count: number }[]>(() => [
+  { key: "all", label: t("contribute.filterAll"), count: allContributions.value.length },
+  { key: "pending", label: t("approvalStatus.pending"), count: pendingCount.value },
+  { key: "approved", label: t("approvalStatus.approved"), count: approvedCount.value },
+]);
+
+const filteredProjects = computed(() => {
+  if (activeFilter.value === "all") {
+    return allContributions.value;
+  }
+  if (activeFilter.value === "pending") {
+    return allContributions.value.filter((project) => isContributionPending(project));
+  }
+  return allContributions.value.filter((project) => !isContributionPending(project));
 });
 
 // Handle delete overlay click - uses shared deletion composable

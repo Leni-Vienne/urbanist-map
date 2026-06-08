@@ -1,6 +1,7 @@
 ﻿<template>
   <div :class="['relative h-full flex flex-col', panelClass]">
     <div
+      v-if="title || $slots['header-actions']"
       class="sticky top-0 bg-content-hover-background flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
     >
       <h2 class="m-0 text-[1.1rem] font-semibold text-color tracking-tight whitespace-nowrap">
@@ -15,15 +16,19 @@
       ref="scrollAreaRef"
       class="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
+      <div v-if="$slots['below-header']" class="px-4 pb-2 pr-3">
+        <slot name="below-header"></slot>
+      </div>
+
       <div
-        v-if="projects.length > 0 || pinnedExternalProject"
+        v-if="projects.length > 0 || pinnedExternalProject || keepContentVisible"
         ref="contentRef"
         class="flex flex-col gap-2 pb-2 pr-3"
       >
-        <!-- Section label: external selected project or pinned own contribution -->
+        <!-- Section label: only for an external selected project (own contributions just pin to the top of the list) -->
         <div
-          v-if="pinnedExternalProject || pinnedProject"
-          class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+          v-if="pinnedExternalProject"
+          class="px-3 pt-1 pb-0.5 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
         >
           {{ $t("contribute.selectedProject") }}
         </div>
@@ -77,12 +82,15 @@
             </ProjectContent>
           </AccordionPanel>
 
-          <!-- "Your contributions" section divider, shown only when a selected project is pinned above -->
+          <!-- "Your contributions" section header: custom controls (contribute panel) or plain divider -->
+          <template v-if="$slots['contributions-header']">
+            <slot name="contributions-header"></slot>
+          </template>
           <template
-            v-if="(pinnedExternalProject || pinnedProject) && flatOrderedProjects.length > 0"
+            v-else-if="(pinnedExternalProject || pinnedProject) && flatOrderedProjects.length > 0"
           >
             <div
-              class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+              class="pt-1 pb-0.5 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
             >
               {{ $t("contribute.yourContributions") }}
             </div>
@@ -140,6 +148,14 @@
             </ProjectContent>
           </AccordionPanel>
         </Accordion>
+
+        <!-- Filter yields no matches, but contributions exist: keep controls above visible -->
+        <PanelEmptyState
+          v-if="flatOrderedProjects.length === 0 && !pinnedExternalProject"
+          icon="folder"
+          :message="emptyMessage"
+          :sub-message="emptySubMessage"
+        />
       </div>
 
       <!-- Empty state -->
@@ -222,6 +238,9 @@ interface Props {
   showEditButtons?: boolean;
   pinnedProjectId?: string | null;
   pinnedExternalProject?: ProjectForModeration | null;
+  // Keep the content area mounted even when the (filtered) project list is empty, so a consumer
+  // rendering its own filter controls via #contributions-header does not lose them on empty results.
+  keepContentVisible?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -234,6 +253,7 @@ const props = withDefaults(defineProps<Props>(), {
   showEditButtons: false,
   pinnedProjectId: null,
   pinnedExternalProject: null,
+  keepContentVisible: false,
 });
 
 const emit = defineEmits<{

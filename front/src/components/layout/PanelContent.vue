@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent, watch } from "vue";
 import type { PanelTab } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -59,9 +59,24 @@ const panelOwnsProjectList = computed(
 );
 
 // A selected overlay (info popup) or standalone project marker drives the panel into a detail state.
+// The latest tab is a feed of all-user contributions with no project list of its own, so it must
+// never host a project detail.
 const detailVisible = computed(
   () =>
-    !panelOwnsProjectList.value && (overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible),
+    !panelOwnsProjectList.value &&
+    uiStore.activeTab !== "latest" &&
+    (overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible),
+);
+
+// Switching to the latest tab clears any open detail so it does not linger when switching back.
+watch(
+  () => uiStore.activeTab,
+  (tab) => {
+    if (tab === "latest") {
+      overlayStore.hideInfoPopup();
+      uiStore.closeProjectInfoPopup();
+    }
+  },
 );
 
 defineProps<{
