@@ -104,8 +104,10 @@ shapes AS (
   WHERE q.mvt_geom IS NOT NULL
 ),
 footprints AS (
-  -- Generate the 'overlay-footprints' vector tile layer showing the bounding box of georeferenced images
-  -- This layer is only rendered at zoom level 13 and higher.
+  -- Generate the 'overlay-footprints' vector tile layer showing the bounding box of georeferenced images.
+  -- Emitted from z12 so mobile clients (which reveal overlays one zoom level earlier via
+  -- getEffectiveThreshold) have footprint geometry to render and hit-test. Desktop clients keep a
+  -- z13 layer minzoom, so they ignore the extra z12 data.
   SELECT ST_AsMVT(q, 'overlay-footprints', 4096, 'mvt_geom') AS tile
   FROM (
     SELECT
@@ -139,7 +141,7 @@ footprints AS (
     FROM overlays o
     JOIN projects p ON p.id = o.project_id,
     tile_env te
-    WHERE $1 >= 13
+    WHERE $1 >= 12
       AND o.status = 'approved'
       AND o.kind = 'map'
       AND o.corners && te.bounds_4326

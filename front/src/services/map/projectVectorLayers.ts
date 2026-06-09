@@ -8,6 +8,7 @@ import {
   addProtocol,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
+import { getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import {
   getCurrentHighlightedProjectId,
@@ -85,6 +86,11 @@ addProtocol("dedupe", async (params, _abortController) => {
         // If multiple world copies (wrap 0, wrap 1) wait on this same promise,
         // and one copy gets aborted (e.g. goes off screen), we don't want to cancel
         // the fetch for the other copy that is still visible!
+        //
+        // In dev, bypass the HTTP cache so tile-query changes are reflected immediately
+        // instead of being masked by a previously cached tile. Production keeps default
+        // caching (driven by the tile's Cache-Control header).
+        ...(import.meta.env.DEV ? { cache: "no-store" as RequestCache } : {}),
       });
       if (!response.ok) {
         if (response.status === 204) return new ArrayBuffer(0); // Empty tile
@@ -115,7 +121,9 @@ const PROJECT_POINTS_MAX_ZOOM = 15;
 /** Zoom level at which project shapes (MVT) become visible.
  *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
 const PROJECT_SHAPES_MIN_ZOOM = 3;
-/** Zoom level at which overlay footprints and point geometries become visible */
+/** Base zoom level at which overlay footprints and point geometries become visible.
+ *  Wrapped in getEffectiveThreshold per layer so mobile reveals one level earlier,
+ *  matching the raster overlay images. */
 const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
 const MVT_SOURCE_MAX_ZOOM = 14;
@@ -1177,7 +1185,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "fill",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
       ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
         "fill-color": getProjectLineColorExpression(),
@@ -1195,7 +1203,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
       paint: { "line-width": 0 },
     },
     geometryBeforeId,
@@ -1210,7 +1218,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
       layout: { "line-cap": "round" },
       ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
@@ -1230,7 +1238,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
       filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
       layout: { "line-cap": "round" },
       paint: {
@@ -1247,7 +1255,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
       filter: [
         "all",
         getIsProposedFilterExpression(),
@@ -1268,7 +1276,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "circle",
       source: "project-sources",
       "source-layer": "project-shapes",
-      minzoom: OVERLAY_FOOTPRINTS_MIN_ZOOM,
+      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
       filter: ["==", ["geometry-type"], "Point"],
       paint: {
         "circle-color": getProjectLineColorExpression(),
