@@ -91,7 +91,7 @@ function shouldApplyMobileOffset(): boolean {
 function getMobileDrawerBottomPaddingPx(): number {
   const uiStore = useUiStore();
   const drawerHeightPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
-  return drawerHeightPx + 20; // margin above the drawer edge
+  return drawerHeightPx + 30; // margin above the drawer edge
 }
 
 // Mode controls + drawer grip below the drawer edge that an upward detail panel must also clear.
@@ -136,7 +136,7 @@ function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions
 function resolvePadding(p?: number | [number, number]): PaddingOptions | number {
   let result: PaddingOptions | number = 50;
   if (shouldApplyMobileOffset()) {
-    result = { top: 50, bottom: getMobileDrawerBottomPaddingPx(), left: 50, right: 50 };
+    result = { top: 140, bottom: getMobileDrawerBottomPaddingPx(), left: 50, right: 50 };
   } else if (typeof p === "number") {
     result = p;
   } else if (Array.isArray(p)) {
@@ -232,14 +232,19 @@ function mercatorZoomForBounds(
   south: number,
   east: number,
   north: number,
+  padding: PaddingOptions | number,
   maxZoom?: number,
 ): number {
   const container = map.value.getContainer();
-  // Shrink the usable viewport by a 50px inset per side so the bounds aren't framed edge-to-edge,
-  // matching the padding used by the cameraForBounds path.
-  const inset = 100;
-  const w = Math.max(1, container.clientWidth - inset);
-  const h = Math.max(1, container.clientHeight - inset);
+  // Shrink the usable viewport by the same padding the cameraForBounds path would have applied, so
+  // the computed zoom fits the bounds in the area actually visible (e.g. above the mobile drawer).
+  // Using a fixed inset here instead would over-zoom tall, height-limited bounds and clip them.
+  const padLeft = typeof padding === "number" ? padding : (padding.left ?? 0);
+  const padRight = typeof padding === "number" ? padding : (padding.right ?? 0);
+  const padTop = typeof padding === "number" ? padding : (padding.top ?? 0);
+  const padBottom = typeof padding === "number" ? padding : (padding.bottom ?? 0);
+  const w = Math.max(1, container.clientWidth - padLeft - padRight);
+  const h = Math.max(1, container.clientHeight - padTop - padBottom);
   const tile = 512;
 
   const lngFraction = Math.max(Math.abs(east - west) / 360, 1e-9);
@@ -308,7 +313,7 @@ export function mobileAwareFlyToBounds(
   // MapLibre projection and so can't hit the same NaN.
   if (!cameraForBoundsOk) {
     const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
-    const zoom = mercatorZoomForBounds(west, south, east, north, options.maxZoom);
+    const zoom = mercatorZoomForBounds(west, south, east, north, padding, options.maxZoom);
     return mobileAwareFlyTo(center, zoom, { duration: options.duration });
   }
 

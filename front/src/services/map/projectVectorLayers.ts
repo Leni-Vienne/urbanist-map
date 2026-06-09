@@ -37,6 +37,7 @@ import {
   mobileAwareFlyToBounds,
   flyToGeometry,
 } from "@/services/map/mapNavigation";
+import { isMobileViewport } from "@/composables/ui/useIsMobile";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
 import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileGrid";
@@ -656,10 +657,19 @@ function handleVectorFeatureClick(
     return;
   }
 
-  // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
-  // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
-  const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
-  flyToGeometry(latlng, geometrySizeM, { fromMapClick: true });
+  // Overlay footprints: on mobile, frame the overlay's own bounds (drawer-aware padding centers
+  // it in the visible area), matching the side-panel/drawer navigation. The flyToGeometry path
+  // anchors the raw tap point via a screen offset, which lands the overlay off-center. Desktop
+  // keeps the camera still: the feature is already on screen and the detail sits beside the map.
+  const footprintBounds = isFootprint ? getFootprintBounds(feature) : null;
+  if (footprintBounds) {
+    if (isMobileViewport()) mobileAwareFlyToBounds(footprintBounds);
+  } else {
+    // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
+    // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
+    const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
+    flyToGeometry(latlng, geometrySizeM, { fromMapClick: true });
+  }
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
   // async project fetch that happens inside handleProjectClickFromTile.
@@ -973,6 +983,22 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
   const value = feature.properties?.[key];
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+// Bounds of an overlay footprint from its corner properties (c0..c3), or null when absent/invalid.
+function getFootprintBounds(feature: RenderedMapFeature): LngLatBounds | null {
+  const p = feature.properties;
+  if (!p) return null;
+  const corners = [
+    { lat: Number(p.c0_lat), lng: Number(p.c0_lng) },
+    { lat: Number(p.c1_lat), lng: Number(p.c1_lng) },
+    { lat: Number(p.c2_lat), lng: Number(p.c2_lng) },
+    { lat: Number(p.c3_lat), lng: Number(p.c3_lng) },
+  ];
+  if (corners.some((c) => !Number.isFinite(c.lat) || !Number.isFinite(c.lng))) return null;
+  const bounds = new LngLatBounds();
+  for (const c of corners) bounds.extend([c.lng, c.lat]);
+  return bounds;
 }
 
 /** Extract hover card data from a vector tile feature's properties. */
