@@ -245,7 +245,9 @@ const isVisible = computed({
   },
 });
 
-// Initialize the step when the dialog opens, and clear state when it closes.
+// Initialize the step when the dialog opens, and clear state when it closes. Runs immediately
+// because the dialog is mounted via v-if only once visible is already true, so a non-immediate
+// watch would miss that first open and leave the chooser showing even in replacement mode.
 watch(
   () => uiStore.imageUploadDialog.visible,
   (visible) => {
@@ -254,6 +256,7 @@ watch(
       step.value = isReplacementMode.value ? "overlay" : "choose";
     }
   },
+  { immediate: true },
 );
 
 function clearSelection() {
