@@ -1,5 +1,8 @@
 <template>
-  <AccordionHeader>
+  <component
+    :is="plain ? 'div' : AccordionHeader"
+    :class="plain ? 'project-header-plain' : undefined"
+  >
     <div class="flex items-center justify-between w-full gap-2">
       <div class="flex items-center gap-1.5 min-w-0">
         <!-- Wikidata logo (e.g. metro line badge) shown when available -->
@@ -36,7 +39,7 @@
         />
       </div>
     </div>
-  </AccordionHeader>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -52,6 +55,8 @@ interface Props {
   pendingChangeCount?: number;
   importSourceType?: string | null;
   externalProperties?: unknown;
+  // Render as a plain card header (a <div>) instead of an AccordionHeader, for use outside an Accordion.
+  plain?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -66,3 +71,11 @@ const wikidataId = computed(() => {
 });
 const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
 </script>
+
+<style scoped>
+/* Mirror the AccordionHeader padding so the plain-card header lines up with accordion cards. */
+.project-header-plain {
+  display: block;
+  padding: var(--p-accordion-header-padding, 1.125rem);
+}
+</style>

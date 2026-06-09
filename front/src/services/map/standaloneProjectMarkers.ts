@@ -20,6 +20,7 @@ import {
 } from "@/services/map/shapeLayerRegistry";
 // t() is imported directly since useI18n() is only available inside component setup().
 import { t } from "@/locales";
+import { expandProjectPanel } from "@/services/layout/accordionState";
 
 const standaloneProjectMarkerMap = new Map<string, maplibregl.Marker>();
 
@@ -239,14 +240,11 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   element.addEventListener("click", (e) => {
     e.stopPropagation();
+    // Idempotent select: always show the project and expand its panel. Deselection is handled by
+    // the background-map click and the selection card's close button.
     const uiStore = useUiStore();
-
-    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-      uiStore.closeProjectInfoPopup();
-      return;
-    }
-
     uiStore.openProjectInfoPopup(project.id, project);
+    expandProjectPanel(project.id);
   });
 }
 

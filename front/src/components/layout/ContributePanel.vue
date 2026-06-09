@@ -22,14 +22,15 @@
         : $t('contribute.createFirstProject')
     "
   >
-    <template #project-actions="{ project }">
+    <!-- isExternal: own projects can be deleted; external (non-owned) ones only allow suggesting changes -->
+    <template #project-actions="{ project, isExternal }">
       <ProjectActionButtons
         :project="project"
         show-edit
         show-add-image
         show-draw
         show-save
-        show-delete
+        :show-delete="!isExternal"
         :is-modified="isProjectModified(project.id)"
         @edit="handleEditProjectClick"
         @add-image="handleAddImageToProject"
@@ -69,22 +70,6 @@
       >
         <i class="pi pi-trash"></i>
       </button>
-    </template>
-
-    <template #pinned-external-project-actions="{ project }">
-      <!-- For external (non-owned) selected projects: suggest changes, draw, add image, submit -->
-      <ProjectActionButtons
-        :project="project"
-        show-edit
-        show-draw
-        show-add-image
-        show-save
-        :is-modified="isProjectModified(project.id)"
-        @edit="handleEditProjectClick"
-        @draw="handleDrawShapesClick"
-        @add-image="handleAddImageToProject"
-        @save="handleSaveProjectClick"
-      />
     </template>
 
     <template #empty-state>
@@ -162,7 +147,7 @@ import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { expandAccordionForProject, activeAccordionPanels } from "@/services/layout/accordionState";
+import { expandAccordionForProject } from "@/services/layout/accordionState";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -220,13 +205,13 @@ const { isMobile } = useIsMobile();
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
   useChangeRequests();
 
-// Persists the last selected project so the card stays in ContributePanel even after the popup closes.
-// Only updates when a new project is opened, never clears on close.
+// Tracks the project behind the selected card. Sourced from whichever signals a selection:
+// - the standalone project popup (shape / vector footprint click)
+// - a selected overlay (selectOverlay closes the popup, so we read the project from the overlay)
+// When neither is set (e.g. a background-map click closed the popup), it clears so the card
+// disappears, mirroring view mode where clicking the map drops the selection.
 const lastSelectedProject = ref<Project | null>(null);
 
-// Update from either source that can signal a project selection:
-// - standalone project popup opens (shape / vector footprint click)
-// - an overlay is selected (selectOverlay closes the popup, so we read project from the overlay)
 watchEffect(() => {
   const popupProject = uiStore.projectInfoPopup.project;
   if (popupProject) {
@@ -234,14 +219,14 @@ watchEffect(() => {
     return;
   }
   const overlayId = overlayStore.idSelectedOverlay;
-  if (!overlayId) return;
-  const overlay = overlayStore.overlays[overlayId];
-  const project = overlay?.project;
+  const project = overlayId ? overlayStore.overlays[overlayId]?.project : null;
   if (project) {
     lastSelectedProject.value = createProjectObject(
       project as Parameters<typeof createProjectObject>[0],
     );
+    return;
   }
+  lastSelectedProject.value = null;
 });
 
 const selectedProjectId = computed(() => lastSelectedProject.value?.id ?? null);
@@ -440,10 +425,8 @@ watch(
     const isOwnContribution = allContributions.value.some((p) => p.id === id);
     if (isOwnContribution) {
       expandAccordionForProject(id, allContributions.value);
-    } else if (!activeAccordionPanels.value.includes(id)) {
-      // External pinned project: just push the id into the shared accordion state
-      activeAccordionPanels.value.push(id);
     }
+    // External pinned projects render in their own always-open card, so no shared accordion state.
   },
   { immediate: true },
 );

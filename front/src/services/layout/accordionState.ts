@@ -24,6 +24,15 @@ export function requestScrollTo(type: ScrollRequestType, id: string | number) {
 }
 
 /**
+ * Ensure a project's accordion panel is expanded. Works for both own-contribution and
+ * pinned-external projects since it operates directly on the shared panel state, unlike
+ * the scroll-request path which only resolves projects in a given panel's list.
+ */
+export function expandProjectPanel(projectId: string): void {
+  expandProjectAccordion(projectId);
+}
+
+/**
  * Consume the current scroll request (retrieve and clear it).
  */
 export function consumeScrollRequest(): ScrollRequest | null {

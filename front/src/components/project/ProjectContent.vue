@@ -1,5 +1,8 @@
 <template>
-  <AccordionContent>
+  <component
+    :is="plain ? 'div' : AccordionContent"
+    :class="plain ? 'project-content-plain' : undefined"
+  >
     <div
       class="cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:scale-[0.99] rounded-lg"
       @click="handleCardClick"
@@ -227,7 +230,7 @@
         class="block max-h-[80vh] max-w-[90vw] object-contain"
       />
     </Dialog>
-  </AccordionContent>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -260,6 +263,8 @@ interface Props {
   hideStatusBadges?: boolean;
   showEditButtons?: boolean;
   isExpanded?: boolean;
+  // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
+  plain?: boolean;
   onNavigateToOverlay: (overlayId: string) => Promise<void>;
   onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>;
 }
@@ -389,3 +394,11 @@ function openLightbox(overlay: OverlayForModeration): void {
   };
 }
 </script>
+
+<style scoped>
+/* Mirror the .p-accordioncontent-content padding so the plain card matches accordion cards. */
+.project-content-plain {
+  display: block;
+  padding: 0.5rem 0.5rem 0.5rem;
+}
+</style>

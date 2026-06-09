@@ -221,7 +221,7 @@ function wireShapeInteraction(
   if (!mlMap) return [];
 
   // When a line crosses this project's own polygon, one click hits both the fill and hit
-  // layers, firing onClick twice. selectProject toggles, so guard on the source DOM event.
+  // layers, firing onClick twice. Dedupe on the source DOM event so it is handled once.
   let lastClickTimeStamp = -1;
 
   function onEnter(): void {

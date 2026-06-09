@@ -5,6 +5,7 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
+import { expandProjectPanel } from "@/services/layout/accordionState";
 
 /**
  * Open the project detail in the docked panel for the given project.
@@ -15,12 +16,11 @@ import { syncModerationCountryFromMapClick } from "@/services/moderation/moderat
 export function selectProject(project: Project, _latlng?: { lat: number; lng: number }): void {
   const uiStore = useUiStore();
 
-  if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-    uiStore.closeProjectInfoPopup();
-    return;
-  }
-
+  // Selecting is idempotent: always show the project and expand its panel, regardless of current
+  // state. Deselection has its own paths (background-map click, the card's close button), so this
+  // never branches on "already selected", which is what desynced after a manual fold.
   uiStore.openProjectInfoPopup(project.id, project);
+  expandProjectPanel(project.id);
 
   // In moderation mode, switch the panel to this project's country so its pending
   // submissions load and the popup watcher's scroll request can resolve.
