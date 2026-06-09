@@ -400,7 +400,7 @@ export function useSubmissionDialog() {
     try {
       isSubmitting.value = true;
       await submissionService.submitContext(context, reason);
-      overlayStore.hideInfoPopup();
+      overlayStore.closeOverlayDetail();
       handleSubmissionSuccess(context);
     } catch (error: unknown) {
       console.error("Error submitting:", error);

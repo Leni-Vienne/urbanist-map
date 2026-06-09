@@ -185,7 +185,9 @@ function updateWindowWidth() {
 // A selected map feature drives the docked panel into its detail state, so make sure the panel
 // is open whenever a selection appears. The drawer keeps its current height (the camera pans the
 // feature above it via featureAnchorOffset), and the user can drag it taller to read more.
-const detailActive = computed(() => overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible);
+const detailActive = computed(
+  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
+);
 
 watch(detailActive, (active) => {
   if (!active) return;
@@ -216,7 +218,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
   if (reopen) {
-    uiStore.openProjectInfoPopup(project.id, project);
+    uiStore.openProjectDetail(project.id, project);
   }
 }
 
@@ -234,7 +236,7 @@ async function handleShapesCancel() {
   await stopShapeEditing();
   uiStore.closeShapeEditor();
   if (reopen && project) {
-    uiStore.openProjectInfoPopup(project.id, project);
+    uiStore.openProjectDetail(project.id, project);
   }
 }
 

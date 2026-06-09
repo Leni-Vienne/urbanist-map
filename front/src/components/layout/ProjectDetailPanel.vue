@@ -277,7 +277,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 
 import { navigateToOverlay } from "@/services/overlay/actions";
-import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { closeProjectDetailAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
@@ -299,9 +299,9 @@ const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
 const mapStore = useMapStore();
 const uiStore = useUiStore();
-const { overlays, showInfoPopup, infoPopupOverlayId } = storeToRefs(overlayStore);
+const { overlays, overlayDetailVisible, overlayDetailId } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
-const { projectInfoPopup } = storeToRefs(uiStore);
+const { projectDetail } = storeToRefs(uiStore);
 
 const { handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion();
 const { isSubmitting, prepareOverlaySubmission, prepareSubmission } = useSubmissionDialog();
@@ -310,13 +310,13 @@ const viewMode = computed(() => mapStore.mode !== "edit");
 
 const overlay = computed(() => {
   if (
-    !showInfoPopup.value ||
-    !infoPopupOverlayId.value ||
-    !overlays.value[infoPopupOverlayId.value]
+    !overlayDetailVisible.value ||
+    !overlayDetailId.value ||
+    !overlays.value[overlayDetailId.value]
   ) {
     return null;
   }
-  return overlays.value[infoPopupOverlayId.value];
+  return overlays.value[overlayDetailId.value];
 });
 
 function convertAndCacheBackendProject(
@@ -360,11 +360,11 @@ const project = computed<Project | undefined>(() => {
   }
 
   // Fall back to project popup.
-  if (projectInfoPopup.value.visible && projectInfoPopup.value.projectId) {
-    const localProject = getEffectiveProject(projectInfoPopup.value.projectId);
+  if (projectDetail.value.visible && projectDetail.value.projectId) {
+    const localProject = getEffectiveProject(projectDetail.value.projectId);
     if (localProject) return localProject;
 
-    if (projectInfoPopup.value.project) return projectInfoPopup.value.project;
+    if (projectDetail.value.project) return projectDetail.value.project;
   }
 
   return undefined;
@@ -452,17 +452,17 @@ function handleAddImages() {
   if (project.value) uiStore.openImageUploadDialog(project.value.id);
 }
 
-function closeProjectInfoPopup() {
-  uiStore.closeProjectInfoPopup();
-  closeProjectPopupAndResetMarkers();
+function closeProjectDetail() {
+  uiStore.closeProjectDetail();
+  closeProjectDetailAndResetMarkers();
 }
 
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
-  if (showInfoPopup.value) {
-    overlayStore.hideInfoPopup();
+  if (overlayDetailVisible.value) {
+    overlayStore.closeOverlayDetail();
   } else {
-    closeProjectInfoPopup();
+    closeProjectDetail();
   }
 }
 
@@ -490,10 +490,10 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
 
 async function handleDeleteProject(target: Project) {
   await deleteProjectWithConfirm(target.id, target.name, target.overlayIds?.length ?? 0, () => {
-    if (showInfoPopup.value) {
-      overlayStore.hideInfoPopup();
+    if (overlayDetailVisible.value) {
+      overlayStore.closeOverlayDetail();
     } else {
-      closeProjectInfoPopup();
+      closeProjectDetail();
     }
   });
 }
@@ -509,11 +509,11 @@ async function handleDrawShapesClick() {
 
   // Capture geometry from the active overlay/project before closing the detail.
   const fallbackGeometry =
-    overlay.value?.project?.geometry ?? projectInfoPopup.value.project?.geometry ?? null;
+    overlay.value?.project?.geometry ?? projectDetail.value.project?.geometry ?? null;
 
   uiStore.openShapeEditor(currentProject, true);
-  if (showInfoPopup.value) overlayStore.hideInfoPopup();
-  else closeProjectInfoPopup();
+  if (overlayDetailVisible.value) overlayStore.closeOverlayDetail();
+  else closeProjectDetail();
   await startShapeEditing(currentProject.id, fallbackGeometry);
 }
 </script>

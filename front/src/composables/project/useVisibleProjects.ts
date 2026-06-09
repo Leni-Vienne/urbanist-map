@@ -424,16 +424,16 @@ export function useVisibleProjects() {
       // must not be cleared by a sidebar mouseleave (which can fire when the list scrolls
       // to the newly selected project, triggering mouseleave on the previously hovered card).
       // The watcher below clears setExternalHover when the popup eventually closes.
-      if (!uiStore.projectInfoPopup.visible) {
+      if (!uiStore.projectDetail.visible) {
         setExternalHover(null);
       }
     }
   }
 
   // When the project info popup closes, release any vector tile hover that was pinned by a click.
-  // This is the counterpart to the popupPinsHighlight guard above.
+  // This is the counterpart to the detailPinsHighlight guard above.
   watch(
-    () => uiStore.projectInfoPopup.visible,
+    () => uiStore.projectDetail.visible,
     (isVisible) => {
       if (!isVisible) {
         setExternalHover(null);

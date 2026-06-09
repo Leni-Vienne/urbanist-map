@@ -69,8 +69,8 @@ export function removeStandaloneProjectMarkerForProject(projectId: string): void
   if (!marker) return;
 
   const uiStore = useUiStore();
-  if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId) {
-    uiStore.closeProjectInfoPopup();
+  if (uiStore.projectDetail.visible && uiStore.projectDetail.projectId === projectId) {
+    uiStore.closeProjectDetail();
   }
 
   marker.remove();
@@ -229,9 +229,9 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
         ? String(MARKER_OPACITY.standalone.hover)
         : String(MARKER_OPACITY.standalone.default);
     const uiStore = useUiStore();
-    const popupIsOpenForThis =
-      uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id;
-    if (!popupIsOpenForThis) {
+    const detailIsOpenForThis =
+      uiStore.projectDetail.visible && uiStore.projectDetail.projectId === project.id;
+    if (!detailIsOpenForThis) {
       unhighlightProjectShapes(project.id);
     }
   });
@@ -243,7 +243,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
     // Idempotent select: always show the project and expand its panel. Deselection is handled by
     // the background-map click and the selection card's close button.
     const uiStore = useUiStore();
-    uiStore.openProjectInfoPopup(project.id, project);
+    uiStore.openProjectDetail(project.id, project);
     expandProjectPanel(project.id);
   });
 }
@@ -264,7 +264,7 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
 }
 
 /** Reset all standalone marker opacities (e.g. after the project detail closes). */
-export function closeProjectPopupAndResetMarkers() {
+export function closeProjectDetailAndResetMarkers() {
   updateStandaloneProjectMarkerOpacities(null);
 }
 

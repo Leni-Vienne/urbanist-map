@@ -93,8 +93,7 @@ function isProjectFocused(projectId: string): boolean {
     ? overlayStore.overlays[overlayStore.idSelectedOverlay]
     : null;
   const highlightedId =
-    selected?.projectId ??
-    (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null);
+    selected?.projectId ?? (uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null);
   return highlightedId === projectId;
 }
 

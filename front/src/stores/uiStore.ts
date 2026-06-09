@@ -16,7 +16,7 @@ interface EditFormState {
   data?: Project | OverlayObject;
 }
 
-interface ProjectInfoPopupState {
+interface ProjectDetailState {
   visible: boolean;
   projectId: string | null;
   project: Project | null;
@@ -69,7 +69,7 @@ export const useUiStore = defineStore("ui", () => {
   const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
 
   // Project info popup state (for standalone projects)
-  const projectInfoPopup = ref<ProjectInfoPopupState>({
+  const projectDetail = ref<ProjectDetailState>({
     visible: false,
     projectId: null,
     project: null,
@@ -136,16 +136,16 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Project info popup actions
-  function openProjectInfoPopup(projectId: string, project?: Project) {
-    projectInfoPopup.value = {
+  function openProjectDetail(projectId: string, project?: Project) {
+    projectDetail.value = {
       visible: true,
       projectId,
       project: project ?? null,
     };
   }
 
-  function closeProjectInfoPopup() {
-    projectInfoPopup.value = {
+  function closeProjectDetail() {
+    projectDetail.value = {
       visible: false,
       projectId: null,
       project: null,
@@ -196,7 +196,7 @@ export const useUiStore = defineStore("ui", () => {
     activeTab,
     mobileDrawerVisible,
     mobileDrawerHeightPercent,
-    projectInfoPopup,
+    projectDetail,
     imageUploadDialog,
     shapeEditor,
     postLoginCallback,
@@ -208,8 +208,8 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectEditForm,
     openOverlayEditDialog,
     closeOverlayEditDialog,
-    openProjectInfoPopup,
-    closeProjectInfoPopup,
+    openProjectDetail,
+    closeProjectDetail,
     openImageUploadDialog,
     closeImageUploadDialog,
     openShapeEditor,

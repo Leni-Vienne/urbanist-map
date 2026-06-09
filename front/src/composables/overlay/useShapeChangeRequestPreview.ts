@@ -59,7 +59,7 @@ export function useShapeChangeRequestPreview() {
     const uiStore = useUiStore();
 
     renderPreviewShapes(geometry, type === "new" ? "suggested" : "current", project.id, () => {
-      uiStore.openProjectInfoPopup(project.id, project);
+      uiStore.openProjectDetail(project.id, project);
       requestScrollTo("project", project.id);
     });
 

@@ -84,7 +84,7 @@ export function selectOverlay(overlayId: string | null): void {
   // Already selected: skip the reselect work, but re-show its docked detail in case a prior
   // action (e.g. the detail's Back button) hid it while keeping the overlay selected.
   if (overlayId === overlayStore.idSelectedOverlay) {
-    if (overlayId) overlayStore.showInfoPopupForOverlay(overlayId);
+    if (overlayId) overlayStore.openOverlayDetail(overlayId);
     return;
   }
 
@@ -103,14 +103,14 @@ export function selectOverlay(overlayId: string | null): void {
 
     // Deselecting clears the docked overlay detail.
     if (!overlayId) {
-      overlayStore.hideInfoPopup();
+      overlayStore.closeOverlayDetail();
       return;
     }
 
     // Close standalone project popup when selecting an overlay (mutual exclusivity)
     const uiStore = useUiStore();
-    if (uiStore.projectInfoPopup.visible) {
-      uiStore.closeProjectInfoPopup();
+    if (uiStore.projectDetail.visible) {
+      uiStore.closeProjectDetail();
     }
 
     // Apply selection to new overlay
@@ -128,7 +128,7 @@ export function selectOverlay(overlayId: string | null): void {
 
     // Drive the docked panel into this overlay's detail view, fetching its project if the
     // selection came from the map (vector tiles don't always carry the full project).
-    overlayStore.showInfoPopupForOverlay(overlayId);
+    overlayStore.openOverlayDetail(overlayId);
     void hydrateOverlayProject(overlayId);
   } finally {
     isSelectingOverlay = false;
@@ -256,8 +256,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
     if (selectedOverlay?.projectId === projectId) return;
 
     const uiStore = useUiStore();
-    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId)
-      return;
+    if (uiStore.projectDetail.visible && uiStore.projectDetail.projectId === projectId) return;
   }
 
   // Unhighlight project shapes alongside the overlays (GeoJSON layers in edit/moderation, vector tiles in view mode)
@@ -291,8 +290,7 @@ export function getCurrentHighlightedProjectId(): string | null {
     ? overlayStore.overlays[overlayStore.idSelectedOverlay]
     : null;
   return (
-    selected?.projectId ??
-    (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null)
+    selected?.projectId ?? (uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null)
   );
 }
 
@@ -354,7 +352,7 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
 
   // No overlay under the click: a background click also closes an open project detail.
   const uiStore = useUiStore();
-  if (uiStore.projectInfoPopup.visible) {
-    uiStore.closeProjectInfoPopup();
+  if (uiStore.projectDetail.visible) {
+    uiStore.closeProjectDetail();
   }
 }

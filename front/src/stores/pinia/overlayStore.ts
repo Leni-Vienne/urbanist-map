@@ -11,8 +11,8 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   const replacementOverlayId = ref<string | null>(null);
   const pendingImageFile = ref<File | null>(null);
-  const showInfoPopup = ref(false);
-  const infoPopupOverlayId = ref<string | null>(null);
+  const overlayDetailVisible = ref(false);
+  const overlayDetailId = ref<string | null>(null);
 
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
@@ -107,18 +107,18 @@ export const useOverlayStore = defineStore("overlay", () => {
     clearPendingFile();
   }
 
-  function showInfoPopupForOverlay(overlayId: string) {
-    infoPopupOverlayId.value = overlayId;
-    showInfoPopup.value = true;
+  function openOverlayDetail(overlayId: string) {
+    overlayDetailId.value = overlayId;
+    overlayDetailVisible.value = true;
   }
 
-  function hideInfoPopup() {
-    showInfoPopup.value = false;
-    infoPopupOverlayId.value = null;
+  function closeOverlayDetail() {
+    overlayDetailVisible.value = false;
+    overlayDetailId.value = null;
   }
 
   function resetAllUIStates() {
-    hideInfoPopup();
+    closeOverlayDetail();
     resetReplacement();
   }
 
@@ -138,8 +138,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     viewModeOverlays,
     replacementOverlayId,
     pendingImageFile,
-    showInfoPopup,
-    infoPopupOverlayId,
+    overlayDetailVisible,
+    overlayDetailId,
 
     // Actions
     setViewModeOverlays,
@@ -153,8 +153,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     redoHistory,
     requestOverlayReplacement,
     resetReplacement,
-    showInfoPopupForOverlay,
-    hideInfoPopup,
+    openOverlayDetail,
+    closeOverlayDetail,
     clearAllState,
   };
 });

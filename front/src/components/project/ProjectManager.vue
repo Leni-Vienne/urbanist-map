@@ -234,7 +234,7 @@ function onDialogVisibilityChange(visible: boolean) {
   }
 }
 
-async function displayProjectMarkerAndPopup(
+async function displayProjectMarkerAndDetail(
   projectId: string,
   city: {
     id: number;
@@ -260,10 +260,10 @@ async function displayProjectMarkerAndPopup(
   }
 
   if (actualMarker) {
-    if (overlayStore.showInfoPopup) {
-      overlayStore.hideInfoPopup();
+    if (overlayStore.overlayDetailVisible) {
+      overlayStore.closeOverlayDetail();
     }
-    uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
+    uiStore.openProjectDetail(projectId, projectStore.projects[projectId]);
 
     const project = projectStore.projects[projectId];
     if (project && typeof project.lat === "number" && typeof project.lng === "number") {
@@ -288,14 +288,14 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
     if (project.city) {
-      await displayProjectMarkerAndPopup(projectId, project.city);
+      await displayProjectMarkerAndDetail(projectId, project.city);
     } else {
       const storedProject = projectStore.projects[projectId];
       if (storedProject) {
         addStandaloneProjectMarkerForProject(storedProject);
         const marker = getStandaloneProjectMarkerByProjectId(projectId);
         if (marker) {
-          uiStore.openProjectInfoPopup(projectId, storedProject);
+          uiStore.openProjectDetail(projectId, storedProject);
         }
       }
     }

@@ -191,10 +191,10 @@ async function handleContributionClick(contribution: LatestContribution) {
       const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
       const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
       // Anchor the popup on a point on the geometry itself, falling back to the bbox center.
-      const popupLatLng = contribution.geometryPoint
+      const detailLatLng = contribution.geometryPoint
         ? new LngLat(contribution.geometryPoint.lng, contribution.geometryPoint.lat)
         : new LngLat((minLng + maxLng) / 2, (minLat + maxLat) / 2);
-      navigateToStandaloneProjectBounds(bounds, popupLatLng, contribution.id);
+      navigateToStandaloneProjectBounds(bounds, detailLatLng, contribution.id);
     } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
       navigateToStandaloneProject(contribution.lat, contribution.lng, contribution.id);
     }

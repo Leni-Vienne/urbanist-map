@@ -19,7 +19,7 @@ export function selectProject(project: Project, _latlng?: { lat: number; lng: nu
   // Selecting is idempotent: always show the project and expand its panel, regardless of current
   // state. Deselection has its own paths (background-map click, the card's close button), so this
   // never branches on "already selected", which is what desynced after a manual fold.
-  uiStore.openProjectInfoPopup(project.id, project);
+  uiStore.openProjectDetail(project.id, project);
   expandProjectPanel(project.id);
 
   // In moderation mode, switch the panel to this project's country so its pending

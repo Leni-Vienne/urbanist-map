@@ -157,7 +157,7 @@ import { LngLat } from "maplibre-gl";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
-import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { closeProjectDetailAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { selectProject } from "@/services/map/projectSelection";
 import type { ChangeRequest } from "@/stores/pinia/changeRequestStore";
 import type {
@@ -213,9 +213,9 @@ const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest
 const lastSelectedProject = ref<Project | null>(null);
 
 watchEffect(() => {
-  const popupProject = uiStore.projectInfoPopup.project;
-  if (popupProject) {
-    lastSelectedProject.value = popupProject;
+  const detailProject = uiStore.projectDetail.project;
+  if (detailProject) {
+    lastSelectedProject.value = detailProject;
     return;
   }
   const overlayId = overlayStore.idSelectedOverlay;
@@ -380,13 +380,13 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   const fallbackGeometry = project.geometry ?? null;
 
   // Close any open popups (overlay popup or standalone project popup) to ensure a clean slate
-  if (overlayStore.showInfoPopup) {
-    overlayStore.hideInfoPopup();
+  if (overlayStore.overlayDetailVisible) {
+    overlayStore.closeOverlayDetail();
   }
-  if (uiStore.projectInfoPopup.visible) {
-    uiStore.closeProjectInfoPopup();
+  if (uiStore.projectDetail.visible) {
+    uiStore.closeProjectDetail();
     try {
-      closeProjectPopupAndResetMarkers();
+      closeProjectDetailAndResetMarkers();
     } catch (error) {
       console.warn("Failed to reset standalone markers on draw popup clear", error);
     }

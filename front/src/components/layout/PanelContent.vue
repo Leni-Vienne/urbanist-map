@@ -63,7 +63,7 @@ const detailVisible = computed(
   () =>
     !panelOwnsProjectList.value &&
     uiStore.activeTab !== "latest" &&
-    (overlayStore.showInfoPopup || uiStore.projectInfoPopup.visible),
+    (overlayStore.overlayDetailVisible || uiStore.projectDetail.visible),
 );
 
 // Switching to the latest tab clears any open detail so it does not linger when switching back.
@@ -71,8 +71,8 @@ watch(
   () => uiStore.activeTab,
   (tab) => {
     if (tab === "latest") {
-      overlayStore.hideInfoPopup();
-      uiStore.closeProjectInfoPopup();
+      overlayStore.closeOverlayDetail();
+      uiStore.closeProjectDetail();
     }
   },
 );

@@ -70,8 +70,8 @@ export function useProjectDeletion() {
     const success = await deleteProject(projectId);
     if (!success) return false;
 
-    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId) {
-      uiStore.closeProjectInfoPopup();
+    if (uiStore.projectDetail.visible && uiStore.projectDetail.projectId === projectId) {
+      uiStore.closeProjectDetail();
     }
 
     onSuccess?.();

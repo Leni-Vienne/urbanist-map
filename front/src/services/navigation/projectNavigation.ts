@@ -87,18 +87,18 @@ export function zoomToOverlayAndSelect(
 
 // Open the project popup once the camera settles. moveend never fires when the flight was skipped
 // (camera already at target), so open directly in that case to avoid hanging.
-function openPopupAfterFlight(
+function openDetailAfterFlight(
   flew: boolean,
   projectId: string,
-  popupLatLng: { lat: number; lng: number },
+  detailLatLng: { lat: number; lng: number },
 ): void {
-  function openPopup(): void {
-    void handleProjectClickFromTile(projectId, popupLatLng);
+  function openDetail(): void {
+    void handleProjectClickFromTile(projectId, detailLatLng);
   }
   if (flew) {
-    map.value.once("moveend", openPopup);
+    map.value.once("moveend", openDetail);
   } else {
-    openPopup();
+    openDetail();
   }
 }
 
@@ -117,7 +117,7 @@ export function navigateToStandaloneProject(lat: number, lng: number, projectId?
     const flew = mobileAwareFlyTo([lat, lng], 18, { offset: featureAnchorOffset() });
 
     if (projectId) {
-      openPopupAfterFlight(flew, projectId, new LngLat(lng, lat));
+      openDetailAfterFlight(flew, projectId, new LngLat(lng, lat));
     }
   } catch (error) {
     console.error("Failed to navigate to marker project:", error);
@@ -127,18 +127,18 @@ export function navigateToStandaloneProject(lat: number, lng: number, projectId?
 
 /**
  * Navigate to a standalone project by fitting its geometry bounds, then opening the popup anchored
- * on `popupLatLng` (a point on the geometry). Use when the project has real geometry bounds rather
+ * on `detailLatLng` (a point on the geometry). Use when the project has real geometry bounds rather
  * than a single marker point.
  */
 export function navigateToStandaloneProjectBounds(
   bounds: LngLatBounds,
-  popupLatLng: { lat: number; lng: number },
+  detailLatLng: { lat: number; lng: number },
   projectId: string,
 ): void {
   try {
     requestScrollTo("project", projectId);
     const flew = mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
-    openPopupAfterFlight(flew, projectId, popupLatLng);
+    openDetailAfterFlight(flew, projectId, detailLatLng);
   } catch (error) {
     console.error("Failed to navigate to marker project bounds:", error);
     throw error;

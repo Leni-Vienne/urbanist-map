@@ -18,14 +18,14 @@ let isWatcherInitialized = false;
  * accordion scroll, overlay popup hide, deselect) so click handlers only need to toggle
  * the popup state. Call once at app boot after Pinia is installed.
  */
-export function initializePopupWatcher() {
+export function initializeDetailWatcher() {
   if (isWatcherInitialized) return;
   isWatcherInitialized = true;
 
   watch(
     () => {
       const uiStore = useUiStore();
-      return uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null;
+      return uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null;
     },
     (newProjectId, oldProjectId) => {
       if (newProjectId === oldProjectId) return;
@@ -55,7 +55,7 @@ export function initializePopupWatcher() {
       if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
       requestScrollTo("project", newProjectId);
 
-      if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
+      if (overlayStore.overlayDetailVisible) overlayStore.closeOverlayDetail();
       if (overlayStore.idSelectedOverlay) selectOverlay(null);
     },
   );
