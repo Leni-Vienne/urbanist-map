@@ -6,49 +6,23 @@
     <template v-else>
       <!-- Project header: project name + action buttons -->
       <div class="px-4 pt-3 pb-2 border-b border-surface shrink-0">
-        <div :class="['flex gap-2', overlay ? 'items-start' : 'items-center']">
-          <!-- Left: project name stacked above overlay subtitle -->
-          <div class="flex-1 flex flex-col gap-0.5 min-w-0">
-            <div class="flex items-center gap-1.5 min-w-0">
-              <!-- Wikidata logo (e.g. metro line badge) shown when available -->
-              <img
-                v-if="wikidataEntity?.logoUrl"
-                :src="wikidataEntity.logoUrl"
-                class="w-5 h-5 object-contain shrink-0"
-                referrerpolicy="no-referrer"
-                loading="eager"
-              />
-              <span
-                class="text-sm font-semibold leading-snug wrap-break-word"
-                :class="project?.name ? 'text-color' : 'text-muted-color italic'"
-              >
-                {{ project?.name || $t("project.unnamed") }}
-              </span>
-            </div>
-            <!-- Overlay subtitle: image name or untitled + text "modifier" link -->
-            <div v-if="overlay" class="flex items-baseline gap-1.5">
-              <span class="text-xs italic text-muted-color leading-snug">
-                {{ overlay.caption || $t("overlay.untitled") }}
-              </span>
-              <button
-                v-if="!viewMode && user"
-                type="button"
-                class="text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
-                @click="handleEditOverlay(overlay)"
-              >
-                {{ $t("common.edit") }}
-              </button>
-              <button
-                v-if="
-                  !viewMode && user && overlay.status === 'pending' && overlay.authorId === user.id
-                "
-                type="button"
-                class="text-xs italic text-red-400 hover:text-red-600 dark:hover:text-red-300 cursor-pointer bg-transparent border-none p-0 outline-none shrink-0"
-                @click="handleDeleteOverlay(overlay)"
-              >
-                {{ $t("common.delete") }}
-              </button>
-            </div>
+        <div class="flex gap-2 items-center">
+          <!-- Left: project name (overlay name shows on the map toolbar, not here) -->
+          <div class="flex-1 flex items-center gap-1.5 min-w-0">
+            <!-- Wikidata logo (e.g. metro line badge) shown when available -->
+            <img
+              v-if="wikidataEntity?.logoUrl"
+              :src="wikidataEntity.logoUrl"
+              class="w-5 h-5 object-contain shrink-0"
+              referrerpolicy="no-referrer"
+              loading="eager"
+            />
+            <span
+              class="text-sm font-semibold leading-snug wrap-break-word"
+              :class="project?.name ? 'text-color' : 'text-muted-color italic'"
+            >
+              {{ project?.name || $t("project.unnamed") }}
+            </span>
           </div>
           <!-- Right: project action buttons -->
           <div class="flex gap-1 shrink-0">
@@ -310,7 +284,7 @@ import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { createProjectObject } from "@/utils/typeFactories";
 import { trpc } from "@/client";
-import type { OverlayData, OverlayObject, Project } from "@/types/index";
+import type { OverlayData, Project } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
@@ -329,10 +303,7 @@ const { overlays, showInfoPopup, infoPopupOverlayId } = storeToRefs(overlayStore
 const { projects } = storeToRefs(projectStore);
 const { projectInfoPopup } = storeToRefs(uiStore);
 
-const {
-  handleDeleteOverlay: deleteOverlayWithMarker,
-  handleDeleteProject: deleteProjectWithConfirm,
-} = useProjectDeletion();
+const { handleDeleteProject: deleteProjectWithConfirm } = useProjectDeletion();
 const { isSubmitting, prepareOverlaySubmission, prepareSubmission } = useSubmissionDialog();
 
 const viewMode = computed(() => mapStore.mode !== "edit");
@@ -477,10 +448,6 @@ function handleEditProject(target: Project) {
   uiStore.openProjectEditForm(target);
 }
 
-function handleEditOverlay(target: OverlayObject) {
-  uiStore.openOverlayEditDialog({ id: target.id, caption: target.caption });
-}
-
 function handleAddImages() {
   if (project.value) uiStore.openImageUploadDialog(project.value.id);
 }
@@ -519,19 +486,6 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
       life: 3000,
     });
   }
-}
-
-async function handleDeleteOverlay(target: OverlayObject) {
-  const currentProject = project.value;
-  const projectId = currentProject?.id;
-
-  const overlayCount = projectId
-    ? Object.values(overlays.value).filter((o) => o.projectId === projectId).length
-    : 0;
-
-  await deleteOverlayWithMarker(target.id, currentProject, overlayCount, target.caption, () => {
-    overlayStore.hideInfoPopup();
-  });
 }
 
 async function handleDeleteProject(target: Project) {

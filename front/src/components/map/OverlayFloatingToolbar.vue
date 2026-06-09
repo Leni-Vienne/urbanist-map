@@ -8,6 +8,13 @@
       @dblclick.stop
       @touchstart.stop
     >
+      <!-- Overlay name, shown above the controls when the overlay has a caption -->
+      <div
+        v-if="overlayName && !isCropActive"
+        class="max-w-60 truncate bg-content-background border border-surface rounded-md py-0.5 px-2 shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-[13px] font-medium text-color"
+      >
+        {{ overlayName }}
+      </div>
       <div
         class="flex items-center gap-0.5 bg-content-background border border-surface rounded-lg py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
       >
@@ -324,6 +331,8 @@ const overlayIndex = computed(() => {
 const showNav = computed(() => (overlayIndex.value?.total ?? 0) > 1);
 
 const selectedOverlay = computed(() => overlayStore.overlays[selectedId.value ?? ""]);
+
+const overlayName = computed(() => selectedOverlay.value?.caption?.trim() || null);
 
 const canDelete = computed(() => {
   return selectedOverlay.value ? canDeleteOverlay(selectedOverlay.value) : false;
