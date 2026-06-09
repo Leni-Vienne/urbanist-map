@@ -13,7 +13,7 @@ import { expandProjectPanel } from "@/services/layout/accordionState";
  * Detail-state side effects (vector hover, accordion scroll, marker opacity, overlay
  * deselect) are handled by the popup watcher initialized at boot in main.ts.
  */
-export function selectProject(project: Project, _latlng?: { lat: number; lng: number }): void {
+export function selectProject(project: Project): void {
   const uiStore = useUiStore();
 
   // Selecting is idempotent: always show the project and expand its panel, regardless of current
@@ -69,10 +69,7 @@ async function resolveProjectForTileClick(projectId: string): Promise<Project | 
  * Any project resolved from outside the store is stored so it behaves like a loaded
  * one (editable, re-selectable) for the rest of the session.
  */
-export async function handleProjectClickFromTile(
-  projectId: string,
-  latlng: { lat: number; lng: number },
-): Promise<void> {
+export async function handleProjectClickFromTile(projectId: string): Promise<void> {
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
 
@@ -83,5 +80,5 @@ export async function handleProjectClickFromTile(
     projectStore.updateProject(projectId, project);
   }
 
-  selectProject(project, latlng);
+  selectProject(project);
 }

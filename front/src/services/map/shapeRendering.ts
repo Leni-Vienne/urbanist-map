@@ -237,7 +237,7 @@ function wireShapeInteraction(
   function onClick(e: MapMouseEvent): void {
     if (e.originalEvent.timeStamp === lastClickTimeStamp) return;
     lastClickTimeStamp = e.originalEvent.timeStamp;
-    selectProject(project, e.lngLat);
+    selectProject(project);
   }
 
   return bindLayerEvents(mlMap, [fillLayerId, hitLayerId], { onEnter, onLeave, onClick });

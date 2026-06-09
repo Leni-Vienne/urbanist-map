@@ -121,7 +121,7 @@ import {
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { LngLat, LngLatBounds } from "maplibre-gl";
+import { LngLatBounds } from "maplibre-gl";
 
 const { t } = useI18n();
 const mapStore = useMapStore();
@@ -190,11 +190,7 @@ async function handleContributionClick(contribution: LatestContribution) {
       // Fly to the actual geometry bounds instead of the project center point.
       const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
       const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
-      // Anchor the popup on a point on the geometry itself, falling back to the bbox center.
-      const detailLatLng = contribution.geometryPoint
-        ? new LngLat(contribution.geometryPoint.lng, contribution.geometryPoint.lat)
-        : new LngLat((minLng + maxLng) / 2, (minLat + maxLat) / 2);
-      navigateToStandaloneProjectBounds(bounds, detailLatLng, contribution.id);
+      navigateToStandaloneProjectBounds(bounds, contribution.id);
     } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
       navigateToStandaloneProject(contribution.lat, contribution.lng, contribution.id);
     }

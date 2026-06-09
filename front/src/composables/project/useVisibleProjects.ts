@@ -405,7 +405,7 @@ export function useVisibleProjects() {
 
     flyToGeometry(latlng, project.sizeM);
 
-    void handleProjectClickFromTile(project.id, latlng);
+    void handleProjectClickFromTile(project.id);
   }
 
   let lastHoveredProjectId: string | null = null;

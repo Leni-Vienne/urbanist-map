@@ -663,7 +663,7 @@ function handleVectorFeatureClick(
       selectOverlay(overlayId);
     }
   } else {
-    void handleProjectClickFromTile(projectId, latlng);
+    void handleProjectClickFromTile(projectId);
   }
 }
 
@@ -793,15 +793,11 @@ function navigateToCluster(
   }
 }
 
-async function handlePointFeatureClick(
-  pointFeature: RenderedMapFeature,
-  eventLatLng: { lat: number; lng: number },
-): Promise<void> {
+async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promise<void> {
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
   const coordinates = pointFeature.geometry?.coordinates;
-  let targetLatLng = eventLatLng;
   let shouldOpenPanel = true;
 
   if (coordinates && coordinates.length >= 2) {
@@ -809,8 +805,6 @@ async function handlePointFeatureClick(
     const currentZoom = map.value.getZoom();
     const cellCount = Number(pointFeature.properties?.cell_count ?? 2);
     const props: Record<string, unknown> = pointFeature.properties ?? {};
-
-    targetLatLng = { lat, lng };
 
     if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_ZOOM) {
       navigateToLonePoint(props, lat, lng);
@@ -821,7 +815,7 @@ async function handlePointFeatureClick(
   }
 
   if (shouldOpenPanel) {
-    await handleProjectClickFromTile(projectId, targetLatLng);
+    await handleProjectClickFromTile(projectId);
   }
 }
 
@@ -921,7 +915,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
     if (pointFeature) {
-      void handlePointFeatureClick(pointFeature, event.lngLat);
+      void handlePointFeatureClick(pointFeature);
       return;
     }
 
