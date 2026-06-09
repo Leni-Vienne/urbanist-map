@@ -298,7 +298,7 @@ export function renderProjectShapes(
   setShapeEntry(project.id, entry);
 
   // Apply hover style immediately if the project is already focused (e.g. shapes
-  // re-rendered after a mode switch while the popup is open).
+  // re-rendered after a mode switch while the detail panel is open).
   if (isProjectFocused(project.id)) highlightProjectShapes(project.id);
 }
 

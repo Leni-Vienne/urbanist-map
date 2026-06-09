@@ -70,7 +70,7 @@ function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
         suggestedCorners: overlayData.suggestedCorners,
         pendingChangeRequestsCount: overlayData.pendingChangeRequestsCount,
         // Approved overlays first loaded via vectorTileSync lack project data.
-        // Update it here when the bbox fetch provides it, so the popup can resolve activeProject.
+        // Update it here when the bbox fetch provides it, so the detail panel can resolve activeProject.
         ...(overlayData.project ? { project: overlayData.project } : {}),
       };
     } else {

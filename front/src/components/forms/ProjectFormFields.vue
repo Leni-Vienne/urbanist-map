@@ -351,7 +351,7 @@ interface Props {
   currentRenderUrl?: string | null;
   // Preview of a render staged in this form but not yet submitted.
   stagedRenderPreview?: string | null;
-  // Whether to show the render picker. Off for the edit form (renders go through the popup dialog).
+  // Whether to show the render picker. Off for the edit form (renders go through the detail panel dialog).
   showRender?: boolean;
 }
 

@@ -586,7 +586,7 @@ function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature |
   const { projectId, overlayId } = getHoveredFeatureIds(feature);
 
   const selectedProjectId = getCurrentHighlightedProjectId() ?? HOVER_NONE_ID;
-  // The external hover (sidebar card, overlay DOM hover, popup pin) must be preserved
+  // The external hover (sidebar card, overlay DOM hover, detail pin) must be preserved
   // even when mousemove returns an empty result, so it's ORed into every hover filter.
   const externalProjectId = getExternalHoverId() ?? HOVER_NONE_ID;
   const externalOverlayId = getExternalHoverOverlayId() ?? HOVER_NONE_ID;
@@ -698,7 +698,7 @@ function setHoveredProjectId(
   setPointHoverFilter(mlMap, projectId);
 }
 
-// Returns flyToGeometry's "anchored at predicted position" result for popup placement.
+// Returns flyToGeometry's "anchored at predicted position" result for marker placement.
 function navigateToLonePoint(props: Record<string, unknown>, lat: number, lng: number): boolean {
   const hasGeometry: boolean = props.has_geometry === true;
   // geometry_size_m is the representative project's own size, not max_size_m, which spans
@@ -865,7 +865,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
     mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);
-    // The overlay-driven hover (sidebar card, overlay DOM hover, popup pin) is preserved
+    // The overlay-driven hover (sidebar card, overlay DOM hover, detail pin) is preserved
     // by setVectorHoverFilters' OR-clause, so it's safe to update on every mousemove.
     setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
 

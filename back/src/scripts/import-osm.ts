@@ -642,7 +642,7 @@ async function main() {
   // ST_PointOnSurface) across all rows in one efficient pass.
   // The anchor uses ST_PointOnSurface so lat/lng and center_coordinate land on the geometry itself
   // (e.g. the midpoint of a railroad line) rather than the JS arithmetic centroid set during upsert,
-  // which can fall off curved or asymmetric shapes. It is what popup placement and tile-based
+  // which can fall off curved or asymmetric shapes. It is what marker placement and tile-based
   // navigation snap to. Unchanged rows keep the anchor a prior run already computed (see conflictSet).
   // Spatial size in meters, used to:
   //   - decide zoom level when flying to a project

@@ -114,7 +114,7 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
             maxLng: p.geometryBboxMaxLng,
           }
         : null,
-    // A point on the geometry itself for popup placement (not a computed center)
+    // A point on the geometry itself for marker placement (not a computed center)
     geometryPoint:
       p.geometryPointLat !== null && p.geometryPointLng !== null
         ? { lat: p.geometryPointLat, lng: p.geometryPointLng }

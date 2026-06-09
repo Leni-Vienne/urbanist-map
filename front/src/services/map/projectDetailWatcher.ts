@@ -14,9 +14,9 @@ import {
 let isWatcherInitialized = false;
 
 /**
- * Drives all popup-state-driven side effects (marker opacity, vector hover highlight,
- * accordion scroll, overlay popup hide, deselect) so click handlers only need to toggle
- * the popup state. Call once at app boot after Pinia is installed.
+ * Drives all detail-state-driven side effects (marker opacity, vector hover highlight,
+ * accordion scroll, overlay detail hide, deselect) so click handlers only need to toggle
+ * the detail state. Call once at app boot after Pinia is installed.
  */
 export function initializeDetailWatcher() {
   if (isWatcherInitialized) return;

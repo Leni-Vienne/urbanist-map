@@ -56,7 +56,7 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   const project = projectStore.projects[currentOverlay.projectId];
   let projectOverlayIds: string[] = [];
 
-  // If project is not in memory, or overlayIds not yet populated (only set on popup open),
+  // If project is not in memory, or overlayIds not yet populated (only set on detail open),
   // derive siblings from already-loaded overlays.
   if (!project?.overlayIds.length) {
     projectOverlayIds = Object.values(overlayStore.overlays)

@@ -97,8 +97,8 @@ const app = createApp(App);
 
 app.use(createPinia());
 
-// Popup watcher drives popup-state-driven side effects across the map. Initialize once
-// after Pinia is installed so click handlers only need to toggle popup state.
+// Detail watcher drives detail-state-driven side effects across the map. Initialize once
+// after Pinia is installed so click handlers only need to toggle detail state.
 initializeDetailWatcher();
 
 // Keyboard shortcuts (undo/redo) are document-level and only act when an overlay is selected,

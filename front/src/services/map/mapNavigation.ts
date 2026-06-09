@@ -94,12 +94,12 @@ function getMobileDrawerBottomPaddingPx(): number {
   return drawerHeightPx + 20; // margin above the drawer edge
 }
 
-// Mode controls + drawer grip below the drawer edge that an upward popup must also clear.
+// Mode controls + drawer grip below the drawer edge that an upward detail panel must also clear.
 const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
 // Gap kept between the resting anchor and the mobile UI it sits above.
 const MOBILE_ANCHOR_BOTTOM_GAP = 24;
 
-/** Bottom px covered by mobile UI (drawer + mode controls) that the project popup opens above. */
+/** Bottom px covered by mobile UI (drawer + mode controls) that the project detail opens above. */
 function mobileBottomBlockedPx(): number {
   const uiStore = useUiStore();
   const drawerPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;

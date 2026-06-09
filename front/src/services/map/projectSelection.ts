@@ -11,7 +11,7 @@ import { expandProjectPanel } from "@/services/layout/accordionState";
  * Open the project detail in the docked panel for the given project.
  * Called from vector/point clicks, project shape clicks, and the Contribute sidebar.
  * Detail-state side effects (vector hover, accordion scroll, marker opacity, overlay
- * deselect) are handled by the popup watcher initialized at boot in main.ts.
+ * deselect) are handled by the detail watcher initialized at boot in main.ts.
  */
 export function selectProject(project: Project): void {
   const uiStore = useUiStore();
@@ -23,7 +23,7 @@ export function selectProject(project: Project): void {
   expandProjectPanel(project.id);
 
   // In moderation mode, switch the panel to this project's country so its pending
-  // submissions load and the popup watcher's scroll request can resolve.
+  // submissions load and the detail watcher's scroll request can resolve.
   syncModerationCountryFromMapClick(project.countryCode);
 }
 

@@ -107,7 +107,7 @@ export function selectOverlay(overlayId: string | null): void {
       return;
     }
 
-    // Close standalone project popup when selecting an overlay (mutual exclusivity)
+    // Close standalone project detail when selecting an overlay (mutual exclusivity)
     const uiStore = useUiStore();
     if (uiStore.projectDetail.visible) {
       uiStore.closeProjectDetail();
@@ -280,7 +280,7 @@ export function highlightProject(projectId: string, overlayId?: string): void {
 
 /**
  * Returns the projectId that is currently "highlighted" - either because an overlay of
- * that project is selected, or because the project info popup (shape click) is open.
+ * that project is selected, or because the project detail (shape click) is open.
  */
 export function getCurrentHighlightedProjectId(): string | null {
   const overlayStore = useOverlayStore();

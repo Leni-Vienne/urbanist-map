@@ -612,7 +612,7 @@ export function useSubmissionService() {
   async function publishStagedRender(projectId: string, file: File): Promise<void> {
     const filename = await uploadImageFile(file);
     const created = await trpc.overlay.publishRender.mutate({ projectId, filename });
-    // Optimistically attach the pending render so the popup shows it immediately in edit mode.
+    // Optimistically attach the pending render so the detail panel shows it immediately in edit mode.
     // Clear isModified too: a render-only edit marks the project modified but submits nothing
     // through the project change paths, so nothing else resets the flag.
     projectStore.updateProject(projectId, {

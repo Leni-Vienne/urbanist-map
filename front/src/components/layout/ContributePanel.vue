@@ -205,9 +205,9 @@ const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest
   useChangeRequests();
 
 // Tracks the project behind the selected card. Sourced from whichever signals a selection:
-// - the standalone project popup (shape / vector footprint click)
-// - a selected overlay (selectOverlay closes the popup, so we read the project from the overlay)
-// When neither is set (e.g. a background-map click closed the popup), it clears so the card
+// - the standalone project detail (shape / vector footprint click)
+// - a selected overlay (selectOverlay closes the detail, so we read the project from the overlay)
+// When neither is set (e.g. a background-map click closed the detail), it clears so the card
 // disappears, mirroring view mode where clicking the map drops the selection.
 const lastSelectedProject = ref<Project | null>(null);
 
@@ -378,7 +378,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 
   const fallbackGeometry = project.geometry ?? null;
 
-  // Close any open popups (overlay popup or standalone project popup) to ensure a clean slate
+  // Close any open detail (overlay detail or standalone project detail) to ensure a clean slate
   if (overlayStore.overlayDetailVisible) {
     overlayStore.closeOverlayDetail();
   }
@@ -387,11 +387,11 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
     try {
       closeProjectDetailAndResetMarkers();
     } catch (error) {
-      console.warn("Failed to reset standalone markers on draw popup clear", error);
+      console.warn("Failed to reset standalone markers on draw detail clear", error);
     }
   }
 
-  // Open the shape editor panel (no popup to reopen at) and lazy-load the editor
+  // Open the shape editor panel (no detail to reopen at) and lazy-load the editor
   uiStore.openShapeEditor(project);
   await startShapeEditing(project.id, fallbackGeometry);
 }

@@ -348,7 +348,7 @@ function getEffectiveProject(projectId: string): Project | undefined {
 }
 
 const project = computed<Project | undefined>(() => {
-  // Check overlay popup first.
+  // Check overlay detail first.
   const currentOverlay = overlay.value;
   if (currentOverlay?.projectId) {
     const localProject = getEffectiveProject(currentOverlay.projectId);
@@ -359,7 +359,7 @@ const project = computed<Project | undefined>(() => {
     if (backendProject) return convertAndCacheBackendProject(backendProject);
   }
 
-  // Fall back to project popup.
+  // Fall back to project detail.
   if (projectDetail.value.visible && projectDetail.value.projectId) {
     const localProject = getEffectiveProject(projectDetail.value.projectId);
     if (localProject) return localProject;
@@ -375,7 +375,7 @@ const project = computed<Project | undefined>(() => {
 // while in view mode (so the live view<->edit toggle is purely a computed, no refetch).
 const renderImage = computed(() => project.value?.render ?? null);
 
-// Marker popups load their project via getById (render included), but overlay popups build it from
+// Marker-opened details load their project via getById (render included), but overlay-opened details build it from
 // the viewport payload, which omits render (undefined). Hydrate that one case via getById.
 watch(
   () => project.value?.id,

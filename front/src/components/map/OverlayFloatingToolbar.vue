@@ -319,7 +319,7 @@ const overlayIndex = computed(() => {
   const overlay = overlayStore.overlays[id];
   if (!overlay?.projectId) return null;
   // Derive siblings from already-loaded overlays
-  // to avoid depending on projectStore.overlayIds (only populated on popup open).
+  // to avoid depending on projectStore.overlayIds (only populated on detail open).
   const siblings = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === overlay.projectId)
     .map((o) => o.id);

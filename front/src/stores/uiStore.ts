@@ -68,7 +68,7 @@ export const useUiStore = defineStore("ui", () => {
   const mobileDrawerVisible = ref(true); // Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
 
-  // Project info popup state (for standalone projects)
+  // Project detail state (for standalone projects)
   const projectDetail = ref<ProjectDetailState>({
     visible: false,
     projectId: null,
@@ -120,7 +120,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Shared overlay edit dialog actions - used by both sidemenu and info popup
+  // Shared overlay edit dialog actions - used by both sidemenu and detail panel
   function openOverlayEditDialog(overlay: OverlayEditTarget) {
     overlayEditDialog.value = {
       visible: true,
@@ -135,7 +135,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Project info popup actions
+  // Project detail actions
   function openProjectDetail(projectId: string, project?: Project) {
     projectDetail.value = {
       visible: true,

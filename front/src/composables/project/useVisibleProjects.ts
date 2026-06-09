@@ -18,7 +18,7 @@ interface VisibleProject {
   name: string | null;
   /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
   bbox: LngLatBounds | null;
-  /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as popup anchor. */
+  /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as the map anchor. */
   midLat: number | null;
   midLng: number | null;
   firstTag: string;
@@ -420,17 +420,17 @@ export function useVisibleProjects() {
       lastHoveredProjectId = null;
       removeProjectOutlines(prevProjectId);
 
-      // If any popup is open, keep the driven hover alive, it was pinned by a click and
+      // If the detail panel is open, keep the driven hover alive, it was pinned by a click and
       // must not be cleared by a sidebar mouseleave (which can fire when the list scrolls
       // to the newly selected project, triggering mouseleave on the previously hovered card).
-      // The watcher below clears setExternalHover when the popup eventually closes.
+      // The watcher below clears setExternalHover when the detail panel eventually closes.
       if (!uiStore.projectDetail.visible) {
         setExternalHover(null);
       }
     }
   }
 
-  // When the project info popup closes, release any vector tile hover that was pinned by a click.
+  // When the project detail closes, release any vector tile hover that was pinned by a click.
   // This is the counterpart to the detailPinsHighlight guard above.
   watch(
     () => uiStore.projectDetail.visible,

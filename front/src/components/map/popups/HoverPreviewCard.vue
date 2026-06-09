@@ -74,7 +74,7 @@ const overlayStore = useOverlayStore();
 const { projectDetail } = storeToRefs(uiStore);
 const { overlayDetailVisible, overlayDetailId, overlays } = storeToRefs(overlayStore);
 
-// Suppress when a persistent popup is already open for the hovered project
+// Suppress when a persistent detail panel is already open for the hovered project
 const suppress = computed(() => {
   const preview = hoverPreview.value;
   if (!preview || preview.type !== "project") return false;

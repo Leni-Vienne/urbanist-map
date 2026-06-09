@@ -85,7 +85,7 @@ export function zoomToOverlayAndSelect(
   return true;
 }
 
-// Open the project popup once the camera settles. moveend never fires when the flight was skipped
+// Open the project detail once the camera settles. moveend never fires when the flight was skipped
 // (camera already at target), so open directly in that case to avoid hanging.
 function openDetailAfterFlight(flew: boolean, projectId: string): void {
   function openDetail(): void {
