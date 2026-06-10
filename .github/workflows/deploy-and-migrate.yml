@@ -8,6 +8,8 @@ name: Deploy and Migrate Split
 on:
   push:
     branches: ["preview", "production"]
+  # to manually deploy on github
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

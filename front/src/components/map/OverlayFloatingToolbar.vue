@@ -139,7 +139,8 @@ import {
   isOverlayInFront,
   overlayOverlapsProjectShape,
 } from "@/services/overlay/imageLayer";
-import { navigateOverlaySequence } from "@/services/overlay/actions";
+import { navigateOverlaySequence, getProjectSiblingOverlayIds } from "@/services/overlay/actions";
+import { selectOverlay } from "@/services/overlay/selection";
 import { undo as undoOverlayEdit, redo as redoOverlayEdit } from "@/services/overlay/editing";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
@@ -224,7 +225,7 @@ function startRAF() {
       } else {
         // Image removed from registry while still selected (e.g. zoom-out unload with
         // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
-        overlayStore.idSelectedOverlay = null;
+        selectOverlay(null);
       }
       // Throttled so a drag onto/off a project shape updates the button without querying every frame.
       if (ts - lastOverlapCheckTs > 200) {
@@ -318,11 +319,8 @@ const overlayIndex = computed(() => {
   if (!id) return null;
   const overlay = overlayStore.overlays[id];
   if (!overlay?.projectId) return null;
-  // Derive siblings from already-loaded overlays
-  // to avoid depending on projectStore.overlayIds (only populated on detail open).
-  const siblings = Object.values(overlayStore.overlays)
-    .filter((o) => o.projectId === overlay.projectId)
-    .map((o) => o.id);
+  // Same source as navigateOverlaySequence, so the displayed index matches prev/next.
+  const siblings = getProjectSiblingOverlayIds(overlay.projectId);
   if (siblings.length <= 1) return null;
   const idx = siblings.indexOf(id);
   return idx !== -1 ? { current: idx + 1, total: siblings.length } : null;
@@ -441,9 +439,8 @@ async function onDelete() {
   const overlayCount = overlay.projectId
     ? Object.values(overlayStore.overlays).filter((o) => o.projectId === overlay.projectId).length
     : 0;
-  await handleDeleteOverlay(id, project, overlayCount, overlay.caption ?? null, () => {
-    overlayStore.idSelectedOverlay = null;
-  });
+  // Deselection (handles, highlight, docked detail) happens in removeOverlayFromMapAndStore.
+  await handleDeleteOverlay(id, project, overlayCount, overlay.caption ?? null);
 }
 
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {

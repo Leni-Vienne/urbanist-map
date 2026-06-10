@@ -10,7 +10,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   const viewModeOverlays = ref<OverlayData[]>([]);
 
   const replacementOverlayId = ref<string | null>(null);
-  const pendingImageFile = ref<File | null>(null);
   const overlayDetailVisible = ref(false);
   const overlayDetailId = ref<string | null>(null);
 
@@ -94,17 +93,12 @@ export const useOverlayStore = defineStore("overlay", () => {
     return target;
   }
 
-  function clearPendingFile() {
-    pendingImageFile.value = null;
-  }
-
   function requestOverlayReplacement(overlayId: string) {
     replacementOverlayId.value = overlayId;
   }
 
   function resetReplacement() {
     replacementOverlayId.value = null;
-    clearPendingFile();
   }
 
   function openOverlayDetail(overlayId: string) {
@@ -137,7 +131,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     idSelectedOverlay,
     viewModeOverlays,
     replacementOverlayId,
-    pendingImageFile,
     overlayDetailVisible,
     overlayDetailId,
 

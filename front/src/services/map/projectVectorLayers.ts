@@ -55,7 +55,7 @@ import {
   sizeFilterRange,
   lastModifiedDateRange,
   showOnlyWithImages,
-} from "@/services/overlay/statusFilters";
+} from "@/services/map/filters";
 
 /* oxlint-disable no-unsafe-type-assertion */ // disabled because maplibre-gl is clunky to type
 

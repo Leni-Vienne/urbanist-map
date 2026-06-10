@@ -56,46 +56,23 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import { updateOverlayInfo } from "@/services/overlay/actions";
 import { useUiStore, type OverlayEditTarget } from "@/stores/uiStore";
-import type { OverlayObject } from "@/types/index";
 
 const bodyElement = document.body;
-
-const props = defineProps<{
-  overlayObject?: OverlayObject | null;
-}>();
-
-const emit = defineEmits<(e: "update", overlayId: string, caption?: string) => void>();
 
 const toast = useToast();
 const { t } = useI18n();
 const uiStore = useUiStore();
 
-const localDialogVisible = ref(false);
-
-// dialogVisible works with both store state (when overlay is set via store)
-// and local state (when triggered via openDialog()).
 const dialogVisible = computed({
-  get: () => {
-    if (uiStore.overlayEditDialog.overlay) {
-      return uiStore.overlayEditDialog.visible;
-    }
-    // Otherwise use local state (triggered via openDialog())
-    return localDialogVisible.value;
-  },
+  get: () => uiStore.overlayEditDialog.visible,
   set: (value: boolean) => {
-    if (uiStore.overlayEditDialog.overlay) {
-      if (!value) {
-        uiStore.closeOverlayEditDialog();
-      }
-    } else {
-      localDialogVisible.value = value;
+    if (!value) {
+      uiStore.closeOverlayEditDialog();
     }
   },
 });
 
-const currentOverlay = computed(() => {
-  return uiStore.overlayEditDialog.overlay ?? props.overlayObject ?? null;
-});
+const currentOverlay = computed(() => uiStore.overlayEditDialog.overlay);
 
 const editingInfo = ref({
   caption: "",
@@ -113,26 +90,12 @@ watch(
   { immediate: true },
 );
 
-function openDialog() {
-  if (!props.overlayObject) {
-    console.warn("Cannot open overlay editor without overlayObject prop");
-    return;
-  }
-  editingInfo.value = {
-    caption: props.overlayObject.caption ?? "",
-  };
-  localDialogVisible.value = true;
-}
-
 function closeDialog() {
   dialogVisible.value = false;
 }
 
 function onDialogHide() {
-  if (uiStore.overlayEditDialog.overlay) {
-    uiStore.closeOverlayEditDialog();
-  }
-  localDialogVisible.value = false;
+  uiStore.closeOverlayEditDialog();
 }
 
 const hasChanges = computed(() => {
@@ -164,8 +127,6 @@ function saveChanges() {
       caption: editingInfo.value.caption ?? undefined,
     });
 
-    emit("update", overlay.id, editingInfo.value.caption);
-
     closeDialog();
   } catch (error) {
     console.error("Error updating overlay:", error);
@@ -177,8 +138,4 @@ function saveChanges() {
     });
   }
 }
-
-defineExpose({
-  openDialog,
-});
 </script>

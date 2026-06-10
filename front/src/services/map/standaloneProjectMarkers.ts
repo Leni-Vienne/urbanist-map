@@ -6,7 +6,7 @@ import {
   createStandaloneProjectMarkerElement,
   updateStandaloneMarkerColor,
 } from "@/services/map/markers";
-import { shouldShowStandaloneProject } from "@/services/overlay/statusFilters";
+import { shouldShowStandaloneProject } from "@/services/map/filters";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";

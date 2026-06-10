@@ -57,9 +57,7 @@ import {
 } from "@/services/map/standaloneProjectMarkers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectMarkerElement } from "@/services/map/markers";
-import { addOverlay } from "@/services/overlay/editing";
 import { createProject } from "@/services/project/projectMutations";
-import { createProjectObject } from "@/utils/typeFactories";
 import type { Project } from "@/types/index";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
@@ -81,105 +79,7 @@ const tempMarker = ref<maplibregl.Marker | null>(null);
 const mapClickHandler = ref<((e: MapMouseEvent) => void) | null>(null);
 
 const { projects } = storeToRefs(projectStore);
-const { pendingImageFile, replacementOverlayId } = storeToRefs(overlayStore);
 const { projectEditForm } = storeToRefs(uiStore);
-
-function findProjectFromReplacementOverlay(projectId: string): Project | null {
-  if (!replacementOverlayId.value) return null;
-
-  const originalOverlay = overlayStore.overlays[replacementOverlayId.value];
-  if (originalOverlay?.project?.id === projectId) {
-    return createProjectObject({
-      ...originalOverlay.project,
-      description: originalOverlay.project.description ?? null,
-      overlayIds: [],
-      geometry: originalOverlay.project.geometry ?? null,
-    });
-  }
-
-  return null;
-}
-
-function findProjectFromCityProjects(projectId: string): Project | null {
-  const cityProject = Object.values(projects.value).find((p: Project) => p.id === projectId);
-  return cityProject ?? null;
-}
-
-function addProjectToStore(projectId: string, project: Project): void {
-  projects.value[projectId] = project;
-}
-
-async function onProjectSelected(projectId: string) {
-  if (!projectId) {
-    console.warn("No project ID available for overlay");
-    return;
-  }
-
-  if (!projects.value[projectId]) {
-    try {
-      const projectToAdd =
-        findProjectFromReplacementOverlay(projectId) ?? findProjectFromCityProjects(projectId);
-
-      if (projectToAdd) {
-        addProjectToStore(projectId, projectToAdd);
-      } else {
-        console.warn("Project not found in any source, overlay creation may not work properly");
-      }
-    } catch (error) {
-      console.error("Error getting project for overlay:", error);
-    }
-  }
-
-  await handleFileUpload(projectId, Boolean(replacementOverlayId.value));
-}
-
-async function handleFileUpload(projectId: string, isReplacement = false) {
-  if (!pendingImageFile.value) {
-    console.warn("No image file to upload");
-    toast.add({
-      severity: "warn",
-      summary: $t("upload.noFileSelected"),
-      detail: $t("upload.selectImageFile"),
-      life: 3000,
-    });
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.addEventListener("load", async () => {
-    try {
-      if (isReplacement && replacementOverlayId.value) {
-        const overlayId = addOverlay(
-          reader.result as string,
-          projectId,
-          replacementOverlayId.value,
-        );
-
-        if (overlayId) {
-          toast.add({
-            severity: "success",
-            summary: $t("toasts.replacementOverlayCreated"),
-            detail: $t("toasts.replacementOverlayDetail"),
-            life: 3000,
-          });
-        }
-      } else {
-        addOverlay(reader.result as string, projectId);
-      }
-    } catch (error) {
-      console.error("Error handling file upload:", error);
-      toast.add({
-        severity: "error",
-        summary: $t("replacementOverlay.uploadFailed"),
-        detail: $t("replacementOverlay.uploadFailedDetail"),
-        life: 3000,
-      });
-    } finally {
-      overlayStore.resetReplacement();
-    }
-  });
-  reader.readAsDataURL(pendingImageFile.value);
-}
 
 function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
   if (tempMarker.value) {
@@ -278,7 +178,7 @@ async function displayProjectMarkerAndDetail(
   }
 }
 
-async function handleNewProjectCreation(project: Partial<Project>): Promise<string> {
+async function handleNewProjectCreation(project: Partial<Project>): Promise<void> {
   const projectId = createProject({
     ...project,
     isModified: true,
@@ -305,15 +205,13 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
       life: 3000,
     });
   }
-
-  return projectId;
 }
 
-function handleProjectUpdate(project: Partial<Project>): string {
+function handleProjectUpdate(project: Partial<Project>): void {
   const projectId = project.id;
   if (!projectId) {
     console.warn("Project ID is undefined in handleProjectUpdate");
-    return "";
+    return;
   }
 
   if (projects.value[projectId]) {
@@ -336,7 +234,6 @@ function handleProjectUpdate(project: Partial<Project>): string {
       life: 3000,
     });
   }
-  return projectId;
 }
 
 async function handleProjectSubmitted(project: Partial<Project>) {
@@ -345,12 +242,10 @@ async function handleProjectSubmitted(project: Partial<Project>) {
   try {
     uiStore.closeProjectDialog();
 
-    const projectId = project.id
-      ? handleProjectUpdate(project)
-      : await handleNewProjectCreation(project);
-
-    if (pendingImageFile.value) {
-      await onProjectSelected(projectId);
+    if (project.id) {
+      handleProjectUpdate(project);
+    } else {
+      await handleNewProjectCreation(project);
     }
   } catch (error) {
     console.error("Error with project:", error);

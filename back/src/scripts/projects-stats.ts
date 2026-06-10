@@ -22,6 +22,7 @@ interface Snapshot {
   osm: number;
   userSubmitted: number;
   detached: number;
+  projectShape: Distribution;
   approvalStatus: Distribution;
   timelineStatus: Distribution;
   tags: Distribution;
@@ -61,6 +62,31 @@ async function collectSnapshot(): Promise<Snapshot> {
   `);
   const t = totalsRaw[0]!;
   const total = Number(t.total);
+
+  // The DB has no project-type column, so classify each project by what its
+  // geometry collection actually contains: only lines (linear), only polygons
+  // (areal), both (mixed), or nothing.
+  const shapeRaw = await db.execute<{ shape: string; count: string }>(sql`
+    SELECT shape, COUNT(*) AS count
+    FROM (
+      SELECT
+        CASE
+          WHEN p.geometry IS NULL THEN '(no geometry)'
+          WHEN bool_or(GeometryType(d.geom) LIKE '%LINESTRING')
+           AND bool_or(GeometryType(d.geom) LIKE '%POLYGON')    THEN 'mixed'
+          WHEN bool_or(GeometryType(d.geom) LIKE '%LINESTRING')  THEN 'linear'
+          WHEN bool_or(GeometryType(d.geom) LIKE '%POLYGON')     THEN 'areal'
+          ELSE 'other'
+        END AS shape
+      FROM projects p
+      LEFT JOIN LATERAL ST_Dump(p.geometry) AS d ON TRUE
+      GROUP BY p.id, p.geometry
+    ) sub
+    GROUP BY shape
+    ORDER BY count DESC
+  `);
+  const projectShape: Distribution = {};
+  for (const r of shapeRaw) projectShape[r.shape] = Number(r.count);
 
   const approvalStatus = await queryDistribution(
     sql`SELECT status, COUNT(*) AS count FROM projects GROUP BY status ORDER BY count DESC`,
@@ -186,6 +212,7 @@ async function collectSnapshot(): Promise<Snapshot> {
     osm: Number(t.osm),
     userSubmitted: Number(t.user_submitted),
     detached: Number(t.detached),
+    projectShape,
     approvalStatus,
     timelineStatus,
     tags,
@@ -225,6 +252,7 @@ function printSnapshot(s: Snapshot) {
   console.log(`  User-submitted:   ${s.userSubmitted}`);
   console.log(`  Soft-detached:    ${s.detached}`);
 
+  printDistribution("Project shape (linear vs areal)", s.projectShape, s.total);
   printDistribution("Approval status", s.approvalStatus, s.total);
   printDistribution("Timeline status", s.timelineStatus, s.total);
   printDistribution("Tags (unnested)", s.tags, s.total);
@@ -248,6 +276,8 @@ function printSnapshot(s: Snapshot) {
 }
 
 function diffNumber(label: string, before: number, after: number) {
+  before = before ?? 0;
+  after = after ?? 0;
   const delta = after - before;
   if (delta === 0) return;
   const sign = delta > 0 ? "+" : "";
@@ -283,6 +313,8 @@ function printDiff(before: Snapshot, after: Snapshot) {
   diffNumber("osm", before.osm, after.osm);
   diffNumber("userSubmitted", before.userSubmitted, after.userSubmitted);
   diffNumber("detached", before.detached, after.detached);
+
+  diffDistribution("Project shape (linear vs areal)", before.projectShape, after.projectShape);
 
   diffDistribution("Approval status", before.approvalStatus, after.approvalStatus);
   diffDistribution("Timeline status", before.timelineStatus, after.timelineStatus);

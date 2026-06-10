@@ -202,7 +202,7 @@ import {
   lastModifiedDateRange,
   showOnlyWithImages,
   toggleShowOnlyWithImages,
-} from "@/services/overlay/statusFilters";
+} from "@/services/map/filters";
 
 // Logarithmic slider: positions [0, 100] → meters. Position 100 = Infinity (no upper limit).
 const LOG_SCALE_REF = 500_001;

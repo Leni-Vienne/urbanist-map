@@ -87,6 +87,12 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         construction = tags.get('construction', '')
         proposed = tags.get('proposed', '')
         planned = tags.get('planned', '')
+        proposed_building = tags.get('proposed:building', '')
+        planned_building = tags.get('planned:building', '')
+        construction_building = tags.get('construction:building', '')
+        proposed_landuse = tags.get('proposed:landuse', '')
+        planned_landuse = tags.get('planned:landuse', '')
+        construction_landuse = tags.get('construction:landuse', '')
 
         park_values = ('park', 'garden', 'playground', 'recreation_ground')
         is_park_construction = (
@@ -104,7 +110,12 @@ class ArealExtractionHandler(osmium.SimpleHandler):
             construction in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
             proposed in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
             planned in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
-            tags.get('planned:building') or
+            (proposed_building and proposed_building != 'no') or
+            (planned_building and planned_building != 'no') or
+            (construction_building and construction_building != 'no') or
+            proposed_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
+            planned_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
+            construction_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
             (proposed and proposed != 'no') or
             (planned and planned != 'no')
         )
@@ -113,7 +124,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
             return
 
         # Exclude small residential building types
-        target_use = tags.get('construction', tags.get('proposed', tags.get('planned', tags.get('building:use', ''))))
+        target_use = tags.get('construction', tags.get('construction:building', tags.get('proposed', tags.get('planned', tags.get('proposed:building', tags.get('planned:building', tags.get('building:use', '')))))))
         if target_use in EXCLUDE_BUILDINGS:
             return
 
@@ -130,7 +141,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
             'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
             'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel'
         }
-        has_areal_context = landuse == 'construction' or building != ''
+        has_areal_context = landuse == 'construction' or building != '' or proposed_building != '' or planned_building != '' or construction_building != '' or proposed_landuse != '' or planned_landuse != '' or construction_landuse != ''
         if not has_areal_context and (tags.get('construction') in infrastructure_values or tags.get('proposed') in infrastructure_values):
             return
 
@@ -148,8 +159,13 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         has_nonhouse_signal = (
             building in NONHOUSE_TYPES or construction in NONHOUSE_TYPES or
             proposed in NONHOUSE_TYPES or planned in NONHOUSE_TYPES or
+            proposed_building in NONHOUSE_TYPES or planned_building in NONHOUSE_TYPES or
+            construction_building in NONHOUSE_TYPES or
             landuse == 'construction' or
-            landuse in ('commercial', 'retail', 'industrial', 'residential')
+            landuse in ('commercial', 'retail', 'industrial', 'residential') or
+            proposed_landuse in ('construction', 'commercial', 'retail', 'industrial', 'residential') or
+            planned_landuse in ('construction', 'commercial', 'retail', 'industrial', 'residential') or
+            construction_landuse in ('construction', 'commercial', 'retail', 'industrial', 'residential')
         )
 
         if is_park_construction:
@@ -167,11 +183,11 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         # construction= is the strongest signal, check it first
         if construction and construction not in ('yes', 'no'):
             status_check = 'under_construction'
-        elif building == 'construction' or tags.get('landuse') == 'construction':
+        elif building == 'construction' or tags.get('landuse') == 'construction' or (construction_building and construction_building != 'no') or construction_landuse:
             status_check = 'under_construction'
-        elif building == 'proposed' or (proposed and proposed != 'no'):
+        elif building == 'proposed' or (proposed and proposed != 'no') or (proposed_building and proposed_building != 'no') or proposed_landuse:
             status_check = 'proposed'
-        elif building == 'planned' or (planned and planned != 'no'):
+        elif building == 'planned' or (planned and planned != 'no') or (planned_building and planned_building != 'no') or planned_landuse:
             status_check = 'planned'
         else:
             status_check = 'under_construction'

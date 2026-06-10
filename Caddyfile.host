@@ -8,9 +8,23 @@ api.urbanistmap.org {
         health_interval 30s
         health_timeout 10s
     }
-    
-    encode zstd gzip
-    
+
+    # A custom match list replaces Caddy's default Content-Type list, so the defaults are
+    # re-listed here alongside the MVT tile type (which the defaults do not include).
+    encode zstd gzip {
+        match {
+            header Content-Type application/vnd.mapbox-vector-tile*
+            header Content-Type text/*
+            header Content-Type application/json*
+            header Content-Type application/javascript*
+            header Content-Type application/xhtml+xml*
+            header Content-Type application/atom+xml*
+            header Content-Type application/rss+xml*
+            header Content-Type application/wasm*
+            header Content-Type image/svg+xml*
+        }
+    }
+
     log {
         output stdout
         format console
@@ -24,9 +38,21 @@ preview-api.urbanistmap.org {
         health_interval 30s
         health_timeout 10s
     }
-    
-    encode zstd gzip
-    
+
+    encode zstd gzip {
+        match {
+            header Content-Type application/vnd.mapbox-vector-tile*
+            header Content-Type text/*
+            header Content-Type application/json*
+            header Content-Type application/javascript*
+            header Content-Type application/xhtml+xml*
+            header Content-Type application/atom+xml*
+            header Content-Type application/rss+xml*
+            header Content-Type application/wasm*
+            header Content-Type image/svg+xml*
+        }
+    }
+
     log {
         output stdout
         format console

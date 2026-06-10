@@ -8,7 +8,7 @@ import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
 import { useUiStore } from "@/stores/uiStore";
 import { flyToGeometry } from "@/services/map/mapNavigation";
-import { lastModifiedDateRange, sizeFilterRange } from "@/services/overlay/statusFilters";
+import { lastModifiedDateRange, sizeFilterRange } from "@/services/map/filters";
 import { forEachPosition } from "@/utils/geojson";
 
 export type SortMode = "recent" | "name" | "size" | "status";

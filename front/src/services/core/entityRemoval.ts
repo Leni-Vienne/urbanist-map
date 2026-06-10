@@ -5,7 +5,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/renderRegistry";
-import { hideEditHandles } from "@/services/overlay/editHandles";
+import { selectOverlay } from "@/services/overlay/selection";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
@@ -24,18 +24,17 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayObject = overlayStore.overlays[overlayId];
   if (!overlayObject) return;
 
+  // Deselect before deleting from the store: selectOverlay(null) owns the full cleanup
+  // (edit handles, project highlight, docked detail) and needs the overlay still present.
+  if (overlayStore.idSelectedOverlay === overlayId) {
+    selectOverlay(null);
+  }
+
   clearRegistryEntry(overlayId);
 
   delete overlayStore.overlays[overlayId];
 
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
-
-  if (overlayStore.idSelectedOverlay === overlayId) {
-    // The selected overlay is the only one that can have an active edit session, so tear
-    // down its outline and corner handles here, otherwise they linger orphaned on the map.
-    hideEditHandles();
-    overlayStore.idSelectedOverlay = null;
-  }
 
   // Prevents stale entries in the submission dialog
   usePendingModificationsStore().clearModification(overlayId);

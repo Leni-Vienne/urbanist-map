@@ -26,7 +26,7 @@ import {
   selectedNameFilters,
   lastModifiedDateRange,
   showOnlyWithImages,
-} from "@/services/overlay/statusFilters";
+} from "@/services/map/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { resyncOverlaysFromTiles } from "@/services/map/vectorTileSync";
 

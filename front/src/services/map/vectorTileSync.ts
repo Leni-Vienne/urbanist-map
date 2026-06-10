@@ -16,7 +16,7 @@ import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
-import { lastModifiedDateRange, visibleStates } from "@/services/overlay/statusFilters";
+import { lastModifiedDateRange, visibleStates } from "@/services/map/filters";
 
 // lastModifiedS is Unix seconds (tile units). querySourceFeatures bypasses MapLibre layer
 // filters, so images must be date-checked here rather than relying on setFilter.

@@ -1,5 +1,6 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import * as registry from "@/services/overlay/renderRegistry";
+import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 
 /**
@@ -12,15 +13,17 @@ import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProje
 export function clearAllOverlays(preserveStoreData = false): void {
   const overlayStore = useOverlayStore();
 
+  // Deselect before tearing layers and store down: selectOverlay(null) owns the full
+  // cleanup (edit handles, project highlight, docked detail) and needs live state.
+  if (!preserveStoreData) {
+    selectOverlay(null);
+  }
+
   // registry.clearAll is the canonical source of all live layers (created via beginCreation).
   registry.clearAll(preserveStoreData);
 
   if (!preserveStoreData) {
     overlayStore.overlays = {};
-
-    if (overlayStore.idSelectedOverlay) {
-      overlayStore.idSelectedOverlay = null;
-    }
   }
 }
 
@@ -30,11 +33,8 @@ export function clearAllOverlays(preserveStoreData = false): void {
  * state (history, isModified) must survive so the user can switch back without losing work.
  */
 export function clearOverlayRenderState(): void {
-  const overlayStore = useOverlayStore();
+  selectOverlay(null);
   registry.clearAll(false);
-  if (overlayStore.idSelectedOverlay) {
-    overlayStore.idSelectedOverlay = null;
-  }
 }
 
 // Wipe overlays, view-mode cache, and standalone markers. Used to enter a focused single-submission preview.
