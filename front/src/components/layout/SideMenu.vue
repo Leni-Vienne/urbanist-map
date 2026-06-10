@@ -1,17 +1,12 @@
 ﻿<template>
   <div
-    :class="[
-      'relative shrink-0 bg-content-hover-background border-r border-surface shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden transition-all duration-300 ease-in-out h-screen max-h-screen',
-      isOpen ? 'w-95' : 'w-0 border-r-0',
-      'max-md:fixed max-md:top-0 max-md:left-0 max-md:w-[85%] max-md:max-w-95 max-md:h-screen max-md:border-r-0 max-md:shadow-[2px_0_8px_rgba(0,0,0,0.15)] max-md:duration-300 max-md:ease-in-out',
-      isOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
-    ]"
+    class="relative shrink-0 w-95 bg-content-hover-background border-r border-surface shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden h-screen max-h-screen"
     style="
       --p-accordion-header-hover-background: var(--p-content-hover-background);
       --p-accordion-header-active-hover-background: var(--p-content-hover-background);
     "
   >
-    <!-- Fixed header containing title, close button, and navigation tabs -->
+    <!-- Fixed header containing title and navigation tabs -->
     <div class="sticky top-0 z-10 shrink-0 bg-content-hover-background border-b border-surface">
       <div class="py-2 px-4 flex items-center justify-between">
         <div>
@@ -31,10 +26,7 @@
     </div>
 
     <!-- Scrollable content area -->
-    <PanelContent
-      :active-tab="activeTab"
-      content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0"
-    />
+    <PanelContent content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0" />
 
     <!-- Footer with legal links. pb adds env(safe-area-inset-bottom) so the OS-reserved
          area (gesture pill, classic nav bar, home indicator) doesn't overlap the links. -->
@@ -73,28 +65,16 @@
 import { watch, computed } from "vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
-import { usePanelTabs } from "@/composables/layout/usePanelTabs";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { PanelTab } from "@/types";
 
-defineProps<{
-  isOpen: boolean;
-  isModerator?: boolean;
-}>();
-
-defineEmits<{
-  close: [];
-}>();
-
 const uiStore = useUiStore();
 const authStore = useAuthStore();
 
-const { setActiveTab } = usePanelTabs();
-
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  set: (value) => setActiveTab(value),
+  set: (value) => (uiStore.activeTab = value),
 });
 
 watch(
@@ -105,6 +85,4 @@ watch(
     }
   },
 );
-
-usePanelTabs();
 </script>

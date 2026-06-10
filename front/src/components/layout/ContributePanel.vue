@@ -7,9 +7,9 @@
     :show-edit-buttons="true"
     :pinned-project-id="selectedProjectId"
     :pinned-external-project="pinnedExternalProject"
+    :keep-content-visible="allContributions.length > 0"
     @external-project-click="handleExternalProjectClick"
-    title=""
-    panel-class="my-contributions-panel"
+    is-contribute-panel
     :empty-message="
       allContributions.length > 0 && filteredProjects.length === 0
         ? $t('contribute.noProjectsMatchFilter')
@@ -21,14 +21,15 @@
         : $t('contribute.createFirstProject')
     "
   >
-    <template #project-actions="{ project }">
+    <!-- isExternal: own projects can be deleted; external (non-owned) ones only allow suggesting changes -->
+    <template #project-actions="{ project, isExternal }">
       <ProjectActionButtons
         :project="project"
         show-edit
         show-add-image
         show-draw
         show-save
-        show-delete
+        :show-delete="!isExternal"
         :is-modified="isProjectModified(project.id)"
         @edit="handleEditProjectClick"
         @add-image="handleAddImageToProject"
@@ -39,10 +40,10 @@
     </template>
 
     <template #overlay-actions="{ overlay }">
-      <!-- Edit button - hide for replaced overlays (can't be edited) -->
+      <!-- Edit button - hide for replaced overlays and not-yet-submitted staged renders -->
       <button
-        v-if="overlay.status !== 'replaced'"
-        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
+        v-if="overlay.status !== 'replaced' && !isStagedRenderOverlay(overlay)"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_40%,transparent)]"
         @click.stop="handleEditOverlayClick(overlay)"
         v-tooltip.top="$t('tooltips.editOverlay')"
       >
@@ -51,7 +52,7 @@
       <!-- Show delete for drafts (null/undefined), pending, or rejected overlays -->
       <button
         v-if="!overlay.status || overlay.status === 'pending' || overlay.status === 'rejected'"
-        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
         @click.stop="handleDeleteOverlayClick(overlay)"
         v-tooltip.top="$t('contribute.deleteOverlay')"
       >
@@ -62,28 +63,12 @@
     <template #change-actions="{ change }">
       <button
         v-if="change.status === 'pending' || change.status === 'conflicted'"
-        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
         @click.stop="handleDeleteChangeRequestClick(change)"
         v-tooltip.top="$t('contribute.deleteChangeRequest')"
       >
         <i class="pi pi-trash"></i>
       </button>
-    </template>
-
-    <template #pinned-external-project-actions="{ project }">
-      <!-- For external (non-owned) selected projects: suggest changes, draw, add image, submit -->
-      <ProjectActionButtons
-        :project="project"
-        show-edit
-        show-draw
-        show-add-image
-        show-save
-        :is-modified="isProjectModified(project.id)"
-        @edit="handleEditProjectClick"
-        @draw="handleDrawShapesClick"
-        @add-image="handleAddImageToProject"
-        @save="handleSaveProjectClick"
-      />
     </template>
 
     <template #empty-state>
@@ -93,56 +78,60 @@
       >
         {{ $t("contribute.guest.description") }}
       </p>
+      <Button
+        @click="handleNewProjectClick"
+        severity="primary"
+        size="small"
+        icon="pi pi-plus"
+        :label="$t('common.add')"
+        class="font-semibold mt-4"
+        v-tooltip.bottom="$t('dialog.createNewProject')"
+      />
     </template>
 
-    <template #header-actions>
-      <div class="flex gap-4 items-center justify-between w-full">
-        <div class="flex flex-col gap-3 w-full">
-          <!-- First row - title and buttons -->
-          <div class="flex gap-4 items-center justify-between w-full">
-            <span class="text-base font-semibold text-color">
-              {{ $t("contribute.myContributions") }}
-            </span>
-            <div class="flex gap-2">
-              <Button
-                @click="handleAddOverlayClick"
-                severity="primary"
-                size="small"
-                icon="pi pi-plus"
-                :label="$t('common.add')"
-                class="font-semibold"
-                v-tooltip.bottom="$t('dialog.createNewProject')"
-              />
-            </div>
-          </div>
-          <!-- Second row - filters (hidden when no contributions yet) -->
-          <div v-if="allContributions.length > 0" class="flex items-center gap-4 flex-wrap">
-            <div class="flex items-center gap-2">
-              <Checkbox v-model="showPending" inputId="showPending" binary />
-              <label
-                for="showPending"
-                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >
-                {{ $t("help.filters.showPending") }}
-              </label>
-            </div>
-            <div class="flex items-center gap-2">
-              <Checkbox v-model="showApproved" inputId="showApproved" binary />
-              <label
-                for="showApproved"
-                class="text-sm text-(--p-text-color-secondary) cursor-pointer whitespace-nowrap"
-              >
-                {{ $t("help.filters.showApproved") }}
-              </label>
-            </div>
-          </div>
-          <!-- OpenStreetMap sync disclaimer -->
-          <div
-            class="flex items-start gap-2 p-2.5 rounded-md text-xs leading-relaxed bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+    <!-- Controls below the selected project: "New" button and the status filter tabs -->
+    <template #contributions-header>
+      <div class="flex flex-col gap-3 pt-1 pb-1">
+        <div class="flex items-center justify-between gap-4">
+          <span
+            v-if="allContributions.length > 0"
+            class="text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
           >
-            <i class="pi pi-info-circle mt-0.5 shrink-0"></i>
-            <span>{{ $t("common.osmSyncNotice") }}</span>
-          </div>
+            {{ $t("contribute.yourContributions") }}
+          </span>
+          <Button
+            @click="handleNewProjectClick"
+            severity="primary"
+            size="small"
+            icon="pi pi-plus"
+            :label="$t('common.add')"
+            class="font-semibold ml-auto"
+            v-tooltip.bottom="$t('dialog.createNewProject')"
+          />
+        </div>
+        <div v-if="allContributions.length > 0" class="flex items-center gap-2">
+          <button
+            v-for="tab in filterTabs"
+            :key="tab.key"
+            type="button"
+            @click="activeFilter = tab.key"
+            :class="[
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-colors duration-150',
+              activeFilter === tab.key
+                ? 'bg-[color-mix(in_srgb,var(--p-primary-color)_12%,transparent)] border-primary-color text-primary-color font-semibold'
+                : 'bg-transparent border-surface text-muted-color hover:text-color hover:bg-content-hover-background',
+            ]"
+          >
+            <span>{{ tab.label }}</span>
+            <span
+              class="text-xs"
+              :class="
+                activeFilter === tab.key ? 'text-primary-color opacity-70' : 'text-muted-color'
+              "
+            >
+              {{ tab.count }}
+            </span>
+          </button>
         </div>
       </div>
     </template>
@@ -157,18 +146,18 @@ import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { expandAccordionForProject, activeAccordionPanels } from "@/services/layout/accordionState";
+import { expandProjectPanel } from "@/services/layout/accordionState";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 
-import { LngLat } from "maplibre-gl";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
-import { closeProjectPopupAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { closeProjectDetailAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { selectProject } from "@/services/map/projectSelection";
+import { flyToGeometry } from "@/services/map/mapNavigation";
 import type { ChangeRequest } from "@/stores/pinia/changeRequestStore";
 import type {
   Project,
@@ -177,8 +166,10 @@ import type {
   UserContributionOverlay,
   OverlayForModeration,
 } from "@/types/index";
-import { createOverlayForModeration } from "@/utils/projectFactories";
-import { createProjectObject } from "@/utils/typeFactories";
+import { createOverlayForModeration, createStagedRenderOverlay } from "@/utils/projectFactories";
+import { createProjectObject, convertOverlayToData } from "@/utils/typeFactories";
+import { getStagedRender, clearStagedRender } from "@/composables/submission/stagedRenderStore";
+import { useAuthStore } from "@/stores/authStore";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
@@ -195,19 +186,16 @@ const {
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
+const authStore = useAuthStore();
 
-const { prepareProjectWithOverlaysSubmission } = useSubmissionDialog();
+const { prepareSubmission } = useSubmissionDialog();
 
-// Filter state - both true by default to show everything
-const showPending = ref(true);
-const showApproved = ref(true);
+// Filter state - which status group of contributions to show
+type ContributionFilter = "all" | "pending" | "approved";
+const activeFilter = ref<ContributionFilter>("all");
 
+// Opens the auth modal when unauthenticated, else the marker bar.
 const { handleNewProjectClick } = useNewProject();
-
-// Handle new project button click (opens auth modal when unauthenticated, else the marker bar)
-function handleAddOverlayClick() {
-  handleNewProjectClick();
-}
 
 const toast = useToast();
 const { isMobile } = useIsMobile();
@@ -215,28 +203,39 @@ const { isMobile } = useIsMobile();
 const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest } =
   useChangeRequests();
 
-// Persists the last selected project so the card stays in ContributePanel even after the popup closes.
-// Only updates when a new project is opened, never clears on close.
+// Tracks the project behind the selected card. Sourced from whichever signals a selection:
+// - the standalone project detail (shape / vector footprint click)
+// - a selected overlay (selectOverlay closes the detail, so we read the project from the overlay)
+// When neither is set (e.g. a background-map click closed the detail), it clears so the card
+// disappears, mirroring view mode where clicking the map drops the selection.
 const lastSelectedProject = ref<Project | null>(null);
 
-// Update from either source that can signal a project selection:
-// - standalone project popup opens (shape / vector footprint click)
-// - an overlay is selected (selectOverlay closes the popup, so we read project from the overlay)
 watchEffect(() => {
-  const popupProject = uiStore.projectInfoPopup.project;
-  if (popupProject) {
-    lastSelectedProject.value = popupProject;
+  const detailProject = uiStore.projectDetail.project;
+  if (detailProject) {
+    lastSelectedProject.value = detailProject;
     return;
   }
   const overlayId = overlayStore.idSelectedOverlay;
-  if (!overlayId) return;
-  const overlay = overlayStore.overlays[overlayId];
-  const project = overlay?.project;
-  if (project) {
-    lastSelectedProject.value = createProjectObject(
-      project as Parameters<typeof createProjectObject>[0],
-    );
+  if (overlayId) {
+    const overlay = overlayStore.overlays[overlayId];
+    const joinedProject = overlay?.project;
+    if (joinedProject) {
+      lastSelectedProject.value = createProjectObject(
+        joinedProject as Parameters<typeof createProjectObject>[0],
+      );
+      return;
+    }
+    // A locally-added overlay (e.g. an image just added to a tile-only OSM project) carries no
+    // joined project, so resolve it by id from the store. If even that fails, keep the project
+    // already selected: the selected overlay belongs to it, and clearing would collapse the card.
+    const resolved = overlay?.projectId ? projectStore.getProjectById(overlay.projectId) : null;
+    if (resolved) {
+      lastSelectedProject.value = resolved;
+    }
+    return;
   }
+  lastSelectedProject.value = null;
 });
 
 const selectedProjectId = computed(() => lastSelectedProject.value?.id ?? null);
@@ -254,64 +253,89 @@ const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   if (!project) return null;
   const overlays = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === project.id)
-    .map((o) => createOverlayForModeration(o));
+    .map((o) => createOverlayForModeration(convertOverlayToData(o)));
+  // Renders live only in stagedRenderStore (not overlayStore), so surface a staged render here
+  // as a pending render entry until it is submitted.
+  const stagedRender = getStagedRender(project.id);
+  if (stagedRender) {
+    overlays.push(
+      createStagedRenderOverlay(
+        project.id,
+        stagedRender.previewUrl,
+        authStore.user?.id ?? null,
+        authStore.user?.username ?? null,
+      ),
+    );
+  }
   return { ...project, overlays };
 });
 
-const filteredProjects = computed(() => {
-  // If neither checkbox is selected, show nothing
-  if (!showPending.value && !showApproved.value) {
-    return [];
-  }
+// A contribution counts as "pending" when its own status is unresolved, or any of its overlays
+// or change requests are still awaiting moderation. Everything else is "approved" (resolved).
+function isContributionPending(project: UserContribution): boolean {
+  // Treat unsaved/unsubmitted projects (status === null) as pending
+  const isPending = project.status === "pending" || project.status === null;
 
-  // If both are selected, show everything
-  if (showPending.value && showApproved.value) {
-    return allContributions.value;
-  }
-
-  // Filter based on which checkbox(es) are selected
-  return allContributions.value.filter((project) => {
-    // Treat unsaved/unsubmitted projects (status === null) as pending
-    const isPending = project.status === "pending" || project.status === null;
-    // "rejected" is terminal like "approved": both are resolved, no longer awaiting moderation
-    const isResolved = project.status === "approved" || project.status === "rejected";
-
-    // Check if project has pending or unsaved overlays/changes (contributes to "pending")
-    const hasPendingOverlays =
+  const hasPendingOverlays =
+    project.overlays?.some(
+      (overlay: UserContributionOverlay) => overlay.status === "pending" || overlay.status === null,
+    ) ?? false;
+  const hasPendingChanges = pendingChangeRequests.value.some((change) => {
+    if (change.entityType === "project" && change.entityId === project.id) {
+      return true;
+    }
+    return (
       project.overlays?.some(
         (overlay: UserContributionOverlay) =>
-          overlay.status === "pending" || overlay.status === null,
-      ) ?? false;
-    const hasPendingChanges = pendingChangeRequests.value.some((change) => {
-      if (change.entityType === "project" && change.entityId === project.id) {
-        return true;
-      }
-      return (
-        project.overlays?.some(
-          (overlay: UserContributionOverlay) =>
-            change.entityType === "overlay" && change.entityId === overlay.id,
-        ) ?? false
-      );
-    });
-
-    const hasAnyPending = isPending || hasPendingOverlays || hasPendingChanges;
-
-    // Show if "pending" checkbox is on and project has pending items
-    if (showPending.value && hasAnyPending) {
-      return true;
-    }
-
-    // Show if "approved" checkbox is on and project is resolved (and has no pending items)
-    if (showApproved.value && isResolved && !hasAnyPending) {
-      return true;
-    }
-
-    return false;
+          change.entityType === "overlay" && change.entityId === overlay.id,
+      ) ?? false
+    );
   });
+
+  return isPending || hasPendingOverlays || hasPendingChanges;
+}
+
+const pendingCount = computed(
+  () => allContributions.value.filter((project) => isContributionPending(project)).length,
+);
+const approvedCount = computed(() => allContributions.value.length - pendingCount.value);
+
+const filterTabs = computed<{ key: ContributionFilter; label: string; count: number }[]>(() => [
+  { key: "all", label: t("contribute.filterAll"), count: allContributions.value.length },
+  { key: "pending", label: t("approvalStatus.pending"), count: pendingCount.value },
+  { key: "approved", label: t("approvalStatus.approved"), count: approvedCount.value },
+]);
+
+const filteredProjects = computed(() => {
+  if (activeFilter.value === "all") {
+    return allContributions.value;
+  }
+  if (activeFilter.value === "pending") {
+    return allContributions.value.filter((project) => isContributionPending(project));
+  }
+  return allContributions.value.filter((project) => !isContributionPending(project));
 });
+
+// A render staged in the upload dialog but not yet submitted: kind 'render' with no status. Real
+// renders always carry a server status, so this uniquely identifies a still-staged one.
+function isStagedRenderOverlay(overlay: OverlayForModeration): boolean {
+  return overlay.kind === "render" && !overlay.status;
+}
 
 // Handle delete overlay click - uses shared deletion composable
 async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
+  // A staged render has no overlay row to delete: drop it from stagedRenderStore and clear the
+  // project's modified flag unless other unsaved overlays remain.
+  if (isStagedRenderOverlay(overlay) && overlay.projectId) {
+    const projectId = overlay.projectId;
+    clearStagedRender(projectId);
+    const hasOtherUnsaved = Object.values(overlayStore.overlays).some(
+      (o) => o.projectId === projectId && isOverlayUnsaved(o),
+    );
+    projectStore.updateProject(projectId, { isModified: hasOtherUnsaved });
+    return;
+  }
+
   // Find the project that contains this overlay
   const project = allContributions.value.find((displayedProject: UserContribution) =>
     displayedProject.overlays?.some(
@@ -379,15 +403,10 @@ function isProjectModified(projectId: string): boolean {
 async function handleSaveProjectClick(project: ProjectForModeration) {
   if (!isProjectModified(project.id)) return;
 
-  // Check if project itself has changes (not just overlays)
-  const projectInStore = projectStore.projects[project.id];
-  const projectHasChanges = projectInStore?.isModified ?? false;
-
-  // Use composable to prepare and show submission dialog
-  prepareProjectWithOverlaysSubmission(project, projectHasChanges);
+  prepareSubmission(project);
 }
 
-// Handle draw shapes click, mirrors handleDrawShapes in PopupContainer
+// Handle draw shapes click, mirrors handleDrawShapesClick in ProjectDetailPanel
 async function handleDrawShapesClick(project: ProjectForModeration) {
   if (isMobile.value) {
     toast.add({
@@ -400,20 +419,20 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 
   const fallbackGeometry = project.geometry ?? null;
 
-  // Close any open popups (overlay popup or standalone project popup) to ensure a clean slate
-  if (overlayStore.showInfoPopup) {
-    overlayStore.hideInfoPopup();
+  // Close any open detail (overlay detail or standalone project detail) to ensure a clean slate
+  if (overlayStore.overlayDetailVisible) {
+    overlayStore.closeOverlayDetail();
   }
-  if (uiStore.projectInfoPopup.visible) {
-    uiStore.closeProjectInfoPopup();
+  if (uiStore.projectDetail.visible) {
+    uiStore.closeProjectDetail();
     try {
-      closeProjectPopupAndResetMarkers();
+      closeProjectDetailAndResetMarkers();
     } catch (error) {
-      console.warn("Failed to reset standalone markers on draw popup clear", error);
+      console.warn("Failed to reset standalone markers on draw detail clear", error);
     }
   }
 
-  // Open the shape editor panel (no popup to reopen at) and lazy-load the editor
+  // Open the shape editor panel (no detail to reopen at) and lazy-load the editor
   uiStore.openShapeEditor(project);
   await startShapeEditing(project.id, fallbackGeometry);
 }
@@ -424,7 +443,10 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 function handleExternalProjectClick(_project: ProjectForModeration) {
   const fullProject = lastSelectedProject.value;
   if (!fullProject) return;
-  selectProject(fullProject, new LngLat(fullProject.lng ?? 0, fullProject.lat ?? 0));
+  selectProject(fullProject);
+  if (typeof fullProject.lat === "number" && typeof fullProject.lng === "number") {
+    flyToGeometry([fullProject.lat, fullProject.lng], fullProject.geometrySizeM ?? 0);
+  }
 }
 
 function handleEditProjectClick(project: ProjectForModeration) {
@@ -445,11 +467,9 @@ watch(
     await nextTick();
     const isOwnContribution = allContributions.value.some((p) => p.id === id);
     if (isOwnContribution) {
-      expandAccordionForProject(id, allContributions.value);
-    } else if (!activeAccordionPanels.value.includes(id)) {
-      // External pinned project: just push the id into the shared accordion state
-      activeAccordionPanels.value.push(id);
+      expandProjectPanel(id);
     }
+    // External pinned projects render in their own always-open card, so no shared accordion state.
   },
   { immediate: true },
 );

@@ -1,12 +1,7 @@
 <template>
   <div class="flex h-screen">
     <!-- Desktop SideMenu -->
-    <SideMenu
-      v-if="!isMobile"
-      :is-open="desktopSideMenuOpen"
-      :is-moderator="authStore.isModerator"
-      @close="() => (desktopSideMenuOpen = false)"
-    />
+    <SideMenu v-if="!isMobile" />
 
     <!-- Mobile Bottom Drawer -->
     <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
@@ -41,20 +36,13 @@
         <MapView />
       </div>
 
-      <!-- Popup container handles both overlay and project popups, AND the shared overlay edit dialog -->
-      <PopupContainer
-        v-if="
-          overlayStore.showInfoPopup ||
-          uiStore.projectInfoPopup.visible ||
-          uiStore.overlayEditDialog.visible
-        "
-      />
+      <!-- Overlay caption editor, opened from the docked project detail (store-driven). -->
+      <OverlayEditor v-if="mapStore.mode === 'edit' && uiStore.overlayEditDialog.visible" />
 
-      <!-- Hover preview card, always mounted so it can show before any popup is opened -->
+      <!-- Hover preview card, always mounted so it can show before any detail panel is opened -->
       <HoverPreviewCard />
 
-      <!-- Shape Editor Panel - lives in the map column (outside PopupContainer) so it stays
-           centered on the map and isn't destroyed when a popup closes. -->
+      <!-- Shape Editor Panel - lives in the map column so it stays centered on the map. -->
       <ShapeEditorPanel
         v-if="uiStore.shapeEditor.project"
         @done="handleShapesDone"
@@ -92,19 +80,18 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { createProjectInfoTeleportTargetAtLatLng } from "@/services/map/projectPopupTeleport";
 import { renderProjectShapes } from "@/services/map/shapeRendering";
 import { clearProjectShapes } from "@/services/map/shapeLayerRegistry";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
+import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
 import HoverPreviewCard from "@/components/map/popups/HoverPreviewCard.vue";
 
-// Split PopupContainer into separate chunk - loads when first popup is shown
-const PopupContainer = defineAsyncComponent(() => import("@/components/map/PopupContainer.vue"));
+const OverlayEditor = defineAsyncComponent(() => import("@/components/map/OverlayEditor.vue"));
 const ShapeEditorPanel = defineAsyncComponent(
   () => import("@/components/map/ShapeEditorPanel.vue"),
 );
@@ -119,7 +106,6 @@ const SubmissionDialogWrapper = defineAsyncComponent(
   () => import("@/components/submission/SubmissionDialogWrapper.vue"),
 );
 
-const desktopSideMenuOpen = ref(true);
 const infoBannerDismissed = ref(false);
 const maintenanceBannerDismissed = ref(false);
 const now = ref(new Date());
@@ -133,6 +119,8 @@ const projectStore = useProjectStore();
 const toast = useToast();
 const route = useRoute();
 const { t } = useI18n();
+
+useTabNavigation();
 
 // Window: 30 min before 4:00 UTC through the end of the 15 min maintenance
 const MAINTENANCE_START_MIN = 4 * 60;
@@ -191,9 +179,24 @@ function updateWindowWidth() {
   windowWidth.value = globalThis.innerWidth;
 }
 
+// A selected map feature drives the docked mobile drawer into its detail state, so make sure it
+// is open whenever a selection appears. The drawer keeps its current height (the camera centers
+// the feature in the map area above it), and the user can drag it taller to read more. The
+// desktop side menu is always open, so it needs no handling here.
+const detailActive = computed(
+  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
+);
+
+watch(detailActive, (active) => {
+  if (!active) return;
+  if (isMobile.value) {
+    uiStore.mobileDrawerVisible = true;
+  }
+});
+
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditor.project;
-  const reopenAt = uiStore.shapeEditor.reopenAt;
+  const reopen = uiStore.shapeEditor.reopen;
   if (!project) return;
   // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
   if (!projectStore.projects[project.id]) {
@@ -210,9 +213,8 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   }
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
-  if (reopenAt) {
-    uiStore.openProjectInfoPopup(project.id, project);
-    createProjectInfoTeleportTargetAtLatLng({ lat: reopenAt.lat, lng: reopenAt.lng });
+  if (reopen) {
+    uiStore.openProjectDetail(project.id, project);
   }
 }
 
@@ -226,12 +228,11 @@ function handleSuggestTags(suggestedTags: string[]) {
 
 async function handleShapesCancel() {
   const project = uiStore.shapeEditor.project;
-  const reopenAt = uiStore.shapeEditor.reopenAt;
+  const reopen = uiStore.shapeEditor.reopen;
   await stopShapeEditing();
   uiStore.closeShapeEditor();
-  if (reopenAt && project) {
-    uiStore.openProjectInfoPopup(project.id, project);
-    createProjectInfoTeleportTargetAtLatLng({ lat: reopenAt.lat, lng: reopenAt.lng });
+  if (reopen && project) {
+    uiStore.openProjectDetail(project.id, project);
   }
 }
 

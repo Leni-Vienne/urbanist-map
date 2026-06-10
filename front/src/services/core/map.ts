@@ -1,5 +1,5 @@
 import maplibre, { type Map as MaplibreMap, type RequestParameters } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css"; // needed otherwise the projectPopup is invisible
+import "maplibre-gl/dist/maplibre-gl.css"; // needed for maplibre controls and attribution styling
 import { ref, customRef } from "vue";
 import { getApiUrl } from "@/client";
 
@@ -142,7 +142,7 @@ export function initializeMap() {
     aroundCenter: false, // otherwise the control scheme is ass
     rollEnabled: false,
     touchPitch: true,
-    maxPitch: 70,
+    maxPitch: 85,
     fadeDuration: 0,
   };
   // Lower sensitivity (default is 0.8).

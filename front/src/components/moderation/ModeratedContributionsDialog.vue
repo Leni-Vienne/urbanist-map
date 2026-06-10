@@ -116,7 +116,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from "vue";
 
-import ProgressSpinner from "primevue/progressspinner";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 import { useToast } from "@/composables/ui/useToast";
 import { buildThumbnailUrl } from "@/utils/imageUrl";

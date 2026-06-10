@@ -17,8 +17,8 @@ export function useNewProject() {
     }
 
     // Close any open popups and clear selections for clean slate
-    overlayStore.hideInfoPopup();
-    uiStore.closeProjectInfoPopup();
+    overlayStore.closeOverlayDetail();
+    uiStore.closeProjectDetail();
 
     // Always switch to edit mode when contributing (no-op if already in edit mode)
     mapStore.setMode("edit");

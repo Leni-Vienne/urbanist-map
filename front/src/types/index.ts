@@ -8,7 +8,7 @@ import type {
 
 // Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
-export type RemovableChange = ModifiableField | "new_overlay" | "geometry";
+export type RemovableChange = ModifiableField | "new_overlay" | "geometry" | "render";
 
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
@@ -53,6 +53,17 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
 
   // Cached overlay count for list views that don't hydrate the full overlays array.
   overlayCount?: number;
+
+  // The project's render (artist's impression), attached by project.getById. Scoped server-side to
+  // approved or the requester's own pending render. undefined = not loaded; null = loaded, none.
+  render?: ProjectRender | null;
+}
+
+// A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
+interface ProjectRender {
+  filename: string;
+  caption: string | null;
+  status: ApprovalStatus;
 }
 
 export interface ProjectFormData {
@@ -145,6 +156,7 @@ export type OverlayForModeration = Pick<
   | "replacedByOverlayId"
 > & {
   caption: string | null;
+  kind?: "map" | "render"; // Distinguishes georeferenced overlays from non-georeferenced renders
   authorId: string | null; // For spam prevention reporting
   authorUsername?: string | null; // Display friendly username in moderation UI
   authorApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)

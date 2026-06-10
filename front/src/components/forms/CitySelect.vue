@@ -36,12 +36,12 @@
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { trpc, type RouterOutput } from "@/client";
-import { getCameraBounds } from "@/services/map/mapNavigation";
+import { getCameraBounds } from "@/services/map/cameraBounds";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { cacheCityName } from "@/utils/cityNameCache";
 import { storeToRefs } from "pinia";
 import type { Project } from "@/types/index";
-import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
+import { getOverlayBounds } from "@/services/overlay/markers";
 
 interface Props {
   modelValue: number | undefined;

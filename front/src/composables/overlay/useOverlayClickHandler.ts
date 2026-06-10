@@ -1,7 +1,7 @@
 import { nextTick } from "vue";
 import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { navigateToOverlay } from "@/services/overlay/overlayActions";
+import { navigateToOverlay } from "@/services/overlay/actions";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
@@ -13,8 +13,6 @@ import {
   canModerateCountry,
   syncModerationCountry,
 } from "@/services/moderation/moderationCountrySync";
-
-export { canModerateCountry, syncModerationCountry };
 
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
@@ -131,6 +129,6 @@ async function navigateToReplacedOrRejectedOverlay(
   const project = await trpc.project.getById.query({ id: overlay.projectId });
 
   if (project && typeof project.lat === "number" && typeof project.lng === "number") {
-    await navigateToStandaloneProject(project.lat, project.lng, project.id);
+    navigateToStandaloneProject(project.lat, project.lng, project.id);
   }
 }

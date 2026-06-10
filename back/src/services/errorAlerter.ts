@@ -16,7 +16,7 @@ const COOLDOWN_PERIOD = 30 * 60 * 1000;
 
 const errors: ErrorEntry[] = [];
 let lastAlertTime = 0;
-let intervalId: NodeJS.Timeout | undefined;
+let intervalId: NodeJS.Timeout | undefined = undefined;
 
 export function addError(error: ErrorEntry): void {
   errors.push(error);

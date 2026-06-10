@@ -8,8 +8,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectProject } from "@/services/map/projectSelection";
-import { suppressPopupCloseForClick } from "@/services/map/projectPopupTeleport";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/selection";
 import { forEachPosition } from "@/utils/geojson";
 import {
   setShapeEntry,
@@ -94,8 +93,7 @@ function isProjectFocused(projectId: string): boolean {
     ? overlayStore.overlays[overlayStore.idSelectedOverlay]
     : null;
   const highlightedId =
-    selected?.projectId ??
-    (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null);
+    selected?.projectId ?? (uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null);
   return highlightedId === projectId;
 }
 
@@ -213,8 +211,6 @@ function bindLayerEvents(
 }
 
 // Wire hover/click on the interaction layers (fill for polygons, transparent hit line for lines).
-// Click routes through suppressPopupCloseForClick so the canvas-level popup-close handler does not
-// close the popup we are about to open (same gotcha as the Phase-3 marker port).
 function wireShapeInteraction(
   project: Project,
   fillLayerId: string | null,
@@ -224,7 +220,7 @@ function wireShapeInteraction(
   if (!mlMap) return [];
 
   // When a line crosses this project's own polygon, one click hits both the fill and hit
-  // layers, firing onClick twice. selectProject toggles, so guard on the source DOM event.
+  // layers, firing onClick twice. Dedupe on the source DOM event so it is handled once.
   let lastClickTimeStamp = -1;
 
   function onEnter(): void {
@@ -241,8 +237,7 @@ function wireShapeInteraction(
   function onClick(e: MapMouseEvent): void {
     if (e.originalEvent.timeStamp === lastClickTimeStamp) return;
     lastClickTimeStamp = e.originalEvent.timeStamp;
-    suppressPopupCloseForClick();
-    selectProject(project, e.lngLat);
+    selectProject(project);
   }
 
   return bindLayerEvents(mlMap, [fillLayerId, hitLayerId], { onEnter, onLeave, onClick });
@@ -303,7 +298,7 @@ export function renderProjectShapes(
   setShapeEntry(project.id, entry);
 
   // Apply hover style immediately if the project is already focused (e.g. shapes
-  // re-rendered after a mode switch while the popup is open).
+  // re-rendered after a mode switch while the detail panel is open).
   if (isProjectFocused(project.id)) highlightProjectShapes(project.id);
 }
 

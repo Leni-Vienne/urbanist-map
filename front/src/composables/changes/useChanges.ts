@@ -5,11 +5,9 @@ import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/change
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
+import { updateMarkerTooltip } from "@/services/map/markers";
 import type { OverlayObject } from "@/types";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
-import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import { makeHistoryState } from "@/services/overlay/overlayHistory";
+import { applyOverlayCorners } from "@/services/overlay/sync";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
@@ -18,27 +16,12 @@ function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
 }
 
 function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
-  const overlayStore = useOverlayStore();
-  const pendingModsStore = usePendingModificationsStore();
-
-  pendingModsStore.clearModification(overlayId);
-  // Reset history to the approved baseline so re-entering edit mode doesn't restore the edits.
-  const baseline =
-    overlayObject.corners.length === 4
-      ? [makeHistoryState(overlayObject.corners, overlayObject.imageUrl)]
-      : [];
-  overlayStore.updateOverlay(overlayId, {
-    isModified: false,
-    history: baseline,
-    redoStack: [],
+  usePendingModificationsStore().clearModification(overlayId);
+  useOverlayStore().updateOverlay(overlayId, { isModified: false });
+  applyOverlayCorners(overlayObject, overlayObject.corners, {
+    resetHistory: true,
+    refreshHandles: true,
   });
-  overlayObject.isModified = false;
-  overlayObject.history = baseline;
-  overlayObject.redoStack = [];
-  if (getImageHandle(overlayId) && overlayObject.corners.length === 4) {
-    setOverlayImageCorners(overlayId, overlayObject.corners);
-    updateMarkerPosition(overlayObject);
-  }
 }
 
 /** Ensures the current user's pending change requests are loaded. Safe to call outside Vue setup. */

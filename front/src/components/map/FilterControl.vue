@@ -80,7 +80,7 @@
       </p>
       <div class="flex flex-col gap-1 mb-4">
         <label
-          v-for="{ timelineStatus, labelKey, dasharray } in filters"
+          v-for="{ timelineStatus, labelKey } in filters"
           :key="timelineStatus"
           class="flex items-center gap-2 cursor-pointer text-sm text-color"
         >
@@ -90,18 +90,7 @@
             @change="toggleCompletionFilter(timelineStatus)"
             @click.stop
           />
-          <svg width="28" height="10" aria-hidden="true" style="flex-shrink: 0">
-            <line
-              x1="0"
-              y1="5"
-              x2="28"
-              y2="5"
-              :stroke="linePreviewColor"
-              stroke-width="2.5"
-              :stroke-dasharray="dasharray"
-              stroke-linecap="round"
-            />
-          </svg>
+          <LinePreview :status="timelineStatus" :color="linePreviewColor" />
           {{ $t(labelKey) }}
         </label>
       </div>
@@ -214,7 +203,6 @@ import {
   showOnlyWithImages,
   toggleShowOnlyWithImages,
 } from "@/services/overlay/statusFilters";
-import Slider from "primevue/slider";
 
 // Logarithmic slider: positions [0, 100] → meters. Position 100 = Infinity (no upper limit).
 const LOG_SCALE_REF = 500_001;
@@ -314,29 +302,16 @@ import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
+import LinePreview from "@/components/common/LinePreview.vue";
 
-// dasharray mirrors the map line styles (SVG units, stroke-linecap="round").
 // "canceled" is omitted, too confusing for most users.
 const filters: {
   timelineStatus: TimelineStatus;
   labelKey: string;
-  dasharray: string;
 }[] = [
-  {
-    timelineStatus: "proposed",
-    labelKey: "timelineStatus.proposed",
-    dasharray: "0,5",
-  },
-  {
-    timelineStatus: "planned",
-    labelKey: "timelineStatus.planned",
-    dasharray: "7,6",
-  },
-  {
-    timelineStatus: "under_construction",
-    labelKey: "timelineStatus.under_construction",
-    dasharray: "7,6",
-  },
+  { timelineStatus: "proposed", labelKey: "timelineStatus.proposed" },
+  { timelineStatus: "planned", labelKey: "timelineStatus.planned" },
+  { timelineStatus: "under_construction", labelKey: "timelineStatus.under_construction" },
 ];
 
 // Use the active tag color for line previews when exactly one tag is selected.

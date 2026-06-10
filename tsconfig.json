@@ -12,14 +12,10 @@
     "allowSyntheticDefaultImports": true,
     "useUnknownInCatchVariables": true,
     "noUncheckedIndexedAccess": true,
-    "types": [
-      "@types/bun",
-      "@cloudflare/workers-types" // for R2Bucket type
-    ],
+    "types": ["@types/bun"],
 
     "paths": {
       "@/*": ["./front/src/*"],
-      "@tables": ["./back/src/db/schema"],
       "@shared/*": ["./shared/*"]
     }
   },

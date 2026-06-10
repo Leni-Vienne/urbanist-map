@@ -17,7 +17,7 @@ function isValidCorner(c: Corner): boolean {
 }
 
 export function isValidQuad(corners: Corner[] | undefined | null): corners is Corner[] {
-  return corners != null && corners.length === 4 && corners.every(isValidCorner);
+  return corners?.length === 4 && corners.every(isValidCorner);
 }
 
 // Rigid overlay model used while editing. Storage stays as 4 corners; this is in-memory only.
@@ -51,8 +51,8 @@ export function transformToCorners(transform: OverlayTransform): { lat: number; 
   const sin = Math.sin(angle);
 
   return SIGN.map(([sx, sy]) => {
-    const x = (sx ?? 0) * halfWidth;
-    const y = (sy ?? 0) * halfHeight;
+    const x = sx * halfWidth;
+    const y = sy * halfHeight;
     const corner = new maplibre.MercatorCoordinate(
       center.x + x * cos - y * sin,
       center.y + x * sin + y * cos,

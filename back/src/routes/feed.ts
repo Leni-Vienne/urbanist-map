@@ -77,6 +77,7 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
           SELECT 1 FROM ${overlays}
           WHERE ${overlays.projectId} = ${projects.id}
           AND ${overlays.status} = 'approved'
+          AND ${overlays.kind} = 'map'
         )`,
         importFilter,
       ),
@@ -113,7 +114,7 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
             maxLng: p.geometryBboxMaxLng,
           }
         : null,
-    // A point on the geometry itself for popup placement (not a computed center)
+    // A point on the geometry itself for marker placement (not a computed center)
     geometryPoint:
       p.geometryPointLat !== null && p.geometryPointLng !== null
         ? { lat: p.geometryPointLat, lng: p.geometryPointLng }
@@ -147,7 +148,13 @@ function buildLatestOverlaysQuery(limit: number) {
     .leftJoin(projects, eq(overlays.projectId, projects.id))
     .leftJoin(cities, eq(projects.cityId, cities.id))
     .leftJoin(countries, eq(projects.countryCode, countries.code))
-    .where(and(eq(overlays.status, "approved"), eq(projects.status, "approved")))
+    .where(
+      and(
+        eq(overlays.status, "approved"),
+        eq(projects.status, "approved"),
+        eq(overlays.kind, "map"),
+      ),
+    )
     .orderBy(overlays.projectId, desc(overlays.updatedAt))
     .as("latest_overlay_per_project");
 

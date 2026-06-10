@@ -86,6 +86,7 @@ async function createOAuthUser(profile: OAuthProfile): Promise<UserRow> {
     } catch (error: any) {
       if (error.code === "23505" && error.constraint === "users_username_unique") {
         username = `${baseUsername}${counter}`;
+        // eslint-disable-next-line no-useless-assignment
         counter += 1;
       } else {
         throw error;

@@ -50,7 +50,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import { createProjectInfoTeleportTarget } from "@/services/map/projectPopupTeleport";
 import {
   getStandaloneProjectMarkerByProjectId,
   addStandaloneProjectMarkerForProject,
@@ -58,7 +57,7 @@ import {
 } from "@/services/map/standaloneProjectMarkers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectMarkerElement } from "@/services/map/markers";
-import { addOverlay } from "@/services/overlay/overlayEditing";
+import { addOverlay } from "@/services/overlay/editing";
 import { createProject } from "@/services/project/projectMutations";
 import { createProjectObject } from "@/utils/typeFactories";
 import type { Project } from "@/types/index";
@@ -234,7 +233,7 @@ function onDialogVisibilityChange(visible: boolean) {
   }
 }
 
-async function displayProjectMarkerAndPopup(
+async function displayProjectMarkerAndDetail(
   projectId: string,
   city: {
     id: number;
@@ -260,11 +259,10 @@ async function displayProjectMarkerAndPopup(
   }
 
   if (actualMarker) {
-    createProjectInfoTeleportTarget(actualMarker);
-    if (overlayStore.showInfoPopup) {
-      overlayStore.hideInfoPopup();
+    if (overlayStore.overlayDetailVisible) {
+      overlayStore.closeOverlayDetail();
     }
-    uiStore.openProjectInfoPopup(projectId, projectStore.projects[projectId]);
+    uiStore.openProjectDetail(projectId, projectStore.projects[projectId]);
 
     const project = projectStore.projects[projectId];
     if (project && typeof project.lat === "number" && typeof project.lng === "number") {
@@ -289,15 +287,14 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<stri
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
     if (project.city) {
-      await displayProjectMarkerAndPopup(projectId, project.city);
+      await displayProjectMarkerAndDetail(projectId, project.city);
     } else {
       const storedProject = projectStore.projects[projectId];
       if (storedProject) {
         addStandaloneProjectMarkerForProject(storedProject);
         const marker = getStandaloneProjectMarkerByProjectId(projectId);
         if (marker) {
-          createProjectInfoTeleportTarget(marker);
-          uiStore.openProjectInfoPopup(projectId, storedProject);
+          uiStore.openProjectDetail(projectId, storedProject);
         }
       }
     }

@@ -29,9 +29,13 @@ export type AppEnv = {
 };
 
 export interface StorageInterface {
-  put(filename: string, buffer: ArrayBuffer, options?: { skipThumbnail?: boolean }): Promise<void>;
-  get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null>;
-  delete(filename: string): Promise<void>;
+  put: (
+    filename: string,
+    buffer: ArrayBuffer,
+    options?: { skipThumbnail?: boolean },
+  ) => Promise<void>;
+  get: (filename: string) => Promise<{ body: ReadableStream; contentType?: string } | null>;
+  delete: (filename: string) => Promise<void>;
 }
 
 export interface FileUploadResult {

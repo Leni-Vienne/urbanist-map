@@ -4,16 +4,16 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
-import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
+import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
 import {
   filterByStatus,
   visibleStates,
   selectedProjectTags,
 } from "@/services/overlay/statusFilters";
-import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
-import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
+import { createOverlayMarker } from "@/services/overlay/markers";
+import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
+import * as registry from "@/services/overlay/renderRegistry";
 import { refreshAllStandaloneMarkers } from "@/services/map/standaloneProjectMarkers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
@@ -151,7 +151,7 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
   queueFilteredOutForDestruction(overlayStore.viewModeOverlays, filteredOverlays);
 
   if (overlaysToRender.length > 0) {
-    void import("@/services/overlay/overlayRendering").then(({ renderViewModeOverlays }) => {
+    void import("@/services/overlay/rendering").then(({ renderViewModeOverlays }) => {
       renderViewModeOverlays(overlaysToRender, true);
     });
   }
@@ -198,7 +198,7 @@ function pruneLocalOverlays() {
   }
 
   if (editOverlaysToRecreate.length > 0) {
-    void import("@/services/overlay/overlayRendering").then(({ createOverlayImageForObject }) => {
+    void import("@/services/overlay/rendering").then(({ createOverlayImageForObject }) => {
       for (const overlay of editOverlaysToRecreate) {
         createOverlayImageForObject(overlay);
       }

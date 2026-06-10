@@ -8,6 +8,13 @@
       @dblclick.stop
       @touchstart.stop
     >
+      <!-- Overlay name, shown above the controls when the overlay has a caption -->
+      <div
+        v-if="overlayName && !isCropActive"
+        class="max-w-60 truncate bg-content-background border border-surface rounded-md py-0.5 px-2 shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-[13px] font-medium text-color"
+      >
+        {{ overlayName }}
+      </div>
       <div
         class="flex items-center gap-0.5 bg-content-background border border-surface rounded-lg py-1 px-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] whitespace-nowrap"
       >
@@ -21,17 +28,6 @@
           </button>
         </template>
         <template v-else>
-          <!-- Info toggle -->
-          <button
-            :title="t('toolbar.info')"
-            :class="btnCls({ active: showInfoPopup })"
-            @click="toggleInfoPopup"
-          >
-            <i class="pi pi-ellipsis-v" />
-          </button>
-
-          <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-
           <!-- Opacity slider -->
           <input
             type="range"
@@ -121,13 +117,6 @@
           </template>
         </template>
       </div>
-
-      <!-- Teleport anchor for UnifiedProjectPopup (via PopupContainer) -->
-      <div
-        v-show="showInfoPopup"
-        ref="infoSlot"
-        class="absolute top-full left-0 w-0 h-0 overflow-visible pointer-events-none"
-      />
     </div>
   </Teleport>
 </template>
@@ -142,25 +131,19 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import { getImageHandle } from "@/services/overlay/renderRegistry";
 import {
   getOverlayImageCorners,
   setOverlayImageOpacity,
   setOverlayInFront,
   isOverlayInFront,
   overlayOverlapsProjectShape,
-} from "@/services/overlay/overlayImageLayer";
-import { setOverlayPopupTarget } from "@/services/map/popupState";
-import { navigateOverlaySequence } from "@/services/overlay/overlayActions";
-import {
-  undo as undoOverlayEdit,
-  redo as redoOverlayEdit,
-} from "@/services/overlay/overlayEditing";
-import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
-import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/overlayCropHandles";
+} from "@/services/overlay/imageLayer";
+import { navigateOverlaySequence } from "@/services/overlay/actions";
+import { undo as undoOverlayEdit, redo as redoOverlayEdit } from "@/services/overlay/editing";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
+import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { trpc } from "@/client";
-import { createProjectObject } from "@/utils/typeFactories";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
@@ -180,8 +163,6 @@ const markerIconEl = ref<HTMLElement | null>(null);
 const opacity = ref(100);
 const isInFront = ref(false);
 const canStack = ref(false);
-const showInfoPopup = ref(false);
-const infoSlot = ref<HTMLElement | null>(null);
 const isCropActive = ref(false);
 
 let anchorMarker: maplibregl.Marker | null = null;
@@ -284,7 +265,6 @@ watch(
   selectedId,
   (id, prev) => {
     if (id !== prev) {
-      showInfoPopup.value = false;
       if (isCropActive.value) {
         hideCropHandles();
         isCropActive.value = false;
@@ -333,26 +313,13 @@ function readOpacity(): number {
   return handle ? Math.round(handle.opacity * 100) : 100;
 }
 
-// Wire info slot as teleport target for PopupContainer's UnifiedProjectPopup
-watch(showInfoPopup, (visible) => {
-  if (visible) {
-    nextTick(() => {
-      setOverlayPopupTarget(infoSlot.value);
-      if (selectedId.value) overlayStore.showInfoPopupForOverlay(selectedId.value);
-    });
-  } else {
-    setOverlayPopupTarget(null);
-    overlayStore.hideInfoPopup();
-  }
-});
-
 const overlayIndex = computed(() => {
   const id = selectedId.value;
   if (!id) return null;
   const overlay = overlayStore.overlays[id];
   if (!overlay?.projectId) return null;
   // Derive siblings from already-loaded overlays
-  // to avoid depending on projectStore.overlayIds (only populated on popup open).
+  // to avoid depending on projectStore.overlayIds (only populated on detail open).
   const siblings = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === overlay.projectId)
     .map((o) => o.id);
@@ -364,6 +331,8 @@ const overlayIndex = computed(() => {
 const showNav = computed(() => (overlayIndex.value?.total ?? 0) > 1);
 
 const selectedOverlay = computed(() => overlayStore.overlays[selectedId.value ?? ""]);
+
+const overlayName = computed(() => selectedOverlay.value?.caption?.trim() || null);
 
 const canDelete = computed(() => {
   return selectedOverlay.value ? canDeleteOverlay(selectedOverlay.value) : false;
@@ -386,26 +355,6 @@ const hasUnsavedModifications = computed(() => {
   const overlay = selectedOverlay.value;
   return overlay ? isOverlayUnsaved(overlay) : false;
 });
-
-async function toggleInfoPopup() {
-  if (!showInfoPopup.value) {
-    const overlay = selectedId.value ? overlayStore.overlays[selectedId.value] : null;
-    if (overlay?.projectId && !projectStore.projects[overlay.projectId] && !overlay.project) {
-      try {
-        const result = await trpc.project.getById.query({ id: overlay.projectId });
-        if (result) {
-          projectStore.updateProject(
-            overlay.projectId,
-            createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }),
-          );
-        }
-      } catch (error) {
-        console.error("Failed to fetch project for overlay popup:", error);
-      }
-    }
-  }
-  showInfoPopup.value = !showInfoPopup.value;
-}
 
 function onOpacityInput(e: Event) {
   const val = Number.parseInt((e.target as HTMLInputElement).value, 10);
@@ -445,8 +394,7 @@ const { prepareOverlaySubmission } = useSubmissionDialog();
 function onSave() {
   const overlay = selectedOverlay.value;
   if (!overlay) return;
-  const project = projectStore.projects[overlay.projectId ?? ""] ?? null;
-  prepareOverlaySubmission(overlay, project ?? undefined);
+  prepareOverlaySubmission(overlay);
 }
 
 function startCrop() {

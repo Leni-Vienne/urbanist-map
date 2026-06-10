@@ -11,9 +11,13 @@ import {
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
 } from "./projectVectorLayers";
-import { applyPlanStyleRoadOverrides, applyRailStyleOverrides } from "./basemapStyleOverrides";
-import { dropImageHandlesForStyleSwitch } from "@/services/overlay/overlayRenderRegistry";
-import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/overlayEditHandles";
+import {
+  applyPlanStyleRoadOverrides,
+  applyRailStyleOverrides,
+  applySky,
+} from "./basemapStyleOverrides";
+import { dropImageHandlesForStyleSwitch } from "@/services/overlay/renderRegistry";
+import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editHandles";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
 import {
   selectedProjectTags,
@@ -276,7 +280,7 @@ function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): void {
     // style.load fires once the style JSON is parsed, before the initial basemap tiles
     // finish downloading. Using it (instead of "load") lets the backend tile source register
     // and start fetching in parallel with the OpenFreeMap/Natural Earth basemap tiles.
-    mlMap.once("style.load", cb);
+    void mlMap.once("style.load", cb);
   }
 }
 
@@ -304,6 +308,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
   try {
     applyPlanStyleRoadOverrides(mlMap);
     applyRailStyleOverrides(mlMap);
+    applySky(mlMap);
     addProjectDataToMlMap(mlMap);
 
     if (!interactionRegistered) {
@@ -411,6 +416,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
+        applySky(mlMap);
         applyBuildings3DState(show3DBuildings.value);
       }
       addProjectDataToMlMap(mlMap);

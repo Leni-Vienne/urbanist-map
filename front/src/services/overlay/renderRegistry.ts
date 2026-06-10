@@ -6,7 +6,7 @@
 //   - clearAll() is the single cleanup path
 import type { Marker as MaplibreMarker } from "maplibre-gl";
 import { map } from "@/services/core/map";
-import type { OverlayTransform } from "@/services/overlay/overlayTransform";
+import type { OverlayTransform } from "@/services/overlay/transform";
 
 // MapLibre image-source state for one overlay.
 export interface OverlayImageHandle {

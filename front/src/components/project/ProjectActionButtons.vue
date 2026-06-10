@@ -1,5 +1,5 @@
 <template>
-  <div class="grid grid-cols-2 gap-1.5">
+  <div class="flex flex-row flex-wrap gap-1.5">
     <!-- Edit button -->
     <button
       v-if="showEdit"

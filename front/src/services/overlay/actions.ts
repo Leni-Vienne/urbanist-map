@@ -8,10 +8,10 @@ import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
 import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
-import { selectOverlay, applySelectionVisualsWhenReady } from "@/services/overlay/overlaySelection";
-import { getMarker } from "@/services/overlay/overlayRenderRegistry";
+import { selectOverlay, applySelectionVisualsWhenReady } from "@/services/overlay/selection";
+import { getMarker } from "@/services/overlay/renderRegistry";
 import { updateMarkerTooltip } from "@/services/map/markers";
-import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
+import { getOverlayBounds } from "@/services/overlay/markers";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
@@ -54,9 +54,10 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   }
 
   const project = projectStore.projects[currentOverlay.projectId];
-  let projectOverlayIds: string[] = [];
+  // eslint-disable-next-line init-declarations
+  let projectOverlayIds: string[];
 
-  // If project is not in memory, or overlayIds not yet populated (only set on popup open),
+  // If project is not in memory, or overlayIds not yet populated (only set on detail open),
   // derive siblings from already-loaded overlays.
   if (!project?.overlayIds.length) {
     projectOverlayIds = Object.values(overlayStore.overlays)
@@ -142,7 +143,7 @@ async function loadOverlay(
       // Lazy-loaded as its own chunk: overlayRendering is dynamically imported here and in
       // vectorTileSync / viewportRenderLoop. A static import would merge it into this chunk and
       // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
-      const { renderViewModeOverlays } = await import("@/services/overlay/overlayRendering");
+      const { renderViewModeOverlays } = await import("@/services/overlay/rendering");
 
       renderViewModeOverlays([result.overlay], true);
 

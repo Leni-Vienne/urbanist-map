@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { OverlayObject, OverlayData } from "@/types/index";
-import { clearAll as clearAllLayers } from "@/services/overlay/overlayRenderRegistry";
+import type { OverlayObject, OverlayData, OverlayHistoryState } from "@/types/index";
+import { clearAll as clearAllLayers } from "@/services/overlay/renderRegistry";
 
 export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});
@@ -11,8 +11,8 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   const replacementOverlayId = ref<string | null>(null);
   const pendingImageFile = ref<File | null>(null);
-  const showInfoPopup = ref(false);
-  const infoPopupOverlayId = ref<string | null>(null);
+  const overlayDetailVisible = ref(false);
+  const overlayDetailId = ref<string | null>(null);
 
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
@@ -39,6 +39,61 @@ export const useOverlayStore = defineStore("overlay", () => {
     }
   }
 
+  // Replace an overlay's edit history wholesale and mark it modified. Callers compute the new
+  // history array (seeding/dedup live in saveToHistory); this is the single reactive write.
+  function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
+    const overlay = overlays.value[overlayId];
+    if (!overlay) return;
+    overlay.history = history;
+    overlay.redoStack = [];
+    overlay.isModified = true;
+  }
+
+  // Collapse history to a single baseline step at `corners` (cloned so later edits don't alias it)
+  // and clear redo. Used when a submitted/reverted position becomes the new starting point, so
+  // re-entering edit mode doesn't restore prior in-progress edits. imageUrl is read from the live
+  // overlay; invalid (non-4) corners clear history entirely. Does not touch isModified or corners.
+  function resetHistoryBaseline(overlayId: string, corners: { lat: number; lng: number }[]) {
+    const overlay = overlays.value[overlayId];
+    if (!overlay) return;
+    overlay.history =
+      corners.length === 4
+        ? [
+            {
+              corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
+              imageUrl: overlay.imageUrl,
+            },
+          ]
+        : [];
+    overlay.redoStack = [];
+  }
+
+  // Step back one history entry. Returns the step to restore (for the GL effect), or null on no-op.
+  function undoHistory(overlayId: string): OverlayHistoryState | null {
+    const overlay = overlays.value[overlayId];
+    if (!overlay || overlay.history.length <= 1) return null;
+    const current = overlay.history.pop();
+    if (!current) return null;
+    overlay.redoStack.push(current);
+    const target = overlay.history.at(-1);
+    if (!target) return null;
+    // Back to the initial state on a submitted overlay: clear the modified flag so the marker
+    // returns to its status color.
+    if (overlay.history.length === 1 && overlay.status !== null) overlay.isModified = false;
+    return target;
+  }
+
+  // Step forward one history entry. Returns the step to restore, or null on no-op.
+  function redoHistory(overlayId: string): OverlayHistoryState | null {
+    const overlay = overlays.value[overlayId];
+    if (!overlay || overlay.redoStack.length === 0) return null;
+    const target = overlay.redoStack.pop();
+    if (!target) return null;
+    overlay.history.push(target);
+    overlay.isModified = true;
+    return target;
+  }
+
   function clearPendingFile() {
     pendingImageFile.value = null;
   }
@@ -52,18 +107,18 @@ export const useOverlayStore = defineStore("overlay", () => {
     clearPendingFile();
   }
 
-  function showInfoPopupForOverlay(overlayId: string) {
-    infoPopupOverlayId.value = overlayId;
-    showInfoPopup.value = true;
+  function openOverlayDetail(overlayId: string) {
+    overlayDetailId.value = overlayId;
+    overlayDetailVisible.value = true;
   }
 
-  function hideInfoPopup() {
-    showInfoPopup.value = false;
-    infoPopupOverlayId.value = null;
+  function closeOverlayDetail() {
+    overlayDetailVisible.value = false;
+    overlayDetailId.value = null;
   }
 
   function resetAllUIStates() {
-    hideInfoPopup();
+    closeOverlayDetail();
     resetReplacement();
   }
 
@@ -83,8 +138,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     viewModeOverlays,
     replacementOverlayId,
     pendingImageFile,
-    showInfoPopup,
-    infoPopupOverlayId,
+    overlayDetailVisible,
+    overlayDetailId,
 
     // Actions
     setViewModeOverlays,
@@ -92,10 +147,14 @@ export const useOverlayStore = defineStore("overlay", () => {
     addOverlay,
     updateOverlay,
     batchUpdateOverlays,
+    commitHistory,
+    resetHistoryBaseline,
+    undoHistory,
+    redoHistory,
     requestOverlayReplacement,
     resetReplacement,
-    showInfoPopupForOverlay,
-    hideInfoPopup,
+    openOverlayDetail,
+    closeOverlayDetail,
     clearAllState,
   };
 });

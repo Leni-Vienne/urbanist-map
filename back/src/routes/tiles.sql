@@ -49,9 +49,10 @@ shapes AS (
       ROUND(p.geometry_size_m)::int AS geometry_size_m,
       CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
-      -- Whether this project has at least one approved overlay image, so the client can
-      -- filter the map down to projects that carry imagery.
-      EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved') AS has_image,
+      -- Whether this project has at least one approved georeferenced overlay image, so the client
+      -- can filter the map down to projects that carry imagery. Renders are excluded: they are not
+      -- placed on the map, so they must not flag a project as having map imagery.
+      EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image,
       -- Stable popup anchor: a point on the geometry itself, unaffected by tile clipping
       ST_Y(p.center_coordinate) AS popup_lat,
       ST_X(p.center_coordinate) AS popup_lng
@@ -97,14 +98,16 @@ shapes AS (
       AND p.center_coordinate IS NOT NULL
       AND p.center_coordinate && te.bounds_4326
       AND NOT EXISTS (
-        SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved'
+        SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map'
       )
   ) q
   WHERE q.mvt_geom IS NOT NULL
 ),
 footprints AS (
-  -- Generate the 'overlay-footprints' vector tile layer showing the bounding box of georeferenced images
-  -- This layer is only rendered at zoom level 13 and higher.
+  -- Generate the 'overlay-footprints' vector tile layer showing the bounding box of georeferenced images.
+  -- Emitted from z12 so mobile clients (which reveal overlays one zoom level earlier via
+  -- getEffectiveThreshold) have footprint geometry to render and hit-test. Desktop clients keep a
+  -- z13 layer minzoom, so they ignore the extra z12 data.
   SELECT ST_AsMVT(q, 'overlay-footprints', 4096, 'mvt_geom') AS tile
   FROM (
     SELECT
@@ -138,8 +141,9 @@ footprints AS (
     FROM overlays o
     JOIN projects p ON p.id = o.project_id,
     tile_env te
-    WHERE $1 >= 13
+    WHERE $1 >= 12
       AND o.status = 'approved'
+      AND o.kind = 'map'
       AND o.corners && te.bounds_4326
   ) q
   WHERE q.mvt_geom IS NOT NULL
@@ -221,7 +225,7 @@ points AS (
           COALESCE(p.tags[1], '') AS first_tag,
           p.timeline_status,
           CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
-          EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved') AS has_image,
+          EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image,
           p.geometry_size_m,
           CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
           EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,

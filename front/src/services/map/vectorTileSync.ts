@@ -10,12 +10,12 @@
  */
 
 import { getMlMap, onMlMapReady } from "@/services/core/map";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
+import * as registry from "@/services/overlay/renderRegistry";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
 import { lastModifiedDateRange, visibleStates } from "@/services/overlay/statusFilters";
 
 // lastModifiedS is Unix seconds (tile units). querySourceFeatures bypasses MapLibre layer
@@ -88,6 +88,7 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
   };
 }
 
+// eslint-disable-next-line complexity
 function syncOverlaysFromTiles(mlMap: any): void {
   // During style reloads/HMR, idle can fire before this layer is present.
   if (!mlMap.getLayer("overlay-footprints")) return;
@@ -183,7 +184,7 @@ function syncOverlaysFromTiles(mlMap: any): void {
     if (toCreate.length === 0) return;
 
     const createMarkers = useMapStore().mode !== "view";
-    import("@/services/overlay/overlayRendering")
+    import("@/services/overlay/rendering")
       .then(({ renderViewModeOverlays }) => {
         // Re-check the live filters: this import is async, so toCreate may be stale.
         const stillVisible = toCreate.filter(

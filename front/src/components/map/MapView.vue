@@ -57,7 +57,7 @@ import { initializeMap, map } from "@/services/core/map";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initVectorTileSync } from "@/services/map/vectorTileSync";
-import { initializeCameraBounds } from "@/services/map/mapNavigation";
+import { initializeCameraBounds } from "@/services/map/cameraBounds";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
@@ -183,6 +183,12 @@ async function initializeMapAndOverlays() {
 :deep(.maplibregl-ctrl-top-left) {
   top: 105px;
   left: 7px;
+}
+
+/* MapLibre's attribution keeps its light background in dark mode, so the plain (non-link)
+   text would inherit the dark-mode light text color and vanish. Force readable colors. */
+:deep(.maplibregl-ctrl-attrib) {
+  color: rgba(0, 0, 0, 0.75);
 }
 
 /* Global CSS for custom SVG markers */

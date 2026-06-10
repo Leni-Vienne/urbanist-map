@@ -1,12 +1,9 @@
 import maplibregl from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
-import { transformToCorners, type OverlayTransform } from "@/services/overlay/overlayTransform";
-import {
-  getCurrentTransform,
-  replaceOverlayImageSource,
-} from "@/services/overlay/overlayImageLayer";
-import { saveToHistory } from "@/services/overlay/overlayHistory";
+import { getImageHandle } from "@/services/overlay/renderRegistry";
+import { transformToCorners, type OverlayTransform } from "@/services/overlay/transform";
+import { getCurrentTransform, replaceOverlayImageSource } from "@/services/overlay/imageLayer";
+import { saveToHistory } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/map/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -133,6 +130,7 @@ function ring(points: { x: number; y: number }[]): string {
 function syncCrop(): void {
   if (!session) return;
   const mlMap = map.value;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap) return;
 
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
@@ -140,7 +138,7 @@ function syncCrop(): void {
   session.svgContainer.style.display = visible ? "block" : "none";
   for (const edge of EDGES) {
     const el = session.handles[edge].getElement();
-    if (el) el.style.display = visible ? "block" : "none";
+    el.style.display = visible ? "block" : "none";
   }
   if (!visible) return;
 
@@ -193,6 +191,7 @@ function wireHandle(edge: Edge): void {
  */
 export function showCropHandles(overlayObject: OverlayObject): void {
   const mlMap = map.value;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap || !getImageHandle(overlayObject.id)) return;
 
   hideCropHandles();
@@ -269,6 +268,7 @@ export function hideCropHandles(): void {
 
   for (const edge of EDGES) s.handles[edge].remove();
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap) return;
   mlMap.off("render", s.onRender);
   if (s.svgContainer.parentNode) s.svgContainer.parentNode.removeChild(s.svgContainer);
@@ -333,13 +333,11 @@ export async function applyCrop(): Promise<boolean> {
   const sourceRect = overlay.history.at(-1)?.cropRect ?? { u0: 0, u1: 1, v0: 0, v1: 1 };
   const originalRect = composeRect(sourceRect, bounds);
 
-  let dataUrl: string;
-  try {
-    dataUrl = await cropImageToDataUrl(sourceUrl, originalRect);
-  } catch (error) {
+  const dataUrl = await cropImageToDataUrl(sourceUrl, originalRect).catch((error) => {
     console.error("Failed to crop overlay image:", error);
-    return false;
-  }
+    return null;
+  });
+  if (!dataUrl) return false;
 
   const centerLL = normToLngLat(t, (u0 + u1) / 2, (v0 + v1) / 2);
   const newTransform: OverlayTransform = {
@@ -353,8 +351,8 @@ export async function applyCrop(): Promise<boolean> {
   // Swap in the cropped pixels at the shrunk footprint, then record it as a normal history step.
   // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
   // original pixels and the original footprint.
-  replaceOverlayImageSource(overlay, dataUrl, newCorners);
-  saveToHistory(overlay, originalRect);
+  replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
+  saveToHistory(overlay.id, originalRect);
   updateMarkerPosition(overlay);
 
   return true;

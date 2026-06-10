@@ -1,21 +1,31 @@
-import { ref } from "vue";
 import type { LngLatLike, PaddingOptions } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
-import type { CameraBounds } from "@/types/index";
+import { isMobileViewport } from "@/composables/ui/useIsMobile";
 
-const currentCameraBounds = ref<CameraBounds | null>(null);
+// `map.value` is typed non-null but is null until init (see core/map.ts). Public entry points here
+// guard with `if (!map.value) return`; private helpers run after that guard and assume non-null.
 
-// Minimum distance in meters to skip re-animation when the camera is already close enough.
-// 10m is a few map pixels at street-level zoom. For bounds comparison the threshold is
-// multiplied to 100m, still well below the size of any overlay (max ~few hundred meters).
+// Skip re-animation when the camera is already within this many meters of the target.
 const distanceThreshold = 10;
+// Looser threshold for bounds, which compare centers rather than corners.
+const boundsDistanceThreshold = distanceThreshold * 10;
 
 type LatLngInput = [number, number] | { lat: number; lng: number };
 
 interface FlyOptions {
-  /** Animation duration in seconds (converted to milliseconds for MapLibre). */
+  /** Max animation duration in seconds; scaled down toward 0.3s for short / small-zoom moves. */
   duration?: number;
+  /**
+   * Screen-space [x, y] offset of the target from container center at rest (negative y = above
+   * center). When set, the skip-if-already-there check runs in screen space against that anchor.
+   */
+  offset?: [number, number];
+  /**
+   * Top inset (px) used when the mobile drawer is open. Defaults to the overlay-toolbar clearance;
+   * pass a smaller value for content with no top toolbar (e.g. vector shapes/points).
+   */
+  mobileTopInset?: number;
 }
 
 interface FlyToBoundsOptions extends FlyOptions {
@@ -51,100 +61,104 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-/**
- * Initialize camera bounds tracking.
- */
-export function initializeCameraBounds() {
-  const m = map.value;
+const screenSkipPx = 4;
 
-  function updateBounds() {
-    try {
-      const bounds = m.getBounds();
-      currentCameraBounds.value = {
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest(),
-        zoom: m.getZoom(),
-      };
-    } catch (error) {
-      console.error("Error updating camera bounds:", error);
-    }
+// Whether the camera is already at `target` so the move can be skipped. With an offset the target
+// won't sit at screen center, so we compare its projected position to the anchor (center + offset)
+// rather than comparing geographic centers.
+function shouldSkipMove(
+  target: { lat: number; lng: number },
+  zoomDiff: number,
+  offset?: [number, number],
+): boolean {
+  const m = map.value;
+  if (zoomDiff >= 0.1) return false;
+
+  if (offset) {
+    const el = m.getContainer();
+    const desiredX = el.clientWidth / 2 + offset[0];
+    const desiredY = el.clientHeight / 2 + offset[1];
+    const current = m.project([target.lng, target.lat]);
+    return Math.hypot(current.x - desiredX, current.y - desiredY) < screenSkipPx;
   }
 
-  updateBounds();
-
-  m.on("load", updateBounds);
-  m.on("moveend", updateBounds);
-  m.on("zoomend", updateBounds);
+  const center = m.getCenter();
+  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+  return distance < distanceThreshold;
 }
 
-export function getCameraBounds() {
-  return currentCameraBounds;
-}
-
-/**
- * Check if mobile drawer is covering the map.
- * Only apply offset when on mobile AND drawer is open.
- */
+// The drawer only covers the map on mobile while it's open.
 function shouldApplyMobileOffset(): boolean {
-  const isMobile = globalThis.innerWidth <= 768;
-  if (!isMobile) return false;
-
-  const uiStore = useUiStore();
-  return uiStore.mobileDrawerVisible;
+  if (!isMobileViewport()) return false;
+  return useUiStore().mobileDrawerVisible;
 }
 
-/**
- * Returns the actual drawer height in pixels based on the current draggable height percentage.
- * Adds a small margin so the target point isn't flush against the drawer edge.
- */
+// Measures the rendered drawer instead of estimating from mobileDrawerHeightPercent: the drawer is
+// sized in vh while innerHeight tracks the visible viewport, and the map container (h-screen) can
+// extend below it (mobile URL bar), so an estimate undershoots and content hides under the drawer.
 function getMobileDrawerBottomPaddingPx(): number {
+  const margin = 30; // margin above the drawer edge
+  const drawer = document.querySelector(".draggable-drawer");
+  if (drawer) {
+    const containerBottom = map.value.getContainer().getBoundingClientRect().bottom;
+    const drawerTop = drawer.getBoundingClientRect().top;
+    return Math.max(0, containerBottom - drawerTop) + margin;
+  }
   const uiStore = useUiStore();
-  const drawerHeightPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
-  return drawerHeightPx + 20; // 20px margin above the drawer
+  return (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight + margin;
 }
 
-function resolvePadding(p?: number | [number, number]): PaddingOptions | number {
+// Caps padding so opposing insets never exceed the container; otherwise cameraForBounds produces
+// a negative numerator and returns a NaN scale (observed crash on small viewports + tight bounds).
+function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions | number {
+  const container = map.value.getContainer();
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  if (w <= 0 || h <= 0) return padding;
+
+  const capW = Math.max(0, (w - 1) / 2);
+  const capH = Math.max(0, (h - 1) / 2);
+  if (typeof padding === "number") {
+    return Math.min(padding, capW, capH);
+  }
+  if ((padding.left ?? 0) + (padding.right ?? 0) >= w) {
+    padding.left = capW;
+    padding.right = capW;
+  }
+  if ((padding.top ?? 0) + (padding.bottom ?? 0) >= h) {
+    padding.top = capH;
+    padding.bottom = capH;
+  }
+  return padding;
+}
+
+// Top inset clearing the overlay editing toolbar when navigating to an overlay on mobile.
+const MOBILE_OVERLAY_TOP_INSET = 140;
+
+// Resolves the padding for a camera move, then caps it to the container. When the mobile drawer
+// is open this intentionally overrides any caller-provided `p` so the target clears the drawer;
+// otherwise `p` is used (single inset, or [horizontal, vertical]), defaulting to 50px.
+function resolvePadding(
+  p?: number | [number, number],
+  mobileTopInset: number = MOBILE_OVERLAY_TOP_INSET,
+): PaddingOptions | number {
   let result: PaddingOptions | number = 50;
   if (shouldApplyMobileOffset()) {
-    result = { top: 50, bottom: getMobileDrawerBottomPaddingPx(), left: 50, right: 50 };
+    result = {
+      top: mobileTopInset,
+      bottom: getMobileDrawerBottomPaddingPx(),
+      left: 50,
+      right: 50,
+    };
   } else if (typeof p === "number") {
     result = p;
   } else if (Array.isArray(p)) {
     result = { top: p[1], bottom: p[1], left: p[0], right: p[0] };
   }
-
-  // Cap padding to the container, otherwise cameraForBounds produces a negative
-  // numerator and returns NaN scale (observed crash on small viewports + tight bounds).
-  const container = map.value?.getContainer();
-  if (!container) return result;
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  if (w <= 0 || h <= 0) return result;
-
-  const capW = Math.max(0, (w - 1) / 2);
-  const capH = Math.max(0, (h - 1) / 2);
-  if (typeof result === "number") {
-    return Math.min(result, capW, capH);
-  }
-  if ((result.left ?? 0) + (result.right ?? 0) >= w) {
-    result.left = capW;
-    result.right = capW;
-  }
-  if ((result.top ?? 0) + (result.bottom ?? 0) >= h) {
-    result.top = capH;
-    result.bottom = capH;
-  }
-  return result;
+  return capPaddingToContainer(result);
 }
 
-/**
- * Scale flight duration based on how far the camera needs to travel.
- * Breakpoints (linear interpolation between them):
- *   centerDistance < 200 m  AND zoomDiff < 1  →  minDuration (0.3 s)
- *   centerDistance > 5 000 m OR  zoomDiff > 3  →  maxDuration (caller value)
- */
+// Interpolate between 0.3s (tiny move) and maxDuration, saturating at 5000m or 3 zoom levels.
 function scaledDuration(centerDistance: number, zoomDiff: number, maxDuration: number): number {
   const minDuration = 0.3;
   const distanceFactor = Math.min(centerDistance / 5000, 1);
@@ -154,33 +168,38 @@ function scaledDuration(centerDistance: number, zoomDiff: number, maxDuration: n
 }
 
 /**
- * Fly to a point, accounting for the mobile drawer covering the bottom of the screen.
+ * Fly to a point, accounting for the mobile drawer covering the bottom of the screen. Returns true
+ * if a flight started, false if it was skipped (camera already there) so callers waiting on
+ * `moveend` can act immediately instead of hanging.
  */
 export function mobileAwareFlyTo(
   latlng: LatLngInput,
   zoom?: number,
   options: FlyOptions = {},
-): void {
+): boolean {
   const m = map.value;
+  if (!m) return false;
   const target = toLatLng(latlng);
-  if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
+  if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return false;
   const center = m.getCenter();
   const currentZoom = m.getZoom();
   const targetZoom = zoom ?? currentZoom;
 
-  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const zoomDiff = Math.abs(currentZoom - targetZoom);
-  if (distance < distanceThreshold && zoomDiff < 0.1) {
-    return; // Already at target, skip animation
-  }
+  if (shouldSkipMove(target, zoomDiff, options.offset)) return false;
+
+  const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+  const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
 
   m.flyTo({
     center: [target.lng, target.lat],
     zoom: targetZoom,
-    duration: (options.duration ?? 1.5) * 1000,
-    padding: resolvePadding(),
+    duration: duration * 1000,
+    padding: resolvePadding(undefined, options.mobileTopInset),
+    ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
   });
+  return true;
 }
 
 /**
@@ -190,19 +209,21 @@ export function mobileAwareFlyTo(
  */
 function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   const m = map.value;
+  if (!m) return;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
-  const center = m.getCenter();
-  const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
 
-  if (distance < distanceThreshold) {
-    return; // Already at target, skip animation
-  }
+  if (shouldSkipMove(target, 0, options.offset)) return;
+
+  const center = m.getCenter();
+  const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
+  const duration = scaledDuration(centerDistance, 0, options.duration ?? 0.3);
 
   m.easeTo({
     center: [target.lng, target.lat],
-    duration: (options.duration ?? 0.3) * 1000,
-    padding: resolvePadding(),
+    duration: duration * 1000,
+    padding: resolvePadding(undefined, options.mobileTopInset),
+    ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
   });
 }
@@ -224,14 +245,19 @@ function mercatorZoomForBounds(
   south: number,
   east: number,
   north: number,
+  padding: PaddingOptions | number,
   maxZoom?: number,
 ): number {
-  const container = map.value?.getContainer();
-  // Shrink the usable viewport by a 50px inset per side so the bounds aren't framed edge-to-edge,
-  // matching the padding used by the cameraForBounds path.
-  const inset = 100;
-  const w = Math.max(1, (container?.clientWidth ?? 1) - inset);
-  const h = Math.max(1, (container?.clientHeight ?? 1) - inset);
+  const container = map.value.getContainer();
+  // Shrink the usable viewport by the same padding the cameraForBounds path would have applied, so
+  // the computed zoom fits the bounds in the area actually visible (e.g. above the mobile drawer).
+  // Using a fixed inset here instead would over-zoom tall, height-limited bounds and clip them.
+  const padLeft = typeof padding === "number" ? padding : (padding.left ?? 0);
+  const padRight = typeof padding === "number" ? padding : (padding.right ?? 0);
+  const padTop = typeof padding === "number" ? padding : (padding.top ?? 0);
+  const padBottom = typeof padding === "number" ? padding : (padding.bottom ?? 0);
+  const w = Math.max(1, container.clientWidth - padLeft - padRight);
+  const h = Math.max(1, container.clientHeight - padTop - padBottom);
   const tile = 512;
 
   const lngFraction = Math.max(Math.abs(east - west) / 360, 1e-9);
@@ -245,8 +271,8 @@ function mercatorZoomForBounds(
 }
 
 /**
- * Fit a bounds, with mobile-aware padding.
- * Returns true if the flight was skipped (camera already at target), false otherwise.
+ * Fit a bounds, with mobile-aware padding. Returns true if a move started, false if it was skipped
+ * (bounds already framed) so callers waiting on `moveend` can act immediately instead of hanging.
  */
 export function mobileAwareFlyToBounds(
   bounds: BoundsLike,
@@ -259,15 +285,12 @@ export function mobileAwareFlyToBounds(
   const south = bounds.getSouth();
   const east = bounds.getEast();
   const north = bounds.getNorth();
-  if (![west, south, east, north].every((n) => Number.isFinite(n))) {
-    // Degenerate bounds (e.g. NaN corners) would throw in cameraForBounds; skip instead.
-    return false;
-  }
+  // Degenerate (NaN) corners would throw in cameraForBounds.
+  if (![west, south, east, north].every((n) => Number.isFinite(n))) return false;
 
   // Zero-area bounds make cameraForBounds return undefined scale; route to flyTo instead.
   if (west === east && south === north) {
-    mobileAwareFlyTo([north, east], options.maxZoom ?? 17, options);
-    return false;
+    return mobileAwareFlyTo([north, east], options.maxZoom ?? 17, options);
   }
 
   const llb: [[number, number], [number, number]] = [
@@ -279,10 +302,9 @@ export function mobileAwareFlyToBounds(
   const currentZoom = m.getZoom();
   const currentCenter = m.getCenter();
 
-  // cameraForBounds throws "Invalid LngLat (NaN, NaN)" for bounds/padding combos it can't fit
-  // (tiny far-away bounds at low zoom, degenerate quads, padding larger than the viewport).
-  // cameraForBoundsOk stays false on throw or empty result; targetZoom/targetCenter then keep
-  // the current camera and the Mercator fallback below takes over.
+  // cameraForBounds throws "Invalid LngLat (NaN, NaN)" for combos it can't fit (tiny far-away
+  // bounds, degenerate quads, padding larger than the viewport). On throw/empty, cameraForBoundsOk
+  // stays false and the Mercator fallback below takes over.
   let targetZoom = currentZoom;
   let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
   let cameraForBoundsOk = false;
@@ -300,13 +322,12 @@ export function mobileAwareFlyToBounds(
     // cameraForBounds throws on projection edge cases; handled by the fallback below.
   }
 
-  // No usable target from cameraForBounds: fly to the bounds center at a Mercator-computed zoom,
-  // which needs no MapLibre projection and so can't hit the same NaN.
+  // No usable target: fly to the bounds center at a Mercator-computed zoom, which needs no
+  // MapLibre projection and so can't hit the same NaN.
   if (!cameraForBoundsOk) {
     const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
-    const zoom = mercatorZoomForBounds(west, south, east, north, options.maxZoom);
-    mobileAwareFlyTo(center, zoom, { duration: options.duration });
-    return false;
+    const zoom = mercatorZoomForBounds(west, south, east, north, padding, options.maxZoom);
+    return mobileAwareFlyTo(center, zoom, { duration: options.duration });
   }
 
   const centerDistance = haversineMeters(
@@ -317,13 +338,9 @@ export function mobileAwareFlyToBounds(
   );
   const zoomDiff = Math.abs(currentZoom - targetZoom);
 
-  // Larger threshold for bounds since we compare centers, not corners.
-  if (centerDistance < distanceThreshold * 10 && zoomDiff < 0.1) {
-    return true; // Already viewing these bounds, skip animation
-  }
+  if (centerDistance < boundsDistanceThreshold && zoomDiff < 0.1) return false; // already framed
 
-  const maxDuration = options.duration ?? 1.5;
-  const duration = scaledDuration(centerDistance, zoomDiff, maxDuration);
+  const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
 
   // fitBounds runs the same projection math as cameraForBounds, so guard it too.
   try {
@@ -333,10 +350,11 @@ export function mobileAwareFlyToBounds(
       duration: duration * 1000,
       essential: true,
     });
+    return true;
   } catch {
+    /* projection edge case, see above */
     return false;
   }
-  return false;
 }
 
 /**
@@ -357,29 +375,32 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 }
 
 /**
- * Fly to a project anchor, zooming in just enough to frame a geometry of `sizeM` meters
- * (falls back to zoom 14 when the size is 0/unknown). Never zooms out, so a closer view the
- * user already has is preserved. Returns true if the camera zoomed.
- *
- * When no zoom change is needed and `allowPan` is set, pans instead of flying to avoid the
- * zoom-out arc that flyTo produces for same-zoom moves.
+ * Zoom in to frame a `sizeM`-meter geometry (zoom 14 when unknown), never out, then center the point
+ * in the unobstructed map area. `fromMapClick` keeps the desktop camera still since the feature is
+ * already on-screen and the docked detail sits beside the map, not over it. Returns whether a move
+ * was started.
  */
 export function flyToGeometry(
   latlng: LatLngInput,
   sizeM: number,
-  options: { allowPan?: boolean } = {},
+  options: { fromMapClick?: boolean } = {},
 ): boolean {
+  const m = map.value;
+  if (!m) return false;
+  if (options.fromMapClick && !isMobileViewport()) return false;
+
   const target = toLatLng(latlng);
-  const currentZoom = map.value.getZoom();
+  const currentZoom = m.getZoom();
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
-  const willZoom = targetZoom !== currentZoom;
-  const duration = Math.min(0.3 + (targetZoom - currentZoom) * 0.25, 1.5);
 
-  if (willZoom) {
-    mobileAwareFlyTo(target, targetZoom, { duration });
-  } else if (options.allowPan) {
-    mobileAwarePanTo(target, { duration });
+  if (targetZoom !== currentZoom) {
+    mobileAwareFlyTo(target, targetZoom);
+    return true;
   }
-  return willZoom;
+  // Same zoom: pan to recenter the feature (panTo self-skips if already framed). Drawer-aware
+  // padding centers it in the map area above the mobile drawer. Desktop map clicks never reach here
+  // (fromMapClick returns above), so this path only recenters list/drawer navigation.
+  mobileAwarePanTo(target);
+  return true;
 }

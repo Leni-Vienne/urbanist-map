@@ -3,6 +3,7 @@
 // feature in the vector tile layer (desktop only, touch has no mousemove).
 
 import { ref } from "vue";
+import { isMobileViewport } from "@/composables/ui/useIsMobile";
 
 // Inline data sourced directly from vector tile feature properties, no backend call needed.
 export type HoverProjectData = {
@@ -28,21 +29,21 @@ export const hoverPreviewX = ref(0);
 export const hoverPreviewY = ref(0);
 
 /** The project ID that was requested last, used to discard stale position updates. */
-let _pendingId: string | null = null;
-let _pendingX = 0;
-let _pendingY = 0;
-let _timer: ReturnType<typeof setTimeout> | null = null;
+let pendingHoverId: string | null = null;
+let pendingHoverX = 0;
+let pendingHoverY = 0;
+let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
 function clearTimer(): void {
-  if (_timer !== null) {
-    clearTimeout(_timer);
-    _timer = null;
+  if (hoverTimer !== null) {
+    clearTimeout(hoverTimer);
+    hoverTimer = null;
   }
 }
 
 /** Hover previews are pointer-only; suppress them on mobile widths and touch frames. */
 function isHoverPreviewDisabled(): boolean {
-  return globalThis.innerWidth <= 768 || globalThis.matchMedia("(hover: none)").matches;
+  return isMobileViewport() || globalThis.matchMedia("(hover: none)").matches;
 }
 
 /**
@@ -68,23 +69,23 @@ export function triggerProjectHover(
   }
 
   // Timer already counting down for this project, update position without restarting
-  if (_pendingId === projectId) {
-    _pendingX = x;
-    _pendingY = y;
+  if (pendingHoverId === projectId) {
+    pendingHoverX = x;
+    pendingHoverY = y;
     return;
   }
 
   clearTimer();
-  _pendingId = projectId;
-  _pendingX = x;
-  _pendingY = y;
+  pendingHoverId = projectId;
+  pendingHoverX = x;
+  pendingHoverY = y;
 
-  _timer = setTimeout(() => {
-    _timer = null;
-    if (_pendingId !== projectId) return;
+  hoverTimer = setTimeout(() => {
+    hoverTimer = null;
+    if (pendingHoverId !== projectId) return;
 
-    hoverPreviewX.value = _pendingX;
-    hoverPreviewY.value = _pendingY;
+    hoverPreviewX.value = pendingHoverX;
+    hoverPreviewY.value = pendingHoverY;
     hoverPreview.value = { type: "project", projectId, data };
   }, 300);
 }
@@ -96,7 +97,7 @@ export function triggerClusterHover(count: number, x: number, y: number): void {
   if (isHoverPreviewDisabled()) return;
 
   clearTimer();
-  _pendingId = null;
+  pendingHoverId = null;
   hoverPreviewX.value = x;
   hoverPreviewY.value = y;
   hoverPreview.value = { type: "cluster", count };
@@ -116,6 +117,6 @@ export function updateHoverPreviewPosition(x: number, y: number): void {
  */
 export function clearHoverPreview(): void {
   clearTimer();
-  _pendingId = null;
+  pendingHoverId = null;
   hoverPreview.value = null;
 }

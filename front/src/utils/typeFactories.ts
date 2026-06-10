@@ -11,6 +11,7 @@ type ProjectInput = { [K in keyof Project]?: Project[K] | null };
 /**
  * Create a new Project instance with defaults
  */
+// eslint-disable-next-line complexity
 export function createProjectObject(data: ProjectInput = {}): Project {
   const id = data.id ?? uuidv4();
 
@@ -29,6 +30,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
+    ownerUsername: data.ownerUsername ?? null,
     cityId: data.cityId ?? null, // Now nullable for imported projects
     status: data.status ?? null,
     rejectionReason: data.rejectionReason ?? null, // Moderator-selected rejection reason
@@ -53,12 +55,16 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     countryCode: data.countryCode ?? "",
     detachedAt: data.detachedAt ?? null,
     importLockedAt: data.importLockedAt ?? null,
+    // Left undefined when the source didn't carry it (e.g. viewport payload), so the detail panel knows
+    // to hydrate it via getById. null only after getById confirms there is no render.
+    render: data.render,
   };
 }
 
 /**
  * Create a new OverlayObject instance with defaults
  */
+// eslint-disable-next-line complexity
 export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayObject {
   const id = data.id ?? uuidv4();
   // Preserve null status for local overlays (not yet submitted to backend)

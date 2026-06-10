@@ -15,7 +15,7 @@
     "reset": "Reset",
     "reasonForChanges": "Reason for Changes",
     "explainChanges": "Briefly explain why you're making these changes",
-    "osmSyncNotice": "This map is separate from OpenStreetMap, so contributions here are sadly not sent there.",
+    "osmSyncNotice": "Contributions made here are sadly not sent to OpenStreetMap",
     "current": "Current",
     "new": "New",
     "unknown": "Unknown",
@@ -67,6 +67,7 @@
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
+    "latestContributionsShort": "Latest",
     "onMap": "On Map",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
@@ -74,6 +75,8 @@
   "project": {
     "create": "Create Project",
     "unnamed": "Unnamed project",
+    "osmName": "OpenStreetMap project",
+    "recenter": "Recenter map on this project",
     "name": "Project Name",
     "city": "City",
     "noLocation": "No Location",
@@ -103,6 +106,7 @@
     "estimatedCompletion": "Estimated Completion",
     "source": "Source",
     "lastModified": "Last Modified",
+    "createdBy": "Created by",
     "modifyOn": "Modify on {name}",
     "altName": "Also known as",
     "website": "Website",
@@ -156,6 +160,7 @@
     "createFirstProject": "Add your first project!",
     "selectedProject": "Selected project",
     "yourContributions": "Your contributions",
+    "filterAll": "All",
     "deleteOverlay": "Delete image",
     "deleteProject": "Delete project",
     "deleteChangeRequest": "Delete change request",
@@ -188,8 +193,6 @@
     "sortStatus": "Sort by timeline status"
   },
   "overlay": {
-    "overlayImage": "image",
-    "overlayImages": "images",
     "overlayInformation": "Image Information",
     "notSet": "Not set",
     "changedFrom": "Changed from",
@@ -210,6 +213,7 @@
     "coordinatesViewOnMap": "Coordinates (view on map)",
     "replaces": "Replaces",
     "viewOriginalOverlay": "View Original Image",
+    "viewFullImage": "View full image",
     "viewPositionRequired": "View position first (required for replacement images)",
     "overlayCreated": "Image Created",
     "positionOverlayOnMap": "Now position the image on the map",
@@ -524,7 +528,27 @@
     "dragDrop": "Drag and drop your image here",
     "orClick": "or click to browse files",
     "supportedFormats": "Supported formats: PNG, JPEG, JPG, WebP",
-    "changeImage": "Change Image"
+    "changeImage": "Change Image",
+    "chooseDescription": "What kind of image do you want to add?",
+    "overlayOption": {
+      "title": "Map overlay",
+      "description": "A top-down plan or aerial view that you position and resize on the map."
+    },
+    "renderOption": {
+      "title": "Artist's impression",
+      "description": "A render or photo shown in the project info panel, not placed on the map."
+    },
+    "renderDialogTitle": "Add artist's impression",
+    "renderUploadDescription": "Upload a render or photo of the project. It appears in the project info panel only, it is not aligned onto the map.",
+    "renderReplaceNote": "This will replace the project's current artist's impression.",
+    "renderStaged": "Render added",
+    "renderStagedDetail": "Submit your changes to send it for review."
+  },
+  "render": {
+    "label": "Artist's impression",
+    "pendingReview": "Pending review",
+    "notSubmitted": "Not submitted yet, send your changes for review",
+    "imageChange": "New image"
   },
   "toast": {
     "validationError": "Validation Error",

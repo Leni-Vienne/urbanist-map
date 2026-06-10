@@ -28,7 +28,7 @@
         <Button
           v-if="form.hasChanges.value"
           type="button"
-          @click="form.resetChanges"
+          @click="handleReset"
           :label="$t('common.reset')"
           severity="secondary"
           outlined
@@ -101,4 +101,8 @@ const form = useEditableProjectForm({
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),
 });
+
+function handleReset() {
+  form.resetChanges();
+}
 </script>

@@ -15,7 +15,7 @@
     "reset": "Réinitialiser",
     "reasonForChanges": "Raison des modifications",
     "explainChanges": "Expliquez brièvement pourquoi vous apportez ces modifications",
-    "osmSyncNotice": "Cette carte est indépendante d'OpenStreetMap, les contributions n'y sont malheureusement pas transmises.",
+    "osmSyncNotice": "Les contributions faites ici ne sont pas transmises à OpenStreetMap",
     "current": "Actuel",
     "new": "Nouveau",
     "unknown": "Inconnu",
@@ -67,6 +67,7 @@
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",
+    "latestContributionsShort": "Récentes",
     "onMap": "Sur la carte",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
@@ -74,6 +75,8 @@
   "project": {
     "create": "Créer un projet",
     "unnamed": "Projet sans nom",
+    "osmName": "Projet OpenStreetMap",
+    "recenter": "Recentrer la carte sur ce projet",
     "name": "Nom du projet",
     "city": "Ville",
     "noLocation": "Aucun emplacement",
@@ -103,6 +106,7 @@
     "proposalDate": "Date de proposition",
     "source": "Source",
     "lastModified": "Dernière modification",
+    "createdBy": "Créé par",
     "modifyOn": "Modifier sur {name}",
     "altName": "Autre nom",
     "website": "Site web",
@@ -156,6 +160,7 @@
     "createFirstProject": "Ajoutez votre premier projet !",
     "selectedProject": "Projet sélectionné",
     "yourContributions": "Vos contributions",
+    "filterAll": "Tout",
     "deleteOverlay": "Supprimer l'image",
     "deleteProject": "Supprimer le projet",
     "deleteChangeRequest": "Supprimer la suggestion",
@@ -188,8 +193,6 @@
     "sortStatus": "Trier par statut chronologique"
   },
   "overlay": {
-    "overlayImage": "image",
-    "overlayImages": "images",
     "overlayInformation": "Informations sur l'image",
     "notSet": "Non défini",
     "changedFrom": "Modifié depuis",
@@ -210,6 +213,7 @@
     "coordinatesViewOnMap": "Coordonnées (voir sur la carte)",
     "replaces": "Remplace",
     "viewOriginalOverlay": "Voir l'image d'origine",
+    "viewFullImage": "Voir l'image en grand",
     "viewPositionRequired": "Voir la position d'abord (requis pour les images de remplacement)",
     "overlayCreated": "Image créée",
     "positionOverlayOnMap": "Positionnez maintenant l'image sur la carte",
@@ -524,7 +528,27 @@
     "dragDrop": "Glissez et déposez votre image ici",
     "orClick": "ou cliquez pour parcourir les fichiers",
     "supportedFormats": "Formats supportés : PNG, JPEG, JPG, WebP",
-    "changeImage": "Changer l'image"
+    "changeImage": "Changer l'image",
+    "chooseDescription": "Quel type d'image souhaitez-vous ajouter ?",
+    "overlayOption": {
+      "title": "Image sur la carte",
+      "description": "Une vue de dessus ou aérienne que vous positionnez et redimensionnez sur la carte."
+    },
+    "renderOption": {
+      "title": "Vue d'artiste",
+      "description": "Un rendu ou une photo affiché dans le panneau d'information du projet."
+    },
+    "renderDialogTitle": "Ajouter une vue d'artiste",
+    "renderUploadDescription": "Ajoutez un rendu ou une photo du projet. Elle apparaît uniquement dans le panneau d'information du projet, elle n'est pas alignée sur la carte.",
+    "renderReplaceNote": "Cela remplacera la vue d'artiste actuelle du projet.",
+    "renderStaged": "Vue d'artiste ajoutée",
+    "renderStagedDetail": "Envoyez vos modifications pour la soumettre à validation."
+  },
+  "render": {
+    "label": "Vue d'artiste",
+    "pendingReview": "En attente de validation",
+    "notSubmitted": "Pas encore enregistrée, envoyez vos modifications pour validation",
+    "imageChange": "Nouvelle image"
   },
   "toast": {
     "validationError": "Erreur de validation",

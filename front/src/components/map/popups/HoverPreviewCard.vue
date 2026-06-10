@@ -23,18 +23,10 @@
         </span>
         <!-- Timeline status with dashed line preview matching the map vector style -->
         <div class="flex items-center gap-1.5">
-          <svg width="28" height="10" class="shrink-0">
-            <line
-              x1="0"
-              y1="5"
-              x2="28"
-              y2="5"
-              :stroke="firstTagColor(hoverPreview.data.tags[0])"
-              stroke-width="2.5"
-              :stroke-dasharray="timelineDasharray(hoverPreview.data.timelineStatus)"
-              stroke-linecap="round"
-            />
-          </svg>
+          <LinePreview
+            :status="hoverPreview.data.timelineStatus ?? ''"
+            :color="firstTagColor(hoverPreview.data.tags[0])"
+          />
           <span class="text-xs text-muted-color">
             {{
               $te(`timelineStatus.${hoverPreview.data.timelineStatus}`)
@@ -65,23 +57,24 @@ import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import LinePreview from "@/components/common/LinePreview.vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 const { te: $te, t: $t } = useI18n();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
-const { projectInfoPopup } = storeToRefs(uiStore);
-const { showInfoPopup, infoPopupOverlayId, overlays } = storeToRefs(overlayStore);
+const { projectDetail } = storeToRefs(uiStore);
+const { overlayDetailVisible, overlayDetailId, overlays } = storeToRefs(overlayStore);
 
-// Suppress when a persistent popup is already open for the hovered project
+// Suppress when a persistent detail panel is already open for the hovered project
 const suppress = computed(() => {
   const preview = hoverPreview.value;
   if (!preview || preview.type !== "project") return false;
-  if (projectInfoPopup.value.visible && projectInfoPopup.value.projectId === preview.projectId)
+  if (projectDetail.value.visible && projectDetail.value.projectId === preview.projectId)
     return true;
-  if (showInfoPopup.value && infoPopupOverlayId.value) {
-    const overlay = overlays.value[infoPopupOverlayId.value];
+  if (overlayDetailVisible.value && overlayDetailId.value) {
+    const overlay = overlays.value[overlayDetailId.value];
     if (overlay?.projectId === preview.projectId) return true;
   }
   return false;
@@ -97,19 +90,6 @@ function tagChipStyle(slug: string): Record<string, string> {
 
 function firstTagColor(slug: string | undefined): string {
   return PROJECT_TAG_MAP.get(slug ?? "")?.color ?? DEFAULT_TAG_COLOR;
-}
-
-// Dasharray values mirror the map vector line style for each timeline status
-const STATUS_DASHARRAY: Record<string, string> = {
-  proposed: "0,5",
-  planned: "7,4",
-  under_construction: "7,4",
-  completed: "",
-  canceled: "7,4",
-};
-
-function timelineDasharray(status: string | null): string {
-  return STATUS_DASHARRAY[status ?? ""] ?? "";
 }
 
 // Position the card centered horizontally under the cursor.

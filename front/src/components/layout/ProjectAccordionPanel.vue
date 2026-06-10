@@ -1,6 +1,7 @@
-﻿<template>
+<template>
   <div :class="['relative h-full flex flex-col', panelClass]">
     <div
+      v-if="title || $slots['header-actions']"
       class="sticky top-0 bg-content-hover-background flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
     >
       <h2 class="m-0 text-[1.1rem] font-semibold text-color tracking-tight whitespace-nowrap">
@@ -15,18 +16,72 @@
       ref="scrollAreaRef"
       class="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
+      <div v-if="$slots['below-header']" class="px-4 pb-2 pr-3">
+        <slot name="below-header"></slot>
+      </div>
+
       <div
-        v-if="projects.length > 0 || pinnedExternalProject"
+        v-if="projects.length > 0 || pinnedExternalProject || keepContentVisible"
         ref="contentRef"
         class="flex flex-col gap-2 pb-2 pr-3"
       >
-        <!-- Section label: external selected project or pinned own contribution -->
-        <div
-          v-if="pinnedExternalProject || pinnedProject"
-          class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
-        >
-          {{ $t("contribute.selectedProject") }}
-        </div>
+        <!-- Selected (external) project: a plain card bound to the current map selection. It appears
+             when a project is selected and is dropped when the selection clears (e.g. a background-map
+             click). The keyed Transition replays on every new selection so the swap is noticeable in
+             peripheral vision. -->
+        <Transition name="selected-card" mode="out-in">
+          <div v-if="pinnedExternalProject" :key="pinnedExternalProject.id" class="mb-1">
+            <div
+              class="pl-3 pt-1 pb-0.5 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+            >
+              {{ $t("contribute.selectedProject") }}
+            </div>
+            <div class="selected-project-card" :data-project-id="pinnedExternalProject.id">
+              <ProjectHeader
+                plain
+                :name="pinnedExternalProject.name ?? ''"
+                :status="pinnedExternalProject.status"
+                :hide-status-badges="hideStatusBadges"
+                :import-source-type="pinnedExternalProject.importSource?.type ?? null"
+                :external-properties="pinnedExternalProject.externalProperties"
+              />
+              <ProjectContent
+                plain
+                :project="pinnedExternalProject"
+                :project-changes="[]"
+                :all-change-requests="[]"
+                :overlay-changes-map="new Map()"
+                :projects-context="[pinnedExternalProject]"
+                :is-contribute-panel="false"
+                :show-user-stats-link="showUserStatsLink"
+                :hide-status-badges="hideStatusBadges"
+                :show-edit-buttons="false"
+                hide-chevron
+                :on-navigate-to-overlay="navigateToOverlayById"
+                :on-overlay-click="onOverlayClick"
+                @edit-project="handleStandaloneProjectClick"
+                @project-click="(p) => emit('external-project-click', p)"
+                @highlight-project="handleProjectHighlight"
+                @remove-project-highlight="handleProjectUnhighlight"
+                @highlight-overlay="highlightOverlayById"
+                @remove-highlight="removeOverlayHighlight"
+              >
+                <template v-if="$slots['project-actions']" #project-actions="{ project: p }">
+                  <slot name="project-actions" :project="p" :is-external="true"></slot>
+                </template>
+                <template v-if="$slots['change-actions']" #change-actions="{ change }">
+                  <slot name="change-actions" :change="change"></slot>
+                </template>
+                <template
+                  v-if="$slots['overlay-actions']"
+                  #overlay-actions="{ overlay, project: p }"
+                >
+                  <slot name="overlay-actions" :overlay="overlay" :project="p"></slot>
+                </template>
+              </ProjectContent>
+            </div>
+          </div>
+        </Transition>
 
         <!-- Single accordion for all flat-list panels -->
         <Accordion
@@ -35,53 +90,15 @@
           v-model:value="activeAccordionPanels"
           class="city-accordion"
         >
-          <!-- External pinned project (selected on map, not in user contributions) -->
-          <AccordionPanel
-            v-if="pinnedExternalProject"
-            :key="pinnedExternalProject.id"
-            :value="pinnedExternalProject.id"
-            :data-project-id="pinnedExternalProject.id"
-          >
-            <ProjectHeader
-              :name="pinnedExternalProject.name ?? ''"
-              :status="pinnedExternalProject.status"
-              :hide-status-badges="hideStatusBadges"
-              :import-source-type="pinnedExternalProject.importSource?.type ?? null"
-            />
-            <ProjectContent
-              :project="pinnedExternalProject"
-              :project-changes="[]"
-              :all-change-requests="[]"
-              :overlay-changes-map="new Map()"
-              :projects-context="[pinnedExternalProject]"
-              :is-contribute-panel="false"
-              :show-user-stats-link="showUserStatsLink"
-              :hide-status-badges="hideStatusBadges"
-              :show-edit-buttons="false"
-              :on-navigate-to-overlay="navigateToOverlayById"
-              :on-overlay-click="onOverlayClick"
-              @edit-project="handleStandaloneProjectClick"
-              @project-click="(p) => emit('external-project-click', p)"
-              @highlight-project="handleProjectHighlight"
-              @remove-project-highlight="handleProjectUnhighlight"
-              @highlight-overlay="highlightOverlayById"
-              @remove-highlight="removeOverlayHighlight"
-            >
-              <template
-                v-if="$slots['pinned-external-project-actions']"
-                #project-actions="{ project: p }"
-              >
-                <slot name="pinned-external-project-actions" :project="p"></slot>
-              </template>
-            </ProjectContent>
-          </AccordionPanel>
-
-          <!-- "Your contributions" section divider, shown only when a selected project is pinned above -->
+          <!-- "Your contributions" section header: custom controls (contribute panel) or plain divider -->
+          <template v-if="$slots['contributions-header']">
+            <slot name="contributions-header"></slot>
+          </template>
           <template
-            v-if="(pinnedExternalProject || pinnedProject) && flatOrderedProjects.length > 0"
+            v-else-if="(pinnedExternalProject || pinnedProject) && flatOrderedProjects.length > 0"
           >
             <div
-              class="-mr-3 px-4 py-2 bg-[color-mix(in_srgb,var(--p-primary-color)_8%,var(--p-content-background))] border-b border-primary-200 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
+              class="pt-1 pb-0.5 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
             >
               {{ $t("contribute.yourContributions") }}
             </div>
@@ -100,6 +117,7 @@
               :hide-status-badges="hideStatusBadges"
               :pending-change-count="getPendingChangeCount(project)"
               :import-source-type="project.importSource?.type ?? null"
+              :external-properties="project.externalProperties"
             />
             <ProjectContent
               :project="project"
@@ -122,7 +140,12 @@
               @remove-highlight="removeOverlayHighlight"
             >
               <template #project-actions="{ project: p }">
-                <slot v-if="$slots['project-actions']" name="project-actions" :project="p"></slot>
+                <slot
+                  v-if="$slots['project-actions']"
+                  name="project-actions"
+                  :project="p"
+                  :is-external="false"
+                ></slot>
               </template>
               <template #change-actions="{ change }">
                 <slot name="change-actions" :change="change"></slot>
@@ -138,6 +161,14 @@
             </ProjectContent>
           </AccordionPanel>
         </Accordion>
+
+        <!-- Filter yields no matches, but contributions exist: keep controls above visible -->
+        <PanelEmptyState
+          v-if="flatOrderedProjects.length === 0 && !pinnedExternalProject"
+          icon="folder"
+          :message="emptyMessage"
+          :sub-message="emptySubMessage"
+        />
       </div>
 
       <!-- Empty state -->
@@ -169,7 +200,6 @@
 <script setup lang="ts">
 import { computed, watch, nextTick, onMounted, onActivated, onDeactivated, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { Accordion, AccordionPanel } from "primevue";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
 import ProjectContent from "@/components/project/ProjectContent.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
@@ -183,7 +213,7 @@ import type {
 import {
   activeAccordionPanels,
   expandAccordionForOverlay,
-  expandAccordionForProject,
+  expandProjectPanel,
   consumeScrollRequest,
   pendingScrollRequest,
 } from "@/services/layout/accordionState";
@@ -200,7 +230,7 @@ import {
   unhighlightStandaloneProjectMarker,
 } from "@/services/map/standaloneProjectMarkers";
 import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
-import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/overlaySelection";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -208,30 +238,39 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 interface Props {
   projects: ProjectForModeration[];
   isLoading: boolean;
-  title: string;
-  panelClass: string;
+  title?: string;
+  panelClass?: string;
   emptyMessage?: string;
   emptySubMessage?: string;
   changeRequests?: PendingChangeRequest[];
   onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>;
+  // Enables "my contributions" behavior in change request sections (e.g. own-change wording).
+  isContributePanel?: boolean;
   showUserStatsLink?: boolean;
   hideStatusBadges?: boolean;
   disableAutoModeSwitch?: boolean;
   showEditButtons?: boolean;
   pinnedProjectId?: string | null;
   pinnedExternalProject?: ProjectForModeration | null;
+  // Keep the content area mounted even when the (filtered) project list is empty, so a consumer
+  // rendering its own filter controls via #contributions-header does not lose them on empty results.
+  keepContentVisible?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  title: "",
+  panelClass: "",
   emptyMessage: "",
   emptySubMessage: "",
   changeRequests: () => [],
+  isContributePanel: false,
   showUserStatsLink: false,
   hideStatusBadges: false,
   disableAutoModeSwitch: false,
   showEditButtons: false,
   pinnedProjectId: null,
   pinnedExternalProject: null,
+  keepContentVisible: false,
 });
 
 const emit = defineEmits<{
@@ -263,8 +302,6 @@ watch(
     }
   },
 );
-
-const isContributePanel = computed(() => props.panelClass === "my-contributions-panel");
 
 const flatOrderedProjects = computed(() => {
   if (!props.pinnedProjectId) return props.projects;
@@ -333,7 +370,7 @@ async function handleScrollRequest() {
     await waitForAccordionAnimation(overlayId, !wasExpanded);
   } else if (request.type === "project") {
     const projectId = String(request.id);
-    const expanded = expandAccordionForProject(projectId, props.projects);
+    const expanded = expandProjectPanel(projectId);
     if (expanded) {
       await nextTick();
       await waitForProjectAccordionAnimation(projectId);
@@ -566,17 +603,15 @@ async function handleCardClick(project: ProjectForModeration) {
       return;
     }
   }
-  const hasOverlays = project.overlays && project.overlays.length > 0;
-  if (hasOverlays) {
-    if (project.overlays[0]) {
-      handleOverlayCardClick(project.overlays[0]);
-    }
+  const firstOverlay = project.overlays?.[0];
+  if (firstOverlay) {
+    await handleOverlayCardClick(firstOverlay);
   } else {
     handleStandaloneProjectClick(project);
   }
 }
 
-async function handleProjectHighlight(project: ProjectForModeration) {
+function handleProjectHighlight(project: ProjectForModeration) {
   if (hasProjectShapes(project.id)) {
     highlightProjectShapes(project.id);
     return;
@@ -586,7 +621,7 @@ async function handleProjectHighlight(project: ProjectForModeration) {
   }
 }
 
-async function handleProjectUnhighlight(project: ProjectForModeration) {
+function handleProjectUnhighlight(project: ProjectForModeration) {
   if (hasProjectShapes(project.id)) {
     unhighlightProjectShapes(project.id);
     return;
@@ -604,7 +639,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration) {
   }
 }
 
-async function handleStandaloneProjectClick(project: ProjectForModeration) {
+function handleStandaloneProjectClick(project: ProjectForModeration) {
   try {
     if (typeof project.lat !== "number" || typeof project.lng !== "number") {
       toast.add({
@@ -619,7 +654,7 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
     if (!props.disableAutoModeSwitch && mapStore.mode !== "edit") {
       mapStore.setMode("edit");
     }
-    await navigateToStandaloneProject(project.lat, project.lng, project.id);
+    navigateToStandaloneProject(project.lat, project.lng, project.id);
   } catch (error) {
     console.error("Failed to navigate to project:", error);
     toast.add({
@@ -674,5 +709,47 @@ async function handleStandaloneProjectClick(project: ProjectForModeration) {
   background: transparent !important;
   padding: 0.5rem 0.5rem 0.75rem;
   border-radius: 0 0 12px 12px;
+}
+
+/* Selected (external) project card: slide-in entrance, replayed on every new selection. */
+.selected-card-enter-active {
+  transition:
+    opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.selected-card-leave-active {
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+.selected-card-enter-from,
+.selected-card-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Plain selection card: styled to match the accordion cards below, but with no collapse. The
+   one-shot accent pulse (same primary color as the map highlight) links it to the clicked feature
+   and replays on mount, i.e. on each new selection. */
+.selected-project-card {
+  margin-left: 12px;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 12px;
+  background: var(--accordion-card-bg);
+  overflow: hidden;
+  animation: selected-project-pulse 1.3s ease-out;
+}
+
+@keyframes selected-project-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--p-primary-color) 50%, transparent);
+    border-color: var(--p-primary-color);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--p-primary-color) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 </style>

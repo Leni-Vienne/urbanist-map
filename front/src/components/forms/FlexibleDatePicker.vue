@@ -76,9 +76,6 @@
 import { ref, watch, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDate";
-import SelectButton from "primevue/selectbutton";
-import Select from "primevue/select";
-import DatePicker from "primevue/datepicker";
 
 const props = defineProps<{
   modelValue: FlexibleDateInput | null;

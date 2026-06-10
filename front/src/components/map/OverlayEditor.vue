@@ -54,7 +54,7 @@
 import { ref, computed, watch } from "vue";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-import { updateOverlayInfo } from "@/services/overlay/overlayActions";
+import { updateOverlayInfo } from "@/services/overlay/actions";
 import { useUiStore, type OverlayEditTarget } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types/index";
 

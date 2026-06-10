@@ -1,106 +1,64 @@
 <template>
-  <AccordionContent>
+  <component
+    :is="plain ? 'div' : AccordionContent"
+    :class="plain ? 'project-content-plain' : undefined"
+  >
     <div
       class="cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:scale-[0.99] rounded-lg"
       @click="handleCardClick"
       @mouseenter="$emit('highlight-project', project)"
       @mouseleave="$emit('remove-project-highlight', project)"
     >
-      <div class="flex flex-row items-start gap-3">
+      <div class="flex flex-row items-start gap-y-3">
         <div class="flex-1 min-w-0">
-          <div v-if="project.description" class="mb-4">
-            <p class="text-sm leading-relaxed text-color m-0">
-              {{ project.description }}
-            </p>
-          </div>
-          <div v-if="project.tags && project.tags.length > 0" class="flex flex-wrap gap-1.5 mb-3">
-            <span
-              v-for="tag in project.tags"
-              :key="tag"
-              class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-              :style="getTagStyle(tag)"
-            >
-              {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
-            </span>
-          </div>
-          <div class="flex flex-col gap-2">
-            <div
-              v-if="project.timelineStatus"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-flag text-xs text-muted-color w-3.5 shrink-0"></i>
-              <span>{{
-                $te(`timelineStatus.${project.timelineStatus}`)
-                  ? $t(`timelineStatus.${project.timelineStatus}`)
-                  : project.timelineStatus
-              }}</span>
-            </div>
-            <div
-              v-if="contributorDate"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-pencil text-xs text-muted-color w-3.5 shrink-0"></i>
-              <ContributorInfo
-                :date="contributorDate"
-                :contributor-id="project.ownerId"
-                :contributor-username="project.ownerUsername"
-                :report-count="project.ownerReportCount ?? 0"
-                :clickable="showUserStatsLink && Boolean(project.ownerId)"
-                @click-contributor="handleProjectContributorClick"
-              />
-            </div>
-            <div
-              v-if="overlayCount > 0"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-images text-xs text-muted-color w-3.5 shrink-0"></i>
-              <span
-                >{{ overlayCount }}
-                {{
-                  overlayCount === 1 ? $t("overlay.overlayImage") : $t("overlay.overlayImages")
-                }}</span
-              >
-            </div>
-            <div
-              v-if="project.startDate || project.endDate || project.proposalDate"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-calendar text-xs text-muted-color w-3.5 shrink-0"></i>
-              <span>{{ formatProjectDateRange(project, $t) }}</span>
-            </div>
-            <div
-              v-if="project.sourceUrl"
-              class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary)"
-            >
-              <i class="pi pi-link text-xs text-muted-color w-3.5 shrink-0"></i>
-              <a
-                :href="project.sourceUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-primary-color no-underline hover:underline"
-                @click.stop
-                >{{ formatSourceUrl(project.sourceUrl) }}</a
-              >
-            </div>
+          <ProjectMetadataCard
+            :project="project"
+            :show-name="false"
+            :show-description="true"
+            show-wikidata-media
+          />
+
+          <!-- Contributor line: accordion-only context the metadata card omits -->
+          <div
+            v-if="contributorDate"
+            class="flex items-center gap-2 text-[13px] text-(--p-text-color-secondary) mt-3"
+          >
+            <i class="pi pi-pencil text-xs text-muted-color w-3.5 shrink-0"></i>
+            <ContributorInfo
+              :date="contributorDate"
+              :contributor-id="project.ownerId"
+              :contributor-username="project.ownerUsername"
+              :report-count="project.ownerReportCount ?? 0"
+              :clickable="showUserStatsLink && Boolean(project.ownerId)"
+              @click-contributor="handleProjectContributorClick"
+            />
           </div>
         </div>
 
-        <!-- Actions column - either slot actions, edit button, or chevron -->
+        <!-- Actions column - edit button or chevron (inline action buttons render at card bottom) -->
         <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
-          <slot v-if="$slots['project-actions']" name="project-actions" :project="project"></slot>
           <button
-            v-else-if="showEditButtons"
-            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
+            v-if="!$slots['project-actions'] && showEditButtons"
+            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_40%,transparent)]"
             @click.stop="$emit('edit-project', project)"
             v-tooltip.top="$t('common.edit')"
           >
             <i class="pi pi-pencil"></i>
           </button>
           <i
-            v-else
+            v-else-if="!hideChevron"
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150"
           ></i>
         </div>
+      </div>
+
+      <!-- Inline action buttons row, aligned to the bottom of the card -->
+      <div
+        v-if="$slots['project-actions']"
+        class="flex flex-row flex-wrap gap-1.5 mt-3 py-1"
+        @click.stop
+      >
+        <slot name="project-actions" :project="project"></slot>
       </div>
 
       <div class="cursor-default" @click.stop>
@@ -149,9 +107,12 @@
           @mouseenter="$emit('highlight-overlay', overlay.id)"
           @mouseleave="$emit('remove-highlight', overlay.id)"
         >
-          <!-- Overlay thumbnail -->
+          <!-- Overlay thumbnail (click to view the full image, e.g. renders that have no map view) -->
           <div
             class="w-15 h-15 rounded-xl overflow-hidden bg-content-hover-background flex items-center justify-center shrink-0"
+            :class="!imageErrors[overlay.id] ? 'cursor-zoom-in' : ''"
+            @click.stop="!imageErrors[overlay.id] && openLightbox(overlay)"
+            v-tooltip.top="!imageErrors[overlay.id] ? $t('overlay.viewFullImage') : undefined"
           >
             <img
               v-if="!imageErrors[overlay.id]"
@@ -180,7 +141,10 @@
                   overlay.caption ? 'text-color' : 'italic text-muted-color',
                 ]"
               >
-                {{ overlay.caption || $t("overlay.untitled") }}
+                {{
+                  overlay.caption ||
+                  (overlay.kind === "render" ? $t("render.label") : $t("overlay.untitled"))
+                }}
               </p>
             </div>
             <div class="text-xs text-muted-color mb-2">
@@ -203,7 +167,7 @@
               />
               <button
                 v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
-                class="inline-flex items-center gap-1 py-1 px-2 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-md cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800"
+                class="inline-flex items-center gap-1 py-1 px-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-800 dark:hover:text-purple-200"
                 @click.stop="onNavigateToOverlay(overlay.replacesOverlayId)"
                 v-tooltip.top="$t('overlay.viewOriginalOverlay')"
               >
@@ -244,15 +208,18 @@
         </div>
       </div>
     </div>
-  </AccordionContent>
+
+    <!-- Full-image lightbox, opened from an overlay thumbnail -->
+    <ImageLightbox ref="lightbox" />
+  </component>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { AccordionContent, Tag } from "primevue";
+import { computed, useTemplateRef } from "vue";
+import { AccordionContent } from "primevue";
+import { useI18n } from "vue-i18n";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import { formatSourceUrl } from "@/utils/urlFormat";
-import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type {
   ProjectForModeration,
@@ -263,28 +230,26 @@ import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
-import { formatProjectDateRange } from "@/utils/projectDateFormat";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
+const { t } = useI18n();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
-
-function getTagStyle(slug: string): Record<string, string> {
-  const tag = PROJECT_TAG_MAP.get(slug);
-  if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
-  return { backgroundColor: tag.color, color: tag.textColor };
-}
 
 interface Props {
   project: ProjectForModeration;
   projectChanges: PendingChangeRequest[];
   allChangeRequests: PendingChangeRequest[];
-  overlayChangesMap?: Map<string, PendingChangeRequest[]>;
+  overlayChangesMap: Map<string, PendingChangeRequest[]>;
   projectsContext: ProjectForModeration[];
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
   hideStatusBadges?: boolean;
   showEditButtons?: boolean;
-  isExpanded?: boolean;
+  // Hide the project-level navigation chevron (e.g. in the "selected project" card).
+  hideChevron?: boolean;
+  // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
+  plain?: boolean;
   onNavigateToOverlay: (overlayId: string) => Promise<void>;
   onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>;
 }
@@ -311,16 +276,10 @@ const emit = defineEmits<{
 
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
-const overlayCount = computed(
-  () => props.project.overlayCount || (props.project.overlays?.length ?? 0),
-);
-
-// OSM-imported projects expose updatedAt as the import date, which carries no
-// meaning for users. Show the source's own last-modified date instead, and hide
-// the line entirely when that date is unknown.
-const isOsmImport = computed(() => props.project.importSource?.type === "osm");
+// OSM-imported projects have no on-site contributor and their updatedAt is just
+// the import date, so the contributor line carries no meaning: hide it for them.
 const contributorDate = computed(() =>
-  isOsmImport.value ? props.project.externalLastModified : props.project.updatedAt,
+  props.project.importSource?.type === "osm" ? null : props.project.updatedAt,
 );
 
 const shouldShowOverlays = computed(() => {
@@ -363,6 +322,13 @@ function handleOverlayContributorClick(
 }
 
 async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
+  // Renders aren't on the map, so navigating to them is meaningless (and crashes the corner-based
+  // intersection lookup). Show the full image instead.
+  if (overlay.kind === "render") {
+    openLightbox(overlay);
+    return;
+  }
+
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, shouldFitBounds);
   } else {
@@ -371,22 +337,34 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 }
 
 function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
-  if (props.overlayChangesMap) {
-    return props.overlayChangesMap.get(overlayId) || [];
-  }
-
-  const overlay = props.project.overlays?.find((o) => o.id === overlayId) || null;
-
-  if (!overlay || overlay.status === "pending") {
-    return [];
-  }
-  return props.allChangeRequests.filter(
-    (request) => request.entityType === "overlay" && request.entityId === overlayId,
-  );
+  return props.overlayChangesMap.get(overlayId) || [];
 }
 
 function getOverlayImageUrl(filename: string, status?: string | null): string {
   const forceBackendUrl = status === "pending" || status === null;
   return buildThumbnailUrl(filename, forceBackendUrl);
 }
+
+// Full-image lightbox for inspecting an overlay/render beyond its sidebar thumbnail.
+const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
+
+function openLightbox(overlay: OverlayForModeration): void {
+  if (!overlay.filename && !overlay.imageUrl) return;
+  const forceBackendUrl = overlay.status === "pending" || overlay.status === null;
+  const url = overlay.imageUrl || buildImageUrl(overlay.filename, forceBackendUrl);
+  lightbox.value?.open({
+    url,
+    header:
+      overlay.caption || (overlay.kind === "render" ? t("render.label") : t("overlay.untitled")),
+    crossorigin: imageRequiresCredentials(url) ? "use-credentials" : undefined,
+  });
+}
 </script>
+
+<style scoped>
+/* Mirror the .p-accordioncontent-content padding so the plain card matches accordion cards. */
+.project-content-plain {
+  display: block;
+  padding: 0.5rem 0.5rem 0.5rem;
+}
+</style>
