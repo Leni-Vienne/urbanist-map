@@ -9,7 +9,7 @@
       @mouseenter="$emit('highlight-project', project)"
       @mouseleave="$emit('remove-project-highlight', project)"
     >
-      <div class="flex flex-row items-start gap-3">
+      <div class="flex flex-row items-start gap-y-3">
         <div class="flex-1 min-w-0">
           <ProjectMetadataCard
             :project="project"
@@ -39,14 +39,14 @@
         <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
           <button
             v-if="!$slots['project-actions'] && showEditButtons"
-            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200"
+            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_40%,transparent)]"
             @click.stop="$emit('edit-project', project)"
             v-tooltip.top="$t('common.edit')"
           >
             <i class="pi pi-pencil"></i>
           </button>
           <i
-            v-else
+            v-else-if="!hideChevron"
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150"
           ></i>
         </div>
@@ -167,7 +167,7 @@
               />
               <button
                 v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
-                class="inline-flex items-center gap-1 py-1 px-2 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-md cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800"
+                class="inline-flex items-center gap-1 py-1 px-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-800 dark:hover:text-purple-200"
                 @click.stop="onNavigateToOverlay(overlay.replacesOverlayId)"
                 v-tooltip.top="$t('overlay.viewOriginalOverlay')"
               >
@@ -210,32 +210,14 @@
     </div>
 
     <!-- Full-image lightbox, opened from an overlay thumbnail -->
-    <Dialog
-      v-model:visible="lightboxVisible"
-      modal
-      dismissableMask
-      :draggable="false"
-      :header="
-        lightbox?.caption ||
-        (lightbox?.kind === 'render' ? $t('render.label') : $t('overlay.untitled'))
-      "
-      :style="{ width: 'auto', maxWidth: '90vw' }"
-      :pt="{ content: { class: 'p-0' } }"
-    >
-      <img
-        v-if="lightbox"
-        :src="lightbox.url"
-        :alt="lightbox.caption ?? undefined"
-        :crossorigin="imageRequiresCredentials(lightbox.url) ? 'use-credentials' : undefined"
-        class="block max-h-[80vh] max-w-[90vw] object-contain"
-      />
-    </Dialog>
+    <ImageLightbox ref="lightbox" />
   </component>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { AccordionContent, Tag, Dialog } from "primevue";
+import { computed, useTemplateRef } from "vue";
+import { AccordionContent } from "primevue";
+import { useI18n } from "vue-i18n";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
@@ -248,21 +230,24 @@ import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
+const { t } = useI18n();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 interface Props {
   project: ProjectForModeration;
   projectChanges: PendingChangeRequest[];
   allChangeRequests: PendingChangeRequest[];
-  overlayChangesMap?: Map<string, PendingChangeRequest[]>;
+  overlayChangesMap: Map<string, PendingChangeRequest[]>;
   projectsContext: ProjectForModeration[];
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
   hideStatusBadges?: boolean;
   showEditButtons?: boolean;
-  isExpanded?: boolean;
+  // Hide the project-level navigation chevron (e.g. in the "selected project" card).
+  hideChevron?: boolean;
   // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
   plain?: boolean;
   onNavigateToOverlay: (overlayId: string) => Promise<void>;
@@ -352,18 +337,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBo
 }
 
 function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
-  if (props.overlayChangesMap) {
-    return props.overlayChangesMap.get(overlayId) || [];
-  }
-
-  const overlay = props.project.overlays?.find((o) => o.id === overlayId) || null;
-
-  if (!overlay || overlay.status === "pending") {
-    return [];
-  }
-  return props.allChangeRequests.filter(
-    (request) => request.entityType === "overlay" && request.entityId === overlayId,
-  );
+  return props.overlayChangesMap.get(overlayId) || [];
 }
 
 function getOverlayImageUrl(filename: string, status?: string | null): string {
@@ -372,26 +346,18 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
 }
 
 // Full-image lightbox for inspecting an overlay/render beyond its sidebar thumbnail.
-const lightbox = ref<{
-  url: string;
-  caption: string | null;
-  kind: OverlayForModeration["kind"];
-} | null>(null);
-const lightboxVisible = computed({
-  get: () => lightbox.value !== null,
-  set: (value: boolean) => {
-    if (!value) lightbox.value = null;
-  },
-});
+const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
 function openLightbox(overlay: OverlayForModeration): void {
   if (!overlay.filename && !overlay.imageUrl) return;
   const forceBackendUrl = overlay.status === "pending" || overlay.status === null;
-  lightbox.value = {
-    url: overlay.imageUrl || buildImageUrl(overlay.filename, forceBackendUrl),
-    caption: overlay.caption,
-    kind: overlay.kind,
-  };
+  const url = overlay.imageUrl || buildImageUrl(overlay.filename, forceBackendUrl);
+  lightbox.value?.open({
+    url,
+    header:
+      overlay.caption || (overlay.kind === "render" ? t("render.label") : t("overlay.untitled")),
+    crossorigin: imageRequiresCredentials(url) ? "use-credentials" : undefined,
+  });
 }
 </script>
 

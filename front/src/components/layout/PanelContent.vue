@@ -25,8 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, watch } from "vue";
-import type { PanelTab } from "@/types";
+import { computed, defineAsyncComponent, watch } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -44,19 +43,18 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 
+// Tab is read straight from the store (single source of truth, see mapStore.mode).
+const activeTab = computed(() => uiStore.activeTab);
+
 // Switching to the latest tab clears any open detail so it does not linger when switching back.
-watch(
-  () => uiStore.activeTab,
-  (tab) => {
-    if (tab === "latest") {
-      overlayStore.closeOverlayDetail();
-      uiStore.closeProjectDetail();
-    }
-  },
-);
+watch(activeTab, (tab) => {
+  if (tab === "latest") {
+    overlayStore.closeOverlayDetail();
+    uiStore.closeProjectDetail();
+  }
+});
 
 defineProps<{
-  activeTab: PanelTab;
   contentContainerClass: string;
 }>();
 </script>

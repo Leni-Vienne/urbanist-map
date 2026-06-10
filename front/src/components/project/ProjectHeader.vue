@@ -44,7 +44,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { AccordionHeader, Tag, Badge } from "primevue";
+import { AccordionHeader } from "primevue";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 

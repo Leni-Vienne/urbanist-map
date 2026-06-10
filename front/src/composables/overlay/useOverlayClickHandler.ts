@@ -14,8 +14,6 @@ import {
   syncModerationCountry,
 } from "@/services/moderation/moderationCountrySync";
 
-export { canModerateCountry, syncModerationCountry };
-
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
 

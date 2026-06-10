@@ -185,6 +185,12 @@ async function initializeMapAndOverlays() {
   left: 7px;
 }
 
+/* MapLibre's attribution keeps its light background in dark mode, so the plain (non-link)
+   text would inherit the dark-mode light text color and vanish. Force readable colors. */
+:deep(.maplibregl-ctrl-attrib) {
+  color: rgba(0, 0, 0, 0.75);
+}
+
 /* Global CSS for custom SVG markers */
 :global(.custom-svg-marker) {
   background: none !important;

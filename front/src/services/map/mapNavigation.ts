@@ -21,6 +21,11 @@ interface FlyOptions {
    * center). When set, the skip-if-already-there check runs in screen space against that anchor.
    */
   offset?: [number, number];
+  /**
+   * Top inset (px) used when the mobile drawer is open. Defaults to the overlay-toolbar clearance;
+   * pass a smaller value for content with no top toolbar (e.g. vector shapes/points).
+   */
+  mobileTopInset?: number;
 }
 
 interface FlyToBoundsOptions extends FlyOptions {
@@ -88,22 +93,19 @@ function shouldApplyMobileOffset(): boolean {
   return useUiStore().mobileDrawerVisible;
 }
 
+// Measures the rendered drawer instead of estimating from mobileDrawerHeightPercent: the drawer is
+// sized in vh while innerHeight tracks the visible viewport, and the map container (h-screen) can
+// extend below it (mobile URL bar), so an estimate undershoots and content hides under the drawer.
 function getMobileDrawerBottomPaddingPx(): number {
+  const margin = 30; // margin above the drawer edge
+  const drawer = document.querySelector(".draggable-drawer");
+  if (drawer) {
+    const containerBottom = map.value.getContainer().getBoundingClientRect().bottom;
+    const drawerTop = drawer.getBoundingClientRect().top;
+    return Math.max(0, containerBottom - drawerTop) + margin;
+  }
   const uiStore = useUiStore();
-  const drawerHeightPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
-  return drawerHeightPx + 30; // margin above the drawer edge
-}
-
-// Mode controls + drawer grip below the drawer edge that an upward detail panel must also clear.
-const MOBILE_DRAWER_CONTROLS_BUFFER = 110;
-// Gap kept between the resting anchor and the mobile UI it sits above.
-const MOBILE_ANCHOR_BOTTOM_GAP = 24;
-
-/** Bottom px covered by mobile UI (drawer + mode controls) that the project detail opens above. */
-function mobileBottomBlockedPx(): number {
-  const uiStore = useUiStore();
-  const drawerPx = (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
-  return drawerPx + MOBILE_DRAWER_CONTROLS_BUFFER;
+  return (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight + margin;
 }
 
 // Caps padding so opposing insets never exceed the container; otherwise cameraForBounds produces
@@ -130,13 +132,24 @@ function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions
   return padding;
 }
 
+// Top inset clearing the overlay editing toolbar when navigating to an overlay on mobile.
+const MOBILE_OVERLAY_TOP_INSET = 140;
+
 // Resolves the padding for a camera move, then caps it to the container. When the mobile drawer
 // is open this intentionally overrides any caller-provided `p` so the target clears the drawer;
 // otherwise `p` is used (single inset, or [horizontal, vertical]), defaulting to 50px.
-function resolvePadding(p?: number | [number, number]): PaddingOptions | number {
+function resolvePadding(
+  p?: number | [number, number],
+  mobileTopInset: number = MOBILE_OVERLAY_TOP_INSET,
+): PaddingOptions | number {
   let result: PaddingOptions | number = 50;
   if (shouldApplyMobileOffset()) {
-    result = { top: 140, bottom: getMobileDrawerBottomPaddingPx(), left: 50, right: 50 };
+    result = {
+      top: mobileTopInset,
+      bottom: getMobileDrawerBottomPaddingPx(),
+      left: 50,
+      right: 50,
+    };
   } else if (typeof p === "number") {
     result = p;
   } else if (Array.isArray(p)) {
@@ -182,7 +195,7 @@ export function mobileAwareFlyTo(
     center: [target.lng, target.lat],
     zoom: targetZoom,
     duration: duration * 1000,
-    padding: resolvePadding(),
+    padding: resolvePadding(undefined, options.mobileTopInset),
     ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
   });
@@ -209,7 +222,7 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   m.easeTo({
     center: [target.lng, target.lat],
     duration: duration * 1000,
-    padding: resolvePadding(),
+    padding: resolvePadding(undefined, options.mobileTopInset),
     ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
   });
@@ -362,8 +375,8 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 }
 
 /**
- * Zoom in to frame a `sizeM`-meter geometry (zoom 14 when unknown), never out, then bring the point
- * into the unobstructed map area. `fromMapClick` keeps the desktop camera still since the feature is
+ * Zoom in to frame a `sizeM`-meter geometry (zoom 14 when unknown), never out, then center the point
+ * in the unobstructed map area. `fromMapClick` keeps the desktop camera still since the feature is
  * already on-screen and the docked detail sits beside the map, not over it. Returns whether a move
  * was started.
  */
@@ -380,41 +393,14 @@ export function flyToGeometry(
   const currentZoom = m.getZoom();
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
-  const offset = featureAnchorOffset();
 
   if (targetZoom !== currentZoom) {
-    mobileAwareFlyTo(target, targetZoom, { offset });
+    mobileAwareFlyTo(target, targetZoom);
     return true;
   }
-  // Same zoom: pan to recenter the feature (panTo self-skips if already framed). Mobile lifts it
-  // above the drawer via the offset; desktop centers it. Desktop map clicks never reach here
+  // Same zoom: pan to recenter the feature (panTo self-skips if already framed). Drawer-aware
+  // padding centers it in the map area above the mobile drawer. Desktop map clicks never reach here
   // (fromMapClick returns above), so this path only recenters list/drawer navigation.
-  mobileAwarePanTo(target, { offset });
+  mobileAwarePanTo(target);
   return true;
-}
-
-/**
- * Screen-space offset lifting a selected feature above the mobile drawer so it stays visible while
- * the docked detail is open. Desktop centers the feature (the side panel is a layout sibling, not
- * an overlay), so no offset is applied there.
- */
-export function featureAnchorOffset(): [number, number] | undefined {
-  const m = map.value;
-  if (!m || !isMobileViewport()) return undefined;
-  const h = m.getContainer().clientHeight;
-  if (h <= 0) return undefined;
-  // Just above the drawer-blocked region, floored at 0.3h so a tall drawer can't push it off-top.
-  const desiredY = Math.max(h - mobileBottomBlockedPx() - MOBILE_ANCHOR_BOTTOM_GAP, h * 0.3);
-  return [0, desiredY - paddedCenterY()];
-}
-
-/** Screen-Y (px) of the viewport center after drawer-aware padding, before any feature offset. */
-function paddedCenterY(): number {
-  const m = map.value;
-  if (!m) return 0;
-  const h = m.getContainer().clientHeight;
-  const padding = resolvePadding();
-  const top = typeof padding === "number" ? padding : (padding.top ?? 0);
-  const bottom = typeof padding === "number" ? padding : (padding.bottom ?? 0);
-  return (top + (h - bottom)) / 2;
 }

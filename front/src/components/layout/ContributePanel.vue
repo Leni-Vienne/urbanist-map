@@ -9,8 +9,7 @@
     :pinned-external-project="pinnedExternalProject"
     :keep-content-visible="allContributions.length > 0"
     @external-project-click="handleExternalProjectClick"
-    title=""
-    panel-class="my-contributions-panel"
+    is-contribute-panel
     :empty-message="
       allContributions.length > 0 && filteredProjects.length === 0
         ? $t('contribute.noProjectsMatchFilter')
@@ -44,7 +43,7 @@
       <!-- Edit button - hide for replaced overlays and not-yet-submitted staged renders -->
       <button
         v-if="overlay.status !== 'replaced' && !isStagedRenderOverlay(overlay)"
-        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-primary-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_40%,transparent)]"
         @click.stop="handleEditOverlayClick(overlay)"
         v-tooltip.top="$t('tooltips.editOverlay')"
       >
@@ -53,7 +52,7 @@
       <!-- Show delete for drafts (null/undefined), pending, or rejected overlays -->
       <button
         v-if="!overlay.status || overlay.status === 'pending' || overlay.status === 'rejected'"
-        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
         @click.stop="handleDeleteOverlayClick(overlay)"
         v-tooltip.top="$t('contribute.deleteOverlay')"
       >
@@ -64,7 +63,7 @@
     <template #change-actions="{ change }">
       <button
         v-if="change.status === 'pending' || change.status === 'conflicted'"
-        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
         @click.stop="handleDeleteChangeRequestClick(change)"
         v-tooltip.top="$t('contribute.deleteChangeRequest')"
       >
@@ -80,7 +79,7 @@
         {{ $t("contribute.guest.description") }}
       </p>
       <Button
-        @click="handleAddOverlayClick"
+        @click="handleNewProjectClick"
         severity="primary"
         size="small"
         icon="pi pi-plus"
@@ -101,7 +100,7 @@
             {{ $t("contribute.yourContributions") }}
           </span>
           <Button
-            @click="handleAddOverlayClick"
+            @click="handleNewProjectClick"
             severity="primary"
             size="small"
             icon="pi pi-plus"
@@ -147,7 +146,7 @@ import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { expandAccordionForProject } from "@/services/layout/accordionState";
+import { expandProjectPanel } from "@/services/layout/accordionState";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -195,12 +194,8 @@ const { prepareSubmission } = useSubmissionDialog();
 type ContributionFilter = "all" | "pending" | "approved";
 const activeFilter = ref<ContributionFilter>("all");
 
+// Opens the auth modal when unauthenticated, else the marker bar.
 const { handleNewProjectClick } = useNewProject();
-
-// Handle new project button click (opens auth modal when unauthenticated, else the marker bar)
-function handleAddOverlayClick() {
-  handleNewProjectClick();
-}
 
 const toast = useToast();
 const { isMobile } = useIsMobile();
@@ -472,7 +467,7 @@ watch(
     await nextTick();
     const isOwnContribution = allContributions.value.some((p) => p.id === id);
     if (isOwnContribution) {
-      expandAccordionForProject(id, allContributions.value);
+      expandProjectPanel(id);
     }
     // External pinned projects render in their own always-open card, so no shared accordion state.
   },

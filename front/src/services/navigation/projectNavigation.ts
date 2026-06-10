@@ -2,11 +2,7 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 import { selectOverlay } from "@/services/overlay/selection";
 import { map } from "@/services/core/map";
 import * as registry from "@/services/overlay/renderRegistry";
-import {
-  mobileAwareFlyTo,
-  mobileAwareFlyToBounds,
-  featureAnchorOffset,
-} from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -108,9 +104,9 @@ export function navigateToStandaloneProject(lat: number, lng: number, projectId?
       requestScrollTo("project", projectId);
     }
 
-    // On mobile, lift the feature above the drawer so the docked detail doesn't cover it; desktop
-    // centers it (featureAnchorOffset returns undefined there).
-    const flew = mobileAwareFlyTo([lat, lng], 18, { offset: featureAnchorOffset() });
+    // Drawer-aware padding centers the feature in the map area above the mobile drawer (desktop
+    // centers it in the full viewport).
+    const flew = mobileAwareFlyTo([lat, lng], 18);
 
     if (projectId) {
       openDetailAfterFlight(flew, projectId);

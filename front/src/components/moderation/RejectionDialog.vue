@@ -90,9 +90,6 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
-import Checkbox from "primevue/checkbox";
-import Textarea from "primevue/textarea";
-import Select from "primevue/select";
 import { useI18n } from "vue-i18n";
 
 interface Props {

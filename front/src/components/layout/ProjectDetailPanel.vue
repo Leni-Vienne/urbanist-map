@@ -69,7 +69,7 @@
                   loading="lazy"
                   v-tooltip.top="$t('overlay.viewFullImage')"
                   @click.stop="
-                    lightbox.open({
+                    lightbox?.open({
                       url: wikidataEntity.imageUrl,
                       header:
                         project?.name ||
@@ -96,7 +96,7 @@
                   loading="lazy"
                   v-tooltip.top="$t('overlay.viewFullImage')"
                   @click.stop="
-                    lightbox.open({
+                    lightbox?.open({
                       url: renderImageUrl,
                       header: $t('render.label'),
                       crossorigin: renderImageCrossorigin,
@@ -112,7 +112,7 @@
               >
                 <button
                   type="button"
-                  class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 bg-purple-50 border border-purple-200 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 hover:border-purple-300 hover:text-purple-700"
+                  class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-700 dark:hover:text-purple-200"
                   @click.stop="handleViewOriginalOverlay(overlay.replacesOverlayId)"
                 >
                   <i class="pi pi-arrow-left text-sm"></i>
@@ -125,59 +125,18 @@
       </div>
     </template>
 
-    <!-- Full-size image lightbox: scroll to zoom (toward cursor), drag to pan, double-click to reset -->
-    <Dialog
-      v-model:visible="lightbox.visible"
-      modal
-      dismissableMask
-      :draggable="false"
-      :header="lightbox.image?.header"
-      :style="{ width: 'auto', maxWidth: '90vw' }"
-      :pt="{ content: { class: 'p-0' } }"
-    >
-      <div
-        class="overflow-hidden max-h-[80vh] max-w-[90vw] flex items-center justify-center touch-none"
-        @wheel.prevent="lightbox.handleWheel"
-        @pointerdown="lightbox.handlePointerDown"
-        @pointermove="lightbox.handlePointerMove"
-        @pointerup="lightbox.handlePointerUp"
-        @pointerleave="lightbox.handlePointerUp"
-        @dblclick="lightbox.reset"
-      >
-        <img
-          v-if="lightbox.image"
-          ref="lightboxImg"
-          :src="lightbox.image.url"
-          :crossorigin="lightbox.image.crossorigin"
-          :referrerpolicy="lightbox.image.referrerpolicy"
-          class="block max-h-[80vh] max-w-[90vw] object-contain select-none"
-          :class="
-            lightbox.zoom > 1
-              ? lightbox.isPanning
-                ? 'cursor-grabbing'
-                : 'cursor-grab'
-              : 'cursor-zoom-in'
-          "
-          :style="{
-            transform: `translate(${lightbox.pan.x}px, ${lightbox.pan.y}px) scale(${lightbox.zoom})`,
-          }"
-          draggable="false"
-          alt=""
-        />
-      </div>
-    </Dialog>
+    <ImageLightbox ref="lightbox" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
-import { Dialog } from "primevue";
+import { computed, useTemplateRef, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
+import { useActiveDetailProjectId } from "@/composables/project/useActiveDetailProjectId";
 import { useToast } from "@/composables/ui/useToast";
-import { useImageLightbox } from "@/composables/ui/useImageLightbox";
 
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -194,10 +153,11 @@ import { trpc } from "@/client";
 import type { OverlayData, Project } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
 
-const { t: $t, t } = useI18n();
+const { t } = useI18n();
 const toast = useToast();
-const lightbox = useImageLightbox();
+const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
 const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
@@ -228,8 +188,7 @@ function convertAndCacheBackendProject(
     .map((o) => o.id);
 
   const project = createProjectObject({ ...backendProject, overlayIds });
-  projects.value = { ...projects.value, [project.id]: project };
-  if (project.status !== null) projectStore.cacheProjectBackendState(project.id);
+  projectStore.addProject(project);
 
   return project;
 }
@@ -245,24 +204,23 @@ function getEffectiveProject(projectId: string): Project | undefined {
   return localProject;
 }
 
+// Overlay detail first, then project detail (shared with the visible-projects list).
+const activeProjectId = useActiveDetailProjectId();
+
 const project = computed<Project | undefined>(() => {
-  // Check overlay detail first.
+  const id = activeProjectId.value;
+  if (!id) return undefined;
+
+  const localProject = getEffectiveProject(id);
+  if (localProject) return localProject;
+
+  // Not in the store: fall back to the backend project joined onto whichever detail is open.
   const currentOverlay = overlay.value;
-  if (currentOverlay?.projectId) {
-    const localProject = getEffectiveProject(currentOverlay.projectId);
-    if (localProject) return localProject;
-
-    const backendProject =
-      currentOverlay.project?.id === currentOverlay.projectId ? currentOverlay.project : null;
-    if (backendProject) return convertAndCacheBackendProject(backendProject);
+  if (currentOverlay?.project?.id === id) {
+    return convertAndCacheBackendProject(currentOverlay.project);
   }
-
-  // Fall back to project detail.
-  if (projectDetail.value.visible && projectDetail.value.projectId) {
-    const localProject = getEffectiveProject(projectDetail.value.projectId);
-    if (localProject) return localProject;
-
-    if (projectDetail.value.project) return projectDetail.value.project;
+  if (projectDetail.value.projectId === id && projectDetail.value.project) {
+    return projectDetail.value.project;
   }
 
   return undefined;

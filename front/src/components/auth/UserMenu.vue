@@ -129,6 +129,7 @@ import { hasUnsavedChanges } from "@/utils/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
+import { useSignOut } from "@/composables/auth/useSignOut";
 import { useI18n } from "vue-i18n";
 import SettingsMenuItems from "@/components/map/SettingsMenuItems.vue";
 
@@ -140,6 +141,7 @@ const ModeratedContributionsDialog = defineAsyncComponent(
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const { signOut } = useSignOut();
 const toast = useToast();
 const { t } = useI18n();
 const isMenuOpen = ref(false);
@@ -171,7 +173,7 @@ async function handleSignOut() {
     }
   }
 
-  const result = await authStore.signOut();
+  const result = await signOut();
   if (result.success) {
     toast.add({
       severity: "success",

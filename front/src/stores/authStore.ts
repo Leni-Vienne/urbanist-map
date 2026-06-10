@@ -1,10 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import { trpc, getApiUrl } from "@/client";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 
@@ -366,21 +362,6 @@ export const useAuthStore = defineStore("auth", () => {
       user.value = null;
       // Reset initPromise so initialize() re-runs after re-login
       initPromise = null;
-
-      // Clear all state on logout to prevent data leakage between accounts
-      const uiStore = useUiStore();
-      uiStore.hasUnacknowledgedModeratedContributions = false;
-      uiStore.moderatedContributionsDialogVisible = false;
-
-      const mapStore = useMapStore();
-      const projectStore = useProjectStore();
-      const overlayStore = useOverlayStore();
-      const moderationStore = useModerationStore();
-
-      mapStore.clearAllState();
-      projectStore.clearAllState();
-      overlayStore.clearAllState();
-      moderationStore.clearAllState();
 
       if (response.ok) {
         return { success: true, error: null };

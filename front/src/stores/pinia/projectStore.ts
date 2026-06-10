@@ -324,6 +324,14 @@ export const useProjectStore = defineStore("project", () => {
     userContributions.value = userContributions.value.filter((p) => p.id !== projectId);
   }
 
+  // Inserts a backend-sourced project into the store, snapshotting it as the change-detection
+  // baseline. No-op if it is already present.
+  function addProject(project: Project) {
+    if (projects.value[project.id]) return;
+    projects.value = { ...projects.value, [project.id]: project };
+    if (project.status !== null) snapshotOriginal(project);
+  }
+
   // Updates a project in the store. Creates it if not present.
   function updateProject(projectId: string, updates: Partial<Project>) {
     let current = projects.value[projectId];
@@ -414,6 +422,7 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsLoaded,
 
     // Local project actions
+    addProject,
     updateProject,
     cacheProjectBackendState,
     resetProjectField,

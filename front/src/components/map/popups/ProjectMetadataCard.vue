@@ -137,28 +137,41 @@
       </a>
     </template>
 
-    <!-- Wikidata main image (P18). Opt-in: the detail panel renders its own (with a zoom
-         lightbox), so only standalone surfaces enable it here. -->
+    <!-- Wikidata main image (P18). Opt-in: the detail panel renders its own, so only standalone
+         surfaces enable it here. Click to zoom in the self-contained lightbox below. -->
     <img
       v-if="showWikidataMedia && wikidataEntityData?.imageUrl"
       :src="wikidataEntityData.imageUrl"
-      class="w-full rounded-lg object-cover max-h-36"
+      class="w-full rounded-lg object-cover max-h-36 cursor-zoom-in"
       loading="lazy"
       referrerpolicy="no-referrer"
+      v-tooltip.top="$t('overlay.viewFullImage')"
+      @click.stop="
+        lightbox?.open({
+          url: wikidataEntityData.imageUrl,
+          header: project?.name || $t('project.unnamed'),
+          referrerpolicy: 'no-referrer',
+        })
+      "
     />
+
+    <ImageLightbox ref="lightbox" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useTemplateRef } from "vue";
 import type { Project } from "@/types/index";
 import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
 
 const { t: $t } = useI18n();
+
+const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
 interface Props {
   project: Project | null;

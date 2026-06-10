@@ -1,12 +1,7 @@
 <template>
   <div class="flex h-screen">
     <!-- Desktop SideMenu -->
-    <SideMenu
-      v-if="!isMobile"
-      :is-open="desktopSideMenuOpen"
-      :is-moderator="authStore.isModerator"
-      @close="() => (desktopSideMenuOpen = false)"
-    />
+    <SideMenu v-if="!isMobile" />
 
     <!-- Mobile Bottom Drawer -->
     <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
@@ -111,7 +106,6 @@ const SubmissionDialogWrapper = defineAsyncComponent(
   () => import("@/components/submission/SubmissionDialogWrapper.vue"),
 );
 
-const desktopSideMenuOpen = ref(true);
 const infoBannerDismissed = ref(false);
 const maintenanceBannerDismissed = ref(false);
 const now = ref(new Date());
@@ -185,9 +179,10 @@ function updateWindowWidth() {
   windowWidth.value = globalThis.innerWidth;
 }
 
-// A selected map feature drives the docked panel into its detail state, so make sure the panel
-// is open whenever a selection appears. The drawer keeps its current height (the camera pans the
-// feature above it via featureAnchorOffset), and the user can drag it taller to read more.
+// A selected map feature drives the docked mobile drawer into its detail state, so make sure it
+// is open whenever a selection appears. The drawer keeps its current height (the camera centers
+// the feature in the map area above it), and the user can drag it taller to read more. The
+// desktop side menu is always open, so it needs no handling here.
 const detailActive = computed(
   () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
 );
@@ -196,8 +191,6 @@ watch(detailActive, (active) => {
   if (!active) return;
   if (isMobile.value) {
     uiStore.mobileDrawerVisible = true;
-  } else {
-    desktopSideMenuOpen.value = true;
   }
 });
 

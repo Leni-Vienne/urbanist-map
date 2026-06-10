@@ -658,17 +658,19 @@ function handleVectorFeatureClick(
   }
 
   // Overlay footprints: on mobile, frame the overlay's own bounds (drawer-aware padding centers
-  // it in the visible area), matching the side-panel/drawer navigation. The flyToGeometry path
-  // anchors the raw tap point via a screen offset, which lands the overlay off-center. Desktop
-  // keeps the camera still: the feature is already on screen and the detail sits beside the map.
+  // it in the visible area), matching the side-panel/drawer navigation. Desktop keeps the camera
+  // still: the feature is already on screen and the detail sits beside the map.
   const footprintBounds = isFootprint ? getFootprintBounds(feature) : null;
   if (footprintBounds) {
     if (isMobileViewport()) mobileAwareFlyToBounds(footprintBounds);
   } else {
-    // Zoom in if the current zoom is too low to see the shape's detail, but never zoom out.
-    // Footprints don't carry geometry_size_m in the tile, so they fall back to zoom 14.
+    // Frame the shape around its stable centroid (popup_lat/lng = ST_PointOnSurface of the full
+    // unclipped geometry), not the raw tap point, so the whole geometry sits in view. Zoom in if
+    // the current zoom is too low to see its detail, but never zoom out. Point projects carry no
+    // geometry_size_m, so they fall back to zoom 14.
     const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
-    flyToGeometry(latlng, geometrySizeM, { fromMapClick: true });
+    const center = getFeatureCentroid(feature) ?? latlng;
+    flyToGeometry(center, geometrySizeM, { fromMapClick: true });
   }
 
   // Pin the vector highlight immediately so mousemove cannot clear it during the
@@ -983,6 +985,15 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
   const value = feature.properties?.[key];
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+// Stable centroid of a project shape from its popup_lat/popup_lng properties (ST_PointOnSurface of
+// the full unclipped geometry), or null when absent/invalid.
+function getFeatureCentroid(feature: RenderedMapFeature): { lat: number; lng: number } | null {
+  const lat = Number(feature.properties?.popup_lat);
+  const lng = Number(feature.properties?.popup_lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
 }
 
 // Bounds of an overlay footprint from its corner properties (c0..c3), or null when absent/invalid.

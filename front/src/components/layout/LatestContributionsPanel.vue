@@ -105,7 +105,7 @@ import { useI18n } from "vue-i18n";
 import {
   canModerateCountry,
   syncModerationCountry,
-} from "@/composables/overlay/useOverlayClickHandler";
+} from "@/services/moderation/moderationCountrySync";
 import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";

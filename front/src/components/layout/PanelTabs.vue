@@ -1,55 +1,21 @@
-﻿<template>
+<template>
   <!-- Tab navigation -->
   <div class="flex bg-content-hover-background border-b border-surface shrink-0">
-    <button
-      :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
-        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
-        activeTab === 'latest'
-          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
-          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
-      ]"
-      @click="$emit('update:activeTab', 'latest')"
-    >
-      {{ $t("navigation.latestContributions") }}
-    </button>
-    <button
-      :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
-        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
-        activeTab === 'currentLocation'
-          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
-          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
-      ]"
-      @click="$emit('update:activeTab', 'currentLocation')"
-    >
-      {{ $t("navigation.onMap") }}
-    </button>
-    <button
-      :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
-        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
-        activeTab === 'contribute'
-          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
-          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
-      ]"
-      @click="$emit('update:activeTab', 'contribute')"
-    >
-      {{ $t("navigation.contribute") }}
-    </button>
-    <button
-      v-if="authStore.isModerator"
-      :class="[
-        'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
-        variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
-        activeTab === 'moderation'
-          ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
-          : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
-      ]"
-      @click="$emit('update:activeTab', 'moderation')"
-    >
-      {{ $t("moderation.title") }}
-    </button>
+    <template v-for="tab in TABS" :key="tab.key">
+      <button
+        v-if="!tab.requiresModerator || authStore.isModerator"
+        :class="[
+          'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
+          variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
+          activeTab === tab.key
+            ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
+            : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
+        ]"
+        @click="$emit('update:activeTab', tab.key)"
+      >
+        {{ variant === "mobile" && tab.mobileLabelKey ? $t(tab.mobileLabelKey) : $t(tab.labelKey) }}
+      </button>
+    </template>
   </div>
 </template>
 
@@ -59,12 +25,28 @@ import { useAuthStore } from "@/stores/authStore";
 
 const authStore = useAuthStore();
 
+const TABS: {
+  key: PanelTab;
+  labelKey: string;
+  mobileLabelKey?: string;
+  requiresModerator?: boolean;
+}[] = [
+  {
+    key: "latest",
+    labelKey: "navigation.latestContributions",
+    mobileLabelKey: "navigation.latestContributionsShort",
+  },
+  { key: "currentLocation", labelKey: "navigation.onMap" },
+  { key: "contribute", labelKey: "navigation.contribute" },
+  { key: "moderation", labelKey: "moderation.title", requiresModerator: true },
+];
+
 defineProps<{
   activeTab: PanelTab;
   variant?: "desktop" | "mobile";
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   "update:activeTab": [tab: PanelTab];
 }>();
 </script>

@@ -23,18 +23,10 @@
         </span>
         <!-- Timeline status with dashed line preview matching the map vector style -->
         <div class="flex items-center gap-1.5">
-          <svg width="28" height="10" class="shrink-0">
-            <line
-              x1="0"
-              y1="5"
-              x2="28"
-              y2="5"
-              :stroke="firstTagColor(hoverPreview.data.tags[0])"
-              stroke-width="2.5"
-              :stroke-dasharray="timelineDasharray(hoverPreview.data.timelineStatus)"
-              stroke-linecap="round"
-            />
-          </svg>
+          <LinePreview
+            :status="hoverPreview.data.timelineStatus ?? ''"
+            :color="firstTagColor(hoverPreview.data.tags[0])"
+          />
           <span class="text-xs text-muted-color">
             {{
               $te(`timelineStatus.${hoverPreview.data.timelineStatus}`)
@@ -65,6 +57,7 @@ import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import LinePreview from "@/components/common/LinePreview.vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
@@ -97,19 +90,6 @@ function tagChipStyle(slug: string): Record<string, string> {
 
 function firstTagColor(slug: string | undefined): string {
   return PROJECT_TAG_MAP.get(slug ?? "")?.color ?? DEFAULT_TAG_COLOR;
-}
-
-// Dasharray values mirror the map vector line style for each timeline status
-const STATUS_DASHARRAY: Record<string, string> = {
-  proposed: "0,5",
-  planned: "7,4",
-  under_construction: "7,4",
-  completed: "",
-  canceled: "7,4",
-};
-
-function timelineDasharray(status: string | null): string {
-  return STATUS_DASHARRAY[status ?? ""] ?? "";
 }
 
 // Position the card centered horizontally under the cursor.

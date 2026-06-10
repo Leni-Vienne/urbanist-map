@@ -56,6 +56,7 @@
                 :show-user-stats-link="showUserStatsLink"
                 :hide-status-badges="hideStatusBadges"
                 :show-edit-buttons="false"
+                hide-chevron
                 :on-navigate-to-overlay="navigateToOverlayById"
                 :on-overlay-click="onOverlayClick"
                 @edit-project="handleStandaloneProjectClick"
@@ -199,7 +200,6 @@
 <script setup lang="ts">
 import { computed, watch, nextTick, onMounted, onActivated, onDeactivated, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { Accordion, AccordionPanel } from "primevue";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
 import ProjectContent from "@/components/project/ProjectContent.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
@@ -213,7 +213,7 @@ import type {
 import {
   activeAccordionPanels,
   expandAccordionForOverlay,
-  expandAccordionForProject,
+  expandProjectPanel,
   consumeScrollRequest,
   pendingScrollRequest,
 } from "@/services/layout/accordionState";
@@ -238,12 +238,14 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 interface Props {
   projects: ProjectForModeration[];
   isLoading: boolean;
-  title: string;
-  panelClass: string;
+  title?: string;
+  panelClass?: string;
   emptyMessage?: string;
   emptySubMessage?: string;
   changeRequests?: PendingChangeRequest[];
   onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>;
+  // Enables "my contributions" behavior in change request sections (e.g. own-change wording).
+  isContributePanel?: boolean;
   showUserStatsLink?: boolean;
   hideStatusBadges?: boolean;
   disableAutoModeSwitch?: boolean;
@@ -256,9 +258,12 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  title: "",
+  panelClass: "",
   emptyMessage: "",
   emptySubMessage: "",
   changeRequests: () => [],
+  isContributePanel: false,
   showUserStatsLink: false,
   hideStatusBadges: false,
   disableAutoModeSwitch: false,
@@ -297,8 +302,6 @@ watch(
     }
   },
 );
-
-const isContributePanel = computed(() => props.panelClass === "my-contributions-panel");
 
 const flatOrderedProjects = computed(() => {
   if (!props.pinnedProjectId) return props.projects;
@@ -367,7 +370,7 @@ async function handleScrollRequest() {
     await waitForAccordionAnimation(overlayId, !wasExpanded);
   } else if (request.type === "project") {
     const projectId = String(request.id);
-    const expanded = expandAccordionForProject(projectId, props.projects);
+    const expanded = expandProjectPanel(projectId);
     if (expanded) {
       await nextTick();
       await waitForProjectAccordionAnimation(projectId);
@@ -600,17 +603,15 @@ async function handleCardClick(project: ProjectForModeration) {
       return;
     }
   }
-  const hasOverlays = project.overlays && project.overlays.length > 0;
-  if (hasOverlays) {
-    if (project.overlays[0]) {
-      handleOverlayCardClick(project.overlays[0]);
-    }
+  const firstOverlay = project.overlays?.[0];
+  if (firstOverlay) {
+    await handleOverlayCardClick(firstOverlay);
   } else {
     handleStandaloneProjectClick(project);
   }
 }
 
-async function handleProjectHighlight(project: ProjectForModeration) {
+function handleProjectHighlight(project: ProjectForModeration) {
   if (hasProjectShapes(project.id)) {
     highlightProjectShapes(project.id);
     return;
@@ -620,7 +621,7 @@ async function handleProjectHighlight(project: ProjectForModeration) {
   }
 }
 
-async function handleProjectUnhighlight(project: ProjectForModeration) {
+function handleProjectUnhighlight(project: ProjectForModeration) {
   if (hasProjectShapes(project.id)) {
     unhighlightProjectShapes(project.id);
     return;
@@ -638,7 +639,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration) {
   }
 }
 
-async function handleStandaloneProjectClick(project: ProjectForModeration) {
+function handleStandaloneProjectClick(project: ProjectForModeration) {
   try {
     if (typeof project.lat !== "number" || typeof project.lng !== "number") {
       toast.add({

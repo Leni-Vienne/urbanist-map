@@ -67,6 +67,7 @@
   },
   "navigation": {
     "latestContributions": "Latest Contributions",
+    "latestContributionsShort": "Latest",
     "onMap": "On Map",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"

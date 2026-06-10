@@ -86,23 +86,11 @@
               class="project-row w-full flex items-center gap-3 px-4 py-3 border-none cursor-pointer transition-all duration-150 text-left border-b border-surface last:border-b-0 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10"
               :class="project.id === selectedProjectId ? 'is-selected' : 'bg-transparent'"
             >
-              <!-- Dashed line preview matching the map style for this project's status and tag color -->
-              <svg width="28" height="10" class="shrink-0">
-                <!-- :title doesn't work in SVG -->
-                <title>
-                  {{ $t(`timelineStatus.${project.timelineStatus}`, project.timelineStatus) }}
-                </title>
-                <line
-                  x1="0"
-                  y1="5"
-                  x2="28"
-                  y2="5"
-                  :stroke="tagColor(project.firstTag)"
-                  stroke-width="2.5"
-                  :stroke-dasharray="statusDasharray(project.timelineStatus)"
-                  stroke-linecap="round"
-                />
-              </svg>
+              <LinePreview
+                :status="project.timelineStatus"
+                :color="tagColor(project.firstTag)"
+                :title="$t(`timelineStatus.${project.timelineStatus}`, project.timelineStatus)"
+              />
 
               <span
                 class="flex-1 text-sm truncate"
@@ -145,8 +133,10 @@
 import { computed, defineAsyncComponent, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
+import { useActiveDetailProjectId } from "@/composables/project/useActiveDetailProjectId";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
+import LinePreview from "@/components/common/LinePreview.vue";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -172,16 +162,7 @@ const contentRef = ref<HTMLElement | null>(null);
 const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
 // The project whose detail is open, used to link the open detail to its row in the list.
-// Mirrors the detail panel's own resolution order: overlay detail first, then project detail.
-const selectedProjectId = computed<string | null>(() => {
-  const overlayId = overlayStore.overlayDetailId;
-  if (overlayStore.overlayDetailVisible && overlayId) {
-    const projectId = overlayStore.overlays[overlayId]?.projectId;
-    if (projectId) return projectId;
-  }
-  if (uiStore.projectDetail.visible) return uiStore.projectDetail.projectId;
-  return null;
-});
+const selectedProjectId = useActiveDetailProjectId();
 
 /** Returns translated names of all tags after the first, joined by newlines. */
 function extraTagsTooltip(tags: string[]): string {
@@ -211,20 +192,6 @@ const DEFAULT_TAG_COLOR = "#6b7280";
 
 function tagColor(firstTag: string): string {
   return PROJECT_TAG_MAP.get(firstTag)?.color ?? DEFAULT_TAG_COLOR;
-}
-
-// dasharray values mirror FilterControl's SVG line previews (same stroke-width 2.5px):
-// proposed = short dash, planned/under_construction = long dash, completed = solid
-const STATUS_DASHARRAY: Record<string, string> = {
-  proposed: "0,5",
-  planned: "7,4",
-  under_construction: "7,4",
-  completed: "",
-  canceled: "7,4",
-};
-
-function statusDasharray(status: string): string {
-  return STATUS_DASHARRAY[status] ?? "";
 }
 
 function tagChipStyle(slug: string): Record<string, string> {

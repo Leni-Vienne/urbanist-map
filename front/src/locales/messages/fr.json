@@ -67,6 +67,7 @@
   },
   "navigation": {
     "latestContributions": "Contributions Récentes",
+    "latestContributionsShort": "Récentes",
     "onMap": "Sur la carte",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"

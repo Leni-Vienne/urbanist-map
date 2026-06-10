@@ -250,7 +250,6 @@ export function useVisibleProjects() {
       } else if (sortMode.value === "size") {
         result = b.sizeM - a.sizeM;
       } else if (sortMode.value === "status") {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         result = (STATUS_RANK[a.timelineStatus] ?? 99) - (STATUS_RANK[b.timelineStatus] ?? 99);
       }
       return sortReverse.value ? -result : result;

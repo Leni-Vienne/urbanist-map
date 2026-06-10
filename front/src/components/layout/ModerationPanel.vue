@@ -89,8 +89,8 @@
     <!-- Projects Section - pure approve/reject workflow for pending items -->
     <div v-else class="flex-1 min-h-0">
       <ProjectAccordionPanel
-        :projects="filteredProjects"
-        :change-requests="filteredChangeRequests"
+        :projects="projects"
+        :change-requests="changeRequests"
         :is-loading="isLoading"
         :title="$t('moderation.pendingProjects')"
         panel-class="moderation-panel"
@@ -164,7 +164,7 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useToast } from "@/composables/ui/useToast";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import type { OverlayForModeration } from "@/types/index";
+import type { OverlayForModeration, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 
@@ -263,7 +263,7 @@ const pendingOverlayCount = computed(() => {
 });
 
 // Check if a change request is for a geometry field (corners or centroid)
-function isGeometryChange(change: any): boolean {
+function isGeometryChange(change: PendingChangeRequest): boolean {
   return change.fieldName === "corners" || change.fieldName === "centroid";
 }
 
@@ -282,12 +282,6 @@ watch(
   },
   { deep: true },
 );
-
-// Show all projects for the selected country (no city filtering)
-const filteredProjects = computed(() => projects.value);
-
-// Show all change requests for the selected country (no city filtering)
-const filteredChangeRequests = computed(() => changeRequests.value);
 
 // Clear pending rejection if report dialog is closed without reporting
 watch(showReportDialog, (isOpen) => {

@@ -32,14 +32,21 @@
     </template>
 
     <template #header>
-      <div class="flex flex-col gap-1">
-        <div class="title-container ml-4">
-          <h3 class="m-0 text-lg font-semibold text-color select-none leading-tight">
-            {{ $t("app.title") }}
-          </h3>
-          <p class="mt-1 text-xs text-muted-color leading-tight">
-            {{ $t("app.subtitle") }}
-          </p>
+      <div class="flex flex-col">
+        <div
+          class="grid transition-[grid-template-rows] duration-200 ease-in-out"
+          :class="activeTab === 'latest' ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
+        >
+          <div class="overflow-hidden">
+            <div class="title-container ml-4 pb-1">
+              <h3 class="m-0 text-lg font-semibold text-color select-none leading-tight">
+                {{ $t("app.title") }}
+              </h3>
+              <p class="mt-1 text-xs text-muted-color leading-tight">
+                {{ $t("app.subtitle") }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <PanelTabs v-model:active-tab="activeTab" variant="mobile" />
@@ -47,7 +54,6 @@
     </template>
 
     <PanelContent
-      :active-tab="activeTab"
       content-container-class="flex-1 flex flex-col min-h-0 bg-content-hover-background"
     />
 
