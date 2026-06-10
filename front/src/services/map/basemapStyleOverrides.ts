@@ -57,7 +57,7 @@ export function applySky(mlMap: MaplibreMap): void {
     "horizon-color": "#eef2f5",
     "horizon-fog-blend": 0.6,
     "fog-color": "#eef2f5",
-    "fog-ground-blend": 0.0,
+    "fog-ground-blend": 0,
     // Fade the sky out as we zoom in so the 3D buildings keep their flat backdrop up close.
     "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 12, 1, 14, 0],
   });

@@ -1,7 +1,7 @@
-import { ref, computed, watch, onUnmounted } from "vue";
+import { ref, computed, watch, onUnmounted, onActivated, onDeactivated } from "vue";
 import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/overlaySelection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/selection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
 import { map, getMlMap, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
@@ -18,7 +18,7 @@ interface VisibleProject {
   name: string | null;
   /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
   bbox: LngLatBounds | null;
-  /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as popup anchor. */
+  /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as the map anchor. */
   midLat: number | null;
   midLng: number | null;
   firstTag: string;
@@ -64,7 +64,7 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
       p.name !== n.name ||
       p.timelineStatus !== n.timelineStatus ||
       p.lastModifiedS !== n.lastModifiedS ||
-      p.sizeM !== n.sizeM
+      Math.round(p.sizeM) !== Math.round(n.sizeM)
     )
       return true;
   }
@@ -261,12 +261,23 @@ export function useVisibleProjects() {
   // We gate doRefresh on this flag to avoid querying on every drag frame.
   let mapMoving = false;
 
+  let isActive = true;
+
+  onActivated(() => {
+    isActive = true;
+    scheduleRefresh();
+  });
+
+  onDeactivated(() => {
+    isActive = false;
+  });
+
   function doRefresh() {
     const mlMap = getMlMap();
     // Skip if the map is still animating, or if tiles for the current viewport
     // haven't finished loading yet (e.g. mid-zoom). The idle/sourcedata handlers
     // will re-trigger once everything is ready.
-    if (!mlMap || mapMoving || !mlMap.areTilesLoaded()) return;
+    if (!isActive || !mlMap || mapMoving || !mlMap.areTilesLoaded()) return;
 
     const canvas = mlMap.getCanvas();
     const dpr = window.devicePixelRatio || 1;
@@ -305,6 +316,7 @@ export function useVisibleProjects() {
   // queries directly. mapMoving is rechecked inside doRefresh so this is safe.
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   function scheduleRefresh() {
+    if (!isActive) return;
     scheduleRefreshAfterRender();
     if (fallbackTimer) clearTimeout(fallbackTimer);
     fallbackTimer = setTimeout(() => {
@@ -397,43 +409,54 @@ export function useVisibleProjects() {
     // (MapLibre idle → doRefresh → Vue re-render). A short delay after moveend
     // ensures the DOM has settled before hover is re-enabled.
     suppressHover = true;
-    map.value.once("moveend", () => {
+    void map.value.once("moveend", () => {
       setTimeout(() => {
         suppressHover = false;
       }, 200);
     });
 
-    const needsZoom = flyToGeometry(latlng, project.sizeM);
+    flyToGeometry(latlng, project.sizeM);
 
-    void handleProjectClickFromTile(project.id, latlng, needsZoom);
+    void handleProjectClickFromTile(project.id);
   }
 
   let lastHoveredProjectId: string | null = null;
+  let hoverClearTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function hoverProject(projectId: string | null) {
     if (suppressHover) return;
+
+    if (hoverClearTimeout) {
+      clearTimeout(hoverClearTimeout);
+      hoverClearTimeout = null;
+    }
+
+    if (projectId && projectId === lastHoveredProjectId) return;
+
     if (projectId) {
       highlightProject(projectId);
       lastHoveredProjectId = projectId;
     } else if (lastHoveredProjectId) {
-      const prevProjectId = lastHoveredProjectId;
-      lastHoveredProjectId = null;
-      removeProjectOutlines(prevProjectId);
+      // Defer clearing the hover to avoid double map-updates when the mouse
+      // instantly moves from one row to another (mouseleave -> mouseenter).
+      hoverClearTimeout = setTimeout(() => {
+        const prevProjectId = lastHoveredProjectId;
+        lastHoveredProjectId = null;
+        if (prevProjectId) {
+          removeProjectOutlines(prevProjectId);
+        }
 
-      // If any popup is open, keep the driven hover alive, it was pinned by a click and
-      // must not be cleared by a sidebar mouseleave (which can fire when the list scrolls
-      // to the newly selected project, triggering mouseleave on the previously hovered card).
-      // The watcher below clears setExternalHover when the popup eventually closes.
-      if (!uiStore.projectInfoPopup.visible) {
-        setExternalHover(null);
-      }
+        if (!uiStore.projectDetail.visible) {
+          setExternalHover(null);
+        }
+      }, 20);
     }
   }
 
-  // When the project info popup closes, release any vector tile hover that was pinned by a click.
-  // This is the counterpart to the popupPinsHighlight guard above.
+  // When the project detail closes, release any vector tile hover that was pinned by a click.
+  // This is the counterpart to the detailPinsHighlight guard above.
   watch(
-    () => uiStore.projectInfoPopup.visible,
+    () => uiStore.projectDetail.visible,
     (isVisible) => {
       if (!isVisible) {
         setExternalHover(null);

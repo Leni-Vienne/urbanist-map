@@ -1,9 +1,8 @@
 <template>
   <div :class="contentContainerClass">
-    <!-- KeepAlive preserves component state (scroll, data) when switching tabs -->
     <KeepAlive>
-      <LatestContributionsPanel v-if="activeTab === 'latest'" />
-      <CurrentLocationPanel v-else-if="activeTab === 'currentLocation'" />
+      <CurrentLocationPanel v-if="activeTab === 'currentLocation'" />
+      <LatestContributionsPanel v-else-if="activeTab === 'latest'" />
       <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
       <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
       <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
@@ -26,9 +25,11 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from "vue";
+import { defineAsyncComponent, watch } from "vue";
 import type { PanelTab } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 
@@ -40,6 +41,19 @@ const ContributePanel = defineAsyncComponent(() => import("./ContributePanel.vue
 const ContributeGuestPanel = defineAsyncComponent(() => import("./ContributeGuestPanel.vue"));
 
 const authStore = useAuthStore();
+const uiStore = useUiStore();
+const overlayStore = useOverlayStore();
+
+// Switching to the latest tab clears any open detail so it does not linger when switching back.
+watch(
+  () => uiStore.activeTab,
+  (tab) => {
+    if (tab === "latest") {
+      overlayStore.closeOverlayDetail();
+      uiStore.closeProjectDetail();
+    }
+  },
+);
 
 defineProps<{
   activeTab: PanelTab;

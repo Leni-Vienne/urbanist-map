@@ -1,6 +1,40 @@
 import type { OverlayData, OverlayForModeration, UserContributionOverlay } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 
+// A render staged in the upload dialog but not yet submitted. It lives only in stagedRenderStore
+// (no overlay row, no map artifact), so the contributions list synthesizes this entry to show it
+// as a pending render before submission. kind 'render' + status null marks it as staged; the
+// deterministic id is replaced by the real overlay on submission (addRenderToUserContributions).
+export function createStagedRenderOverlay(
+  projectId: string,
+  previewUrl: string,
+  authorId: string | null,
+  authorUsername: string | null,
+): OverlayForModeration {
+  return {
+    id: `staged-render-${projectId}`,
+    caption: null,
+    filename: `staged-render-${projectId}.webp`,
+    kind: "render",
+    status: null,
+    version: 1,
+    projectId,
+    updatedAt: new Date(),
+    authorId,
+    authorUsername,
+    authorApprovedCount: null,
+    authorRejectedCount: null,
+    authorReportCount: undefined,
+    cityId: null,
+    cityName: null,
+    countryCode: null,
+    countryName: null,
+    replacesOverlayId: null,
+    replacedByOverlayId: null,
+    imageUrl: previewUrl,
+  };
+}
+
 export function createOverlayForModeration(overlayData: OverlayData): OverlayForModeration {
   return {
     id: overlayData.id,
@@ -46,11 +80,13 @@ export function createLocalOverlayContribution(
     countryName: string | null | undefined;
   },
   username: string | null,
+  kind: UserContributionOverlay["kind"] = "map",
 ): UserContributionOverlay {
   return {
     id: overlay.id,
     caption: overlay.caption,
     filename: overlay.filename,
+    kind,
     status: overlay.status !== undefined ? overlay.status : null,
     version: overlay.version ?? 1,
     projectId: overlay.projectId ?? "",

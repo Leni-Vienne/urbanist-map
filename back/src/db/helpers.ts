@@ -80,6 +80,7 @@ const overlaySelectFields = {
   filename: overlays.filename,
   caption: overlays.caption,
   status: overlays.status,
+  kind: overlays.kind,
   projectId: overlays.projectId,
   authorId: overlays.authorId,
   replacesOverlayId: overlays.replacesOverlayId,
@@ -155,10 +156,12 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
       cityName: cities.name,
       countryName: countries.name,
       city: cities,
+      importSource: importSources,
     })
     .from(projects)
     .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code));
+    .leftJoin(countries, eq(projects.countryCode, countries.code))
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId));
 }
 
 /**
@@ -172,6 +175,7 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
       caption: overlays.caption,
       filename: overlays.filename,
       status: overlays.status,
+      kind: overlays.kind,
       version: overlays.version,
       projectId: overlays.projectId,
       authorId: overlays.authorId,
@@ -617,7 +621,8 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .innerJoin(projects, eq(projects.id, overlays.projectId))
     .leftJoin(cities, eq(cities.id, projects.cityId))
     .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-    .where(and(...whereConditions))
+    // Renders are not georeferenced (null corners), so they never appear on the map.
+    .where(and(eq(overlays.kind, "map"), ...whereConditions))
     .orderBy(overlays.createdAt);
 }
 

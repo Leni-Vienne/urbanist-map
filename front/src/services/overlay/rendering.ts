@@ -3,15 +3,15 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { isOverlayVisible } from "@/services/overlay/overlayVisibility";
+import { isOverlayVisible } from "@/services/overlay/visibility";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import { resolveOverlayRenderCorners } from "@/services/overlay/overlayHistory";
-import { enrichOverlayWithProject } from "@/services/overlay/overlayData";
+import { resolveOverlayRenderCorners } from "@/services/overlay/history";
+import { enrichOverlayWithProject } from "@/services/overlay/data";
 import { updateMarkerTooltip } from "@/services/map/markers";
-import { createOverlayMarker } from "@/services/overlay/overlayMarkers";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { createOverlayImage } from "@/services/overlay/overlayImageLayer";
+import { createOverlayMarker } from "@/services/overlay/markers";
+import * as registry from "@/services/overlay/renderRegistry";
+import { createOverlayImage } from "@/services/overlay/imageLayer";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**

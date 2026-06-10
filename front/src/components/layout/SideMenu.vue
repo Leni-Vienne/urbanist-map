@@ -73,7 +73,6 @@
 import { watch, computed } from "vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
-import { usePanelTabs } from "@/composables/layout/usePanelTabs";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { PanelTab } from "@/types";
@@ -90,11 +89,9 @@ defineEmits<{
 const uiStore = useUiStore();
 const authStore = useAuthStore();
 
-const { setActiveTab } = usePanelTabs();
-
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  set: (value) => setActiveTab(value),
+  set: (value) => (uiStore.activeTab = value),
 });
 
 watch(
@@ -105,6 +102,4 @@ watch(
     }
   },
 );
-
-usePanelTabs();
 </script>

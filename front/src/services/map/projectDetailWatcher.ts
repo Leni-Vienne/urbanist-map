@@ -3,7 +3,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { unhighlightProjectShapes } from "@/services/map/shapeLayerRegistry";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { selectOverlay } from "@/services/overlay/selection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import {
@@ -14,18 +14,18 @@ import {
 let isWatcherInitialized = false;
 
 /**
- * Drives all popup-state-driven side effects (marker opacity, vector hover highlight,
- * accordion scroll, overlay popup hide, deselect) so click handlers only need to toggle
- * the popup state. Call once at app boot after Pinia is installed.
+ * Drives all detail-state-driven side effects (marker opacity, vector hover highlight,
+ * accordion scroll, overlay detail hide, deselect) so click handlers only need to toggle
+ * the detail state. Call once at app boot after Pinia is installed.
  */
-export function initializePopupWatcher() {
+export function initializeDetailWatcher() {
   if (isWatcherInitialized) return;
   isWatcherInitialized = true;
 
   watch(
     () => {
       const uiStore = useUiStore();
-      return uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null;
+      return uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null;
     },
     (newProjectId, oldProjectId) => {
       if (newProjectId === oldProjectId) return;
@@ -55,7 +55,7 @@ export function initializePopupWatcher() {
       if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
       requestScrollTo("project", newProjectId);
 
-      if (overlayStore.showInfoPopup) overlayStore.hideInfoPopup();
+      if (overlayStore.overlayDetailVisible) overlayStore.closeOverlayDetail();
       if (overlayStore.idSelectedOverlay) selectOverlay(null);
     },
   );

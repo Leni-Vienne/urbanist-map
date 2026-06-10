@@ -1,19 +1,19 @@
 import maplibregl, { type GeoJSONSource, type MapMouseEvent } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/overlayRenderRegistry";
+import { getImageHandle } from "@/services/overlay/renderRegistry";
 import {
   transformToCorners,
   cornersToTransform,
   SIGN,
   type OverlayTransform,
-} from "@/services/overlay/overlayTransform";
+} from "@/services/overlay/transform";
 import {
   setOverlayImageTransform,
   getCurrentTransform,
   raiseOverlayImage,
-} from "@/services/overlay/overlayImageLayer";
-import { resolveOverlayRenderCorners, saveToHistory } from "@/services/overlay/overlayHistory";
+} from "@/services/overlay/imageLayer";
+import { resolveOverlayRenderCorners, saveToHistory } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/map/markers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
@@ -82,6 +82,7 @@ function syncSvgOutline(): void {
   if (!session?.svgPath) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap || !transform) return;
 
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
@@ -93,7 +94,7 @@ function syncSvgOutline(): void {
 
   session.cornerMarkers.forEach((marker) => {
     const el = marker.getElement();
-    if (el) el.style.display = isVisible ? "block" : "none";
+    el.style.display = isVisible ? "block" : "none";
   });
 
   if (!isVisible) return;
@@ -114,6 +115,7 @@ function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap || !transform) return;
 
   const corners = transformToCorners(transform);
@@ -213,6 +215,7 @@ function wireCornerDrag(s: EditSession): void {
 
 function wireSurfaceDrag(s: EditSession): void {
   const mlMap = map.value;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap) return;
   const overlayObject = s.overlayObject;
 
@@ -272,7 +275,7 @@ function wireSurfaceDrag(s: EditSession): void {
     }
 
     mlMap.on("mousemove", onMove);
-    mlMap.once("mouseup", onUp);
+    void mlMap.once("mouseup", onUp);
     s.activeSurfaceDrag = { onMove, onUp };
   };
 
@@ -288,6 +291,7 @@ function wireSurfaceDrag(s: EditSession): void {
 export function showEditHandles(overlayObject: OverlayObject): void {
   const mlMap = map.value;
   const handle = getImageHandle(overlayObject.id);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap || !handle) return;
 
   hideEditHandles();
@@ -364,6 +368,7 @@ export function reattachEditHandlesAfterStyleSwitch(): void {
   if (!session) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap || !transform) return;
 
   const corners = transformToCorners(transform);
@@ -392,6 +397,7 @@ export function hideEditHandles(): void {
 
   s.cornerMarkers.forEach((marker) => marker.remove());
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!mlMap) return;
 
   // Tear down an in-flight surface drag so its mousemove handler stops mutating a dead session

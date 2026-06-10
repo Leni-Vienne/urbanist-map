@@ -1,8 +1,12 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
+import { selectOverlay } from "@/services/overlay/selection";
 import { map } from "@/services/core/map";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import * as registry from "@/services/overlay/renderRegistry";
+import {
+  mobileAwareFlyTo,
+  mobileAwareFlyToBounds,
+  featureAnchorOffset,
+} from "@/services/map/mapNavigation";
 import { requestScrollTo } from "@/services/layout/accordionState";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -46,25 +50,7 @@ export function zoomToOverlayAndSelect(
   targetZoom = Math.max(targetZoom, minRequiredZoom);
 
   const center = bounds.getCenter();
-  const currentCenter = map.value.getCenter();
-  const currentZoom = map.value.getZoom();
-
-  // Simple haversine approximation for skipping
-  const dLat = ((center.lat - currentCenter.lat) * Math.PI) / 180;
-  const dLng = ((center.lng - currentCenter.lng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((currentCenter.lat * Math.PI) / 180) *
-      Math.cos((center.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  const centerDistanceMeters = 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(a)));
-
-  const zoomDiff = Math.abs(currentZoom - targetZoom);
-  const flightSkipped = centerDistanceMeters < 10 && zoomDiff < 0.1;
-
-  if (!flightSkipped) {
-    mobileAwareFlyTo(center, targetZoom);
-  }
+  const flightSkipped = !mobileAwareFlyTo(center, targetZoom);
 
   // Poll per animation frame until the overlay element exists and its image is loaded.
   let attempts = 0;
@@ -92,43 +78,60 @@ export function zoomToOverlayAndSelect(
     return true;
   }
 
-  map.value.once("moveend", () => {
+  void map.value.once("moveend", () => {
     waitForElementThenSelect();
   });
 
   return true;
 }
 
-/**
- * Navigate to a standalone project marker by project ID.
- */
-export async function navigateToStandaloneProject(
-  lat: number,
-  lng: number,
-  projectId?: string,
-): Promise<void> {
-  try {
-    await new Promise<void>(
-      (resolve) =>
-        void setTimeout(() => {
-          resolve();
-        }, 200),
-    );
+// Open the project detail once the camera settles. moveend never fires when the flight was skipped
+// (camera already at target), so open directly in that case to avoid hanging.
+function openDetailAfterFlight(flew: boolean, projectId: string): void {
+  function openDetail(): void {
+    void handleProjectClickFromTile(projectId);
+  }
+  if (flew) {
+    void map.value.once("moveend", openDetail);
+  } else {
+    openDetail();
+  }
+}
 
+/**
+ * Navigate to a standalone project marker by project ID. Flies to the point, then opens the popup.
+ */
+export function navigateToStandaloneProject(lat: number, lng: number, projectId?: string): void {
+  try {
     // Scroll the side panel to this project before the flight completes.
     if (projectId) {
       requestScrollTo("project", projectId);
     }
 
-    mobileAwareFlyTo([lat, lng], 18);
+    // On mobile, lift the feature above the drawer so the docked detail doesn't cover it; desktop
+    // centers it (featureAnchorOffset returns undefined there).
+    const flew = mobileAwareFlyTo([lat, lng], 18, { offset: featureAnchorOffset() });
 
-    map.value.once("moveend", () => {
-      if (projectId) {
-        void handleProjectClickFromTile(projectId, new LngLat(lng, lat));
-      }
-    });
+    if (projectId) {
+      openDetailAfterFlight(flew, projectId);
+    }
   } catch (error) {
     console.error("Failed to navigate to marker project:", error);
+    throw error;
+  }
+}
+
+/**
+ * Navigate to a standalone project by fitting its geometry bounds, then selecting it. Use when the
+ * project has real geometry bounds rather than a single marker point.
+ */
+export function navigateToStandaloneProjectBounds(bounds: LngLatBounds, projectId: string): void {
+  try {
+    requestScrollTo("project", projectId);
+    const flew = mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
+    openDetailAfterFlight(flew, projectId);
+  } catch (error) {
+    console.error("Failed to navigate to marker project bounds:", error);
     throw error;
   }
 }

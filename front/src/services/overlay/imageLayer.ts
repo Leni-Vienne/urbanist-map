@@ -4,12 +4,12 @@ import {
   cornersToTransform,
   transformToCorners,
   type OverlayTransform,
-} from "@/services/overlay/overlayTransform";
+} from "@/services/overlay/transform";
 import {
   getImageHandle,
   setImageHandle,
   type OverlayImageHandle,
-} from "@/services/overlay/overlayRenderRegistry";
+} from "@/services/overlay/renderRegistry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
@@ -26,15 +26,12 @@ function overlayRasterLayerId(id: string): string {
 
 type ImageCoordinates = [[number, number], [number, number], [number, number], [number, number]];
 
-// Back rasters anchor just beneath the project geometry band so the vector styling stays visible on
-// top of them. The first project-shapes/overlay-footprints layer in stack order is the band bottom;
-// the cluster point layers are excluded since those sit below the basemap labels, not above them.
+// Back rasters anchor just beneath the project geometry lines (project-shapes-*), which sit above
+// the overlay-footprints outline/fill band. So a back image renders ABOVE every overlay footprint
+// border (its own and neighbours'), preventing one overlay's border from cutting across another's
+// image, while project geometry styling still draws on top of the image.
 function getVectorLayersBottomId(mlMap: MaplibreMap): string | undefined {
-  const anchor = mlMap
-    .getStyle()
-    .layers.find(
-      (layer) => layer.id.startsWith("project-shapes") || layer.id.startsWith("overlay-footprints"),
-    );
+  const anchor = mlMap.getStyle().layers.find((layer) => layer.id.startsWith("project-shapes"));
   return anchor?.id;
 }
 

@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent="handleSubmit">
+  <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
     <ProjectFormFields
       ref="formFieldsRef"
       :form-data="formData"
@@ -35,7 +35,10 @@ const timelineStatus = ref<
   "proposed" | "planned" | "under_construction" | "completed" | "canceled"
 >("proposed");
 
-const emit = defineEmits<{ cancel: []; submit: [project: Partial<Project>] }>();
+const emit = defineEmits<{
+  cancel: [];
+  submit: [project: Partial<Project>];
+}>();
 
 const { validateProjectForm } = useProjectFormValidation();
 

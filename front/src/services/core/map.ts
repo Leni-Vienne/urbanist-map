@@ -1,5 +1,5 @@
 import maplibre, { type Map as MaplibreMap, type RequestParameters } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css"; // needed otherwise the projectPopup is invisible
+import "maplibre-gl/dist/maplibre-gl.css"; // needed otherwise map controls and markers are unstyled
 import { ref, customRef } from "vue";
 import { getApiUrl } from "@/client";
 

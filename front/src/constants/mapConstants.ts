@@ -1,3 +1,5 @@
+import { isMobileViewport } from "@/composables/ui/useIsMobile";
+
 // All thresholds are native MapLibre zoom levels.
 export const MAP_CONFIG = {
   // Minimum zoom level to start loading viewport data and showing markers
@@ -18,5 +20,5 @@ export const MAP_CONFIG = {
  * so contributions are revealed one zoom level earlier to compensate.
  */
 export function getEffectiveThreshold(base: number): number {
-  return globalThis.innerWidth <= 768 ? base - 1 : base;
+  return isMobileViewport() ? base - 1 : base;
 }

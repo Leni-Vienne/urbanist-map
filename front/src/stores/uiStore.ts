@@ -16,7 +16,7 @@ interface EditFormState {
   data?: Project | OverlayObject;
 }
 
-interface ProjectInfoPopupState {
+interface ProjectDetailState {
   visible: boolean;
   projectId: string | null;
   project: Project | null;
@@ -29,7 +29,8 @@ interface ImageUploadDialogState {
 
 interface ShapeEditorState {
   project: Project | null;
-  reopenAt: { lat: number; lng: number } | null;
+  // Whether to reopen the project's docked detail once shape editing ends.
+  reopen: boolean;
 }
 
 export const useUiStore = defineStore("ui", () => {
@@ -67,8 +68,8 @@ export const useUiStore = defineStore("ui", () => {
   const mobileDrawerVisible = ref(true); // Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
 
-  // Project info popup state (for standalone projects)
-  const projectInfoPopup = ref<ProjectInfoPopupState>({
+  // Project detail state (for standalone projects)
+  const projectDetail = ref<ProjectDetailState>({
     visible: false,
     projectId: null,
     project: null,
@@ -81,7 +82,7 @@ export const useUiStore = defineStore("ui", () => {
   });
 
   // Shape editor state
-  const shapeEditor = ref<ShapeEditorState>({ project: null, reopenAt: null });
+  const shapeEditor = ref<ShapeEditorState>({ project: null, reopen: false });
 
   // Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
@@ -119,7 +120,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Shared overlay edit dialog actions - used by both sidemenu and info popup
+  // Shared overlay edit dialog actions - used by both sidemenu and detail panel
   function openOverlayEditDialog(overlay: OverlayEditTarget) {
     overlayEditDialog.value = {
       visible: true,
@@ -134,17 +135,17 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Project info popup actions
-  function openProjectInfoPopup(projectId: string, project?: Project) {
-    projectInfoPopup.value = {
+  // Project detail actions
+  function openProjectDetail(projectId: string, project?: Project) {
+    projectDetail.value = {
       visible: true,
       projectId,
       project: project ?? null,
     };
   }
 
-  function closeProjectInfoPopup() {
-    projectInfoPopup.value = {
+  function closeProjectDetail() {
+    projectDetail.value = {
       visible: false,
       projectId: null,
       project: null,
@@ -167,12 +168,12 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   // Shape editor actions
-  function openShapeEditor(project: Project, reopenAt?: { lat: number; lng: number }) {
-    shapeEditor.value = { project, reopenAt: reopenAt ?? null };
+  function openShapeEditor(project: Project, reopen = false) {
+    shapeEditor.value = { project, reopen };
   }
 
   function closeShapeEditor() {
-    shapeEditor.value = { project: null, reopenAt: null };
+    shapeEditor.value = { project: null, reopen: false };
   }
 
   function executePostLoginCallback() {
@@ -195,7 +196,7 @@ export const useUiStore = defineStore("ui", () => {
     activeTab,
     mobileDrawerVisible,
     mobileDrawerHeightPercent,
-    projectInfoPopup,
+    projectDetail,
     imageUploadDialog,
     shapeEditor,
     postLoginCallback,
@@ -207,8 +208,8 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectEditForm,
     openOverlayEditDialog,
     closeOverlayEditDialog,
-    openProjectInfoPopup,
-    closeProjectInfoPopup,
+    openProjectDetail,
+    closeProjectDetail,
     openImageUploadDialog,
     closeImageUploadDialog,
     openShapeEditor,

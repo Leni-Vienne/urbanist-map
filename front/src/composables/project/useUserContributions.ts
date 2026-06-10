@@ -7,6 +7,7 @@ import { withErrorHandling } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
+import { getStagedRender } from "@/composables/submission/stagedRenderStore";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
 import type { Project, UserContribution, UserContributionOverlay } from "@/types/index";
 
@@ -148,6 +149,42 @@ export function useUserContributions() {
       );
     }
 
+    // Surface staged renders (live only in stagedRenderStore until submitted) as pending render
+    // entries on their parent contribution, mirroring how submitted renders appear in the list.
+    for (const [projectId, contribution] of contributionsMap) {
+      const stagedRender = getStagedRender(projectId);
+      if (!stagedRender) continue;
+
+      const renderId = `staged-render-${projectId}`;
+      if (contribution.overlays.some((overlay) => overlay.id === renderId)) continue;
+
+      const renderOverlay = createLocalOverlayContribution(
+        {
+          id: renderId,
+          caption: null,
+          filename: `${renderId}.webp`,
+          projectId,
+          authorId: user.id,
+          replacesOverlayId: null,
+          status: null,
+          imageUrl: stagedRender.previewUrl,
+        },
+        {
+          cityId: contribution.cityId,
+          cityName: contribution.cityName,
+          countryCode: contribution.countryCode,
+          countryName: contribution.countryName,
+        },
+        user.username ?? null,
+        "render",
+      );
+
+      contributionsMap.set(projectId, {
+        ...contribution,
+        overlays: [...contribution.overlays, renderOverlay],
+      });
+    }
+
     // Convert map back to array and sort by updated date (most recent first)
     const result = [...contributionsMap.values()].toSorted(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -156,6 +193,7 @@ export function useUserContributions() {
     return result;
   });
 
+  // eslint-disable-next-line complexity
   async function fetchUserContributions() {
     if (!authStore.user) return;
 

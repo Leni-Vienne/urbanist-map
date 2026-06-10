@@ -39,6 +39,8 @@ interface EditableProjectFormOptions {
     lng: number;
     distance?: number;
   }[];
+  // Extra dirtiness beyond the scalar form fields (e.g. a staged render image).
+  extraDirty?: () => boolean;
   onSubmitted?: () => void;
   onClose?: () => void;
 }
@@ -58,6 +60,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   const hasChanges = computed(() => {
+    if (options.extraDirty?.()) return true;
     // oxlint-disable-next-line no-unsafe-type-assertion
     return Object.keys(formData).some((key) => hasChanged(key as keyof ProjectFormData));
   });

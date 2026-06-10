@@ -3,8 +3,8 @@ import { watchEffect } from "vue";
 import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
-import { getMarker } from "@/services/overlay/overlayRenderRegistry";
-import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { getMarker } from "@/services/overlay/renderRegistry";
+import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -160,7 +160,8 @@ export function updateMarkerTooltip(
     const isRejected = overlayObject.status === "rejected";
     const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
 
-    let statusText = "";
+    // eslint-disable-next-line init-declarations
+    let statusText: string;
     let modifierText = "";
 
     if (isReplacement && !isApproved) {

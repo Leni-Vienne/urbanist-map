@@ -59,7 +59,7 @@ async function handleCityClick() {
       throw new Error(t("location.cannotNavigateToCity"));
     }
 
-    await navigateToCity(props.countryCode, {
+    navigateToCity(props.countryCode, {
       lat: city.lat,
       lng: city.lng,
     });

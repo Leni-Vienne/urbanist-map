@@ -12,10 +12,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { MARKER_OPACITY } from "@/constants/markerConstants";
-import {
-  createProjectInfoTeleportTarget,
-  cleanupProjectInfoTeleportTarget,
-} from "@/services/map/projectPopupTeleport";
 import { getProjectMarkerColor } from "@/utils/markerColors";
 import { clearAllProjectShapes } from "@/services/map/shapeRendering";
 import {
@@ -24,6 +20,7 @@ import {
 } from "@/services/map/shapeLayerRegistry";
 // t() is imported directly since useI18n() is only available inside component setup().
 import { t } from "@/locales";
+import { expandProjectPanel } from "@/services/layout/accordionState";
 
 const standaloneProjectMarkerMap = new Map<string, maplibregl.Marker>();
 
@@ -72,8 +69,8 @@ export function removeStandaloneProjectMarkerForProject(projectId: string): void
   if (!marker) return;
 
   const uiStore = useUiStore();
-  if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId) {
-    uiStore.closeProjectInfoPopup();
+  if (uiStore.projectDetail.visible && uiStore.projectDetail.projectId === projectId) {
+    uiStore.closeProjectDetail();
   }
 
   marker.remove();
@@ -232,9 +229,9 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
         ? String(MARKER_OPACITY.standalone.hover)
         : String(MARKER_OPACITY.standalone.default);
     const uiStore = useUiStore();
-    const popupIsOpenForThis =
-      uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id;
-    if (!popupIsOpenForThis) {
+    const detailIsOpenForThis =
+      uiStore.projectDetail.visible && uiStore.projectDetail.projectId === project.id;
+    if (!detailIsOpenForThis) {
       unhighlightProjectShapes(project.id);
     }
   });
@@ -243,15 +240,11 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
 
   element.addEventListener("click", (e) => {
     e.stopPropagation();
+    // Idempotent select: always show the project and expand its panel. Deselection is handled by
+    // the background-map click and the selection card's close button.
     const uiStore = useUiStore();
-
-    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-      uiStore.closeProjectInfoPopup();
-      return;
-    }
-
-    uiStore.openProjectInfoPopup(project.id, project);
-    createProjectInfoTeleportTarget(marker);
+    uiStore.openProjectDetail(project.id, project);
+    expandProjectPanel(project.id);
   });
 }
 
@@ -270,9 +263,8 @@ export function updateStandaloneProjectMarkerColor(projectId: string, project: P
   updateStandaloneMarkerColor(marker, markerColor);
 }
 
-/** Close the project popup and reset all marker opacities. */
-export function closeProjectPopupAndResetMarkers() {
-  cleanupProjectInfoTeleportTarget();
+/** Reset all standalone marker opacities (e.g. after the project detail closes). */
+export function closeProjectDetailAndResetMarkers() {
   updateStandaloneProjectMarkerOpacities(null);
 }
 

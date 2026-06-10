@@ -54,6 +54,7 @@ export async function requestLogger(c: Context, next: Next) {
     const status = c.res.status;
     const userId = getUserId(c);
 
+    // eslint-disable-next-line no-nested-ternary
     const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
     logger[level]({
       method,

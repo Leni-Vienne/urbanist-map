@@ -1,5 +1,5 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
+import * as registry from "@/services/overlay/renderRegistry";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 
 /**

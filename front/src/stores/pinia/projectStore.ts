@@ -6,6 +6,7 @@ import type {
   UserContribution,
   UserContributionOverlay,
 } from "@/types/index";
+import type { ApprovalStatus } from "@shared/types";
 import { createProjectObject } from "@/utils/typeFactories";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
 import { clearCityNameCache } from "@/utils/cityNameCache";
@@ -174,6 +175,62 @@ export const useProjectStore = defineStore("project", () => {
 
       snapshotOriginal(newProject);
     }
+  }
+
+  // Optimistically attach a just-published render to its project in My Contributions, so the
+  // overlay list updates without a refetch. Renders skip the local overlayStore flow that map
+  // overlays use, so they need their own insertion. No-op only when the list isn't loaded; the
+  // next fetch reconciles regardless.
+  function addRenderToUserContributions(
+    projectId: string,
+    render: {
+      id: string;
+      filename: string;
+      status: ApprovalStatus | null;
+      authorId: string | null;
+    },
+    authorUsername: string | null,
+  ) {
+    if (!userContributionsLoaded.value) return;
+
+    const index = userContributions.value.findIndex((p) => p.id === projectId);
+    const existing = index === -1 ? undefined : userContributions.value[index];
+    if (existing?.overlays.some((o) => o.id === render.id)) return;
+
+    // overlayParentMetadata reads location fields shared by Project and UserContribution.
+    const parent = existing ?? projects.value[projectId];
+    if (!parent) return;
+
+    const overlay = createLocalOverlayContribution(
+      {
+        id: render.id,
+        caption: null,
+        filename: render.filename,
+        projectId,
+        authorId: render.authorId,
+        replacesOverlayId: null,
+        status: render.status,
+        version: 1,
+      },
+      overlayParentMetadata(parent),
+      authorUsername,
+      "render",
+    );
+
+    if (existing) {
+      userContributions.value = replaceAtIndex(
+        userContributions.value,
+        index,
+        withOverlays(existing, [...existing.overlays, overlay]),
+      );
+      return;
+    }
+
+    // Render added to a project not yet in My Contributions (e.g. an imported project the user
+    // didn't own). The backend lists it as a contribution once authored, so mirror that here.
+    const project = projects.value[projectId];
+    if (!project || project.status === null) return;
+    userContributions.value = [toContribution(project, [overlay]), ...userContributions.value];
   }
 
   // Optimistically add new project to user contributions without a backend fetch.
@@ -366,6 +423,7 @@ export const useProjectStore = defineStore("project", () => {
     setUserContributions,
     setUserContributionsLoading,
     addOverlayToUserContributions,
+    addRenderToUserContributions,
     addProjectToUserContributions,
     updateOverlayInUserContributions,
     updateProjectInUserContributions,

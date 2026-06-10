@@ -71,17 +71,17 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 const { te: $te, t: $t } = useI18n();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
-const { projectInfoPopup } = storeToRefs(uiStore);
-const { showInfoPopup, infoPopupOverlayId, overlays } = storeToRefs(overlayStore);
+const { projectDetail } = storeToRefs(uiStore);
+const { overlayDetailVisible, overlayDetailId, overlays } = storeToRefs(overlayStore);
 
-// Suppress when a persistent popup is already open for the hovered project
+// Suppress when a persistent detail panel is already open for the hovered project
 const suppress = computed(() => {
   const preview = hoverPreview.value;
   if (!preview || preview.type !== "project") return false;
-  if (projectInfoPopup.value.visible && projectInfoPopup.value.projectId === preview.projectId)
+  if (projectDetail.value.visible && projectDetail.value.projectId === preview.projectId)
     return true;
-  if (showInfoPopup.value && infoPopupOverlayId.value) {
-    const overlay = overlays.value[infoPopupOverlayId.value];
+  if (overlayDetailVisible.value && overlayDetailId.value) {
+    const overlay = overlays.value[overlayDetailId.value];
     if (overlay?.projectId === preview.projectId) return true;
   }
   return false;

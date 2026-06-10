@@ -87,33 +87,33 @@ function refreshGrid(mlMap: MaplibreMap) {
   if (source) source.setData(buildGridGeoJSON(mlMap));
 }
 
-let _active = false;
-let _mlMap: MaplibreMap | null = null;
-const _refresh = () => {
-  if (_mlMap) refreshGrid(_mlMap);
-};
+let isActive = false;
+let debugMlMap: MaplibreMap | null = null;
+function refreshGridCallback(): void {
+  if (debugMlMap) refreshGrid(debugMlMap);
+}
 
 export function toggleClusterGrid(mlMap?: MaplibreMap): void {
-  if (mlMap) _mlMap = mlMap;
-  if (!_mlMap) {
+  if (mlMap) debugMlMap = mlMap;
+  if (!debugMlMap) {
     console.warn("toggleClusterGrid: no mlMap provided and none cached");
     return;
   }
 
-  if (_active) {
-    _mlMap.off("moveend", _refresh);
-    _mlMap.off("zoomend", _refresh);
-    if (_mlMap.getLayer(LAYER_ID)) _mlMap.removeLayer(LAYER_ID);
-    if (_mlMap.getSource(SOURCE_ID)) _mlMap.removeSource(SOURCE_ID);
-    _active = false;
+  if (isActive) {
+    debugMlMap.off("moveend", refreshGridCallback);
+    debugMlMap.off("zoomend", refreshGridCallback);
+    if (debugMlMap.getLayer(LAYER_ID)) debugMlMap.removeLayer(LAYER_ID);
+    if (debugMlMap.getSource(SOURCE_ID)) debugMlMap.removeSource(SOURCE_ID);
+    isActive = false;
     console.log("Cluster grid hidden");
   } else {
-    addLayers(_mlMap);
-    _mlMap.on("moveend", _refresh);
-    _mlMap.on("zoomend", _refresh);
-    _active = true;
+    addLayers(debugMlMap);
+    debugMlMap.on("moveend", refreshGridCallback);
+    debugMlMap.on("zoomend", refreshGridCallback);
+    isActive = true;
     console.log(
-      `Cluster grid shown, cell_size=${getGridCellSizeForTileZoom(Math.floor(_mlMap.getZoom()))}`,
+      `Cluster grid shown, cell_size=${getGridCellSizeForTileZoom(Math.floor(debugMlMap.getZoom()))}`,
     );
   }
 }

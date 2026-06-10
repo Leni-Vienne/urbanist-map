@@ -90,7 +90,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useUiStore } from "@/stores/uiStore";
-import { usePanelTabs } from "@/composables/layout/usePanelTabs";
+import { useAuthStore } from "@/stores/authStore";
 import type { PanelTab } from "@/types";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
@@ -100,6 +100,7 @@ import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
 const uiStore = useUiStore();
+const authStore = useAuthStore();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
 const isSatelliteMenuOpen = ref(false);
@@ -123,9 +124,6 @@ function handleHeightChanged(height: number) {
 // Computed with getter/setter for v-model compatibility, uiStore.activeTab shared with SideMenu
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
-  set: (value) => setActiveTab(value),
+  set: (value) => (uiStore.activeTab = value),
 });
-
-// Initialize shared tab logic (mode syncing, authentication watchers, overlay selection)
-const { authStore, setActiveTab } = usePanelTabs();
 </script>

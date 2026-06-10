@@ -63,4 +63,5 @@ router.beforeEach(async (to) => {
     // Fire auth check in background without blocking navigation for public routes
     void authStore.initialize();
   }
+  return true;
 });

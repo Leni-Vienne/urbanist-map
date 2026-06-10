@@ -1,12 +1,13 @@
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { projects, cities, overlays, changeRequests, importSources } from "../db/schema";
-import { eq, sql, and, or, inArray, isNull, ne } from "drizzle-orm";
+import { projects, cities, overlays, changeRequests, importSources, users } from "../db/schema";
+import { eq, sql, and, or, inArray, isNull, ne, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import {
   buildProjectWithLocationQuery,
   buildOverlayModerationQuery,
+  buildOverlayVisibilityCondition,
   buildPaginationConditions,
   buildPaginationResponse,
   isUserBlocked,
@@ -297,14 +298,42 @@ export const projectRouter = router({
           ...PROJECT_COLUMNS,
           city: cities,
           importSource: importSources,
+          ownerUsername: users.username,
         })
         .from(projects)
         .leftJoin(cities, eq(projects.cityId, cities.id))
         .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
+        .leftJoin(users, eq(users.id, projects.ownerId))
         .where(and(eq(projects.id, input.id), statusCondition))
         .limit(1);
 
-      return rows[0] ?? null;
+      const project = rows[0];
+      if (!project) return null;
+
+      // Attach the render the caller is allowed to know about: approved, or their own pending.
+      // Another user's pending render is never returned. The frontend decides whether to display a
+      // pending render based on the live map mode, so this stays mode-independent.
+      const renderRows = await db
+        .select({
+          filename: overlays.filename,
+          caption: overlays.caption,
+          status: overlays.status,
+        })
+        .from(overlays)
+        .where(
+          and(
+            eq(overlays.projectId, input.id),
+            eq(overlays.kind, "render"),
+            buildOverlayVisibilityCondition(ctx.user, "edit"),
+          ),
+        )
+        .orderBy(
+          sql`CASE WHEN ${overlays.status} = 'approved' THEN 0 ELSE 1 END`,
+          desc(overlays.updatedAt),
+        )
+        .limit(1);
+
+      return { ...project, render: renderRows[0] ?? null };
     } catch (error) {
       console.error("Error fetching project by id:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });

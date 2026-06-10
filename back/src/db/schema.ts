@@ -300,8 +300,13 @@ export const overlays = pgTable(
     replacesOverlayId: uuid("replaces_overlay_id"), // Reference to the overlay this replaces (set by user during upload)
     replacedByOverlayId: uuid("replaced_by_overlay_id"), // Reference to the overlay that replaced this one (set by moderator during approval)
 
-    corners: geometry("corners", { type: "polygon", mode: "xy", srid: 4326 }).notNull(),
-    centroid: geometry("centroid", { type: "point", mode: "xy", srid: 4326 }).notNull(),
+    // 'map' = georeferenced image placed on the map (has corners/centroid).
+    // 'render' = a non-georeferenced project image (artist's impression); corners/centroid are null.
+    kind: text("kind").$type<"map" | "render">().default("map").notNull(),
+
+    // Null for renders, which are not placed on the map.
+    corners: geometry("corners", { type: "polygon", mode: "xy", srid: 4326 }),
+    centroid: geometry("centroid", { type: "point", mode: "xy", srid: 4326 }),
 
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
@@ -316,6 +321,7 @@ export const overlays = pgTable(
     index("idx_overlays_author_id").on(table.authorId),
     index("idx_overlays_project").on(table.projectId),
     index("idx_overlays_replaces").on(table.replacesOverlayId),
+    index("idx_overlays_kind").on(table.kind),
     sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_corners ON overlays USING GIST (corners)"),
     sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_centroid ON overlays USING GIST (centroid)"),
   ],

@@ -5,21 +5,13 @@
       <span :class="cls.value">{{ project.name ?? "—" }}</span>
     </div>
 
-    <!-- Description: prefer OSM description, fall back to Wikidata description, hidden when both null and not editable -->
-    <div
-      v-if="showDescription && (project.description || wikidataDescription || editMode)"
-      :class="cls.row"
-    >
+    <!-- Description: prefer OSM description, fall back to Wikidata description -->
+    <div v-if="showDescription && (project.description || wikidataDescription)" :class="cls.row">
       <span :class="cls.label">{{ $t("common.description") }}</span>
-      <span v-if="project.description || wikidataDescription" :class="cls.value">{{
-        project.description || wikidataDescription
-      }}</span>
-      <button v-else :class="cls.addBtn" @click="emit('field-click')">
-        + {{ $t("common.addField") }}
-      </button>
+      <span :class="cls.value">{{ project.description || wikidataDescription }}</span>
     </div>
 
-    <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+    <div class="flex flex-wrap gap-x-6 gap-y-3">
       <!-- Timeline Status -->
       <div :class="cls.row">
         <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
@@ -40,15 +32,22 @@
         }}</span>
       </div>
 
-      <!-- Location: hidden when null and not editable -->
-      <div v-if="projectLocationDisplay !== '—' || editMode" :class="cls.row">
+      <!-- Creator (user-made projects only) -->
+      <div v-if="!project.importSourceId && project.ownerUsername" :class="cls.row">
+        <span :class="cls.label">{{ $t("project.createdBy") }}</span>
+        <span :class="cls.value">{{ project.ownerUsername }}</span>
+      </div>
+
+      <!-- Last Modified (user-made projects only) -->
+      <div v-if="!project.importSourceId && project.updatedAt" :class="cls.row">
+        <span :class="cls.label">{{ $t("project.lastModified") }}</span>
+        <span :class="cls.value">{{ formatDate(project.updatedAt) }}</span>
+      </div>
+
+      <!-- Location: hidden when null (empty-state add handled by the consolidated affordance) -->
+      <div v-if="projectLocationDisplay !== '—'" :class="cls.row">
         <span :class="cls.label">{{ $t("project.city") }}</span>
-        <span v-if="projectLocationDisplay !== '—'" :class="cls.value">{{
-          projectLocationDisplay
-        }}</span>
-        <button v-else :class="cls.addBtn" @click="emit('field-click')">
-          + {{ $t("common.addField") }}
-        </button>
+        <span :class="cls.value">{{ projectLocationDisplay }}</span>
       </div>
 
       <!-- Period: hidden when empty -->
@@ -81,14 +80,9 @@
         target="_blank"
         rel="noopener noreferrer"
         class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
+        @click.stop
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
-    </div>
-    <div v-else-if="editMode" :class="cls.row">
-      <span :class="cls.label">{{ $t("project.source") }}</span>
-      <button :class="cls.addBtn" @click="emit('field-click')">
-        + {{ $t("common.addField") }}
-      </button>
     </div>
 
     <!-- Modify on source link (imported projects only, edit mode) -->
@@ -101,6 +95,7 @@
         target="_blank"
         rel="noopener noreferrer"
         class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline"
+        @click.stop
         >{{ project.externalId }}</a
       >
     </div>
@@ -108,7 +103,7 @@
     <!-- External properties (OSM tags) for imported projects -->
     <template v-if="project.importSourceId && externalProperties">
       <!-- Architect, Wikipedia, Wikidata -->
-      <div v-if="externalEntries.length > 0" class="grid grid-cols-2 gap-x-6 gap-y-3">
+      <div v-if="externalEntries.length > 0" class="flex flex-wrap gap-x-6 gap-y-3">
         <div v-for="entry in externalEntries" :key="entry.key" class="flex flex-col gap-0.5">
           <span :class="cls.label">{{ entry.label }}</span>
           <a
@@ -117,6 +112,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
+            @click.stop
             >{{ entry.display }}</a
           >
           <span v-else :class="cls.value">{{ entry.display }}</span>
@@ -130,6 +126,7 @@
         target="_blank"
         rel="noopener noreferrer"
         class="block"
+        @click.stop
       >
         <img
           :src="externalImageUrl"
@@ -139,6 +136,16 @@
         />
       </a>
     </template>
+
+    <!-- Wikidata main image (P18). Opt-in: the detail panel renders its own (with a zoom
+         lightbox), so only standalone surfaces enable it here. -->
+    <img
+      v-if="showWikidataMedia && wikidataEntityData?.imageUrl"
+      :src="wikidataEntityData.imageUrl"
+      class="w-full rounded-lg object-cover max-h-36"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+    />
   </div>
 </template>
 
@@ -157,13 +164,15 @@ interface Props {
   project: Project | null;
   showName?: boolean;
   showDescription?: boolean;
-  editMode?: boolean;
+  // Render the Wikidata logo + main image inside the card. Off by default because the detail
+  // panel renders its own (logo next to the name, image with a zoom lightbox).
+  showWikidataMedia?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showName: true,
   showDescription: false,
-  editMode: false,
+  showWikidataMedia: false,
 });
 
 const wikidataId = computed(() => {
@@ -175,14 +184,10 @@ const wikidataId = computed(() => {
 const { entity: wikidataEntityData } = useWikidataEntity(wikidataId);
 const wikidataDescription = computed(() => wikidataEntityData.value?.description ?? null);
 
-const emit = defineEmits<{ "field-click": [] }>();
-
 const cls = {
   row: "flex flex-col gap-0.5",
   label: "text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color",
   value: "text-[13px] text-color wrap-break-word",
-  addBtn:
-    "text-xs italic text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 cursor-pointer bg-transparent border-none p-0 outline-none text-left",
 };
 
 function getTagStyle(slug: string): Record<string, string> {

@@ -1,11 +1,10 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import {
-  getMarker,
-  getRenderedOverlayIds,
-  hasReadyLayer,
-} from "@/services/overlay/overlayRenderRegistry";
-import { raiseOverlayImage } from "@/services/overlay/overlayImageLayer";
-import { showEditHandles, hideEditHandles } from "@/services/overlay/overlayEditHandles";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { trpc } from "@/client";
+import { createProjectObject } from "@/utils/typeFactories";
+import { getMarker, getRenderedOverlayIds, hasReadyLayer } from "@/services/overlay/renderRegistry";
+import { raiseOverlayImage } from "@/services/overlay/imageLayer";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
@@ -18,7 +17,7 @@ import {
   unhighlightProjectShapes,
 } from "@/services/map/shapeLayerRegistry";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { resolveOverlayRenderCorners } from "@/services/overlay/overlayHistory";
+import { resolveOverlayRenderCorners } from "@/services/overlay/history";
 
 type Corner = { lat: number; lng: number };
 
@@ -82,8 +81,12 @@ export function selectOverlay(overlayId: string | null): void {
 
   const overlayStore = useOverlayStore();
 
-  // Early exit if already selected
-  if (overlayId === overlayStore.idSelectedOverlay) return;
+  // Already selected: skip the reselect work, but re-show its docked detail in case a prior
+  // action (e.g. the detail's Back button) hid it while keeping the overlay selected.
+  if (overlayId === overlayStore.idSelectedOverlay) {
+    if (overlayId) overlayStore.openOverlayDetail(overlayId);
+    return;
+  }
 
   isSelectingOverlay = true;
   try {
@@ -98,12 +101,16 @@ export function selectOverlay(overlayId: string | null): void {
       cleanupPreviousSelection(previouslySelected, previouslySelectedId, overlayId);
     }
 
-    if (!overlayId) return;
+    // Deselecting clears the docked overlay detail.
+    if (!overlayId) {
+      overlayStore.closeOverlayDetail();
+      return;
+    }
 
-    // Close standalone project popup when selecting an overlay (mutual exclusivity)
+    // Close standalone project detail when selecting an overlay (mutual exclusivity)
     const uiStore = useUiStore();
-    if (uiStore.projectInfoPopup.visible) {
-      uiStore.closeProjectInfoPopup();
+    if (uiStore.projectDetail.visible) {
+      uiStore.closeProjectDetail();
     }
 
     // Apply selection to new overlay
@@ -118,8 +125,36 @@ export function selectOverlay(overlayId: string | null): void {
 
     // Request scroll to overlay in accordion panel when selecting from map
     requestScrollTo("overlay", overlayId);
+
+    // Drive the docked panel into this overlay's detail view, fetching its project if the
+    // selection came from the map (vector tiles don't always carry the full project).
+    overlayStore.openOverlayDetail(overlayId);
+    void hydrateOverlayProject(overlayId);
   } finally {
     isSelectingOverlay = false;
+  }
+}
+
+// The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
+// carry minimal data, so fetch and cache the project when neither the store nor the overlay has it.
+async function hydrateOverlayProject(overlayId: string): Promise<void> {
+  const overlayStore = useOverlayStore();
+  const overlay = overlayStore.overlays[overlayId];
+  if (!overlay?.projectId) return;
+
+  const projectStore = useProjectStore();
+  if (projectStore.projects[overlay.projectId] || overlay.project) return;
+
+  try {
+    const result = await trpc.project.getById.query({ id: overlay.projectId });
+    if (result) {
+      projectStore.updateProject(
+        overlay.projectId,
+        createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }),
+      );
+    }
+  } catch (error) {
+    console.error("Failed to fetch project for overlay detail:", error);
   }
 }
 
@@ -221,8 +256,7 @@ export function removeProjectOutlines(projectId: string, force = false): void {
     if (selectedOverlay?.projectId === projectId) return;
 
     const uiStore = useUiStore();
-    if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === projectId)
-      return;
+    if (uiStore.projectDetail.visible && uiStore.projectDetail.projectId === projectId) return;
   }
 
   // Unhighlight project shapes alongside the overlays (GeoJSON layers in edit/moderation, vector tiles in view mode)
@@ -246,7 +280,7 @@ export function highlightProject(projectId: string, overlayId?: string): void {
 
 /**
  * Returns the projectId that is currently "highlighted" - either because an overlay of
- * that project is selected, or because the project info popup (shape click) is open.
+ * that project is selected, or because the project detail (shape click) is open.
  */
 export function getCurrentHighlightedProjectId(): string | null {
   const overlayStore = useOverlayStore();
@@ -256,8 +290,7 @@ export function getCurrentHighlightedProjectId(): string | null {
     ? overlayStore.overlays[overlayStore.idSelectedOverlay]
     : null;
   return (
-    selected?.projectId ??
-    (uiStore.projectInfoPopup.visible ? uiStore.projectInfoPopup.projectId : null)
+    selected?.projectId ?? (uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null)
   );
 }
 
@@ -275,6 +308,7 @@ export function refreshSelectionHighlight(): void {
 function isPointInCorners(point: { lat: number; lng: number }, corners: Corner[]): boolean {
   if (corners.length < 3) return false;
   let isInside = false;
+  // eslint-disable-next-line no-plusplus
   for (let i = 0, j = corners.length - 1; i < corners.length; j = i++) {
     const a = corners[i];
     const b = corners[j];
@@ -314,5 +348,12 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
 
   if (overlayStore.idSelectedOverlay) {
     selectOverlay(null);
+    return;
+  }
+
+  // No overlay under the click: a background click also closes an open project detail.
+  const uiStore = useUiStore();
+  if (uiStore.projectDetail.visible) {
+    uiStore.closeProjectDetail();
   }
 }

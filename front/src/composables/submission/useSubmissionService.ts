@@ -1,7 +1,10 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
-import { getOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
+import { uploadImageFile } from "@/utils/uploadImageFile";
+import { clearStagedRender } from "./stagedRenderStore";
+import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
 import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
@@ -171,6 +174,7 @@ function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
 export function useSubmissionService() {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
+  const authStore = useAuthStore();
   const pendingModsStore = usePendingModificationsStore();
   const { publishOverlay } = useOverlayPublisher();
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
@@ -603,6 +607,31 @@ export function useSubmissionService() {
     }
   }
 
+  // Publish a render staged in the project form. Its own moderated entity, attached to an
+  // existing project row, so callers must ensure the project is published first.
+  async function publishStagedRender(projectId: string, file: File): Promise<void> {
+    const filename = await uploadImageFile(file);
+    const created = await trpc.overlay.publishRender.mutate({ projectId, filename });
+    // Optimistically attach the pending render so the detail panel shows it immediately in edit mode.
+    // Clear isModified too: a render-only edit marks the project modified but submits nothing
+    // through the project change paths, so nothing else resets the flag.
+    projectStore.updateProject(projectId, {
+      render: { filename, caption: null, status: "pending" },
+      isModified: false,
+    });
+    // Mirror it into My Contributions, where renders show as render-kind overlays in the list.
+    projectStore.addRenderToUserContributions(
+      projectId,
+      { id: created.id, filename, status: created.status, authorId: created.authorId },
+      authStore.user?.username ?? null,
+    );
+    const updatedProject = projectStore.projects[projectId];
+    if (updatedProject?.overlayIds.length === 0) {
+      updateStandaloneProjectMarkerColor(projectId, updatedProject);
+    }
+    clearStagedRender(projectId);
+  }
+
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
     const project = ctx.projectId ? projectStore.getProjectById(ctx.projectId) : null;
 
@@ -633,6 +662,11 @@ export function useSubmissionService() {
     // 4. Brand-new project with no overlays: publish the project on its own.
     if (newOverlayIds.length === 0 && ctx.changeType === "create" && project?.status === null) {
       await submitEntity(createProjectContext(project, "create"), reason);
+    }
+
+    // 5. Publish a staged render last, once the project is guaranteed to exist server-side.
+    if (ctx.pendingRender && ctx.projectId) {
+      await publishStagedRender(ctx.projectId, ctx.pendingRender.file);
     }
   }
 

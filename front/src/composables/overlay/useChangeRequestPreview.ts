@@ -5,12 +5,11 @@ import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { getOverlayBounds } from "@/services/overlay/overlayMarkers";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
-import * as registry from "@/services/overlay/overlayRenderRegistry";
-import { setOverlayImageCorners } from "@/services/overlay/overlayImageLayer";
-import { selectOverlay } from "@/services/overlay/overlaySelection";
-import { clearAllMapContent } from "@/services/overlay/overlayLifecycle";
+import { getOverlayBounds } from "@/services/overlay/markers";
+import * as registry from "@/services/overlay/renderRegistry";
+import { applyOverlayCorners } from "@/services/overlay/sync";
+import { selectOverlay } from "@/services/overlay/selection";
+import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
@@ -86,7 +85,7 @@ function navigateToPosition(
   mobileAwareFlyToBounds(targetBounds);
 
   // Select overlay after flyTo completes
-  map.value.once("moveend", () => {
+  void map.value.once("moveend", () => {
     selectOverlay(overlayId);
   });
 }
@@ -145,7 +144,7 @@ export function useChangeRequestPreview() {
     const needsEditMode = mapStore.mode === "view" && overlayForModeration.status === "pending";
     if (needsEditMode) {
       mapStore.setMode("edit");
-      // Flush the mode-change watchers; the poll below waits for the overlay to actually load.
+      // Let the tab switch and derived mode settle; the poll below waits for the overlay to load.
       await nextTick();
     }
 
@@ -213,10 +212,9 @@ export function useChangeRequestPreview() {
       overlayObject.isViewingApprovedPosition = true;
     }
 
-    // Apply the position change
-    setOverlayImageCorners(overlayId, targetLatLngs);
-    updateMarkerPosition(overlayObject);
-    updateMarkerTooltip(overlayObject);
+    // Apply the position change. Preview is read-only (no history reset, no edit handles); the
+    // handle existence was already verified above.
+    applyOverlayCorners(overlayObject, targetLatLngs, { refreshTooltip: true });
 
     // Always navigate to the final position to ensure camera is centered correctly
     navigateToPosition(targetLatLngs, previousBounds, overlayId);

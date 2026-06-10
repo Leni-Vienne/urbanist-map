@@ -2,40 +2,28 @@ import type { Project } from "@/types/index";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import {
-  createProjectInfoTeleportTargetAtLatLng,
-  cleanupProjectInfoTeleportTarget,
-} from "@/services/map/projectPopupTeleport";
-import { setPopupPlacementForLatLng } from "@/services/map/popupState";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
+import { expandProjectPanel } from "@/services/layout/accordionState";
 
 /**
- * Open the project info popup and pin the teleport anchor for the given project.
+ * Open the project detail in the docked panel for the given project.
  * Called from vector/point clicks, project shape clicks, and the Contribute sidebar.
- * Popup-state side effects (vector hover, accordion scroll, marker opacity, overlay
- * deselect) are handled by the popup watcher initialized at boot in main.ts.
+ * Detail-state side effects (vector hover, accordion scroll, marker opacity, overlay
+ * deselect) are handled by the detail watcher initialized at boot in main.ts.
  */
-export function selectProject(
-  project: Project,
-  latlng: { lat: number; lng: number },
-  atCenter = false,
-): void {
+export function selectProject(project: Project): void {
   const uiStore = useUiStore();
 
-  if (uiStore.projectInfoPopup.visible && uiStore.projectInfoPopup.projectId === project.id) {
-    uiStore.closeProjectInfoPopup();
-    cleanupProjectInfoTeleportTarget();
-    return;
-  }
-
-  uiStore.openProjectInfoPopup(project.id, project);
-  setPopupPlacementForLatLng(latlng, atCenter);
-  createProjectInfoTeleportTargetAtLatLng(latlng);
+  // Selecting is idempotent: always show the project and expand its panel, regardless of current
+  // state. Deselection has its own paths (background-map click, the card's close button), so this
+  // never branches on "already selected", which is what desynced after a manual fold.
+  uiStore.openProjectDetail(project.id, project);
+  expandProjectPanel(project.id);
 
   // In moderation mode, switch the panel to this project's country so its pending
-  // submissions load and the popup watcher's scroll request can resolve.
+  // submissions load and the detail watcher's scroll request can resolve.
   syncModerationCountryFromMapClick(project.countryCode);
 }
 
@@ -81,11 +69,7 @@ async function resolveProjectForTileClick(projectId: string): Promise<Project | 
  * Any project resolved from outside the store is stored so it behaves like a loaded
  * one (editable, re-selectable) for the rest of the session.
  */
-export async function handleProjectClickFromTile(
-  projectId: string,
-  latlng: { lat: number; lng: number },
-  atCenter = false,
-): Promise<void> {
+export async function handleProjectClickFromTile(projectId: string): Promise<void> {
   const projectStore = useProjectStore();
   let project = projectStore.projects[projectId];
 
@@ -96,5 +80,5 @@ export async function handleProjectClickFromTile(
     projectStore.updateProject(projectId, project);
   }
 
-  selectProject(project, latlng, atCenter);
+  selectProject(project);
 }

@@ -642,7 +642,7 @@ async function main() {
   // ST_PointOnSurface) across all rows in one efficient pass.
   // The anchor uses ST_PointOnSurface so lat/lng and center_coordinate land on the geometry itself
   // (e.g. the midpoint of a railroad line) rather than the JS arithmetic centroid set during upsert,
-  // which can fall off curved or asymmetric shapes. It is what popup placement and tile-based
+  // which can fall off curved or asymmetric shapes. It is what marker placement and tile-based
   // navigation snap to. Unchanged rows keep the anchor a prior run already computed (see conflictSet).
   // Spatial size in meters, used to:
   //   - decide zoom level when flying to a project
@@ -731,7 +731,10 @@ async function main() {
   }
 
   // Prune stale projects that were not updated during this sync.
-  // Projects with overlays are soft-detached (import link severed, geometry cleared, overlays kept).
+  // Projects with overlays are soft-detached: the OSM link (import source + external id) is severed,
+  // but geometry and external_properties are kept so the project keeps its shape and its osm_ids stay
+  // available for later re-linking to a redrawn OSM feature. The frontend gates OSM attribution on
+  // import_source_id, so a severed project shows no stale OSM link despite retaining the raw properties.
   // Projects without overlays are hard-deleted.
   // import_locked_at rows are exempt: they hold an approved user edit and were skipped by the upsert,
   // so their last_imported_at is stale by design and must not be deleted or detached.
@@ -757,10 +760,7 @@ async function main() {
         detachedAt: new Date(),
         importSourceId: null,
         externalId: null,
-        externalProperties: null,
         externalLastModified: null,
-        geometry: null,
-        geometrySizeM: null,
       })
       .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
       .returning({ id: projects.id });
