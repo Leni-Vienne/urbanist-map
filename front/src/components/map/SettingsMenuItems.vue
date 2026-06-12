@@ -1,6 +1,8 @@
 <template>
   <LanguageSwitcherMenu />
 
+  <MapLanguageMenu />
+
   <button
     type="button"
     class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
@@ -24,6 +26,7 @@
 
 <script setup lang="ts">
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
+import MapLanguageMenu from "@/components/map/MapLanguageMenu.vue";
 import { useTheme } from "@/composables/core/useTheme";
 import { useBuildings3D } from "@/composables/core/useBuildings3D";
 

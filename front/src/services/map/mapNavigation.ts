@@ -132,6 +132,23 @@ function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions
   return padding;
 }
 
+// MapLibre's cameraForBounds/fitBounds add the camera's persisted padding (kept on the transform
+// by the previous flight's padding option) on top of the padding they are given, double-counting
+// the insets. Subtract the persisted padding so the effective insets land on the resolved values.
+function compensatePersistedPadding(padding: PaddingOptions | number): PaddingOptions {
+  const persisted = map.value.getPadding();
+  const top = typeof padding === "number" ? padding : (padding.top ?? 0);
+  const bottom = typeof padding === "number" ? padding : (padding.bottom ?? 0);
+  const left = typeof padding === "number" ? padding : (padding.left ?? 0);
+  const right = typeof padding === "number" ? padding : (padding.right ?? 0);
+  return {
+    top: Math.max(0, top - (persisted.top ?? 0)),
+    bottom: Math.max(0, bottom - (persisted.bottom ?? 0)),
+    left: Math.max(0, left - (persisted.left ?? 0)),
+    right: Math.max(0, right - (persisted.right ?? 0)),
+  };
+}
+
 // Top inset clearing the overlay editing toolbar when navigating to an overlay on mobile.
 const MOBILE_OVERLAY_TOP_INSET = 140;
 
@@ -298,6 +315,9 @@ export function mobileAwareFlyToBounds(
     [east, north],
   ];
   const padding = resolvePadding(options.padding);
+  // cameraForBounds/fitBounds add the persisted transform padding to this value, so hand them the
+  // compensated remainder; the mercator fallback computes from scratch and uses `padding` as is.
+  const fitPadding = compensatePersistedPadding(padding);
 
   const currentZoom = m.getZoom();
   const currentCenter = m.getCenter();
@@ -309,7 +329,7 @@ export function mobileAwareFlyToBounds(
   let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
   let cameraForBoundsOk = false;
   try {
-    const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding });
+    const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding: fitPadding });
     if (cam) {
       cameraForBoundsOk = true;
       if (typeof cam.zoom === "number" && Number.isFinite(cam.zoom)) targetZoom = cam.zoom;
@@ -346,7 +366,7 @@ export function mobileAwareFlyToBounds(
   try {
     m.fitBounds(llb, {
       maxZoom: options.maxZoom,
-      padding,
+      padding: fitPadding,
       duration: duration * 1000,
       essential: true,
     });

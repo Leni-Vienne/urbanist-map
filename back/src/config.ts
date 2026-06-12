@@ -8,6 +8,9 @@ const envSchema = z.object({
   DATABASE_URL: z.url(),
   CORS_ORIGIN: z.string(),
   PORT: z.coerce.number().default(3000),
+  // Session cookie encryption key. Required everywhere so the server never boots
+  // with a known/guessable secret.
+  COOKIE_SECRET: z.string().min(32),
 });
 
 const parsedEnv = envSchema.safeParse(env);

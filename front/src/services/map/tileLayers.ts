@@ -1,7 +1,14 @@
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
-import { map, OPENFREEMAP_STYLE_URL, getMlMap, markMlMapReady } from "@/services/core/map";
+import {
+  map,
+  OPENFREEMAP_STYLE_URL,
+  getMlMap,
+  markMlMapReady,
+  currentZoomLevel,
+} from "@/services/core/map";
+import { BUILDING_FILTER_MIN_ZOOM } from "@/config/projectTags";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 import { useToast } from "@/composables/ui/useToast";
@@ -16,6 +23,7 @@ import {
   applyRailStyleOverrides,
   applySky,
 } from "./basemapStyleOverrides";
+import { applyMapLabelLanguage } from "./mapLabelLanguage";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/renderRegistry";
 import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editHandles";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
@@ -26,7 +34,8 @@ import {
   selectedNameFilters,
   lastModifiedDateRange,
   showOnlyWithImages,
-} from "@/services/overlay/statusFilters";
+  pruneBuildingTagFilters,
+} from "@/services/map/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { resyncOverlaysFromTiles } from "@/services/map/vectorTileSync";
 
@@ -127,7 +136,11 @@ const originalExtrusionPaint = new Map<string, { height: unknown; base: unknown 
  */
 function applyBuildings3DState(extruded: boolean): void {
   const mlMap = getMlMap();
-  if (!mlMap || !mlMap.isStyleLoaded()) return;
+  // Guard only on the map existing, not isStyleLoaded(): that returns false until every
+  // source cache finishes loading, which is still pending inside the style.load handler
+  // where this runs on a basemap switch. The style JSON is parsed by then, so the layers
+  // and setPaintProperty are usable.
+  if (!mlMap) return;
 
   for (const layer of mlMap.getStyle().layers) {
     if (layer.type !== "fill-extrusion") continue;
@@ -309,6 +322,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
     applyPlanStyleRoadOverrides(mlMap);
     applyRailStyleOverrides(mlMap);
     applySky(mlMap);
+    applyMapLabelLanguage(mlMap);
     addProjectDataToMlMap(mlMap);
 
     if (!interactionRegistered) {
@@ -360,6 +374,13 @@ watch(
   },
   { deep: true },
 );
+
+// Building-category markers are hidden below BUILDING_FILTER_MIN_ZOOM (see tiles.sql), so a
+// selected building filter would silently match nothing once zoomed out. Drop it; the filter
+// watcher above then re-applies the cleared selection to the map.
+watch(currentZoomLevel, (zoom) => {
+  if (zoom < BUILDING_FILTER_MIN_ZOOM) pruneBuildingTagFilters();
+});
 
 watch(show3DBuildings, (extruded) => {
   applyBuildings3DState(extruded);
@@ -417,6 +438,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
         applySky(mlMap);
+        applyMapLabelLanguage(mlMap);
         applyBuildings3DState(show3DBuildings.value);
       }
       addProjectDataToMlMap(mlMap);

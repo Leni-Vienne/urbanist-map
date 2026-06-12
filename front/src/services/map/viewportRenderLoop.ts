@@ -6,11 +6,8 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
-import {
-  filterByStatus,
-  visibleStates,
-  selectedProjectTags,
-} from "@/services/overlay/statusFilters";
+import { filterByStatus } from "@/services/overlay/statusFilters";
+import { visibleStates, selectedProjectTags } from "@/services/map/filters";
 import { createOverlayMarker } from "@/services/overlay/markers";
 import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
 import * as registry from "@/services/overlay/renderRegistry";

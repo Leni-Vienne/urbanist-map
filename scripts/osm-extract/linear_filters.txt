@@ -1,0 +1,13 @@
+w/railway=proposed,construction,planned
+w/highway=proposed,construction,planned
+w/waterway=proposed,construction,planned
+w/aerialway=proposed,construction,planned
+w/aeroway=proposed,construction,planned
+w/cycleway=proposed,construction,planned
+w/cycleway:left=proposed,construction,planned
+w/cycleway:right=proposed,construction,planned
+w/cycleway:both=proposed,construction,planned
+w/state=proposed,construction,planned
+w/construction*
+w/proposed*
+w/planned*

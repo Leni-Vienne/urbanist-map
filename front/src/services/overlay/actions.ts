@@ -2,7 +2,6 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
@@ -34,16 +33,27 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
 }
 
 /**
+ * Sibling overlay ids of a project, derived from already-loaded overlays (not
+ * project.overlayIds, which is only populated on detail open and can list overlays
+ * that aren't loaded, hence not selectable). Shared by the toolbar index display and
+ * prev/next navigation so both agree on order and count.
+ */
+export function getProjectSiblingOverlayIds(projectId: string): string[] {
+  const overlayStore = useOverlayStore();
+  return Object.values(overlayStore.overlays)
+    .filter((overlay) => overlay.projectId === projectId)
+    .map((overlay) => overlay.id);
+}
+
+/**
  * Navigates between overlays in the current project based on direction.
  */
 
 export function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
-  const projectStore = useProjectStore();
 
-  // Handle case when no overlay is selected
+  // Only callable from the floating toolbar, which requires a selected overlay.
   if (!overlayStore.idSelectedOverlay) {
-    selectFirstOrLastOverlayInAnyProject(direction);
     return;
   }
 
@@ -53,19 +63,7 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
     return;
   }
 
-  const project = projectStore.projects[currentOverlay.projectId];
-  // eslint-disable-next-line init-declarations
-  let projectOverlayIds: string[];
-
-  // If project is not in memory, or overlayIds not yet populated (only set on detail open),
-  // derive siblings from already-loaded overlays.
-  if (!project?.overlayIds.length) {
-    projectOverlayIds = Object.values(overlayStore.overlays)
-      .filter((overlay) => overlay.projectId === currentOverlay.projectId)
-      .map((overlay) => overlay.id);
-  } else {
-    projectOverlayIds = project.overlayIds;
-  }
+  const projectOverlayIds = getProjectSiblingOverlayIds(currentOverlay.projectId);
 
   if (projectOverlayIds.length <= 1) {
     const toast = useToast();
@@ -82,32 +80,6 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   const newOverlayId = projectOverlayIds[newIndex]!;
 
   selectAndCenterOverlay(newOverlayId);
-}
-
-function selectFirstOrLastOverlayInAnyProject(direction: "next" | "previous") {
-  const projectStore = useProjectStore();
-  const projectIds = Object.keys(projectStore.projects);
-  if (projectIds.length === 0) {
-    return;
-  }
-
-  for (const projectId of projectIds) {
-    const project = projectStore.projects[projectId];
-    if (!project) {
-      console.error("Project not found for ID:", projectId);
-      continue;
-    }
-    if (project.overlayIds.length > 0) {
-      // index is 0 or length-1 on a non-empty array, so the lookup is always defined.
-      const index = direction === "next" ? 0 : project.overlayIds.length - 1;
-      // oxlint-disable-next-line no-non-null-assertion
-      const overlayId = project.overlayIds[index]!;
-
-      if (selectAndCenterOverlay(overlayId)) {
-        return;
-      }
-    }
-  }
 }
 
 /**
@@ -175,15 +147,18 @@ export async function navigateToOverlay(
 
   // Overlay was just fetched -- registration is async (happens after image loads).
   // Select now if it registered in time, otherwise fly directly to the backend corners.
-  const navigated = selectAndCenterOverlay(overlayId);
-  if (!navigated && loadResult?.corners && loadResult.corners.length >= 4) {
+  if (selectAndCenterOverlay(overlayId)) {
+    return true;
+  }
+  if (loadResult?.corners && loadResult.corners.length >= 4) {
     const bounds = new LngLatBounds();
     for (const c of loadResult.corners) {
       bounds.extend(new LngLat(c.lng, c.lat));
     }
     mobileAwareFlyToBounds(bounds);
+    return true;
   }
-  return true;
+  return false;
 }
 
 function selectAndCenterOverlay(overlayId: string) {

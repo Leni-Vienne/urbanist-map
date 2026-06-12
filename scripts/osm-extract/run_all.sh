@@ -84,6 +84,7 @@ BASE="${SOURCE%.osm.pbf}"
 COMBINED_PBF="${BASE}_proposed.osm.pbf"
 WAYS_PBF="${BASE}_proposed_ways.osm.pbf"
 AREAL_PBF="${BASE}_proposed_areal.osm.pbf"
+RELATIONS_PBF="${BASE}_proposed_relations.osm.pbf"
 LINEAR_GEOJSON="${OUTPUT_DIR}/$(basename "${BASE}")_proposed_linear.geojson"
 AREAL_GEOJSON="${OUTPUT_DIR}/$(basename "${BASE}")_proposed_areal.geojson"
 
@@ -109,6 +110,7 @@ echo "[$(ts)] PHASE 1 done in $(elapsed $((SECONDS - T0)))"
 echo "  $COMBINED_PBF , $(filesize "$COMBINED_PBF")"
 echo "  $WAYS_PBF     , $(filesize "$WAYS_PBF")"
 echo "  $AREAL_PBF    , $(filesize "$AREAL_PBF")"
+echo "  $RELATIONS_PBF , $(filesize "$RELATIONS_PBF")"
 
 # ---------------------------------------------------------------------------
 echo ""
@@ -120,7 +122,7 @@ T1=$SECONDS
 
 python3 "$SCRIPT_DIR/extract_linear_topo.py" \
     --ways-file "$WAYS_PBF" \
-    --source-file "$COMBINED_PBF" \
+    --source-file "$RELATIONS_PBF" \
     --output "$LINEAR_GEOJSON" &
 PID_LINEAR=$!
 

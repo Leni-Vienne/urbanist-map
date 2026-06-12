@@ -1,34 +1,47 @@
 import { Hono } from "hono";
 import { tilesSqlClientLowZoom, tilesSqlClientHighZoom, db } from "../database";
-import { projects, overlays } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 export const tilesApp = new Hono();
 
 // In-memory tile caches. null = empty tile (204), Buffer = tile data.
 // Two caches so high-zoom LRU churn never evicts the bounded, pre-warmed low-zoom set.
 //   low-zoom  (z0-z6): ~5.5k tiles total, pre-warmed at startup and effectively permanent.
-//   high-zoom (z7-z10): an LRU sized for active panning; cold tiles regenerate on demand.
+//   high-zoom (z7-z10): an LRU bounded by both entry count (mostly relevant for empty-tile
+//   entries, which hold no buffer) and total buffer bytes; cold tiles regenerate on demand.
 const LOW_ZOOM_MAX = 6;
 const HIGH_ZOOM_MAX = 10;
 const LOW_ZOOM_CACHE_MAX = 8000; // > 5461 (count of all z0-z6 tiles), so nothing ever evicts
-const HIGH_ZOOM_CACHE_MAX = 12_000;
+const HIGH_ZOOM_CACHE_MAX_ENTRIES = 12_000;
+const HIGH_ZOOM_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 
 // Map insertion order = LRU order (oldest first)
 const lowZoomCache = new Map<string, Buffer | null>();
 const highZoomCache = new Map<string, Buffer | null>();
 
+// Summed Buffer bytes of highZoomCache entries (null entries count as 0).
+// Must be kept in sync by routing all writes/deletes through the helpers below.
+let highZoomCacheBytes = 0;
+
+function entryBytes(val: Buffer | null): number {
+  return val === null ? 0 : val.length;
+}
+
 function cacheForZoom(z: number): Map<string, Buffer | null> {
   return z <= LOW_ZOOM_MAX ? lowZoomCache : highZoomCache;
 }
 
-function maxForCache(cache: Map<string, Buffer | null>): number {
-  return cache === lowZoomCache ? LOW_ZOOM_CACHE_MAX : HIGH_ZOOM_CACHE_MAX;
+function deleteCachedTile(cache: Map<string, Buffer | null>, key: string) {
+  const val = cache.get(key);
+  if (val === undefined) return;
+  if (cache === highZoomCache) highZoomCacheBytes -= entryBytes(val);
+  cache.delete(key);
 }
 
 function clearTileCache() {
   lowZoomCache.clear();
   highZoomCache.clear();
+  highZoomCacheBytes = 0;
 }
 
 function lngLatToTileXY(lng: number, lat: number, z: number): [number, number] {
@@ -39,12 +52,29 @@ function lngLatToTileXY(lng: number, lat: number, z: number): [number, number] {
   return [x, Math.max(0, Math.min(n - 1, y))];
 }
 
-// Evicts the single tile at each cached zoom level z0..HIGH_ZOOM_MAX that contains the given point.
-// A point maps to exactly one tile per zoom, so this stays precise and cheap across both caches.
-function invalidateTilesForPoint(lat: number, lng: number) {
+// Evicts every cached tile intersecting the given WGS84 bbox at each cached zoom level
+// z0..HIGH_ZOOM_MAX. The range is expanded by one tile in every direction because features
+// within the 64-unit MVT buffer of a tile edge also render in the neighbouring tile.
+// A bbox spanning an implausibly large tile range falls back to a full cache clear.
+function invalidateTilesForBbox(minLng: number, minLat: number, maxLng: number, maxLat: number) {
   for (let z = 0; z <= HIGH_ZOOM_MAX; z += 1) {
-    const [x, y] = lngLatToTileXY(lng, lat, z);
-    cacheForZoom(z).delete(`${z}/${x}/${y}`);
+    const n = 2 ** z;
+    const [xA, yA] = lngLatToTileXY(minLng, minLat, z);
+    const [xB, yB] = lngLatToTileXY(maxLng, maxLat, z);
+    const xMin = Math.max(0, Math.min(xA, xB) - 1);
+    const xMax = Math.min(n - 1, Math.max(xA, xB) + 1);
+    const yMin = Math.max(0, Math.min(yA, yB) - 1);
+    const yMax = Math.min(n - 1, Math.max(yA, yB) + 1);
+    if ((xMax - xMin + 1) * (yMax - yMin + 1) > 256) {
+      clearTileCache();
+      return;
+    }
+    const cache = cacheForZoom(z);
+    for (let x = xMin; x <= xMax; x += 1) {
+      for (let y = yMin; y <= yMax; y += 1) {
+        deleteCachedTile(cache, `${z}/${x}/${y}`);
+      }
+    }
   }
 }
 
@@ -58,25 +88,53 @@ function getCachedTile(cache: Map<string, Buffer | null>, key: string): Buffer |
 }
 
 function setCachedTile(cache: Map<string, Buffer | null>, key: string, val: Buffer | null) {
-  if (cache.size >= maxForCache(cache)) {
+  deleteCachedTile(cache, key);
+  if (cache === highZoomCache) {
+    // Evict oldest entries until both the entry-count and byte budgets fit the new entry.
+    while (
+      cache.size >= HIGH_ZOOM_CACHE_MAX_ENTRIES ||
+      highZoomCacheBytes + entryBytes(val) > HIGH_ZOOM_CACHE_MAX_BYTES
+    ) {
+      const firstKey = cache.keys().next().value;
+      if (firstKey === undefined) break;
+      deleteCachedTile(cache, firstKey);
+    }
+    highZoomCacheBytes += entryBytes(val);
+  } else if (cache.size >= LOW_ZOOM_CACHE_MAX) {
     const firstKey = cache.keys().next().value;
     if (firstKey !== undefined) cache.delete(firstKey);
   }
   cache.set(key, val);
 }
 
+// Rows come back untyped from db.execute, so narrow the bbox fields here.
+function invalidateFromBboxRow(row: Record<string, unknown> | undefined) {
+  if (
+    row !== undefined &&
+    typeof row.min_lng === "number" &&
+    typeof row.min_lat === "number" &&
+    typeof row.max_lng === "number" &&
+    typeof row.max_lat === "number"
+  ) {
+    invalidateTilesForBbox(row.min_lng, row.min_lat, row.max_lng, row.max_lat);
+  } else {
+    clearTileCache();
+  }
+}
+
 export async function invalidateProjectTiles(projectId: string) {
   try {
-    const [row] = await db
-      .select({ lat: projects.lat, lng: projects.lng })
-      .from(projects)
-      .where(eq(projects.id, projectId))
-      .limit(1);
-    if (row !== undefined && row.lat !== null && row.lng !== null) {
-      invalidateTilesForPoint(row.lat, row.lng);
-    } else {
-      clearTileCache();
-    }
+    const rows = await db.execute(sql`
+      SELECT ST_XMin(g) AS min_lng, ST_YMin(g) AS min_lat,
+             ST_XMax(g) AS max_lng, ST_YMax(g) AS max_lat
+      FROM (
+        SELECT COALESCE(geometry, center_coordinate) AS g
+        FROM projects
+        WHERE id = ${projectId}
+      ) s
+      WHERE g IS NOT NULL
+    `);
+    invalidateFromBboxRow(rows[0]);
   } catch {
     clearTileCache();
   }
@@ -84,17 +142,18 @@ export async function invalidateProjectTiles(projectId: string) {
 
 export async function invalidateOverlayTiles(overlayId: string) {
   try {
-    const [row] = await db
-      .select({ lat: projects.lat, lng: projects.lng })
-      .from(overlays)
-      .innerJoin(projects, eq(overlays.projectId, projects.id))
-      .where(eq(overlays.id, overlayId))
-      .limit(1);
-    if (row !== undefined && row.lat !== null && row.lng !== null) {
-      invalidateTilesForPoint(row.lat, row.lng);
-    } else {
-      clearTileCache();
-    }
+    const rows = await db.execute(sql`
+      SELECT ST_XMin(g) AS min_lng, ST_YMin(g) AS min_lat,
+             ST_XMax(g) AS max_lng, ST_YMax(g) AS max_lat
+      FROM (
+        SELECT COALESCE(o.corners, p.center_coordinate) AS g
+        FROM overlays o
+        JOIN projects p ON p.id = o.project_id
+        WHERE o.id = ${overlayId}
+      ) s
+      WHERE g IS NOT NULL
+    `);
+    invalidateFromBboxRow(rows[0]);
   } catch {
     clearTileCache();
   }
@@ -144,16 +203,10 @@ async function generateTile(z: number, x: number, y: number): Promise<Buffer | n
 }
 
 function tileResponse(tileData: Buffer, z: number): Response {
-  // In dev, never cache so tile-query changes are picked up on the next request (and on mobile).
   // In prod: low-zoom tiles (z0-z6) contain only OSM-imported data that changes at most
   // monthly, so cache them aggressively. High-zoom tiles may include freshly approved
   // overlays, so keep their TTL short.
-  const cacheControl =
-    process.env.NODE_ENV === "development"
-      ? "no-store"
-      : z <= 6
-        ? "public, max-age=86400"
-        : "public, max-age=3600";
+  const cacheControl = z <= 6 ? "public, max-age=86400" : "public, max-age=3600";
   return new Response(new Uint8Array(tileData), {
     headers: {
       "Content-Type": "application/vnd.mapbox-vector-tile",
@@ -224,6 +277,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
     }
 
     const cacheKey = `${z}/${x}/${y}`;
+    // tiles.sql edits require a server restart to flush the cache (a plain --hot reload won't).
     const useCache = z <= HIGH_ZOOM_MAX;
     const cache = cacheForZoom(z);
 

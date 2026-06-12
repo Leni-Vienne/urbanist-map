@@ -35,13 +35,23 @@ export type Database = typeof db;
 //                         throws instead of pinning a pool connection. The handler catches the
 //                         resulting PG cancel error and returns a 500 with CORS headers, which
 //                         the browser surfaces as a real failure instead of a connection drop.
+//   plan_cache_mode    -- Tile queries run as prepared statements, and Postgres switches a
+//                         prepared statement to a generic plan after 5 executions per connection.
+//                         A generic plan cannot prove that geometry_size_m >= $4 implies the
+//                         partial geometry index predicates (idx_projects_geometry_Nk), so it
+//                         falls back to the full index scan (+35-40% slower on z4-z6). Tile
+//                         parameters vary per request and planning cost is negligible, so
+//                         always plan with the actual values.
 //
 // Low-zoom pool (z<=6): a single dense z2 tile sorts ~144MB of point rows, so it needs a large
 // work_mem to stay in memory. These tiles are few (~5.5k total for z0-z6) and fully cached/pre-warmed,
 // so they run rarely at runtime; a small connection count is enough and keeps the memory ceiling bounded.
 function buildTilesUrl(workMem: string): string {
   const url = new URL(config.DATABASE_URL);
-  url.searchParams.set("options", `-c jit=off -c work_mem=${workMem} -c statement_timeout=30000`);
+  url.searchParams.set(
+    "options",
+    `-c jit=off -c work_mem=${workMem} -c statement_timeout=30000 -c plan_cache_mode=force_custom_plan`,
+  );
   return url.toString();
 }
 

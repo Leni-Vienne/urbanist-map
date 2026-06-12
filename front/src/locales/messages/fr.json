@@ -125,11 +125,18 @@
     "rail": "Chemin de fer",
     "subway": "Métro",
     "bus": "Bus",
+    "cable_car": "Téléphérique",
+    "airport": "Aéroport",
     "bike": "Vélo",
     "road": "Route",
     "waterway": "Voie d'eau",
     "park": "Parc / Espace vert",
     "building": "Bâtiment",
+    "residential": "Résidentiel",
+    "commercial": "Commercial",
+    "retail": "Commerce de détail",
+    "office": "Bureaux",
+    "industrial": "Industriel",
     "pedestrian": "Piéton"
   },
   "approvalStatus": {
@@ -222,7 +229,8 @@
     "noChangesToSave": "Aucune modification à enregistrer",
     "zoomingToProject": "Zoom vers le projet",
     "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
-    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image"
+    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image",
+    "replacementCaption": "Remplacement de {name}"
   },
   "map": {
     "viewMode": "Mode Consultation",
@@ -241,6 +249,8 @@
       "resetSize": "Réinitialiser",
       "filterByStatusAndTags": "Filtres",
       "filterByTags": "Type",
+      "buildingTagsZoomHint": "Zoomez jusqu'au niveau 10 pour filtrer par type de bâtiment (ils sont masqués en vue éloignée)",
+      "buildingTagsHint": "Bâtiments (visibles uniquement de près)",
       "clearTagFilters": "Effacer",
       "untagged": "Sans catégorie",
       "proposed": "Proposé",
@@ -457,6 +467,9 @@
   "controls": {
     "filter": "Filtrer les projets",
     "language": "Langue",
+    "mapLanguage": "Langue de la carte",
+    "mapLanguageDefault": "Par défaut (latin + local)",
+    "mapLanguageLocal": "Noms locaux",
     "settings": "Paramètres"
   },
   "tooltips": {
@@ -508,8 +521,6 @@
     "createNewProject": "Créer un nouveau projet"
   },
   "upload": {
-    "noFileSelected": "Aucun fichier sélectionné",
-    "selectImageFile": "Veuillez sélectionner un fichier image à télécharger",
     "overlayTooLarge": "L'image est trop grande",
     "maximumSizeOnMap": "La taille maximale est de 1km × 1km",
     "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo.",
@@ -744,10 +755,6 @@
     "cannotNavigateToCity": "Impossible de naviguer vers cette ville",
     "navigationFailed": "Échec de la navigation",
     "failedToNavigate": "Impossible de naviguer vers cet emplacement"
-  },
-  "replacementOverlay": {
-    "uploadFailed": "Échec du téléchargement",
-    "uploadFailedDetail": "Échec du traitement de l'image"
   },
   "projectSelector": {
     "suggestChanges": "Suggérer des modifications"

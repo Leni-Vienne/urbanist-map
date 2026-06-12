@@ -158,7 +158,9 @@ export function addOverlay(
   if (replacesOverlayId) {
     overlayObject.replacesOverlayId = replacesOverlayId;
     const originalOverlay = overlayStore.overlays[replacesOverlayId];
-    overlayObject.caption = `Replacement for ${originalOverlay?.caption ?? "overlay"}`;
+    overlayObject.caption = t("overlay.replacementCaption", {
+      name: originalOverlay?.caption ?? t("overlay.untitled"),
+    });
   }
 
   // Check if we need to zoom in to make overlay visible

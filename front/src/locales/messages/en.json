@@ -125,11 +125,18 @@
     "rail": "Railway",
     "subway": "Metro",
     "bus": "Bus",
+    "cable_car": "Cable Car",
+    "airport": "Airport",
     "bike": "Bike",
     "road": "Road",
     "waterway": "Waterway",
     "park": "Park / Green space",
     "building": "Building",
+    "residential": "Residential",
+    "commercial": "Commercial",
+    "retail": "Retail",
+    "office": "Office",
+    "industrial": "Industrial",
     "pedestrian": "Pedestrian"
   },
   "approvalStatus": {
@@ -222,7 +229,8 @@
     "noChangesToSave": "No changes to save",
     "zoomingToProject": "Zooming to Project",
     "zoomInToSeeOverlay": "Zoom level was too low, automatically zooming in to show the uploaded image",
-    "onlyOneOverlayInProject": "This project only has one image"
+    "onlyOneOverlayInProject": "This project only has one image",
+    "replacementCaption": "Replacement for {name}"
   },
   "map": {
     "viewMode": "View Mode",
@@ -241,6 +249,8 @@
       "resetSize": "Reset",
       "filterByStatusAndTags": "Filters",
       "filterByTags": "Type",
+      "buildingTagsZoomHint": "Zoom in to level 10 to filter by building types (they are hidden when zoomed out)",
+      "buildingTagsHint": "Buildings (only visible up close)",
       "clearTagFilters": "Clear",
       "untagged": "Untagged",
       "proposed": "Proposed",
@@ -457,6 +467,9 @@
   "controls": {
     "filter": "Filter Projects",
     "language": "Language",
+    "mapLanguage": "Map language",
+    "mapLanguageDefault": "Default (Latin + local)",
+    "mapLanguageLocal": "Local names",
     "settings": "Settings"
   },
   "tooltips": {
@@ -508,8 +521,6 @@
     "createNewProject": "Create New Project"
   },
   "upload": {
-    "noFileSelected": "No file selected",
-    "selectImageFile": "Please select an image file to upload",
     "overlayTooLarge": "Image is too large",
     "maximumSizeOnMap": "Maximum size is 1km × 1km",
     "fileTooLarge": "File is too large. Maximum size is {maxSize}MB.",
@@ -742,10 +753,6 @@
     "cannotNavigateToCity": "Cannot navigate to this city",
     "navigationFailed": "Navigation Failed",
     "failedToNavigate": "Failed to navigate to location"
-  },
-  "replacementOverlay": {
-    "uploadFailed": "Upload Failed",
-    "uploadFailedDetail": "Failed to process the image"
   },
   "projectSelector": {
     "suggestChanges": "Suggest Changes"
