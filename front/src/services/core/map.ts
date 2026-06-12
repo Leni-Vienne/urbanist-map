@@ -141,7 +141,7 @@ export function initializeMap() {
     pitchWithRotate: true,
     aroundCenter: false, // otherwise the control scheme is ass
     rollEnabled: false,
-    touchPitch: true,
+    touchPitch: false, // two-finger pitch fights pinch-zoom on touch; desktop mouse pitch stays via pitchWithRotate
     maxPitch: 85,
     fadeDuration: 0,
   };
@@ -154,6 +154,9 @@ export function initializeMap() {
   // The map does not capture keystrokes, so typing into overlaid UI panels never
   // pans/zooms the map. Trade-off: no keyboard map control.
   newMap.keyboard.disable();
+
+  // Two-finger rotate on touch hijacks pinch-zoom; drop it while keeping pinch-zoom and desktop mouse rotate.
+  newMap.touchZoomRotate.disableRotation();
 
   enableCursorTrackingScrollZoom(newMap);
   // Larger zoom step per mouse-wheel notch (MapLibre default is 1/450).
