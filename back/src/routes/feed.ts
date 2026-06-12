@@ -130,9 +130,11 @@ function buildLatestOverlaysQuery(limit: number) {
     .selectDistinctOn([overlays.projectId], {
       type: sql<"overlay">`'overlay'`.as("type"),
       id: overlays.id,
-      name: sql<string>`COALESCE(${overlays.caption}, ${projects.name})`.as("name"),
+      name: sql<string>`COALESCE(${projects.name}, ${overlays.caption})`.as("name"),
       filename: overlays.filename,
-      updatedAt: overlays.updatedAt,
+      // Rank by the latest activity on the project: the overlay's date or a later
+      // project edit (e.g. an approval that bumped the project), whichever is newer.
+      updatedAt: sql<Date>`GREATEST(${overlays.updatedAt}, ${projects.updatedAt})`.as("updatedAt"),
       cityName: sql<string | null>`${cities.name}`.as("cityName"),
       countryCode: projects.countryCode,
       countryName: sql<string | null>`${countries.name}`.as("countryName"),
