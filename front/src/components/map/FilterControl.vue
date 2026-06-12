@@ -50,12 +50,46 @@
           {{ $t("map.controls.clearTagFilters") }}
         </button>
       </div>
-      <div class="flex flex-wrap gap-2 max-w-75 mb-4">
+      <div class="flex flex-wrap gap-2 max-w-75 mb-3">
         <button
-          v-for="tag in allTags"
+          v-for="tag in lineTags"
           :key="tag.slug"
           type="button"
-          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
+          :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
+          :disabled="isTagDisabled(tag.slug)"
+          :title="isTagDisabled(tag.slug) ? $t('map.controls.buildingTagsZoomHint') : undefined"
+          :aria-pressed="selectedProjectTags.includes(tag.slug)"
+          :style="
+            selectedProjectTags.includes(tag.slug)
+              ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
+              : theme === 'dark'
+                ? {
+                    backgroundColor: tag.color + '28',
+                    color: tag.textColor,
+                    borderColor: tag.color,
+                  }
+                : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
+          "
+          @click.stop="toggleTagFilter(tag.slug)"
+          @dblclick.stop
+        >
+          {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
+        </button>
+      </div>
+
+      <p class="m-0 mb-1.5 text-[0.7rem] italic text-color-secondary">
+        {{ $t("map.controls.buildingTagsHint") }}
+      </p>
+      <div class="flex flex-wrap gap-2 max-w-75 mb-4">
+        <button
+          v-for="tag in buildingTags"
+          :key="tag.slug"
+          type="button"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
+          :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
+          :disabled="isTagDisabled(tag.slug)"
+          :title="isTagDisabled(tag.slug) ? $t('map.controls.buildingTagsZoomHint') : undefined"
           :aria-pressed="selectedProjectTags.includes(tag.slug)"
           :style="
             selectedProjectTags.includes(tag.slug)
@@ -300,7 +334,13 @@ function formatSize(meters: number): string {
 }
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
+import {
+  PROJECT_TAGS,
+  PROJECT_TAG_MAP,
+  BUILDING_CATEGORY_TAGS,
+  BUILDING_FILTER_MIN_ZOOM,
+} from "@/config/projectTags";
+import { currentZoomLevel } from "@/services/core/map";
 import { useTheme } from "@/composables/core/useTheme";
 import LinePreview from "@/components/common/LinePreview.vue";
 
@@ -326,6 +366,8 @@ const linePreviewColor = computed(() => {
 const { isMobile } = useIsMobile();
 const { theme } = useTheme();
 const allTags = PROJECT_TAGS.filter((t) => !t.hidden);
+const lineTags = allTags.filter((t) => !BUILDING_CATEGORY_TAGS.has(t.slug));
+const buildingTags = allTags.filter((t) => BUILDING_CATEGORY_TAGS.has(t.slug));
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
 
 const activeFilterCount = computed(() => {
@@ -364,7 +406,14 @@ function toggleCompletionFilter(status: TimelineStatus) {
   emit("filter-overlays");
 }
 
+// Building-category markers are suppressed server-side at low zoom (see tiles.sql), so their
+// filters are disabled until the user zooms in enough for those markers to appear.
+function isTagDisabled(slug: string): boolean {
+  return BUILDING_CATEGORY_TAGS.has(slug) && currentZoomLevel.value < BUILDING_FILTER_MIN_ZOOM;
+}
+
 function toggleTagFilter(slug: string) {
+  if (isTagDisabled(slug)) return;
   toggleProjectTagFilter(slug);
   emit("filter-overlays");
 }

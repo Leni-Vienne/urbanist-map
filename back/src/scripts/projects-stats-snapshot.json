@@ -1,90 +1,96 @@
 {
-  "timestamp": "2026-06-10T15:56:37.150Z",
-  "total": 509827,
-  "osm": 509818,
+  "timestamp": "2026-06-11T20:55:48.994Z",
+  "total": 536384,
+  "osm": 536374,
   "userSubmitted": 8,
-  "detached": 2,
+  "detached": 3,
   "projectShape": {
-    "areal": 329135,
-    "linear": 180687,
+    "areal": 354194,
+    "linear": 182185,
     "(no geometry)": 4,
     "mixed": 1
   },
   "approvalStatus": {
-    "approved": 509824,
+    "approved": 536381,
     "pending": 3
   },
   "timelineStatus": {
-    "under_construction": 444219,
-    "proposed": 63412,
-    "planned": 2196
+    "under_construction": 464508,
+    "proposed": 69412,
+    "planned": 2464
   },
   "tags": {
-    "road": 156521,
-    "building": 103217,
-    "pedestrian": 10141,
-    "bike": 8331,
-    "rail": 6618,
-    "subway": 1560,
-    "park": 1365,
-    "tram": 817,
-    "waterway": 582,
-    "light_rail": 370,
-    "cable_car": 369,
-    "bus": 10,
-    "(no tags)": 223767
+    "road": 156715,
+    "building": 135703,
+    "residential": 81792,
+    "industrial": 10717,
+    "pedestrian": 10256,
+    "bike": 8515,
+    "rail": 6991,
+    "commercial": 6156,
+    "park": 2241,
+    "retail": 2088,
+    "subway": 1572,
+    "office": 1242,
+    "tram": 805,
+    "airport": 647,
+    "waterway": 626,
+    "cable_car": 392,
+    "light_rail": 373,
+    "bus": 121,
+    "(no tags)": 178003
   },
   "tagsPerProject": {
-    "0": 223762,
-    "1": 282271,
-    "2": 3737,
-    "3": 52,
+    "0": 177998,
+    "1": 289870,
+    "2": 68451,
+    "3": 60,
     "null": 5
   },
   "countries": {
-    "USA": 52335,
-    "CHN": 51654,
-    "POL": 33014,
-    "RUS": 32415,
-    "DEU": 30077,
-    "FRA": 19427,
-    "GBR": 17940,
-    "ITA": 14013,
-    "BRA": 13890,
-    "NLD": 13836,
-    "AUS": 13599,
-    "IND": 12915,
-    "ESP": 10056,
-    "CAN": 10013,
-    "TUR": 9868,
-    "JPN": 8410,
-    "UKR": 6794,
-    "NGA": 6489,
-    "ARG": 5430,
-    "TWN": 4824
+    "USA": 53771,
+    "CHN": 52244,
+    "POL": 37208,
+    "RUS": 32453,
+    "DEU": 32108,
+    "GBR": 20120,
+    "FRA": 19637,
+    "NLD": 18695,
+    "BRA": 14544,
+    "ITA": 14248,
+    "AUS": 13827,
+    "IND": 13107,
+    "ESP": 10470,
+    "CAN": 10165,
+    "TUR": 9954,
+    "NGA": 8232,
+    "JPN": 7971,
+    "UKR": 6928,
+    "ARG": 5472,
+    "TWN": 4905
   },
   "importSources": {
-    "osm_world": 509818,
-    "(user-submitted)": 9
+    "osm_world": 536374,
+    "(user-submitted)": 10
   },
   "completeness": {
-    "name": 189817,
-    "geometry": 509823,
-    "lat/lng": 509827,
-    "source_url": 15068
+    "name": 195678,
+    "geometry": 536380,
+    "lat/lng": 536384,
+    "source_url": 15770
   },
   "geometrySize": {
     "(no geometry)": 4,
-    "< 500m": 423482,
-    "500m-2km": 65309,
-    "2km-10km": 16461,
-    "10km-50km": 3724,
-    "50km-200km": 722,
-    "> 200km": 125
+    "< 500m": 449135,
+    "500m-2km": 66047,
+    "2km-10km": 16602,
+    "10km-50km": 3746,
+    "50km-200km": 718,
+    "> 200km": 132
   },
   "osmIdTypes": {
-    "way": 493145,
-    "relation": 16673,
-    "(user-submitted)": 9
+    "way": 519315,
+    "relation": 17059,
+    "(user-submitted)": 10
   }
 }

@@ -656,18 +656,18 @@ function handleVectorFeatureClick(
   if (projectId.length === 0) {
     return;
   }
-
-  // Overlay footprints: on mobile, frame the overlay's own bounds (drawer-aware padding centers
-  // it in the visible area), matching the side-panel/drawer navigation. Desktop keeps the camera
-  // still: the feature is already on screen and the detail sits beside the map.
-  const footprintBounds = isFootprint ? getFootprintBounds(feature) : null;
-  if (footprintBounds) {
-    if (isMobileViewport()) mobileAwareFlyToBounds(footprintBounds);
+  // On mobile, frame the feature's own bounds (drawer-aware padding centers it in the visible
+  // area): the overlay's corners for footprints, the unclipped geometry bbox for large shapes.
+  // Desktop keeps the camera still: the feature is already on screen and the detail sits beside
+  // the map.
+  const featureBounds = isFootprint ? getFootprintBounds(feature) : getShapeBounds(feature);
+  if (featureBounds) {
+    if (isMobileViewport()) mobileAwareFlyToBounds(featureBounds);
   } else {
-    // Frame the shape around its stable centroid (popup_lat/lng = ST_PointOnSurface of the full
-    // unclipped geometry), not the raw tap point, so the whole geometry sits in view. Zoom in if
-    // the current zoom is too low to see its detail, but never zoom out. Point projects carry no
-    // geometry_size_m, so they fall back to zoom 14.
+    // Small shapes and point projects carry no bbox: recenter on the stable anchor
+    // (popup_lat/lng = ST_PointOnSurface of the full unclipped geometry), not the raw tap point.
+    // Zoom in if the current zoom is too low to see the detail, but never zoom out. Point
+    // projects carry no geometry_size_m, so they fall back to zoom 14.
     const geometrySizeM: number = (feature.properties?.geometry_size_m as number | null) ?? 0;
     const center = getFeatureCentroid(feature) ?? latlng;
     flyToGeometry(center, geometrySizeM, { fromMapClick: true });
@@ -994,6 +994,23 @@ function getFeatureCentroid(feature: RenderedMapFeature): { lat: number; lng: nu
   const lng = Number(feature.properties?.popup_lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   return { lat, lng };
+}
+
+// Full unclipped geometry bounds from the bbox_* properties the tile bakes in for large shapes
+// (>= 2 km). Smaller shapes don't carry them, so this returns null and the caller falls back to
+// pan-to-anchor navigation.
+function getShapeBounds(feature: RenderedMapFeature): LngLatBounds | null {
+  const p = feature.properties;
+  if (!p) return null;
+  const west = Number(p.bbox_w);
+  const south = Number(p.bbox_s);
+  const east = Number(p.bbox_e);
+  const north = Number(p.bbox_n);
+  if (![west, south, east, north].every(Number.isFinite)) return null;
+  const bounds = new LngLatBounds();
+  bounds.extend([west, south]);
+  bounds.extend([east, north]);
+  return bounds;
 }
 
 // Bounds of an overlay footprint from its corner properties (c0..c3), or null when absent/invalid.

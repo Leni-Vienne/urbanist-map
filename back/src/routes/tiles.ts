@@ -203,16 +203,10 @@ async function generateTile(z: number, x: number, y: number): Promise<Buffer | n
 }
 
 function tileResponse(tileData: Buffer, z: number): Response {
-  // In dev, never cache so tile-query changes are picked up on the next request (and on mobile).
   // In prod: low-zoom tiles (z0-z6) contain only OSM-imported data that changes at most
   // monthly, so cache them aggressively. High-zoom tiles may include freshly approved
   // overlays, so keep their TTL short.
-  const cacheControl =
-    process.env.NODE_ENV === "development"
-      ? "no-store"
-      : z <= 6
-        ? "public, max-age=86400"
-        : "public, max-age=3600";
+  const cacheControl = z <= 6 ? "public, max-age=86400" : "public, max-age=3600";
   return new Response(new Uint8Array(tileData), {
     headers: {
       "Content-Type": "application/vnd.mapbox-vector-tile",
@@ -283,6 +277,7 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
     }
 
     const cacheKey = `${z}/${x}/${y}`;
+    // tiles.sql edits require a server restart to flush the cache (a plain --hot reload won't).
     const useCache = z <= HIGH_ZOOM_MAX;
     const cache = cacheForZoom(z);
 

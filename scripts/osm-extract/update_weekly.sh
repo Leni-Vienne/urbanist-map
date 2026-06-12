@@ -283,13 +283,14 @@ echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQ
 # In that case fall through and re-run step 4 without re-applying any diffs.
 if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
     _WAYS_PBF_CHECK="${FILTERED_PBF%_proposed.osm.pbf}_proposed_ways.osm.pbf"
-    if [[ -s "$_WAYS_PBF_CHECK" ]]; then
+    _RELATIONS_PBF_CHECK="${FILTERED_PBF%_proposed.osm.pbf}_proposed_relations.osm.pbf"
+    if [[ -s "$_WAYS_PBF_CHECK" && -s "$_RELATIONS_PBF_CHECK" ]]; then
         echo ""
         echo "[$(ts)] Already up to date (sequence $CURRENT_SEQNUM). Nothing to apply."
         exit 0
     fi
     echo ""
-    echo "[$(ts)] Sequence is current ($CURRENT_SEQNUM) but ways PBF is missing or empty."
+    echo "[$(ts)] Sequence is current ($CURRENT_SEQNUM) but ways or relations PBF is missing or empty."
     echo "         A previous step 4 likely failed (e.g. OOM). Skipping diff application and re-running extraction."
 fi
 
@@ -319,6 +320,7 @@ FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
 if [[ "$DRY_RUN" -eq 0 ]]; then
     rm -f "${WORK_DIR}/daily_diff_"*.osc.gz
     rm -f "${FILTERED_PBF%.osm.pbf}_seq"*.osm.pbf
+    rm -f "${FILTERED_PBF%.osm.pbf}_refiltered.osm.pbf"
     rm -f "$FINAL_PBF"
 fi
 
@@ -358,6 +360,23 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
         -o "$FINAL_PBF" \
         "$FILTERED_PBF" \
         "${OSC_FILES[@]}"
+
+    # apply-changes merges every changed object from the diffs, filtered or not.
+    # Re-filter (same rules as filter_combined.sh step 1) so the PBF only keeps
+    # matching objects and does not grow with unrelated planet data on every run.
+    echo ""
+    echo "[$(ts)] Re-filtering merged PBF to drop non-matching diff objects"
+    REFILTER_RULES="${WORK_DIR}/.osmium_filters_$$.txt"
+    "$SCRIPT_DIR/build_combined_filters.sh" > "$REFILTER_RULES"
+    REFILTERED_PBF="${FILTERED_PBF%.osm.pbf}_refiltered.osm.pbf"
+    run osmium tags-filter \
+        --overwrite \
+        --output-format=pbf,pbf_compression=lz4 \
+        -o "$REFILTERED_PBF" \
+        "$FINAL_PBF" \
+        -e "$REFILTER_RULES"
+    rm -f "$REFILTER_RULES"
+    run mv -f "$REFILTERED_PBF" "$FINAL_PBF"
 
     # Phase 3: clean up the OSCs now that they're baked into $FINAL_PBF.
     if [[ "$DRY_RUN" -eq 0 ]]; then
@@ -413,6 +432,7 @@ BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
 OUTPUT_DIR="$(dirname "$FILTERED_PBF")"
 WAYS_PBF="${BASE_PREFIX}_proposed_ways.osm.pbf"
 AREAL_PBF="${BASE_PREFIX}_proposed_areal.osm.pbf"
+RELATIONS_PBF="${BASE_PREFIX}_proposed_relations.osm.pbf"
 LINEAR_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_linear.geojson"
 AREAL_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_areal.geojson"
 
@@ -428,7 +448,7 @@ echo ""
 echo "[$(ts)] Running Python extraction (linear + areal in parallel)"
 run python3 "$SCRIPT_DIR/extract_linear_topo.py" \
     --ways-file "$WAYS_PBF" \
-    --source-file "$FILTERED_PBF" \
+    --source-file "$RELATIONS_PBF" \
     --output "$LINEAR_GEOJSON" &
 PID_LINEAR=$!
 

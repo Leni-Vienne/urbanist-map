@@ -30,8 +30,8 @@ shapes AS (
   --   z9:   >= 500 m  (shapes visible; marker suppressed only at z11+)
   --   z10:  >= 200 m  (shapes visible; marker suppressed only at z12+)
   --   z11+: all       (shapes visible; marker suppressed only at z13+)
-  -- Building shapes are additionally suppressed below z13, EXCEPT buildings >= 1 km which follow
-  -- normal size-based rules (so large structures like airports are visible at lower zooms).
+  -- Unnamed building shapes are additionally suppressed below z13; named buildings and buildings
+  -- >= 1 km follow normal size-based rules (so notable structures are visible at lower zooms).
   SELECT ST_AsMVT(q, 'project-shapes', 4096, 'mvt_geom') AS tile
   FROM (
     -- First part: retrieve projects that have an explicitly drawn geometry (polygon or line)
@@ -55,17 +55,26 @@ shapes AS (
       EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image,
       -- Stable popup anchor: a point on the geometry itself, unaffected by tile clipping
       ST_Y(p.center_coordinate) AS popup_lat,
-      ST_X(p.center_coordinate) AS popup_lng
+      ST_X(p.center_coordinate) AS popup_lng,
+      -- Unclipped geometry bbox, emitted only for large shapes (>= 2 km) so the client can frame
+      -- the whole geometry on tap. Smaller shapes emit NULLs (omitted from the MVT feature) and
+      -- keep the pan-to-anchor navigation, which never zooms out.
+      CASE WHEN p.geometry_size_m >= 2000 THEN ST_XMin(p.geometry) END AS bbox_w,
+      CASE WHEN p.geometry_size_m >= 2000 THEN ST_YMin(p.geometry) END AS bbox_s,
+      CASE WHEN p.geometry_size_m >= 2000 THEN ST_XMax(p.geometry) END AS bbox_e,
+      CASE WHEN p.geometry_size_m >= 2000 THEN ST_YMax(p.geometry) END AS bbox_n
     FROM projects p, tile_env te
     WHERE $1 >= 4
       AND p.status = 'approved'
       AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
       AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
-      -- Suppress building shapes below z13 (MapLibre z12), matching the point-layer suppression threshold.
-      -- Exception: large buildings (>= 1 km) are allowed to render at their normal size-based zoom level,
-      -- so that large structures like airports are visible before the user has to zoom all the way in.
-      AND NOT ($1 <= 12 AND 'building' = ANY(p.tags) AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000))
+      -- Suppress unnamed building shapes below z13 (MapLibre z12), matching the point-layer suppression
+      -- threshold. Named buildings and large buildings (>= 1 km) render at their normal size-based zoom
+      -- level, so notable structures (stadiums, hospitals, airports) are discoverable at city zooms.
+      AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
+               AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
+               AND (p.name IS NULL OR p.name = ''))
 
     UNION ALL
 
@@ -90,7 +99,11 @@ shapes AS (
       -- This branch only emits projects with no approved overlays (see NOT EXISTS below).
       false AS has_image,
       ST_Y(p.center_coordinate) AS popup_lat,
-      ST_X(p.center_coordinate) AS popup_lng
+      ST_X(p.center_coordinate) AS popup_lng,
+      NULL::float8 AS bbox_w,
+      NULL::float8 AS bbox_s,
+      NULL::float8 AS bbox_e,
+      NULL::float8 AS bbox_n
     FROM projects p, tile_env te
     WHERE $1 >= 8
       AND p.status = 'approved'

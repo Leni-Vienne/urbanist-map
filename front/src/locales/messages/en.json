@@ -125,11 +125,18 @@
     "rail": "Railway",
     "subway": "Metro",
     "bus": "Bus",
+    "cable_car": "Cable Car",
+    "airport": "Airport",
     "bike": "Bike",
     "road": "Road",
     "waterway": "Waterway",
     "park": "Park / Green space",
     "building": "Building",
+    "residential": "Residential",
+    "commercial": "Commercial",
+    "retail": "Retail",
+    "office": "Office",
+    "industrial": "Industrial",
     "pedestrian": "Pedestrian"
   },
   "approvalStatus": {
@@ -242,6 +249,8 @@
       "resetSize": "Reset",
       "filterByStatusAndTags": "Filters",
       "filterByTags": "Type",
+      "buildingTagsZoomHint": "Zoom in to level 10 to filter by building types (they are hidden when zoomed out)",
+      "buildingTagsHint": "Buildings (only visible up close)",
       "clearTagFilters": "Clear",
       "untagged": "Untagged",
       "proposed": "Proposed",
@@ -458,6 +467,9 @@
   "controls": {
     "filter": "Filter Projects",
     "language": "Language",
+    "mapLanguage": "Map language",
+    "mapLanguageDefault": "Default (Latin + local)",
+    "mapLanguageLocal": "Local names",
     "settings": "Settings"
   },
   "tooltips": {

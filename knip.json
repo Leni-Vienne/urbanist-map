@@ -1,7 +1,7 @@
 {
   "entry": ["front/src/main.{ts,js}", "front/src/index.html", "back/src/index.ts", "package.json"],
   "project": ["front/src/**/*.{ts,js,vue}", "shared/**/*.{ts,js,vue}", "back/**/*.{ts,js}"],
-  "ignore": ["**/*.d.ts", "public/**/*", "**/scripts/**/*", "package.json"],
+  "ignore": ["**/*.d.ts", "public/**/*", "**/scripts/**/*", "package.json", "**/osmRules.ts"],
   "ignoreDependencies": ["@vitejs/plugin-vue"],
   "vite": true,
   "vue": true

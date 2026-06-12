@@ -83,7 +83,7 @@ app.use(
     // @ts-ignore hono doesn't like the session store's type for some reason
     store: sessionStore,
     sessionCookieName: "session",
-    encryptionKey: process.env.COOKIE_SECRET ?? "fallback-secret-key-for-dev-at-least-32-chars",
+    encryptionKey: appConfig.COOKIE_SECRET,
     expireAfterSeconds: SESSION_DURATION_LONG, // Max duration, actual duration set per login
     cookieOptions: {
       httpOnly: true,

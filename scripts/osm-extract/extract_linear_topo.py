@@ -30,8 +30,8 @@ def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction linear transport features from OSM.')
     parser.add_argument('--ways-file', default='planet-latest_proposed_ways.osm.pbf',
                         help='Filtered PBF containing only proposed/construction ways')
-    parser.add_argument('--source-file', default='planet-latest_proposed.osm.pbf',
-                        help='Original source PBF (used for relation scanning)')
+    parser.add_argument('--source-file', default='planet-latest_proposed_relations.osm.pbf',
+                        help='Relations-only PBF (used for relation scanning)')
     parser.add_argument('--output', default='planet-latest_proposed_linear.geojson',
                         help='Output GeoJSON file path')
     return parser.parse_args()
@@ -59,12 +59,14 @@ TRANSPORT_TYPES = {
     # Road family
     'road': ('motorway', 'trunk', 'primary', 'secondary', 'tertiary',
              'residential', 'unclassified', 'service', 'living_street', 'road'),
-    'bus': ('bus_guideway',),
+    'bus': ('bus_guideway', 'busway'),
     # Active mobility
     'bike': ('cycleway', 'bicycle'),
     'pedestrian': ('pedestrian', 'footway', 'path', 'steps'),
     # Water
     'waterway': ('canal', 'river', 'stream'),
+    # Air
+    'airport': ('runway', 'taxiway', 'airstrip'),
 }
 
 # Build reverse lookup: value -> canonical type
@@ -81,6 +83,7 @@ BROAD_GROUPS = {
     'pedestrian': ('pedestrian',),
     'aerial': ('cable_car', 'gondola', 'funicular'),
     'waterway': ('waterway',),
+    'airport': ('airport',),
 }
 
 _TYPE_TO_GROUP = {}
@@ -94,6 +97,7 @@ TYPE_LABELS = {
     'miniature': 'Miniature Railway', 'cable_car': 'Cable Car', 'gondola': 'Gondola',
     'funicular': 'Funicular', 'road': 'Road', 'bus': 'Bus Infrastructure',
     'bike': 'Cycling Path', 'pedestrian': 'Pedestrian Path', 'waterway': 'Waterway',
+    'airport': 'Airport Infrastructure',
 }
 
 # All valid transport values for filtering ways
@@ -113,9 +117,14 @@ class UnionFind:
         self.parent = {x: x for x in items}
     
     def find(self, x):
-        if self.parent[x] != x:
-            self.parent[x] = self.find(self.parent[x])
-        return self.parent[x]
+        # Iterative with path compression: long union chains would blow the
+        # recursion limit on planet-scale inputs.
+        root = x
+        while self.parent[root] != root:
+            root = self.parent[root]
+        while self.parent[x] != root:
+            self.parent[x], x = root, self.parent[x]
+        return root
     
     def union(self, a, b):
         self.parent[self.find(a)] = self.find(b)
@@ -148,7 +157,9 @@ def bbox_distance_km(a, b):
     """Minimum distance in km between two bboxes. Returns 0 if they overlap."""
     lon_gap = max(0.0, max(a[0], b[0]) - min(a[2], b[2]))
     lat_gap = max(0.0, max(a[1], b[1]) - min(a[3], b[3]))
-    return math.sqrt((lon_gap * 85) ** 2 + (lat_gap * 111) ** 2)
+    mean_lat = (a[1] + a[3] + b[1] + b[3]) / 4
+    km_per_lon_deg = 111.32 * abs(math.cos(math.radians(mean_lat)))
+    return math.sqrt((lon_gap * km_per_lon_deg) ** 2 + (lat_gap * 111) ** 2)
 
 
 def compute_bearing(coords):
@@ -214,10 +225,15 @@ def get_transport_type(tags):
         return 'bike' if 'bike' in lifecycle_types else lifecycle_types[0]
 
     # Check lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
-    for key, fallback in [('proposed:aerialway', 'cable_car'), ('proposed:railway', 'rail'),
+    for key, fallback in [('construction:aerialway', 'cable_car'), ('construction:railway', 'rail'),
+                          ('construction:highway', 'road'), ('construction:waterway', 'waterway'),
+                          ('construction:aeroway', 'airport'),
+                          ('proposed:aerialway', 'cable_car'), ('proposed:railway', 'rail'),
                           ('proposed:highway', 'road'), ('proposed:waterway', 'waterway'),
+                          ('proposed:aeroway', 'airport'),
                           ('planned:aerialway', 'cable_car'), ('planned:railway', 'rail'),
-                          ('planned:highway', 'road'), ('planned:waterway', 'waterway')]:
+                          ('planned:highway', 'road'), ('planned:waterway', 'waterway'),
+                          ('planned:aeroway', 'airport')]:
         val = tags.get(key, '')
         if val:
             if val in _VALUE_TO_TYPE:
@@ -229,9 +245,16 @@ def get_transport_type(tags):
         if tags.get(rail_type) == 'yes':
             return _VALUE_TO_TYPE[rail_type]
 
+    # A proposed cycle lane rides on a road with a live highway tag, so the cycleway
+    # keys must win over the primary-key fallback (which would return 'road').
+    if (not any(tags.get(k) in _LIFECYCLE_STATUSES for k in _PRIMARY_TRANSPORT_KEYS) and
+            any(tags.get(k) in _LIFECYCLE_STATUSES for k in _CYCLEWAY_KEYS)):
+        return 'bike'
+
     # Check primary keys
     for key, fallback in [('aerialway', 'cable_car'), ('railway', 'rail'),
-                          ('highway', 'road'), ('waterway', 'waterway')]:
+                          ('highway', 'road'), ('waterway', 'waterway'),
+                          ('aeroway', 'airport')]:
         val = tags.get(key, '')
         if val:
             # For X=proposed/construction/planned, check the matching lifecycle sub-type key
@@ -255,21 +278,26 @@ def broad_group(transport_type):
 
 def get_project_status(tags):
     """Return 'under_construction', 'planned', or 'proposed'."""
-    if any(tags.get(k) == 'construction' for k in ('railway', 'highway', 'waterway', 'aerialway')):
+    if any(tags.get(k) == 'construction' for k in ('railway', 'highway', 'waterway', 'aerialway', 'aeroway',
+                                                   'cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both', 'state')):
         return 'under_construction'
     if tags.get('construction', '') not in ('', 'no'):
         return 'under_construction'
-    if any(tags.get(k) == 'planned' for k in ('railway', 'highway', 'waterway', 'aerialway')):
+    if any(tags.get(k) for k in ('construction:railway', 'construction:highway', 'construction:waterway', 'construction:aerialway', 'construction:aeroway')):
+        return 'under_construction'
+    if any(tags.get(k) == 'planned' for k in ('railway', 'highway', 'waterway', 'aerialway', 'aeroway',
+                                              'cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both', 'state')):
         return 'planned'
     if tags.get('planned', '') not in ('', 'no'):
         return 'planned'
-    if any(tags.get(k) for k in ('planned:railway', 'planned:highway', 'planned:waterway', 'planned:aerialway')):
+    if any(tags.get(k) for k in ('planned:railway', 'planned:highway', 'planned:waterway', 'planned:aerialway', 'planned:aeroway')):
         return 'planned'
     return 'proposed'
 
 
 _LIFECYCLE_STATUSES = ('proposed', 'construction', 'planned')
-_PRIMARY_TRANSPORT_KEYS = ('railway', 'highway', 'waterway', 'aerialway')
+_PRIMARY_TRANSPORT_KEYS = ('railway', 'highway', 'waterway', 'aerialway', 'aeroway')
+_CYCLEWAY_KEYS = ('cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both')
 
 def is_transport_way(tags):
     """Return True if way represents proposed/construction/planned transport infrastructure."""
@@ -278,15 +306,32 @@ def is_transport_way(tags):
         return True
 
     # Lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
-    if any(tags.get(k) for k in ('proposed:railway', 'proposed:highway',
+    if any(tags.get(k) for k in ('construction:railway', 'construction:highway',
+                                  'construction:waterway', 'construction:aerialway',
+                                  'construction:aeroway',
+                                  'proposed:railway', 'proposed:highway',
                                   'proposed:waterway', 'proposed:aerialway',
+                                  'proposed:aeroway',
                                   'planned:railway', 'planned:highway',
-                                  'planned:waterway', 'planned:aerialway')):
+                                  'planned:waterway', 'planned:aerialway',
+                                  'planned:aeroway')):
         return True
 
     # Lifecycle modifier (planned=yes / proposed=yes) on a typed transport way.
     # e.g. aerialway=chairlift + planned=yes, highway=primary + proposed=yes
     if any(tags.get(lc) == 'yes' for lc in ('planned', 'proposed')):
+        if any(tags.get(k) and tags.get(k) not in _LIFECYCLE_STATUSES
+               for k in _PRIMARY_TRANSPORT_KEYS):
+            return True
+
+    # Cycle lane proposed/under construction along an existing road:
+    # highway=tertiary + cycleway=proposed (or cycleway:left/right/both)
+    if any(tags.get(k) in _LIFECYCLE_STATUSES for k in _CYCLEWAY_KEYS):
+        return True
+
+    # Legacy state=proposed/construction/planned scheme on a typed transport way:
+    # highway=secondary + state=proposed
+    if tags.get('state') in _LIFECYCLE_STATUSES:
         if any(tags.get(k) and tags.get(k) not in _LIFECYCLE_STATUSES
                for k in _PRIMARY_TRANSPORT_KEYS):
             return True
@@ -436,13 +481,21 @@ class RelationHandler(osmium.SimpleHandler):
         self.proposed_way_ids = proposed_way_ids
         self.way_geometries = way_geometries or {}  # wid -> {'coords': [...], ...}
         self.relations = {}
+        self._way_length_cache = {}  # wid -> km (ways shared by several routes)
+
+    def _way_length_km(self, wid):
+        if wid not in self._way_length_cache:
+            way_data = self.way_geometries.get(wid)
+            coords = way_data.get('coords') if way_data else None
+            self._way_length_cache[wid] = calculate_way_length_km(coords) if coords else 0.0
+        return self._way_length_cache[wid]
 
     def relation(self, r):
         tags = {t.k: t.v for t in r.tags}
         # Skip relations that document past infrastructure, not future projects
         _PAST_VALUES = ('historic', 'abandoned', 'razed', 'dismantled', 'disused', 'removed')
         if any(tags.get(k, '') in _PAST_VALUES
-               for k in ('railway', 'highway', 'waterway', 'aerialway')):
+               for k in ('railway', 'highway', 'waterway', 'aerialway', 'aeroway')):
             return
         if tags.get('historic') or tags.get('abandoned'):
             return
@@ -472,12 +525,10 @@ class RelationHandler(osmium.SimpleHandler):
                     total_length_km = 0.0
 
                     for wid in member_way_ids:
-                        way_data = self.way_geometries.get(wid)
-                        if way_data and 'coords' in way_data:
-                            length_km = calculate_way_length_km(way_data['coords'])
-                            total_length_km += length_km
-                            if wid in self.proposed_way_ids:
-                                construction_length_km += length_km
+                        length_km = self._way_length_km(wid)
+                        total_length_km += length_km
+                        if wid in self.proposed_way_ids:
+                            construction_length_km += length_km
 
                     if total_length_km > 0:
                         construction_ratio = construction_length_km / total_length_km
@@ -498,6 +549,10 @@ class RelationHandler(osmium.SimpleHandler):
                 else:
                     return
         
+        # Keep only relations with at least one proposed/construction member way.
+        # Routes tagged state=proposed over fully existing roads (e.g. cycle-node
+        # networks awaiting signposting) have none and are dropped: no new
+        # infrastructure is being built.
         member_way_ids = [m.ref for m in r.members if m.type == 'w']
         if any(wid in self.proposed_way_ids for wid in member_way_ids):
             self.relations[r.id] = {'tags': tags, 'member_way_ids': member_way_ids}
@@ -620,29 +675,34 @@ def merge_by_topology(cs):
     """Merge ways by shared endpoints (Union-Find on snapped coords)."""
     before = len(cs.ways)
     endpoint_to_ways = defaultdict(set)
+    way_info = {}  # wid -> (broad_group, project_status, name)
     for wid, way in cs.ways.items():
+        tags = way['tags']
+        way_info[wid] = (broad_group(get_transport_type(tags)),
+                         get_project_status(tags),
+                         tags.get('name', '').strip())
         endpoint_to_ways[snap_coord(way['coords'][0])].add(wid)
         endpoint_to_ways[snap_coord(way['coords'][-1])].add(wid)
 
     uf = UnionFind(cs.ways.keys())
     for wids in endpoint_to_ways.values():
         wlist = list(wids)
-        for i in range(1, len(wlist)):
-            wa = cs.ways[wlist[0]]
-            wb = cs.ways[wlist[i]]
-            # Only merge same broad type and same project status
-            if broad_group(get_transport_type(wa['tags'])) != \
-               broad_group(get_transport_type(wb['tags'])):
-                continue
-            if get_project_status(wa['tags']) != get_project_status(wb['tags']):
-                continue
-            # Don't merge two named ways with different names, road/path intersections
-            # are not project continuations
-            name_a = wa['tags'].get('name', '').strip()
-            name_b = wb['tags'].get('name', '').strip()
-            if name_a and name_b and name_a != name_b:
-                continue
-            uf.union(wlist[0], wlist[i])
+        # All pairs at the endpoint: two compatible ways must merge even when a
+        # third incompatible way shares the same endpoint.
+        for i in range(len(wlist)):
+            group_a, status_a, name_a = way_info[wlist[i]]
+            for j in range(i + 1, len(wlist)):
+                group_b, status_b, name_b = way_info[wlist[j]]
+                # Only merge same broad type and same project status
+                if group_a != group_b:
+                    continue
+                if status_a != status_b:
+                    continue
+                # Don't merge two named ways with different names, road/path intersections
+                # are not project continuations
+                if name_a and name_b and name_a != name_b:
+                    continue
+                uf.union(wlist[i], wlist[j])
 
     cs.set_components({root: wids for root, wids in uf.groups().items()})
     return before, len(cs.components)
@@ -826,7 +886,6 @@ def cluster_anonymous(cs, max_distance_km=0.2):
     if len(anonymous) < 2:
         return 0
 
-    pad_lon = max_distance_km / 85
     pad_lat = max_distance_km / 111
 
     # Group anonymous components by (broad_type, project_status) and build one STRtree per group.
@@ -842,7 +901,11 @@ def cluster_anonymous(cs, max_distance_km=0.2):
         geoms = [_bbox_to_box(cs.bbox(rid)) for rid in rids]
         tree = STRtree(geoms)
         for i, ri in enumerate(rids):
-            query_box = _expand_box(cs.bbox(ri), pad_lon, pad_lat)
+            bb = cs.bbox(ri)
+            # Longitude degrees shrink with latitude; the floor keeps the
+            # prefilter box bounded near the poles.
+            km_per_lon_deg = max(20.0, 111.32 * abs(math.cos(math.radians((bb[1] + bb[3]) / 2))))
+            query_box = _expand_box(bb, max_distance_km / km_per_lon_deg, pad_lat)
             for idx in tree.query(query_box):
                 if idx <= i:
                     continue
@@ -916,7 +979,7 @@ def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
                 new_comps[root] = all_ways
         cs.set_components(new_comps)
         
-        print(f"\nParallel track merging (anonymous rail, <{max_distance_m}m, <{max_bearing_diff}° bearing diff):")
+        print(f"\n[{_ts()}] Parallel track merging (anonymous rail, <{max_distance_m}m, <{max_bearing_diff}° bearing diff):")
         print(f"  Merged {components_merged} components into {merge_count} groups")
         print(f"  Net reduction: {components_merged - merge_count} features")
     
@@ -979,7 +1042,7 @@ def make_relation_feature(rel_id, rel, ways):
 
     # Way tags fill in core transport infrastructure keys (ways carry the actual geometry)
     for wtags in member_tags:
-        for k in ('construction', 'proposed', 'planned', 'highway', 'railway', 'waterway', 'aerialway'):
+        for k in ('construction', 'proposed', 'planned', 'highway', 'railway', 'waterway', 'aerialway', 'aeroway'):
             if k in wtags and k not in props:
                 props[k] = wtags[k]
 
@@ -1060,18 +1123,18 @@ def make_orphan_features(orphan_ways):
     cs = ComponentSet(orphan_ways)
 
     b, a = merge_by_topology(cs)
-    print(f"  merge_by_topology:    {b:,} → {a:,} components ({b - a:,} merged)")
+    print(f"  [{_ts()}] merge_by_topology:    {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = merge_by_ref(cs)
-    print(f"  merge_by_ref:         {b:,} → {a:,} components ({b - a:,} merged)")
+    print(f"  [{_ts()}] merge_by_ref:         {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = absorb_anonymous(cs)
-    print(f"  absorb_anonymous:     {b:,} → {a:,} components ({b - a:,} absorbed)")
+    print(f"  [{_ts()}] absorb_anonymous:     {b:,} → {a:,} components ({b - a:,} absorbed)")
     n = merge_parallel_tracks(cs)
-    print(f"  merge_parallel_tracks: {n:,} groups merged")
+    print(f"  [{_ts()}] merge_parallel_tracks: {n:,} groups merged")
     n = cluster_anonymous(cs, max_distance_km=0.2)
-    print(f"  cluster_anonymous:    {n:,} groups merged")
+    print(f"  [{_ts()}] cluster_anonymous:    {n:,} groups merged")
     b, a = merge_by_name_proximity(cs, max_distance_m=100)
-    print(f"  merge_by_name_prox:   {b:,} → {a:,} components ({b - a:,} merged)")
-    
+    print(f"  [{_ts()}] merge_by_name_prox:   {b:,} → {a:,} components ({b - a:,} merged)")
+
     features = []
     for rep_id, way_ids in cs.components.items():
         ways_data = [orphan_ways[wid] for wid in way_ids]
@@ -1165,16 +1228,27 @@ def prune_overlapping_relations(relations, ways, overlap_threshold=0.95):
     if len(rel_items) <= 1:
         return {r['id']: {'tags': r['tags'], 'member_way_ids': r['member_way_ids']} for r in rel_items}
     
+    # Only relations sharing at least one member way can overlap: index ways to
+    # relation positions so each relation is compared against its neighbors only.
+    way_to_idxs = defaultdict(list)
+    for idx, item in enumerate(rel_items):
+        for wid in item['way_set']:
+            way_to_idxs[wid].append(idx)
+
+    neighbors = defaultdict(set)
+    for idxs in way_to_idxs.values():
+        for pos, i in enumerate(idxs):
+            neighbors[i].update(idxs[pos+1:])
+
     dropped = set()
     for i, a in enumerate(rel_items):
         if a['id'] in dropped:
             continue
-        for b in rel_items[i+1:]:
+        for j in sorted(neighbors[i]):
+            b = rel_items[j]
             if b['id'] in dropped:
                 continue
             inter = len(a['way_set'] & b['way_set'])
-            if inter == 0:
-                continue
             overlap = inter / min(len(a['way_set']), len(b['way_set']))
             if overlap >= overlap_threshold:
                 dropped.add(b['id'] if relation_priority(a) >= relation_priority(b) else a['id'])
@@ -1358,26 +1432,29 @@ def merge_coincident_relations(relations, ways, buffer_m=25,
 
 def build_features(ways, relations):
     """Build all features from ways and relations."""
+    before_prune = len(relations)
     relations = prune_overlapping_relations(relations, ways)
+    print(f"  [{_ts()}] prune_overlapping_relations: {before_prune:,} → {len(relations):,} relations")
     relations = assign_unique_relation_members(relations, ways)
+    print(f"  [{_ts()}] assign_unique_relation_members: {len(relations):,} relations with owned ways")
     before_coincident = len(relations)
     relations = merge_coincident_relations(relations, ways)
-    if len(relations) < before_coincident:
-        print(f"  merge_coincident_relations: {before_coincident:,} → {len(relations):,} relations "
-              f"({before_coincident - len(relations):,} directional pairs merged)")
+    print(f"  [{_ts()}] merge_coincident_relations: {before_coincident:,} → {len(relations):,} relations "
+          f"({before_coincident - len(relations):,} directional pairs merged)")
 
     features = []
     processed_ways = set()
-    
+
     for rel_id, rel in relations.items():
         feat = make_relation_feature(rel_id, rel, ways)
         if feat:
             processed_ways.update(wid for wid in rel['member_way_ids'] if wid in ways)
             features.append(feat)
-    
+    print(f"  [{_ts()}] relation features built: {len(features):,}")
+
     orphans = {wid: way for wid, way in ways.items() if wid not in processed_ways}
     features.extend(make_orphan_features(orphans))
-    
+
     return features
 
 

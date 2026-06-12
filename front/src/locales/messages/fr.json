@@ -125,11 +125,18 @@
     "rail": "Chemin de fer",
     "subway": "Métro",
     "bus": "Bus",
+    "cable_car": "Téléphérique",
+    "airport": "Aéroport",
     "bike": "Vélo",
     "road": "Route",
     "waterway": "Voie d'eau",
     "park": "Parc / Espace vert",
     "building": "Bâtiment",
+    "residential": "Résidentiel",
+    "commercial": "Commercial",
+    "retail": "Commerce de détail",
+    "office": "Bureaux",
+    "industrial": "Industriel",
     "pedestrian": "Piéton"
   },
   "approvalStatus": {
@@ -242,6 +249,8 @@
       "resetSize": "Réinitialiser",
       "filterByStatusAndTags": "Filtres",
       "filterByTags": "Type",
+      "buildingTagsZoomHint": "Zoomez jusqu'au niveau 10 pour filtrer par type de bâtiment (ils sont masqués en vue éloignée)",
+      "buildingTagsHint": "Bâtiments (visibles uniquement de près)",
       "clearTagFilters": "Effacer",
       "untagged": "Sans catégorie",
       "proposed": "Proposé",
@@ -458,6 +467,9 @@
   "controls": {
     "filter": "Filtrer les projets",
     "language": "Langue",
+    "mapLanguage": "Langue de la carte",
+    "mapLanguageDefault": "Par défaut (latin + local)",
+    "mapLanguageLocal": "Noms locaux",
     "settings": "Paramètres"
   },
   "tooltips": {

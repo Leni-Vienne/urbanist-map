@@ -800,7 +800,12 @@ export const moderationRouter = router({
             competingReplacements = replacementResult.competingReplacements;
           }
 
-          const approvalResult = await handleOverlayApproval(tx, input.id, authorId);
+          const approvalResult = await handleOverlayApproval(
+            tx,
+            input.id,
+            input.expectedVersion,
+            authorId,
+          );
 
           if (!approvalResult.success) {
             return { success: false, error: approvalResult.error };
@@ -1039,53 +1044,82 @@ export const moderationRouter = router({
         )
         .having(sql`count(distinct ${userReports.reportedBy}) >= ${threshold}`);
 
-      const enrichedUsers = await Promise.all(
-        reportedUsers.map(async (user) => {
-          const reports = await db
-            .select({
-              reporterId: userReports.reportedBy,
-              reporterUsername: users.username,
-              reporterEmail: users.email,
-              reason: userReports.reason,
-              createdAt: userReports.createdAt,
-            })
-            .from(userReports)
-            .leftJoin(users, eq(userReports.reportedBy, users.id))
-            .where(eq(userReports.reportedUserId, user.userId));
+      const reportedUserIds = reportedUsers.map((u) => u.userId);
+      if (reportedUserIds.length === 0) {
+        return [];
+      }
 
-          const [projectCounts, overlayCounts] = await Promise.all([
-            db
-              .select({
-                pending: sql<number>`count(case when status = 'pending' then 1 end)::int`,
-                rejected: sql<number>`count(case when status = 'rejected' then 1 end)::int`,
-              })
-              .from(projects)
-              .where(eq(projects.ownerId, user.userId)),
-            db
-              .select({
-                pending: sql<number>`count(case when status = 'pending' then 1 end)::int`,
-                rejected: sql<number>`count(case when status = 'rejected' then 1 end)::int`,
-              })
-              .from(overlays)
-              .where(eq(overlays.authorId, user.userId)),
-          ]);
+      // Fetch reporter details and content counts for every reported user in three
+      // grouped queries, then stitch them together in memory (avoids N+1).
+      const [allReports, projectCounts, overlayCounts] = await Promise.all([
+        db
+          .select({
+            reportedUserId: userReports.reportedUserId,
+            reporterId: userReports.reportedBy,
+            reporterUsername: users.username,
+            reporterEmail: users.email,
+            reason: userReports.reason,
+            createdAt: userReports.createdAt,
+          })
+          .from(userReports)
+          .leftJoin(users, eq(userReports.reportedBy, users.id))
+          .where(inArray(userReports.reportedUserId, reportedUserIds)),
+        db
+          .select({
+            ownerId: projects.ownerId,
+            pending: sql<number>`count(case when status = 'pending' then 1 end)::int`,
+            rejected: sql<number>`count(case when status = 'rejected' then 1 end)::int`,
+          })
+          .from(projects)
+          .where(inArray(projects.ownerId, reportedUserIds))
+          .groupBy(projects.ownerId),
+        db
+          .select({
+            authorId: overlays.authorId,
+            pending: sql<number>`count(case when status = 'pending' then 1 end)::int`,
+            rejected: sql<number>`count(case when status = 'rejected' then 1 end)::int`,
+          })
+          .from(overlays)
+          .where(inArray(overlays.authorId, reportedUserIds))
+          .groupBy(overlays.authorId),
+      ]);
 
-          return {
-            userId: user.userId,
-            email: user.email,
-            username: user.username,
-            banned: user.banned,
-            bannedAt: user.bannedAt,
-            banReason: user.banReason,
-            reportCount: user.reportCount,
-            reports,
-            pendingProjects: projectCounts[0]?.pending ?? 0,
-            rejectedProjects: projectCounts[0]?.rejected ?? 0,
-            pendingOverlays: overlayCounts[0]?.pending ?? 0,
-            rejectedOverlays: overlayCounts[0]?.rejected ?? 0,
-          };
-        }),
-      );
+      const reportsByUser = new Map<string, typeof allReports>();
+      for (const report of allReports) {
+        const list = reportsByUser.get(report.reportedUserId) ?? [];
+        list.push(report);
+        reportsByUser.set(report.reportedUserId, list);
+      }
+
+      const projectCountByUser = new Map(projectCounts.map((p) => [p.ownerId, p]));
+      const overlayCountByUser = new Map(overlayCounts.map((o) => [o.authorId, o]));
+
+      const enrichedUsers = reportedUsers.map((user) => {
+        const reports = (reportsByUser.get(user.userId) ?? []).map((report) => ({
+          reporterId: report.reporterId,
+          reporterUsername: report.reporterUsername,
+          reporterEmail: report.reporterEmail,
+          reason: report.reason,
+          createdAt: report.createdAt,
+        }));
+        const projectCount = projectCountByUser.get(user.userId);
+        const overlayCount = overlayCountByUser.get(user.userId);
+
+        return {
+          userId: user.userId,
+          email: user.email,
+          username: user.username,
+          banned: user.banned,
+          bannedAt: user.bannedAt,
+          banReason: user.banReason,
+          reportCount: user.reportCount,
+          reports,
+          pendingProjects: projectCount?.pending ?? 0,
+          rejectedProjects: projectCount?.rejected ?? 0,
+          pendingOverlays: overlayCount?.pending ?? 0,
+          rejectedOverlays: overlayCount?.rejected ?? 0,
+        };
+      });
 
       return enrichedUsers;
     } catch (error) {
@@ -1211,7 +1245,19 @@ export const moderationRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         }
 
-        await db.delete(overlays).where(eq(overlays.id, input.id));
+        await db.transaction(async (tx) => {
+          // Sever replacement-chain pointers first so no sibling row is left referencing
+          // the deleted overlay (these columns have no FK to cascade the cleanup).
+          await tx
+            .update(overlays)
+            .set({ replacesOverlayId: null })
+            .where(eq(overlays.replacesOverlayId, input.id));
+          await tx
+            .update(overlays)
+            .set({ replacedByOverlayId: null })
+            .where(eq(overlays.replacedByOverlayId, input.id));
+          await tx.delete(overlays).where(eq(overlays.id, input.id));
+        });
 
         console.log(
           `Admin ${ctx.user.id} deleted overlay ${input.id} (status: ${overlay.status})${input.reason ? ` - Reason: ${input.reason}` : ""}`,
@@ -1240,29 +1286,21 @@ export const moderationRouter = router({
 });
 
 async function buildHiddenUserIdsSet(moderatorId: string): Promise<Set<string>> {
-  const allReports = await db
+  // One grouped row per reported user instead of loading the whole user_reports table.
+  // A user is hidden if this moderator reported them, or 3+ moderators reported them.
+  const rows = await db
     .select({
       reportedUserId: userReports.reportedUserId,
-      reportedBy: userReports.reportedBy,
+      reportCount: sql<number>`count(*)::int`,
+      reportedByMe: sql<boolean>`bool_or(${userReports.reportedBy} = ${moderatorId})`,
     })
-    .from(userReports);
-
-  const reportCountByUser = new Map<string, number>();
-  const myReportedUsers = new Set<string>();
-
-  for (const report of allReports) {
-    const count = reportCountByUser.get(report.reportedUserId) ?? 0;
-    reportCountByUser.set(report.reportedUserId, count + 1);
-
-    if (report.reportedBy === moderatorId) {
-      myReportedUsers.add(report.reportedUserId);
-    }
-  }
+    .from(userReports)
+    .groupBy(userReports.reportedUserId);
 
   const hiddenUserIds = new Set<string>();
-  for (const [userId, count] of reportCountByUser) {
-    if (myReportedUsers.has(userId) || count >= 3) {
-      hiddenUserIds.add(userId);
+  for (const row of rows) {
+    if (row.reportedByMe || row.reportCount >= 3) {
+      hiddenUserIds.add(row.reportedUserId);
     }
   }
 
@@ -1605,9 +1643,12 @@ async function handleReplacementConflicts(
 async function handleOverlayApproval(
   tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
   overlayId: string,
+  expectedVersion: number,
   authorId: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Guard the UPDATE on version so two concurrent approvals can't both apply the
+    // side effects (the prior SELECT doesn't lock the row; this closes the race).
     const result = await tx
       .update(overlays)
       .set({
@@ -1615,11 +1656,11 @@ async function handleOverlayApproval(
         version: sql`${overlays.version} + 1`,
         replacesOverlayId: null,
       })
-      .where(eq(overlays.id, overlayId))
+      .where(and(eq(overlays.id, overlayId), eq(overlays.version, expectedVersion)))
       .returning({ id: overlays.id });
 
     if (result.length === 0) {
-      return { success: false, error: "Failed to approve overlay" };
+      return { success: false, error: "Version mismatch or already processed" };
     }
 
     await incrementApprovedCount(tx, authorId);

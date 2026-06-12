@@ -24,7 +24,7 @@ const pgClient = postgresJs(config.DATABASE_URL, { connection: { synchronous_com
 const db = drizzle({ client: pgClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { EXTENDED_OSM_RULES } from "@shared/osmRules";
+import { EXTENDED_OSM_RULES, PRESENT_STATE_OSM_KEYS, isRedevelopmentSite } from "@shared/osmRules";
 
 const GEOJSON_PATHS = [
   path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_linear.geojson"),
@@ -78,34 +78,11 @@ function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
 function extractTags(props: Record<string, unknown>): string[] {
   const found = new Set<string>();
 
-  // First, check for transport_type directly which is the most accurate
-  const ttRaw = props["transport_type"];
-  if (typeof ttRaw === "string" || typeof ttRaw === "number") {
-    const tt = String(ttRaw);
-    if (
-      tt === "rail" ||
-      tt === "light_rail" ||
-      tt === "subway" ||
-      tt === "tram" ||
-      tt === "cable_car" ||
-      tt === "bus" ||
-      tt === "bike" ||
-      tt === "pedestrian" ||
-      tt === "road" ||
-      tt === "waterway" ||
-      tt === "park"
-    ) {
-      found.add(tt);
-    } else if (tt === "narrow_gauge" || tt === "monorail" || tt === "miniature") {
-      found.add("rail");
-    } else if (tt === "gondola" || tt === "funicular") {
-      found.add("cable_car");
-    }
-  }
-
-  // Then apply shared OSM rules to capture secondary tags (like parks or buildings)
-  // or catch anything that didn't have a clean transport_type
+  // On redevelopment sites, plain keys describe the feature being replaced
+  // (e.g. aeroway=aerodrome with planned:landuse=residential), so skip them.
+  const redevelopment = isRedevelopmentSite(props);
   for (const rule of EXTENDED_OSM_RULES) {
+    if (redevelopment && PRESENT_STATE_OSM_KEYS.has(rule.key)) continue;
     const val = props[rule.key];
     if (typeof val === "string" || typeof val === "number") {
       const strVal = String(val);

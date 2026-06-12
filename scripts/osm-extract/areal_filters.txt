@@ -1,8 +1,10 @@
 wr/building=construction,proposed,planned
 wr/landuse=construction
-wr/construction=apartments,commercial,office,retail,industrial,yes
+wr/leisure=construction,proposed,planned
+wr/amenity=construction,proposed,planned
+wr/construction=apartments,commercial,office,retail,industrial,yes,hospital,school,hotel,university,warehouse,public,civic,college,kindergarten,church,dormitory,clinic,sports_centre,train_station,transportation,education,government,farm,terrace,park,garden,playground,recreation_ground,stadium,pitch,golf_course
 wr/construction:*
-wr/proposed=apartments,commercial,office,retail,industrial,yes
+wr/proposed=apartments,commercial,office,retail,industrial,yes,hospital,school,hotel,university,warehouse,public,civic,college,kindergarten,church,dormitory,clinic,sports_centre,train_station,transportation,education,government,farm,terrace,park,garden,playground,recreation_ground,stadium,pitch,golf_course
 wr/proposed:*
-wr/planned=apartments,commercial,office,retail,industrial,yes
+wr/planned=apartments,commercial,office,retail,industrial,yes,hospital,school,hotel,university,warehouse,public,civic,college,kindergarten,church,dormitory,clinic,sports_centre,train_station,transportation,education,government,farm,terrace,park,garden,playground,recreation_ground,stadium,pitch,golf_course
 wr/planned:*
