@@ -19,6 +19,15 @@ function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
   return { lat, lng, zoom };
 }
 
+// Move the camera when the user edits the hash in the address bar. Our own hash writes use
+// history.replaceState (see updateHash), which does not fire hashchange, so this never loops.
+function onHashChange() {
+  if (!_map) return;
+  const coords = parseHashCoords();
+  if (!coords) return;
+  _map.flyTo({ center: [coords.lng, coords.lat], zoom: coords.zoom, duration: 3000 });
+}
+
 // Update the URL hash with current map view.
 function updateHash() {
   if (!_map) return;
@@ -182,6 +191,10 @@ export function initializeMap() {
   // Sync map position to URL hash for shareable links
   newMap.on("moveend", updateHash);
   updateHash();
+
+  // React to the user editing coordinates directly in the address bar.
+  globalThis.removeEventListener("hashchange", onHashChange);
+  globalThis.addEventListener("hashchange", onHashChange);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
