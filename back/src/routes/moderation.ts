@@ -1657,10 +1657,19 @@ async function handleOverlayApproval(
         replacesOverlayId: null,
       })
       .where(and(eq(overlays.id, overlayId), eq(overlays.version, expectedVersion)))
-      .returning({ id: overlays.id });
+      .returning({ id: overlays.id, projectId: overlays.projectId });
 
-    if (result.length === 0) {
+    const approvedOverlay = result[0];
+    if (!approvedOverlay) {
       return { success: false, error: "Version mismatch or already processed" };
+    }
+
+    const approvedProjectId = approvedOverlay.projectId;
+    if (approvedProjectId) {
+      await tx
+        .update(projects)
+        .set({ updatedAt: new Date() })
+        .where(eq(projects.id, approvedProjectId));
     }
 
     await incrementApprovedCount(tx, authorId);
