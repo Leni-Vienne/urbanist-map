@@ -188,11 +188,13 @@ function markerSuppressMinSizeM(z: number): number | null {
 }
 
 // In Docker prod, routes/ is bind-mounted next to the bundle at /home/bun/app.
-// In dev, import.meta.dir points to the source directory where tiles.sql lives.
+// In dev, resolve from the working directory (project root for every dev script), so the path
+// holds whether the backend runs from source (`bun --hot back/src/index.ts`) or from the bundle
+// (`bun ./server.bundle.js`), since bundling flattens import.meta.dir to the bundle's location.
 const sqlPath =
   process.env.NODE_ENV !== "development"
     ? "/home/bun/app/routes/tiles.sql"
-    : `${import.meta.dir}/tiles.sql`;
+    : `${process.cwd()}/back/src/routes/tiles.sql`;
 
 // Runs tiles.sql against the zoom-appropriate pool. Returns the MVT Buffer, or null for an empty tile.
 async function generateTile(z: number, x: number, y: number): Promise<Buffer | null> {

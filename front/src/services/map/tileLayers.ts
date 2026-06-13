@@ -20,6 +20,7 @@ import {
 } from "./projectVectorLayers";
 import {
   applyPlanStyleRoadOverrides,
+  applyPoiVisibilityOverrides,
   applyRailStyleOverrides,
   applySky,
 } from "./basemapStyleOverrides";
@@ -321,6 +322,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
   try {
     applyPlanStyleRoadOverrides(mlMap);
     applyRailStyleOverrides(mlMap);
+    applyPoiVisibilityOverrides(mlMap);
     applySky(mlMap);
     applyMapLabelLanguage(mlMap);
     addProjectDataToMlMap(mlMap);
@@ -437,6 +439,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       if (style === OPENFREEMAP_STYLE_URL) {
         applyPlanStyleRoadOverrides(mlMap);
         applyRailStyleOverrides(mlMap);
+        applyPoiVisibilityOverrides(mlMap);
         applySky(mlMap);
         applyMapLabelLanguage(mlMap);
         applyBuildings3DState(show3DBuildings.value);

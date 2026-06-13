@@ -39,6 +39,16 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
       id: projects.id,
       name: projects.name,
       filename: sql<null>`NULL`,
+      // A standalone project has no map overlay but may have an approved render (artist's
+      // impression). Surface its filename so the feed shows the render thumbnail instead of a generic icon.
+      renderFilename: sql<string | null>`(
+        SELECT ${overlays.filename} FROM ${overlays}
+        WHERE ${overlays.projectId} = ${projects.id}
+        AND ${overlays.status} = 'approved'
+        AND ${overlays.kind} = 'render'
+        ORDER BY ${overlays.updatedAt} DESC
+        LIMIT 1
+      )`,
       updatedAt: contributionDate,
       cityName: cities.name,
       countryCode: projects.countryCode,
@@ -94,6 +104,7 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
     id: p.id,
     name: p.name,
     filename: null as string | null,
+    renderFilename: p.renderFilename,
     updatedAt: p.updatedAt,
     cityName: p.cityName,
     countryCode: p.countryCode,
