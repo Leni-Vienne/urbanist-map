@@ -27,12 +27,14 @@
               class="w-13 h-13 md:w-15 md:h-15 rounded-xl overflow-hidden bg-content-hover-background border border-surface shrink-0 flex items-center justify-center relative"
             >
               <img
-                v-if="contribution.type === 'overlay' && contribution.filename"
-                :src="getContributionImageUrl(contribution.filename)"
+                v-if="getThumbnailFilename(contribution)"
+                :src="getContributionImageUrl(getThumbnailFilename(contribution)!)"
                 class="w-full h-full object-cover"
                 alt=""
                 :crossorigin="
-                  imageRequiresCredentials(getContributionImageUrl(contribution.filename))
+                  imageRequiresCredentials(
+                    getContributionImageUrl(getThumbnailFilename(contribution)!),
+                  )
                     ? 'use-credentials'
                     : undefined
                 "
@@ -132,6 +134,14 @@ const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
 function getContributionImageUrl(filename: string): string {
   return buildThumbnailUrl(filename);
+}
+
+// Overlays use their own image; standalone projects fall back to their render thumbnail (if any).
+function getThumbnailFilename(contribution: LatestContribution): string | null {
+  if (contribution.type === "overlay") {
+    return contribution.filename;
+  }
+  return contribution.renderFilename;
 }
 
 function getLocationDisplay(contribution: LatestContribution): string {
