@@ -34,7 +34,8 @@ shapes AS (
   -- >= 1 km follow normal size-based rules (so notable structures are visible at lower zooms).
   SELECT ST_AsMVT(q, 'project-shapes', 4096, 'mvt_geom') AS tile
   FROM (
-    -- First part: retrieve projects that have an explicitly drawn geometry (polygon or line)
+    -- Projects that have an explicitly drawn geometry (polygon or line). Standalone projects with
+    -- no geometry are not emitted here; they carry a center marker via the points layer instead.
     SELECT
       ST_AsMVTGeom(
         ST_Transform(p.geometry, 3857),
@@ -75,44 +76,6 @@ shapes AS (
       AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
                AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
                AND (p.name IS NULL OR p.name = ''))
-
-    UNION ALL
-
-    -- Second part: for projects that don't have geometry, we represent them as a single point in the shapes layer
-    -- BUT ONLY IF they also do not have any associated image overlays.
-    -- This ensures small un-drawn projects are still clickable at high zooms.
-    -- These have no meaningful size so they only appear at z8+ (same as before).
-    SELECT
-      ST_AsMVTGeom(
-        ST_Transform(p.center_coordinate, 3857),
-        te.bounds,
-        4096, 64, true
-      ) AS mvt_geom,
-      p.id,
-      p.name,
-      array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
-      COALESCE(p.tags[1], '') AS first_tag,
-      p.timeline_status,
-      NULL::int AS geometry_size_m,
-      CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
-      EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
-      -- This branch only emits projects with no approved overlays (see NOT EXISTS below).
-      false AS has_image,
-      ST_Y(p.center_coordinate) AS popup_lat,
-      ST_X(p.center_coordinate) AS popup_lng,
-      NULL::float8 AS bbox_w,
-      NULL::float8 AS bbox_s,
-      NULL::float8 AS bbox_e,
-      NULL::float8 AS bbox_n
-    FROM projects p, tile_env te
-    WHERE $1 >= 8
-      AND p.status = 'approved'
-      AND p.geometry IS NULL
-      AND p.center_coordinate IS NOT NULL
-      AND p.center_coordinate && te.bounds_4326
-      AND NOT EXISTS (
-        SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map'
-      )
   ) q
   WHERE q.mvt_geom IS NOT NULL
 ),
