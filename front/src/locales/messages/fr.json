@@ -864,7 +864,7 @@
     "drawLine": "Ligne",
     "drawPolygon": "Polygone",
     "editShapes": "Modifier",
-    "editorInstructions": "Utilisez Modifier pour déplacer des points, diviser aux points milieux, ou clic droit sur un point pour le supprimer.",
+    "editorInstructions": "Utilisez {editButton} pour déplacer les points, diviser un segment en deux, et supprimer des noeuds (via clic droit).",
     "importGeoJSON": "Importer GeoJSON",
     "importGeoJSONTooltip": "Importer des formes depuis un fichier GeoJSON",
     "importError": "Fichier GeoJSON invalide",

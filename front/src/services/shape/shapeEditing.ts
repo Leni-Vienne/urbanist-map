@@ -50,7 +50,16 @@ function filterDrawableGeometries(
 
 let draw: TerraDraw | null = null;
 
+// Persists the last tool the user picked across editor open/close so re-entering
+// the editor restores it. Null means no tool has been picked yet (Terra Draw stays
+// in its default "static" mode, i.e. nothing selected).
+let lastDrawMode: ShapeDrawMode | null = null;
+
 const snappingConfig = { toLine: true, toCoordinate: true };
+
+export function getLastDrawMode(): ShapeDrawMode | null {
+  return lastDrawMode;
+}
 
 /**
  * Activate the Terra Draw editor on the map with line and polygon tools.
@@ -106,14 +115,18 @@ export async function initShapeEditor(
     await addLayersFromGeometry(existingGeometry);
   }
 
-  // Pre-select the Line tool by default when the shape editor opens
-  setDrawMode("linestring");
+  // Restore the last tool the user picked. If none yet, leave Terra Draw in its
+  // default "static" mode so no tool is selected.
+  const restoredMode = getLastDrawMode();
+  if (restoredMode) setDrawMode(restoredMode);
 }
 
 /**
- * Switch the active drawing tool. No-op if the editor is not active.
+ * Switch the active drawing tool and remember it for the next editor session.
+ * No-op on the Terra Draw instance if the editor is not active.
  */
 export function setDrawMode(mode: ShapeDrawMode): void {
+  lastDrawMode = mode;
   if (!draw) return;
   draw.setMode(mode);
 }

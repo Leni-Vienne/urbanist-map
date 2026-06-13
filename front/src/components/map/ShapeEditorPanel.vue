@@ -3,9 +3,20 @@
     class="absolute bottom-6 left-1/2 -translate-x-1/2 z-1100 bg-content-background rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.14),0_2px_6px_rgba(0,0,0,0.06)] pointer-events-auto px-4 py-3 flex flex-col gap-3 w-fit"
   >
     <!-- w-0 min-w-full: makes the paragraph match the container width without causing it to overflow -->
-    <p class="text-sm text-muted-color w-0 min-w-full text-center">
-      {{ $t("shapes.editorInstructions") }}
-    </p>
+    <i18n-t
+      keypath="shapes.editorInstructions"
+      tag="p"
+      class="text-sm text-muted-color w-0 min-w-full text-center"
+    >
+      <template #editButton>
+        <span
+          class="inline-flex items-center gap-1 align-middle whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[13px] font-medium text-color border-[color-mix(in_srgb,var(--p-primary-color)_35%,transparent)] bg-[color-mix(in_srgb,var(--p-primary-color)_12%,transparent)]"
+        >
+          <i class="pi pi-pencil text-xs" />
+          {{ $t("shapes.editShapes") }}
+        </span>
+      </template>
+    </i18n-t>
     <div class="flex gap-2 items-center justify-center">
       <!-- Draw tools -->
       <SelectButton
@@ -79,6 +90,7 @@ import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import {
   addLayersFromGeometry,
   getDrawnGeometry,
+  getLastDrawMode,
   loadGeoJSONFile,
   setDrawMode,
   type ShapeDrawMode,
@@ -97,8 +109,8 @@ const emit = defineEmits<{
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 // Terra Draw has no built-in toolbar, so the tool selection lives here.
-// initShapeEditor pre-selects "linestring", so the panel defaults to match.
-const activeMode = ref<ShapeDrawMode>("linestring");
+// Restore the last tool the user picked (null on first ever open: no tool selected).
+const activeMode = ref<ShapeDrawMode | null>(getLastDrawMode());
 
 const drawModeOptions = [
   { value: "linestring" as const, label: t("shapes.drawLine"), icon: "pi pi-minus" },

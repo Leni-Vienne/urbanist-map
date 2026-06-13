@@ -862,7 +862,7 @@
     "drawLine": "Line",
     "drawPolygon": "Polygon",
     "editShapes": "Edit",
-    "editorInstructions": "Use Edit to drag points, split at midpoints, or right click a point to delete it.",
+    "editorInstructions": "Use {editButton} to drag points, split segments in half, or delete a node (via right-click).",
     "importGeoJSON": "Import GeoJSON",
     "importGeoJSONTooltip": "Import shapes from a GeoJSON file",
     "importError": "Invalid GeoJSON file",
