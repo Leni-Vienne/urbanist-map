@@ -5,7 +5,6 @@ import {
   type FilterSpecification,
   type ExpressionSpecification,
   LngLatBounds,
-  addProtocol,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { getEffectiveThreshold } from "@/constants/mapConstants";
@@ -58,61 +57,7 @@ import {
 } from "@/services/map/filters";
 
 /* oxlint-disable no-unsafe-type-assertion */ // disabled because maplibre-gl is clunky to type
-
-// ── Global Request Deduplication for MapLibre ──────────────────────────────
-// MapLibre's renderWorldCopies means at zoom level < 3, it renders multiple copies
-// of the world to fill horizontal screens. It concurrently fetches identical tiles
-// for each world copy (e.g. wrap: -1, wrap: 0, wrap: 1).
-// This custom protocol intercepts those fetches and merges concurrent requests for
-// the exact same URL into a single backend fetch.
-
-const pendingTileRequests = new Map<string, Promise<ArrayBuffer>>();
-
-addProtocol("dedupe", async (params, _abortController) => {
-  const url = params.url.replace("dedupe://", "");
-
-  if (pendingTileRequests.has(url)) {
-    const data = await pendingTileRequests.get(url);
-    // ArrayBuffers are transferred to WebWorkers by MapLibre, which detaches them.
-    // If multiple tile requests wait on the same promise, we MUST clone the ArrayBuffer
-    // before handing it to MapLibre, otherwise the 2nd worker gets a detached buffer error.
-    if (data) return { data: structuredClone(data) };
-  }
-
-  const promise = (async () => {
-    try {
-      const response = await fetch(url, {
-        headers: params.headers,
-        // Intentionally not passing abortController.signal.
-        // If multiple world copies (wrap 0, wrap 1) wait on this same promise,
-        // and one copy gets aborted (e.g. goes off screen), we don't want to cancel
-        // the fetch for the other copy that is still visible!
-        //
-        // In dev, bypass the HTTP cache so tile-query changes are reflected immediately
-        // instead of being masked by a previously cached tile. Production keeps default
-        // caching (driven by the tile's Cache-Control header).
-        ...(import.meta.env.DEV ? { cache: "no-store" as RequestCache } : {}),
-      });
-      if (!response.ok) {
-        if (response.status === 204) return new ArrayBuffer(0); // Empty tile
-        throw new Error(`Tile fetch failed: ${response.status}`);
-      }
-      return await response.arrayBuffer();
-    } finally {
-      // Keep it in the map briefly to catch simultaneous world copy requests
-      setTimeout(() => {
-        pendingTileRequests.delete(url);
-      }, 200);
-    }
-  })();
-
-  pendingTileRequests.set(url, promise);
-
-  const data = await promise;
-  return { data: structuredClone(data) };
-});
-
-const TILE_URL = `dedupe://${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
+const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
 // ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
 /** Zoom level at which project points appear (prevents overloading with 20k+ points globally) */
