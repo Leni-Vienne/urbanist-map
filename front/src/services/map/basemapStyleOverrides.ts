@@ -85,3 +85,15 @@ export function applyRailStyleOverrides(mlMap: MaplibreMap): void {
     }
   }
 }
+
+// Liberty POI layers to hide so the map stays focused on our project geometries.
+const HIDDEN_POI_LAYERS = ["poi_transit", "poi_r1", "poi_r7", "poi_r20"];
+
+/** Hides cluttering POI layers from the Liberty basemap. */
+export function applyPoiVisibilityOverrides(mlMap: MaplibreMap): void {
+  for (const id of HIDDEN_POI_LAYERS) {
+    if (mlMap.getLayer(id)) {
+      mlMap.setLayoutProperty(id, "visibility", "none");
+    }
+  }
+}
