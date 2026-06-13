@@ -15,23 +15,26 @@ const LOW_ZOOM_CACHE_MAX = 8000; // > 5461 (count of all z0-z6 tiles), so nothin
 const HIGH_ZOOM_CACHE_MAX_ENTRIES = 12_000;
 const HIGH_ZOOM_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 
-// Map insertion order = LRU order (oldest first)
-const lowZoomCache = new Map<string, Buffer | null>();
-const highZoomCache = new Map<string, Buffer | null>();
+// Map insertion order = LRU order (oldest first).
+const lowZoomCache = new Map<string, Uint8Array | null>();
+const highZoomCache = new Map<string, Uint8Array | null>();
 
-// Summed Buffer bytes of highZoomCache entries (null entries count as 0).
+// In-flight tile generations, keyed by `${z}/${x}/${y}`. Concurrent requests for the same uncached
+const inFlightTiles = new Map<string, Promise<Uint8Array | null>>();
+
+// Summed bytes of highZoomCache entries (null entries count as 0).
 // Must be kept in sync by routing all writes/deletes through the helpers below.
 let highZoomCacheBytes = 0;
 
-function entryBytes(val: Buffer | null): number {
+function entryBytes(val: Uint8Array | null): number {
   return val === null ? 0 : val.length;
 }
 
-function cacheForZoom(z: number): Map<string, Buffer | null> {
+function cacheForZoom(z: number): Map<string, Uint8Array | null> {
   return z <= LOW_ZOOM_MAX ? lowZoomCache : highZoomCache;
 }
 
-function deleteCachedTile(cache: Map<string, Buffer | null>, key: string) {
+function deleteCachedTile(cache: Map<string, Uint8Array | null>, key: string) {
   const val = cache.get(key);
   if (val === undefined) return;
   if (cache === highZoomCache) highZoomCacheBytes -= entryBytes(val);
@@ -78,7 +81,10 @@ function invalidateTilesForBbox(minLng: number, minLat: number, maxLng: number, 
   }
 }
 
-function getCachedTile(cache: Map<string, Buffer | null>, key: string): Buffer | null | undefined {
+function getCachedTile(
+  cache: Map<string, Uint8Array | null>,
+  key: string,
+): Uint8Array | null | undefined {
   const val = cache.get(key);
   if (val === undefined) return undefined;
   // Promote to end (most recently used)
@@ -87,7 +93,7 @@ function getCachedTile(cache: Map<string, Buffer | null>, key: string): Buffer |
   return val;
 }
 
-function setCachedTile(cache: Map<string, Buffer | null>, key: string, val: Buffer | null) {
+function setCachedTile(cache: Map<string, Uint8Array | null>, key: string, val: Uint8Array | null) {
   deleteCachedTile(cache, key);
   if (cache === highZoomCache) {
     // Evict oldest entries until both the entry-count and byte budgets fit the new entry.
@@ -196,20 +202,49 @@ const sqlPath =
     ? "/home/bun/app/routes/tiles.sql"
     : `${process.cwd()}/back/src/routes/tiles.sql`;
 
-// Runs tiles.sql against the zoom-appropriate pool. Returns the MVT Buffer, or null for an empty tile.
-async function generateTile(z: number, x: number, y: number): Promise<Buffer | null> {
+// Runs tiles.sql against the zoom-appropriate pool. Returns the MVT bytes, or null for an empty tile.
+// The DB Buffer is copied once into a standalone Uint8Array: the Buffer may be a view into a larger
+// pooled ArrayBuffer, so copying both detaches it (the cache retains only the tile's bytes) and yields
+// a value that can be served directly on every subsequent cache hit without re-copying.
+async function generateTile(z: number, x: number, y: number): Promise<Uint8Array | null> {
   const client = z <= LOW_ZOOM_MAX ? tilesSqlClientLowZoom : tilesSqlClientHighZoom;
   const [row] = await client.file(sqlPath, [z, x, y, shapesMinSizeM(z), markerSuppressMinSizeM(z)]);
   const rawTile = row?.tile;
-  return Buffer.isBuffer(rawTile) && rawTile.length > 0 ? rawTile : null;
+  return Buffer.isBuffer(rawTile) && rawTile.length > 0 ? new Uint8Array(rawTile) : null;
 }
 
-function tileResponse(tileData: Buffer, z: number): Response {
+// Coalesces concurrent generations of the same tile so a burst of identical requests runs the
+// expensive query once. The shared promise also performs the cache write, so the tile is stored
+// exactly once regardless of how many callers awaited it.
+function generateTileCoalesced(
+  z: number,
+  x: number,
+  y: number,
+  cacheKey: string,
+  cache: Map<string, Uint8Array | null>,
+  useCache: boolean,
+): Promise<Uint8Array | null> {
+  const existing = inFlightTiles.get(cacheKey);
+  if (existing !== undefined) return existing;
+
+  const promise = (async () => {
+    const data = await generateTile(z, x, y);
+    if (useCache) setCachedTile(cache, cacheKey, data);
+    return data;
+  })().finally(() => inFlightTiles.delete(cacheKey));
+
+  inFlightTiles.set(cacheKey, promise);
+  return promise;
+}
+
+function tileResponse(tileData: Uint8Array, z: number): Response {
   // In prod: low-zoom tiles (z0-z6) contain only OSM-imported data that changes at most
   // monthly, so cache them aggressively. High-zoom tiles may include freshly approved
   // overlays, so keep their TTL short.
   const cacheControl = z <= 6 ? "public, max-age=86400" : "public, max-age=3600";
-  return new Response(new Uint8Array(tileData), {
+  // generateTile builds each cached value via `new Uint8Array(buf)`, so the backing store is always a
+  // plain ArrayBuffer; the assertion just narrows ArrayBufferLike for the BodyInit type.
+  return new Response(tileData as Uint8Array<ArrayBuffer>, {
     headers: {
       "Content-Type": "application/vnd.mapbox-vector-tile",
       "Access-Control-Allow-Origin": "*",
@@ -291,15 +326,13 @@ tilesApp.get("/projects/:z/:x/:y", async (c) => {
       }
     }
 
-    const tileData = await generateTile(z, x, y);
+    // Coalesces concurrent misses for this tile and writes the cache exactly once.
+    const tileData = await generateTileCoalesced(z, x, y, cacheKey, cache, useCache);
 
     if (tileData === null) {
       // Return empty 204 No Content for empty tiles (standard for MVT)
-      if (useCache) setCachedTile(cache, cacheKey, null);
       return new Response(null, { status: 204 });
     }
-
-    if (useCache) setCachedTile(cache, cacheKey, tileData);
 
     return tileResponse(tileData, z);
   } catch (error) {
