@@ -62,8 +62,6 @@ const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 // ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
 /** Zoom level at which project points appear (prevents overloading with 20k+ points globally) */
 const PROJECT_POINTS_MIN_ZOOM = 0;
-/** Zoom level at which project points disappear because shapes take over */
-const PROJECT_POINTS_MAX_ZOOM = 15;
 /** Zoom level at which project shapes (MVT) become visible.
  *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
 const PROJECT_SHAPES_MIN_ZOOM = 3;
@@ -92,9 +90,6 @@ const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 // Viewport padding for flyToBounds to leave space around cluster cells.
 const CLUSTER_BOUNDS_PADDING_PX = 50;
-// Below this zoom, lone points (cell_count===1) still zoom to cell bounds
-// instead of opening the project, to avoid a jarring jump from low zoom to z14.
-const LONE_POINT_CLICK_MIN_ZOOM = 7;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
@@ -103,7 +98,6 @@ export const VECTOR_QUERY_LAYERS = [
   "project-shapes",
   "project-shapes-completed",
   "project-shapes-proposed-dashed",
-  "project-shapes-points",
 ] as const;
 
 const CLICK_QUERY_LAYERS = [
@@ -148,13 +142,50 @@ function getProjectLineColorExpression(): ExpressionSpecification {
   return getTagColorExpression([["get", "first_tag"]]);
 }
 
-function getProjectPointColorExpression(): ExpressionSpecification {
+function getProjectPointColorExpression(pendingColor = "#f97316"): ExpressionSpecification {
   return [
     "case",
     ["==", ["get", "is_pending"], true],
-    "#f97316", // Tailwind orange-500
+    pendingColor, // Tailwind orange-500 (orange-400 when hovered/selected)
     getTagColorExpression([["get", "first_tag"]]),
   ] as ExpressionSpecification;
+}
+
+// True when the feature carries the cursor "hover" state or the pinned "selected" state. Hover and
+// selected are tracked as two independent feature-state keys (see setCursorHoverState /
+// setSelectedHoverState) so a click-pinned project stays lit even after the cursor moves away.
+function hoverOrSelectedCondition(): ExpressionSpecification {
+  return [
+    "any",
+    ["boolean", ["feature-state", "hover"], false],
+    ["boolean", ["feature-state", "selected"], false],
+  ] as ExpressionSpecification;
+}
+
+// Paint-value expression that switches to hoverValue when the feature is hovered or selected.
+// Lets the base layer carry its own highlight in place (one repaint) instead of toggling a separate
+// hover layer with setFilter (which reloads every visible tile).
+// For zoom-interpolated values (e.g. line-width) use mergeZoomHoverState instead: wrapping two
+// interpolate expressions in a "case" is rejected (only one zoom curve allowed per expression).
+function withHoverState(
+  baseValue: ExpressionSpecification | number | string,
+  hoverValue: ExpressionSpecification | number | string,
+): ExpressionSpecification {
+  return ["case", hoverOrSelectedCondition(), hoverValue, baseValue] as ExpressionSpecification;
+}
+
+// Merge two ["interpolate", ["linear"], ["zoom"], z, v, ...] expressions (identical zoom stops)
+// into a single zoom curve whose stop outputs switch on the hover/selected state. Keeps the lone
+// permitted zoom curve at the top level while still folding the highlight in via feature-state.
+function mergeZoomHoverState(
+  base: ExpressionSpecification,
+  hover: ExpressionSpecification,
+): ExpressionSpecification {
+  const merged: unknown[] = base.slice(0, 3); // ["interpolate", ["linear"], ["zoom"]]
+  for (let i = 3; i < base.length; i += 2) {
+    merged.push(base[i], ["case", hoverOrSelectedCondition(), hover[i + 1], base[i + 1]]);
+  }
+  return merged as ExpressionSpecification;
 }
 
 /**
@@ -182,8 +213,8 @@ function getShapeZoomVisibilityFilter(): FilterSpecification {
   ] as FilterSpecification;
 }
 
-function getIsProposedFilterExpression(): ExpressionSpecification {
-  return ["==", ["get", "timeline_status"], "proposed"];
+function getIsProposedFilterExpression(): FilterSpecification {
+  return ["==", ["get", "timeline_status"], "proposed"] as FilterSpecification;
 }
 
 function getIsCompletedFilterExpression(): FilterSpecification {
@@ -263,10 +294,15 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
       getIsProposedFilterExpression(),
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
-  "project-shapes-points": () => ["==", ["geometry-type"], "Point"] as FilterSpecification, // no zoom gate in the filter: the layer's own minzoom controls visibility
   "project-shapes-proposed-dashed": () =>
     ["all", getIsProposedFilterExpression(), getShapeZoomVisibilityFilter()] as FilterSpecification,
-  "project-points-hover": () => ["==", ["get", "id"], HOVER_NONE_ID] as FilterSpecification,
+  // Solid hover overlay: every dashed shape (non-completed), gated to the same zoom visibility.
+  "project-shapes-hover-solid": () =>
+    [
+      "all",
+      ["!=", ["get", "timeline_status"], "completed"],
+      getShapeZoomVisibilityFilter(),
+    ] as FilterSpecification,
 };
 
 /**
@@ -379,6 +415,24 @@ function combineFilters(...filters: (FilterSpecification | null)[]): FilterSpeci
   return ["all", ...active] as FilterSpecification;
 }
 
+// map.setFilter forces a full map repaint on every call, even when the new filter equals the
+// current one (MapLibre only short-circuits the style mutation, not the repaint). Re-applying the
+// hover filters on each mousemove therefore repaints the whole map for nothing. Skip the call when
+// the filter is unchanged so an unchanged hover state costs zero repaints.
+// Cleared in addProjectDataToMlMap, since a style switch recreates the layers with default filters.
+const appliedLayerFilters = new Map<string, string>();
+
+function setLayerFilter(
+  mlMap: MaplibreMap,
+  layerId: string,
+  filter: FilterSpecification | null | undefined,
+): void {
+  const serialized = JSON.stringify(filter ?? null);
+  if (appliedLayerFilters.get(layerId) === serialized) return;
+  appliedLayerFilters.set(layerId, serialized);
+  mlMap.setFilter(layerId, filter ?? undefined);
+}
+
 /**
  * Apply current tag, status, and size filters to all project vector layers.
  * Called when any filter selection changes.
@@ -395,7 +449,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
 
   // project-points: tag + status + point size
   if (mlMap.getLayer("project-points")) {
-    mlMap.setFilter("project-points", pointsFilter);
+    setLayerFilter(mlMap, "project-points", pointsFilter);
   }
 
   // Layers with existing filters that must be merged
@@ -403,15 +457,10 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     if (!mlMap.getLayer(layerId)) continue;
 
     const baseLayerFilter = getBaseLayerFilter();
-    // Points hover keeps points size filter; shape layers keep shapes size filter; overlay footprints have no size filter
-    let sizeFilter: FilterSpecification | null = null;
-    if (layerId === "project-points-hover") {
-      sizeFilter = getSizeFilterExpressionForPoints();
-    } else if (!layerId.startsWith("overlay-footprints")) {
-      sizeFilter = getSizeFilterExpressionForShapes();
-    }
+    // All entries here are project-shapes sub-layers, so they share the shapes size filter.
+    const sizeFilter = getSizeFilterExpressionForShapes();
     const merged = combineFilters(baseLayerFilter, baseFilter, sizeFilter);
-    mlMap.setFilter(layerId, merged ?? baseLayerFilter);
+    setLayerFilter(mlMap, layerId, merged ?? baseLayerFilter);
   }
 
   applyFootprintLayerFilters(mlMap);
@@ -435,43 +484,6 @@ function queryFeaturesAtPoint(
   }
 
   return mlMap.queryRenderedFeatures([point.x, point.y], { layers: existingLayers });
-}
-
-function getHoveredFeatureIds(feature: RenderedMapFeature | null): {
-  projectId: string;
-  overlayId: string;
-} {
-  if (!feature) {
-    return { projectId: HOVER_NONE_ID, overlayId: HOVER_NONE_ID };
-  }
-
-  const sourceLayer = feature.sourceLayer;
-  if (sourceLayer === undefined) {
-    return {
-      projectId: getFeaturePropertyAsString(feature, "id") || HOVER_NONE_ID,
-      overlayId: getFeaturePropertyAsString(feature, "overlayId") || HOVER_NONE_ID,
-    };
-  }
-
-  const isFootprint = sourceLayer === "overlay-footprints";
-  const projectIdProp = isFootprint ? "project_id" : "id";
-  const projectId = getFeaturePropertyAsString(feature, projectIdProp);
-  const overlayId = isFootprint
-    ? getFeaturePropertyAsString(feature, "id")
-    : (getExternalHoverOverlayId() ?? HOVER_NONE_ID);
-
-  return {
-    projectId: projectId.length > 0 ? projectId : HOVER_NONE_ID,
-    overlayId: overlayId.length > 0 ? overlayId : HOVER_NONE_ID,
-  };
-}
-
-// Build a MapLibre filter that matches any of the given ids against the feature's "id" property.
-function buildIdMatchFilter(ids: string[]): FilterSpecification {
-  return [
-    "any",
-    ...ids.map((id) => ["==", ["to-string", ["get", "id"]], id]),
-  ] as FilterSpecification;
 }
 
 // Build a MapLibre filter matching features whose "id" is NOT in the hidden set.
@@ -516,7 +528,7 @@ function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
 
   for (const layerId of ["overlay-footprints-outline", "overlay-footprints-fill"]) {
     if (mlMap.getLayer(layerId)) {
-      mlMap.setFilter(layerId, merged ?? undefined);
+      setLayerFilter(mlMap, layerId, merged ?? undefined);
     }
   }
 }
@@ -525,10 +537,12 @@ function initHiddenOverlaysWatcher(): void {
   if (isHiddenOverlaysWatcherInitialized) return;
   isHiddenOverlaysWatcherInitialized = true;
 
+  // Watch a canonical string key (not the array) so the callback only fires when the hidden-id
+  // SET actually changes, instead of on every reactive read that rebuilds an identical array.
   watch(
-    () => computeHiddenOverlayIds(),
-    (hiddenIds) => {
-      hiddenOverlayIdsCache = hiddenIds;
+    () => computeHiddenOverlayIds().toSorted().join("|"),
+    (key) => {
+      hiddenOverlayIdsCache = key ? key.split("|") : [];
       const mlMap = map.value;
       if (!mlMap) return;
       applyFootprintLayerFilters(mlMap);
@@ -536,47 +550,96 @@ function initHiddenOverlaysWatcher(): void {
   );
 }
 
-function setVectorHoverFilters(mlMap: MaplibreMap, feature: RenderedMapFeature | null): void {
-  const { projectId, overlayId } = getHoveredFeatureIds(feature);
+const VECTOR_SOURCE = "project-sources";
+const PENDING_POINTS_SOURCE = "pending-project-points-source";
 
-  const selectedProjectId = getCurrentHighlightedProjectId() ?? HOVER_NONE_ID;
-  // The external hover (sidebar card, overlay DOM hover, detail pin) must be preserved
-  // even when mousemove returns an empty result, so it's ORed into every hover filter.
-  const externalProjectId = getExternalHoverId() ?? HOVER_NONE_ID;
-  const externalOverlayId = getExternalHoverOverlayId() ?? HOVER_NONE_ID;
+// Per "source|sourceLayer|stateKey", the set of feature ids that currently carry that state.
+// Lets each update be a minimal diff (setFeatureState for newly-active ids, removeFeatureState for
+// the ones that dropped out) instead of re-asserting every id. setFeatureState repaints the already
+// parsed tiles in place, so hover no longer reloads the visible tiles the way setFilter did.
+// Cleared in addProjectDataToMlMap, since a style switch recreates the sources from scratch.
+const appliedFeatureStates = new Map<string, Set<string>>();
 
-  const projectMatch = buildIdMatchFilter([projectId, selectedProjectId, externalProjectId]);
-  const overlayMatchBase = buildIdMatchFilter([overlayId, externalOverlayId]);
+function featureStateTarget(
+  source: string,
+  sourceLayer: string | undefined,
+  id: string,
+): { source: string; sourceLayer?: string; id: string } {
+  return sourceLayer ? { source, sourceLayer, id } : { source, id };
+}
 
-  const hiddenIds = getHiddenOverlayIds();
-  let overlayMatch: FilterSpecification;
-  if (hiddenIds.length > 0) {
-    overlayMatch = [
-      "all",
-      overlayMatchBase,
-      buildHiddenIdExclusionFilter(hiddenIds),
-    ] as FilterSpecification;
-  } else {
-    overlayMatch = overlayMatchBase;
+function diffFeatureState(
+  mlMap: MaplibreMap,
+  source: string,
+  sourceLayer: string | undefined,
+  stateKey: "hover" | "selected",
+  nextIds: Set<string>,
+): void {
+  const trackingKey = `${source}|${sourceLayer ?? ""}|${stateKey}`;
+  const prev = appliedFeatureStates.get(trackingKey) ?? new Set<string>();
+  for (const id of nextIds) {
+    if (!prev.has(id)) {
+      mlMap.setFeatureState(featureStateTarget(source, sourceLayer, id), { [stateKey]: true });
+    }
+  }
+  for (const id of prev) {
+    if (!nextIds.has(id)) {
+      mlMap.removeFeatureState(featureStateTarget(source, sourceLayer, id), stateKey);
+    }
+  }
+  appliedFeatureStates.set(trackingKey, nextIds);
+}
+
+// Collect ids into a set, dropping empties and the "no hover" sentinel.
+function idSet(...ids: (string | null | undefined)[]): Set<string> {
+  const set = new Set<string>();
+  for (const id of ids) {
+    if (id && id !== HOVER_NONE_ID) set.add(id);
+  }
+  return set;
+}
+
+// Cursor-driven highlight, replaced wholesale on each mousemove. Hovering a footprint also lights
+// its parent project's shape (project_id), matching the previous setFilter behaviour.
+function setCursorHoverState(
+  mlMap: MaplibreMap,
+  vectorFeature: RenderedMapFeature | null,
+  pointId: string | number | null,
+): void {
+  let shapeId: string | null = null;
+  let overlayId: string | null = null;
+  if (vectorFeature) {
+    if (vectorFeature.sourceLayer === "overlay-footprints") {
+      shapeId = getFeaturePropertyAsString(vectorFeature, "project_id") || null;
+      overlayId = getFeaturePropertyAsString(vectorFeature, "id") || null;
+    } else {
+      shapeId = getFeaturePropertyAsString(vectorFeature, "id") || null;
+    }
   }
 
-  mlMap.setFilter("project-shapes-hover", projectMatch);
-  mlMap.setFilter("project-shapes-hover-fill", [
-    "all",
-    ["==", ["geometry-type"], "Polygon"],
-    projectMatch,
-  ] as FilterSpecification);
-  mlMap.setFilter("project-shapes-proposed-hover", [
-    "all",
-    getIsProposedFilterExpression(),
-    projectMatch,
-  ] as FilterSpecification);
-  mlMap.setFilter("overlay-footprints-hover", overlayMatch);
-  mlMap.setFilter("overlay-footprints-proposed-hover", [
-    "all",
-    getIsProposedFilterExpression(),
-    overlayMatch,
-  ] as FilterSpecification);
+  const footprintIds = idSet(overlayId);
+  for (const hidden of getHiddenOverlayIds()) footprintIds.delete(hidden);
+
+  const pointIds = idSet(pointId !== null ? String(pointId) : null);
+
+  diffFeatureState(mlMap, VECTOR_SOURCE, "project-shapes", "hover", idSet(shapeId));
+  diffFeatureState(mlMap, VECTOR_SOURCE, "overlay-footprints", "hover", footprintIds);
+  diffFeatureState(mlMap, VECTOR_SOURCE, "project-points", "hover", pointIds);
+  diffFeatureState(mlMap, PENDING_POINTS_SOURCE, undefined, "hover", pointIds);
+}
+
+// Pinned/external highlight (selected overlay, open project detail, sidebar card, detail pin).
+// Tracked under its own "selected" key so it survives mousemove/mouseout independent of the cursor.
+function setSelectedHoverState(mlMap: MaplibreMap): void {
+  const selectedProjectIds = idSet(getCurrentHighlightedProjectId(), getExternalHoverId());
+
+  const overlayIds = idSet(getExternalHoverOverlayId());
+  for (const hidden of getHiddenOverlayIds()) overlayIds.delete(hidden);
+
+  diffFeatureState(mlMap, VECTOR_SOURCE, "project-shapes", "selected", selectedProjectIds);
+  diffFeatureState(mlMap, VECTOR_SOURCE, "overlay-footprints", "selected", overlayIds);
+  diffFeatureState(mlMap, VECTOR_SOURCE, "project-points", "selected", selectedProjectIds);
+  diffFeatureState(mlMap, PENDING_POINTS_SOURCE, undefined, "selected", selectedProjectIds);
 }
 
 function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | null {
@@ -630,37 +693,6 @@ function handleVectorFeatureClick(
   } else {
     void handleProjectClickFromTile(projectId);
   }
-}
-
-function setPointHoverFilter(mlMap: MaplibreMap, featureId: string | number | null): void {
-  const hoveredId = featureId !== null ? String(featureId) : HOVER_NONE_ID;
-
-  const activeFilter = ["==", ["to-string", ["get", "id"]], hoveredId] as FilterSpecification;
-
-  // Preserve any active tag/status filters alongside the hover match.
-  const combinedFilter = combineFilters(
-    activeFilter,
-    getTagFilterExpression(),
-    getStatusFilterExpression(),
-  );
-
-  mlMap.setFilter("project-points-hover", combinedFilter);
-  mlMap.setFilter("pending-project-points-hover", activeFilter); // pending points don't have status filters
-}
-
-/**
- * Highlight a project by id across all hover layers (shapes, footprints, points).
- * Pass null to clear the highlight.
- */
-function setHoveredProjectId(
-  mlMap: MaplibreMap,
-  projectId: string | null,
-  overlayId: string | null = null,
-): void {
-  const id = projectId ?? HOVER_NONE_ID;
-  const overlayProp = overlayId ?? HOVER_NONE_ID;
-  setVectorHoverFilters(mlMap, projectId ? { properties: { id, overlayId: overlayProp } } : null);
-  setPointHoverFilter(mlMap, projectId);
 }
 
 // Returns flyToGeometry's "anchored at predicted position" result for marker placement.
@@ -771,7 +803,7 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
     const cellCount = Number(pointFeature.properties?.cell_count ?? 2);
     const props: Record<string, unknown> = pointFeature.properties ?? {};
 
-    if (cellCount === 1 && currentZoom >= LONE_POINT_CLICK_MIN_ZOOM) {
+    if (cellCount === 1) {
       navigateToLonePoint(props, lat, lng);
     } else {
       shouldOpenPanel = false;
@@ -785,9 +817,9 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
 }
 
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
-  registerExternalHoverCallback((projectId, overlayId) => {
+  registerExternalHoverCallback(() => {
     const mlMap = mlMapGetter();
-    if (mlMap) setHoveredProjectId(mlMap, projectId, overlayId);
+    if (mlMap) setSelectedHoverState(mlMap);
   });
 
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
@@ -827,15 +859,20 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     const pointFeature = features.find(
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
-    setPointHoverFilter(mlMap, pointFeature?.properties?.id ?? pointFeature?.id ?? null);
 
     mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);
-    // The overlay-driven hover (sidebar card, overlay DOM hover, detail pin) is preserved
-    // by setVectorHoverFilters' OR-clause, so it's safe to update on every mousemove.
-    setVectorHoverFilters(mlMap, getVectorFeatureFromFeatures(features));
+    const vectorFeature = getVectorFeatureFromFeatures(features);
+    setCursorHoverState(
+      mlMap,
+      vectorFeature,
+      pointFeature?.properties?.id ?? pointFeature?.id ?? null,
+    );
+    // Re-assert the pinned/external highlight every frame so a project selected without a cursor
+    // move (sidebar hover, detail open) stays lit; the diff makes an unchanged set a no-op.
+    setSelectedHoverState(mlMap);
 
     // Hover preview card, only on pointer devices (no touch)
-    updateHoverPreview(features, pointFeature, clientX, clientY);
+    updateHoverPreview(vectorFeature, pointFeature, clientX, clientY);
   });
 
   map.value.on("mouseout", () => {
@@ -845,12 +882,9 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     mlMap.getContainer().classList.remove("cursor-pointer");
     clearHoverPreview();
 
-    // If a project is pinned (popup open from a click), preserve the highlight.
-    // The popup-close watcher in standaloneProjectMarkers/useVisibleProjects handles cleanup.
-    if (getExternalHoverId() !== null) return;
-
-    setVectorHoverFilters(mlMap, null);
-    setPointHoverFilter(mlMap, null);
+    // Clear only the cursor-driven hover. The pinned/external highlight lives in its own
+    // "selected" feature-state and persists; its popup-close watcher handles cleanup.
+    setCursorHoverState(mlMap, null, null);
   });
 
   // The card is anchored to cursor pixels, but MapLibre stops firing mousemove during a
@@ -893,7 +927,7 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
  * Extracted to keep the mousemove handler below the complexity limit.
  */
 function updateHoverPreview(
-  features: RenderedMapFeature[],
+  vectorFeature: RenderedMapFeature | null,
   pointFeature: RenderedMapFeature | undefined,
   clientX: number,
   clientY: number,
@@ -911,7 +945,6 @@ function updateHoverPreview(
     return;
   }
 
-  const vectorFeature = getVectorFeatureFromFeatures(features);
   if (vectorFeature) {
     const projectId =
       String(vectorFeature.sourceLayer) === "overlay-footprints"
@@ -993,6 +1026,11 @@ function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData 
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
+  // The layers below are (re)created with their default filters, so any cached filter is stale.
+  appliedLayerFilters.clear();
+  // Feature states live on the old sources, which the style switch discards; drop the tracking too.
+  appliedFeatureStates.clear();
+
   // Project shapes/outlines render on top of the whole basemap (undefined beforeId) so the geometry
   // draws above the basemap labels: a sent-to-back overlay image is then covered only by the project
   // vectors, not by distracting street/place names. The overlay footprint outline/fill band is
@@ -1041,7 +1079,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       ],
       paint: {
         "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": 0.2,
+        "fill-opacity": withHoverState(0.2, 0.35),
       },
     },
     geometryBeforeId,
@@ -1055,10 +1093,14 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
-      filter: ["all", ["==", ["geometry-type"], "Polygon"], getIsProposedFilterExpression()],
+      filter: [
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        getIsProposedFilterExpression(),
+      ] as FilterSpecification,
       paint: {
         "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": 0.05,
+        "fill-opacity": withHoverState(0.05, 0.35),
       },
     },
     geometryBeforeId,
@@ -1076,6 +1118,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       filter: getIsNeitherProposedNorCompletedFilterExpression(),
       paint: {
         "line-color": getProjectLineColorExpression(),
+        // Dashed bases stay static; the solid project-shapes-hover-solid overlay draws the
+        // continuous hover/selected highlight on top (line-dasharray can't read feature-state).
         "line-width": SHAPE_LINE_WIDTH,
         "line-dasharray": SHAPE_LONG_DASH,
       },
@@ -1095,7 +1139,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH,
+        "line-width": mergeZoomHoverState(SHAPE_LINE_WIDTH, SHAPE_LINE_WIDTH_HOVER),
       },
     },
     geometryBeforeId,
@@ -1121,56 +1165,24 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     geometryBeforeId,
   );
 
-  // Hover highlight for project shapes.
+  // Solid continuous highlight for the dashed shapes (everything except completed, which is already
+  // solid). Stays fully transparent until the feature is hovered/selected, then draws an opaque line
+  // over the dashes. Driven purely by feature-state opacity, so toggling it only repaints (no tile
+  // reload) the way a setFilter hover layer would have. Tag/status/size/zoom filters are applied via
+  // LAYERS_WITH_EXISTING_FILTERS so it never lights a feature the dashed base wouldn't render.
   mlMap.addLayer(
     {
-      id: "project-shapes-hover-fill",
-      type: "fill",
-      source: "project-sources",
-      "source-layer": "project-shapes",
-      minzoom: PROJECT_SHAPES_MIN_ZOOM,
-      filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      paint: {
-        "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": 0.35,
-      },
-    },
-    geometryBeforeId,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "project-shapes-hover",
+      id: "project-shapes-hover-solid",
       type: "line",
       source: "project-sources",
       "source-layer": "project-shapes",
       minzoom: PROJECT_SHAPES_MIN_ZOOM,
-      filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
+      filter: ["!=", ["get", "timeline_status"], "completed"],
       layout: { "line-cap": "round" },
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH_HOVER,
-      },
-    },
-    geometryBeforeId,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "project-shapes-proposed-hover",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "project-shapes",
-      minzoom: PROJECT_SHAPES_MIN_ZOOM,
-      filter: [
-        "all",
-        getIsProposedFilterExpression(),
-        ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      ],
-      layout: { "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH_HOVER,
+        "line-opacity": ["case", hoverOrSelectedCondition(), 1, 0],
       },
     },
     geometryBeforeId,
@@ -1212,11 +1224,11 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     FOOTPRINT_BAND_BEFORE_ID,
   );
 
-  // Permanent border for overlays. Without a shape outline these images can
-  // blend into the basemap, so trace their footprint edge using the same
-  // styling as the hover border. Sits below the back rasters, so a neighbouring
-  // overlay image covers any border that intrudes into it (the outer half of the
-  // double-width stroke still shows against the basemap).
+  // Permanent border for overlays. Without a shape outline these images can blend into the basemap,
+  // so trace their footprint edge. Sits below the back rasters, so a neighbouring overlay image
+  // covers any border that intrudes into it (the outer half of the double-width stroke still shows
+  // against the basemap). On hover/selection the opacity rises to full via feature-state, which is
+  // what previously took a separate stacked hover layer.
   mlMap.addLayer(
     {
       id: "overlay-footprints-outline",
@@ -1229,71 +1241,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": FOOTPRINT_LINE_WIDTH,
-        // Subtler than the full-opacity hover layer (stacked above) so hovering still
-        // reads as a state change rather than rendering identically.
-        "line-opacity": 0.6,
+        "line-opacity": withHoverState(0.6, 1),
       },
     },
     FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  // Hover/selection borders share the outline's band (below the back rasters) so a hovered overlay's
-  // brighter border is covered by neighbouring images just like the permanent one, instead of cutting
-  // across them. The outer half against the basemap still brightens, reading as the hover state.
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-hover",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
-      filter: ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      layout: { "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
-      },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-proposed-hover",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
-      filter: [
-        "all",
-        getIsProposedFilterExpression(),
-        ["==", ["to-string", ["get", "id"]], HOVER_NONE_ID],
-      ],
-      layout: { "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
-      },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "project-shapes-points",
-      type: "circle",
-      source: "project-sources",
-      "source-layer": "project-shapes",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
-      filter: ["==", ["geometry-type"], "Point"],
-      paint: {
-        "circle-color": getProjectLineColorExpression(),
-        "circle-radius": 4,
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "#ffffff",
-      },
-    },
-    geometryBeforeId,
   );
 
   // Individual MVT points
@@ -1304,36 +1255,18 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       source: "project-sources",
       "source-layer": "project-points",
       minzoom: PROJECT_POINTS_MIN_ZOOM,
-      maxzoom: PROJECT_POINTS_MAX_ZOOM,
+      // No maxzoom: standalone (no-geometry) projects have no shape to take over at high zoom,
+      // so the center marker must keep rendering past z15 (overzoomed from the z14 MVT source).
       paint: {
-        "circle-color": getProjectPointColorExpression(),
-        "circle-radius": 4,
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "#ffffff",
-      },
-    },
-    firstLabelLayerId,
-  );
-
-  // MVT point hover
-  mlMap.addLayer(
-    {
-      id: "project-points-hover",
-      type: "circle",
-      source: "project-sources",
-      "source-layer": "project-points",
-      minzoom: PROJECT_POINTS_MIN_ZOOM,
-      filter: ["==", ["get", "id"], HOVER_NONE_ID],
-      maxzoom: PROJECT_POINTS_MAX_ZOOM,
-      paint: {
+        // Hovered/selected: lighten the pending orange and grow the dot, the rest stays put.
         "circle-color": [
           "case",
-          ["==", ["get", "is_pending"], true],
-          "#fb923c", // Tailwind orange-400 (lighter hover)
+          hoverOrSelectedCondition(),
+          getProjectPointColorExpression("#fb923c"), // Tailwind orange-400
           getProjectPointColorExpression(),
         ],
-        "circle-radius": 6, // larger to indicate hover
-        "circle-stroke-width": 2,
+        "circle-radius": withHoverState(4, 6),
+        "circle-stroke-width": withHoverState(1.5, 2),
         "circle-stroke-color": "#ffffff",
       },
     },
@@ -1356,25 +1289,10 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "circle",
       source: "pending-project-points-source",
       paint: {
-        "circle-color": "#f97316", // Tailwind orange-500
-        "circle-radius": 4,
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "#ffffff",
-      },
-    },
-    firstLabelLayerId,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "pending-project-points-hover",
-      type: "circle",
-      source: "pending-project-points-source",
-      filter: ["==", ["get", "id"], HOVER_NONE_ID],
-      paint: {
-        "circle-color": "#fb923c", // Tailwind orange-400
-        "circle-radius": 6,
-        "circle-stroke-width": 2,
+        // orange-500, lightening to orange-400 and growing on hover/selection.
+        "circle-color": withHoverState("#f97316", "#fb923c"),
+        "circle-radius": withHoverState(4, 6),
+        "circle-stroke-width": withHoverState(1.5, 2),
         "circle-stroke-color": "#ffffff",
       },
     },

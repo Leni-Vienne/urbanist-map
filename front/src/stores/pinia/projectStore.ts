@@ -56,7 +56,7 @@ export const useProjectStore = defineStore("project", () => {
   // Snapshot a project's current state as the change-detection baseline. No-op if one exists.
   function snapshotOriginal(project: Project): void {
     if (originalProjects.value[project.id]) return;
-    originalProjects.value = { ...originalProjects.value, [project.id]: { ...project } };
+    originalProjects.value[project.id] = { ...project };
   }
 
   // Pending projects may live only in userContributions until edited locally, so fall
@@ -328,7 +328,7 @@ export const useProjectStore = defineStore("project", () => {
   // baseline. No-op if it is already present.
   function addProject(project: Project) {
     if (projects.value[project.id]) return;
-    projects.value = { ...projects.value, [project.id]: project };
+    projects.value[project.id] = project;
     if (project.status !== null) snapshotOriginal(project);
   }
 
@@ -352,10 +352,7 @@ export const useProjectStore = defineStore("project", () => {
       snapshotOriginal(current);
     }
 
-    projects.value = {
-      ...projects.value,
-      [projectId]: current ? { ...current, ...updates } : createProjectObject(updates),
-    };
+    projects.value[projectId] = current ? { ...current, ...updates } : createProjectObject(updates);
   }
 
   // Stores the current project state as baseline for future change detection.

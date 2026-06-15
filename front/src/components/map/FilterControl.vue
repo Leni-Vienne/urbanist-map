@@ -4,19 +4,21 @@
       v-if="showFilterHint"
       class="absolute -bottom-1 -right-0.5 w-3 h-3 bg-red-500 rounded-full pointer-events-none z-10"
     />
+    <span
+      v-else-if="activeFilterCount > 0"
+      class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
+    />
     <Button
       ref="filterButton"
       @click.stop="toggleFilterPanel"
       @dblclick.stop
       raised
       icon="pi pi-filter"
-      v-tooltip.right="{
+      v-tooltip.left="{
         value: $t('controls.filter'),
         disabled: isMobile,
       }"
       :severity="showFilterPanel ? undefined : 'secondary'"
-      :badge="activeFilterCount > 0 ? String(activeFilterCount) : undefined"
-      badge-severity="contrast"
     />
   </div>
 
@@ -58,7 +60,6 @@
           class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
           :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
           :disabled="isTagDisabled(tag.slug)"
-          :title="isTagDisabled(tag.slug) ? $t('map.controls.buildingTagsZoomHint') : undefined"
           :aria-pressed="selectedProjectTags.includes(tag.slug)"
           :style="
             selectedProjectTags.includes(tag.slug)
@@ -89,7 +90,6 @@
           class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
           :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
           :disabled="isTagDisabled(tag.slug)"
-          :title="isTagDisabled(tag.slug) ? $t('map.controls.buildingTagsZoomHint') : undefined"
           :aria-pressed="selectedProjectTags.includes(tag.slug)"
           :style="
             selectedProjectTags.includes(tag.slug)

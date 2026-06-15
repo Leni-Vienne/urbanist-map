@@ -2,35 +2,35 @@
   <div
     class="flex items-center gap-2 z-1000 isolate pointer-events-auto max-md:flex-col-reverse max-md:items-end"
   >
-    <!-- Sign In Button for unauthenticated users -->
+    <!-- Sign In for unauthenticated users: text button on desktop, square user icon on mobile -->
     <template v-if="!authStore.isAuthenticated">
-      <button
-        type="button"
-        class="appearance-none font-[inherit] p-0 flex items-center justify-center w-8 h-8 rounded-full bg-content-background border border-surface cursor-pointer transition-all duration-200 text-(--p-text-color-secondary) hover:bg-content-hover-background hover:text-primary-hover-color hover:shadow-sm"
-        :aria-label="$t('controls.settings')"
-        @click.stop="toggleSettings"
-        @dblclick.stop
-      >
-        <i class="pi pi-cog text-base"></i>
-      </button>
-      <Button
-        :label="$t('auth.signIn')"
-        size="small"
-        raised
-        data-testid="sign-in-button"
-        @dblclick.stop
-        @click.stop="
-          uiStore.authModalInitialMode = 'login';
-          uiStore.authModalVisible = true;
-        "
-      />
+      <span class="max-md:hidden">
+        <Button
+          :label="$t('auth.signIn')"
+          raised
+          data-testid="sign-in-button"
+          @dblclick.stop
+          @click.stop="openAuthModal"
+        />
+      </span>
+      <span class="md:hidden">
+        <Button
+          icon="pi pi-user"
+          severity="secondary"
+          raised
+          :aria-label="$t('auth.signIn')"
+          data-testid="sign-in-button"
+          @dblclick.stop
+          @click.stop="openAuthModal"
+        />
+      </span>
     </template>
 
     <!-- User Menu for authenticated users -->
     <button
       v-else
       type="button"
-      class="appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-content-background border border-surface rounded-md cursor-pointer shadow transition-all duration-200 min-w-27 hover:shadow-md max-md:min-w-0 max-md:p-0 max-md:rounded-full max-md:w-8 max-md:h-8 max-md:justify-center max-md:gap-0"
+      class="appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-content-background border border-surface rounded-md cursor-pointer shadow transition-all duration-200 min-w-27 hover:shadow-md max-md:min-w-0 max-md:p-0 max-md:rounded-md max-md:w-8 max-md:h-8 max-md:justify-center max-md:gap-0"
       data-testid="user-menu"
       @click.stop="toggleMenu"
       @dblclick.stop
@@ -66,8 +66,6 @@
           </div>
         </div>
 
-        <SettingsMenuItems />
-
         <!-- Moderation Results as list item -->
         <button
           type="button"
@@ -100,13 +98,6 @@
       </div>
     </Popover>
 
-    <!-- Settings popover for signed-out users -->
-    <Popover ref="settingsPopover">
-      <div class="flex flex-col w-48">
-        <SettingsMenuItems />
-      </div>
-    </Popover>
-
     <!-- Auth Modal, v-if prevents mounting (and async loading) until actually needed -->
     <AuthModal
       v-if="uiStore.authModalVisible"
@@ -131,7 +122,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useSignOut } from "@/composables/auth/useSignOut";
 import { useI18n } from "vue-i18n";
-import SettingsMenuItems from "@/components/map/SettingsMenuItems.vue";
 
 // Lazy-load AuthModal for chunk splitting, avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
@@ -146,7 +136,6 @@ const toast = useToast();
 const { t } = useI18n();
 const isMenuOpen = ref(false);
 const userPopover = ref();
-const settingsPopover = ref();
 
 // OSM accounts have a synthetic, non-routable email, so show the username instead.
 const isOsmAccount = computed(() =>
@@ -159,8 +148,9 @@ function toggleMenu(event: Event) {
   isMenuOpen.value = !isMenuOpen.value;
 }
 
-function toggleSettings(event: Event) {
-  settingsPopover.value.toggle(event);
+function openAuthModal() {
+  uiStore.authModalInitialMode = "login";
+  uiStore.authModalVisible = true;
 }
 
 async function handleSignOut() {
@@ -213,9 +203,6 @@ function handleResize() {
   if (isMenuOpen.value && userPopover.value) {
     userPopover.value.hide();
     isMenuOpen.value = false;
-  }
-  if (settingsPopover.value?.visible) {
-    settingsPopover.value.hide();
   }
 }
 

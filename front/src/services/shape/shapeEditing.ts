@@ -3,6 +3,7 @@
 import {
   TerraDraw,
   TerraDrawLineStringMode,
+  TerraDrawModeUndoRedo,
   TerraDrawPolygonMode,
   TerraDrawSelectMode,
   type GeoJSONStoreFeatures,
@@ -11,6 +12,7 @@ import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import { map } from "@/services/core/map";
 import { LngLatBounds } from "maplibre-gl";
 import { forEachPosition } from "@/utils/geojson";
+import { ref } from "vue";
 
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 
@@ -50,7 +52,33 @@ function filterDrawableGeometries(
 
 let draw: TerraDraw | null = null;
 
+// Id of the shape currently selected in the "select" tool, or null. Used to drive
+// the delete-shape affordance, since deleting nodes can never remove a whole shape
+// (Terra Draw refuses to drop a coordinate below the geometry's minimum).
+export const selectedShapeId = ref<string | number | null>(null);
+
+// Persists the last tool the user picked across editor open/close so re-entering
+// the editor restores it. Null means no tool has been picked yet (Terra Draw stays
+// in its default "static" mode, i.e. nothing selected).
+let lastDrawMode: ShapeDrawMode | null = null;
+
 const snappingConfig = { toLine: true, toCoordinate: true };
+
+export function getLastDrawMode(): ShapeDrawMode | null {
+  return lastDrawMode;
+}
+
+// Mouse-only undo: right-clicking while a line/polygon is being drawn removes the last
+// placed node. Terra Draw's own right-click delete doesn't fire on the MapLibre adapter
+// (right-clicks arrive as contextmenu, not button:"right"), so this is wired directly.
+function handleDrawingRightClick(event: MouseEvent): void {
+  if (!draw) return;
+  const mode = draw.getMode();
+  if ((mode === "linestring" || mode === "polygon") && draw.getModeState() === "drawing") {
+    event.preventDefault();
+    draw.undo();
+  }
+}
 
 /**
  * Activate the Terra Draw editor on the map with line and polygon tools.
@@ -74,7 +102,9 @@ export async function initShapeEditor(
       feature: {
         draggable: true,
         coordinates: {
-          midpoints: true,
+          // Nested form (not `midpoints: true`) is required to drag a midpoint to split
+          // a segment in select mode; the bare boolean only enables click-to-insert.
+          midpoints: { draggable: true },
           draggable: true,
           deletable: true,
           snappable: snappingConfig,
@@ -98,7 +128,19 @@ export async function initShapeEditor(
           flags: { linestring: editCoordinateFlags, polygon: editCoordinateFlags },
         }),
       ],
+      // Mode-level undo only: lets draw.undo() pop the last placed node while drawing.
+      // No session level / keyboard shortcuts: undo is driven by right-click (see below).
+      undoRedo: {
+        modeLevel: new TerraDrawModeUndoRedo(),
+      },
     });
+    draw.on("select", (id) => {
+      selectedShapeId.value = id;
+    });
+    draw.on("deselect", () => {
+      selectedShapeId.value = null;
+    });
+    mlMap.getCanvasContainer().addEventListener("contextmenu", handleDrawingRightClick);
     draw.start();
   }
 
@@ -106,16 +148,31 @@ export async function initShapeEditor(
     await addLayersFromGeometry(existingGeometry);
   }
 
-  // Pre-select the Line tool by default when the shape editor opens
-  setDrawMode("linestring");
+  // Restore the last tool the user picked. If none yet, leave Terra Draw in its
+  // default "static" mode so no tool is selected.
+  const restoredMode = getLastDrawMode();
+  if (restoredMode) setDrawMode(restoredMode);
 }
 
 /**
- * Switch the active drawing tool. No-op if the editor is not active.
+ * Switch the active drawing tool and remember it for the next editor session.
+ * No-op on the Terra Draw instance if the editor is not active.
  */
 export function setDrawMode(mode: ShapeDrawMode): void {
+  lastDrawMode = mode;
   if (!draw) return;
   draw.setMode(mode);
+}
+
+/**
+ * Remove the currently selected shape entirely. Unlike deleting a node, this works
+ * regardless of how few coordinates the shape has, so it is the way to delete a
+ * triangle, a two-point line, or any whole shape.
+ */
+export function deleteSelectedShape(): void {
+  if (!draw || selectedShapeId.value === null) return;
+  draw.removeFeatures([selectedShapeId.value]);
+  selectedShapeId.value = null;
 }
 
 /**
@@ -123,6 +180,8 @@ export function setDrawMode(mode: ShapeDrawMode): void {
  */
 export async function destroyShapeEditor(): Promise<void> {
   if (!draw) return;
+  selectedShapeId.value = null;
+  map.value?.getCanvasContainer().removeEventListener("contextmenu", handleDrawingRightClick);
   draw.clear();
   draw.stop();
   draw = null;

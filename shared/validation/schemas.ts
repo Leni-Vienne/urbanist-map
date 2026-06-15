@@ -65,46 +65,53 @@ export const projectSchema = z
   });
 
 // Overlay validation schema
-export const overlaySchema = z
-  .object({
-    id: z.uuid(),
-    filename: z
-      .string()
-      .min(1, "validation.filenameRequired")
-      .max(255, "validation.filenameTooLong"),
-    caption: z
-      .string()
-      .max(500, "validation.captionTooLong")
-      .or(z.literal(""))
-      .transform((val) => (val === "" ? undefined : val))
-      .optional(),
-    projectId: z.uuid({ message: "validation.projectRequired" }),
-    replacesOverlayId: z.uuid().optional(),
-    corners: z
-      .array(
-        z.object({
-          lat: z
-            .number()
-            .min(-90, "validation.invalidLatitude")
-            .max(90, "validation.invalidLatitude"),
-          lng: z
-            .number()
-            .min(-180, "validation.invalidLongitude")
-            .max(180, "validation.invalidLongitude"),
-        }),
-      )
-      .length(4, "validation.cornersRequired"),
-  })
-  .superRefine((data, ctx) => {
-    const sizeValidation = validateOverlaySize(data.corners);
-    if (!sizeValidation.isValid) {
+const overlayBaseSchema = z.object({
+  id: z.uuid(),
+  filename: z.string().min(1, "validation.filenameRequired").max(255, "validation.filenameTooLong"),
+  caption: z
+    .string()
+    .max(500, "validation.captionTooLong")
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val))
+    .optional(),
+  projectId: z.uuid({ message: "validation.projectRequired" }),
+  replacesOverlayId: z.uuid().optional(),
+  corners: z
+    .array(
+      z.object({
+        lat: z
+          .number()
+          .min(-90, "validation.invalidLatitude")
+          .max(90, "validation.invalidLatitude"),
+        lng: z
+          .number()
+          .min(-180, "validation.invalidLongitude")
+          .max(180, "validation.invalidLongitude"),
+      }),
+    )
+    .length(4, "validation.cornersRequired"),
+});
+
+// The 1km size ceiling, shared by the backend and client overlay schemas.
+function withOverlaySizeCheck<
+  Schema extends z.ZodType<{ corners: { lat: number; lng: number }[] }>,
+>(schema: Schema) {
+  return schema.superRefine((data, ctx) => {
+    if (!validateOverlaySize(data.corners).isValid) {
       ctx.addIssue({
         code: "custom",
-        message: "overlay.overlayTooLarge",
+        message: "validation.overlayTooLarge",
         path: ["corners"],
       });
     }
   });
+}
+
+// Full payload sent to the backend: the uploaded image's filename is required.
+export const overlaySchema = withOverlaySizeCheck(overlayBaseSchema);
+
+// Client-side pre-upload check. A brand-new overlay has no filename yet
+export const overlayClientSchema = withOverlaySizeCheck(overlayBaseSchema.omit({ filename: true }));
 
 // Auth validation schemas
 export const registerSchema = z.object({

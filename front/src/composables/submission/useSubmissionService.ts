@@ -13,7 +13,7 @@ import { updateMarkerTooltip } from "@/services/map/markers";
 import type { Project, OverlayObject, RemovableChange } from "@/types/index";
 import {
   projectSchema,
-  overlaySchema,
+  overlayClientSchema,
   getValidationErrorsMap,
   type FieldChange,
   type OverlayCorners,
@@ -169,6 +169,18 @@ function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
   }
 
   return "create";
+}
+
+function newOverlayContext(
+  overlayId: string,
+  overlayObj: OverlayObject,
+): Extract<EntityUpdate, { entityType: "overlay" }> {
+  return {
+    entityType: "overlay",
+    entityId: overlayId,
+    changeType: "create",
+    proposed: { corners: overlayObj.history.at(-1)?.corners ?? overlayObj.corners },
+  };
 }
 
 export function useSubmissionService() {
@@ -357,15 +369,15 @@ export function useSubmissionService() {
       liveOverlay?.corners ??
       [];
 
+    // filename is validated server-side only (the client may not have it yet), so it's omitted here.
     const validationData = prepareOverlayValidationData({
       id: context.entityId,
-      filename: liveOverlay?.filename ?? "",
       caption: context.proposed?.caption ?? liveOverlay?.caption ?? null,
       projectId: liveOverlay?.projectId ?? null,
       // oxlint-disable-next-line no-unsafe-type-assertion
       corners: corners.map((c: { lat: number; lng: number }) => ({ lat: c.lat, lng: c.lng })),
     });
-    const result = overlaySchema.safeParse(validationData);
+    const result = overlayClientSchema.safeParse(validationData);
     return result.success ? [] : zodErrorsToMessages(result.error);
   }
 
@@ -520,10 +532,9 @@ export function useSubmissionService() {
     }
   }
 
+  // Executes one already-validated entity update. submitContext validates the whole batch up
+  // front, so this never re-validates (re-validating here would double-check every overlay edit).
   async function submitEntity(context: EntityUpdate, customReason?: string): Promise<void> {
-    const validation = validate(context);
-    if (!validation.isValid) throw new Error(validation.errors.join(", "));
-
     const changes =
       context.entityType === "project"
         ? detectProjectChanges(context.entity, customReason)
@@ -536,17 +547,13 @@ export function useSubmissionService() {
     }
   }
 
-  // Submit a single overlay modification (used for both allProjectModifications and pendingOverlayModifications).
-  async function submitOverlayModification(
+  // Builds the overlay update context (changed fields + proposed values) from a staged
+  // modification. Shared by the validation pass and the write pass so both see the same payload.
+  function buildOverlayModificationContext(
     overlayId: string,
     mod: Pick<PendingOverlayModification, "caption" | "corners">,
-    reason: string,
-  ): Promise<void> {
-    const overlayObj = overlayStore.overlays[overlayId];
-    if (!overlayObj) return;
-
-    const isChangeRequest = overlayObj.status === "approved";
-
+    overlayObj: OverlayObject,
+  ): Extract<EntityUpdate, { entityType: "overlay" }> {
     const changedFields: FieldChange[] = [];
     const proposed: { caption?: string | null; corners?: OverlayCorners } = {};
     if (mod.caption) {
@@ -565,17 +572,27 @@ export function useSubmissionService() {
       });
       proposed.corners = mod.corners.current;
     }
+    return {
+      entityType: "overlay",
+      entityId: overlayId,
+      changeType: getChangeType(overlayObj),
+      changedFields,
+      proposed,
+    };
+  }
 
-    await submitEntity(
-      {
-        entityType: "overlay",
-        entityId: overlayId,
-        changeType: getChangeType(overlayObj),
-        changedFields,
-        proposed,
-      },
-      reason,
-    );
+  // Submit a single overlay modification (used for both allProjectModifications and pendingOverlayModifications).
+  async function submitOverlayModification(
+    overlayId: string,
+    mod: Pick<PendingOverlayModification, "caption" | "corners">,
+    reason: string,
+  ): Promise<void> {
+    const overlayObj = overlayStore.overlays[overlayId];
+    if (!overlayObj) return;
+
+    const isChangeRequest = overlayObj.status === "approved";
+
+    await submitEntity(buildOverlayModificationContext(overlayId, mod, overlayObj), reason);
 
     pendingModsStore.clearModification(overlayId);
 
@@ -632,39 +649,68 @@ export function useSubmissionService() {
     clearStagedRender(projectId);
   }
 
+  // Overlay contexts the batch will submit (edits + new overlays). Overlays missing from the store
+  // are skipped here exactly as the write steps skip them, so they never raise a spurious error.
+  function collectOverlayContexts(
+    existingMods: PendingOverlayModification[],
+    newOverlayIds: string[],
+  ): EntityUpdate[] {
+    const edits = existingMods.flatMap((mod) => {
+      const overlayObj = overlayStore.overlays[mod.overlayId];
+      return overlayObj ? [buildOverlayModificationContext(mod.overlayId, mod, overlayObj)] : [];
+    });
+    const created = newOverlayIds.flatMap((id) => {
+      const overlayObj = overlayStore.overlays[id];
+      return overlayObj ? [newOverlayContext(id, overlayObj)] : [];
+    });
+    return [...edits, ...created];
+  }
+
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
     const project = ctx.projectId ? projectStore.getProjectById(ctx.projectId) : null;
-
     const newOverlayIds = ctx.newOverlayIds ?? [];
-
-    // 1. Submit caption/corners updates for already-published overlays.
     const existingMods = (ctx.existingOverlayModifications ?? []).filter(
       (mod) => !newOverlayIds.includes(mod.overlayId),
     );
+
+    // Each project context is built once and reused for both validation and its write below.
+    const projectMetaContext =
+      ctx.projectModified &&
+      project &&
+      project.status !== null &&
+      detectProjectChanges(project).length
+        ? createProjectContext(project)
+        : null;
+    const newProjectContext =
+      project &&
+      project.status === null &&
+      newOverlayIds.length === 0 &&
+      ctx.changeType === "create"
+        ? createProjectContext(project, "create")
+        : null;
+
+    // Validate the whole batch before any write, so a later failure can't leave an earlier
+    // change already persisted.
+    const contexts = collectOverlayContexts(existingMods, newOverlayIds);
+    if (projectMetaContext) contexts.push(projectMetaContext);
+    if (newProjectContext) contexts.push(newProjectContext);
+    const errors = new Set(contexts.flatMap((context) => validate(context).errors));
+    // New overlays need their project object loaded so publishOverlay can create/reference it.
+    if (newOverlayIds.length > 0 && !project) errors.add(t("overlay.publishErrorNoProject"));
+    if (errors.size > 0) throw new Error([...errors].join(", "));
+
+    // Writes run only after the whole batch validated.
     for (const mod of existingMods) {
       await submitOverlayModification(mod.overlayId, mod, reason);
     }
-
-    // 2. Publish brand-new overlays. Also publishes the project lazily if it's still local.
     await publishNewOverlays(newOverlayIds, project);
-
-    // 3. Submit project metadata changes for already-published projects.
-    const isExistingProject = project && project.status !== null;
-    if (ctx.projectModified && ctx.projectId && isExistingProject && project) {
-      const projectContext = createProjectContext(project);
-      const projectChanges = detectProjectChanges(projectContext.entity);
-      if (projectChanges.length > 0) {
-        await submitEntity(projectContext, reason);
-        projectStore.updateProject(project.id, { isModified: false });
-      }
+    if (projectMetaContext) {
+      await submitEntity(projectMetaContext, reason);
+      projectStore.updateProject(projectMetaContext.entityId, { isModified: false });
     }
-
-    // 4. Brand-new project with no overlays: publish the project on its own.
-    if (newOverlayIds.length === 0 && ctx.changeType === "create" && project?.status === null) {
-      await submitEntity(createProjectContext(project, "create"), reason);
+    if (newProjectContext) {
+      await submitEntity(newProjectContext, reason);
     }
-
-    // 5. Publish a staged render last, once the project is guaranteed to exist server-side.
     if (ctx.pendingRender && ctx.projectId) {
       await publishStagedRender(ctx.projectId, ctx.pendingRender.file);
     }

@@ -66,6 +66,21 @@
         showButtonBar
         @update:modelValue="handleFullDateChange"
       />
+
+      <!-- Clear button: lets the user remove the date entirely (e.g. suggest deleting an approved date) -->
+      <Button
+        v-if="modelValue"
+        type="button"
+        icon="pi pi-times"
+        severity="secondary"
+        text
+        rounded
+        size="small"
+        class="shrink-0"
+        :title="$t('project.clearDate')"
+        :aria-label="$t('project.clearDate')"
+        @click="handleClear"
+      />
     </div>
 
     <small v-if="isTouched && error" class="text-red-500 text-xs block">{{ error }}</small>
@@ -193,6 +208,15 @@ function handleFullDateChange(date: Date | Date[] | (Date | null)[] | null | und
     fullDateValue.value = null;
   }
   emitValue();
+}
+
+function handleClear() {
+  isTouched.value = true;
+  selectedYear.value = null;
+  selectedMonth.value = null;
+  fullDateValue.value = null;
+  emit("update:modelValue", null);
+  emit("blur");
 }
 
 function emitValue() {

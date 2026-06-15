@@ -90,6 +90,7 @@
     "yearOnly": "Année",
     "monthYear": "Mois & Année",
     "fullDate": "Date complète",
+    "clearDate": "Supprimer la date",
     "proposedOn": "Proposé le",
     "proposedIn": "Proposé en",
     "startsIn": "Commence en",
@@ -212,7 +213,9 @@
     "publishOverlay": "Envoyer",
     "viewCurrentPosition": "Voir la position actuelle",
     "viewSuggestedPosition": "Voir la position suggérée",
-    "overlayTooLarge": "Image trop grande (max 1km × 1km)",
+    "publishErrorNoFilename": "Impossible de déterminer le nom du fichier de l'image",
+    "publishErrorNoProject": "Cette image doit être associée à un projet avant la publication",
+    "publishErrorNoProjectId": "Un projet est requis pour publier cette image",
     "invalidCoordinates": "Coordonnées invalides",
     "couldNotParseCoordinates": "Impossible d'analyser les coordonnées géométriques",
     "previewFailed": "Échec de l'aperçu",
@@ -238,6 +241,9 @@
     "viewModeTooltip": "Consulter les contributions sur la carte",
     "editModeTooltip": "Vous pouvez ajouter et modifier des contributions sur la carte",
     "switchMode": "Changer de mode",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "resetNorth": "Réorienter au nord",
     "clusterProjects": "{count} projets",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
@@ -249,7 +255,6 @@
       "resetSize": "Réinitialiser",
       "filterByStatusAndTags": "Filtres",
       "filterByTags": "Type",
-      "buildingTagsZoomHint": "Zoomez jusqu'au niveau 10 pour filtrer par type de bâtiment (ils sont masqués en vue éloignée)",
       "buildingTagsHint": "Bâtiments (visibles uniquement de près)",
       "clearTagFilters": "Effacer",
       "untagged": "Sans catégorie",
@@ -264,8 +269,10 @@
       "lastModifiedTo": "Au"
     },
     "buildings3D": {
-      "enable": "Activer les bâtiments 3D",
-      "disable": "Désactiver les bâtiments 3D"
+      "label": "Bâtiments 3D"
+    },
+    "rotation": {
+      "label": "Rotation de la carte"
     }
   },
   "search": {
@@ -468,7 +475,7 @@
     "filter": "Filtrer les projets",
     "language": "Langue",
     "mapLanguage": "Langue de la carte",
-    "mapLanguageDefault": "Par défaut (latin + local)",
+    "mapLanguageDefault": "Anglais + alphabets locaux",
     "mapLanguageLocal": "Noms locaux",
     "settings": "Paramètres"
   },
@@ -591,6 +598,7 @@
     "dayPrecisionRequiresFullDate": "La précision 'Date complète' nécessite le mois et le jour",
     "monthPrecisionRequiresMonth": "La précision 'Mois' nécessite un mois",
     "invalidDayForMonth": "Jour invalide pour le mois sélectionné",
+    "overlayTooLarge": "Image trop grande (max 1km × 1km)",
     "genericError": "Entrée invalide"
   },
   "errors": {
@@ -856,19 +864,19 @@
     }
   },
   "theme": {
-    "light": "Mode clair",
-    "dark": "Mode sombre"
+    "label": "Mode sombre"
   },
   "shapes": {
     "drawShapes": "Dessiner",
     "drawLine": "Ligne",
     "drawPolygon": "Polygone",
     "editShapes": "Modifier",
-    "editorInstructions": "Utilisez Modifier pour déplacer des points, diviser aux points milieux, ou clic droit sur un point pour le supprimer.",
+    "editorInstructions": "Pour modifier les formes, utilisez {editButton} et cliquer une première fois sur la forme souhaitée. Faites clic droit pour supprimer un nœud.",
     "importGeoJSON": "Importer GeoJSON",
     "importGeoJSONTooltip": "Importer des formes depuis un fichier GeoJSON",
     "importError": "Fichier GeoJSON invalide",
     "importSkippedGeometryTypes": "Types de géométrie non pris en charge ignorés : {types}",
+    "deleteShape": "Supprimer la forme sélectionnée",
     "saveShapes": "Enregistrer les formes",
     "cancel": "Annuler",
     "savedLocally": "Formes enregistrées, cliquez sur Publier pour soumettre",

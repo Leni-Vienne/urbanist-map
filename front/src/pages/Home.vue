@@ -200,7 +200,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   if (!project) return;
   // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
   if (!projectStore.projects[project.id]) {
-    projectStore.projects = { ...projectStore.projects, [project.id]: project };
+    projectStore.projects[project.id] = project;
   }
   projectStore.updateProject(project.id, { geometry, isModified: true });
   await stopShapeEditing();

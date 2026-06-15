@@ -76,6 +76,11 @@ body {
   padding-right: 0;
 }
 
+/* Tighten the settings popover content so the menu rows sit close to the edge */
+.settings-popover .p-popover-content {
+  padding: 0.5rem;
+}
+
 /* Shared link styling for consistent, accessible links across the app */
 .app-link {
   color: var(--p-primary-color);
