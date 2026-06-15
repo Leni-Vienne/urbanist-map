@@ -1,7 +1,8 @@
 import maplibre, { type Map as MaplibreMap, type RequestParameters } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css"; // needed for maplibre controls and attribution styling
-import { ref, customRef } from "vue";
+import { ref, customRef, watch } from "vue";
 import { getApiUrl } from "@/client";
+import { mapRotationEnabled } from "@/composables/core/useMapRotation";
 
 export const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -55,6 +56,8 @@ export const map = customRef<MaplibreMap>((track, trigger) => ({
   },
 }));
 export const currentZoomLevel = ref(12);
+export const currentBearing = ref(0);
+export const currentPitch = ref(0);
 
 // True once the basemap style has loaded and project data + interaction are wired up.
 // Preserved across Vite HMR so onMlMapReady callers don't wait for a `load` event that
@@ -146,8 +149,8 @@ export function initializeMap() {
     maxZoom: 21,
     attributionControl: false, // custom attribution control added below
     transformRequest: transformMapRequest,
-    dragRotate: true,
-    pitchWithRotate: true,
+    dragRotate: mapRotationEnabled.value,
+    pitchWithRotate: mapRotationEnabled.value,
     aroundCenter: false, // otherwise the control scheme is ass
     rollEnabled: false,
     touchPitch: false, // two-finger pitch fights pinch-zoom on touch; desktop mouse pitch stays via pitchWithRotate
@@ -161,7 +164,7 @@ export function initializeMap() {
   map.value = newMap;
 
   // The map does not capture keystrokes, so typing into overlaid UI panels never
-  // pans/zooms the map. Trade-off: no keyboard map control.
+  // pans/zooms the map.
   newMap.keyboard.disable();
 
   // Two-finger rotate on touch hijacks pinch-zoom; drop it while keeping pinch-zoom and desktop mouse rotate.
@@ -175,17 +178,31 @@ export function initializeMap() {
   // fields, so it switches correctly between the plan basemap and satellite layers.
   newMap.addControl(new maplibre.AttributionControl({ compact: false }));
 
-  // Compass to reset bearing/pitch (keyboard is disabled, so this is the only reset affordance).
-  // Zoom buttons are omitted; the app drives zoom through scroll and its own UI.
-  // Offset 100px down from the top via the :deep(.maplibregl-ctrl-top-left) rule in MapView.vue.
-  newMap.addControl(
-    new maplibre.NavigationControl({ showZoom: false, showCompass: true, visualizePitch: true }),
-    "top-left",
-  );
-
   currentZoomLevel.value = newMap.getZoom();
   newMap.on("zoomend", () => {
     currentZoomLevel.value = newMap.getZoom();
+  });
+
+  // Bearing/pitch drive the custom CompassControl (visibility + needle rotation). "move" fires
+  // on every camera frame, including rotation inertia, so the needle stays locked to the map;
+  // "moveend" guarantees it lands on the final bearing instead of drifting after a few gestures.
+  function syncCameraOrientation() {
+    currentBearing.value = newMap.getBearing();
+    currentPitch.value = newMap.getPitch();
+  }
+  syncCameraOrientation();
+  newMap.on("move", syncCameraOrientation);
+  newMap.on("moveend", syncCameraOrientation);
+
+  // Toggling the rotation setting locks/unlocks drag-rotate (and pitch-with-rotate); locking
+  // also snaps the camera back to north so the map never stays stuck at an angle.
+  watch(mapRotationEnabled, (enabled) => {
+    if (enabled) {
+      newMap.dragRotate.enable();
+    } else {
+      newMap.dragRotate.disable();
+      newMap.resetNorthPitch();
+    }
   });
 
   // Sync map position to URL hash for shareable links

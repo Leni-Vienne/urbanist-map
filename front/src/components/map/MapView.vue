@@ -20,20 +20,26 @@
         </div>
       </div>
 
-      <!-- Top controls: Search + User Menu -->
+      <!-- Top controls: Search (left) + User Menu and Settings (right) -->
       <div
         class="absolute top-4 left-4 right-4 flex justify-between items-start gap-4 z-1000 pointer-events-none"
       >
         <div class="pointer-events-auto min-w-0 flex-[0_1_100%] md:flex-[0_1_280px]">
           <CitySearch />
         </div>
-        <UserMenu class="shrink-0" />
+        <div class="shrink-0 flex items-center gap-2 pointer-events-auto">
+          <UserMenu />
+          <SettingsButton />
+        </div>
       </div>
 
-      <div
-        class="absolute top-18 left-4 z-1000 flex flex-col gap-3 transition-opacity duration-300"
-      >
-        <FilterControl @filter-overlays="filterOverlaysByCompletionStatus" />
+      <!-- Right column: Filter + Zoom, stacked below the top controls -->
+      <div class="absolute top-18 right-4 z-1000 flex flex-col items-end gap-3 pointer-events-none">
+        <div class="pointer-events-auto">
+          <FilterControl @filter-overlays="filterOverlaysByCompletionStatus" />
+        </div>
+        <ZoomControls />
+        <CompassControl />
       </div>
 
       <!-- Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
@@ -68,6 +74,8 @@ import { useAuthStore } from "@/stores/authStore";
 
 import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
+import ZoomControls from "@/components/map/ZoomControls.vue";
+import CompassControl from "@/components/map/CompassControl.vue";
 
 const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),
@@ -76,6 +84,7 @@ const mapUIBundle = import("@/components/map/mapUIBundle");
 const FilterControl = defineAsyncComponent(() => mapUIBundle.then((m) => m.FilterControl));
 const UserMenu = defineAsyncComponent(() => mapUIBundle.then((m) => m.UserMenu));
 const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySearch));
+const SettingsButton = defineAsyncComponent(() => mapUIBundle.then((m) => m.SettingsButton));
 
 const mapStore = useMapStore();
 const overlayStore = useOverlayStore();
@@ -177,12 +186,6 @@ async function initializeMapAndOverlays() {
     white-space: normal !important;
     word-break: break-word !important;
   }
-}
-
-/* Compass control: anchored top-left in map.ts, pushed 100px down to clear the top UI. */
-:deep(.maplibregl-ctrl-top-left) {
-  top: 105px;
-  left: 7px;
 }
 
 /* MapLibre's attribution keeps its light background in dark mode, so the plain (non-link)

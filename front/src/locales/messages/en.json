@@ -91,6 +91,7 @@
     "yearOnly": "Year only",
     "monthYear": "Month & Year",
     "fullDate": "Full date",
+    "clearDate": "Remove date",
     "proposedOn": "Proposed on",
     "proposedIn": "Proposed in",
     "startsIn": "Starts in",
@@ -212,7 +213,9 @@
     "publishOverlay": "Submit",
     "viewCurrentPosition": "View Current Position",
     "viewSuggestedPosition": "View Suggested Position",
-    "overlayTooLarge": "Image too large (max 1km × 1km)",
+    "publishErrorNoFilename": "Could not determine the image filename",
+    "publishErrorNoProject": "This image must be assigned to a project before publishing",
+    "publishErrorNoProjectId": "A project is required to publish this image",
     "invalidCoordinates": "Invalid Coordinates",
     "couldNotParseCoordinates": "Could not parse geometry coordinates",
     "previewFailed": "Preview Failed",
@@ -238,6 +241,9 @@
     "viewModeTooltip": "Browse and view projects on the map",
     "editModeTooltip": "Add and edit image positions on the map",
     "switchMode": "Switch mode",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetNorth": "Reset to north",
     "clusterProjects": "{count} projects",
     "controls": {
       "filterProjects": "Filter projects by status",
@@ -264,8 +270,10 @@
       "lastModifiedTo": "To"
     },
     "buildings3D": {
-      "enable": "Enable 3D buildings",
-      "disable": "Disable 3D buildings"
+      "label": "3D buildings"
+    },
+    "rotation": {
+      "label": "Map rotation"
     }
   },
   "search": {
@@ -468,7 +476,7 @@
     "filter": "Filter Projects",
     "language": "Language",
     "mapLanguage": "Map language",
-    "mapLanguageDefault": "Default (Latin + local)",
+    "mapLanguageDefault": "English + local alphabets",
     "mapLanguageLocal": "Local names",
     "settings": "Settings"
   },
@@ -591,6 +599,7 @@
     "dayPrecisionRequiresFullDate": "Full date precision requires month and day",
     "monthPrecisionRequiresMonth": "Month precision requires a month",
     "invalidDayForMonth": "Invalid day for the selected month",
+    "overlayTooLarge": "Image too large (max 1km × 1km)",
     "genericError": "Invalid input"
   },
   "errors": {
@@ -854,8 +863,7 @@
     }
   },
   "theme": {
-    "light": "Light mode",
-    "dark": "Dark mode"
+    "label": "Dark mode"
   },
   "shapes": {
     "drawShapes": "Draw",

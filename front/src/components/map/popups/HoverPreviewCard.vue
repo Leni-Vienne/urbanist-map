@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect } from "vue";
+import { computed, nextTick, ref, watch, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
@@ -102,21 +102,43 @@ const CARD_H = 90; // approximate height, used as a fallback before first measur
 
 const cardEl = ref<HTMLElement | null>(null);
 
-watchEffect(() => {
+// Card dimensions only change when the content changes, so cache them and re-measure
+// solely on content updates. Reading offsetWidth/offsetHeight forces a synchronous reflow,
+// which would otherwise run on every cursor move (mousemove fires up to 500x/sec).
+let measuredW = CARD_W;
+let measuredH = CARD_H;
+
+function positionCard(): void {
   const el = cardEl.value;
   if (!el) return;
   const x = hoverPreviewX.value;
   const y = hoverPreviewY.value;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const w = el.offsetWidth || CARD_W;
-  const h = el.offsetHeight || CARD_H;
-  const left = Math.max(EDGE_GAP, Math.min(x - w / 2, vw - w - EDGE_GAP));
-  const top = y + OFFSET + h + EDGE_GAP > vh ? y - OFFSET - h : y + OFFSET;
+  const left = Math.max(EDGE_GAP, Math.min(x - measuredW / 2, vw - measuredW - EDGE_GAP));
+  const top = y + OFFSET + measuredH + EDGE_GAP > vh ? y - OFFSET - measuredH : y + OFFSET;
   el.style.display = "";
   el.style.left = `${left}px`;
   el.style.top = `${top}px`;
-});
+}
+
+// Re-measure only when the card content changes, then reposition with the fresh size.
+watch(
+  hoverPreview,
+  () => {
+    void nextTick(() => {
+      const el = cardEl.value;
+      if (!el) return;
+      measuredW = el.offsetWidth || CARD_W;
+      measuredH = el.offsetHeight || CARD_H;
+      positionCard();
+    });
+  },
+  { immediate: true },
+);
+
+// Cursor moves reposition using the cached size, so no reflow on the per-move path.
+watchEffect(positionCard);
 </script>
 
 <style scoped>

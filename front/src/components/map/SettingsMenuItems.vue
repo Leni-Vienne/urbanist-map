@@ -3,33 +3,58 @@
 
   <MapLanguageMenu />
 
-  <button
-    type="button"
-    class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
-    @click="toggleTheme"
+  <label
+    class="flex items-center justify-between gap-3 px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] whitespace-nowrap hover:bg-black/5 dark:hover:bg-white/10"
   >
-    <i :class="theme === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
-    <span>{{ theme === "dark" ? $t("theme.light") : $t("theme.dark") }}</span>
-  </button>
+    <span class="flex items-center gap-[0.35rem]">
+      <i class="pi pi-moon"></i>
+      <span>{{ $t("theme.label") }}</span>
+    </span>
+    <ToggleSwitch
+      class="shrink-0"
+      :modelValue="theme === 'dark'"
+      @update:modelValue="toggleTheme"
+    />
+  </label>
 
-  <button
-    type="button"
-    class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
-    @click="toggleBuildings3D"
+  <label
+    class="flex items-center justify-between gap-3 px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] whitespace-nowrap hover:bg-black/5 dark:hover:bg-white/10"
   >
-    <i class="pi pi-building"></i>
-    <span>{{
-      show3DBuildings ? $t("map.buildings3D.disable") : $t("map.buildings3D.enable")
-    }}</span>
-  </button>
+    <span class="flex items-center gap-[0.35rem]">
+      <i class="pi pi-building"></i>
+      <span>{{ $t("map.buildings3D.label") }}</span>
+    </span>
+    <ToggleSwitch
+      class="shrink-0"
+      :modelValue="show3DBuildings"
+      @update:modelValue="toggleBuildings3D"
+    />
+  </label>
+
+  <label
+    class="flex items-center justify-between gap-3 px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] whitespace-nowrap hover:bg-black/5 dark:hover:bg-white/10"
+  >
+    <span class="flex items-center gap-[0.35rem]">
+      <CompassRose :size="18" />
+      <span>{{ $t("map.rotation.label") }}</span>
+    </span>
+    <ToggleSwitch
+      class="shrink-0"
+      :modelValue="mapRotationEnabled"
+      @update:modelValue="toggleMapRotation"
+    />
+  </label>
 </template>
 
 <script setup lang="ts">
 import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 import MapLanguageMenu from "@/components/map/MapLanguageMenu.vue";
+import CompassRose from "@/components/map/CompassRose.vue";
 import { useTheme } from "@/composables/core/useTheme";
 import { useBuildings3D } from "@/composables/core/useBuildings3D";
+import { useMapRotation } from "@/composables/core/useMapRotation";
 
 const { theme, toggle: toggleTheme } = useTheme();
 const { show3DBuildings, toggle: toggleBuildings3D } = useBuildings3D();
+const { mapRotationEnabled, toggle: toggleMapRotation } = useMapRotation();
 </script>

@@ -190,10 +190,7 @@ export function addStandaloneProjectMarkerForProject(project: Project): void {
   // (viewport-loaded markers aren't always loaded via the city fetch path).
   const projectStore = useProjectStore();
   if (!projectStore.projects[project.id]) {
-    projectStore.projects = {
-      ...projectStore.projects,
-      [project.id]: project,
-    };
+    projectStore.projects[project.id] = project;
   }
 
   const element = createStandaloneProjectMarkerElement(markerColor);

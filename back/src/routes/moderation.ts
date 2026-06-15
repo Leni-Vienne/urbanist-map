@@ -1348,7 +1348,7 @@ async function fetchModerationData(
   // avoiding slow full-table scans via COALESCE country conditions on the join
   const projectsResult = await buildProjectModerationQuery(db)
     .where(and(...projectModerationConditions))
-    .orderBy(sortColumn)
+    .orderBy(sql`${sortColumn} DESC`, sql`${projects.id} DESC`)
     .limit(limit + 1);
 
   const projectIds = projectsResult.map((p) => p.id);

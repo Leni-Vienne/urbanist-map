@@ -2,7 +2,6 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { updateMarkerTooltip } from "@/services/map/markers";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
-import { validateOverlaySize, toCornerArray } from "@shared/overlayValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { t } from "@/locales";
@@ -63,7 +62,7 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     const filename = urlParts[urlParts.length - 1];
 
     if (!filename) {
-      throw new Error("Could not extract filename from URL");
+      throw new Error(t("overlay.publishErrorNoFilename"));
     }
 
     return filename;
@@ -72,28 +71,6 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
 
 export function useOverlayPublisher() {
   const projectStore = useProjectStore();
-
-  function validateOverlayForPublishing(overlay: OverlayObject, project: Project | null): void {
-    if (!project) {
-      throw new Error("Cannot Publish: Overlay must be assigned to a project");
-    }
-
-    const corners = getCornersFromOverlay(overlay);
-    if (
-      corners.length !== 4 ||
-      corners.some((c) => !Number.isFinite(c.lat) || !Number.isFinite(c.lng))
-    ) {
-      throw new Error("Cannot Publish: Overlay must have valid position (4 corners)");
-    }
-
-    // Validate overlay size constraints
-    const cornersArray = toCornerArray(corners);
-    const sizeValidation = validateOverlaySize(cornersArray);
-
-    if (!sizeValidation.isValid) {
-      throw new Error(t("overlay.overlayTooLarge"));
-    }
-  }
 
   async function ensureProjectOnServer(project: Project): Promise<void> {
     try {
@@ -134,8 +111,6 @@ export function useOverlayPublisher() {
   }
 
   async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
-    validateOverlayForPublishing(overlay, project);
-
     try {
       // For brand-new projects, publish the project first so the overlay can reference it.
       if (project?.status === null) {
@@ -145,7 +120,7 @@ export function useOverlayPublisher() {
       const filename = await prepareImageForServer(overlay);
 
       if (!overlay.projectId) {
-        throw new Error("Cannot publish overlay: projectId is required");
+        throw new Error(t("overlay.publishErrorNoProjectId"));
       }
 
       const corners = getCornersFromOverlay(overlay);

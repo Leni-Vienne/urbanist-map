@@ -373,6 +373,9 @@ watch(
       nextTick(() => renderTurnstile());
     }
   },
+  // The modal is v-if-mounted only once already visible, so the initial true value
+  // must be handled here or the "last used" hint is never read.
+  { immediate: true },
 );
 
 // Watch mode switch to render/reset Turnstile

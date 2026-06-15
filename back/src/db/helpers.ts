@@ -46,7 +46,14 @@ export async function buildPaginationConditions(
 
     const cursorValue = cursorProject[0];
     if (cursorValue) {
-      conditions.push(sql`${sortColumn} < ${cursorValue.sortValue}`);
+      // Composite keyset boundary: the sort column (createdAt/updatedAt) is not unique
+      // (batch imports and bulk approvals share a timestamp), so a bare `< sortValue` would
+      // skip every row tied with the cursor. Tie-break on the unique project id. Must match
+      // the DESC ordering at every call site (sortColumn DESC, id DESC).
+      conditions.push(
+        sql`(${sortColumn} < ${cursorValue.sortValue}
+             OR (${sortColumn} = ${cursorValue.sortValue} AND ${projects.id} < ${filters.cursor}::uuid))`,
+      );
     }
   }
 

@@ -362,7 +362,7 @@ export const projectRouter = router({
 
         const ownedProjects = await buildProjectWithLocationQuery(db)
           .where(and(...whereConditions))
-          .orderBy(sql`${sortColumn} DESC`)
+          .orderBy(sql`${sortColumn} DESC`, sql`${projects.id} DESC`)
           .limit(input.limit + 1);
 
         // Helper: project is not owned by the user (handles null ownerId for imported projects)
