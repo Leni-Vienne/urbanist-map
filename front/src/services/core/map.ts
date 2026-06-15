@@ -167,8 +167,13 @@ export function initializeMap() {
   // pans/zooms the map.
   newMap.keyboard.disable();
 
-  // Two-finger rotate on touch hijacks pinch-zoom; drop it while keeping pinch-zoom and desktop mouse rotate.
-  newMap.touchZoomRotate.disableRotation();
+  // Two-finger rotate on touch hijacks pinch-zoom, so it stays off unless the user opts into rotation.
+  // Pinch-zoom remains available either way.
+  if (mapRotationEnabled.value) {
+    newMap.touchZoomRotate.enableRotation();
+  } else {
+    newMap.touchZoomRotate.disableRotation();
+  }
 
   enableCursorTrackingScrollZoom(newMap);
   // Larger zoom step per mouse-wheel notch (MapLibre default is 1/450).
@@ -199,8 +204,10 @@ export function initializeMap() {
   watch(mapRotationEnabled, (enabled) => {
     if (enabled) {
       newMap.dragRotate.enable();
+      newMap.touchZoomRotate.enableRotation();
     } else {
       newMap.dragRotate.disable();
+      newMap.touchZoomRotate.disableRotation();
       newMap.resetNorthPitch();
     }
   });

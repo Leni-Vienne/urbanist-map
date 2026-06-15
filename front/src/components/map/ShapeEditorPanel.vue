@@ -56,6 +56,21 @@
         @change="handleFileImport"
       />
 
+      <!-- Delete selected shape (only meaningful in the edit tool; node deletion can
+           never remove a whole shape). Disabled until a shape is selected. -->
+      <Button
+        v-if="activeMode === 'select'"
+        :title="$t('shapes.deleteShape')"
+        :aria-label="$t('shapes.deleteShape')"
+        :disabled="selectedShapeId === null"
+        icon="pi pi-trash"
+        severity="danger"
+        text
+        rounded
+        size="small"
+        @click="deleteSelectedShape"
+      />
+
       <span class="h-6 border-l border-surface" />
 
       <!-- Cancel -->
@@ -89,9 +104,11 @@ import { useToast } from "@/composables/ui/useToast";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import {
   addLayersFromGeometry,
+  deleteSelectedShape,
   getDrawnGeometry,
   getLastDrawMode,
   loadGeoJSONFile,
+  selectedShapeId,
   setDrawMode,
   type ShapeDrawMode,
 } from "@/services/shape/shapeEditing";

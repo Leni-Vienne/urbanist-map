@@ -60,7 +60,6 @@
           class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
           :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
           :disabled="isTagDisabled(tag.slug)"
-          :title="isTagDisabled(tag.slug) ? $t('map.controls.buildingTagsZoomHint') : undefined"
           :aria-pressed="selectedProjectTags.includes(tag.slug)"
           :style="
             selectedProjectTags.includes(tag.slug)
@@ -91,7 +90,6 @@
           class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
           :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
           :disabled="isTagDisabled(tag.slug)"
-          :title="isTagDisabled(tag.slug) ? $t('map.controls.buildingTagsZoomHint') : undefined"
           :aria-pressed="selectedProjectTags.includes(tag.slug)"
           :style="
             selectedProjectTags.includes(tag.slug)
