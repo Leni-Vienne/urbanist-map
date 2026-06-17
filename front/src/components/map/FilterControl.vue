@@ -22,13 +22,7 @@
     />
   </div>
 
-  <Popover
-    ref="filterPanel"
-    @click.stop
-    @dblclick.stop
-    appendTo="body"
-    pt:root:class="filter-control-popover"
-  >
+  <Popover ref="filterPanel" @dblclick.stop appendTo="body" pt:root:class="filter-control-popover">
     <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
     <div
       class="min-w-55 overflow-y-auto overflow-x-hidden pr-1"
@@ -46,7 +40,7 @@
           v-if="selectedProjectTags.filter((t) => t !== untaggedFilter).length > 0"
           type="button"
           class="text-xs text-color-secondary underline cursor-pointer bg-transparent border-0 p-0"
-          @click.stop="clearTagFilters"
+          @click="clearTagFilters"
           @dblclick.stop
         >
           {{ $t("map.controls.clearTagFilters") }}
@@ -57,9 +51,7 @@
           v-for="tag in lineTags"
           :key="tag.slug"
           type="button"
-          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
-          :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
-          :disabled="isTagDisabled(tag.slug)"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
           :aria-pressed="selectedProjectTags.includes(tag.slug)"
           :style="
             selectedProjectTags.includes(tag.slug)
@@ -72,7 +64,7 @@
                   }
                 : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
           "
-          @click.stop="toggleTagFilter(tag.slug)"
+          @click="toggleTagFilter(tag.slug)"
           @dblclick.stop
         >
           {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
@@ -87,9 +79,7 @@
           v-for="tag in buildingTags"
           :key="tag.slug"
           type="button"
-          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150"
-          :class="isTagDisabled(tag.slug) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'"
-          :disabled="isTagDisabled(tag.slug)"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
           :aria-pressed="selectedProjectTags.includes(tag.slug)"
           :style="
             selectedProjectTags.includes(tag.slug)
@@ -102,7 +92,7 @@
                   }
                 : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
           "
-          @click.stop="toggleTagFilter(tag.slug)"
+          @click="toggleTagFilter(tag.slug)"
           @dblclick.stop
         >
           {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
@@ -122,7 +112,6 @@
             type="checkbox"
             :checked="selectedStatusFilters.includes(timelineStatus)"
             @change="toggleCompletionFilter(timelineStatus)"
-            @click.stop
           />
           <LinePreview :status="timelineStatus" :color="linePreviewColor" />
           {{ $t(labelKey) }}
@@ -142,7 +131,6 @@
             type="checkbox"
             :checked="selectedNameFilters.includes(nameVal)"
             @change="handleToggleNameFilter(nameVal)"
-            @click.stop
           />
           {{ $t(`map.controls.${nameVal}`) }}
         </label>
@@ -151,7 +139,6 @@
             type="checkbox"
             :checked="selectedProjectTags.includes(untaggedFilter)"
             @change="toggleTagFilter(untaggedFilter)"
-            @click.stop
           />
           {{ $t("map.controls.untagged") }}
         </label>
@@ -162,12 +149,7 @@
       </p>
       <div class="flex flex-col gap-1 mb-4">
         <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
-          <input
-            type="checkbox"
-            :checked="showOnlyWithImages"
-            @change="handleToggleImageFilter"
-            @click.stop
-          />
+          <input type="checkbox" :checked="showOnlyWithImages" @change="handleToggleImageFilter" />
           {{ $t("map.controls.onlyWithImages") }}
         </label>
       </div>
@@ -334,13 +316,7 @@ function formatSize(meters: number): string {
 }
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
-import {
-  PROJECT_TAGS,
-  PROJECT_TAG_MAP,
-  BUILDING_CATEGORY_TAGS,
-  BUILDING_FILTER_MIN_ZOOM,
-} from "@/config/projectTags";
-import { currentZoomLevel } from "@/services/core/map";
+import { PROJECT_TAGS, PROJECT_TAG_MAP, BUILDING_CATEGORY_TAGS } from "@/config/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 import LinePreview from "@/components/common/LinePreview.vue";
 
@@ -406,14 +382,7 @@ function toggleCompletionFilter(status: TimelineStatus) {
   emit("filter-overlays");
 }
 
-// Building-category markers are suppressed server-side at low zoom (see tiles.sql), so their
-// filters are disabled until the user zooms in enough for those markers to appear.
-function isTagDisabled(slug: string): boolean {
-  return BUILDING_CATEGORY_TAGS.has(slug) && currentZoomLevel.value < BUILDING_FILTER_MIN_ZOOM;
-}
-
 function toggleTagFilter(slug: string) {
-  if (isTagDisabled(slug)) return;
   toggleProjectTagFilter(slug);
   emit("filter-overlays");
 }

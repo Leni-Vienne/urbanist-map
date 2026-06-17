@@ -146,12 +146,68 @@ def classify_feature(tags):
     if target_use in EXCLUDE_BUILDINGS:
         return None
 
-    # Exclude roadworks/transport/utility infrastructure mapped as polygons,
-    # whether tagged bare (power=plant) or lifecycle-prefixed (construction:power=plant)
-    infrastructure_keys = {'highway', 'railway', 'waterway', 'power', 'telecom', 'public_transport', 'man_made'}
+    # When the primary identity is a construction site (landuse=construction, building tag, etc.)
+    # the feature is an area, not transport infrastructure. infrastructure_keys checks below
+    # must be skipped in that context so construction:railway/highway etc. don't wrongly
+    # exclude a subway station or road tunnel construction site.
+    has_areal_context = (landuse == 'construction' or building != '' or
+                         leisure in ('construction', 'proposed', 'planned') or
+                         amenity in ('construction', 'proposed', 'planned') or
+                         proposed_building != '' or planned_building != '' or construction_building != '' or
+                         proposed_landuse != '' or planned_landuse != '' or construction_landuse != '')
+
+    # Exclude utility/industrial infrastructure that is out of scope regardless of areal context
+    # (power plants, solar farms, telecom, man-made structures like pipelines).
+    utility_keys = {'power', 'telecom', 'man_made'}
+    # When the primary identity is a construction site (landuse=construction, building tag, etc.)
+    # the feature is an area, not transport infrastructure. infrastructure_keys checks below
+    # must be skipped in that context so construction:railway/highway etc. don't wrongly
+    # exclude a subway station or road tunnel construction site.
+    has_areal_context = (landuse == 'construction' or building != '' or
+                         leisure in ('construction', 'proposed', 'planned') or
+                         amenity in ('construction', 'proposed', 'planned') or
+                         proposed_building != '' or planned_building != '' or construction_building != '' or
+                         proposed_landuse != '' or planned_landuse != '' or construction_landuse != '')
+
+    # Exclude utility/industrial infrastructure that is out of scope regardless of areal context
+    # (power plants, solar farms, telecom, man-made structures like pipelines).
+    utility_keys = {'power', 'telecom', 'man_made'}
     if any(f'{prefix}{k}' in tags
-           for k in infrastructure_keys
+           for k in utility_keys
            for prefix in ('', 'construction:', 'proposed:', 'planned:')):
+        return None
+
+    # Exclude transport infrastructure mapped as polygons (railway yard, road junction area, etc.)
+    # unless the primary identity is a construction site area: a subway station or road tunnel
+    # under construction with landuse=construction + construction:railway/highway is a valid
+    # areal project, not a transport-infrastructure polygon.
+    transport_keys = {'highway', 'railway', 'waterway', 'public_transport', 'aerialway', 'aeroway'}
+    if not has_areal_context and any(f'{prefix}{k}' in tags
+                                     for k in transport_keys
+                                     for prefix in ('', 'construction:', 'proposed:', 'planned:')):
+        return None
+
+    # Exclude transport infrastructure mapped as polygons (railway yard, road junction area, etc.)
+    # unless the primary identity is a construction site area: a subway station or road tunnel
+    # under construction with landuse=construction + construction:railway/highway is a valid
+    # areal project, not a transport-infrastructure polygon.
+    transport_keys = {'highway', 'railway', 'waterway', 'public_transport', 'aerialway', 'aeroway'}
+    if not has_areal_context and any(f'{prefix}{k}' in tags
+                                     for k in transport_keys
+                                     for prefix in ('', 'construction:', 'proposed:', 'planned:')):
+        return None
+
+    # Road and cycleway highway values are always linear; exclude them even with areal context
+    # (e.g. a bridge deck mapped as building=construction + highway=cycleway).
+    # Area-capable values (pedestrian, platform, rest_area, services, footway, path) are
+    # intentionally kept so pedestrian plazas and transit platforms under construction survive.
+    _LINEAR_HIGHWAY_VALUES = frozenset({
+        'motorway', 'motorway_link', 'trunk', 'trunk_link',
+        'primary', 'primary_link', 'secondary', 'secondary_link',
+        'tertiary', 'tertiary_link', 'residential', 'unclassified',
+        'service', 'living_street', 'road', 'bus_guideway', 'busway', 'cycleway',
+    })
+    if has_areal_context and tags.get('highway', '') in _LINEAR_HIGHWAY_VALUES:
         return None
 
     # Exclude features where construction/proposed value is a transport infrastructure type.
@@ -162,11 +218,6 @@ def classify_feature(tags):
         'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
         'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel'
     }
-    has_areal_context = (landuse == 'construction' or building != '' or
-                         leisure in ('construction', 'proposed', 'planned') or
-                         amenity in ('construction', 'proposed', 'planned') or
-                         proposed_building != '' or planned_building != '' or construction_building != '' or
-                         proposed_landuse != '' or planned_landuse != '' or construction_landuse != '')
     if not has_areal_context and (tags.get('construction') in infrastructure_values or tags.get('proposed') in infrastructure_values):
         return None
 

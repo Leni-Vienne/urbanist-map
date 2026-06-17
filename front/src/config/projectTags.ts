@@ -36,9 +36,7 @@ export const PROJECT_TAGS: ProjectTag[] = [
 export const PROJECT_TAG_MAP = new Map(PROJECT_TAGS.map((t) => [t.slug, t]));
 
 // Tags that also carry the implicit `building` tag (the building-category tags plus the
-// generic `building` itself). Their center markers are gated by the server-side low-zoom
-// building suppression in tiles.sql, so they cannot reliably appear when zoomed out and the
-// filter UI disables them below BUILDING_FILTER_MIN_ZOOM.
+// generic `building` itself). Grouped separately in the filter UI.
 export const BUILDING_CATEGORY_TAGS = new Set([
   "building",
   "residential",
@@ -47,9 +45,5 @@ export const BUILDING_CATEGORY_TAGS = new Set([
   "office",
   "industrial",
 ]);
-
-// Native MapLibre zoom at or above which building markers are shown unconditionally
-// (matches the `$1 >= 10` gate in tiles.sql).
-export const BUILDING_FILTER_MIN_ZOOM = 10;
 
 export { extractTagsFromOsmProperties };

@@ -5,7 +5,6 @@ import { ref, computed } from "vue";
 import type { Project } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
-import { BUILDING_CATEGORY_TAGS } from "@/config/projectTags";
 
 const ALL_TIMELINE_STATUSES: TimelineStatus[] = [
   "proposed",
@@ -65,16 +64,6 @@ export function toggleNameFilter(value: "named" | "unnamed"): void {
 
 export function clearProjectTagFilters(): void {
   selectedProjectTags.value = [];
-}
-
-// Drop any selected building-category tag filters. Called when the map zooms out past the
-// threshold where those markers are suppressed server-side, so a now-unusable filter is not
-// left active (and silently hiding everything).
-export function pruneBuildingTagFilters(): void {
-  const next = selectedProjectTags.value.filter((tag) => !BUILDING_CATEGORY_TAGS.has(tag));
-  if (next.length !== selectedProjectTags.value.length) {
-    selectedProjectTags.value = next;
-  }
 }
 
 export function toggleProjectTagFilter(tag: string): void {

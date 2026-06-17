@@ -118,7 +118,7 @@ type RenderedMapFeature = {
   id?: string | number;
 };
 
-const DEFAULT_PROJECT_LINE_COLOR = "#3b82f6";
+const DEFAULT_PROJECT_LINE_COLOR = "#7c8aa5";
 
 const PROJECT_LINE_COLOR_BY_TAG: Record<string, string> = {};
 

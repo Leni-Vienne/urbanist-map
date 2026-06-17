@@ -16,7 +16,7 @@
       <span class="md:hidden">
         <Button
           icon="pi pi-user"
-          severity="secondary"
+          severity="primary"
           raised
           :aria-label="$t('auth.signIn')"
           data-testid="sign-in-button"
@@ -26,33 +26,49 @@
       </span>
     </template>
 
-    <!-- User Menu for authenticated users -->
-    <button
-      v-else
-      type="button"
-      class="appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-content-background border border-surface rounded-md cursor-pointer shadow transition-all duration-200 min-w-27 hover:shadow-md max-md:min-w-0 max-md:p-0 max-md:rounded-md max-md:w-8 max-md:h-8 max-md:justify-center max-md:gap-0"
-      data-testid="user-menu"
-      @click.stop="toggleMenu"
-      @dblclick.stop
-    >
-      <span
-        class="relative w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs max-md:bg-transparent max-md:text-(--p-text-color-secondary) max-md:text-base"
+    <!-- User Menu for authenticated users: avatar + username on desktop, square icon button on mobile -->
+    <template v-else>
+      <button
+        type="button"
+        class="max-md:hidden appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-content-background border border-surface rounded-md cursor-pointer shadow transition-all duration-200 min-w-27 hover:shadow-md"
+        data-testid="user-menu"
+        @click.stop="toggleMenu"
+        @dblclick.stop
       >
-        <i class="pi pi-user"></i>
-        <!-- Red dot on avatar if there are unread notifications -->
+        <span
+          class="relative w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs"
+        >
+          <i class="pi pi-user"></i>
+          <!-- Red dot on avatar if there are unread notifications -->
+          <span
+            v-if="uiStore.hasUnacknowledgedModeratedContributions"
+            class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background"
+          ></span>
+        </span>
+        <span class="text-sm font-medium text-color flex-1">{{ authStore.user?.username }}</span>
+        <i
+          class="pi pi-chevron-down text-xs text-muted-color transition-transform duration-200"
+          :class="{ 'rotate-180': isMenuOpen }"
+        ></i>
+      </button>
+
+      <span class="md:hidden relative">
+        <Button
+          icon="pi pi-user"
+          raised
+          :severity="isMenuOpen ? undefined : 'secondary'"
+          :aria-label="authStore.user?.username ?? undefined"
+          data-testid="user-menu"
+          @click.stop="toggleMenu"
+          @dblclick.stop
+        />
+        <!-- Red dot if there are unread notifications -->
         <span
           v-if="uiStore.hasUnacknowledgedModeratedContributions"
-          class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background"
+          class="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none"
         ></span>
       </span>
-      <span class="text-sm font-medium text-color flex-1 max-md:hidden">{{
-        authStore.user?.username
-      }}</span>
-      <i
-        class="pi pi-chevron-down text-xs text-muted-color transition-transform duration-200 max-md:hidden"
-        :class="{ 'rotate-180': isMenuOpen }"
-      ></i>
-    </button>
+    </template>
 
     <!-- User menu popover -->
     <Popover ref="userPopover">
