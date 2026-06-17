@@ -889,7 +889,10 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
 
   // The card is anchored to cursor pixels, but MapLibre stops firing mousemove during a
   // drag-pan, so it would freeze on screen while the map slides underneath. Hide it instead.
+  // Right-click drag rotates/pitches without firing dragstart, so clear on those too.
   map.value.on("dragstart", clearHoverPreview);
+  map.value.on("rotatestart", clearHoverPreview);
+  map.value.on("pitchstart", clearHoverPreview);
 
   map.value.on("click", (event: MapMouseEvent) => {
     const mlMap = mlMapGetter();
