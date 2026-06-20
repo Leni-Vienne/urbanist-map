@@ -5,7 +5,6 @@ import { ref, computed } from "vue";
 import type { Project } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
-import { BUILDING_CATEGORY_TAGS } from "@/config/projectTags";
 
 const ALL_TIMELINE_STATUSES: TimelineStatus[] = [
   "proposed",
@@ -40,7 +39,7 @@ export const selectedProjectTags = ref<string[]>([]);
 export const UNTAGGED_PROJECT_FILTER = "__untagged__";
 
 // [minMeters, maxMeters]. Infinity = no upper bound.
-export const sizeFilterRange = ref<[number, number]>([15, Infinity]);
+export const sizeFilterRange = ref<[number, number]>([0, Infinity]);
 
 // Empty array = show all. "named" / "unnamed" filter by name presence.
 export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
@@ -48,7 +47,6 @@ export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
 // [minTimestampMs, maxTimestampMs]. Uses externalLastModified when set, otherwise updated_at.
 export const lastModifiedDateRange = ref([0, Infinity] as [number, number]);
 
-// When true, only projects that have at least one approved overlay image are shown.
 export const showOnlyWithImages = ref(false);
 
 export function toggleShowOnlyWithImages(): void {
@@ -65,16 +63,6 @@ export function toggleNameFilter(value: "named" | "unnamed"): void {
 
 export function clearProjectTagFilters(): void {
   selectedProjectTags.value = [];
-}
-
-// Drop any selected building-category tag filters. Called when the map zooms out past the
-// threshold where those markers are suppressed server-side, so a now-unusable filter is not
-// left active (and silently hiding everything).
-export function pruneBuildingTagFilters(): void {
-  const next = selectedProjectTags.value.filter((tag) => !BUILDING_CATEGORY_TAGS.has(tag));
-  if (next.length !== selectedProjectTags.value.length) {
-    selectedProjectTags.value = next;
-  }
 }
 
 export function toggleProjectTagFilter(tag: string): void {

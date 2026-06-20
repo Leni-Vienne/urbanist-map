@@ -3,10 +3,7 @@
 // Mirrors the cell_size lookup in tiles.sql. Must be a power of 2 that divides 4096
 // evenly, otherwise partial stub cells at tile edges break cross-tile cluster alignment.
 export function getGridCellSizeForTileZoom(tileZoom: number): number {
-  if (tileZoom <= 4) return 1024;
-  if (tileZoom <= 6) return 512;
-  if (tileZoom <= 12) return 256;
-  return 128;
+  return 1024;
 }
 
 function tileToLng(x: number, z: number): number {

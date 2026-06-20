@@ -60,11 +60,6 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
   return { isValid };
 }
 
-// Normalize loose {lat, lng} points into the Corner interface
-export function toCornerArray(points: { lat: number; lng: number }[]): Corner[] {
-  return points.map((c) => ({ lat: c.lat, lng: c.lng }));
-}
-
 export function calculateCentroidFromCorners(corners: Corner[]): Corner | null {
   if (corners.length !== 4) {
     return null;

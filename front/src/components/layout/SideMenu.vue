@@ -1,6 +1,6 @@
 ﻿<template>
   <div
-    class="relative shrink-0 w-95 bg-content-hover-background border-r border-surface shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden h-screen max-h-screen"
+    class="relative z-10 shrink-0 w-95 bg-content-hover-background shadow-[2px_0_8px_rgba(0,0,0,0.1),6px_0_24px_-6px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden h-screen max-h-screen"
     style="
       --p-accordion-header-hover-background: var(--p-content-hover-background);
       --p-accordion-header-active-hover-background: var(--p-content-hover-background);
@@ -58,19 +58,37 @@
         >
       </a>
     </div>
+
+    <!-- Selected project/overlay detail as a slide-over covering the whole panel. Its own close
+         button (ProjectDetailPanel) hides it again, revealing the panel below. -->
+    <Transition name="detail-slide-over">
+      <div v-if="detailVisible" class="absolute inset-0 z-20 bg-content-background">
+        <ProjectDetailPanel />
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { watch, computed } from "vue";
+import { watch, computed, defineAsyncComponent } from "vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { PanelTab } from "@/types";
+
+// Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
+const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
+const overlayStore = useOverlayStore();
+
+// A clicked overlay info popup or standalone project marker opens the detail slide-over.
+const detailVisible = computed(
+  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
+);
 
 const activeTab = computed<PanelTab>({
   get: () => uiStore.activeTab,
@@ -86,3 +104,31 @@ watch(
   },
 );
 </script>
+
+<style scoped>
+/* Detail slide-over enters from the panel's left edge and fades, sliding back out on close. */
+.detail-slide-over-enter-active,
+.detail-slide-over-leave-active {
+  transition:
+    transform 0.25s ease-out,
+    opacity 0.25s ease-out;
+}
+
+.detail-slide-over-enter-from,
+.detail-slide-over-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-slide-over-enter-active,
+  .detail-slide-over-leave-active {
+    transition: opacity 0.25s ease-out;
+  }
+
+  .detail-slide-over-enter-from,
+  .detail-slide-over-leave-to {
+    transform: none;
+  }
+}
+</style>

@@ -9,11 +9,19 @@
            recenters the map on the project. The chevron on the right marks the region as clickable. -->
       <div
         class="flex flex-col flex-1 min-h-0 transition-colors duration-150"
-        :class="{ 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 group': canRecenter }"
+        :class="{ 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10': canRecenter }"
         @click="handleRecenter"
       >
-        <!-- Project header: project name + close button -->
-        <div class="px-4 pt-3 pb-2 shrink-0">
+        <!-- Project header. On desktop it's a neutral block that anchors the panel; on mobile it's
+             plain (the drawer frames it). Doubles as the drawer drag handle on mobile. -->
+        <div
+          class="drawer-drag-handle shrink-0"
+          :class="
+            showHeaderBand
+              ? 'px-4 py-3 bg-content-hover-background border-b border-surface'
+              : 'px-4 pt-3 pb-2'
+          "
+        >
           <div class="flex gap-2 items-center">
             <!-- Left: project name (recenters via the surrounding region) -->
             <div class="flex-1 flex items-center gap-1.5 min-w-0">
@@ -26,7 +34,7 @@
                 loading="eager"
               />
               <span
-                class="text-sm font-semibold leading-snug wrap-break-word transition-colors group-hover:text-primary-color"
+                class="text-sm font-semibold leading-snug wrap-break-word"
                 :class="project?.name ? 'text-color' : 'text-muted-color italic'"
               >
                 {{
@@ -43,9 +51,8 @@
               <button
                 type="button"
                 :aria-label="$t('common.close')"
-                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color hover:text-color hover:bg-content-hover-background bg-transparent border-none"
+                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color hover:text-color hover:bg-black/5 dark:hover:bg-white/10 bg-transparent border-none"
                 @click="handleBack"
-                v-tooltip.top="$t('common.close')"
               >
                 <i class="pi pi-times"></i>
               </button>
@@ -55,72 +62,84 @@
 
         <!-- Project fields + overlay section (links and images inside stop propagation so they
              keep their own click behavior instead of recentering). -->
-        <div class="px-4 pb-4 flex-1 overflow-y-auto overscroll-contain">
-          <div class="flex flex-row items-start gap-3">
-            <div class="flex-1 min-w-0">
-              <ProjectMetadataCard :project="project" :show-name="false" :show-description="true" />
-
-              <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
-              <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">
-                <img
-                  :src="wikidataEntity.imageUrl"
-                  class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
-                  referrerpolicy="no-referrer"
-                  loading="lazy"
-                  v-tooltip.top="$t('overlay.viewFullImage')"
-                  @click.stop="
-                    lightbox?.open({
-                      url: wikidataEntity.imageUrl,
-                      header:
-                        project?.name ||
-                        (project?.importSource?.type === 'osm'
-                          ? $t('project.osmName')
-                          : $t('project.unnamed')),
-                      referrerpolicy: 'no-referrer',
-                    })
-                  "
+        <div class="relative flex-1 min-h-0">
+          <div
+            ref="scrollAreaRef"
+            class="h-full px-4 pt-3 pb-4 overflow-y-auto overscroll-contain scrollbar-none [&::-webkit-scrollbar]:hidden"
+          >
+            <div ref="contentRef" class="flex flex-row items-start gap-3">
+              <div class="flex-1 min-w-0">
+                <ProjectMetadataCard
+                  :project="project"
+                  :show-name="false"
+                  :show-description="true"
                 />
-              </div>
 
-              <!-- Render (artist's impression): a user-contributed, non-georeferenced project image.
+                <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
+                <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">
+                  <img
+                    :src="wikidataEntity.imageUrl"
+                    class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
+                    referrerpolicy="no-referrer"
+                    loading="lazy"
+                    v-tooltip.top="$t('overlay.viewFullImage')"
+                    @click.stop="
+                      lightbox?.open({
+                        url: wikidataEntity.imageUrl,
+                        header:
+                          project?.name ||
+                          (project?.importSource?.type === 'osm'
+                            ? $t('project.osmName')
+                            : $t('project.unnamed')),
+                        referrerpolicy: 'no-referrer',
+                      })
+                    "
+                  />
+                </div>
+
+                <!-- Render (artist's impression): a user-contributed, non-georeferenced project image.
              Added/replaced via the project edit form, not here. Click to view full size. -->
-              <div
-                v-if="renderImageUrl"
-                class="mt-3 pt-3 border-t border-surface flex flex-col gap-1.5"
-              >
-                <span class="text-xs font-semibold text-muted-color">{{ $t("render.label") }}</span>
-                <img
-                  :src="renderImageUrl"
-                  :crossorigin="renderImageCrossorigin"
-                  class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
-                  loading="lazy"
-                  v-tooltip.top="$t('overlay.viewFullImage')"
-                  @click.stop="
-                    lightbox?.open({
-                      url: renderImageUrl,
-                      header: $t('render.label'),
-                      crossorigin: renderImageCrossorigin,
-                    })
-                  "
-                />
-              </div>
-
-              <!-- Show view original button for pending replacements -->
-              <div
-                v-if="overlay?.replacesOverlayId && overlay?.status === 'pending'"
-                class="mt-3 pt-3 border-t border-surface"
-              >
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-700 dark:hover:text-purple-200"
-                  @click.stop="handleViewOriginalOverlay(overlay.replacesOverlayId)"
+                <div
+                  v-if="renderImageUrl"
+                  class="mt-3 pt-3 border-t border-surface flex flex-col gap-1.5"
                 >
-                  <i class="pi pi-arrow-left text-sm"></i>
-                  {{ $t("overlay.viewOriginalOverlay") }}
-                </button>
+                  <span class="text-xs font-semibold text-muted-color">{{
+                    $t("render.label")
+                  }}</span>
+                  <img
+                    :src="renderImageUrl"
+                    :crossorigin="renderImageCrossorigin"
+                    class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
+                    loading="lazy"
+                    v-tooltip.top="$t('overlay.viewFullImage')"
+                    @click.stop="
+                      lightbox?.open({
+                        url: renderImageUrl,
+                        header: $t('render.label'),
+                        crossorigin: renderImageCrossorigin,
+                      })
+                    "
+                  />
+                </div>
+
+                <!-- Show view original button for pending replacements -->
+                <div
+                  v-if="overlay?.replacesOverlayId && overlay?.status === 'pending'"
+                  class="mt-3 pt-3 border-t border-surface"
+                >
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-700 dark:hover:text-purple-200"
+                    @click.stop="handleViewOriginalOverlay(overlay.replacesOverlayId)"
+                  >
+                    <i class="pi pi-arrow-left text-sm"></i>
+                    {{ $t("overlay.viewOriginalOverlay") }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+          <div v-if="isScrollable" class="detail-scroll-fade"></div>
         </div>
       </div>
     </template>
@@ -130,12 +149,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useTemplateRef, watch } from "vue";
+import { computed, ref, useTemplateRef, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { useActiveDetailProjectId } from "@/composables/project/useActiveDetailProjectId";
+import { useScrollFade } from "@/composables/ui/useScrollFade";
+import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useToast } from "@/composables/ui/useToast";
 
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -158,6 +179,11 @@ import ImageLightbox from "@/components/common/ImageLightbox.vue";
 const { t } = useI18n();
 const toast = useToast();
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
+
+// Hide the scrollbar on the fields area and fade its bottom edge while there's more to scroll.
+const scrollAreaRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
+const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
 const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
@@ -206,6 +232,27 @@ function getEffectiveProject(projectId: string): Project | undefined {
 
 // Overlay detail first, then project detail (shared with the visible-projects list).
 const activeProjectId = useActiveDetailProjectId();
+
+// When another project is picked while the panel stays open, the content swaps in place with no
+// signal. Echo the open transition (short fade + slide-up) and scroll back to the top so the switch
+// reads clearly as new content.
+function replayContentRefresh() {
+  const content = contentRef.value;
+  if (scrollAreaRef.value) scrollAreaRef.value.scrollTop = 0;
+  if (!content) return;
+  content.classList.remove("detail-content-refresh");
+  void content.offsetWidth;
+  content.classList.add("detail-content-refresh");
+  content.addEventListener(
+    "animationend",
+    () => content.classList.remove("detail-content-refresh"),
+    { once: true },
+  );
+}
+
+watch(activeProjectId, (id, previousId) => {
+  if (id && previousId && id !== previousId) replayContentRefresh();
+});
 
 const project = computed<Project | undefined>(() => {
   const id = activeProjectId.value;
@@ -272,6 +319,10 @@ const wikidataId = computed(() => {
 });
 const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
 
+// A neutral header block anchors the panel on desktop; on mobile the drawer already frames it.
+const { isMobile } = useIsMobile();
+const showHeaderBand = computed(() => !isMobile.value);
+
 // Recenter is only possible when the project carries a map location.
 const canRecenter = computed(
   () => typeof project.value?.lat === "number" && typeof project.value?.lng === "number",
@@ -330,3 +381,46 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
   }
 }
 </script>
+
+<style scoped>
+/* Bottom fade over the fields scroll area, matching the panel background, shown only when scrollable. */
+.detail-scroll-fade {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3rem;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--p-content-background), transparent);
+}
+
+/* Replayed when the panel stays open but switches to another project, signalling new content. */
+.detail-content-refresh {
+  animation: detail-content-refresh 0.28s ease-out;
+}
+
+@keyframes detail-content-refresh {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-content-refresh {
+    animation-name: detail-content-refresh-fade;
+  }
+
+  @keyframes detail-content-refresh-fade {
+    from {
+      opacity: 0.4;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+</style>

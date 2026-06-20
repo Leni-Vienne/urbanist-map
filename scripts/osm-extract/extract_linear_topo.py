@@ -285,6 +285,10 @@ def get_project_status(tags):
         return 'under_construction'
     if any(tags.get(k) for k in ('construction:railway', 'construction:highway', 'construction:waterway', 'construction:aerialway', 'construction:aeroway')):
         return 'under_construction'
+    if tags.get('railway') in ('subway', 'tram', 'light_rail', 'monorail', 'miniature') and \
+            any(tags.get(k) for k in ('construction:electrified', 'construction:voltage',
+                                      'construction:frequency', 'construction:tracks')):
+        return 'under_construction'
     if any(tags.get(k) == 'planned' for k in ('railway', 'highway', 'waterway', 'aerialway', 'aeroway',
                                               'cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both', 'state')):
         return 'planned'
@@ -301,6 +305,11 @@ _CYCLEWAY_KEYS = ('cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both'
 
 def is_transport_way(tags):
     """Return True if way represents proposed/construction/planned transport infrastructure."""
+    # landuse/building ways are areas handled by the areal extractor; exclude them first
+    # so lifecycle prefix keys like construction:railway don't accidentally pull them in.
+    if 'landuse' in tags or tags.get('building', 'no') != 'no':
+        return False
+
     # Explicit lifecycle status as primary key value: railway=proposed, highway=planned, etc.
     if any(tags.get(k) in _LIFECYCLE_STATUSES for k in _PRIMARY_TRANSPORT_KEYS):
         return True
@@ -336,9 +345,15 @@ def is_transport_way(tags):
                for k in _PRIMARY_TRANSPORT_KEYS):
             return True
 
-    # Exclude buildings/landuse with ambiguous construction= tags
-    if 'landuse' in tags or tags.get('building', 'no') != 'no':
-        return False
+    # Partially-built urban transit: track bed done but operational systems still
+    # under construction (e.g. railway=subway + construction:electrified=contact_line).
+    # Restricted to urban/transit rail types -- mainline rail electrification retrofits
+    # are ongoing operations on existing lines, not new projects.
+    _URBAN_RAIL_VALUES = ('subway', 'tram', 'light_rail', 'monorail', 'miniature')
+    _CONSTRUCTION_ATTR_KEYS = ('construction:electrified', 'construction:voltage',
+                               'construction:frequency', 'construction:tracks')
+    if tags.get('railway') in _URBAN_RAIL_VALUES and any(tags.get(k) for k in _CONSTRUCTION_ATTR_KEYS):
+        return True
 
     return (tags.get('construction', '') in TRANSPORT_VALUES or
             tags.get('proposed', '') in TRANSPORT_VALUES or

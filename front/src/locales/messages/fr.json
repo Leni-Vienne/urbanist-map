@@ -66,9 +66,10 @@
     "tags": "Catégories"
   },
   "navigation": {
-    "latestContributions": "Contributions Récentes",
+    "latestContributions": "Récents",
     "latestContributionsShort": "Récentes",
     "onMap": "Sur la carte",
+    "filter": "Filtrer",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
   },
@@ -135,7 +136,7 @@
     "building": "Bâtiment",
     "residential": "Résidentiel",
     "commercial": "Commercial",
-    "retail": "Commerce de détail",
+    "retail": "Commerces",
     "office": "Bureaux",
     "industrial": "Industriel",
     "pedestrian": "Piéton"
@@ -245,6 +246,7 @@
     "zoomOut": "Zoom arrière",
     "resetNorth": "Réorienter au nord",
     "clusterProjects": "{count} projets",
+    "clusterProjectsPlus": "(+{count} projets)",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
       "filterByStatus": "Chronologie",
@@ -273,6 +275,9 @@
     },
     "rotation": {
       "label": "Rotation de la carte"
+    },
+    "altLayer": {
+      "label": "Nouvelle carte"
     }
   },
   "search": {

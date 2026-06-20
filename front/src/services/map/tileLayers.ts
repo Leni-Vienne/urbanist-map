@@ -1,14 +1,7 @@
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type { GeoJSONSource, Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
-import {
-  map,
-  OPENFREEMAP_STYLE_URL,
-  getMlMap,
-  markMlMapReady,
-  currentZoomLevel,
-} from "@/services/core/map";
-import { BUILDING_FILTER_MIN_ZOOM } from "@/config/projectTags";
+import { map, OPENFREEMAP_STYLE_URL, getMlMap, markMlMapReady } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 import { useToast } from "@/composables/ui/useToast";
@@ -17,7 +10,7 @@ import {
   addProjectDataToMlMap,
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
-} from "./projectVectorLayers";
+} from "./projectVectorLayersDispatch";
 import {
   applyPlanStyleRoadOverrides,
   applyPoiVisibilityOverrides,
@@ -35,7 +28,6 @@ import {
   selectedNameFilters,
   lastModifiedDateRange,
   showOnlyWithImages,
-  pruneBuildingTagFilters,
 } from "@/services/map/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { resyncOverlaysFromTiles } from "@/services/map/vectorTileSync";
@@ -376,13 +368,6 @@ watch(
   },
   { deep: true },
 );
-
-// Building-category markers are hidden below BUILDING_FILTER_MIN_ZOOM (see tiles.sql), so a
-// selected building filter would silently match nothing once zoomed out. Drop it; the filter
-// watcher above then re-applies the cleared selection to the map.
-watch(currentZoomLevel, (zoom) => {
-  if (zoom < BUILDING_FILTER_MIN_ZOOM) pruneBuildingTagFilters();
-});
 
 watch(show3DBuildings, (extruded) => {
   applyBuildings3DState(extruded);

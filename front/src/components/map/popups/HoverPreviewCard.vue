@@ -7,9 +7,39 @@
     >
       <!-- Cluster tooltip -->
       <template v-if="hoverPreview.type === 'cluster'">
-        <span class="text-sm font-medium text-color">
-          {{ $t("map.clusterProjects", { count: hoverPreview.count }) }}
-        </span>
+        <!-- Tag filter active: break the count down per filtered tag -->
+        <template v-if="sortedTagCounts.length > 0">
+          <span v-if="hoverPreview.name" class="text-sm font-semibold leading-snug text-color">
+            {{ hoverPreview.name }}
+          </span>
+          <div class="flex flex-col gap-1 mt-0.5">
+            <div
+              v-for="tc in sortedTagCounts"
+              :key="tc.tag"
+              class="flex items-center justify-between gap-3"
+            >
+              <span
+                class="text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full"
+                :style="tagChipStyle(tc.tag)"
+              >
+                {{ tagLabel(tc.tag) }}
+              </span>
+              <span class="text-sm font-semibold text-color tabular-nums">{{ tc.count }}</span>
+            </div>
+          </div>
+        </template>
+        <!-- No tag filter: plain cluster count -->
+        <template v-else>
+          <span v-if="hoverPreview.name" class="text-sm font-semibold leading-snug text-color">
+            {{ hoverPreview.name }}
+            <span class="font-normal text-muted-color">{{
+              $t("map.clusterProjectsPlus", { count: hoverPreview.count - 1 })
+            }}</span>
+          </span>
+          <span v-else class="text-sm font-medium text-color">
+            {{ $t("map.clusterProjects", { count: hoverPreview.count }) }}
+          </span>
+        </template>
       </template>
 
       <!-- Single project preview -->
@@ -57,6 +87,7 @@ import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { UNTAGGED_PROJECT_FILTER } from "@/services/map/filters";
 import LinePreview from "@/components/common/LinePreview.vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -80,12 +111,27 @@ const suppress = computed(() => {
   return false;
 });
 
+// Cluster tag breakdown ordered by descending count, so the chip listed first matches the cluster
+// dot's color (which takes the most numerous selected tag). toSorted keeps the selection order for
+// ties since the underlying sort is stable.
+const sortedTagCounts = computed(() => {
+  const preview = hoverPreview.value;
+  if (!preview || preview.type !== "cluster" || !preview.tagCounts) return [];
+  return preview.tagCounts.toSorted((a, b) => b.count - a.count);
+});
+
 const DEFAULT_TAG_COLOR = "#6b7280";
 
 function tagChipStyle(slug: string): Record<string, string> {
   const tag = PROJECT_TAG_MAP.get(slug);
   if (!tag) return { backgroundColor: DEFAULT_TAG_COLOR, color: "#ffffff" };
   return { backgroundColor: tag.color, color: tag.textColor };
+}
+
+// Localized label for a cluster breakdown chip: a tag slug, or the untagged sentinel.
+function tagLabel(slug: string): string {
+  if (slug === UNTAGGED_PROJECT_FILTER) return $t("map.controls.untagged");
+  return $te(`tags.${slug}`) ? $t(`tags.${slug}`) : slug;
 }
 
 function firstTagColor(slug: string | undefined): string {
@@ -113,10 +159,45 @@ function positionCard(): void {
   if (!el) return;
   const x = hoverPreviewX.value;
   const y = hoverPreviewY.value;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const left = Math.max(EDGE_GAP, Math.min(x - measuredW / 2, vw - measuredW - EDGE_GAP));
-  const top = y + OFFSET + measuredH + EDGE_GAP > vh ? y - OFFSET - measuredH : y + OFFSET;
+
+  // Base safe area on the viewport by default
+  let minX = EDGE_GAP;
+  let maxX = window.innerWidth - EDGE_GAP;
+  let minY = EDGE_GAP;
+  let maxY = window.innerHeight - EDGE_GAP;
+
+  // If we can find the map div, use its bounds with the same INSET (100px) as the panel list.
+  // This ensures the card stays within the clear map area, avoiding UI chrome.
+  const mapDiv = document.getElementById("mapDiv");
+  if (mapDiv) {
+    const INSET = 100;
+    const rect = mapDiv.getBoundingClientRect();
+    // Only apply inset if the map is large enough to contain the card
+    if (rect.width > measuredW + INSET * 2 && rect.height > measuredH + INSET * 2) {
+      minX = rect.left + INSET;
+      maxX = rect.right - INSET;
+      minY = rect.top + INSET;
+      maxY = rect.bottom - INSET;
+    } else {
+      // Fallback to just the map bounds if it's too small for the inset
+      minX = rect.left + EDGE_GAP;
+      maxX = rect.right - EDGE_GAP;
+      minY = rect.top + EDGE_GAP;
+      maxY = rect.bottom - EDGE_GAP;
+    }
+  }
+
+  // Anchor the card horizontally centered on x, but clamp to safe bounds
+  const left = Math.max(minX, Math.min(x - measuredW / 2, maxX - measuredW));
+
+  // Anchor the card vertically OFFSET below y, or above if it hits the bottom
+  let top = y + OFFSET;
+  if (top + measuredH > maxY) {
+    top = y - OFFSET - measuredH;
+  }
+  // Clamp top to safe bounds just in case it's still out (e.g. if y was extremely high)
+  top = Math.max(minY, Math.min(top, maxY - measuredH));
+
   el.style.display = "";
   el.style.left = `${left}px`;
   el.style.top = `${top}px`;

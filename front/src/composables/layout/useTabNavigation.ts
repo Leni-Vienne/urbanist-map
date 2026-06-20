@@ -1,7 +1,5 @@
 import { watch } from "vue";
 import { useAuthStore } from "@/stores/authStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 
 /**
@@ -13,9 +11,7 @@ import { useUiStore } from "@/stores/uiStore";
  */
 export function useTabNavigation() {
   const authStore = useAuthStore();
-  const overlayStore = useOverlayStore();
   const uiStore = useUiStore();
-  const mapStore = useMapStore();
 
   // Sign-out: leave the auth-only tabs (which also drops the map back to view mode).
   watch(
@@ -36,16 +32,6 @@ export function useTabNavigation() {
     (isModerator) => {
       if (!isModerator && uiStore.activeTab === "moderation") {
         uiStore.activeTab = "latest";
-      }
-    },
-  );
-
-  // Selecting an overlay in view mode surfaces it in the Current Location tab.
-  watch(
-    () => overlayStore.idSelectedOverlay,
-    (overlayId) => {
-      if (overlayId && mapStore.mode === "view" && uiStore.activeTab !== "currentLocation") {
-        uiStore.activeTab = "currentLocation";
       }
     },
   );

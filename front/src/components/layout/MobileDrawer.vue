@@ -32,7 +32,8 @@
     </template>
 
     <template #header>
-      <div class="flex flex-col">
+      <!-- Hidden while a detail is open so the detail takes over the drawer, matching desktop. -->
+      <div v-if="!detailVisible" class="flex flex-col">
         <div
           class="grid transition-[grid-template-rows] duration-200 ease-in-out"
           :class="activeTab === 'latest' ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
@@ -53,9 +54,19 @@
       </div>
     </template>
 
-    <PanelContent
-      content-container-class="flex-1 flex flex-col min-h-0 bg-content-hover-background"
-    />
+    <!-- Tab content with the selected project/overlay detail layered above it as a slide-over,
+         independent of the active tab (matching the desktop SideMenu). Its own close button hides
+         it again, revealing the tab content below. -->
+    <div class="relative flex-1 flex flex-col min-h-0">
+      <PanelContent
+        content-container-class="flex-1 flex flex-col min-h-0 bg-content-hover-background"
+      />
+      <Transition name="detail-slide-over">
+        <div v-if="detailVisible" class="absolute inset-0 z-20 bg-content-background">
+          <ProjectDetailPanel />
+        </div>
+      </Transition>
+    </div>
 
     <!-- Footer with legal links (rendered outside the scroll area via slot).
          pb adds env(safe-area-inset-bottom) so the OS-reserved area (gesture pill,
@@ -94,9 +105,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import type { PanelTab } from "@/types";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
@@ -105,8 +117,17 @@ import PanelTabs from "./PanelTabs.vue";
 import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
+// Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
+const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
+
 const uiStore = useUiStore();
 const authStore = useAuthStore();
+const overlayStore = useOverlayStore();
+
+// A clicked overlay info popup or standalone project marker opens the detail, which takes over the drawer.
+const detailVisible = computed(
+  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
+);
 
 const isVisible = defineModel<boolean>("visible", { default: false });
 const isSatelliteMenuOpen = ref(false);
@@ -133,3 +154,31 @@ const activeTab = computed<PanelTab>({
   set: (value) => (uiStore.activeTab = value),
 });
 </script>
+
+<style scoped>
+/* Detail slide-over rises and fades over the tab content, sliding back down on close. */
+.detail-slide-over-enter-active,
+.detail-slide-over-leave-active {
+  transition:
+    transform 0.22s ease-out,
+    opacity 0.22s ease-out;
+}
+
+.detail-slide-over-enter-from,
+.detail-slide-over-leave-to {
+  transform: translateY(8px);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-slide-over-enter-active,
+  .detail-slide-over-leave-active {
+    transition: opacity 0.22s ease-out;
+  }
+
+  .detail-slide-over-enter-from,
+  .detail-slide-over-leave-to {
+    transform: none;
+  }
+}
+</style>
