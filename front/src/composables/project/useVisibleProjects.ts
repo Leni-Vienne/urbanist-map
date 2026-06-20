@@ -5,11 +5,12 @@ import { highlightProject, removeProjectOutlines } from "@/services/overlay/sele
 import { setExternalHover } from "@/services/map/vectorHoverState";
 import { map, getMlMap, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayers";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayersDispatch";
 import { useUiStore } from "@/stores/uiStore";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/map/filters";
 import { forEachPosition } from "@/utils/geojson";
+import { triggerProjectHover, clearHoverPreview } from "@/services/map/hoverPreviewState";
 
 export type SortMode = "recent" | "name" | "size" | "status";
 
@@ -29,6 +30,8 @@ interface VisibleProject {
   sizeM: number;
   lat: number | null;
   lng: number | null;
+  bottomLat: number | null;
+  bottomLng: number | null;
 }
 
 const STATUS_RANK: Record<string, number> = {
@@ -94,7 +97,7 @@ function featureToProject(
   const name: string | null = props.name ?? null;
   // oxlint-disable-next-line no-unsafe-type-assertion
   const geom = f.geometry as GeoJSON.Geometry | null;
-  const [bboxLng, bboxLat, bbox] = getGeomBbox(geom);
+  const [bboxLng, bboxLat, bbox, bottomLat, bottomLng] = getGeomBbox(geom);
   const [midLat, midLng] = getGeomClosestToCenter(geom, centerLat, centerLng);
   // popup_lat/popup_lng are ST_PointOnSurface of the full unclipped geometry, used as fallback
   // for standalone points that have no clipped geometry midpoint.
@@ -119,6 +122,8 @@ function featureToProject(
     lng,
     midLat,
     midLng,
+    bottomLat,
+    bottomLng,
   };
 }
 
@@ -193,27 +198,73 @@ function getGeomClosestToCenter(
   return [bestLat, bestLng];
 }
 
-/** Returns [centerLng, centerLat, bounds] from the geometry's coordinate bbox. */
+/** Returns [centerLng, centerLat, bounds, bottomLat, bottomLng] from the geometry's coordinate bbox. */
 function getGeomBbox(
   geom: GeoJSON.Geometry | null,
-): [number | null, number | null, LngLatBounds | null] {
-  if (!geom) return [null, null, null];
+): [number | null, number | null, LngLatBounds | null, number | null, number | null] {
+  if (!geom) return [null, null, null, null, null];
   const coords = collectCoords(geom);
-  if (coords.length === 0) return [null, null, null];
+  if (coords.length === 0) return [null, null, null, null, null];
   let minX = Infinity,
     maxX = -Infinity,
     minY = Infinity,
     maxY = -Infinity;
+  let bottomLng: number | null = null;
   for (const coord of coords) {
     const x = coord[0] ?? 0;
     const y = coord[1] ?? 0;
     if (x < minX) minX = x;
     if (x > maxX) maxX = x;
-    if (y < minY) minY = y;
+    if (y < minY) {
+      minY = y;
+      bottomLng = x;
+    }
     if (y > maxY) maxY = y;
   }
   const bounds = new LngLatBounds([minX, minY], [maxX, maxY]);
-  return [(minX + maxX) / 2, (minY + maxY) / 2, bounds];
+  return [(minX + maxX) / 2, (minY + maxY) / 2, bounds, minY, bottomLng];
+}
+
+/**
+ * Calculates the best on-screen anchor coordinate for a project and triggers the hover preview card.
+ * It prefers the southernmost visible point of the geometry (bottomLat) to anchor the card at the bottom.
+ * If that point is off-screen or outside the safe padded area, it falls back to the geometry coordinate
+ * closest to the center of the screen (midLat) to prevent the card from appearing visually detached.
+ */
+function showHoverCardForProject(project: VisibleProject): void {
+  const mlMap = getMlMap();
+  if (!mlMap) return;
+
+  const rect = mlMap.getContainer().getBoundingClientRect();
+  const INSET = 100;
+
+  // 1. Default anchor: the lowest/southernmost point of the geometry
+  let lat = project.bottomLat ?? project.midLat ?? project.lat;
+  let lng = project.bottomLng ?? project.midLng ?? project.lng;
+  let pt = lat !== null && lng !== null ? mlMap.project([lng, lat]) : null;
+
+  // 2. Check if this point falls outside the safe padded area of the map viewport
+  const isOutsideSafeInset =
+    pt && (pt.x < INSET || pt.x > rect.width - INSET || pt.y < INSET || pt.y > rect.height - INSET);
+
+  // 3. If outside, the hover card's own bounding logic would aggressively clamp it to the edge,
+  //    separating it from the geometry. Fallback to the geometry vertex closest to the screen center.
+  if (isOutsideSafeInset && project.midLat !== null && project.midLng !== null) {
+    lat = project.midLat;
+    lng = project.midLng;
+    pt = mlMap.project([lng, lat]);
+  }
+
+  // 4. Trigger the hover preview card, projecting map-relative pixels to global viewport coordinates
+  if (pt !== null) {
+    triggerProjectHover(
+      project.id,
+      { name: project.name, timelineStatus: project.timelineStatus, tags: project.tags },
+      pt.x + rect.left,
+      pt.y + rect.top,
+      true, // immediate
+    );
+  }
 }
 
 export function useVisibleProjects() {
@@ -422,7 +473,7 @@ export function useVisibleProjects() {
   let lastHoveredProjectId: string | null = null;
   let hoverClearTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  function hoverProject(projectId: string | null) {
+  function hoverProject(project: VisibleProject | null) {
     if (suppressHover) return;
 
     if (hoverClearTimeout) {
@@ -430,11 +481,14 @@ export function useVisibleProjects() {
       hoverClearTimeout = null;
     }
 
+    const projectId = project?.id ?? null;
+
     if (projectId && projectId === lastHoveredProjectId) return;
 
-    if (projectId) {
+    if (project && projectId) {
       highlightProject(projectId);
       lastHoveredProjectId = projectId;
+      showHoverCardForProject(project);
     } else if (lastHoveredProjectId) {
       // Defer clearing the hover to avoid double map-updates when the mouse
       // instantly moves from one row to another (mouseleave -> mouseenter).
@@ -448,6 +502,7 @@ export function useVisibleProjects() {
         if (!uiStore.projectDetail.visible) {
           setExternalHover(null);
         }
+        clearHoverPreview();
       }, 20);
     }
   }

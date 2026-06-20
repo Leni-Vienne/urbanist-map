@@ -148,9 +148,19 @@ function handleBackdropClick() {
   // Backdrop clicks disabled for mobile drawer
 }
 
+// Drag starts from the grab pill, the header strip, or any opt-in handle (e.g. a detail panel's
+// title bar that takes over the drawer and replaces the header).
+function isDragTarget(target: HTMLElement): boolean {
+  return Boolean(
+    target.closest(".drawer-handle") ||
+    target.closest(".drawer-header") ||
+    target.closest(".drawer-drag-handle"),
+  );
+}
+
 function handleTouchStart(e: TouchEvent) {
   const target = e.target as HTMLElement;
-  if (!target.closest(".drawer-handle") && !target.closest(".drawer-header")) {
+  if (!isDragTarget(target)) {
     return;
   }
   const touch = e.touches[0];
@@ -189,7 +199,7 @@ function handleTouchEnd() {
 
 function handleMouseDown(e: MouseEvent) {
   const target = e.target as HTMLElement;
-  if (!target.closest(".drawer-handle") && !target.closest(".drawer-header")) {
+  if (!isDragTarget(target)) {
     return;
   }
 

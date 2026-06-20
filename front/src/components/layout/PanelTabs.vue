@@ -5,8 +5,7 @@
       <button
         v-if="!tab.requiresModerator || authStore.isModerator"
         :class="[
-          'flex-1 border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
-          variant === 'mobile' ? 'py-3 px-0 text-sm' : 'py-2 px-0 text-sm',
+          'flex-1 py-2 px-0 text-sm border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
           activeTab === tab.key
             ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
             : 'text-(--p-text-color-secondary) border-transparent hover:text-color',
@@ -36,6 +35,7 @@ const TABS: {
     labelKey: "navigation.latestContributions",
     mobileLabelKey: "navigation.latestContributionsShort",
   },
+  { key: "filter", labelKey: "navigation.filter" },
   { key: "currentLocation", labelKey: "navigation.onMap" },
   { key: "contribute", labelKey: "navigation.contribute" },
   { key: "moderation", labelKey: "moderation.title", requiresModerator: true },

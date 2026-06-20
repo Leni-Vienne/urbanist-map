@@ -12,6 +12,7 @@ function tabToMode(tab: PanelTab): AppMode {
   switch (tab) {
     case "latest":
     case "currentLocation":
+    case "filter":
       return "view";
     case "contribute":
       return "edit";

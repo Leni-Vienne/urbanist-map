@@ -1,24 +1,8 @@
 <template>
   <div class="flex flex-col h-full min-h-0">
-    <!-- Selected project/overlay detail, stacked above the list so the list stays browsable -->
-    <div
-      v-if="detailVisible"
-      class="relative min-h-0 overflow-hidden border-b border-surface"
-      :class="isMobile ? 'flex-1' : 'flex-none max-h-[65%]'"
-    >
-      <ProjectDetailPanel />
-      <!-- One-shot accent ring linking the detail to the feature that was clicked. Keyed by the
-           selected project so it remounts and replays the pulse on each new selection. -->
-      <div
-        v-if="selectedProjectId && !isMobile"
-        :key="selectedProjectId"
-        class="detail-pulse pointer-events-none absolute inset-0 z-10"
-      ></div>
-    </div>
-
-    <!-- Visible-projects list region. Hidden on mobile while a detail is open so the detail gets
-         the full panel height (no room to stack both on a small screen). -->
-    <div v-if="!(isMobile && detailVisible)" class="flex-1 min-h-0">
+    <!-- Visible-projects list. The selected project/overlay detail is a slide-over rendered by the
+         host menu (SideMenu on desktop, MobileDrawer on mobile), independent of the active tab. -->
+    <div class="flex-1 min-h-0">
       <PanelEmptyState v-if="!isReady" icon="map" :message="$t('overlay.loadingProjects')" />
 
       <PanelEmptyState
@@ -81,7 +65,7 @@
                 project.id === selectedProjectId,
               ]"
               @click="navigateToProject(project)"
-              @mouseenter="hoverProject(project.id)"
+              @mouseenter="hoverProject(project)"
               @mouseleave="hoverProject(null)"
               class="project-row w-full flex items-center gap-3 px-4 py-3 border-none cursor-pointer transition-all duration-150 text-left border-b border-surface last:border-b-0 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10"
               :class="project.id === selectedProjectId ? 'is-selected' : 'bg-transparent'"
@@ -130,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from "vue";
+import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
 import { useActiveDetailProjectId } from "@/composables/project/useActiveDetailProjectId";
@@ -138,22 +122,8 @@ import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import LinePreview from "@/components/common/LinePreview.vue";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
-import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useUiStore } from "@/stores/uiStore";
-
-// Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
-const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const { t, te } = useI18n();
-const overlayStore = useOverlayStore();
-const uiStore = useUiStore();
-const { isMobile } = useIsMobile();
-
-// A clicked overlay info popup or standalone project marker opens a detail, stacked above the list.
-const detailVisible = computed(
-  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
-);
 const { projects, sortMode, sortReverse, isReady, navigateToProject, hoverProject } =
   useVisibleProjects();
 
@@ -206,22 +176,5 @@ function tagChipStyle(slug: string): Record<string, string> {
 .project-row.is-selected {
   background: color-mix(in srgb, var(--p-primary-color) 12%, transparent);
   box-shadow: inset 3px 0 0 0 var(--p-primary-color);
-}
-
-/* One-shot accent ring over the detail panel, same primary color as the map highlight, replayed on
-   each new selection (the keyed wrapper remounts this). Inset so the panel's overflow clip keeps it. */
-.detail-pulse {
-  animation: detail-ring-pulse 1.3s ease-out;
-}
-
-@keyframes detail-ring-pulse {
-  0% {
-    box-shadow: inset 0 0 0 3px var(--p-primary-color);
-    opacity: 1;
-  }
-  100% {
-    box-shadow: inset 0 0 0 3px transparent;
-    opacity: 0;
-  }
 }
 </style>

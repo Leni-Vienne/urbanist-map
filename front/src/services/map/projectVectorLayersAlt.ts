@@ -1,10 +1,9 @@
-import {
-  type Map as MaplibreMap,
-  type MapMouseEvent,
-  type PointLike,
-  type FilterSpecification,
-  type ExpressionSpecification,
-  LngLatBounds,
+import type {
+  Map as MaplibreMap,
+  MapMouseEvent,
+  PointLike,
+  FilterSpecification,
+  ExpressionSpecification,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { getEffectiveThreshold } from "@/constants/mapConstants";
@@ -30,11 +29,11 @@ import {
   clearHoverPreview,
   updateHoverPreviewPosition,
   type HoverProjectData,
+  type ClusterTagCount,
 } from "@/services/map/hoverPreviewState";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/config/projectTags";
-import { getGridCellSizeForTileZoom, tilePxToLngLat } from "@/services/map/tileGrid";
 import {
   SHAPE_LINE_WIDTH,
   SHAPE_LINE_WIDTH_HOVER,
@@ -45,6 +44,7 @@ import {
   selectedProjectTags,
   selectedStatusFilters,
   splitTagSelection,
+  UNTAGGED_PROJECT_FILTER,
   getNameFilterMode,
   sizeFilterRange,
   lastModifiedDateRange,
@@ -52,12 +52,14 @@ import {
 } from "@/services/map/filters";
 
 /* oxlint-disable no-unsafe-type-assertion */ // disabled because maplibre-gl is clunky to type
-// Default map style. The alternative style lives in projectVectorLayersAlt.ts; the active one is
-// chosen per session in projectVectorLayersDispatch.ts (switching modes reloads the page).
-const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
+// Alternative map style, selected per session in projectVectorLayersDispatch.ts. Diverged from the
+// default (projectVectorLayers.ts): grid-cell clustering with quality scoring plus a hover preview
+// card. Reads its own backend endpoint (projects-alt) so the data can diverge too.
+const TILE_URL = `${getApiUrl()}/api/tiles/projects-alt/{z}/{x}/{y}`;
 
 // ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
-/** Zoom level at which project points appear (prevents overloading with 20k+ points globally) */
+/** Source/layer minzoom for project points. Per-zoom thinning is done server-side via the
+ *  quality-score gate in tiles-alt.sql, so this stays at 0. */
 const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project shapes (MVT) become visible.
  *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
@@ -71,22 +73,15 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
-// Dasharray values are halved for footprints so physical dash/gap sizes stay identical to shapes.
-const FOOTPRINT_LINE_WIDTH: ExpressionSpecification = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  5,
-  0.7,
-  12,
-  2,
-];
+// They only render at z12+, where the old zoom ramp had already reached its max, so width is flat.
+const FOOTPRINT_LINE_WIDTH = 2;
 
 // ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
-// Viewport padding for flyToBounds to leave space around cluster cells.
-const CLUSTER_BOUNDS_PADDING_PX = 50;
+// Clicking a cluster marker zooms in by this many levels to spread its grid cell apart (the
+// conventional "expand cluster" gesture). No detail opens, since a cluster has no single project.
+const CLUSTER_EXPAND_ZOOM_STEP = 2;
 
 export const VECTOR_QUERY_LAYERS = [
   "overlay-footprints-fill",
@@ -115,7 +110,12 @@ type RenderedMapFeature = {
   id?: string | number;
 };
 
-const DEFAULT_PROJECT_LINE_COLOR = "#7c8aa5";
+const DEFAULT_PROJECT_LINE_COLOR = "#7ea2b7";
+
+// Cluster markers (cell_count > 1) aggregate many projects, so a tag color would just be the tag of
+// whichever project won the representative slot, misleading at the cluster level. They render in this
+// neutral slate instead; tag color is reserved for lone markers (cell_count == 1), where it is honest.
+const CLUSTER_NEUTRAL_COLOR = "#64748b";
 
 const PROJECT_LINE_COLOR_BY_TAG: Record<string, string> = {};
 
@@ -139,12 +139,81 @@ function getProjectLineColorExpression(): ExpressionSpecification {
   return getTagColorExpression([["get", "first_tag"]]);
 }
 
-function getProjectPointColorExpression(pendingColor = "#f97316"): ExpressionSpecification {
+// Per-cluster count of a single tag, read from the count_<tag> property the tile bakes in (0 when
+// absent). Used to find the most numerous selected tag in a cluster.
+function getTagCountExpression(tag: string): ExpressionSpecification {
+  return ["coalesce", ["get", `count_${tag}`], 0] as ExpressionSpecification;
+}
+
+function getProjectPointColorExpression(): ExpressionSpecification {
+  const loneColor = getTagColorExpression([["get", "first_tag"]]);
+
+  // Clusters are neutral by default. When a tag filter is active, a cluster adopts the color of the
+  // most numerous selected tag it contains, compared via the per-tag counts (count_<tag>). A tag
+  // wins when its count is >= every other selected tag's; the case chain is built in reverse so ties
+  // break toward the tag listed first in the selection.
+  let clusterColor: ExpressionSpecification | string = CLUSTER_NEUTRAL_COLOR;
+  const { knownTags } = splitTagSelection();
+  for (let i = knownTags.length - 1; i >= 0; i -= 1) {
+    const tag = knownTags[i];
+    if (tag === undefined) continue;
+    const tagColor = PROJECT_LINE_COLOR_BY_TAG[tag] || DEFAULT_PROJECT_LINE_COLOR;
+
+    const isMax: unknown[] = ["all"];
+    for (const other of knownTags) {
+      if (other === undefined || other === tag) continue;
+      isMax.push([">=", getTagCountExpression(tag), getTagCountExpression(other)]);
+    }
+    // A lone selected tag has nothing to compare against, so it always wins its cluster.
+    const winsCondition = isMax.length === 1 ? true : (isMax as ExpressionSpecification);
+
+    clusterColor = ["case", winsCondition, tagColor, clusterColor] as ExpressionSpecification;
+  }
+
   return [
     "case",
-    ["==", ["get", "is_pending"], true],
-    pendingColor, // Tailwind orange-500 (orange-400 when hovered/selected)
-    getTagColorExpression([["get", "first_tag"]]),
+    [">", ["get", "cell_count"], 1],
+    clusterColor,
+    loneColor,
+  ] as ExpressionSpecification;
+}
+
+// Cluster count label. With no tag filter it shows the raw cell total. With a tag filter active it
+// sums the per-tag counts the tile bakes in (count_<tag> / count_untagged), capped at cell_count
+// since a project carrying two selected tags is counted in each, so the bare sum can overshoot.
+function getClusterCountExpression(): ExpressionSpecification {
+  const { includeUntagged, knownTags } = splitTagSelection();
+  if (knownTags.length === 0 && !includeUntagged) {
+    return ["to-string", ["get", "cell_count"]] as ExpressionSpecification;
+  }
+
+  const columns = knownTags.map((tag) => `count_${tag}`);
+  if (includeUntagged) columns.push("count_untagged");
+
+  const sum: unknown[] = ["+"];
+  for (const col of columns) sum.push(["coalesce", ["get", col], 0]);
+  // "+" needs at least two operands; pad a single selected tag with a zero.
+  if (columns.length === 1) sum.push(0);
+
+  return [
+    "to-string",
+    ["min", sum as ExpressionSpecification, ["get", "cell_count"]],
+  ] as ExpressionSpecification;
+}
+
+// Circle radius for project-points: lone markers stay small; cluster markers (cell_count > 1) step
+// up only when the count gains a digit (10, 100, 1000), so the circle hugs the label tightly at
+// every magnitude instead of ballooning with the raw count.
+// `hovered` adds a small bump applied to both via the hover/selected case in the layer paint.
+function getPointRadiusExpression(hovered: boolean): ExpressionSpecification {
+  const bump = hovered ? 2 : 0;
+  // Radius tracks the label's digit count: 1 digit → 6, 2 → 8, 3 → 10, 4+ → 13. Each tier is the
+  // tightest circle that contains the 10px bold count without clipping its corners.
+  return [
+    "case",
+    [">", ["get", "cell_count"], 1],
+    ["step", ["get", "cell_count"], 6 + bump, 10, 8 + bump, 100, 10 + bump, 1000, 13 + bump],
+    4 + bump,
   ] as ExpressionSpecification;
 }
 
@@ -187,8 +256,10 @@ function mergeZoomHoverState(
 
 /**
  * Zoom-dependent size gate for the project-shapes layer.
- * Mirrors the server-side logic in tiles.sql (all values are native MapLibre zoom):
- *   z11+ → all shapes
+ * Mirrors the server-side logic in tiles-alt.sql (all values are native MapLibre zoom):
+ *   z13+ → all shapes
+ *   z12  → geometry_size_m >= 50 m
+ *   z11  → geometry_size_m >= 100 m
  *   z10  → geometry_size_m >= 200 m
  *   z9   → geometry_size_m >= 500 m
  *   z8   → geometry_size_m >= 1 km
@@ -199,32 +270,49 @@ function mergeZoomHoverState(
  */
 function getShapeZoomVisibilityFilter(): FilterSpecification {
   return [
-    "any",
-    [">=", ["zoom"], 11],
-    ["all", [">=", ["zoom"], 10], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 200]],
-    ["all", [">=", ["zoom"], 9], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 500]],
-    ["all", [">=", ["zoom"], 8], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 1000]],
-    ["all", [">=", ["zoom"], 7], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 10_000]],
-    ["all", [">=", ["zoom"], 5], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 50_000]],
-    ["all", [">=", ["zoom"], 4], [">=", ["coalesce", ["get", "geometry_size_m"], 0], 100_000]],
+    ">=",
+    ["coalesce", ["get", "geometry_size_m"], 0],
+    [
+      "step",
+      ["zoom"],
+      100_000,
+      5,
+      50_000,
+      7,
+      10_000,
+      8,
+      1000,
+      9,
+      500,
+      10,
+      200,
+      11,
+      100,
+      12,
+      50,
+      13,
+      0,
+    ],
   ] as FilterSpecification;
 }
 
-function getIsProposedFilterExpression(): FilterSpecification {
-  return ["==", ["get", "timeline_status"], "proposed"] as FilterSpecification;
-}
+const isProposedFilterExpression: FilterSpecification = [
+  "==",
+  ["get", "timeline_status"],
+  "proposed",
+];
 
-function getIsCompletedFilterExpression(): FilterSpecification {
-  return ["==", ["get", "timeline_status"], "completed"] as FilterSpecification;
-}
+const isCompletedFilterExpression: FilterSpecification = [
+  "==",
+  ["get", "timeline_status"],
+  "completed",
+];
 
-function getIsNeitherProposedNorCompletedFilterExpression(): FilterSpecification {
-  return [
-    "all",
-    ["!=", ["get", "timeline_status"], "proposed"],
-    ["!=", ["get", "timeline_status"], "completed"],
-  ] as FilterSpecification;
-}
+const isNeitherProposedNorCompletedFilterExpression: FilterSpecification = [
+  "all",
+  ["!=", ["get", "timeline_status"], "proposed"],
+  ["!=", ["get", "timeline_status"], "completed"],
+];
 
 /**
  * Build a MapLibre filter expression based on current tag selection.
@@ -241,7 +329,12 @@ function getTagFilterExpression(): FilterSpecification | null {
 
   // Match any of the selected known tags. The backend sends 'tags' as a JSON array string in the tiles.
   for (const tag of knownTags) {
-    conditions.push(["in", tag, ["to-string", ["get", "tags"]]]);
+    conditions.push([
+      "case",
+      ["has", "cluster_tags"],
+      ["in", `,${tag},`, ["to-string", ["get", "cluster_tags"]]],
+      ["in", tag, ["to-string", ["get", "tags"]]],
+    ]);
   }
 
   // Match untagged (empty first_tag)
@@ -251,7 +344,7 @@ function getTagFilterExpression(): FilterSpecification | null {
 
   if (conditions.length === 0) {
     // Only untagged was selected but we didn't add it, show nothing
-    return ["==", 1, 0] as FilterSpecification; // Always false
+    return ["==", ["to-string", ["get", "id"]], "__none__"] as FilterSpecification; // Always false
   }
 
   if (conditions.length === 1) {
@@ -268,15 +361,11 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
   "project-shapes": () =>
     [
       "all",
-      getIsNeitherProposedNorCompletedFilterExpression(),
+      isNeitherProposedNorCompletedFilterExpression,
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
   "project-shapes-completed": () =>
-    [
-      "all",
-      getIsCompletedFilterExpression(),
-      getShapeZoomVisibilityFilter(),
-    ] as FilterSpecification,
+    ["all", isCompletedFilterExpression, getShapeZoomVisibilityFilter()] as FilterSpecification,
   "project-shapes-fill": () =>
     [
       "all",
@@ -288,11 +377,11 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
     [
       "all",
       ["==", ["geometry-type"], "Polygon"],
-      getIsProposedFilterExpression(),
+      isProposedFilterExpression,
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
   "project-shapes-proposed-dashed": () =>
-    ["all", getIsProposedFilterExpression(), getShapeZoomVisibilityFilter()] as FilterSpecification,
+    ["all", isProposedFilterExpression, getShapeZoomVisibilityFilter()] as FilterSpecification,
   // Solid hover overlay: every dashed shape (non-completed), gated to the same zoom visibility.
   "project-shapes-hover-solid": () =>
     [
@@ -309,11 +398,21 @@ function getStatusFilterExpression(): FilterSpecification | null {
   // Empty selection = all visible, no filter needed
   if (selectedStatusFilters.value.length === 0) return null;
 
-  return [
+  // If the cluster has aggregated statuses, check if any match.
+  // Otherwise, fall back to the representative timeline_status.
+  const clusterConditions: unknown[] = selectedStatusFilters.value.map((status) => [
     "in",
-    ["get", "timeline_status"],
-    ["literal", selectedStatusFilters.value],
-  ] as FilterSpecification;
+    `,${status},`,
+    ["to-string", ["get", "cluster_statuses"]],
+  ]);
+
+  const expression: unknown[] = [
+    "case",
+    ["has", "cluster_statuses"],
+    ["any", ...clusterConditions],
+    ["in", ["get", "timeline_status"], ["literal", selectedStatusFilters.value]],
+  ];
+  return expression as FilterSpecification;
 }
 
 /**
@@ -447,6 +546,18 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   // project-points: tag + status + point size
   if (mlMap.getLayer("project-points")) {
     setLayerFilter(mlMap, "project-points", pointsFilter);
+    mlMap.setPaintProperty("project-points", "circle-color", getProjectPointColorExpression());
+  }
+
+  // Cluster counts ride the same filters as the points, gated to cluster markers (cell_count > 1)
+  // so a count never lingers when its dot is filtered out or the points layer is toggled off.
+  if (mlMap.getLayer("project-points-count")) {
+    const countFilter = combineFilters(
+      [">", ["get", "cell_count"], 1] as FilterSpecification,
+      pointsFilter,
+    );
+    setLayerFilter(mlMap, "project-points-count", countFilter);
+    mlMap.setLayoutProperty("project-points-count", "text-field", getClusterCountExpression());
   }
 
   // Layers with existing filters that must be merged
@@ -677,115 +788,26 @@ function handleVectorFeatureClick(feature: RenderedMapFeature): void {
   }
 }
 
-// Map a lat/lng to the tile index and pixel position inside the tile.
-function getTileCoordsForLatLng(
-  lat: number,
-  lng: number,
-  tileZoom: number,
-): { tileX: number; tileY: number; px: number; py: number } {
-  const n = 2 ** tileZoom;
-  const x = ((lng + 180) / 360) * n;
-  const latRad = (lat * Math.PI) / 180;
-  const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
-  const tileX = Math.floor(x);
-  const tileY = Math.floor(y);
-  return { tileX, tileY, px: (x - tileX) * 4096, py: (y - tileY) * 4096 };
-}
-
-// Compute the exact bounds of the cluster cell containing the given point.
-// The cell bounds are tight (no padding) because fitBounds adds viewport padding
-// controlled by CLUSTER_BOUNDS_PADDING_PX.
-function getClusterCellBounds(lat: number, lng: number, tileZoom: number): LngLatBounds {
-  const safeZoom = Math.max(0, tileZoom);
-  const { tileX, tileY, px, py } = getTileCoordsForLatLng(lat, lng, safeZoom);
-  const cellSize = getGridCellSizeForTileZoom(safeZoom);
-  const cellX = Math.floor(px / cellSize);
-  const cellY = Math.floor(py / cellSize);
-
-  // Use exact cell boundaries without geographic padding.
-  // Padding will be applied in screen space by fitBounds.
-  const minPx = cellX * cellSize;
-  const maxPx = (cellX + 1) * cellSize;
-  const minPy = cellY * cellSize;
-  const maxPy = (cellY + 1) * cellSize;
-
-  const nw = tilePxToLngLat(tileX, tileY, minPx, minPy, safeZoom);
-  const se = tilePxToLngLat(tileX, tileY, maxPx, maxPy, safeZoom);
-  const bounds = new LngLatBounds();
-  bounds.extend([nw[0], nw[1]]);
-  bounds.extend([se[0], se[1]]);
-  return bounds;
-}
-
-/**
- * Zoom into the cluster cell the point belongs to. If the representative matches the active
- * size/date filter, fit the exact cell bounds; otherwise the cluster only passed because some
- * other project in the cell matched, so nudge in by 2 zoom levels instead of committing to
- * the representative's location.
- */
-function navigateToCluster(
-  props: Record<string, unknown>,
-  lat: number,
-  lng: number,
-  currentZoom: number,
-): void {
-  const [minFilter, maxFilter] = sizeFilterRange.value;
-  const repSize: number | null = (props.geometry_size_m as number | null) ?? null;
-  const repMatchesSizeFilter =
-    repSize === null || (repSize >= minFilter && (maxFilter === Infinity || repSize <= maxFilter));
-
-  const [minDateMs, maxDateMs] = lastModifiedDateRange.value;
-  const repDateS: number | null = (props.last_modified_s as number | null) ?? null;
-  const repMatchesDateFilter =
-    repDateS === null ||
-    (repDateS * 1000 >= minDateMs && (maxDateMs === Infinity || repDateS * 1000 <= maxDateMs));
-
-  const repMatchesFilter = repMatchesSizeFilter && repMatchesDateFilter;
-
-  // Native MapLibre zoom is the integer tile zoom used by the MVT grid logic.
-  const tileZoom = Math.floor(currentZoom);
-
-  if (repMatchesFilter) {
-    // Fly to the exact cluster cell boundaries. The cell bounds are tight (no geographic padding),
-    // and fitBounds will add viewport padding to keep points away from screen edges.
-    const cellBounds = getClusterCellBounds(lat, lng, tileZoom);
-    const boundsZoom = map.value.cameraForBounds(cellBounds)?.zoom ?? currentZoom;
-    mobileAwareFlyToBounds(cellBounds, {
-      maxZoom: Math.max(currentZoom, boundsZoom),
-      padding: [CLUSTER_BOUNDS_PADDING_PX, CLUSTER_BOUNDS_PADDING_PX],
-    });
-  } else {
-    // Representative doesn't match the active filter, the cluster only passed because some
-    // other project in the cell matched. Nudge in by 2 zoom levels without committing to the
-    // representative's exact location.
-    const targetZoom = currentZoom + 2;
-    mobileAwareFlyTo([lat, lng], targetZoom);
-  }
-}
-
 async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promise<void> {
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
+  const props: Record<string, unknown> = pointFeature.properties ?? {};
   const coordinates = pointFeature.geometry?.coordinates;
-  let shouldOpenPanel = true;
+  const hasCoords = Array.isArray(coordinates) && coordinates.length >= 2;
+  const [lng, lat] = hasCoords ? coordinates : [0, 0];
 
-  // Cluster marker: zoom into the cell to spread it apart (the conventional expand gesture) and
-  // open no detail, since a cluster has no single project. A lone marker is on-screen (the tap came
-  // through), so it opens its detail with the camera left still, matching shape/footprint clicks.
-  if (coordinates && coordinates.length >= 2) {
-    const [lng, lat] = coordinates;
-    const cellCount = Number(pointFeature.properties?.cell_count ?? 2);
-    if (cellCount > 1) {
-      const props: Record<string, unknown> = pointFeature.properties ?? {};
-      shouldOpenPanel = false;
-      navigateToCluster(props, lat, lng, map.value.getZoom());
-    }
+  // Cluster marker (drawn larger with a count): zoom in to spread the cell apart, the conventional
+  // expand gesture, and open no detail since a cluster has no single project.
+  const cellCount = Number(props.cell_count ?? 1);
+  if (hasCoords && cellCount > 1) {
+    mobileAwareFlyTo([lat, lng], map.value.getZoom() + CLUSTER_EXPAND_ZOOM_STEP);
+    return;
   }
 
-  if (shouldOpenPanel) {
-    await handleProjectClickFromTile(projectId);
-  }
+  // Lone marker: open its detail. The marker is on-screen (the tap came through), so the camera
+  // stays put on both platforms, matching shape/footprint clicks.
+  await handleProjectClickFromTile(projectId);
 }
 
 export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap | null): void {
@@ -833,7 +855,9 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
     );
 
     mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);
-    const vectorFeature = getVectorFeatureFromFeatures(features);
+    // A point/cluster marker under the cursor owns the hover (it wins the hover card and the click),
+    // so suppress the shape behind it rather than lighting both features at once.
+    const vectorFeature = pointFeature ? null : getVectorFeatureFromFeatures(features);
     setCursorHoverState(
       mlMap,
       vectorFeature,
@@ -879,12 +903,8 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       VECTOR_HOVER_HIT_RADIUS_PX,
     );
 
-    const vectorFeature = getVectorFeatureFromFeatures(features);
-    if (vectorFeature) {
-      handleVectorFeatureClick(vectorFeature);
-      return;
-    }
-
+    // Match the hover precedence (updateHoverPreview checks the point first): a point/cluster marker
+    // under the cursor wins over a shape behind it, so the click target agrees with the hover card.
     const pointFeature = features.find(
       (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
     );
@@ -893,8 +913,53 @@ export function registerHybridInteractionHandlers(mlMapGetter: () => MaplibreMap
       return;
     }
 
+    const vectorFeature = getVectorFeatureFromFeatures(features);
+    if (vectorFeature) {
+      handleVectorFeatureClick(vectorFeature);
+      return;
+    }
+
     handleBackgroundClick(event.lngLat);
   });
+}
+
+// Per-selected-tag project counts for a hovered cluster, read from the count_<tag>/count_untagged
+// properties the tile bakes in. Returns undefined when no tag filter is active, so the card falls
+// back to the plain cluster count. Tags with a zero count in this cell are omitted.
+function buildClusterTagCounts(props: Record<string, unknown>): ClusterTagCount[] | undefined {
+  const { includeUntagged, knownTags } = splitTagSelection();
+  if (knownTags.length === 0 && !includeUntagged) return undefined;
+
+  const counts: ClusterTagCount[] = [];
+  for (const tag of knownTags) {
+    const count = Number(props[`count_${tag}`] ?? 0);
+    if (count > 0) counts.push({ tag, count });
+  }
+  if (includeUntagged) {
+    const count = Number(props.count_untagged ?? 0);
+    if (count > 0) counts.push({ tag: UNTAGGED_PROJECT_FILTER, count });
+  }
+  return counts.length > 0 ? counts : undefined;
+}
+
+// Show the cluster hover card. The representative name is kept only when it's high quality and (under
+// an active tag filter) actually matches the selection; the per-tag breakdown is attached so the card
+// can report how many of the cluster's projects match each filtered tag.
+function showClusterHover(
+  pointFeature: RenderedMapFeature,
+  cellCount: number,
+  clientX: number,
+  clientY: number,
+): void {
+  const props: Record<string, unknown> = pointFeature.properties ?? {};
+  const isHighQuality = props.is_high_quality === true;
+  let name = isHighQuality ? String(props.name ?? "") : null;
+  if (name && selectedProjectTags.value.length > 0) {
+    const repTags = String(props.tags ?? "");
+    const matches = selectedProjectTags.value.some((tag) => repTags.includes(`"${tag}"`));
+    if (!matches) name = null;
+  }
+  triggerClusterHover(cellCount, clientX, clientY, name, buildClusterTagCounts(props));
 }
 
 /**
@@ -911,7 +976,7 @@ function updateHoverPreview(
     const cellCount = Number(pointFeature.properties?.cell_count ?? 1);
     const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
     if (cellCount > 1) {
-      triggerClusterHover(cellCount, clientX, clientY);
+      showClusterHover(pointFeature, cellCount, clientX, clientY);
     } else if (projectId.length > 0) {
       triggerProjectHover(projectId, getHoverDataFromFeature(pointFeature), clientX, clientY);
     } else {
@@ -973,19 +1038,8 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   // The footprint outline/fill/sentinel layers insert just below the first project-shapes layer.
   const FOOTPRINT_BAND_BEFORE_ID = "project-shapes-fill";
 
-  // Cluster/point layers are the exception: they insert below the first basemap label layer (after
-  // any 3D-building extrusions) so place names stay readable on top of the dots.
-  const styleLayers = mlMap.getStyle().layers;
-  let lastExtrusionIndex = -1;
-  for (let i = styleLayers.length - 1; i >= 0; i -= 1) {
-    if (styleLayers[i]?.type === "fill-extrusion") {
-      lastExtrusionIndex = i;
-      break;
-    }
-  }
-  const firstLabelLayerId = styleLayers.find(
-    (layer, i) => layer.type === "symbol" && i > lastExtrusionIndex,
-  )?.id;
+  // Cluster/point layers insert at the top of the stack (undefined beforeId) so the markers and
+  // their counts draw above the project shapes, not buried beneath them.
 
   // ── MVT source: project shapes + overlay footprints + points ──────────────
   mlMap.addSource("project-sources", {
@@ -1024,7 +1078,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     filter: [
       "all",
       ["==", ["geometry-type"], "Polygon"],
-      getIsProposedFilterExpression(),
+      isProposedFilterExpression,
     ] as FilterSpecification,
     paint: {
       "fill-color": getProjectLineColorExpression(),
@@ -1040,7 +1094,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     source: "project-sources",
     "source-layer": "project-shapes",
     minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: getIsNeitherProposedNorCompletedFilterExpression(),
+    filter: isNeitherProposedNorCompletedFilterExpression,
     paint: {
       "line-color": getProjectLineColorExpression(),
       // Dashed bases stay static; the solid project-shapes-hover-solid overlay draws the
@@ -1057,7 +1111,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     source: "project-sources",
     "source-layer": "project-shapes",
     minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: getIsCompletedFilterExpression(),
+    filter: isCompletedFilterExpression,
     layout: { "line-cap": "round" },
     paint: {
       "line-color": getProjectLineColorExpression(),
@@ -1072,7 +1126,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     source: "project-sources",
     "source-layer": "project-shapes",
     minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: getIsProposedFilterExpression(),
+    filter: isProposedFilterExpression,
     layout: { "line-cap": "round" },
     paint: {
       "line-color": getProjectLineColorExpression(),
@@ -1162,30 +1216,46 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   );
 
   // Individual MVT points
-  mlMap.addLayer(
-    {
-      id: "project-points",
-      type: "circle",
-      source: "project-sources",
-      "source-layer": "project-points",
-      minzoom: PROJECT_POINTS_MIN_ZOOM,
-      // No maxzoom: standalone (no-geometry) projects have no shape to take over at high zoom,
-      // so the center marker must keep rendering past z15 (overzoomed from the z14 MVT source).
-      paint: {
-        // Hovered/selected: lighten the pending orange and grow the dot, the rest stays put.
-        "circle-color": [
-          "case",
-          hoverOrSelectedCondition(),
-          getProjectPointColorExpression("#fb923c"), // Tailwind orange-400
-          getProjectPointColorExpression(),
-        ],
-        "circle-radius": withHoverState(4, 6),
-        "circle-stroke-width": withHoverState(1.5, 2),
-        "circle-stroke-color": "#ffffff",
-      },
+  mlMap.addLayer({
+    id: "project-points",
+    type: "circle",
+    source: "project-sources",
+    "source-layer": "project-points",
+    minzoom: PROJECT_POINTS_MIN_ZOOM,
+    // No maxzoom: standalone (no-geometry) projects have no shape to take over at high zoom,
+    // so the center marker must keep rendering past z15 (overzoomed from the z14 MVT source).
+    paint: {
+      // Hovered/selected: lighten the pending orange and grow the dot, the rest stays put.
+      "circle-color": getProjectPointColorExpression(),
+      "circle-radius": [
+        "case",
+        hoverOrSelectedCondition(),
+        getPointRadiusExpression(true),
+        getPointRadiusExpression(false),
+      ] as ExpressionSpecification,
     },
-    firstLabelLayerId,
-  );
+  });
+
+  // Cluster count, drawn over the (enlarged) cluster circles. Only cell_count > 1 gets a label;
+  // lone markers stay bare. allow-overlap/ignore-placement keep every count visible at any density.
+  mlMap.addLayer({
+    id: "project-points-count",
+    type: "symbol",
+    source: "project-sources",
+    "source-layer": "project-points",
+    minzoom: PROJECT_POINTS_MIN_ZOOM,
+    filter: [">", ["get", "cell_count"], 1],
+    layout: {
+      "text-field": ["to-string", ["get", "cell_count"]],
+      "text-font": ["Noto Sans Bold"],
+      "text-size": 10,
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#ffffff",
+    },
+  });
 
   // ── Pending points GeoJSON source ──
   mlMap.addSource("pending-project-points-source", {
@@ -1197,21 +1267,18 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     promoteId: "id",
   });
 
-  mlMap.addLayer(
-    {
-      id: "pending-project-points",
-      type: "circle",
-      source: "pending-project-points-source",
-      paint: {
-        // orange-500, lightening to orange-400 and growing on hover/selection.
-        "circle-color": withHoverState("#f97316", "#fb923c"),
-        "circle-radius": withHoverState(4, 6),
-        "circle-stroke-width": withHoverState(1.5, 2),
-        "circle-stroke-color": "#ffffff",
-      },
+  mlMap.addLayer({
+    id: "pending-project-points",
+    type: "circle",
+    source: "pending-project-points-source",
+    paint: {
+      // orange-500, lightening to orange-400 and growing on hover/selection.
+      "circle-color": withHoverState("#f97316", "#fb923c"),
+      "circle-radius": withHoverState(4, 6),
+      "circle-stroke-width": withHoverState(1.5, 2),
+      "circle-stroke-color": "#ffffff",
     },
-    firstLabelLayerId,
-  );
+  });
 
   // Apply current tag filters to MVT layers
   applyTagFiltersToVectorLayers(mlMap);

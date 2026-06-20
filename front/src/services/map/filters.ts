@@ -39,7 +39,7 @@ export const selectedProjectTags = ref<string[]>([]);
 export const UNTAGGED_PROJECT_FILTER = "__untagged__";
 
 // [minMeters, maxMeters]. Infinity = no upper bound.
-export const sizeFilterRange = ref<[number, number]>([15, Infinity]);
+export const sizeFilterRange = ref<[number, number]>([0, Infinity]);
 
 // Empty array = show all. "named" / "unnamed" filter by name presence.
 export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
@@ -47,7 +47,6 @@ export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
 // [minTimestampMs, maxTimestampMs]. Uses externalLastModified when set, otherwise updated_at.
 export const lastModifiedDateRange = ref([0, Infinity] as [number, number]);
 
-// When true, only projects that have at least one approved overlay image are shown.
 export const showOnlyWithImages = ref(false);
 
 export function toggleShowOnlyWithImages(): void {

@@ -31,7 +31,6 @@ export function initializeDetailWatcher() {
       if (newProjectId === oldProjectId) return;
 
       const overlayStore = useOverlayStore();
-      const uiStore = useUiStore();
       const mapStore = useMapStore();
 
       if (oldProjectId && oldProjectId !== newProjectId) {
@@ -52,7 +51,6 @@ export function initializeDetailWatcher() {
         setExternalHover(newProjectId);
       }
 
-      if (uiStore.activeTab === "latest") uiStore.activeTab = "currentLocation";
       requestScrollTo("project", newProjectId);
 
       if (overlayStore.overlayDetailVisible) overlayStore.closeOverlayDetail();

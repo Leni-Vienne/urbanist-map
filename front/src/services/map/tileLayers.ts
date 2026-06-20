@@ -10,7 +10,7 @@ import {
   addProjectDataToMlMap,
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
-} from "./projectVectorLayers";
+} from "./projectVectorLayersDispatch";
 import {
   applyPlanStyleRoadOverrides,
   applyPoiVisibilityOverrides,

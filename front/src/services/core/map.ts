@@ -153,7 +153,7 @@ export function initializeMap() {
     pitchWithRotate: mapRotationEnabled.value,
     aroundCenter: false, // otherwise the control scheme is ass
     rollEnabled: false,
-    touchPitch: false, // two-finger pitch fights pinch-zoom on touch; desktop mouse pitch stays via pitchWithRotate
+    touchPitch: mapRotationEnabled.value, // two-finger pitch fights pinch-zoom, so it is gated behind the rotation opt-in
     maxPitch: 85,
     fadeDuration: 0,
   };
@@ -199,15 +199,17 @@ export function initializeMap() {
   newMap.on("move", syncCameraOrientation);
   newMap.on("moveend", syncCameraOrientation);
 
-  // Toggling the rotation setting locks/unlocks drag-rotate (and pitch-with-rotate); locking
-  // also snaps the camera back to north so the map never stays stuck at an angle.
+  // Toggling the rotation setting locks/unlocks drag-rotate, pitch-with-rotate and two-finger
+  // touch pitch; locking also snaps the camera back to north so the map never stays stuck at an angle.
   watch(mapRotationEnabled, (enabled) => {
     if (enabled) {
       newMap.dragRotate.enable();
       newMap.touchZoomRotate.enableRotation();
+      newMap.touchPitch.enable();
     } else {
       newMap.dragRotate.disable();
       newMap.touchZoomRotate.disableRotation();
+      newMap.touchPitch.disable();
       newMap.resetNorthPitch();
     }
   });
