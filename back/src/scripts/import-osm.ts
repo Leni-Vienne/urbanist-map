@@ -13,6 +13,11 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgresJs from "postgres";
 import { projects, importSources, adminBoundaries, type TimelineStatus } from "../db/schema";
+import {
+  BOUNDARY_DOMINANCE_THRESHOLD,
+  coverageFractionSql,
+  projectEffectiveGeometrySql,
+} from "../db/boundaryAssignment";
 import { sql, eq, isNull } from "drizzle-orm";
 import { config } from "../config";
 
@@ -645,11 +650,12 @@ async function main() {
   // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
   console.log("");
   log(`Computing geometry sizes and anchors for changed rows (batched)...`);
+  // New or geometry-changed rows: geometry_size_m IS NULL means the upsert nulled it on a geometry
+  // change, or the row is new. This is exactly the set whose size, anchor AND admin boundary need
+  // (re)computing, so it is captured once here and reused by the boundary-assignment pass below.
+  let changedRowIds: string[] = [];
   try {
-    // Fetch IDs of all rows that need updating. This is cheap, no geography ops yet.
-    // geometry_size_m IS NULL means the geometry changed (the upsert nulls it on change) or the row
-    // is new, so this set is exactly the rows whose size and anchor need (re)computing.
-    const idsToUpdate = (
+    changedRowIds = (
       await db.execute<{ id: string }>(sql`
         SELECT id
         FROM projects
@@ -660,12 +666,12 @@ async function main() {
       `)
     ).map((r) => r.id);
 
-    log(`${idsToUpdate.length} rows to process`);
+    log(`${changedRowIds.length} rows to process`);
 
     const GEOMETRY_BATCH_SIZE = 2000;
     let sizesDone = 0;
-    for (let offset = 0; offset < idsToUpdate.length; offset += GEOMETRY_BATCH_SIZE) {
-      const batchIds = idsToUpdate.slice(offset, offset + GEOMETRY_BATCH_SIZE);
+    for (let offset = 0; offset < changedRowIds.length; offset += GEOMETRY_BATCH_SIZE) {
+      const batchIds = changedRowIds.slice(offset, offset + GEOMETRY_BATCH_SIZE);
       const idList = sql.join(
         batchIds.map((id) => sql`${id}::uuid`),
         sql`, `,
@@ -706,11 +712,58 @@ async function main() {
         WHERE p.id = sizes.id
       `);
       sizesDone += batchIds.length;
-      logProgress(`Geometry sizes + anchors: ${sizesDone} / ${idsToUpdate.length}`);
+      logProgress(`Geometry sizes + anchors: ${sizesDone} / ${changedRowIds.length}`);
     }
     log(`Geometry sizes and anchors computed.`);
   } catch (err) {
     console.error("Failed to compute geometry sizes and anchors (non-fatal):", err);
+  }
+
+  // Re-assign new and geometry-changed projects to their admin boundary (the majority-of-shape rule
+  // lives in boundaryAssignment.ts). import-osm only resolves the flat country_code inline; the deep
+  // admin_boundary_id is derived from the project's effective geometry, so it must be recomputed for
+  // exactly the rows inserted or whose geometry changed this run (changedRowIds). The user-submission
+  // and overlay-approval paths assign one project at a time; this is the bulk equivalent for the OSM
+  // sync, mirroring import-boundaries' own assign pass but scoped to an id list instead of all rows.
+  // Best-effort: a failure here must not fail the import.
+  if (changedRowIds.length > 0) {
+    console.log("");
+    log(`Assigning admin boundaries for ${changedRowIds.length} new/changed projects (batched)...`);
+    const BOUNDARY_BATCH_SIZE = 2000;
+    let assignDone = 0;
+    try {
+      for (let offset = 0; offset < changedRowIds.length; offset += BOUNDARY_BATCH_SIZE) {
+        const batchIds = changedRowIds.slice(offset, offset + BOUNDARY_BATCH_SIZE);
+        const idList = sql.join(
+          batchIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        );
+        await db.execute(sql`
+          UPDATE projects pr
+          SET admin_boundary_id = chosen.boundary_id
+          FROM (
+            SELECT DISTINCT ON (c.project_id) c.project_id, c.boundary_id
+            FROM (
+              SELECT p.id AS project_id, b.osm_id AS boundary_id, b.admin_level,
+                     ${sql.raw(coverageFractionSql("eff.geom"))} AS frac
+              FROM projects p
+              JOIN LATERAL (SELECT ${sql.raw(projectEffectiveGeometrySql("p"))} AS geom OFFSET 0) eff ON true
+              JOIN admin_boundaries b ON ST_Intersects(b.geom, eff.geom)
+              WHERE p.id IN (${idList})
+            ) c
+            WHERE c.frac >= ${BOUNDARY_DOMINANCE_THRESHOLD}
+            ORDER BY c.project_id, c.admin_level DESC, c.frac DESC
+          ) chosen
+          WHERE pr.id = chosen.project_id
+            AND pr.admin_boundary_id IS DISTINCT FROM chosen.boundary_id
+        `);
+        assignDone += batchIds.length;
+        logProgress(`Admin boundaries: ${assignDone} / ${changedRowIds.length}`);
+      }
+      log(`Admin boundary assignment complete.`);
+    } catch (err) {
+      console.error("Failed to assign admin boundaries (non-fatal):", err);
+    }
   }
 
   // Prune stale projects that were not updated during this sync.
@@ -773,6 +826,9 @@ async function main() {
 
   log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
   await pgClient.end();
+  // Importing boundaryAssignment transitively constructs the app's main + tile pools (database.ts),
+  // which this script never queries. Exit explicitly so an idle pool can't keep the process alive.
+  process.exit(0);
 }
 
 main().catch((err) => {

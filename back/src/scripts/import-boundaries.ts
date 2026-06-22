@@ -37,15 +37,19 @@ import { config } from "../config";
 import * as fs from "node:fs";
 import * as readline from "node:readline";
 import * as path from "node:path";
+import * as os from "node:os";
 
 // The per-row geometry pipeline (GeoJSON parse + simplify + MakeValid) is CPU-bound in Postgres,
-// so throughput scales with how many backends run it at once. Run batches concurrently over a pool
-// of this many connections.
-const IMPORT_CONCURRENCY = 8;
+// so throughput scales with how many backends run it at once. Use half the host's cores so a
+// neighbouring container (separate Postgres, shared host CPU/disk) keeps enough headroom to stay
+// responsive. Paired with max_parallel_workers_per_gather=0 below: that keeps each backend
+// single-threaded so this count is the real ceiling on cores consumed, rather than a floor each
+// backend can exceed by fanning out into parallel workers.
+const IMPORT_CONCURRENCY = Math.max(1, Math.floor(os.availableParallelism() / 2));
 
 const pgClient = postgresJs(config.DATABASE_URL, {
   max: IMPORT_CONCURRENCY,
-  connection: { synchronous_commit: "off" },
+  connection: { synchronous_commit: "off", max_parallel_workers_per_gather: "0" },
   onnotice: () => {},
 });
 const db = drizzle({ client: pgClient });
@@ -107,31 +111,56 @@ async function runBatched(
   }
   const startedAt = Date.now();
   let completed = 0;
+  const failedRanges: Array<{ start: number; end: number }> = [];
   const inFlight = new Set<Promise<void>>();
+
+  // A slice resolves even when its statement fails, so one error (a backend killed on a shared
+  // host, a deadlock, or a row PostGIS chokes on) cannot reject Promise.race and abandon every
+  // remaining slice. Retry once for the transient case, then record the range and let the run
+  // surface it at the end rather than reporting a clean finish over silently unprocessed rows.
+  async function runSlice(start: number, end: number): Promise<void> {
+    try {
+      await db.execute(makeStatement(start, end));
+    } catch (error) {
+      console.error(`  ${label}: batch rows (${start}, ${end}] failed, retrying once:`, error);
+      try {
+        await db.execute(makeStatement(start, end));
+      } catch (retryError) {
+        console.error(`  ${label}: batch rows (${start}, ${end}] failed again:`, retryError);
+        failedRanges.push({ start, end });
+        return;
+      }
+    }
+    completed += 1;
+    // Batches return out of order, so estimate progress from the count that have finished
+    // rather than this slice's own end.
+    const processed = Math.min(completed * batchSize, total);
+    const elapsedSec = (Date.now() - startedAt) / 1000;
+    const rate = elapsedSec > 0 ? processed / elapsedSec : 0;
+    const etaSec = rate > 0 ? (total - processed) / rate : 0;
+    const pct = Math.floor((processed / total) * 100);
+    log(
+      `  ${label}: ${processed}/${total} (${pct}%, ${Math.round(rate)}/s, ETA ${formatDuration(etaSec)})`,
+    );
+  }
+
   for (let start = 0; start < total; start += batchSize) {
     const end = start + batchSize;
-    const promise = db
-      .execute(makeStatement(start, end))
-      .then(() => {
-        completed += 1;
-        // Batches return out of order, so estimate progress from the count that have finished
-        // rather than this slice's own end.
-        const processed = Math.min(completed * batchSize, total);
-        const elapsedSec = (Date.now() - startedAt) / 1000;
-        const rate = elapsedSec > 0 ? processed / elapsedSec : 0;
-        const etaSec = rate > 0 ? (total - processed) / rate : 0;
-        const pct = Math.floor((processed / total) * 100);
-        log(
-          `  ${label}: ${processed}/${total} (${pct}%, ${Math.round(rate)}/s, ETA ${formatDuration(etaSec)})`,
-        );
-      })
-      .finally(() => {
-        inFlight.delete(promise);
-      });
+    const promise = runSlice(start, end).finally(() => {
+      inFlight.delete(promise);
+    });
     inFlight.add(promise);
     if (inFlight.size >= IMPORT_CONCURRENCY) await Promise.race(inFlight);
   }
   await Promise.all(inFlight);
+
+  if (failedRanges.length > 0) {
+    const ranges = failedRanges.map((r) => `(${r.start}, ${r.end}]`).join(", ");
+    throw new Error(
+      `${label}: ${failedRanges.length} batch(es) failed after retry, leaving rows unprocessed: ` +
+        `${ranges}. Re-run this step to fill them.`,
+    );
+  }
 }
 
 // Terminate any backend still running this import's statements. A hard-killed run leaves its
@@ -439,6 +468,7 @@ async function resolveHierarchy(): Promise<void> {
     );
   } catch (error) {
     console.error("Failed to resolve boundary hierarchy:", error);
+    throw error;
   }
 }
 
@@ -489,6 +519,7 @@ async function assignProjects(): Promise<void> {
     await db.execute(sql`DROP TABLE IF EXISTS project_assign_queue`);
   } catch (error) {
     console.error("Failed to assign projects to boundaries:", error);
+    throw error;
   }
 }
 
@@ -667,6 +698,7 @@ async function main(): Promise<void> {
   }
 
   log(`Steps: ${steps.join(", ")}`);
+  log(`Concurrency: ${IMPORT_CONCURRENCY} (half of ${os.availableParallelism()} cores)`);
 
   const orphans = await terminateOrphanImportBackends();
   if (orphans > 0) {

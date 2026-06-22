@@ -120,14 +120,20 @@ export function projectEffectiveGeometrySql(alias: string): string {
 // rare project straddling a border. Most projects are tiny shapes fully inside their boundaries,
 // so this skips the overlay for the overwhelming majority. Result is identical: a contained shape's
 // fraction is exactly 1.0.
+// The ST_Intersection calls pass a gridSize (precision reduction) and ST_MakeValid the project geom:
+// a project whose polygon overlaps its own overlay corners collects into an invalid MultiPolygon, and
+// GEOS raises "TopologyException: side location conflict" mid-overlay. MakeValid alone does not cure
+// it (the failure is overlay precision robustness, not OGC validity); the gridSize snapping does.
+// Both run only inside this rare branch (straddling projects), so the fast path stays untouched. The
+// grid (~1mm at the equator) is far finer than the assignment's tolerance, so coverage is unchanged.
 export function coverageFractionSql(geom: string): string {
   return `CASE
     WHEN ${geom} IS NULL THEN 1.0
     WHEN ST_Covers(b.geom, ${geom}) THEN 1.0
     WHEN ST_Dimension(${geom}) = 2
-      THEN ST_Area(ST_Intersection(b.geom, ${geom})) / NULLIF(ST_Area(${geom}), 0)
+      THEN ST_Area(ST_Intersection(b.geom, ST_MakeValid(${geom}), 0.00000001)) / NULLIF(ST_Area(${geom}), 0)
     WHEN ST_Dimension(${geom}) = 1
-      THEN ST_Length(ST_Intersection(b.geom, ${geom})) / NULLIF(ST_Length(${geom}), 0)
+      THEN ST_Length(ST_Intersection(b.geom, ST_MakeValid(${geom}), 0.00000001)) / NULLIF(ST_Length(${geom}), 0)
     ELSE 1.0
   END`;
 }
