@@ -84,11 +84,9 @@ export const projectRouter = router({
         sourceUrl: input.sourceUrl,
         // Set center coordinate for all projects using PostGIS
         centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,
-        // ST_MakeValid cleans the client-drawn shape on the way in: a self-intersecting polygon
-        // (bowtie) or a malformed ring ("nested shell") is otherwise stored invalid and makes every
-        // downstream overlay op (boundary assignment's ST_Intersection, tile generation) throw a
-        // GEOS TopologyException. Validating here keeps the table free of invalid geometry at the
-        // source. No-op for lines/points, which are always valid.
+        // ST_MakeValid normalizes the client-drawn shape on the way in so a self-intersecting
+        // polygon (bowtie) or malformed ring ("nested shell") is stored valid rather than as-drawn.
+        // No-op for lines/points, which are always valid.
         geometry: input.geometry
           ? sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326))`
           : null,

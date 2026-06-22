@@ -16,8 +16,10 @@
  *
  * Runs three steps in order: load (parse + upsert + prune), hierarchy (parent_id + country_code),
  * assign (projects -> boundary). Re-run a subset with --steps; the geojsonl is only required when
- * `load` is selected. Examples:
- *   bun run ...import-boundaries.ts --steps=assign                 # reassign projects only
+ * `load` is selected. --only-unassigned scopes the assign step to projects that still have no
+ * boundary (an incremental fill, skipping the already-assigned). Examples:
+ *   bun run ...import-boundaries.ts --steps=assign                 # reassign all projects
+ *   bun run ...import-boundaries.ts --steps=assign --only-unassigned  # fill only the missing ones
  *   bun run ...import-boundaries.ts --steps=hierarchy,assign       # rebuild hierarchy + reassign
  *   bun run ...import-boundaries.ts <path.geojsonl> --steps=load   # reload boundaries only
  */
@@ -31,6 +33,7 @@ import {
   BOUNDARY_DOMINANCE_THRESHOLD,
   coverageFractionSql,
   projectEffectiveGeometrySql,
+  SAFE_OVERLAY_FRACTION_DDL,
 } from "../db/boundaryAssignment";
 import { sql, eq, lt, type SQL } from "drizzle-orm";
 import { config } from "../config";
@@ -114,10 +117,10 @@ async function runBatched(
   const failedRanges: Array<{ start: number; end: number }> = [];
   const inFlight = new Set<Promise<void>>();
 
-  // A slice resolves even when its statement fails, so one error (a backend killed on a shared
-  // host, a deadlock, or a row PostGIS chokes on) cannot reject Promise.race and abandon every
-  // remaining slice. Retry once for the transient case, then record the range and let the run
-  // surface it at the end rather than reporting a clean finish over silently unprocessed rows.
+  // A slice resolves even when its statement fails, so one error (a backend killed on a shared host,
+  // a deadlock, or a row PostGIS chokes on) cannot reject Promise.race and abandon every remaining
+  // slice. Retry once for the transient case, then record the range and let the run surface it at the
+  // end rather than reporting a clean finish over silently unprocessed rows.
   async function runSlice(start: number, end: number): Promise<void> {
     try {
       await db.execute(makeStatement(start, end));
@@ -478,13 +481,23 @@ const ASSIGN_BATCH_SIZE = 10000;
 // in boundaryAssignment.ts). The spatial intersection over all projects is the heaviest pass, so
 // it runs in row-number batches against a queue table (projects.id is a uuid, not range-friendly)
 // that each report throughput and ETA.
-async function assignProjects(): Promise<void> {
+async function assignProjects(onlyUnassigned: boolean): Promise<void> {
   try {
-    log("Building project assignment queue...");
+    await ensureCoverageFunction();
+
+    // Scope the queue to projects still missing a boundary (--only-unassigned): an incremental fill
+    // that skips the projects already assigned, instead of recomputing every located project.
+    const scopeFilter = onlyUnassigned ? sql` AND admin_boundary_id IS NULL` : sql``;
+    log(
+      onlyUnassigned
+        ? "Building project assignment queue (only projects without a boundary)..."
+        : "Building project assignment queue...",
+    );
     await db.execute(sql`DROP TABLE IF EXISTS project_assign_queue`);
     await db.execute(sql`
       CREATE TABLE project_assign_queue AS
-      SELECT id, row_number() OVER () AS rn FROM projects WHERE center_coordinate IS NOT NULL
+      SELECT id, row_number() OVER () AS rn FROM projects
+      WHERE center_coordinate IS NOT NULL${scopeFilter}
     `);
     await db.execute(sql`CREATE INDEX ON project_assign_queue (rn)`);
     const total = await countRows(sql`SELECT count(*)::int AS n FROM project_assign_queue`);
@@ -637,14 +650,33 @@ async function ensureSpatialIndex(): Promise<void> {
   }
 }
 
+// coverageFractionSql calls safe_overlay_fraction(), a PL/pgSQL function the assign step depends on.
+// CREATE OR REPLACE is idempotent and near-instant, so the assign step ensures it itself (like the
+// GIST index) and can run standalone. The live app path (assignProjectBoundary) reuses the same
+// function; it exists in the DB once any import has run, which is also when boundaries first appear.
+async function ensureCoverageFunction(): Promise<void> {
+  try {
+    log("Ensuring safe_overlay_fraction() function...");
+    await db.execute(sql.raw(SAFE_OVERLAY_FRACTION_DDL));
+  } catch (error) {
+    console.error("Failed to ensure safe_overlay_fraction function:", error);
+    throw error;
+  }
+}
+
 type ImportStep = "load" | "hierarchy" | "assign";
 // Canonical order; selected steps always run in this order so dependencies hold regardless of how
 // they were listed on the command line.
 const ALL_STEPS: readonly ImportStep[] = ["load", "hierarchy", "assign"];
 
-function parseArgs(argv: string[]): { inputPath: string | undefined; steps: ImportStep[] } {
+function parseArgs(argv: string[]): {
+  inputPath: string | undefined;
+  steps: ImportStep[];
+  onlyUnassigned: boolean;
+} {
   let inputPath: string | undefined;
   let steps: ImportStep[] = [...ALL_STEPS];
+  let onlyUnassigned = false;
   const valid = new Set<string>(ALL_STEPS);
   for (const arg of argv) {
     if (arg.startsWith("--steps=")) {
@@ -659,15 +691,17 @@ function parseArgs(argv: string[]): { inputPath: string | undefined; steps: Impo
         process.exit(1);
       }
       steps = ALL_STEPS.filter((s) => requested.includes(s));
+    } else if (arg === "--only-unassigned") {
+      onlyUnassigned = true;
     } else if (!arg.startsWith("--") && inputPath === undefined) {
       inputPath = arg;
     }
   }
-  return { inputPath, steps };
+  return { inputPath, steps, onlyUnassigned };
 }
 
 async function main(): Promise<void> {
-  const { inputPath, steps } = parseArgs(process.argv.slice(2));
+  const { inputPath, steps, onlyUnassigned } = parseArgs(process.argv.slice(2));
   const runLoad = steps.includes("load");
   const runHierarchy = steps.includes("hierarchy");
   const runAssign = steps.includes("assign");
@@ -711,7 +745,7 @@ async function main(): Promise<void> {
   if (runHierarchy || runAssign) await ensureSpatialIndex();
 
   if (runHierarchy) await resolveHierarchy();
-  if (runAssign) await assignProjects();
+  if (runAssign) await assignProjects(onlyUnassigned);
 
   log("Done.");
   await pgClient.end();
