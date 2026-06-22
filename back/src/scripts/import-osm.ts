@@ -12,7 +12,7 @@
 // (https://github.com/oven-sh/bun/issues/28819), which corrupts externalProperties on insert.
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgresJs from "postgres";
-import { projects, importSources, countries, type TimelineStatus } from "../db/schema";
+import { projects, importSources, adminBoundaries, type TimelineStatus } from "../db/schema";
 import { sql, eq, isNull } from "drizzle-orm";
 import { config } from "../config";
 
@@ -194,8 +194,9 @@ async function resolveCountryCodes(
       FROM (VALUES ${pointsSql}) AS input(lat, lng)
       JOIN LATERAL (
         SELECT country_code
-        FROM cities
-        ORDER BY coordinates <-> ST_SetSRID(ST_MakePoint(input.lng::float8, input.lat::float8), 4326)
+        FROM admin_boundaries
+        WHERE country_code IS NOT NULL
+        ORDER BY geom <-> ST_SetSRID(ST_MakePoint(input.lng::float8, input.lat::float8), 4326)
         LIMIT 1
       ) c ON true
     `,
@@ -254,7 +255,6 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
   const conflictSet = {
     name: sql`EXCLUDED.name`,
     description: sql`EXCLUDED.description`,
-    cityId: sql`EXCLUDED.city_id`,
     countryCode: sql`EXCLUDED.country_code`,
     timelineStatus: sql`EXCLUDED.timeline_status`,
     externalProperties: sql`EXCLUDED.external_properties`,
@@ -376,17 +376,24 @@ async function main() {
 
   log(`Using import source: ${importSource.name} (id=${importSource.id})`);
 
-  // Load valid country codes once to guard against KNN returning codes not in our countries table
-  // (e.g. XKX for Kosovo, which uses a user-assigned code not in ISO 3166-1)
+  // Load valid country codes once to guard against KNN returning codes absent from our boundaries.
+  // Sourced from the distinct country_code values carried by the admin boundaries.
   const validCountryCodes = new Set(
-    (await db.select({ code: countries.code }).from(countries)).map((r) => r.code),
+    (
+      await db
+        .selectDistinct({ code: adminBoundaries.countryCode })
+        .from(adminBoundaries)
+        .where(sql`${adminBoundaries.countryCode} IS NOT NULL`)
+    )
+      .map((r) => r.code)
+      .filter((code): code is string => code !== null),
   );
   log(`Loaded ${validCountryCodes.size} valid country codes`);
 
-  // Preload externalId -> countryCode for rows already resolved in a prior run. A nearest-city KNN
-  // is the dominant per-run cost, so we only resolve new features below and reuse this for the rest.
-  // Tradeoff: a feature whose geometry drifts across a border keeps its old country until something
-  // forces re-resolution; acceptable since the country is already an approximation (nearest city).
+  // Preload externalId -> countryCode for rows already resolved in a prior run. A nearest-boundary
+  // KNN is the dominant per-run cost, so we only resolve new features below and reuse this for the
+  // rest. Tradeoff: a feature whose geometry drifts across a border keeps its old country until
+  // something forces re-resolution; acceptable since the country is already an approximation.
   const existingCountryByExternalId = new Map<string, string>();
   try {
     const existing = await db
@@ -559,7 +566,6 @@ async function main() {
         pendingRows.push({
           name,
           description,
-          cityId: null,
           countryCode,
           status: "approved" as const,
           timelineStatus,

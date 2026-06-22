@@ -48,12 +48,12 @@ const overlayStore = useOverlayStore();
 // Tab is read straight from the store (single source of truth, see mapStore.mode).
 const activeTab = computed(() => uiStore.activeTab);
 
-// Switching to the latest tab clears any open detail so it does not linger when switching back.
-watch(activeTab, (tab) => {
-  if (tab === "latest") {
-    overlayStore.closeOverlayDetail();
-    uiStore.closeProjectDetail();
-  }
+// The open detail belongs to the tab/mode it was selected in (slide-over in view/moderation, the
+// pinned card in edit). Switching tabs drops it so a stale selection can't surface in another mode
+// (e.g. an edit-mode selection reappearing as a slide-over in moderation).
+watch(activeTab, () => {
+  overlayStore.closeOverlayDetail();
+  uiStore.closeProjectDetail();
 });
 
 defineProps<{

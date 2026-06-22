@@ -4,9 +4,7 @@ import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { db } from "../database";
 import {
   projects,
-  cities,
   overlays,
-  countries,
   changeRequests,
   users,
   userReports,
@@ -16,8 +14,43 @@ import {
 import type * as schema from "./schema";
 import type { AppMode } from "@shared/types";
 
+// Country display name resolved from the level-2 (country) admin boundary matching a project's
+// country_code. Replaces the former join to the dropped `countries` table.
+const countryNameSql = sql<
+  string | null
+>`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = ${projects.countryCode} LIMIT 1)`;
+
+// Full administrative breadcrumb (deepest boundary up to the country), deepest-first, mirroring
+// project.getById's resolveBoundaryPath so list views render the same location as the detail panel.
+// Walks the parent chain from the project's assigned boundary; each entry ships every name variant
+// so the client picks by locale. NULL boundary or no chain yields []. The depth guard stops a
+// malformed parent cycle from looping forever.
+const boundaryPathSql = sql<
+  {
+    name: string;
+    nameEn: string | null;
+    names: Record<string, string> | null;
+    adminLevel: number;
+  }[]
+>`COALESCE((
+  WITH RECURSIVE chain AS (
+    SELECT osm_id, parent_id, name, name_en, names, admin_level, 1 AS depth
+    FROM admin_boundaries
+    WHERE osm_id = ${projects.adminBoundaryId}
+    UNION ALL
+    SELECT ab.osm_id, ab.parent_id, ab.name, ab.name_en, ab.names, ab.admin_level, c.depth + 1
+    FROM admin_boundaries ab
+    JOIN chain c ON ab.osm_id = c.parent_id
+    WHERE c.depth < 12
+  )
+  SELECT json_agg(
+    json_build_object('name', name, 'nameEn', name_en, 'names', names, 'adminLevel', admin_level)
+    ORDER BY admin_level DESC
+  )
+  FROM chain
+), '[]'::json)`;
+
 interface PaginationFilters {
-  cityId?: number;
   countryCode?: string;
   cursor?: string;
 }
@@ -27,10 +60,6 @@ export async function buildPaginationConditions(
   sortColumn: PgColumn,
 ): Promise<SQL[]> {
   const conditions: SQL[] = [];
-
-  if (filters.cityId) {
-    conditions.push(eq(projects.cityId, filters.cityId));
-  }
 
   if (filters.countryCode) {
     conditions.push(eq(projects.countryCode, filters.countryCode));
@@ -105,19 +134,15 @@ const overlaySelectFields = {
   createdAt: overlays.createdAt,
   updatedAt: overlays.updatedAt,
   projectName: projects.name,
-  cityName: cities.name,
-  cityId: cities.id,
   countryCode: projects.countryCode,
-  countryName: countries.name,
+  countryName: countryNameSql,
 };
 
 export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
   return database
     .select(overlaySelectFields)
     .from(overlays)
-    .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code));
+    .leftJoin(projects, eq(overlays.projectId, projects.id));
 }
 
 // Shared project column selection, add new project fields here only
@@ -128,7 +153,6 @@ export const PROJECT_COLUMNS = {
   status: projects.status,
   version: projects.version,
   ownerId: projects.ownerId,
-  cityId: projects.cityId,
   timelineStatus: projects.timelineStatus,
   importSourceId: projects.importSourceId,
   externalId: projects.externalId,
@@ -152,6 +176,7 @@ export const PROJECT_COLUMNS = {
   rejectionReason: projects.rejectionReason,
   centerCoordinate: projects.centerCoordinate,
   countryCode: projects.countryCode,
+  adminBoundaryId: projects.adminBoundaryId,
   detachedAt: projects.detachedAt,
   importLockedAt: projects.importLockedAt,
 } as const;
@@ -160,14 +185,11 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
   return database
     .select({
       ...PROJECT_COLUMNS,
-      cityName: cities.name,
-      countryName: countries.name,
-      city: cities,
+      countryName: countryNameSql,
+      boundaryPath: boundaryPathSql,
       importSource: importSources,
     })
     .from(projects)
-    .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code))
     .leftJoin(importSources, eq(importSources.id, projects.importSourceId));
 }
 
@@ -192,15 +214,11 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
       replacesOverlayId: overlays.replacesOverlayId,
       replacedByOverlayId: overlays.replacedByOverlayId,
       updatedAt: overlays.updatedAt,
-      cityId: cities.id,
-      cityName: cities.name,
       countryCode: projects.countryCode,
-      countryName: countries.name,
+      countryName: countryNameSql,
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code))
     .leftJoin(users, eq(overlays.authorId, users.id));
 }
 
@@ -212,12 +230,9 @@ export function buildProjectModerationQuery(database: BunSQLDatabase<typeof sche
       ownerUsername: users.username,
       ownerApprovedCount: users.approvedCount,
       ownerRejectedCount: users.rejectedCount,
-      cityName: cities.name,
-      countryName: countries.name,
+      countryName: countryNameSql,
     })
     .from(projects)
-    .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code))
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
 
@@ -241,122 +256,6 @@ export function addConflictFlags<T extends ConflictableChange>(
   return changes.map((change) => {
     const key = `${change.entityType}:${change.entityId}:${change.fieldName}`;
     return { ...change, hasConflict: (conflictMap.get(key) ?? 0) > 1 };
-  });
-}
-
-interface BaseChangeRequest {
-  fieldName: string;
-  oldValue: unknown;
-  newValue: unknown;
-}
-
-const EMPTY_CITY_ENRICHMENT = {
-  oldCityName: null,
-  newCityName: null,
-  oldCountryCode: null,
-  newCountryCode: null,
-  oldCountryName: null,
-  newCountryName: null,
-} as const;
-
-type EnrichedChangeRequest<T extends BaseChangeRequest> = T & {
-  oldCityName: string | null;
-  newCityName: string | null;
-  oldCountryCode: string | null;
-  newCountryCode: string | null;
-  oldCountryName: string | null;
-  newCountryName: string | null;
-};
-
-/**
- * Convert JSONB value to string and validate it's a valid city ID
- * Returns null for invalid values (null, undefined, or their string representations)
- */
-function toValidCityId(value: unknown): number | null {
-  if (!value) return null;
-
-  if (typeof value === "number") return value;
-
-  if (typeof value === "string") {
-    if (value === "null" || value === "undefined") return null;
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? null : parsed;
-  }
-
-  return null;
-}
-
-function extractCityIds(changes: BaseChangeRequest[]): Set<number> {
-  const cityIds = new Set<number>();
-
-  for (const change of changes) {
-    if (change.fieldName === "cityId") {
-      const oldCityId = toValidCityId(change.oldValue);
-      const newCityId = toValidCityId(change.newValue);
-
-      if (oldCityId) cityIds.add(oldCityId);
-      if (newCityId) cityIds.add(newCityId);
-    }
-  }
-
-  return cityIds;
-}
-
-// Queries DB to resolve cityId changes into city/country names. Used by changes and moderation routers.
-export async function enrichChangeRequestsWithNames<T extends BaseChangeRequest>(
-  changes: T[],
-): Promise<EnrichedChangeRequest<T>[]> {
-  // Extract all unique cityIds from change requests where fieldName is 'cityId'
-  const cityIds = extractCityIds(changes);
-
-  // If no city changes, return with empty enrichment
-  if (cityIds.size === 0) {
-    return changes.map((change) => ({
-      ...change,
-      ...EMPTY_CITY_ENRICHMENT,
-    }));
-  }
-
-  // Fetch all cities with their country names in one query using a join
-  const cityData = await db
-    .select({
-      id: cities.id,
-      name: cities.name,
-      nameLocal: cities.nameLocal,
-      countryCode: cities.countryCode,
-      countryName: countries.name,
-    })
-    .from(cities)
-    .leftJoin(countries, eq(cities.countryCode, countries.code))
-    .where(inArray(cities.id, [...cityIds]));
-
-  // Create a map for quick lookup
-  const cityMap = new Map(cityData.map((c) => [c.id, c]));
-
-  // Enrich change requests with city and country names
-  return changes.map((change) => {
-    if (change.fieldName !== "cityId") {
-      return {
-        ...change,
-        ...EMPTY_CITY_ENRICHMENT,
-      };
-    }
-
-    const oldCityId = toValidCityId(change.oldValue);
-    const newCityId = toValidCityId(change.newValue);
-
-    const oldCity = oldCityId ? cityMap.get(oldCityId) : null;
-    const newCity = newCityId ? cityMap.get(newCityId) : null;
-
-    return {
-      ...change,
-      oldCityName: oldCity?.name ?? null,
-      newCityName: newCity?.name ?? null,
-      oldCountryCode: oldCity?.countryCode ?? null,
-      newCountryCode: newCity?.countryCode ?? null,
-      oldCountryName: oldCity?.countryName ?? null,
-      newCountryName: newCity?.countryName ?? null,
-    };
   });
 }
 
@@ -586,7 +485,6 @@ function transformOverlayDataWithChangeRequests(
       distance: 0,
       project: {
         ...row.project,
-        city: row.city,
         importSource: row.importSource,
       },
       hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
@@ -621,12 +519,10 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
         ...projects,
         geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
       },
-      city: cities,
       importSource: importSources,
     })
     .from(overlays)
     .innerJoin(projects, eq(projects.id, overlays.projectId))
-    .leftJoin(cities, eq(cities.id, projects.cityId))
     .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
     // Renders are not georeferenced (null corners), so they never appear on the map.
     .where(and(eq(overlays.kind, "map"), ...whereConditions))

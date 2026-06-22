@@ -37,15 +37,6 @@ async function resolveProjectForTileClick(projectId: string): Promise<Project | 
       ...pendingProject,
       tags: pendingProject.tags ?? [],
       overlayIds: [],
-      city: pendingProject.city
-        ? {
-            ...pendingProject.city,
-            createdAt: new Date(0),
-            updatedAt: new Date(0),
-            coordinates: { x: 0, y: 0 },
-            approvedProjectCount: 0,
-          }
-        : null,
     });
   }
 

@@ -1,17 +1,21 @@
 import { adminProcedure, router } from "../trpc";
-import { projects, overlays, cities, users } from "../db/schema";
+import { projects, overlays, users } from "../db/schema";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { db } from "../database";
 import { deleteImages, executePendingDeletions } from "../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
-import { decrementCityProjectCount } from "../db/updateCityCounts";
 import * as z from "zod";
 
 // Admin-only router for managing users and their content
 // All endpoints require admin role
 
-async function loadCityDetails(userId: string, cityId: number) {
-  const cityProjects = await db
+// Country display name resolved from the level-2 (country) admin boundary matching a country_code.
+const countryNameSql = sql<
+  string | null
+>`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = ${projects.countryCode} LIMIT 1)`;
+
+async function loadCountryDetails(userId: string, countryCode: string) {
+  const countryProjects = await db
     .select({
       id: projects.id,
       name: projects.name,
@@ -19,14 +23,14 @@ async function loadCityDetails(userId: string, cityId: number) {
       createdAt: projects.createdAt,
     })
     .from(projects)
-    .where(and(eq(projects.cityId, cityId), eq(projects.ownerId, userId)));
+    .where(and(eq(projects.countryCode, countryCode), eq(projects.ownerId, userId)));
 
-  const projectIds = cityProjects.map((p) => p.id);
+  const projectIds = countryProjects.map((p) => p.id);
   if (projectIds.length === 0) {
-    return { projects: cityProjects, overlays: [] };
+    return { projects: countryProjects, overlays: [] };
   }
 
-  const cityOverlays = await db
+  const countryOverlays = await db
     .select({
       id: overlays.id,
       filename: overlays.filename,
@@ -40,17 +44,17 @@ async function loadCityDetails(userId: string, cityId: number) {
     .innerJoin(projects, eq(overlays.projectId, projects.id))
     .where(inArray(overlays.projectId, projectIds));
 
-  return { projects: cityProjects, overlays: cityOverlays };
+  return { projects: countryProjects, overlays: countryOverlays };
 }
 
 export const adminRouter = router({
-  // Get user info and their contributions grouped by city
-  // Returns list of cities with project/overlay counts for lazy loading
+  // Get user info and their contributions grouped by country
+  // Returns list of countries with project/overlay counts for lazy loading
   adminGetUserContributions: adminProcedure
     .input(
       z.object({
         userId: z.string().uuid(),
-        cityId: z.number().int().optional(), // If provided, load projects/overlays for this city
+        countryCode: z.string().length(3).optional(), // If provided, load projects/overlays for this country
       }),
     )
     .query(async ({ input }) => {
@@ -75,30 +79,28 @@ export const adminRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
         }
 
-        // Get cities with project/overlay counts for this user
-        const citySummary = await db
+        // Get countries with project/overlay counts for this user
+        const countrySummary = await db
           .select({
-            cityId: cities.id,
-            cityName: cities.name,
-            countryCode: cities.countryCode,
+            countryCode: projects.countryCode,
+            countryName: countryNameSql,
             projectCount: sql<number>`count(distinct ${projects.id})::int`,
             overlayCount: sql<number>`count(distinct ${overlays.id})::int`,
           })
-          .from(cities)
-          .leftJoin(
-            projects,
-            and(eq(projects.cityId, cities.id), eq(projects.ownerId, input.userId)),
-          )
+          .from(projects)
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
-          .groupBy(cities.id, cities.name, cities.countryCode)
+          .where(eq(projects.ownerId, input.userId))
+          .groupBy(projects.countryCode)
           .having(sql`count(distinct ${projects.id}) > 0 OR count(distinct ${overlays.id}) > 0`);
 
-        const cityDetails = input.cityId ? await loadCityDetails(input.userId, input.cityId) : null;
+        const countryDetails = input.countryCode
+          ? await loadCountryDetails(input.userId, input.countryCode)
+          : null;
 
         return {
           user,
-          cities: citySummary,
-          cityDetails,
+          countries: countrySummary,
+          countryDetails,
         };
       } catch (error) {
         console.error("Error fetching user contributions:", error);
@@ -128,7 +130,6 @@ export const adminRouter = router({
             name: projects.name,
             status: projects.status,
             ownerId: projects.ownerId,
-            cityId: projects.cityId,
           })
           .from(projects)
           .where(eq(projects.id, input.projectId))
@@ -157,18 +158,6 @@ export const adminRouter = router({
           }
           await tx.delete(projects).where(eq(projects.id, input.projectId));
         });
-
-        // City counter is a denormalized cache (eventually consistent), kept outside the transaction.
-        if (project.status === "approved" && project.cityId) {
-          try {
-            await decrementCityProjectCount(project.cityId);
-          } catch (error) {
-            console.error(
-              `Failed to decrement city project count for city ${project.cityId}:`,
-              error,
-            );
-          }
-        }
 
         // Log deletion for audit trail
         console.log(

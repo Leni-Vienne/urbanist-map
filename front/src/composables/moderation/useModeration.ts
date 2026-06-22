@@ -43,11 +43,10 @@ export function useModeration() {
         countryCode: mapStore.selectedCountryCode ?? undefined,
       });
 
-      // The moderation backend query omits the joined city object, the derived overlayIds array,
-      // and the parsed geometry. Coerce here so the stored projects satisfy ProjectForModeration.
+      // The moderation backend query omits the derived overlayIds array and the parsed geometry.
+      // Coerce here so the stored projects satisfy ProjectForModeration.
       const moderationProjects: ProjectForModeration[] = response.projects.map((project) => ({
         ...project,
-        city: null,
         overlayIds: project.overlays.map((overlay) => overlay.id),
         geometry: null,
         tags: project.tags ?? [],

@@ -477,7 +477,7 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
   }
 }
 
-export function isTileLayerType(value: string): value is TileLayerType {
+function isTileLayerType(value: string): value is TileLayerType {
   return value === "plan" || Object.hasOwn(satelliteLayerConfigs, value);
 }
 

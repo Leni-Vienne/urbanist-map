@@ -46,35 +46,42 @@
         </Badge>
       </div>
 
-      <!-- Cities accordion -->
-      <div v-if="data.cities.length === 0" class="flex justify-center items-center min-h-75">
+      <!-- Countries accordion -->
+      <div v-if="data.countries.length === 0" class="flex justify-center items-center min-h-75">
         <Message severity="info" :closable="false">
           {{ t("admin.userContributions.messages.noContributions") }}
         </Message>
       </div>
 
       <Accordion v-else class="mt-4">
-        <AccordionPanel v-for="city in data.cities" :key="city.cityId" :value="String(city.cityId)">
-          <AccordionHeader @click="loadCityDetails(city.cityId)">
+        <AccordionPanel
+          v-for="country in data.countries"
+          :key="country.countryCode"
+          :value="country.countryCode ?? ''"
+        >
+          <AccordionHeader @click="loadCountryDetails(country.countryCode)">
             <div class="flex items-center gap-4 w-full">
-              <span class="font-semibold">{{ city.cityName }}</span>
-              <span class="text-muted-color text-sm">{{ city.countryCode }}</span>
+              <span class="font-semibold">{{ country.countryName ?? country.countryCode }}</span>
+              <span class="text-muted-color text-sm">{{ country.countryCode }}</span>
               <div class="flex items-center gap-2 ml-auto text-sm">
-                <Badge :value="city.projectCount" severity="secondary" />
+                <Badge :value="country.projectCount" severity="secondary" />
                 <span>{{ t("admin.userContributions.projects") }}</span>
-                <Badge :value="city.overlayCount" severity="secondary" />
+                <Badge :value="country.overlayCount" severity="secondary" />
                 <span>{{ t("admin.userContributions.overlays") }}</span>
               </div>
             </div>
           </AccordionHeader>
           <AccordionContent>
-            <div v-if="loadingCity === city.cityId" class="flex justify-center p-8">
+            <div v-if="loadingCountry === country.countryCode" class="flex justify-center p-8">
               <ProgressSpinner style="width: 30px; height: 30px" />
             </div>
-            <div v-else-if="cityDetails[city.cityId]" class="flex flex-col gap-6">
+            <div
+              v-else-if="country.countryCode && countryDetails[country.countryCode]"
+              class="flex flex-col gap-6"
+            >
               <!-- Projects with their overlays grouped together -->
               <div
-                v-for="project in cityDetails[city.cityId]?.projects"
+                v-for="project in countryDetails[country.countryCode]?.projects"
                 :key="project.id"
                 class="bg-content-hover-background rounded-lg p-4"
               >
@@ -95,11 +102,11 @@
 
                 <!-- Overlays for this project -->
                 <div
-                  v-if="getOverlaysForProject(city.cityId, project.id).length > 0"
+                  v-if="getOverlaysForProject(country.countryCode, project.id).length > 0"
                   class="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3"
                 >
                   <div
-                    v-for="overlay in getOverlaysForProject(city.cityId, project.id)"
+                    v-for="overlay in getOverlaysForProject(country.countryCode, project.id)"
                     :key="overlay.id"
                     class="relative bg-content-hover-background rounded-lg overflow-hidden"
                   >
@@ -133,7 +140,7 @@
               </div>
 
               <div
-                v-if="cityDetails[city.cityId]?.projects.length === 0"
+                v-if="countryDetails[country.countryCode]?.projects.length === 0"
                 class="text-muted-color text-center p-8"
               >
                 {{ t("admin.userContributions.messages.noContributions") }}
@@ -196,9 +203,9 @@ import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 
 type UserContributions = RouterOutput["admin"]["adminGetUserContributions"];
-type CityDetails = NonNullable<UserContributions["cityDetails"]>;
-type ProjectType = CityDetails["projects"][number];
-type OverlayType = CityDetails["overlays"][number];
+type CountryDetails = NonNullable<UserContributions["countryDetails"]>;
+type ProjectType = CountryDetails["projects"][number];
+type OverlayType = CountryDetails["overlays"][number];
 
 const route = useRoute();
 const { t } = useI18n();
@@ -209,10 +216,10 @@ const userId = route.params.userId as string;
 const data = ref<UserContributions | null>(null);
 const isLoading = ref(true);
 const errorRef = ref(false);
-const loadingCity = ref<number | null>(null);
-const cityDetails = reactive<Record<number, { projects: ProjectType[]; overlays: OverlayType[] }>>(
-  {},
-);
+const loadingCountry = ref<string | null>(null);
+const countryDetails = reactive<
+  Record<string, { projects: ProjectType[]; overlays: OverlayType[] }>
+>({});
 
 const showDeleteDialog = ref(false);
 const deleteTargetType = ref<"project" | "overlay" | null>(null);
@@ -250,32 +257,33 @@ async function loadUserContributions() {
   }
 }
 
-async function loadCityDetails(cityId: number) {
-  if (cityDetails[cityId]) return;
+async function loadCountryDetails(countryCode: string | null) {
+  if (!countryCode || countryDetails[countryCode]) return;
 
   try {
-    loadingCity.value = cityId;
+    loadingCountry.value = countryCode;
     const result = await trpc.admin.adminGetUserContributions.query({
       userId,
-      cityId,
+      countryCode,
     });
-    if (result.cityDetails) {
-      cityDetails[cityId] = result.cityDetails;
+    if (result.countryDetails) {
+      countryDetails[countryCode] = result.countryDetails;
     }
   } catch (error) {
-    console.error("Error loading city details:", error);
+    console.error("Error loading country details:", error);
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.loadError"),
       life: 5000,
     });
   } finally {
-    loadingCity.value = null;
+    loadingCountry.value = null;
   }
 }
 
-function getOverlaysForProject(cityId: number, projectId: string): OverlayType[] {
-  const details = cityDetails[cityId];
+function getOverlaysForProject(countryCode: string | null, projectId: string): OverlayType[] {
+  if (!countryCode) return [];
+  const details = countryDetails[countryCode];
   if (!details) return [];
   return details.overlays.filter((o) => o.projectId === projectId);
 }
@@ -319,9 +327,9 @@ async function adminDeleteProject() {
       reason: deleteReason.value || undefined,
     });
 
-    // Remove project and its overlays from all city details and update counts
-    for (const cityId of Object.keys(cityDetails)) {
-      const details = cityDetails[Number(cityId)];
+    // Remove project and its overlays from all country details and update counts
+    for (const countryCode of Object.keys(countryDetails)) {
+      const details = countryDetails[countryCode];
       if (details) {
         // Count overlays being deleted for this project
         const overlaysDeleted = details.overlays.filter((o) => o.projectId === projectId).length;
@@ -329,11 +337,11 @@ async function adminDeleteProject() {
         details.projects = details.projects.filter((p) => p.id !== projectId);
         details.overlays = details.overlays.filter((o) => o.projectId !== projectId);
 
-        // Update city summary counts in the accordion header
-        const city = data.value?.cities.find((c) => c.cityId === Number(cityId));
-        if (city) {
-          city.projectCount -= 1;
-          city.overlayCount -= overlaysDeleted;
+        // Update country summary counts in the accordion header
+        const country = data.value?.countries.find((c) => c.countryCode === countryCode);
+        if (country) {
+          country.projectCount -= 1;
+          country.overlayCount -= overlaysDeleted;
         }
       }
     }
@@ -369,18 +377,18 @@ async function adminDeleteOverlay() {
       reason: deleteReason.value || undefined,
     });
 
-    // Remove overlay from all city details and update counts
-    for (const cityId of Object.keys(cityDetails)) {
-      const details = cityDetails[Number(cityId)];
+    // Remove overlay from all country details and update counts
+    for (const countryCode of Object.keys(countryDetails)) {
+      const details = countryDetails[countryCode];
       if (details) {
         const hadOverlay = details.overlays.some((o) => o.id === overlayId);
         details.overlays = details.overlays.filter((o) => o.id !== overlayId);
 
-        // Update city summary count in the accordion header
+        // Update country summary count in the accordion header
         if (hadOverlay) {
-          const city = data.value?.cities.find((c) => c.cityId === Number(cityId));
-          if (city) {
-            city.overlayCount -= 1;
+          const country = data.value?.countries.find((c) => c.countryCode === countryCode);
+          if (country) {
+            country.overlayCount -= 1;
           }
         }
       }

@@ -1,10 +1,5 @@
 import type { RouterOutput } from "@/client";
-import type {
-  DBProject,
-  DBCity,
-  DBImportSource,
-  ApprovalStatus,
-} from "../../../back/src/db/schema";
+import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/src/db/schema";
 
 // Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
@@ -12,15 +7,6 @@ export type RemovableChange = ModifiableField | "new_overlay" | "geometry" | "re
 
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
-
-// Interface for camera bounds used in view mode
-export interface CameraBounds {
-  north: number;
-  south: number;
-  east: number;
-  west: number;
-  zoom?: number;
-}
 
 export type PendingChangeRequest =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
@@ -32,7 +18,6 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   // Override status to allow null for local unsubmitted projects
   status: ApprovalStatus | null;
   // Computed fields for all contexts
-  city: DBCity | null;
   overlayIds: string[];
   // Always an array on the frontend, null coerced to [] at DB boundary
   tags: string[];
@@ -41,9 +26,20 @@ export interface Project extends Omit<DBProject, "status" | "tags"> {
   // UI state for tracking local modifications
   isModified?: boolean;
 
-  // Denormalized location names, populated by location-aware queries (joins).
-  cityName?: string | null;
+  // Denormalized country name, populated by location-aware queries (resolved from admin boundaries).
   countryName?: string | null;
+
+  // Administrative breadcrumb ordered deepest-first (neighborhood, city, state, country), attached by
+  // project.getById from the admin boundary parent chain. undefined = not loaded; [] = no boundary.
+  // Each entry ships all name variants so the client picks by UI locale (names?.[locale] ?? nameEn ?? name).
+  boundaryPath?:
+    | {
+        name: string;
+        nameEn: string | null;
+        names: Record<string, string> | null;
+        adminLevel: number;
+      }[]
+    | null;
 
   // Owner display + spam-detection fields, populated by moderation/contribution endpoints.
   ownerUsername?: string | null;
@@ -75,8 +71,6 @@ export interface ProjectFormData {
   startDatePrecision: "year" | "month" | "day" | null;
   endDate: Date | null;
   endDatePrecision: "year" | "month" | "day" | null;
-  cityId: number | null;
-  countryCode: string | null;
   sourceUrl: string | null;
   tags: string[];
   timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled";
@@ -162,8 +156,6 @@ export type OverlayForModeration = Pick<
   authorApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)
   authorRejectedCount?: number | null;
   authorReportCount?: number; // Number of reports for this user
-  cityId: number | null;
-  cityName: string | null;
   countryCode: string | null;
   countryName: string | null;
   imageUrl?: string; // Optional for local overlays not yet uploaded

@@ -245,12 +245,14 @@ const selectedProjectId = computed(() => lastSelectedProject.value?.id ?? null);
 const pinnedExternalProject = computed<ProjectForModeration | null>(() => {
   const id = selectedProjectId.value;
   if (!id) return null;
-  // If it's already in contributions, it will be pinned via pinnedProjectId instead
-  const isOwnContribution = allContributions.value.some((p) => p.id === id);
-
-  if (isOwnContribution) return null;
   const project = lastSelectedProject.value;
   if (!project) return null;
+  // Own vs external can only be told apart once the user's contributions have loaded: the object
+  // selected from the map carries no ownerId to shortcut the check. Until the list is loaded, render
+  // nothing rather than guessing, otherwise an own project flashes as an external card and then jumps
+  // into the accordion when the list arrives.
+  if (!projectStore.userContributionsLoaded) return null;
+  if (allContributions.value.some((p) => p.id === id)) return null;
   const overlays = Object.values(overlayStore.overlays)
     .filter((o) => o.projectId === project.id)
     .map((o) => createOverlayForModeration(convertOverlayToData(o)));

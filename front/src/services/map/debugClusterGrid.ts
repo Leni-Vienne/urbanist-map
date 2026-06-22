@@ -19,7 +19,7 @@ const LAYER_ID = "debug-cluster-grid-lines";
 function buildGridGeoJSON(mlMap: MaplibreMap): GeoJSON.FeatureCollection {
   // Use the integer tile zoom to match the MVT grid used by the backend.
   const tileZoom = Math.floor(mlMap.getZoom());
-  const cellSize = getGridCellSizeForTileZoom(tileZoom);
+  const cellSize = getGridCellSizeForTileZoom();
   const numCells = Math.ceil(4096 / cellSize); // cells per tile axis
 
   const bounds = mlMap.getBounds();
@@ -112,8 +112,6 @@ export function toggleClusterGrid(mlMap?: MaplibreMap): void {
     debugMlMap.on("moveend", refreshGridCallback);
     debugMlMap.on("zoomend", refreshGridCallback);
     isActive = true;
-    console.log(
-      `Cluster grid shown, cell_size=${getGridCellSizeForTileZoom(Math.floor(debugMlMap.getZoom()))}`,
-    );
+    console.log(`Cluster grid shown, cell_size=${getGridCellSizeForTileZoom()}`);
   }
 }

@@ -1,12 +1,48 @@
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { z } from "zod";
 import { db } from "../database";
-import { overlays, projects, cities, countries } from "../db/schema";
+import { overlays, projects, adminBoundaries } from "../db/schema";
 import { sql, eq, and, desc, type SQL } from "drizzle-orm";
 
 const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(50).optional().default(20),
 });
+
+// Name variants of one boundary. The feed ships all variants so the client can pick by UI locale
+// without the feed taking a locale param, which keeps the server-side cache locale-agnostic.
+type LocalizedBoundaryName = {
+  name: string; // OSM `name` (usually local language)
+  nameEn: string | null; // OSM `name:en`
+  names: Record<string, string> | null; // all `name:*` variants, keyed by language code
+};
+
+// Location source for a project, resolved by walking its assigned admin boundary's parent_id chain
+// (projects.admin_boundary_id -> admin_boundaries). `pick` maps to an OSM admin_level bucket:
+//   city    -> deepest of 6..8 (prefers the municipality at 8, e.g. Montréal/Paris; falls back to a
+//              county at 6 where no level-8 exists).
+//   state   -> level 4 exactly: the canonical province/region (Québec, Ontario, Île-de-France).
+//              Odd levels are informal groupings we must skip (5 = "Golden Horseshoe", 3 = "France
+//              métropolitaine").
+//   country -> level 2.
+// Returns NULL when the project has no assigned boundary or the chain lacks that grade.
+function boundaryName(pick: "city" | "state" | "country"): SQL<LocalizedBoundaryName | null> {
+  const range = {
+    city: sql`admin_level BETWEEN 6 AND 8`,
+    state: sql`admin_level = 4`,
+    country: sql`admin_level = 2`,
+  }[pick];
+  return sql<LocalizedBoundaryName | null>`(
+    WITH RECURSIVE chain AS (
+      SELECT osm_id, parent_id, admin_level, name, name_en, names
+      FROM ${adminBoundaries} WHERE osm_id = ${projects.adminBoundaryId}
+      UNION ALL
+      SELECT b.osm_id, b.parent_id, b.admin_level, b.name, b.name_en, b.names
+      FROM ${adminBoundaries} b JOIN chain c ON b.osm_id = c.parent_id
+    )
+    SELECT json_build_object('name', name, 'nameEn', name_en, 'names', names)
+    FROM chain WHERE ${range} ORDER BY admin_level DESC LIMIT 1
+  )`;
+}
 
 // In-memory cache for latest contributions
 // Cache expires after 2 minutes or when invalidated
@@ -50,9 +86,10 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
         LIMIT 1
       )`,
       updatedAt: contributionDate,
-      cityName: cities.name,
+      city: boundaryName("city"),
+      state: boundaryName("state"),
       countryCode: projects.countryCode,
-      countryName: countries.name,
+      country: boundaryName("country"),
       lat: projects.lat,
       lng: projects.lng,
       // Bounding box of project geometry for flying to the right area when clicked
@@ -77,8 +114,6 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
       >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_X(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
     })
     .from(projects)
-    .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code))
     .where(
       and(
         eq(projects.status, "approved"),
@@ -106,9 +141,10 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
     filename: null as string | null,
     renderFilename: p.renderFilename,
     updatedAt: p.updatedAt,
-    cityName: p.cityName,
+    city: p.city,
+    state: p.state,
     countryCode: p.countryCode,
-    countryName: p.countryName,
+    country: p.country,
     lat: p.lat,
     lng: p.lng,
     isImport,
@@ -146,9 +182,10 @@ function buildLatestOverlaysQuery(limit: number) {
       // Rank by the latest activity on the project: the overlay's date or a later
       // project edit (e.g. an approval that bumped the project), whichever is newer.
       updatedAt: sql<Date>`GREATEST(${overlays.updatedAt}, ${projects.updatedAt})`.as("updatedAt"),
-      cityName: sql<string | null>`${cities.name}`.as("cityName"),
+      city: boundaryName("city").as("city"),
+      state: boundaryName("state").as("state"),
       countryCode: projects.countryCode,
-      countryName: sql<string | null>`${countries.name}`.as("countryName"),
+      country: boundaryName("country").as("country"),
       centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as("centroidLat"),
       centroidLng: sql<number>`ST_X(${overlays.centroid})`.as("centroidLng"),
       corners: sql<{ lat: number; lng: number }[]>`(
@@ -159,8 +196,6 @@ function buildLatestOverlaysQuery(limit: number) {
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .leftJoin(cities, eq(projects.cityId, cities.id))
-    .leftJoin(countries, eq(projects.countryCode, countries.code))
     .where(
       and(
         eq(overlays.status, "approved"),
@@ -187,9 +222,10 @@ function mapOverlayContribution(o: LatestOverlayRow) {
     name: o.name,
     filename: o.filename,
     updatedAt: o.updatedAt,
-    cityName: o.cityName,
+    city: o.city,
+    state: o.state,
     countryCode: o.countryCode,
-    countryName: o.countryName,
+    country: o.country,
     centroid:
       o.centroidLat !== null && o.centroidLng !== null
         ? { lat: o.centroidLat, lng: o.centroidLng }

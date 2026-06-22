@@ -13,7 +13,7 @@ import {
 import { eq, and, inArray, sql, or, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
-import { enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
+import { isUserBlocked } from "../db/helpers";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
@@ -477,10 +477,7 @@ export const changesRouter = router({
         });
       });
 
-      // Enrich with city and country names
-      const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
-
-      return enrichedChanges;
+      return changesWithConflictInfo;
     } catch (error) {
       console.error("Error fetching my change requests:", error);
       throw new TRPCError({

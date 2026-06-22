@@ -21,7 +21,7 @@
       </div>
 
       <div
-        v-if="projects.length > 0 || pinnedExternalProject || keepContentVisible"
+        v-if="projects.length > 0 || pinnedExternalProject || keepContentVisible || isLoading"
         ref="contentRef"
         class="flex flex-col gap-2 pb-2 pr-3"
       >
@@ -110,6 +110,7 @@
             :key="project.id"
             :value="project.id"
             :data-project-id="project.id"
+            :class="{ 'selected-accordion-pulse': pulsingProjectId === project.id }"
           >
             <ProjectHeader
               :name="project.name ?? ''"
@@ -162,9 +163,10 @@
           </AccordionPanel>
         </Accordion>
 
-        <!-- Filter yields no matches, but contributions exist: keep controls above visible -->
+        <!-- Filter yields no matches, but contributions exist: keep controls above visible. While
+             loading, stay quiet: the chrome above is mounted but the list isn't known yet. -->
         <PanelEmptyState
-          v-if="flatOrderedProjects.length === 0 && !pinnedExternalProject"
+          v-if="flatOrderedProjects.length === 0 && !pinnedExternalProject && !isLoading"
           icon="folder"
           :message="emptyMessage"
           :sub-message="emptySubMessage"
@@ -338,6 +340,46 @@ watch(
       await handleScrollRequest();
     }
   },
+);
+
+// One-shot accent pulse on the pinned own-contribution card, mirroring the external selected card's
+// pulse so a project opened in edit mode (e.g. via the detail panel's Edit button) reads as selected
+// here too. Guarded by lastPulsedProjectId so it plays once per selection, not on every list refresh
+// or tab revisit; the guard resets when the selection clears so re-selecting the same project pulses.
+const pulsingProjectId = ref<string | null>(null);
+let lastPulsedProjectId: string | null = null;
+let pulseResetTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function pulsePinnedProject() {
+  const id = props.pinnedProjectId;
+  if (!id || !isPanelActive.value || !pinnedProject.value || lastPulsedProjectId === id) return;
+  lastPulsedProjectId = id;
+  pulsingProjectId.value = null;
+  await nextTick();
+  pulsingProjectId.value = id;
+  if (pulseResetTimer) clearTimeout(pulseResetTimer);
+  pulseResetTimer = setTimeout(() => {
+    pulsingProjectId.value = null;
+  }, 1300);
+}
+
+watch(
+  () => props.pinnedProjectId,
+  (id) => {
+    if (!id) {
+      lastPulsedProjectId = null;
+      return;
+    }
+    void pulsePinnedProject();
+  },
+);
+watch(isPanelActive, (active) => {
+  if (active) void pulsePinnedProject();
+});
+// The pinned project may not be in the contributions list yet on first load; pulse once it arrives.
+watch(
+  () => props.projects,
+  () => void pulsePinnedProject(),
 );
 
 async function handleScrollRequest() {
@@ -738,6 +780,13 @@ function handleStandaloneProjectClick(project: ProjectForModeration) {
   background: var(--accordion-card-bg);
   overflow: hidden;
   animation: selected-project-pulse 1.3s ease-out;
+}
+
+/* Pinned own-contribution accordion card: same accent pulse as the external selected card, toggled
+   imperatively (the keyed list reuses elements on reorder, so a mount-time animation wouldn't replay). */
+.selected-accordion-pulse {
+  animation: selected-project-pulse 1.3s ease-out;
+  border-radius: 12px;
 }
 
 @keyframes selected-project-pulse {

@@ -5,7 +5,7 @@
     </label>
 
     <!-- Compact layout: precision toggle + inputs on same row -->
-    <div class="flex gap-2 items-center flex-wrap">
+    <div class="flex gap-2 items-center flex-nowrap">
       <!-- Precision Selection - compact segmented buttons -->
       <SelectButton
         v-model="internalPrecision"
@@ -38,6 +38,7 @@
           optionLabel="label"
           optionValue="value"
           placeholder="Month"
+          class="min-w-0 flex-1"
           :class="{ 'p-invalid': isTouched && Boolean(error) }"
           @change="handleMonthYearChange"
         />
@@ -47,6 +48,7 @@
           optionLabel="label"
           optionValue="value"
           placeholder="Year"
+          class="min-w-0 flex-1"
           :class="{ 'p-invalid': isTouched && Boolean(error) }"
           @change="handleMonthYearChange"
         />
@@ -76,7 +78,7 @@
         text
         rounded
         size="small"
-        class="shrink-0"
+        class="shrink-0 clear-date-btn"
         :title="$t('project.clearDate')"
         :aria-label="$t('project.clearDate')"
         @click="handleClear"
@@ -173,8 +175,16 @@ function handlePrecisionChange() {
 
   if (internalPrecision.value === "year") {
     selectedMonth.value = null;
-  } else if (internalPrecision.value === "month" && !selectedMonth.value) {
-    selectedMonth.value = new Date().getMonth() + 1;
+    if (!selectedYear.value) {
+      selectedYear.value = new Date().getFullYear();
+    }
+  } else if (internalPrecision.value === "month") {
+    if (!selectedMonth.value) {
+      selectedMonth.value = new Date().getMonth() + 1;
+    }
+    if (!selectedYear.value) {
+      selectedYear.value = new Date().getFullYear();
+    }
   } else if (selectedYear.value) {
     const month = selectedMonth.value ?? 1;
     fullDateValue.value = new Date(selectedYear.value, month - 1, 1);
@@ -238,3 +248,12 @@ function emitValue() {
   emit("update:modelValue", value);
 }
 </script>
+
+<style scoped>
+:deep(.clear-date-btn.p-button) {
+  width: auto;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+</style>

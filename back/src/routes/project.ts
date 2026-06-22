@@ -1,6 +1,6 @@
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { projects, cities, overlays, changeRequests, importSources, users } from "../db/schema";
+import { projects, overlays, changeRequests, importSources, users } from "../db/schema";
 import { eq, sql, and, or, inArray, isNull, ne, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
@@ -20,6 +20,11 @@ import {
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { projectSchema } from "@shared/validation/schemas";
 import { notifyNewSubmission } from "../services/discordNotifier";
+import {
+  assignProjectBoundary,
+  resolveBoundaryPath,
+  resolveCountryCode,
+} from "../db/boundaryAssignment";
 
 function normalizePrecisionForStorage(
   date: Date | null | undefined,
@@ -46,25 +51,27 @@ export const projectRouter = router({
         });
       }
 
-      // Validate city exists
-      if (input.cityId) {
-        const city = await db.select().from(cities).where(eq(cities.id, input.cityId)).limit(1);
-        if (city.length === 0) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "City not found" });
-        }
-      }
-
       if (!input.id) {
         await checkTotalContributionLimit(ctx.user.id);
       }
 
       await checkPendingLimitForNewContribution(ctx.user.id, input.id);
 
+      // Country is derived from the admin boundary covering (or nearest to) the project's location,
+      // never sent by the client. A project can only exist somewhere a boundary places it.
+      const countryCode = await resolveCountryCode(input.lat, input.lng);
+      if (!countryCode) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Could not determine a country for this location",
+        });
+      }
+
       // Build data object with proper null handling for dates and precision
       const data = {
         ...input,
         ownerId: ctx.user.id,
-        cityId: input.cityId,
+        countryCode,
         proposalDate: input.proposalDate ?? null,
         proposalDatePrecision: normalizePrecisionForStorage(
           input.proposalDate,
@@ -128,7 +135,6 @@ export const projectRouter = router({
             .set({
               name: data.name,
               description: data.description,
-              cityId: data.cityId,
               countryCode: data.countryCode,
               lat: data.lat,
               lng: data.lng,
@@ -153,6 +159,7 @@ export const projectRouter = router({
         });
 
         if (publishTransaction) {
+          await assignProjectBoundary(publishTransaction.id);
           return {
             id: publishTransaction.id,
             exists: true,
@@ -174,6 +181,8 @@ export const projectRouter = router({
           message: "Failed to publish project",
         });
       }
+
+      await assignProjectBoundary(resultRow.id);
 
       void notifyNewSubmission({
         kind: "project",
@@ -296,12 +305,10 @@ export const projectRouter = router({
       const rows = await db
         .select({
           ...PROJECT_COLUMNS,
-          city: cities,
           importSource: importSources,
           ownerUsername: users.username,
         })
         .from(projects)
-        .leftJoin(cities, eq(projects.cityId, cities.id))
         .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
         .leftJoin(users, eq(users.id, projects.ownerId))
         .where(and(eq(projects.id, input.id), statusCondition))
@@ -333,7 +340,12 @@ export const projectRouter = router({
         )
         .limit(1);
 
-      return { ...project, render: renderRows[0] ?? null };
+      // Full administrative breadcrumb (deepest boundary up to the country) for the detail panel.
+      const boundaryPath = project.adminBoundaryId
+        ? await resolveBoundaryPath(project.adminBoundaryId)
+        : [];
+
+      return { ...project, render: renderRows[0] ?? null, boundaryPath };
     } catch (error) {
       console.error("Error fetching project by id:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });

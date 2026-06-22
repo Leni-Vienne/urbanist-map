@@ -20,8 +20,7 @@ function buildLocalContribution(
     ...project,
     overlays,
     overlayIds: overlays.map((o) => o.id),
-    cityName: project.city?.name ?? null,
-    countryName: null,
+    countryName: project.countryName ?? null,
     ownerUsername: username,
   };
 }
@@ -78,8 +77,6 @@ export function useUserContributions() {
         const localOverlayData = createLocalOverlayContribution(
           overlay,
           {
-            cityId: parentProject.cityId,
-            cityName: parentProject.cityName,
             countryCode: parentProject.countryCode,
             countryName: parentProject.countryName,
           },
@@ -103,10 +100,8 @@ export function useUserContributions() {
           const localOverlayData = createLocalOverlayContribution(
             overlay,
             {
-              cityId: localProject.cityId,
-              cityName: localProject.city?.name ?? null,
               countryCode: localProject.countryCode,
-              countryName: null,
+              countryName: localProject.countryName ?? null,
             },
             user.username ?? null,
           );
@@ -134,10 +129,8 @@ export function useUserContributions() {
         createLocalOverlayContribution(
           overlay,
           {
-            cityId: localProject.cityId,
-            cityName: localProject.city?.name ?? null,
-            countryCode: localProject.city?.countryCode ?? null,
-            countryName: null,
+            countryCode: localProject.countryCode,
+            countryName: localProject.countryName ?? null,
           },
           user.username ?? null,
         ),
@@ -170,8 +163,6 @@ export function useUserContributions() {
           imageUrl: stagedRender.previewUrl,
         },
         {
-          cityId: contribution.cityId,
-          cityName: contribution.cityName,
           countryCode: contribution.countryCode,
           countryName: contribution.countryName,
         },

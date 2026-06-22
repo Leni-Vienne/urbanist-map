@@ -47,7 +47,6 @@
   "fields": {
     "name": "Nom",
     "description": "Description",
-    "cityId": "Ville",
     "projectId": "Projet",
     "corners": "Positions des coins",
     "centroid": "Position centrale",
@@ -79,11 +78,11 @@
     "osmName": "Projet OpenStreetMap",
     "recenter": "Recentrer la carte sur ce projet",
     "name": "Nom du projet",
-    "city": "Ville",
     "noLocation": "Aucun emplacement",
     "timelineStatus": "Statut chronologique",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
     "country": "Pays",
+    "location": "Localisation",
     "startDate": "Début des travaux",
     "endDate": "Fin des travaux",
     "sourceUrl": "URL source",
@@ -98,7 +97,6 @@
     "startsOn": "Commence le",
     "endsIn": "Se termine en",
     "endsOn": "Se termine le",
-    "invalidLocation": "Emplacement invalide sélectionné",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
     "edit": "Modifier le projet",
     "publish": "Envoyer",
@@ -486,6 +484,7 @@
   },
   "tooltips": {
     "editProject": "Modifier le projet",
+    "editThisProject": "Modifier ce projet",
     "suggestChanges": "Suggérer des modifications",
     "editOverlay": "Modifier l'image",
     "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images"
@@ -611,7 +610,6 @@
     "checkConflictsFailed": "Échec de la vérification des conflits",
     "noChangesDetected": "Aucune modification détectée à soumettre",
     "preparingSubmission": "Échec de la préparation de la soumission",
-    "failedToLoadCountries": "Impossible de charger la liste des pays",
     "mapInitFailed": "Échec du chargement de la carte"
   },
   "moderation": {
@@ -713,8 +711,9 @@
       "cannotDeleteApproved": "Impossible de supprimer les superpositions approuvées"
     },
     "moderatedContributions": {
-      "title": "Résultats de modération",
-      "description": "Ces contributions ont été modérées :",
+      "title": "Mise à jour des contributions",
+      "description": "Les contributions suivantes ont été traitées :",
+      "cacheNotice": "Les tuiles de la carte sont mises en cache dans votre navigateur pendant 1 heure, vos contributions récemment approuvées peuvent donc ne pas apparaître immédiatement sur la carte.",
       "noItems": "Toutes vos contributions sont à jour !",
       "acknowledgeAll": "Tout effacer",
       "acknowledgeSuccess": "Acquitté",
@@ -763,9 +762,6 @@
     "rejectAllOverlays": "Rejeter également {count} image(s) en attente"
   },
   "location": {
-    "navigateToCity": "Aller à {city}",
-    "missingCityInfo": "Informations de ville manquantes",
-    "cannotNavigateToCity": "Impossible de naviguer vers cette ville",
     "navigationFailed": "Échec de la navigation",
     "failedToNavigate": "Impossible de naviguer vers cet emplacement"
   },

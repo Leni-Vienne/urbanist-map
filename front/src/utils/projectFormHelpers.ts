@@ -17,8 +17,6 @@ export function projectToFormData(p: {
   startDatePrecision?: "year" | "month" | "day" | null;
   endDate?: Date | string | null;
   endDatePrecision?: "year" | "month" | "day" | null;
-  cityId?: number | null;
-  countryCode?: string | null;
   sourceUrl?: string | null;
   tags?: string[] | null;
   timelineStatus?: TimelineStatus | null;
@@ -32,8 +30,6 @@ export function projectToFormData(p: {
     startDatePrecision: p.startDatePrecision ?? null,
     endDate: toDateObject(p.endDate),
     endDatePrecision: p.endDatePrecision ?? null,
-    cityId: p.cityId ?? null,
-    countryCode: p.countryCode ?? "",
     sourceUrl: p.sourceUrl || null,
     tags: p.tags ?? [],
     timelineStatus: p.timelineStatus ?? "proposed",
@@ -50,8 +46,6 @@ export function formDataToProjectFields(f: ProjectFormData): Partial<Project> {
     startDatePrecision: f.startDatePrecision ?? null,
     endDate: f.endDate ?? null,
     endDatePrecision: f.endDatePrecision ?? null,
-    cityId: f.cityId ?? undefined,
-    countryCode: f.countryCode ?? undefined,
     sourceUrl: f.sourceUrl ?? null,
     tags: f.tags,
     timelineStatus: f.timelineStatus,

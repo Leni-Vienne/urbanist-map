@@ -26,10 +26,9 @@ import {
   buildPaginationConditions,
   buildPaginationResponse,
   addConflictFlags,
-  enrichChangeRequestsWithNames,
 } from "../db/helpers";
-import { incrementCityProjectCount, decrementCityProjectCount } from "../db/updateCityCounts";
 import { queueR2Migration } from "../services/r2MigrationService";
+import { assignProjectBoundary } from "../db/boundaryAssignment";
 import * as z from "zod";
 
 type DbOrTx = Pick<typeof db, "update">;
@@ -266,7 +265,6 @@ export const moderationRouter = router({
           limit: z.number().min(1).max(100).optional().default(50),
           cursor: z.string().uuid().optional(),
           sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("createdAt"),
-          cityId: z.number().optional(),
           countryCode: z.string().length(3).optional(),
         })
         .optional(),
@@ -309,7 +307,7 @@ export const moderationRouter = router({
 
         // Step 2: Build pagination and moderation conditions
         const paginationConditions = await buildPaginationConditions(
-          { cityId: input.cityId, countryCode: effectiveCountryCode, cursor: input.cursor },
+          { countryCode: effectiveCountryCode, cursor: input.cursor },
           sortColumn,
         );
 
@@ -364,14 +362,10 @@ export const moderationRouter = router({
         const { projectsWithOverlays, overlaysWithReports, changeRequestsWithReports } =
           await enrichWithReportCounts(filteredProjects, filteredOverlays, filteredChangeRequests);
 
-        // Enrich change requests with city and country names
-        const enrichedChangeRequests =
-          await enrichChangeRequestsWithNames(changeRequestsWithReports);
-
         return {
           projects: projectsWithOverlays,
           overlays: overlaysWithReports,
-          changeRequests: enrichedChangeRequests,
+          changeRequests: changeRequestsWithReports,
           pagination: paginationResponse.pagination,
         };
       } catch (error) {
@@ -520,9 +514,14 @@ export const moderationRouter = router({
       try {
         await checkModeratorOverlayPermission(input.id, ctx.user);
 
-        await db.transaction(async (tx) => {
+        const undone = await db.transaction(async (tx) => {
           const currentOverlay = await tx
-            .select({ status: overlays.status, authorId: overlays.authorId })
+            .select({
+              status: overlays.status,
+              authorId: overlays.authorId,
+              projectId: overlays.projectId,
+              kind: overlays.kind,
+            })
             .from(overlays)
             .where(eq(overlays.id, input.id))
             .limit(1);
@@ -543,9 +542,18 @@ export const moderationRouter = router({
           } else if (previousStatus === "rejected") {
             await decrementRejectedCount(tx, authorId);
           }
+
+          return { previousStatus, projectId: overlayRecord.projectId, kind: overlayRecord.kind };
         });
 
         await invalidateOverlayTiles(input.id);
+
+        // Un-approving a map overlay drops its corners from the project's footprint, so re-derive
+        // its boundary. Best-effort, post-commit.
+        if (undone.previousStatus === "approved" && undone.kind === "map" && undone.projectId) {
+          await assignProjectBoundary(undone.projectId);
+        }
+
         return { success: true };
       } catch (error) {
         console.error("Error updating overlay status:", error);
@@ -586,7 +594,6 @@ export const moderationRouter = router({
               id: projects.id,
               version: projects.version,
               ownerId: projects.ownerId,
-              cityId: projects.cityId,
             });
 
           const updatedProject = updateResult[0];
@@ -654,27 +661,12 @@ export const moderationRouter = router({
 
             return {
               success: true as const,
-              cityId: updatedProject.cityId,
               rejectedOverlayFilenames,
             };
           }
 
-          return { success: true as const, cityId: updatedProject.cityId };
+          return { success: true as const };
         });
-
-        // City counts are updated outside the transaction (eventually consistent)
-        if (result.success && result.cityId) {
-          try {
-            if (input.status === "approved") {
-              await incrementCityProjectCount(result.cityId);
-            } else if (input.status === "rejected") {
-              await decrementCityProjectCount(result.cityId);
-            }
-          } catch (error) {
-            console.error("Error updating city project count:", error);
-            // Don't fail the request if count update fails
-          }
-        }
 
         if (
           result.success &&
@@ -724,6 +716,8 @@ export const moderationRouter = router({
             filename: overlays.filename,
             replacesOverlayId: overlays.replacesOverlayId,
             authorId: overlays.authorId,
+            projectId: overlays.projectId,
+            kind: overlays.kind,
           })
           .from(overlays)
           .where(eq(overlays.id, input.id))
@@ -835,6 +829,12 @@ export const moderationRouter = router({
 
         await invalidateOverlayTiles(input.id);
         invalidateLatestContributionsCache();
+
+        // A newly approved map overlay extends the project's footprint, so re-derive its boundary.
+        // Best-effort and post-commit: never blocks or rolls back the approval.
+        if (overlay.kind === "map" && overlay.projectId) {
+          await assignProjectBoundary(overlay.projectId);
+        }
 
         return transactionResult;
       } catch (error) {
@@ -1235,6 +1235,7 @@ export const moderationRouter = router({
             status: overlays.status,
             authorId: overlays.authorId,
             projectId: overlays.projectId,
+            kind: overlays.kind,
           })
           .from(overlays)
           .where(eq(overlays.id, input.id))
@@ -1262,6 +1263,12 @@ export const moderationRouter = router({
         console.log(
           `Admin ${ctx.user.id} deleted overlay ${input.id} (status: ${overlay.status})${input.reason ? ` - Reason: ${input.reason}` : ""}`,
         );
+
+        // Removing an approved map overlay shrinks the project's footprint, so re-derive its
+        // boundary. Only approved map overlays ever counted toward it. Best-effort, post-commit.
+        if (overlay.kind === "map" && overlay.status === "approved" && overlay.projectId) {
+          await assignProjectBoundary(overlay.projectId);
+        }
 
         try {
           await deleteImages(overlay.filename, "both");

@@ -16,26 +16,18 @@
         @complete="onSearch"
         @item-select="onSelect"
         class="w-full"
-        :min-length="1"
+        :min-length="3"
         :loading="isLoading"
         :dropdown="false"
         name="city-search"
         :input-props="{ dir: 'auto' }"
       >
         <template #option="{ option }">
-          <div class="flex items-center justify-between gap-2 w-full">
-            <span class="flex-1 text-sm">
-              {{ option.name
-              }}<span v-if="option.nameLocal" class="text-muted-color">
-                ({{ option.nameLocal }})</span
-              >, {{ option.countryCode }}
+          <div class="flex flex-col min-w-0 w-full leading-tight">
+            <span class="text-sm truncate">{{ option.primary }}</span>
+            <span v-if="option.secondary" class="text-xs text-muted-color truncate">
+              {{ option.secondary }}
             </span>
-            <Badge
-              v-if="option.approvedProjectCount > 0"
-              :value="option.approvedProjectCount"
-              severity="info"
-              class="shrink-0"
-            />
           </div>
         </template>
       </AutoComplete>
@@ -45,25 +37,65 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
 import { navigateToCity } from "@/services/navigation/locationNavigation";
 import { map } from "@/services/core/map";
 
-type CitySearchResult = {
-  id: number;
+type LocalizedBoundaryName = {
   name: string;
-  nameLocal: string | null;
-  countryCode: string;
-  lat: number;
-  lng: number;
-  approvedProjectCount: number;
+  nameEn: string | null;
+  names: Record<string, string> | null;
+};
+
+type BoundarySearchResult = LocalizedBoundaryName & {
+  osmId: string;
+  countryCode: string | null;
+  adminLevel: number;
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+  city: LocalizedBoundaryName | null;
+  state: LocalizedBoundaryName | null;
+  country: LocalizedBoundaryName | null;
+  // Derived client-side for display.
+  primary?: string;
+  secondary?: string;
   displayName?: string;
 };
 
-const selectedCity = ref<CitySearchResult | null>(null);
-const suggestions = ref<CitySearchResult[]>([]);
+const { locale } = useI18n();
+const selectedCity = ref<BoundarySearchResult | null>(null);
+const suggestions = ref<BoundarySearchResult[]>([]);
 const isLoading = ref(false);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
+function localizedName(level: LocalizedBoundaryName | null): string | null {
+  if (!level) {
+    return null;
+  }
+  return level.names?.[locale.value] ?? level.nameEn ?? level.name;
+}
+
+// Build "City, State, Country (CODE)" from the matched boundary and its ancestors, skipping missing
+// levels and collapsing duplicate names (city-states repeat the same name across levels). `primary`
+// is the matched boundary, `secondary` is the path above it shown muted in the option list.
+function buildDisplay(boundary: BoundarySearchResult): BoundarySearchResult {
+  const parts: string[] = [];
+  for (const level of [boundary, boundary.city, boundary.state, boundary.country]) {
+    const name = localizedName(level);
+    if (name && !parts.includes(name)) {
+      parts.push(name);
+    }
+  }
+  const primary = parts[0] ?? localizedName(boundary) ?? "";
+  const code = boundary.countryCode ? `(${boundary.countryCode})` : "";
+  const secondary = [parts.slice(1).join(", "), code].filter(Boolean).join(" ");
+  const displayName = [parts.join(", "), code].filter(Boolean).join(" ");
+  return Object.assign({}, boundary, { primary, secondary, displayName });
+}
 
 async function onSearch(event: { query: string }) {
   const query = event.query?.trim();
@@ -81,27 +113,21 @@ async function onSearch(event: { query: string }) {
 
       const center = map.value.getCenter();
       if (!center) {
-        console.warn("Map center not available for city search");
+        console.warn("Map center not available for boundary search");
         suggestions.value = [];
         return;
       }
 
-      const results = await trpc.cities.searchCitiesNearLocation.query({
+      const results = await trpc.boundaries.searchBoundariesNearLocation.query({
         lat: center.lat,
         lng: center.lng,
         search: query,
         limit: 25,
       });
 
-      suggestions.value = results.map((city) =>
-        Object.assign({}, city, {
-          displayName: city.nameLocal
-            ? `${city.name} (${city.nameLocal}), ${city.countryCode}`
-            : `${city.name}, ${city.countryCode}`,
-        }),
-      );
+      suggestions.value = results.map((boundary) => buildDisplay(boundary));
     } catch (error) {
-      console.error("Error searching cities:", error);
+      console.error("Error searching boundaries:", error);
       suggestions.value = [];
     } finally {
       isLoading.value = false;
@@ -109,12 +135,16 @@ async function onSearch(event: { query: string }) {
   }, 300);
 }
 
-function onSelect(event: { value: CitySearchResult }) {
-  const city = event.value;
-  if (city) {
-    navigateToCity(city.countryCode, {
-      lat: city.lat,
-      lng: city.lng,
+function onSelect(event: { value: BoundarySearchResult }) {
+  const boundary = event.value;
+  if (boundary && boundary.countryCode) {
+    navigateToCity(boundary.countryCode, {
+      bbox: {
+        minLng: boundary.minLng,
+        minLat: boundary.minLat,
+        maxLng: boundary.maxLng,
+        maxLat: boundary.maxLat,
+      },
     });
     selectedCity.value = null;
     suggestions.value = [];

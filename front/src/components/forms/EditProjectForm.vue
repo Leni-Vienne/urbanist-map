@@ -2,13 +2,10 @@
   <div class="pt-0 p-6 max-sm:p-4">
     <form @submit.prevent="form.submitChanges" class="flex flex-col gap-4">
       <ProjectFormFields
-        ref="formFieldsRef"
         :form-data="form.formData"
         :original-data="form.originalData"
         :show-change-indicators="true"
         :timeline-status="timelineStatus"
-        :prefilled-city="project.city"
-        :marker-coordinates="markerCoordinates"
         :field-classes="
           (fieldName: string) => form.getFieldClasses(fieldName as keyof ProjectFormData)
         "
@@ -56,7 +53,6 @@
 import { computed, ref } from "vue";
 import { useEditableProjectForm } from "@/composables/forms/useEditableProjectForm";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import type ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 import type { Project, ProjectFormData } from "@/types/index";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";
@@ -65,12 +61,6 @@ const props = defineProps<{ project: Project }>();
 const emit = defineEmits<{ close: []; submitted: [] }>();
 
 const projectStore = useProjectStore();
-const formFieldsRef = ref<InstanceType<typeof ProjectFormFields> | null>(null);
-
-const markerCoordinates =
-  typeof props.project.lat === "number" && typeof props.project.lng === "number"
-    ? { lat: props.project.lat, lng: props.project.lng }
-    : null;
 
 const timelineStatus = ref<TimelineStatus>(props.project.timelineStatus ?? "proposed");
 
@@ -97,7 +87,6 @@ const form = useEditableProjectForm({
   initialData: projectData.value, // Original backend values for comparison
   currentData: currentProjectData.value, // Current values to display in form
   getFallbackProject: () => props.project,
-  getAvailableCities: () => formFieldsRef.value?.cities ?? [],
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),
 });

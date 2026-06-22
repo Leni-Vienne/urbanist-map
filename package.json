@@ -13,7 +13,7 @@
     "db:migrate": "cd back && bun --env-file=../.env --bun run drizzle-kit migrate --config=drizzle.config.ts",
     "db:drop": "cd back && bun run drizzle-kit drop",
     "db:studio": "cd back && bun --env-file=../.env --bun run drizzle-kit studio --config=drizzle.config.ts",
-    "db:fill": "bun ./back/src/scripts/import-geonames.ts",
+    "boundaries:import": "bun ./back/src/scripts/import-boundaries.ts ./scripts/osm-extract/planet-latest_boundaries.geojsonl",
     "migrate:r2-thumbnails": "cd back && bun --env-file=../.env run src/scripts/generate-r2-thumbnails.ts",
     "cleanup:images": "cd back && bun --env-file=../.env run src/scripts/cleanup-images.ts",
     "unused-translations": "bun run scripts/find-unused-translations.ts",
