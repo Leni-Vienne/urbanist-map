@@ -70,30 +70,20 @@
 </template>
 
 <script setup lang="ts">
-import { watch, computed, defineAsyncComponent } from "vue";
+import { watch, defineAsyncComponent } from "vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import type { PanelTab } from "@/types";
+import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
 // Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
-const overlayStore = useOverlayStore();
 
-// A clicked overlay info popup or standalone project marker opens the detail slide-over.
-const detailVisible = computed(
-  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
-);
-
-const activeTab = computed<PanelTab>({
-  get: () => uiStore.activeTab,
-  set: (value) => (uiStore.activeTab = value),
-});
+const { detailVisible, activeTab } = useDetailPanel();
 
 watch(
   () => authStore.isAuthenticated,

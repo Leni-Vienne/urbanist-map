@@ -29,6 +29,18 @@ const geometryCollectionType = customType<{
     return "geometry(geometrycollection, 4326)";
   },
 });
+
+// Custom column type for PostGIS MultiPolygon, used for administrative boundary shapes.
+// Same rationale as geometryCollectionType: Drizzle's geometry() can't express this SQL type.
+// Reads use ST_AsGeoJSON(...); writes use ST_GeomFromGeoJSON(...) / ST_Multi(...).
+const multiPolygonType = customType<{
+  data: GeoJSON.MultiPolygon | null;
+  driverData: string;
+}>({
+  dataType() {
+    return "geometry(multipolygon, 4326)";
+  },
+});
 import { sql, relations, type InferSelectModel } from "drizzle-orm";
 
 export const approvalStatusEnum = pgEnum("approval_status", [
@@ -192,22 +204,14 @@ export const projects = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     name: text("name"), // Nullable: OSM-imported projects may lack a name
+    slug: text("slug").unique(), // Nullable: generated from name
     description: text("description"),
     status: approvalStatusEnum("status").default("pending").notNull(),
     ownerId: uuid("owner_id").references(() => users.id, {
       onDelete: "set null",
       onUpdate: "cascade",
     }),
-    cityId: integer("city_id").references(() => cities.id, {
-      onDelete: "set null",
-      onUpdate: "cascade",
-    }), // Reference to the city where the project is located (optional for imported projects)
-    countryCode: char("country_code", { length: 3 })
-      .references(() => countries.code, {
-        onDelete: "restrict",
-        onUpdate: "cascade",
-      })
-      .notNull(), // 3 letter country code, auto-assigned from nearest city on creation.
+    countryCode: char("country_code", { length: 3 }).notNull(), // 3 letter country code, resolved server-side from the nearest admin boundary on creation.
     // Timeline status - project lifecycle stage
     timelineStatus: text("timeline_status").$type<TimelineStatus>().default("proposed").notNull(),
     // Import source tracking - NULL for user-submitted projects
@@ -235,6 +239,13 @@ export const projects = pgTable(
     tags: text("tags").array(), // Project category tags (e.g. 'tram', 'rail', 'bike')
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
+    adminBoundaryId: text("admin_boundary_id").references(
+      (): AnyPgColumn => adminBoundaries.osmId,
+      {
+        onDelete: "set null",
+        onUpdate: "cascade",
+      },
+    ), // Boundary (osm_id) holding the majority of the project's shape; city/state/country derived via its parent chain
     detachedAt: timestamp("detached_at", { withTimezone: true }), // Set when OSM source was deleted/redrawn and project had overlays; import link is severed
     importLockedAt: timestamp("import_locked_at", { withTimezone: true }), // Set when a user edit is approved on an imported project; the OSM import must not overwrite its fields
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -244,13 +255,19 @@ export const projects = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
-    index("idx_projects_status").on(table.status),
-    index("idx_projects_owner_id").on(table.ownerId),
+    // Partial: only non-approved rows are ever looked up by status; approved is the 99.99% bulk and always seq-scanned
+    index("idx_projects_status")
+      .on(table.status)
+      .where(sql`${table.status} <> 'approved'`),
+    // Partial: owner_id is non-null for a tiny fraction of rows; queries always filter by a specific owner
+    index("idx_projects_owner_id")
+      .on(table.ownerId)
+      .where(sql`${table.ownerId} IS NOT NULL`),
     index("idx_projects_timeline_status").on(table.timelineStatus),
-    index("idx_projects_import_source").on(table.importSourceId),
     index("idx_projects_external_id").on(table.externalId),
     index("idx_projects_last_imported").on(table.lastImportedAt),
     index("idx_projects_external_last_modified").on(table.externalLastModified), // For filtering stale imported data
+    index("idx_projects_admin_boundary").on(table.adminBoundaryId),
     sql.raw(
       "CREATE INDEX IF NOT EXISTS idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
     ), // Spatial index for project center coordinates
@@ -267,17 +284,13 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     fields: [projects.ownerId],
     references: [users.id],
   }),
-  city: one(cities, {
-    fields: [projects.cityId],
-    references: [cities.id],
-  }),
   importSource: one(importSources, {
     fields: [projects.importSourceId],
     references: [importSources.id],
   }),
-  country: one(countries, {
-    fields: [projects.countryCode],
-    references: [countries.code],
+  adminBoundary: one(adminBoundaries, {
+    fields: [projects.adminBoundaryId],
+    references: [adminBoundaries.osmId],
   }),
   overlays: many(overlays),
 }));
@@ -343,59 +356,64 @@ export const overlaysRelations = relations(overlays, ({ one }) => ({
   }),
 }));
 
-export const cities = pgTable(
-  "cities",
+// Administrative boundaries (country/state/city/neighborhood) imported from OSM.
+// Projects attach to the boundary holding the majority of their shape; city/state/country
+// are read by walking parentId up the hierarchy. Geometry is simplified (not coastline-accurate)
+// since it is only used for point/shape containment, never for rendering.
+export const adminBoundaries = pgTable(
+  "admin_boundaries",
   {
-    id: integer("id").primaryKey(), // GeoNames city ID (natural key from GeoNames database)
-    name: text("name").notNull(), // English/ASCII name from GeoNames
-    nameLocal: text("name_local"), // Local/native name in country's primary language (nullable - only if alternateNames available)
-    countryCode: char("country_code", { length: 3 }).notNull(), // 3-letter country code (ISO 3166-1 alpha-3)
-    coordinates: geometry("coordinates", { type: "point", mode: "xy", srid: 4326 }).notNull(), // Geographic coordinates as PostGIS point
-    approvedProjectCount: integer("approved_project_count").default(0).notNull(), // Pre-computed count of approved projects for fast search
+    osmId: text("osm_id").primaryKey(), // Stable natural key, e.g. "relation/1403916"
+    adminLevel: integer("admin_level").notNull(), // OSM admin_level: 2=country, 4=state, 6=county, 8=city, 10=neighborhood
+    parentId: text("parent_id").references((): AnyPgColumn => adminBoundaries.osmId, {
+      onDelete: "set null",
+      onUpdate: "cascade",
+    }), // Smallest containing boundary one level up; computed at import via containment
+    name: text("name").notNull(), // OSM `name` tag (usually the local-language name)
+    nameEn: text("name_en"), // OSM `name:en` tag
+    names: jsonb("names"), // All `name:*` tag variants, keyed by language code
+    countryCode: char("country_code", { length: 3 }), // ISO 3166-1 alpha-3, denormalized for filtering
+    geom: multiPolygonType("geom"), // Simplified boundary polygon, GIST indexed for containment
+    externalLastModified: timestamp("external_last_modified", { withTimezone: true }), // OSM last-edit timestamp
+    lastImportedAt: timestamp("last_imported_at", { withTimezone: true }), // For pruning stale boundaries
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull()
       .$onUpdate(() => new Date()),
   },
-  // eslint-disable-next-line eslint/no-shadow
-  (cities) => [
-    index("idx_cities_country").on(cities.countryCode),
-    index("idx_cities_name").on(cities.name), // Index for fast ILIKE searches on English name
-    index("idx_cities_name_local").on(cities.nameLocal), // Index for fast ILIKE searches on local name
-    sql.raw("CREATE INDEX idx_cities_coordinates ON cities USING GIST (coordinates)"),
+  (table) => [
+    index("idx_admin_boundaries_admin_level").on(table.adminLevel),
+    index("idx_admin_boundaries_parent").on(table.parentId),
+    index("idx_admin_boundaries_country").on(table.countryCode),
+    sql.raw(
+      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_geom ON admin_boundaries USING GIST (geom)",
+    ),
+    // pg_trgm GIN indexes backing the location search (searchBoundariesNearLocation). They make
+    // the normalized `LIKE '%term%'` index-driven; without them the search scans the whole table by
+    // distance whenever matches aren't near the map center. immutable_search_text (accent fold +
+    // lowercase + strip non-alphanumerics) is defined in migration.
+    sql.raw(
+      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_name_trgm ON admin_boundaries USING gin (immutable_search_text(name) gin_trgm_ops)",
+    ),
+    sql.raw(
+      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_name_en_trgm ON admin_boundaries USING gin (immutable_search_text(coalesce(name_en, '')) gin_trgm_ops)",
+    ),
+    sql.raw(
+      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_names_trgm ON admin_boundaries USING gin (immutable_search_text(coalesce(names::text, '')) gin_trgm_ops)",
+    ),
   ],
 );
 
-export const citiesRelations = relations(cities, ({ many }) => ({
+export const adminBoundariesRelations = relations(adminBoundaries, ({ one, many }) => ({
+  parent: one(adminBoundaries, {
+    fields: [adminBoundaries.parentId],
+    references: [adminBoundaries.osmId],
+    relationName: "boundary_parent",
+  }),
+  children: many(adminBoundaries, { relationName: "boundary_parent" }),
   projects: many(projects),
 }));
-
-export const countries = pgTable(
-  "countries",
-  {
-    id: integer("id").primaryKey(), // GeoNames country ID (natural key from GeoNames database)
-    code: char("code", { length: 3 }).notNull().unique(), // ISO 3166-1 alpha-3 country code (e.g., "FRA", "USA", "JPN")
-    code2: char("code2", { length: 2 }).notNull().unique(), // ISO 3166-1 alpha-2 country code for flags (e.g., "FR", "US", "JP")
-    name: text("name").notNull(), // Country name in English
-    centerCoordinates: geometry("center_coordinates", {
-      type: "point",
-      mode: "xy",
-      srid: 4326,
-    }).notNull(), // Geographic center of the country
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .notNull()
-      .$onUpdate(() => new Date()),
-  },
-  // eslint-disable-next-line eslint/no-shadow
-  (countries) => [
-    index("idx_countries_code").on(countries.code),
-    index("idx_countries_code2").on(countries.code2), // Index for flag lookups
-    sql.raw(`CREATE INDEX idx_countries_center ON countries USING GIST (center_coordinates)`),
-  ],
-);
 
 export const changeRequests = pgTable(
   "change_requests",
@@ -553,14 +571,13 @@ export const userReportsRelations = relations(userReports, ({ one }) => ({
 }));
 
 // Export Drizzle-inferred types for frontend consumption
-export type DBCity = InferSelectModel<typeof cities>;
 export type DBProject = InferSelectModel<typeof projects>;
 export type DBOverlay = InferSelectModel<typeof overlays>;
 export type DBUser = InferSelectModel<typeof users>;
-export type DBCountry = InferSelectModel<typeof countries>;
 export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
 export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
 export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
 export type DBConfig = InferSelectModel<typeof config>;
 export type DBUserReport = InferSelectModel<typeof userReports>;
 export type DBImportSource = InferSelectModel<typeof importSources>;
+export type DBAdminBoundary = InferSelectModel<typeof adminBoundaries>;

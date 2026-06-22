@@ -13,7 +13,7 @@ import {
 import { eq, and, inArray, sql, or, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
-import { enrichChangeRequestsWithNames, isUserBlocked } from "../db/helpers";
+import { isUserBlocked } from "../db/helpers";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
@@ -127,7 +127,12 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
       return { geometry: null };
     }
     const collection = parseGeometryCollection(change.newValue);
-    return { geometry: sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326)` };
+    // ST_MakeValid for the same reason as the publishProject write path: a self-intersecting or
+    // malformed client-drawn shape must not enter projects.geometry, or downstream overlay ops
+    // (boundary assignment, tiles) throw a GEOS TopologyException.
+    return {
+      geometry: sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326))`,
+    };
   }
 
   if (change.entityType === "project" && PROJECT_DATE_FIELDS.has(change.fieldName)) {
@@ -477,10 +482,7 @@ export const changesRouter = router({
         });
       });
 
-      // Enrich with city and country names
-      const enrichedChanges = await enrichChangeRequestsWithNames(changesWithConflictInfo);
-
-      return enrichedChanges;
+      return changesWithConflictInfo;
     } catch (error) {
       console.error("Error fetching my change requests:", error);
       throw new TRPCError({

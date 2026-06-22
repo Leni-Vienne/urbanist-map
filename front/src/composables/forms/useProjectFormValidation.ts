@@ -18,15 +18,7 @@ export function useProjectFormValidation() {
   function validateProjectForm(
     formData: ProjectFormData,
     timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled",
-    cities: { id: number }[],
-    citiesLoaded: boolean,
   ): boolean {
-    // cityId is optional, but if provided it must match a loaded city
-    if (formData.cityId && citiesLoaded && !cities.some((c) => c.id === formData.cityId)) {
-      showError(t("project.invalidLocation"));
-      return false;
-    }
-
     // Scope dates to the selected timeline status, then run the shared prep + schema parse.
     const scopedFormData = {
       ...formData,

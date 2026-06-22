@@ -20,37 +20,6 @@
     </div>
   </div>
 
-  <div
-    v-else-if="change.fieldName === 'cityId'"
-    class="flex items-start gap-2 my-1 text-xs flex-wrap"
-  >
-    <span
-      class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
-    >
-      <ClickableLocation
-        v-if="change.oldValue"
-        :city-id="Number(change.oldValue)"
-        :city-name="change.oldCityName"
-        :country-code="change.oldCountryCode"
-        :country-name="change.oldCountryName"
-      />
-      <template v-else>{{ $t("overlay.notSet") }}</template>
-    </span>
-    <i class="pi pi-arrow-right"></i>
-    <span
-      class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
-    >
-      <ClickableLocation
-        v-if="change.newValue"
-        :city-id="Number(change.newValue)"
-        :city-name="change.newCityName"
-        :country-code="change.newCountryCode"
-        :country-name="change.newCountryName"
-      />
-      <template v-else>{{ $t("overlay.notSet") }}</template>
-    </span>
-  </div>
-
   <div v-else-if="change.fieldName === 'geometry'" class="my-2">
     <div class="flex gap-2 flex-wrap">
       <Button
@@ -77,12 +46,12 @@
   <div v-else class="flex items-start gap-2 my-1 text-xs flex-wrap">
     <span
       class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
-      >{{ formatValue(change.oldValue, change.fieldName, change) }}</span
+      >{{ formatValue(change.oldValue, change.fieldName) }}</span
     >
     <i class="pi pi-arrow-right self-center"></i>
     <span
       class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
-      >{{ formatValue(change.newValue, change.fieldName, change) }}</span
+      >{{ formatValue(change.newValue, change.fieldName) }}</span
     >
   </div>
 
@@ -107,7 +76,6 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import type { ProjectForModeration, PendingChangeRequest } from "@/types/index";
-import ClickableLocation from "@/components/common/ClickableLocation.vue";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 
 interface Props {
@@ -146,24 +114,9 @@ function hasGeometry(value: unknown): boolean {
   return (geo.geometries?.length ?? 0) > 0;
 }
 
-function formatValue(value: unknown, fieldName: string, change?: PendingChangeRequest): string {
+function formatValue(value: unknown, fieldName: string): string {
   if (value === null || value === undefined || value === "") {
     return t("overlay.notSet");
-  }
-
-  // Handle cityId field using backend-enriched data
-  if (fieldName === "cityId" && typeof value === "string" && change) {
-    const isOldValue = change.oldValue === value;
-    const cityName = isOldValue ? change.oldCityName : change.newCityName;
-    const countryName = isOldValue ? change.oldCountryName : change.newCountryName;
-
-    if (cityName && countryName) {
-      return `${cityName}, ${countryName}`;
-    } else if (cityName) {
-      return cityName;
-    }
-
-    return `City (${value.slice(0, 8)}...)`;
   }
 
   if (fieldName === "corners" || fieldName === "centroid") {

@@ -1,7 +1,7 @@
 import { router } from "../trpc";
 import { projectRouter } from "./project";
 import { overlayRouter } from "./overlay";
-import { citiesRouter } from "./cities";
+import { boundariesRouter } from "./boundaries";
 import { countriesRouter } from "./countries";
 import { moderationRouter } from "./moderation";
 import { changesRouter } from "./changes";
@@ -14,7 +14,7 @@ export const appRouter = router({
   account: accountRouter,
   project: projectRouter,
   moderation: moderationRouter,
-  cities: citiesRouter,
+  boundaries: boundariesRouter,
   country: countriesRouter,
   overlay: overlayRouter,
   changes: changesRouter,

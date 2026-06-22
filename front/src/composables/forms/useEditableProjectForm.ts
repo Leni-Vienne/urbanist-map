@@ -6,7 +6,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
-import type { DBCity } from "../../../../back/src/db/schema";
 
 function fieldsDiffer(
   original: ProjectFormData[keyof ProjectFormData],
@@ -30,15 +29,6 @@ interface EditableProjectFormOptions {
   // Full project the form was opened with. Used to seed the store when the project
   // isn't already present (e.g. opened from a tile/moderation source, or evicted by clearAllState).
   getFallbackProject?: () => Project | undefined;
-  getAvailableCities?: () => {
-    id: number;
-    name: string;
-    nameLocal: string | null;
-    countryCode: string;
-    lat: number;
-    lng: number;
-    distance?: number;
-  }[];
   // Extra dirtiness beyond the scalar form fields (e.g. a staged render image).
   extraDirty?: () => boolean;
   onSubmitted?: () => void;
@@ -75,33 +65,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     };
   }
 
-  function getCityObjectForUpdate(currentProject: Project): DBCity | null {
-    let cityObject: DBCity | null = currentProject.city;
-
-    if (
-      formData.cityId &&
-      formData.cityId !== currentProject.cityId &&
-      options.getAvailableCities
-    ) {
-      const citiesArray = options.getAvailableCities();
-      const newCity = citiesArray.find((c) => c.id === formData.cityId);
-      if (newCity) {
-        cityObject = {
-          id: newCity.id,
-          name: newCity.name,
-          nameLocal: newCity.nameLocal,
-          countryCode: newCity.countryCode,
-          coordinates: { x: newCity.lng, y: newCity.lat },
-          approvedProjectCount: 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }
-    }
-
-    return cityObject;
-  }
-
   function applyLocalEdit() {
     // UserContribution extends Project, so any of these can serve as the spread base.
     // Fallback is the project the form was opened with, for sources not yet in the store.
@@ -122,7 +85,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     projectStore.updateProject(options.entityId, {
       ...baseProject,
       ...formFields,
-      city: getCityObjectForUpdate(baseProject),
       isModified: true,
     });
 

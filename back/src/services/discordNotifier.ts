@@ -1,3 +1,7 @@
+import { db } from "../database";
+import { adminBoundaries, overlays, projects } from "../db/schema";
+import { eq, sql, type SQL } from "drizzle-orm";
+
 type DiscordEmbedField = { name: string; value: string; inline?: boolean };
 
 type DiscordEmbed = {
@@ -57,6 +61,65 @@ type ChangeDetail = {
   changeReason?: string | null;
 };
 
+// Resolves a single boundary name at a given OSM admin_level bucket by walking the project's
+// assigned admin boundary up its parent_id chain, mirroring feed.ts. `range` maps to a grade:
+//   city -> deepest of 6..8, state -> level 4 exactly, country -> level 2.
+function boundaryName(range: SQL): SQL<string | null> {
+  return sql<string | null>`(
+    WITH RECURSIVE chain AS (
+      SELECT osm_id, parent_id, admin_level, name
+      FROM ${adminBoundaries} WHERE osm_id = ${projects.adminBoundaryId}
+      UNION ALL
+      SELECT b.osm_id, b.parent_id, b.admin_level, b.name
+      FROM ${adminBoundaries} b JOIN chain c ON b.osm_id = c.parent_id
+    )
+    SELECT name FROM chain WHERE ${range} ORDER BY admin_level DESC LIMIT 1
+  )`;
+}
+
+// Maps a notification to the project whose boundary describes its location. Change requests on an
+// overlay entity carry the overlay id, so they need an extra lookup to reach the owning project.
+async function resolveProjectId(notification: SubmissionNotification): Promise<string | null> {
+  if (notification.kind === "project" || notification.kind === "overlay") {
+    return notification.projectId;
+  }
+  if (notification.entityType === "project") {
+    return notification.entityId;
+  }
+  const rows = await db
+    .select({ projectId: overlays.projectId })
+    .from(overlays)
+    .where(eq(overlays.id, notification.entityId))
+    .limit(1);
+  return rows[0]?.projectId ?? null;
+}
+
+// Builds a "City, State, Country" label from the project's admin boundary chain, like feed.ts.
+async function resolveLocationLabel(notification: SubmissionNotification): Promise<string | null> {
+  try {
+    const projectId = await resolveProjectId(notification);
+    if (!projectId) return null;
+    const rows = await db
+      .select({
+        city: boundaryName(sql`admin_level BETWEEN 6 AND 8`),
+        state: boundaryName(sql`admin_level = 4`),
+        country: boundaryName(sql`admin_level = 2`),
+      })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    const parts = [row.city, row.state, row.country].filter((part): part is string =>
+      Boolean(part),
+    );
+    return parts.length > 0 ? parts.join(", ") : null;
+  } catch (error) {
+    console.error("Failed to resolve location for Discord notification:", error);
+    return null;
+  }
+}
+
 const COLOR_PROJECT = 0x3b_82_f6;
 const COLOR_OVERLAY = 0x10_b9_81;
 const COLOR_CHANGE = 0xf5_9e_0b;
@@ -66,13 +129,18 @@ function buildShareUrl(frontendUrl: string, lat: number | null, lng: number | nu
   return `${frontendUrl}/#map=15.00/${lat.toFixed(4)}/${lng.toFixed(4)}`;
 }
 
-function buildEmbed(notification: SubmissionNotification, envName: string): DiscordEmbed {
+function buildEmbed(
+  notification: SubmissionNotification,
+  envName: string,
+  locationLabel: string | null,
+): DiscordEmbed {
   const authorLabel = notification.author.username
     ? `${notification.author.username} (${notification.author.email})`
     : notification.author.email;
 
   const commonFields: DiscordEmbedField[] = [
     { name: "Author", value: authorLabel, inline: true },
+    { name: "Location", value: locationLabel ?? "—", inline: true },
     { name: "Environment", value: envName, inline: true },
   ];
 
@@ -179,7 +247,8 @@ export async function notifyNewSubmission(notification: SubmissionNotification):
     const envName = process.env.COMPOSE_PROJECT_NAME ?? process.env.NODE_ENV ?? "unknown";
     const frontendUrl = process.env.FRONTEND_URL;
 
-    const embed = buildEmbed(notification, envName);
+    const locationLabel = await resolveLocationLabel(notification);
+    const embed = buildEmbed(notification, envName, locationLabel);
     if (frontendUrl) {
       embed.url = buildShareUrl(frontendUrl, notification.lat, notification.lng);
     }

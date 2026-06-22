@@ -119,31 +119,6 @@
   <!-- Additional details section (collapsible) -->
   <Panel :header="$t('project.additionalDetails')" toggleable collapsed>
     <div class="flex flex-col gap-4">
-      <!-- Country field -->
-      <div class="flex flex-col gap-1">
-        <FloatLabel class="w-full" variant="in">
-          <Select
-            input-id="country-select"
-            v-model="localFormData.countryCode"
-            :options="countries"
-            option-label="name"
-            option-value="code"
-            :loading="countriesLoading"
-            class="w-full"
-            @update:modelValue="handleCountryCodeUpdate"
-          />
-          <label for="country-select" class="text-(--p-text-color-secondary)">
-            {{ $t("project.country") }}
-          </label>
-        </FloatLabel>
-        <small
-          v-if="showCountryCodeChangeIndicator"
-          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-        >
-          {{ $t("overlay.changedFrom") }}: "{{ originalData?.countryCode || $t("overlay.notSet") }}"
-        </small>
-      </div>
-
       <!-- Proposal date field -->
       <div class="flex flex-col gap-1">
         <FlexibleDatePicker
@@ -167,32 +142,6 @@
       </div>
     </div>
   </Panel>
-
-  <!-- City select field -->
-  <div class="flex flex-col gap-1">
-    <FloatLabel class="w-full" variant="in">
-      <CitySelect
-        ref="citySelectRef"
-        :model-value="cityIdForSelect"
-        :class="getInputClass('cityId')"
-        :prefilled-city="prefilledCity"
-        :marker-coordinates="markerCoordinates"
-        show-clear
-        @update:modelValue="handleCityIdUpdate"
-      />
-      <label for="city-select" class="text-(--p-text-color-secondary)">{{
-        $t("project.city")
-      }}</label>
-    </FloatLabel>
-    <small v-if="cityIdError" class="text-red-600 text-xs block">{{ cityIdError }}</small>
-    <small
-      v-if="showCityChangeIndicator"
-      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-    >
-      {{ $t("overlay.changedFrom") }}:
-      {{ getCityNameSafe(originalData?.cityId) }}
-    </small>
-  </div>
 
   <!-- Source URL field -->
   <div class="flex flex-col gap-1">
@@ -270,14 +219,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, toRaw, onMounted } from "vue";
+import { ref, computed, watch, toRaw } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
-import type CitySelect from "./CitySelect.vue";
-import { trpc } from "@/client";
-import type { Project, ProjectFormData } from "@/types/index";
+import type { ProjectFormData } from "@/types/index";
 import {
   dbToFlexibleDate,
   flexibleDateToDb,
@@ -298,9 +244,6 @@ interface Props {
   showChangeIndicators?: boolean;
   idPrefix?: string;
   timelineStatus?: TimelineStatus;
-  // Pre-filled city data for the CitySelect (uses Project['city'] format from DB)
-  prefilledCity?: Project["city"];
-  markerCoordinates?: { lat: number; lng: number } | null;
   fieldClasses?: (fieldName: string) => string | object | undefined;
   hasChanged?: (fieldName: string) => boolean;
 }
@@ -308,22 +251,17 @@ interface Props {
 type Emits = {
   (e: "update:formData", value: ProjectFormData): void;
   (e: "update:timelineStatus", value: TimelineStatus): void;
-  (e: "cityChange", cityId: number | null): void;
 };
 
 const props = withDefaults(defineProps<Props>(), {
   showChangeIndicators: false,
   idPrefix: "project",
   timelineStatus: "proposed",
-  prefilledCity: undefined,
-  markerCoordinates: null,
 });
 
 const emit = defineEmits<Emits>();
 
 const { t, te } = useI18n();
-const toast = useToast();
-const citySelectRef = ref<InstanceType<typeof CitySelect> | null>(null);
 
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
 
@@ -337,55 +275,10 @@ const localFormData = ref<ProjectFormData>({
   proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
   startDatePrecision: props.formData.startDatePrecision ?? null,
   endDatePrecision: props.formData.endDatePrecision ?? null,
-  countryCode: props.formData.countryCode,
   tags: props.formData.tags,
 });
 
 const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
-
-// Countries for the country dropdown
-const countries = ref<{ code: string; name: string }[]>([]);
-const countriesLoading = ref(false);
-
-onMounted(async () => {
-  try {
-    countriesLoading.value = true;
-    countries.value = await trpc.country.getAllCountries.query();
-  } catch (error) {
-    console.error("Failed to load countries:", error);
-    toast.add({
-      severity: "error",
-      summary: t("errors.failedToLoadCountries"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
-  } finally {
-    countriesLoading.value = false;
-  }
-  // Auto-fetch country code for the initial marker position if not already set
-  if (props.markerCoordinates && !localFormData.value.countryCode) {
-    await fetchAndSetNearestCountryCode(props.markerCoordinates.lat, props.markerCoordinates.lng);
-  }
-  // If still empty after fetch (no nearby city found), leave as-is; user must select manually
-});
-
-async function fetchAndSetNearestCountryCode(lat: number, lng: number) {
-  try {
-    const code = await trpc.cities.getNearestCountryCode.query({ lat, lng });
-    localFormData.value.countryCode = code ?? "";
-  } catch (error) {
-    console.error("Failed to fetch nearest country code:", error);
-  }
-}
-
-watch(
-  () => props.markerCoordinates,
-  async (coords) => {
-    if (coords) {
-      await fetchAndSetNearestCountryCode(coords.lat, coords.lng);
-    }
-  },
-);
 
 // Selected tags in chosen order; index 0 is the primary tag (drives the marker color).
 // Resolved against the full tag map so an existing project's hidden tag still shows and can be removed.
@@ -481,9 +374,6 @@ watch(
   { deep: true },
 );
 
-// Convert null to undefined for CitySelect compatibility
-const cityIdForSelect = computed(() => localFormData.value.cityId ?? undefined);
-
 // Shared validation helper to avoid rebuilding validation data
 function validateFieldHelper(fieldPath: string) {
   const validationData = prepareProjectValidationData(localFormData.value);
@@ -548,14 +438,6 @@ const showEndDateChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("endDate"),
 );
 
-const showCityChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("cityId"),
-);
-
-const showCountryCodeChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("countryCode"),
-);
-
 const showSourceUrlChangeIndicator = computed(
   () => props.showChangeIndicators && props.hasChanged?.("sourceUrl"),
 );
@@ -566,7 +448,6 @@ const descriptionError = computed(() => getFieldError("description"));
 const sourceUrlError = computed(() => getFieldError("sourceUrl"));
 const startDateError = computed(() => getFieldError("startDate"));
 const endDateError = computed(() => getFieldError("endDate"));
-const cityIdError = computed(() => getFieldError("cityId"));
 
 // Date change handler - validates dates whenever they change
 function handleDateChange() {
@@ -582,26 +463,6 @@ function handleProposalDateChange() {
   validateFieldHelper("proposalDate");
 }
 
-// Handle city ID updates from CitySelect
-function handleCityIdUpdate(cityId: number | undefined | "") {
-  // Convert empty string or undefined to null (PrimeVue Select emits "" when cleared)
-  const normalizedCityId = cityId === "" || cityId === undefined ? null : cityId;
-  // Update local form data. The cityId watcher emits "cityChange" for parent components
-  // (e.g. to switch tile layer), so no explicit emit is needed here.
-  localFormData.value.cityId = normalizedCityId;
-  // Prefill countryCode from the selected city
-  if (normalizedCityId !== null) {
-    const city = citySelectRef.value?.cities.find((c) => c.id === normalizedCityId);
-    if (city) localFormData.value.countryCode = city.countryCode;
-  }
-  // Validate city field when it changes
-  validateFieldHelper("cityId");
-}
-
-function handleCountryCodeUpdate(code: string | null | undefined) {
-  localFormData.value.countryCode = code ?? "";
-}
-
 // Watch for external timelineStatus changes
 watch(
   () => props.timelineStatus,
@@ -615,33 +476,8 @@ function handleTimelineStatusChange(newStatus: TimelineStatus) {
   emit("update:timelineStatus", newStatus);
 }
 
-watch(
-  () => localFormData.value.cityId,
-  (newCityId) => {
-    emit("cityChange", newCityId);
-  },
-);
-
-function getCityNameSafe(cityId: number | null | undefined): string {
-  return citySelectRef.value?.getCityName(cityId ?? undefined) ?? t("overlay.notSet");
-}
-
 // Helper to format date from prop (Date) using flexible helper
 function formatFlexibleDateFromProp(date: Date | null | undefined): string {
   return formatFlexibleDate(dbToFlexibleDate(date));
 }
-
-// Expose cities data and methods to parent
-defineExpose({
-  citySelectRef,
-  get cities() {
-    return citySelectRef.value?.cities ?? [];
-  },
-  get citiesLoaded() {
-    return citySelectRef.value?.citiesLoaded ?? false;
-  },
-  getCityName(cityId: number | null | undefined) {
-    return getCityNameSafe(cityId);
-  },
-});
 </script>

@@ -10,8 +10,6 @@ bun run db:push
 
 `db:push` syncs the Drizzle schema directly against your local DB. **Do not** run `db:generate` (which writes a committed migration) unless you have a deliberate reason to add a migration to the repo.
 
-The GeoNames cities import is optional (most projects no longer rely on `city_id`):
-
 ```bash
 bun run db:fill
 ```
@@ -28,7 +26,7 @@ back/         # Bun + Hono + tRPC + Drizzle backend
     routes/
     db/
     email/        # Nodemailer templates (i18n)
-    scripts/      # GeoNames import, image cleanup, OSM import
+    scripts/      # image cleanup, OSM import
 front/
   src/
     components/

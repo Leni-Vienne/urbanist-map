@@ -1,3 +1,4 @@
+import { ref } from "vue";
 import type { Map as MaplibreMap, ExpressionSpecification } from "maplibre-gl";
 import { getMlMap } from "@/services/core/map";
 
@@ -30,6 +31,36 @@ function readStoredPreference(): MapLabelLanguage {
 // prefer the chosen language, falling back to the local Latin name then the raw OSM name
 // so untranslated places still render.
 let currentPreference: MapLabelLanguage = readStoredPreference();
+
+// Reactive mirror of the preference so views (e.g. the project location breadcrumb) re-localize when
+// the map language changes, the same way they react to the UI locale.
+export const mapLabelLanguageRef = ref<MapLabelLanguage>(currentPreference);
+
+type BoundaryNameVariants = {
+  name: string; // OSM `name` (native/local language)
+  nameEn: string | null; // OSM `name:en`
+  names: Record<string, string> | null; // all `name:*` variants, keyed by OSM language code
+};
+
+// Pick a boundary's display name honouring the map label language, falling back to the UI locale,
+// then English, then the native name. "local" forces the native name; "default" defers to the UI
+// locale (the breadcrumb's prior behaviour); "auto"/explicit codes use that OSM name:<code> first,
+// so a zh user finally gets Chinese names that the en/fr-only UI locale could never provide.
+export function pickBoundaryName(
+  entry: BoundaryNameVariants,
+  preference: MapLabelLanguage,
+  uiLocale: string,
+): string {
+  if (preference === "local") return entry.name;
+  let code: string | null = null;
+  if (preference === "auto") {
+    code = getBrowserLanguageCode();
+  } else if (preference !== "default") {
+    code = preference;
+  }
+  const byMapLanguage = code ? entry.names?.[code] : undefined;
+  return byMapLanguage ?? entry.names?.[uiLocale] ?? entry.nameEn ?? entry.name;
+}
 
 // Each label layer's untouched text-field, captured the first time we override it, so the
 // "default" mode can restore OpenFreeMap's exact labels. Liberty's layers are identical
@@ -106,6 +137,7 @@ export function applyMapLabelLanguage(
 /** Persist the map label language preference and apply it to the live map if one exists. */
 export function setMapLabelLanguage(preference: MapLabelLanguage): void {
   currentPreference = preference;
+  mapLabelLanguageRef.value = preference;
   localStorage.setItem(STORAGE_KEY, preference);
   const mlMap = getMlMap();
   if (mlMap) applyMapLabelLanguage(mlMap, preference);

@@ -2,7 +2,7 @@ import { ref } from "vue";
 
 const STORAGE_KEY = "map-layer-mode";
 
-export type MapLayerMode = "default" | "alternative";
+type MapLayerMode = "default" | "alternative";
 
 function getInitialMode(): MapLayerMode {
   try {

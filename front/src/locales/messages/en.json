@@ -47,7 +47,6 @@
   "fields": {
     "name": "Name",
     "description": "Description",
-    "cityId": "City",
     "projectId": "Project",
     "corners": "Corner Positions",
     "centroid": "Center Position",
@@ -79,12 +78,12 @@
     "osmName": "OpenStreetMap project",
     "recenter": "Recenter map on this project",
     "name": "Project Name",
-    "city": "City",
     "noLocation": "No Location",
     "timelineStatus": "Timeline Status",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
     "country": "Country",
+    "location": "Location",
     "startDate": "Construction Start Date",
     "endDate": "Construction End Date",
     "sourceUrl": "Source URL",
@@ -99,7 +98,6 @@
     "startsOn": "Starts on",
     "endsIn": "Ends in",
     "endsOn": "Ends on",
-    "invalidLocation": "Invalid location selected",
     "clickMapToPlace": "Click on the map to place your project",
     "edit": "Edit Project",
     "publish": "Submit",
@@ -486,6 +484,7 @@
   },
   "tooltips": {
     "editProject": "Edit Project",
+    "editThisProject": "Edit this project",
     "suggestChanges": "Suggest Changes",
     "editOverlay": "Edit Image",
     "approveProjectFirst": "Approve the project first to moderate its images"
@@ -611,7 +610,6 @@
     "checkConflictsFailed": "Failed to check for conflicts",
     "noChangesDetected": "No changes detected to submit",
     "preparingSubmission": "Failed to prepare submission",
-    "failedToLoadCountries": "Could not load the country list",
     "mapInitFailed": "Map failed to load"
   },
   "moderation": {
@@ -711,12 +709,13 @@
       "cannotDeleteApproved": "Cannot delete approved images"
     },
     "moderatedContributions": {
-      "title": "Moderation Results",
-      "description": "The following contributions have been moderated:",
+      "title": "Contribution Update",
+      "description": "The following contributions have been processed:",
+      "cacheNotice": "Map tiles are cached in your browser for up to 1 hour, so newly approved contributions may not appear on the map right away.",
       "noItems": "All your submissions are up to date!",
       "acknowledgeAll": "Clear All",
       "acknowledgeSuccess": "Acknowledged",
-      "acknowledgeSuccessDetail": "Moderation results have been cleared",
+      "acknowledgeSuccessDetail": "Contribution updates have been cleared",
       "viewResults": "View Results"
     },
     "userStats": {
@@ -761,9 +760,6 @@
     "rejectAllOverlays": "Also reject all {count} pending image(s)"
   },
   "location": {
-    "navigateToCity": "Navigate to {city}",
-    "missingCityInfo": "Missing City Info",
-    "cannotNavigateToCity": "Cannot navigate to this city",
     "navigationFailed": "Navigation Failed",
     "failedToNavigate": "Failed to navigate to location"
   },

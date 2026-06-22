@@ -45,7 +45,6 @@ import { ref, defineAsyncComponent } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import maplibregl, { type MapMouseEvent } from "maplibre-gl";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
@@ -55,7 +54,6 @@ import {
   addStandaloneProjectMarkerForProject,
   updateStandaloneProjectMarkerColor,
 } from "@/services/map/standaloneProjectMarkers";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { createStandaloneProjectMarkerElement } from "@/services/map/markers";
 import { createProject } from "@/services/project/projectMutations";
 import type { Project } from "@/types/index";
@@ -68,9 +66,7 @@ const EditProjectForm = defineAsyncComponent(
   () => import("@/components/forms/EditProjectForm.vue"),
 );
 
-const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-const mapStore = useMapStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const { t: $t } = useI18n();
@@ -133,51 +129,6 @@ function onDialogVisibilityChange(visible: boolean) {
   }
 }
 
-async function displayProjectMarkerAndDetail(
-  projectId: string,
-  city: {
-    id: number;
-    name: string;
-    nameLocal: string | null;
-    countryCode: string;
-    coordinates: { x: number; y: number };
-  },
-) {
-  const countryCode = city.countryCode;
-  if (countryCode && mapStore.selectedCountryCode !== countryCode) {
-    mapStore.selectedCountryCode = countryCode;
-  }
-
-  let actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
-
-  if (!actualMarker) {
-    const project = projectStore.projects[projectId];
-    if (project) {
-      addStandaloneProjectMarkerForProject(project);
-      actualMarker = getStandaloneProjectMarkerByProjectId(projectId);
-    }
-  }
-
-  if (actualMarker) {
-    if (overlayStore.overlayDetailVisible) {
-      overlayStore.closeOverlayDetail();
-    }
-    uiStore.openProjectDetail(projectId, projectStore.projects[projectId]);
-
-    const project = projectStore.projects[projectId];
-    if (project && typeof project.lat === "number" && typeof project.lng === "number") {
-      const currentZoom = map.value.getZoom();
-      const targetZoom = Math.max(currentZoom, 16);
-      map.value.flyTo({
-        center: [project.lng, project.lat],
-        zoom: targetZoom,
-        duration: 1000,
-        essential: true,
-      });
-    }
-  }
-}
-
 async function handleNewProjectCreation(project: Partial<Project>): Promise<void> {
   const projectId = createProject({
     ...project,
@@ -186,16 +137,12 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<void
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
-    if (project.city) {
-      await displayProjectMarkerAndDetail(projectId, project.city);
-    } else {
-      const storedProject = projectStore.projects[projectId];
-      if (storedProject) {
-        addStandaloneProjectMarkerForProject(storedProject);
-        const marker = getStandaloneProjectMarkerByProjectId(projectId);
-        if (marker) {
-          uiStore.openProjectDetail(projectId, storedProject);
-        }
+    const storedProject = projectStore.projects[projectId];
+    if (storedProject) {
+      addStandaloneProjectMarkerForProject(storedProject);
+      const marker = getStandaloneProjectMarkerByProjectId(projectId);
+      if (marker) {
+        uiStore.openProjectDetail(projectId, storedProject);
       }
     }
     toast.add({

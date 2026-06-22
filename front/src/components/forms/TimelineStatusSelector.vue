@@ -1,13 +1,13 @@
 <template>
   <div class="field">
     <label
-      :for="`${idPrefix}-status-select`"
+      :id="`${idPrefix}-status-label`"
       class="text-(--p-text-color-secondary) font-medium mb-2 block"
     >
       {{ $t("project.timelineStatus") }} *
     </label>
     <Select
-      :id="`${idPrefix}-status-select`"
+      :aria-labelledby="`${idPrefix}-status-label`"
       :modelValue="modelValue"
       :options="statusOptions"
       optionLabel="label"

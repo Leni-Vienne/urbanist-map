@@ -1,6 +1,6 @@
 import * as z from "zod";
 import { publicProcedure, router, TRPCError } from "../trpc";
-import { projects, cities, overlays, importSources } from "../db/schema";
+import { projects, overlays, importSources } from "../db/schema";
 import { sql, eq, and } from "drizzle-orm";
 import { db } from "../database";
 import {
@@ -239,16 +239,14 @@ export const viewportRouter = router({
               mode === "edit"
                 ? sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${ctx.user.id} THEN 1 END)::int`
                 : sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.status} = 'pending' THEN 1 END)::int`,
-            city: cities,
             importSource: importSources,
           })
           .from(projects)
-          .leftJoin(cities, eq(cities.id, projects.cityId))
           .leftJoin(overlays, eq(overlays.projectId, projects.id))
           .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
           .where(and(...whereConditions))
           // projects.geometry (PostGIS) can't be used in B-tree equality, so group by PKs only.
-          .groupBy(projects.id, cities.id, importSources.id);
+          .groupBy(projects.id, importSources.id);
 
         return projectsData;
       } catch (error) {

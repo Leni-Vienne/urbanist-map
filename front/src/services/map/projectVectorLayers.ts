@@ -698,7 +698,7 @@ function getTileCoordsForLatLng(
 function getClusterCellBounds(lat: number, lng: number, tileZoom: number): LngLatBounds {
   const safeZoom = Math.max(0, tileZoom);
   const { tileX, tileY, px, py } = getTileCoordsForLatLng(lat, lng, safeZoom);
-  const cellSize = getGridCellSizeForTileZoom(safeZoom);
+  const cellSize = getGridCellSizeForTileZoom();
   const cellX = Math.floor(px / cellSize);
   const cellY = Math.floor(py / cellSize);
 

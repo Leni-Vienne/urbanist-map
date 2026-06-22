@@ -25,8 +25,6 @@ export function createStagedRenderOverlay(
     authorApprovedCount: null,
     authorRejectedCount: null,
     authorReportCount: undefined,
-    cityId: null,
-    cityName: null,
     countryCode: null,
     countryName: null,
     replacesOverlayId: null,
@@ -49,9 +47,7 @@ export function createOverlayForModeration(overlayData: OverlayData): OverlayFor
     authorId: overlayData.authorId,
     authorUsername: undefined,
     authorReportCount: undefined,
-    cityId: overlayData.project?.cityId ?? null,
-    cityName: overlayData.project?.city?.name ?? null,
-    countryCode: overlayData.project?.city?.countryCode ?? overlayData.project?.countryCode ?? null,
+    countryCode: overlayData.project?.countryCode ?? null,
     countryName: null,
     replacesOverlayId: overlayData.replacesOverlayId,
     replacedByOverlayId: overlayData.replacedByOverlayId,
@@ -74,8 +70,6 @@ export function createLocalOverlayContribution(
     updatedAt?: Date;
   },
   parentProject: {
-    cityId: number | null;
-    cityName: string | null | undefined;
     countryCode: string | null;
     countryName: string | null | undefined;
   },
@@ -97,8 +91,6 @@ export function createLocalOverlayContribution(
     replacesOverlayId: overlay.replacesOverlayId ?? null,
     replacedByOverlayId: overlay.replacedByOverlayId ?? null,
     updatedAt: overlay.updatedAt ?? new Date(),
-    cityId: parentProject.cityId,
-    cityName: parentProject.cityName ?? null,
     countryCode: parentProject.countryCode,
     countryName: parentProject.countryName ?? null,
     imageUrl: overlay.imageUrl,

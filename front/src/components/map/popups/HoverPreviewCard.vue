@@ -166,25 +166,16 @@ function positionCard(): void {
   let minY = EDGE_GAP;
   let maxY = window.innerHeight - EDGE_GAP;
 
-  // If we can find the map div, use its bounds with the same INSET (100px) as the panel list.
-  // This ensures the card stays within the clear map area, avoiding UI chrome.
+  // Constrain to the map div so the card never spills onto the surrounding page, but only by
+  // EDGE_GAP. A larger inset would shove edge-anchored cards far toward the center; at the edge the
+  // card should sit offset by just half its width plus EDGE_GAP from the cursor.
   const mapDiv = document.getElementById("mapDiv");
   if (mapDiv) {
-    const INSET = 100;
     const rect = mapDiv.getBoundingClientRect();
-    // Only apply inset if the map is large enough to contain the card
-    if (rect.width > measuredW + INSET * 2 && rect.height > measuredH + INSET * 2) {
-      minX = rect.left + INSET;
-      maxX = rect.right - INSET;
-      minY = rect.top + INSET;
-      maxY = rect.bottom - INSET;
-    } else {
-      // Fallback to just the map bounds if it's too small for the inset
-      minX = rect.left + EDGE_GAP;
-      maxX = rect.right - EDGE_GAP;
-      minY = rect.top + EDGE_GAP;
-      maxY = rect.bottom - EDGE_GAP;
-    }
+    minX = rect.left + EDGE_GAP;
+    maxX = rect.right - EDGE_GAP;
+    minY = rect.top + EDGE_GAP;
+    maxY = rect.bottom - EDGE_GAP;
   }
 
   // Anchor the card horizontally centered on x, but clamp to safe bounds

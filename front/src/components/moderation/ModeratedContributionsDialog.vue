@@ -26,6 +26,10 @@
         {{ $t("moderation.moderatedContributions.description") }}
       </p>
 
+      <Message v-if="hasApprovedItem" severity="info" :closable="false" class="mb-4" size="small">
+        {{ $t("moderation.moderatedContributions.cacheNotice") }}
+      </Message>
+
       <div v-for="item in moderatedContributions" :key="item.id" class="flex gap-4">
         <!-- Thumbnail -->
         <div
@@ -114,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 import { useToast } from "@/composables/ui/useToast";
@@ -143,6 +147,10 @@ const { moderatedContributions, isLoading, ensureModeratedContributions, acknowl
 const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);
 
+const hasApprovedItem = computed(() =>
+  moderatedContributions.value.some((item) => item.status === "approved"),
+);
+
 // Mounted with visible=true due to v-if in parent. Reuses authStore's preloaded data
 // on first open and fetches fresh on later reopens.
 onMounted(() => {
@@ -167,15 +175,14 @@ watch(isVisible, (newVal) => {
 });
 
 function getLocationDisplay(item: {
-  cityName: string | null;
   countryName: string | null;
   countryCode: string | null;
 }): string {
-  const country =
-    item.countryName && item.countryCode
+  return (
+    (item.countryName && item.countryCode
       ? `${item.countryName} (${item.countryCode})`
-      : (item.countryName ?? item.countryCode);
-  return [item.cityName, country].filter(Boolean).join(", ");
+      : (item.countryName ?? item.countryCode)) ?? ""
+  );
 }
 
 async function handleAcknowledgeAll() {

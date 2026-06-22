@@ -121,7 +121,7 @@ import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { LngLatBounds } from "maplibre-gl";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const mapStore = useMapStore();
 const toast = useToast();
 
@@ -157,17 +157,33 @@ const rows = computed(() =>
   }),
 );
 
+// Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
+function localizedName(level: LatestContribution["city"]): string | null {
+  if (!level) {
+    return null;
+  }
+  return level.names?.[locale.value] ?? level.nameEn ?? level.name;
+}
+
+// Builds "City, State, Country (CODE)" from the boundary-derived levels, skipping missing levels and
+// collapsing duplicate names (city-states like Berlin repeat the same name across levels).
 function getLocationDisplay(contribution: LatestContribution): string {
-  if (contribution.cityName && contribution.countryName) {
-    return `${contribution.cityName}, ${contribution.countryName}`;
-  } else if (contribution.cityName) {
-    return contribution.cityName;
-  } else if (contribution.countryName && contribution.countryCode) {
-    return `${contribution.countryName} (${contribution.countryCode})`;
-  } else if (contribution.countryCode) {
+  const parts: string[] = [];
+  for (const level of [contribution.city, contribution.state, contribution.country]) {
+    const name = localizedName(level);
+    if (name && !parts.includes(name)) {
+      parts.push(name);
+    }
+  }
+  const place = parts.join(", ");
+  if (place && contribution.countryCode) {
+    return `${place} (${contribution.countryCode})`;
+  }
+  if (place) {
+    return place;
+  }
+  if (contribution.countryCode) {
     return contribution.countryCode;
-  } else if (contribution.countryName) {
-    return contribution.countryName;
   }
   return t("project.noLocation");
 }

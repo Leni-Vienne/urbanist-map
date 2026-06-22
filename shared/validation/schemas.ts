@@ -18,8 +18,6 @@ export const projectSchema = z
       .transform((val) => (val === "" ? undefined : val))
       .nullish()
       .transform((val) => val ?? undefined),
-    cityId: z.number().nullable().optional(),
-    countryCode: z.string().length(3),
     lat: z
       .number({ message: "validation.invalidLatitude" })
       .min(-90, "validation.invalidLatitude")
@@ -144,7 +142,6 @@ const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   timelineStatus: z
     .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
     .optional(),
-  cityId: z.number().int().positive().nullable().optional(),
   geometry: GeoJSONGeometryCollectionSchema.nullable(),
   tags: z.array(z.string().max(50)).max(20).nullable(),
 };

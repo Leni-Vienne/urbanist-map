@@ -48,11 +48,6 @@ specs.md
 bundle.md
 analyze_index_only.cjs
 
-!geonames-data
-geonames-data/*
-!geonames-data/countries.csv
-countryInfo.txt
-
 uploads
 node_modules
 .DS_Store
@@ -63,5 +58,6 @@ dist-ssr
 
 *.osm.pbf
 *.geojson
+*.geojsonl
 *.osc.gz
 *.replication-state

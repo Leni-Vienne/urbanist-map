@@ -31,7 +31,6 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
     ownerUsername: data.ownerUsername ?? null,
-    cityId: data.cityId ?? null, // Now nullable for imported projects
     status: data.status ?? null,
     rejectionReason: data.rejectionReason ?? null, // Moderator-selected rejection reason
     // Timeline status - project lifecycle stage
@@ -47,7 +46,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     lat: data.lat ?? null,
     lng: data.lng ?? null,
     centerCoordinate: data.centerCoordinate ?? null,
-    city: data.city ?? null,
+    adminBoundaryId: data.adminBoundaryId ?? null,
     overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
     geometrySizeM: data.geometrySizeM ?? null,
@@ -58,6 +57,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     // Left undefined when the source didn't carry it (e.g. viewport payload), so the detail panel knows
     // to hydrate it via getById. null only after getById confirms there is no render.
     render: data.render,
+    boundaryPath: data.boundaryPath,
   };
 }
 

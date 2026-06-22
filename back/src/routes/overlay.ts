@@ -1,6 +1,6 @@
 import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
 import * as z from "zod";
-import { overlays, projects, cities, countries, users, type ApprovalStatus } from "../db/schema";
+import { overlays, projects, users, type ApprovalStatus } from "../db/schema";
 import type * as schema from "../db/schema";
 import { sql, eq, and, or, inArray } from "drizzle-orm";
 import { db } from "../database";
@@ -9,6 +9,11 @@ import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } fro
 import type { AppMode } from "@shared/types";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { deleteLocalImages } from "../lib/imageCleanup";
+
+// Country display name resolved from the level-2 (country) admin boundary matching a country_code.
+const countryNameSql = sql<
+  string | null
+>`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = ${projects.countryCode} LIMIT 1)`;
 import {
   checkPendingLimitForNewContribution,
   checkTotalContributionLimit,
@@ -489,15 +494,11 @@ export const overlayRouter = router({
           projectId: overlays.projectId,
           replacedByOverlayId: overlays.replacedByOverlayId,
           projectName: projects.name,
-          cityId: projects.cityId,
-          cityName: cities.name,
           countryCode: projects.countryCode,
-          countryName: countries.name,
+          countryName: countryNameSql,
         })
         .from(overlays)
         .leftJoin(projects, eq(overlays.projectId, projects.id))
-        .leftJoin(cities, eq(projects.cityId, cities.id))
-        .leftJoin(countries, eq(projects.countryCode, countries.code))
         .where(
           and(
             eq(overlays.authorId, userId),
@@ -523,14 +524,10 @@ export const overlayRouter = router({
           projectName: projects.name,
           lat: projects.lat,
           lng: projects.lng,
-          cityId: projects.cityId,
-          cityName: cities.name,
           countryCode: projects.countryCode,
-          countryName: countries.name,
+          countryName: countryNameSql,
         })
         .from(projects)
-        .leftJoin(cities, eq(projects.cityId, cities.id))
-        .leftJoin(countries, eq(projects.countryCode, countries.code))
         .where(
           and(
             eq(projects.ownerId, userId),

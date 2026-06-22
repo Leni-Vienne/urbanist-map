@@ -45,8 +45,21 @@
                 }}
               </span>
             </div>
-            <!-- Right: close button (stops propagation so it doesn't recenter) -->
+            <!-- Right: edit + close buttons (stop propagation so they don't recenter) -->
             <div class="flex gap-1 shrink-0" @click.stop>
+              <!-- Edit: switch to edit mode and pin this project in the contribute panel, so the
+                   user can act on it (add images, draw, edit fields) without closing the detail and
+                   switching tabs by hand. Only in view mode (moderation keeps its own context). -->
+              <button
+                v-if="canEdit"
+                type="button"
+                :aria-label="$t('common.edit')"
+                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] bg-transparent border-none"
+                @click="handleEdit"
+                v-tooltip.bottom="$t('tooltips.editThisProject')"
+              >
+                <i class="pi pi-pencil"></i>
+              </button>
               <!-- Close: returns to the panel's tab content -->
               <button
                 type="button"
@@ -149,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 
@@ -162,11 +175,14 @@ import { useToast } from "@/composables/ui/useToast";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay } from "@/services/overlay/actions";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapeRendering";
 import { closeProjectDetailAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
+import { selectProject } from "@/services/map/projectSelection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -188,6 +204,8 @@ const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
+const mapStore = useMapStore();
+const authStore = useAuthStore();
 const { overlays, overlayDetailVisible, overlayDetailId } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 const { projectDetail } = storeToRefs(uiStore);
@@ -290,6 +308,7 @@ watch(
         projectStore.updateProject(id, {
           render: fresh.render ?? null,
           ownerUsername: fresh.ownerUsername ?? null,
+          boundaryPath: fresh.boundaryPath ?? [],
         });
     } catch (error) {
       console.error("Failed to hydrate project render:", error);
@@ -343,6 +362,27 @@ function handleRecenter() {
     }
   }
   flyToGeometry([target.lat, target.lng], target.geometrySizeM ?? 0);
+}
+
+// The edit affordance only makes sense in view mode: moderation keeps its own selection context,
+// and edit mode shows the contribute panel where these actions already live.
+const canEdit = computed(() => mapStore.mode === "view" && project.value !== undefined);
+
+// Switch to edit mode and carry the current project in as the pinned, expanded selection so the
+// contribute panel surfaces its actions right away. Switching tabs clears the open detail
+// (PanelContent watcher), so re-select after that runs.
+async function handleEdit() {
+  const target = project.value;
+  if (!target) return;
+
+  if (!authStore.isAuthenticated) {
+    uiStore.authModalVisible = true;
+    return;
+  }
+
+  mapStore.setMode("edit");
+  await nextTick();
+  selectProject(target);
 }
 
 function closeProjectDetail() {

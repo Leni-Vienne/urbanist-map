@@ -44,9 +44,10 @@
         <span :class="cls.value">{{ formatDate(project.updatedAt) }}</span>
       </div>
 
-      <!-- Location: hidden when null (empty-state add handled by the consolidated affordance) -->
+      <!-- Location: full admin breadcrumb when loaded (getById), else country. Hidden when neither
+           is known (empty-state add handled by the consolidated affordance). -->
       <div v-if="projectLocationDisplay !== '—'" :class="cls.row">
-        <span :class="cls.label">{{ $t("project.city") }}</span>
+        <span :class="cls.label">{{ $t("project.location") }}</span>
         <span :class="cls.value">{{ projectLocationDisplay }}</span>
       </div>
 
@@ -168,8 +169,9 @@ import { useI18n } from "vue-i18n";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import { mapLabelLanguageRef, pickBoundaryName } from "@/services/map/mapLabelLanguage";
 
-const { t: $t } = useI18n();
+const { t: $t, locale } = useI18n();
 
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
@@ -304,19 +306,44 @@ const externalEntries = computed<ExternalEntry[]>(() => {
   return entries;
 });
 
+// Collapse a deepest-first boundary breadcrumb: drop exact duplicates (e.g. "Caen, Caen") and
+// entries that merely qualify a less-specific ancestor (e.g. "France Métropolitaine" when "France"
+// is already present), keeping the shorter country-ward name. Iterating from the country end means
+// the kept name is the shallower one. Only word-boundary prefixes count, so distinct names that
+// happen to contain an ancestor (e.g. "Hauts-de-France") are preserved.
+function collapseBoundaryNames(names: string[]): string[] {
+  const kept: string[] = [];
+  // Walk from the country end so the kept representative of a redundant group is the shallower name.
+  for (const name of names.toReversed()) {
+    const lower = name.toLowerCase();
+    const redundant = kept.some((k) => {
+      const kl = k.toLowerCase();
+      if (kl === lower) return true;
+      return lower.startsWith(kl) && /[^\p{L}\p{N}]/u.test(lower.charAt(kl.length));
+    });
+    if (!redundant) kept.unshift(name);
+  }
+  return kept;
+}
+
 const projectLocationDisplay = computed(() => {
-  if (!props.project) return "—";
-
   const project = props.project;
+  if (!project) return "—";
 
-  if (!project.cityId) {
-    return "—";
+  const path = project.boundaryPath;
+  if (path && path.length > 0) {
+    // Even admin levels are the primary civil divisions (commune/county/region/country); odd levels
+    // are intermediate groupings (arrondissement, "France métropolitaine") that read as noise in a
+    // location breadcrumb. Fall back to the full path if filtering would leave nothing.
+    const major = path.filter((entry) => entry.adminLevel % 2 === 0);
+    // Localize each level via the map label language (falling back to the UI locale), so the
+    // breadcrumb matches the map labels and stays readable instead of showing local script.
+    const names = (major.length > 0 ? major : path).map((entry) =>
+      pickBoundaryName(entry, mapLabelLanguageRef.value, locale.value),
+    );
+    return collapseBoundaryNames(names).join(", ");
   }
 
-  if (project.city?.name) {
-    return `${project.city.name}, ${project.city.countryCode}`;
-  }
-
-  return "—";
+  return project.countryName ?? project.countryCode ?? "—";
 });
 </script>

@@ -63,7 +63,6 @@ import { initializeMap, map } from "@/services/core/map";
 import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initVectorTileSync } from "@/services/map/vectorTileSync";
-import { initializeCameraBounds } from "@/services/map/cameraBounds";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
@@ -121,7 +120,6 @@ onUnmounted(() => {
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
-    initializeCameraBounds();
 
     viewportManager.setupEventListeners();
 

@@ -9,7 +9,6 @@ import type {
 import type { ApprovalStatus } from "@shared/types";
 import { createProjectObject } from "@/utils/typeFactories";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
-import { clearCityNameCache } from "@/utils/cityNameCache";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
@@ -28,13 +27,10 @@ function withOverlays(
   return { ...contribution, overlays, overlayIds: overlays.map((o) => o.id) };
 }
 
-// Denormalized fields win; the joined city lookup is a fallback when cityName is unset.
 function resolveLocationNames(project: Project): {
-  cityName: string | null;
   countryName: string | null;
 } {
   return {
-    cityName: project.cityName ?? project.city?.name ?? null,
     countryName: project.countryName ?? null,
   };
 }
@@ -80,7 +76,6 @@ export const useProjectStore = defineStore("project", () => {
 
   function overlayParentMetadata(project: Project) {
     return {
-      cityId: project.cityId,
       countryCode: project.countryCode,
       ...resolveLocationNames(project),
     };
@@ -408,7 +403,6 @@ export const useProjectStore = defineStore("project", () => {
     userContributionsLoading.value = false;
     userContributionsLoaded.value = false;
     originalProjects.value = {};
-    clearCityNameCache();
   }
 
   return {

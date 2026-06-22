@@ -18,11 +18,9 @@ import {
   type FieldChange,
   type OverlayCorners,
 } from "@shared/validation/schemas";
-import { computed } from "vue";
 import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { formatDate } from "@/utils/dateFormat";
-import { getCityNameCache } from "@/utils/cityNameCache";
 import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
@@ -191,20 +189,6 @@ export function useSubmissionService() {
   const { publishOverlay } = useOverlayPublisher();
   const { resetChangeRequestsLoaded, refreshPendingChangeRequests } = useChangeRequests();
 
-  // City name cache built from the project store and all projects seen so far.
-  const cityNamesCache = computed(() => {
-    const cache: Record<string, string> = { ...getCityNameCache() };
-
-    // Extract from all projects (includes both loaded and original cached projects)
-    for (const project of Object.values(projectStore.projects)) {
-      if (project.city && project.city.id === project.cityId && !cache[project.cityId]) {
-        cache[project.cityId] = project.city.name;
-      }
-    }
-
-    return cache;
-  });
-
   function createProjectContext(
     project: Project,
     changeType?: SubmissionChangeType,
@@ -232,8 +216,6 @@ export function useSubmissionService() {
       "startDate",
       "endDate",
       "endDatePrecision",
-      "cityId",
-      "countryCode",
       "proposalDatePrecision",
       "startDatePrecision",
       "geometry",
@@ -287,16 +269,6 @@ export function useSubmissionService() {
     if (fieldName === "geometry" && typeof value === "object") {
       const count = (value as GeoJSON.GeometryCollection).geometries.length;
       return t("shapes.geometrySummary", { count });
-    }
-
-    // Special handling for cityId - show city name (cityId is a number)
-    if (fieldName === "cityId") {
-      // Check the cache (built from all projects and loaded cities)
-      const cachedName = cityNamesCache.value[String(value)];
-      if (cachedName) {
-        return cachedName;
-      }
-      return String(value); // Fallback to ID if city name not found
     }
 
     if (value instanceof Date) {

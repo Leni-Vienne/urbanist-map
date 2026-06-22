@@ -108,8 +108,7 @@
 import { computed, defineAsyncComponent, ref } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import type { PanelTab } from "@/types";
+import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
@@ -122,12 +121,10 @@ const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPan
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
-const overlayStore = useOverlayStore();
 
-// A clicked overlay info popup or standalone project marker opens the detail, which takes over the drawer.
-const detailVisible = computed(
-  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
-);
+// activeTab proxies uiStore (shared with the desktop SideMenu); detailVisible drives the detail
+// slide-over (suppressed in edit mode, where ContributePanel renders the selection inline).
+const { detailVisible, activeTab } = useDetailPanel();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
 const isSatelliteMenuOpen = ref(false);
@@ -147,12 +144,6 @@ const drawerHeight = computed({
 function handleHeightChanged(height: number) {
   uiStore.mobileDrawerHeightPercent = Math.min(90, height);
 }
-
-// Computed with getter/setter for v-model compatibility, uiStore.activeTab shared with SideMenu
-const activeTab = computed<PanelTab>({
-  get: () => uiStore.activeTab,
-  set: (value) => (uiStore.activeTab = value),
-});
 </script>
 
 <style scoped>
