@@ -107,34 +107,62 @@ export function projectEffectiveGeometrySql(alias: string): string {
   )`;
 }
 
+// Total (never-throwing) overlay-fraction function for the straddling-border case. A single row that
+// throws inside a set-based UPDATE aborts the whole batch, so the fraction computation must be
+// incapable of throwing regardless of the input geometry.
+//   - dim 2 (polygons): fraction by area. dim 1 (lines): fraction by length.
+//   - ST_MakeValid + ST_CollectionExtract repairs the two cases a raw overlay rejects: a project
+//     polygon overlapping/nesting its own overlay corners (invalid MultiPolygon) and a mixed
+//     line+polygon collection ("Overlay input is mixed-dimension"). The dim-2 denominator reuses the
+//     normalized geometry so an overlapping footprint is not double-counted.
+//   - EXCEPTION handler: GEOS can still throw a robustness error ("side location conflict") on
+//     geometry that is valid and single-dimension, with no expression-level repair. The handler
+//     degrades that row to interior-point containment (1.0 for any boundary whose polygon holds a
+//     representative point of the project, so the caller's `ORDER BY admin_level DESC` picks the
+//     deepest), instead of poisoning the batch. ST_PointOnSurface is tried first (guaranteed inside)
+//     and falls back to ST_Centroid, which is total on every geometry type (including the
+//     GeometryCollection PointOnSurface rejects), so the handler itself can never throw.
+// IMMUTABLE/PARALLEL SAFE: pure geometry, no table access, deterministic. Ensured in the DB by the
+// import script (see ensureCoverageFunction), like the GIST index.
+export const SAFE_OVERLAY_FRACTION_DDL = `
+CREATE OR REPLACE FUNCTION safe_overlay_fraction(b_geom geometry, p_geom geometry)
+RETURNS double precision
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
+DECLARE
+  v_dim integer := ST_Dimension(p_geom);
+  v_norm geometry;
+BEGIN
+  IF v_dim = 2 THEN
+    v_norm := ST_CollectionExtract(ST_MakeValid(p_geom), 3);
+    RETURN ST_Area(ST_Intersection(b_geom, v_norm)) / NULLIF(ST_Area(v_norm), 0);
+  ELSIF v_dim = 1 THEN
+    v_norm := ST_CollectionExtract(ST_MakeValid(p_geom), 2);
+    RETURN ST_Length(ST_Intersection(b_geom, v_norm)) / NULLIF(ST_Length(p_geom), 0);
+  ELSE
+    RETURN 1.0;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  BEGIN
+    RETURN CASE WHEN ST_Contains(b_geom, ST_PointOnSurface(p_geom)) THEN 1.0 ELSE 0.0 END;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN CASE WHEN ST_Contains(b_geom, ST_Centroid(p_geom)) THEN 1.0 ELSE 0.0 END;
+  END;
+END;
+$$;
+`;
+
 // Fraction of a project's effective shape (see projectEffectiveGeometrySql) that falls inside a
-// candidate boundary `b`. `geom` is a SQL expression for that shape (typically a cheap column ref
-// like `eff.geom`, so the expensive union is computed once per project, not once per CASE branch).
-// Dimension-aware: polygons compared by area, lines by length, points by containment (1.0).
-// A mixed line+polygon collection reports dimension 2 and is compared by area; the line parts
-// contribute no area, which is acceptable since polygon area dominates the project's size.
-//
-// Fast path: a shape fully inside the boundary covers it 100%, so ST_Covers (a boolean predicate,
-// no geometry constructed, prepared/cached on b.geom) returns 1.0 without the ST_Intersection
-// overlay. Since CASE stops at the first true branch, the costly intersection only runs for the
-// rare project straddling a border. Most projects are tiny shapes fully inside their boundaries,
-// so this skips the overlay for the overwhelming majority. Result is identical: a contained shape's
-// fraction is exactly 1.0.
-// The ST_Intersection calls pass a gridSize (precision reduction) and ST_MakeValid the project geom:
-// a project whose polygon overlaps its own overlay corners collects into an invalid MultiPolygon, and
-// GEOS raises "TopologyException: side location conflict" mid-overlay. MakeValid alone does not cure
-// it (the failure is overlay precision robustness, not OGC validity); the gridSize snapping does.
-// Both run only inside this rare branch (straddling projects), so the fast path stays untouched. The
-// grid (~1mm at the equator) is far finer than the assignment's tolerance, so coverage is unchanged.
+// candidate boundary `b`. `geom` is a SQL expression for that shape (typically `eff.geom`, so the
+// expensive union is built once per project, not once per branch). A shape fully inside the boundary
+// covers it 100%, so ST_Covers (a cheap boolean predicate, no geometry built) short-circuits to 1.0
+// for the contained majority and the overlay only runs for the rare project straddling a border.
+// Keeping ST_Covers out of safe_overlay_fraction means that function's per-call subtransaction cost
+// (from its EXCEPTION block) is paid only on straddling rows, never on the contained majority.
 export function coverageFractionSql(geom: string): string {
   return `CASE
     WHEN ${geom} IS NULL THEN 1.0
     WHEN ST_Covers(b.geom, ${geom}) THEN 1.0
-    WHEN ST_Dimension(${geom}) = 2
-      THEN ST_Area(ST_Intersection(b.geom, ST_MakeValid(${geom}), 0.00000001)) / NULLIF(ST_Area(${geom}), 0)
-    WHEN ST_Dimension(${geom}) = 1
-      THEN ST_Length(ST_Intersection(b.geom, ST_MakeValid(${geom}), 0.00000001)) / NULLIF(ST_Length(${geom}), 0)
-    ELSE 1.0
+    ELSE safe_overlay_fraction(b.geom, ${geom})
   END`;
 }
 
