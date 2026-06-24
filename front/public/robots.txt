@@ -1,2 +1,4 @@
 User-agent: *
 Disallow: /admin
+
+Sitemap: https://urbanistmap.org/sitemap.xml

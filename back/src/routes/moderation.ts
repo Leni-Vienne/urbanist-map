@@ -29,6 +29,7 @@ import {
 } from "../db/helpers";
 import { queueR2Migration } from "../services/r2MigrationService";
 import { assignProjectBoundary } from "../db/boundaryAssignment";
+import { refreshProjectIndexable } from "../db/indexable";
 import * as z from "zod";
 
 type DbOrTx = Pick<typeof db, "update">;
@@ -690,6 +691,10 @@ export const moderationRouter = router({
           invalidateLatestContributionsCache();
         }
 
+        // Approval/rejection changes whether the project qualifies for indexing. Best-effort and
+        // post-commit; the daily import pass is the safety net.
+        if (result.success) await refreshProjectIndexable(input.id);
+
         return result;
       } catch (error) {
         console.error("Error updating project status with version:", error);
@@ -835,6 +840,9 @@ export const moderationRouter = router({
         if (overlay.kind === "map" && overlay.projectId) {
           await assignProjectBoundary(overlay.projectId);
         }
+
+        // An approved overlay can make its project newly indexable (visual content gate).
+        if (overlay.projectId) await refreshProjectIndexable(overlay.projectId);
 
         return transactionResult;
       } catch (error) {

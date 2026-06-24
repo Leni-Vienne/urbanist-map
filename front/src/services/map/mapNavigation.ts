@@ -245,6 +245,28 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   });
 }
 
+/**
+ * Set the camera instantly (no animation), accounting for the mobile drawer offset. Used for cold
+ * deep links where the map already booted at the target, so there is no meaningful start view to
+ * animate from; only the zoom needs adjusting and that should not be visible.
+ */
+function mobileAwareJumpTo(latlng: LatLngInput, zoom?: number, options: FlyOptions = {}): void {
+  const m = map.value;
+  if (!m) return;
+  const target = toLatLng(latlng);
+  if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
+  const resolved = resolvePadding(undefined, options.mobileTopInset);
+  const padding: PaddingOptions =
+    typeof resolved === "number"
+      ? { top: resolved, bottom: resolved, left: resolved, right: resolved }
+      : resolved;
+  m.jumpTo({
+    center: [target.lng, target.lat],
+    ...(zoom === undefined ? {} : { zoom }),
+    padding,
+  });
+}
+
 /** Web Mercator latitude -> world-Y fraction in [0, 1]. */
 function mercatorY(lat: number): number {
   const clamped = Math.max(-85.051_129, Math.min(85.051_129, lat));
@@ -403,7 +425,7 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 export function flyToGeometry(
   latlng: LatLngInput,
   sizeM: number,
-  options: { fromMapClick?: boolean } = {},
+  options: { fromMapClick?: boolean; instant?: boolean } = {},
 ): boolean {
   const m = map.value;
   if (!m) return false;
@@ -413,6 +435,13 @@ export function flyToGeometry(
   const currentZoom = m.getZoom();
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
+
+  // Cold deep link: the map already booted centered on the target, so set the final geometry-fit
+  // zoom without an animation rather than flying from the boot zoom.
+  if (options.instant) {
+    mobileAwareJumpTo(target, targetZoom);
+    return true;
+  }
 
   if (targetZoom !== currentZoom) {
     mobileAwareFlyTo(target, targetZoom);

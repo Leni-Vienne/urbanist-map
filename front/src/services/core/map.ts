@@ -20,6 +20,26 @@ function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
   return { lat, lng, zoom };
 }
 
+// Read the project location the SEO Pages Function injected into the shell for a /project/:slug
+// deep link (`<meta name="deeplink-view" content="lat,lng">`). Present only in production, where the
+// Function runs; absent on the vite dev server. Lets the map be constructed already centered on the
+// project so its first paint shows the right place instead of animating in from the default view.
+function parseDeeplinkView(): { lat: number; lng: number } | null {
+  const content = document.querySelector('meta[name="deeplink-view"]')?.getAttribute("content");
+  if (!content) return null;
+  const [latStr, lngStr] = content.split(",");
+  const lat = Number(latStr);
+  const lng = Number(lngStr);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -85 || lat > 85 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
+// True when the map was constructed centered on a deep-link project (see parseDeeplinkView). The
+// deep-link handler reads this to set the camera instantly instead of flying, since the map already
+// booted at the target.
+export const bootedFromDeeplinkView = ref(false);
+
 // Move the camera when the user edits the hash in the address bar. Our own hash writes use
 // history.replaceState (see updateHash), which does not fire hashchange, so this never loops.
 function onHashChange() {
@@ -138,13 +158,29 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
 
 export function initializeMap() {
   const hashCoords = parseHashCoords();
+  // An explicit map-state hash wins over the deep-link view (e.g. a shared link with both).
+  const deeplinkView = hashCoords ? null : parseDeeplinkView();
+  bootedFromDeeplinkView.value = deeplinkView !== null;
   const minZoom = calculateMinZoom();
+
+  // Default world view, overridden by the hash (shared link) or the deep-link view (SEO shell). The
+  // deep-link handler refines the zoom to a geometry fit the instant the map is ready; 14 is a
+  // sensible first-paint zoom matching the marker-style default for the common standalone case.
+  let initialCenter: [number, number] = [10, 22];
+  let initialZoom = minZoom;
+  if (hashCoords) {
+    initialCenter = [hashCoords.lng, hashCoords.lat];
+    initialZoom = Math.max(hashCoords.zoom, minZoom);
+  } else if (deeplinkView) {
+    initialCenter = [deeplinkView.lng, deeplinkView.lat];
+    initialZoom = Math.max(14, minZoom);
+  }
 
   const mapOptions: maplibre.MapOptions = {
     container: "mapDiv",
     style: OPENFREEMAP_STYLE_URL,
-    center: hashCoords ? [hashCoords.lng, hashCoords.lat] : [10, 22],
-    zoom: hashCoords ? Math.max(hashCoords.zoom, minZoom) : minZoom,
+    center: initialCenter,
+    zoom: initialZoom,
     minZoom,
     maxZoom: 21,
     attributionControl: false, // custom attribution control added below

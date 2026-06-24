@@ -1,6 +1,13 @@
 import { publicProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { projects, overlays, changeRequests, importSources, users } from "../db/schema";
+import {
+  projects,
+  overlays,
+  changeRequests,
+  importSources,
+  users,
+  deletedProjects,
+} from "../db/schema";
 import { eq, sql, and, or, inArray, isNull, ne, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
@@ -11,6 +18,7 @@ import {
   buildPaginationConditions,
   buildPaginationResponse,
   isUserBlocked,
+  generateUniqueProjectSlug,
   PROJECT_COLUMNS,
 } from "../db/helpers";
 import {
@@ -170,10 +178,14 @@ export const projectRouter = router({
         }
       }
 
-      // Insert new project (with provided ID or auto-generated UUID)
+      // Insert new project (with provided ID or auto-generated UUID). The id is generated up front
+      // so the permanent, uuid-derived slug can be computed before the insert. The slug is never
+      // regenerated on later edits (the update path above leaves it untouched) to keep URLs stable.
+      const newProjectId = input.id ?? crypto.randomUUID();
+      const slug = await generateUniqueProjectSlug({ name: data.name, id: newProjectId });
       const result = await db
         .insert(projects)
-        .values(input.id ? { ...data, id: input.id } : data)
+        .values({ ...data, id: newProjectId, slug })
         .returning();
 
       const resultRow = result[0];
@@ -308,6 +320,7 @@ export const projectRouter = router({
       const rows = await db
         .select({
           ...PROJECT_COLUMNS,
+          slug: projects.slug,
           importSource: importSources,
           ownerUsername: users.username,
         })
@@ -351,6 +364,89 @@ export const projectRouter = router({
       return { ...project, render: renderRows[0] ?? null, boundaryPath };
     } catch (error) {
       console.error("Error fetching project by id:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });
+    }
+  }),
+
+  // Resolve a project by its permanent slug for the /project/:slug deep link. Public: returns
+  // approved projects to everyone (also the owner's own, regardless of status, so an owner opening
+  // their pending project's link still lands on it). When no live project matches, falls back to a
+  // tombstone (deleted project) so the SPA can center the map on the last known location.
+  getBySlug: publicProcedure.input(z.object({ slug: z.string() })).query(async ({ input, ctx }) => {
+    try {
+      const statusCondition = ctx.user
+        ? or(eq(projects.status, "approved"), eq(projects.ownerId, ctx.user.id))
+        : eq(projects.status, "approved");
+
+      const rows = await db
+        .select({
+          ...PROJECT_COLUMNS,
+          slug: projects.slug,
+          importSource: importSources,
+          ownerUsername: users.username,
+        })
+        .from(projects)
+        .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
+        .leftJoin(users, eq(users.id, projects.ownerId))
+        .where(and(eq(projects.slug, input.slug), statusCondition))
+        .limit(1);
+
+      const project = rows[0];
+      if (project) {
+        const renderRows = await db
+          .select({
+            filename: overlays.filename,
+            caption: overlays.caption,
+            status: overlays.status,
+          })
+          .from(overlays)
+          .where(
+            and(
+              eq(overlays.projectId, project.id),
+              eq(overlays.kind, "render"),
+              buildOverlayVisibilityCondition(ctx.user, "edit"),
+            ),
+          )
+          .orderBy(
+            sql`CASE WHEN ${overlays.status} = 'approved' THEN 0 ELSE 1 END`,
+            desc(overlays.updatedAt),
+          )
+          .limit(1);
+
+        const boundaryPath = project.adminBoundaryId
+          ? await resolveBoundaryPath(project.adminBoundaryId)
+          : [];
+
+        return {
+          found: true as const,
+          project: { ...project, render: renderRows[0] ?? null, boundaryPath },
+        };
+      }
+
+      const tombstones = await db
+        .select({
+          lat: deletedProjects.lat,
+          lng: deletedProjects.lng,
+          status: deletedProjects.status,
+        })
+        .from(deletedProjects)
+        .where(eq(deletedProjects.slug, input.slug))
+        .limit(1);
+
+      const tombstone = tombstones[0];
+      if (tombstone) {
+        return {
+          found: false as const,
+          gone: true as const,
+          lat: tombstone.lat,
+          lng: tombstone.lng,
+          projectStatus: tombstone.status,
+        };
+      }
+
+      return { found: false as const, gone: false as const };
+    } catch (error) {
+      console.error("Error fetching project by slug:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });
     }
   }),

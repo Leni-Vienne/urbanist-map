@@ -333,7 +333,7 @@ export async function applyCrop(): Promise<boolean> {
   const sourceRect = overlay.history.at(-1)?.cropRect ?? { u0: 0, u1: 1, v0: 0, v1: 1 };
   const originalRect = composeRect(sourceRect, bounds);
 
-  const dataUrl = await cropImageToDataUrl(sourceUrl, originalRect).catch((error) => {
+  const dataUrl = await cropImageToDataUrl(sourceUrl, originalRect).catch((error: unknown) => {
     console.error("Failed to crop overlay image:", error);
     return null;
   });

@@ -133,6 +133,7 @@ export default defineConfig(({ mode }) => {
         "primevue/card",
         "primevue/tag",
         "primevue/divider",
+        "primevue/progressspinner",
       ],
     },
     build: {

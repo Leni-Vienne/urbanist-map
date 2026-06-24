@@ -30,6 +30,7 @@ junk
 components.d.ts
 *report.md
 deps-analysis.json
+preview-seo-*.html
 .nyc_output
 coverage
 *.puml

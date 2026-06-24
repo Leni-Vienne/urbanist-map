@@ -13,10 +13,14 @@ export type PendingChangeRequest =
 
 export type LatestContribution = RouterOutput["feed"]["getLatestContributions"][number];
 
-// Base runtime project type - extends DB schema with computed fields
-export interface Project extends Omit<DBProject, "status" | "tags"> {
+// Base runtime project type - extends DB schema with computed fields.
+// indexable is a server-only SEO column, never selected into client queries, so it is omitted here.
+export interface Project extends Omit<DBProject, "status" | "tags" | "slug" | "indexable"> {
   // Override status to allow null for local unsubmitted projects
   status: ApprovalStatus | null;
+  // Permanent SEO slug for the /project/<slug> deep link. Selected only by getById/getBySlug, so it
+  // is absent (undefined) on projects loaded from the viewport payload. Used to sync the address bar.
+  slug?: string | null;
   // Computed fields for all contexts
   overlayIds: string[];
   // Always an array on the frontend, null coerced to [] at DB boundary

@@ -1,7 +1,6 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
-import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
-import { db } from "../database";
+import { db, type Database } from "../database";
 import {
   projects,
   overlays,
@@ -11,8 +10,30 @@ import {
   importSources,
   type ApprovalStatus,
 } from "./schema";
-import type * as schema from "./schema";
 import type { AppMode } from "@shared/types";
+import { buildProjectSlug } from "@shared/projectSlug";
+
+// Build a permanent slug for a user-created project and resolve the (near-impossible) collision
+// against the unique constraint by appending -2, -3, ... The bulk OSM import skips this check: its
+// suffix derives from the globally-unique external id, so collisions can't occur there.
+export async function generateUniqueProjectSlug(input: {
+  name: string | null | undefined;
+  id: string;
+}): Promise<string> {
+  const base = buildProjectSlug({ name: input.name, externalId: null, id: input.id });
+  let candidate = base;
+  for (let attempt = 2; attempt < 100; attempt += 1) {
+    const existing = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.slug, candidate))
+      .limit(1);
+    if (existing.length === 0) return candidate;
+    candidate = `${base}-${attempt}`;
+  }
+  // Exhausting 100 attempts is impossible in practice; fall back to the uuid-suffixed base.
+  return base;
+}
 
 // Country display name resolved from the level-2 (country) admin boundary matching a project's
 // country_code. Replaces the former join to the dropped `countries` table.
@@ -138,7 +159,7 @@ const overlaySelectFields = {
   countryName: countryNameSql,
 };
 
-export function buildOverlayQuery(database: BunSQLDatabase<typeof schema>) {
+export function buildOverlayQuery(database: Database) {
   return database
     .select(overlaySelectFields)
     .from(overlays)
@@ -181,7 +202,7 @@ export const PROJECT_COLUMNS = {
   importLockedAt: projects.importLockedAt,
 } as const;
 
-export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof schema>) {
+export function buildProjectWithLocationQuery(database: Database) {
   return database
     .select({
       ...PROJECT_COLUMNS,
@@ -197,7 +218,7 @@ export function buildProjectWithLocationQuery(database: BunSQLDatabase<typeof sc
  * Build overlay query with minimal fields for moderation lists
  * Includes location data but not full geometry extraction
  */
-export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof schema>) {
+export function buildOverlayModerationQuery(database: Database) {
   return database
     .select({
       id: overlays.id,
@@ -222,7 +243,7 @@ export function buildOverlayModerationQuery(database: BunSQLDatabase<typeof sche
     .leftJoin(users, eq(overlays.authorId, users.id));
 }
 
-export function buildProjectModerationQuery(database: BunSQLDatabase<typeof schema>) {
+export function buildProjectModerationQuery(database: Database) {
   const { geometry: _geometry, ...columnsWithoutGeometry } = PROJECT_COLUMNS;
   return database
     .select({
@@ -271,7 +292,7 @@ type UserContext =
 
 // Fetch overlay IDs where user has pending change requests
 export async function getUserOverlayChangeRequestIds(
-  database: BunSQLDatabase<typeof schema>,
+  database: Database,
   userId: string,
 ): Promise<string[]> {
   const changeRequestResults = await database
