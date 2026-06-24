@@ -9,6 +9,14 @@ const routes = [
     component: Home,
   },
   {
+    // SEO deep link. Renders the full SPA (same Home view); the deep-link handler in Home reads the
+    // slug, fetches the project and focuses the map on it. Server-rendered meta for bots is injected
+    // by the Cloudflare Pages Function, not here.
+    path: "/project/:slug",
+    name: "ProjectBySlug",
+    component: Home,
+  },
+  {
     path: "/verify",
     name: "EmailVerification",
     component: async () => import("@/pages/EmailVerification.vue"),

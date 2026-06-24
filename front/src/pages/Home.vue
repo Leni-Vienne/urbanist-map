@@ -71,7 +71,6 @@
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
 
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -86,6 +85,8 @@ import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
+import { handleProjectDeepLink } from "@/composables/project/useProjectDeepLink";
+import { useActiveDetail } from "@/composables/project/useActiveDetail";
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
@@ -111,7 +112,6 @@ const maintenanceBannerDismissed = ref(false);
 const now = ref(new Date());
 let maintenanceTickInterval: ReturnType<typeof globalThis.setInterval> | undefined = undefined;
 
-const overlayStore = useOverlayStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
@@ -183,9 +183,7 @@ function updateWindowWidth() {
 // is open whenever a selection appears. The drawer keeps its current height (the camera centers
 // the feature in the map area above it), and the user can drag it taller to read more. The
 // desktop side menu is always open, so it needs no handling here.
-const detailActive = computed(
-  () => overlayStore.overlayDetailVisible || uiStore.projectDetail.visible,
-);
+const detailActive = useActiveDetail().visible;
 
 watch(detailActive, (active) => {
   if (!active) return;
@@ -264,6 +262,11 @@ onMounted(async () => {
       life: 5000,
     });
   }
+
+  // Focus the map on a /project/:slug deep link (no-op on other routes). Fire-and-forget: the
+  // handler waits for the map to be ready on its own. slug + t are captured synchronously above
+  // (this runs after an await, so useRoute/useI18n would no longer resolve here).
+  void handleProjectDeepLink(route.params.slug, t);
 
   // Strip the auth params the OAuth callback appended so they don't linger in the URL.
   // Done via the History API to leave the map-state hash (managed in map.ts) untouched.

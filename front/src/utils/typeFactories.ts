@@ -52,6 +52,7 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     geometrySizeM: data.geometrySizeM ?? null,
     tags: data.tags ?? [],
     countryCode: data.countryCode ?? "",
+    slug: data.slug ?? null,
     detachedAt: data.detachedAt ?? null,
     importLockedAt: data.importLockedAt ?? null,
     // Left undefined when the source didn't carry it (e.g. viewport payload), so the detail panel knows

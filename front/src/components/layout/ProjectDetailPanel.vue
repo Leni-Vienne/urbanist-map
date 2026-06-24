@@ -167,7 +167,7 @@ import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
-import { useActiveDetailProjectId } from "@/composables/project/useActiveDetailProjectId";
+import { useActiveDetail } from "@/composables/project/useActiveDetail";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useToast } from "@/composables/ui/useToast";
@@ -249,7 +249,7 @@ function getEffectiveProject(projectId: string): Project | undefined {
 }
 
 // Overlay detail first, then project detail (shared with the visible-projects list).
-const activeProjectId = useActiveDetailProjectId();
+const { projectId: activeProjectId } = useActiveDetail();
 
 // When another project is picked while the panel stays open, the content swaps in place with no
 // signal. Echo the open transition (short fade + slide-up) and scroll back to the top so the switch

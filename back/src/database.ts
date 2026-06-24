@@ -1,7 +1,6 @@
 import { drizzle } from "drizzle-orm/bun-sql";
 import { SQL } from "bun";
 import { config } from "./config";
-import * as schema from "./db/schema";
 
 // Only the local `bun dev` process hot-reloads; the deployed preview and production containers
 // don't. So pool sizing keys off "development" specifically (matching the rest of the codebase),
@@ -22,7 +21,7 @@ const client = new SQL(mainDbUrl.toString(), {
   prepare: true,
 });
 
-export const db = drizzle({ client, schema });
+export const db = drizzle({ client });
 export type Database = typeof db;
 
 // MVT tile generation uses two zoom-tuned pools because the two workloads have opposite needs.

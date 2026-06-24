@@ -117,7 +117,11 @@
     "removeTag": "Remove tag",
     "additionalDetails": "Additional Details",
     "osmSource": "OpenStreetMap",
-    "importedTooltip": "Imported from OpenStreetMap"
+    "importedTooltip": "Imported from OpenStreetMap",
+    "deepLink": {
+      "goneTitle": "Project unavailable",
+      "goneDetail": "This project has been completed or removed."
+    }
   },
   "tags": {
     "tram": "Tram",

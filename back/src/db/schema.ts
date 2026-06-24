@@ -15,6 +15,7 @@ import {
   customType,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { sql, type InferSelectModel } from "drizzle-orm";
 
 // Custom column type for PostGIS GeometryCollection.
 // Drizzle's built-in geometry() hardcodes getSQLType() to "geometry(point)" and
@@ -26,7 +27,7 @@ const geometryCollectionType = customType<{
   driverData: string;
 }>({
   dataType() {
-    return "geometry(geometrycollection, 4326)";
+    return "geometry(geometrycollection,4326)";
   },
 });
 
@@ -38,10 +39,22 @@ const multiPolygonType = customType<{
   driverData: string;
 }>({
   dataType() {
-    return "geometry(multipolygon, 4326)";
+    return "geometry(multipolygon,4326)";
   },
 });
-import { sql, relations, type InferSelectModel } from "drizzle-orm";
+
+// Custom column type for PostGIS Polygon, used for overlay corner footprints.
+// Same rationale as the types above: Drizzle's built-in geometry() ignores the `type`
+// option and always emits "geometry(point,...)", so a polygon column must be declared here.
+// Reads use ST_DumpPoints(...); writes use ST_MakePolygon(...).
+const polygonType = customType<{
+  data: GeoJSON.Polygon | null;
+  driverData: string;
+}>({
+  dataType() {
+    return "geometry(polygon,4326)";
+  },
+});
 
 export const approvalStatusEnum = pgEnum("approval_status", [
   "pending",
@@ -51,7 +64,7 @@ export const approvalStatusEnum = pgEnum("approval_status", [
 ]);
 export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
 
-export const changeRequestStatusEnum = pgEnum("change_request_status", [
+const changeRequestStatusEnum = pgEnum("change_request_status", [
   "pending",
   "approved",
   "rejected",
@@ -62,12 +75,12 @@ export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[nu
 
 // Date precision values - used for flexible date display
 // Using const array + text column (not enum) for easier modification
-export const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
+const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
 export type DatePrecision = (typeof DATE_PRECISION_VALUES)[number];
 
 // Timeline status values - project lifecycle stage
 // Using const array + text column (not enum) for easier modification
-export const TIMELINE_STATUS_VALUES = [
+const TIMELINE_STATUS_VALUES = [
   "proposed", // Just an idea/proposal
   "planned", // Approved/funded but not yet started
   "under_construction", // Active construction
@@ -102,10 +115,6 @@ export const importSources = pgTable(
     index("idx_import_sources_type").on(table.type),
   ],
 );
-
-export const importSourcesRelations = relations(importSources, ({ many }) => ({
-  projects: many(projects),
-}));
 
 // Users table for custom authentication
 export const users = pgTable(
@@ -148,12 +157,6 @@ export const users = pgTable(
   ],
 );
 
-export const usersRelations = relations(users, ({ many }) => ({
-  projects: many(projects),
-  overlays: many(overlays),
-  oauthAccounts: many(oauthAccounts),
-}));
-
 // One row per linked external identity (Google, OSM, GitHub, ...). Provider-agnostic
 // so new providers need no schema change: just a new `provider` value.
 export const oauthAccounts = pgTable(
@@ -172,13 +175,6 @@ export const oauthAccounts = pgTable(
     index("idx_oauth_accounts_user_id").on(table.userId),
   ],
 );
-
-export const oauthAccountsRelations = relations(oauthAccounts, ({ one }) => ({
-  user: one(users, {
-    fields: [oauthAccounts.userId],
-    references: [users.id],
-  }),
-}));
 
 // Sessions table for database-backed session storage
 export const sessions = pgTable(
@@ -233,7 +229,8 @@ export const projects = pgTable(
     // Center coordinate for all projects - used as marker position when no images exist
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
-    centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy", srid: 4326 }), // PostGIS point for spatial queries (computed from lat/lng)
+    // srid omitted (see overlays.centroid): values are SRID 4326, column typmod is unconstrained.
+    centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy" }), // PostGIS point for spatial queries (computed from lat/lng)
     geometry: geometryCollectionType("geometry"), // PostGIS GeometryCollection for project shapes (lines + polygons)
     geometrySizeM: doublePrecision("geometry_size_m"), // LEAST(total line/polygon length, global bbox diagonal) in meters. See import-osm.ts for rationale. Null = no geometry.
     tags: text("tags").array(), // Project category tags (e.g. 'tram', 'rail', 'bike')
@@ -248,6 +245,11 @@ export const projects = pgTable(
     ), // Boundary (osm_id) holding the majority of the project's shape; city/state/country derived via its parent chain
     detachedAt: timestamp("detached_at", { withTimezone: true }), // Set when OSM source was deleted/redrawn and project had overlays; import link is severed
     importLockedAt: timestamp("import_locked_at", { withTimezone: true }), // Set when a user edit is approved on an imported project; the OSM import must not overwrite its fields
+    // Materialized curation filter for SEO: true when the project is approved AND named AND has
+    // visual content (an approved overlay, or an external wikidata/image tag). Drives both the
+    // sitemap source and the per-page noindex decision. Refreshed in bulk after the OSM import and
+    // per-project on moderation approval (see db/indexable.ts); never set by the request path.
+    indexable: boolean("indexable").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -268,6 +270,10 @@ export const projects = pgTable(
     index("idx_projects_last_imported").on(table.lastImportedAt),
     index("idx_projects_external_last_modified").on(table.externalLastModified), // For filtering stale imported data
     index("idx_projects_admin_boundary").on(table.adminBoundaryId),
+    // Partial: the sitemap and SEO lookups only ever scan indexable rows (~4.5k of ~500k).
+    index("idx_projects_indexable")
+      .on(table.slug)
+      .where(sql`${table.indexable} = true`),
     sql.raw(
       "CREATE INDEX IF NOT EXISTS idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
     ), // Spatial index for project center coordinates
@@ -278,22 +284,6 @@ export const projects = pgTable(
     uniqueIndex("idx_projects_source_external").on(table.importSourceId, table.externalId),
   ],
 );
-
-export const projectsRelations = relations(projects, ({ one, many }) => ({
-  owner: one(users, {
-    fields: [projects.ownerId],
-    references: [users.id],
-  }),
-  importSource: one(importSources, {
-    fields: [projects.importSourceId],
-    references: [importSources.id],
-  }),
-  adminBoundary: one(adminBoundaries, {
-    fields: [projects.adminBoundaryId],
-    references: [adminBoundaries.osmId],
-  }),
-  overlays: many(overlays),
-}));
 
 export const overlays = pgTable(
   "overlays",
@@ -318,8 +308,11 @@ export const overlays = pgTable(
     kind: text("kind").$type<"map" | "render">().default("map").notNull(),
 
     // Null for renders, which are not placed on the map.
-    corners: geometry("corners", { type: "polygon", mode: "xy", srid: 4326 }),
-    centroid: geometry("centroid", { type: "point", mode: "xy", srid: 4326 }),
+    corners: polygonType("corners"),
+    // srid omitted: the column typmod is unconstrained (srid 0); values are stored as
+    // SRID 4326 via ST_SetSRID in overlay writes. Declaring srid here would emit
+    // "geometry(point,4326)" and force a no-op typmod rewrite.
+    centroid: geometry("centroid", { type: "point", mode: "xy" }),
 
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
@@ -339,22 +332,6 @@ export const overlays = pgTable(
     sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_centroid ON overlays USING GIST (centroid)"),
   ],
 );
-
-export const overlaysRelations = relations(overlays, ({ one }) => ({
-  project: one(projects, {
-    fields: [overlays.projectId],
-    references: [projects.id],
-  }),
-  author: one(users, {
-    fields: [overlays.authorId],
-    references: [users.id],
-  }),
-  replacesOverlay: one(overlays, {
-    fields: [overlays.replacesOverlayId],
-    references: [overlays.id],
-    relationName: "overlay_replacement",
-  }),
-}));
 
 // Administrative boundaries (country/state/city/neighborhood) imported from OSM.
 // Projects attach to the boundary holding the majority of their shape; city/state/country
@@ -404,16 +381,6 @@ export const adminBoundaries = pgTable(
     ),
   ],
 );
-
-export const adminBoundariesRelations = relations(adminBoundaries, ({ one, many }) => ({
-  parent: one(adminBoundaries, {
-    fields: [adminBoundaries.parentId],
-    references: [adminBoundaries.osmId],
-    relationName: "boundary_parent",
-  }),
-  children: many(adminBoundaries, { relationName: "boundary_parent" }),
-  projects: many(projects),
-}));
 
 export const changeRequests = pgTable(
   "change_requests",
@@ -473,30 +440,6 @@ export const changeHistory = pgTable(
   ],
 );
 
-export const changeRequestsRelations = relations(changeRequests, ({ one }) => ({
-  requestedByUser: one(users, {
-    fields: [changeRequests.requestedBy],
-    references: [users.id],
-  }),
-}));
-
-export const changeHistoryRelations = relations(changeHistory, ({ one }) => ({
-  changeRequest: one(changeRequests, {
-    fields: [changeHistory.changeRequestId],
-    references: [changeRequests.id],
-  }),
-  changedByUser: one(users, {
-    fields: [changeHistory.changedBy],
-    references: [users.id],
-    relationName: "changed_by",
-  }),
-  approvedByUser: one(users, {
-    fields: [changeHistory.approvedBy],
-    references: [users.id],
-    relationName: "approved_by",
-  }),
-}));
-
 // Scheduled deletions table for managing timed cleanup of replaced/rejected overlay images
 export const scheduledDeletions = pgTable(
   "scheduled_deletions",
@@ -516,13 +459,6 @@ export const scheduledDeletions = pgTable(
     index("idx_scheduled_deletions_overlay").on(table.overlayId),
   ],
 );
-
-export const scheduledDeletionsRelations = relations(scheduledDeletions, ({ one }) => ({
-  overlay: one(overlays, {
-    fields: [scheduledDeletions.overlayId],
-    references: [overlays.id],
-  }),
-}));
 
 // Config table for application-wide settings (single row with id=1)
 export const config = pgTable("config", {
@@ -557,18 +493,24 @@ export const userReports = pgTable(
   ],
 );
 
-export const userReportsRelations = relations(userReports, ({ one }) => ({
-  reportedUser: one(users, {
-    fields: [userReports.reportedUserId],
-    references: [users.id],
-    relationName: "reports_received",
-  }),
-  reporter: one(users, {
-    fields: [userReports.reportedBy],
-    references: [users.id],
-    relationName: "reports_made",
-  }),
-}));
+// Tombstones for hard-deleted projects, written by the OSM prune step immediately before deletion.
+// A minimal record (not a full copy) so the SEO route can answer HTTP 410 for an indexed URL whose
+// project is gone, and the SPA can still center the map on the last known location. Soft-detached
+// projects keep their row and never get a tombstone. Because slugs are deterministic, a reappearing
+// OSM feature regenerates the same slug; the live row then wins (the resolver checks projects first).
+export const deletedProjects = pgTable(
+  "deleted_projects",
+  {
+    slug: text("slug").primaryKey(), // Matches the deleted project's permanent slug
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    status: text("status").$type<"completed" | "removed">().default("removed").notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_deleted_projects_deleted_at").on(table.deletedAt)],
+);
+
+export type DBDeletedProject = InferSelectModel<typeof deletedProjects>;
 
 // Export Drizzle-inferred types for frontend consumption
 export type DBProject = InferSelectModel<typeof projects>;

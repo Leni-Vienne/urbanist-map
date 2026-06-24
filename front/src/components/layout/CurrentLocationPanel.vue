@@ -117,7 +117,7 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
-import { useActiveDetailProjectId } from "@/composables/project/useActiveDetailProjectId";
+import { useActiveDetail } from "@/composables/project/useActiveDetail";
 import { PROJECT_TAG_MAP } from "@/config/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import LinePreview from "@/components/common/LinePreview.vue";
@@ -132,7 +132,7 @@ const contentRef = ref<HTMLElement | null>(null);
 const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
 // The project whose detail is open, used to link the open detail to its row in the list.
-const selectedProjectId = useActiveDetailProjectId();
+const { projectId: selectedProjectId } = useActiveDetail();
 
 /** Returns translated names of all tags after the first, joined by newlines. */
 function extraTagsTooltip(tags: string[]): string {

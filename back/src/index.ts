@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./routes";
 import { tilesApp, tilesAltApp, warmLowZoomTileCache } from "./routes/tiles";
+import { seoApp } from "./routes/seo";
 import { authApp, SESSION_DURATION_LONG } from "./routes/auth";
 import { uploadsApp } from "./routes/uploads";
 import { allowedDomains } from "./lib/corsConfig";
@@ -77,6 +78,9 @@ app.get("/api/health", (c) => {
 // Public tile endpoints - mounted before session middleware (no auth needed)
 app.route("/api/tiles", tilesApp);
 app.route("/api/tiles", tilesAltApp);
+
+// Public SEO endpoints (project metadata + sitemap) - cookie-free, mounted before session middleware
+app.route("/", seoApp);
 
 app.use(
   "*",

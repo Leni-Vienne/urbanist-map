@@ -30,6 +30,8 @@ const db = drizzle({ client: pgClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { EXTENDED_OSM_RULES, PRESENT_STATE_OSM_KEYS, isRedevelopmentSite } from "@shared/osmRules";
+import { buildProjectSlug } from "@shared/projectSlug";
+import { refreshAllIndexable } from "../db/indexable";
 
 const GEOJSON_PATHS = [
   path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_linear.geojson"),
@@ -570,6 +572,10 @@ async function main() {
 
         pendingRows.push({
           name,
+          // Permanent, id-derived slug. Excluded from conflictSet below so it is frozen on first
+          // insert and never recomputed (even after detach nulls externalId). Left null for the rare
+          // id-less feature (no stable natural key to derive a unique, reproducible suffix from).
+          slug: externalId ? buildProjectSlug({ name, externalId, id: null }) : null,
           description,
           countryCode,
           status: "approved" as const,
@@ -780,6 +786,20 @@ async function main() {
   const hasOverlays = sql`EXISTS (SELECT 1 FROM overlays WHERE project_id = projects.id)`;
 
   try {
+    // Tombstone the rows about to be hard-deleted so an indexed /project/:slug URL can answer 410
+    // and the SPA can still center the map on the last known location. A proposed/under-construction
+    // feature leaving the OSM extract most often means it got built, so default the status to
+    // 'completed'. Skip rows without a slug (pre-backfill); ON CONFLICT refreshes coords + timestamp
+    // in case a slug recurs. Done immediately before the delete so it covers exactly that set.
+    await db.execute(sql`
+      INSERT INTO deleted_projects (slug, lat, lng, status, deleted_at)
+      SELECT slug, lat, lng, 'completed', NOW()
+      FROM projects
+      WHERE ${staleCondition} AND NOT (${hasOverlays}) AND slug IS NOT NULL
+      ON CONFLICT (slug) DO UPDATE
+        SET lat = EXCLUDED.lat, lng = EXCLUDED.lng, status = EXCLUDED.status, deleted_at = NOW()
+    `);
+
     const hardDeleted = await db
       .delete(projects)
       .where(sql`${staleCondition} AND NOT (${hasOverlays})`)
@@ -804,6 +824,22 @@ async function main() {
   } catch (err) {
     console.error("Failed to soft-detach stale projects:", err);
   }
+
+  // Drop tombstones whose slug is live again: a reappearing OSM feature regenerates the same
+  // deterministic slug, so the live row now wins and the stale tombstone would only mislead.
+  try {
+    await db.execute(
+      sql`DELETE FROM deleted_projects WHERE slug IN (SELECT slug FROM projects WHERE slug IS NOT NULL)`,
+    );
+  } catch (err) {
+    console.error("Failed to prune resurrected tombstones (non-fatal):", err);
+  }
+
+  // Recompute the SEO indexable flag across all rows now that inserts, detaches and prunes are done.
+  console.log("");
+  log(`Refreshing SEO indexable flags...`);
+  await refreshAllIndexable(db);
+  log(`Indexable flags refreshed.`);
 
   // Update lastSyncAt to mark successful completion
   await db
