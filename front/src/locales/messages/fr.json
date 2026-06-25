@@ -866,6 +866,43 @@
       "successDetail": "{deleted} supprimées, {failed} échouées",
       "failed": "Échec de la purge",
       "failedDetail": "Échec de l'exécution des suppressions d'images planifiées"
+    },
+    "detached": {
+      "title": "Projets détachés",
+      "subtitle": "Projets dont la source OSM a disparu mais qui ont conservé des images d'utilisateurs. Rattachez chacun à l'entité OSM qui l'a remplacé, ou conservez-le comme projet autonome.",
+      "noProjects": "Aucun projet détaché à traiter.",
+      "loadError": "Échec du chargement des projets détachés",
+      "unnamed": "(sans nom)",
+      "columns": {
+        "project": "Projet",
+        "overlays": "Images",
+        "detachedAt": "Détaché le",
+        "candidates": "Candidats"
+      },
+      "keepStandalone": "Garder autonome",
+      "viewOnMap": "Carte",
+      "manualEdits": {
+        "badge": "Modifié",
+        "tooltip": "Un utilisateur a modifié les champs de ce projet. Le rattachement supprime ces modifications.",
+        "relinkWarning": "Le rattachement déplace les images et l'historique des modifications vers la cible, mais les champs propres du projet détaché sont supprimés (la cible conserve ses propres valeurs). Gardez-le autonome pour préserver ces modifications utilisateur :"
+      },
+      "candidate": {
+        "noCandidates": "Aucun projet actif correspondant à proximité. Gardez-le autonome ou traitez-le manuellement.",
+        "viewOsm": "OSM",
+        "sharedIdsHeader": "Ids OSM communs",
+        "distanceHeader": "Distance",
+        "relink": "Rattacher ici"
+      },
+      "relinkDialog": {
+        "title": "Rattacher le projet",
+        "message": "Déplacer {count} image(s) de « {orphan} » vers « {target} », puis supprimer le projet détaché. Cette action ne peut pas être annulée automatiquement.",
+        "editsWarning": "Ces champs modifiés par un utilisateur seront supprimés (seuls les images et l'historique sont déplacés) : {fields}"
+      },
+      "relinkSuccess": "Projet rattaché",
+      "relinkSuccessDetail": "{count} image(s) déplacée(s) vers le projet sélectionné",
+      "relinkError": "Échec du rattachement du projet",
+      "dismissSuccess": "Conservé comme autonome",
+      "dismissError": "Échec de la mise à jour du projet"
     }
   },
   "theme": {

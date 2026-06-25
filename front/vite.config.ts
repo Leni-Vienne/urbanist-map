@@ -134,6 +134,8 @@ export default defineConfig(({ mode }) => {
         "primevue/tag",
         "primevue/divider",
         "primevue/progressspinner",
+        "primevue/slider",
+        "primevue/toggleswitch",
       ],
     },
     build: {

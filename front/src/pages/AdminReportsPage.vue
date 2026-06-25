@@ -10,12 +10,19 @@
         severity="warning"
       />
       <Button
+        :label="t('admin.detached.title')"
+        icon="pi pi-link"
+        severity="secondary"
+        size="small"
+        class="ml-auto"
+        @click="$router.push('/admin/detached')"
+      />
+      <Button
         :label="t('admin.pruneImages.button')"
         icon="pi pi-trash"
         severity="secondary"
         size="small"
         :loading="isPruning"
-        class="ml-auto"
         @click="handlePruneImages"
       />
     </div>
