@@ -235,9 +235,6 @@ import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
 
-// Re-export for backward compatibility
-export type { ProjectFormData };
-
 interface Props {
   formData: ProjectFormData;
   originalData?: ProjectFormData;

@@ -29,7 +29,9 @@
         class="flex items-center gap-8 p-6 bg-content-hover-background rounded-lg mb-8 flex-wrap"
       >
         <div class="flex items-center gap-4">
-          <i class="pi pi-user text-[2rem] p-4 rounded-full text-primary-600 bg-primary-100"></i>
+          <i
+            class="pi pi-user text-[2rem] p-4 rounded-full text-primary-color bg-[color-mix(in_srgb,var(--p-primary-color)_12%,transparent)]"
+          ></i>
           <div class="flex flex-col">
             <span class="text-xl font-semibold">{{ data.user.username ?? data.user.email }}</span>
             <span class="text-muted-color text-sm">{{ data.user.email }}</span>
@@ -112,7 +114,7 @@
                   >
                     <img
                       :src="getThumbnailUrl(overlay.filename)"
-                      :alt="overlay.caption ?? 'Overlay'"
+                      :alt="overlay.caption ?? t('overlay.imageAlt')"
                       class="w-full aspect-square object-cover"
                     />
                     <div class="p-2 flex flex-col gap-1">

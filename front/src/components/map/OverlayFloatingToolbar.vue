@@ -36,7 +36,7 @@
             :value="opacity"
             @input="onOpacityInput"
             :title="`Opacity: ${opacity}%`"
-            class="w-18 h-1 cursor-pointer accent-indigo-600"
+            class="w-18 h-1 cursor-pointer accent-(--p-primary-color)"
           />
           <span class="text-[13px] text-muted-color min-w-7 text-right">{{ opacity }}%</span>
 
@@ -454,10 +454,9 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
   return false;
 }
 
-function btnCls(opts?: { active?: boolean; danger?: boolean }): string {
+function btnCls(opts?: { danger?: boolean }): string {
   const base =
     "min-w-[26px] h-[26px] border-0 rounded-md cursor-pointer flex items-center justify-center text-sm px-1 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-transparent";
-  if (opts?.active) return `${base} bg-indigo-100 text-indigo-600 hover:bg-indigo-100`;
   if (opts?.danger) return `${base} bg-transparent text-red-600 hover:bg-red-100`;
   return `${base} bg-transparent text-muted-color hover:bg-content-hover-background`;
 }

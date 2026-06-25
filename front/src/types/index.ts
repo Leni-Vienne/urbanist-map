@@ -180,7 +180,7 @@ export type UserContributionOverlay = Omit<BackendContributionOverlay, "status">
 };
 
 // A user contribution is a Project augmented with the inline overlay list.
-// Backend already populates the optional denormalized fields on Project (cityName, countryName, ownerUsername...).
+// Backend already populates the optional denormalized fields on Project (countryName, ownerUsername...).
 export type UserContribution = Project & {
   overlays: UserContributionOverlay[];
 };

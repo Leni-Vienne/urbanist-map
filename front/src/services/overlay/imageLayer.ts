@@ -107,8 +107,7 @@ export function overlayOverlapsProjectShape(id: string): boolean {
   return mlMap.queryRenderedFeatures(bbox, { layers }).length > 0;
 }
 
-// MapLibre image sources warp to any 4-corner quad, so view mode renders the raw stored
-// corners (pixel-exact for legacy skewed overlays). Order is [TL, TR, BR, BL] = [lng, lat].
+// MapLibre image sources take 4 corner coordinates in [TL, TR, BR, BL] order as [lng, lat].
 function cornersToImageCoordinates(corners: Corner[]): ImageCoordinates {
   /* oxlint-disable no-non-null-assertion */
   return [
@@ -176,7 +175,7 @@ export function setOverlayImageCorners(id: string, corners: Corner[]): void {
 }
 
 // Re-render the image from the rigid transform (during editing; image corners line up with
-// the corner handles). This is the rectifying path: skewed overlays snap to a rectangle.
+// the corner handles).
 export function setOverlayImageTransform(id: string, transform: OverlayTransform): void {
   const handle = getImageHandle(id);
   if (!handle) return;

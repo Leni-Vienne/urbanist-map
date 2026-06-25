@@ -46,7 +46,7 @@
         for="country-select"
         class="flex items-center gap-2 font-semibold text-color text-[0.9375rem] whitespace-nowrap"
       >
-        <i class="pi pi-globe text-primary"></i>
+        <i class="pi pi-globe text-primary-color"></i>
         {{ $t("moderation.selectCountry") }}:
       </label>
       <Select

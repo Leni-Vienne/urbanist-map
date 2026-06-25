@@ -285,8 +285,8 @@ function wireSurfaceDrag(s: EditSession): void {
 }
 
 /**
- * Show editing handles for an overlay: rectify its image to the rigid model, then add the
- * outline, a transparent whole-surface drag layer, and 4 aspect-locked corner handles.
+ * Show editing handles for an overlay: set its rigid transform, then add the outline, a
+ * transparent whole-surface drag layer, and 4 aspect-locked corner handles.
  */
 export function showEditHandles(overlayObject: OverlayObject): void {
   const mlMap = map.value;
@@ -296,7 +296,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 
   hideEditHandles();
 
-  // Rectify so the image corners line up with the handles (skewed overlays snap to a rectangle).
+  // Establish the rigid transform so the image corners line up with the handles.
   const transformToUse = getCurrentTransform(overlayObject.id);
   const corners =
     resolveOverlayRenderCorners(overlayObject) ??

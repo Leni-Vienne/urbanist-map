@@ -61,8 +61,8 @@ export function transformToCorners(transform: OverlayTransform): { lat: number; 
   });
 }
 
-// Best-fit a rigid rectangle to 4 arbitrary corners. Lossy for non-rectangular quads,
-// which is acceptable under the rigid editing model (view mode renders raw corners instead).
+// Convert 4 rectangle corners [TL, TR, BR, BL] to the rigid transform. Width and bearing come
+// from the top edge, height from the left edge, center from the corner average.
 export function cornersToTransform(corners: { lat: number; lng: number }[]): OverlayTransform {
   const [tl, tr, br, bl] = corners.map(toMercator);
   /* oxlint-disable no-non-null-assertion */
@@ -74,15 +74,13 @@ export function cornersToTransform(corners: { lat: number; lng: number }[]): Ove
   const unit = centerMercator.meterInMercatorCoordinateUnits();
 
   const top = { x: tr!.x - tl!.x, y: tr!.y - tl!.y };
-  const bottom = { x: br!.x - bl!.x, y: br!.y - bl!.y };
   const left = { x: bl!.x - tl!.x, y: bl!.y - tl!.y };
-  const right = { x: br!.x - tr!.x, y: br!.y - tr!.y };
   /* oxlint-enable no-non-null-assertion */
 
   return {
     center: { lat: center.lat, lng: center.lng },
-    width: (Math.hypot(top.x, top.y) + Math.hypot(bottom.x, bottom.y)) / 2 / unit,
-    height: (Math.hypot(left.x, left.y) + Math.hypot(right.x, right.y)) / 2 / unit,
-    bearing: (Math.atan2((top.y + bottom.y) / 2, (top.x + bottom.x) / 2) * 180) / Math.PI,
+    width: Math.hypot(top.x, top.y) / unit,
+    height: Math.hypot(left.x, left.y) / unit,
+    bearing: (Math.atan2(top.y, top.x) * 180) / Math.PI,
   };
 }

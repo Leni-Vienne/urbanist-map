@@ -70,7 +70,7 @@ async function decrementRejectedCount(tx: DbOrTx, userId: string | null): Promis
 
 // Schema for legacy undo approval endpoints
 const setApprovalStatusSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   status: z.enum(approvalStatusEnum.enumValues),
 });
 
@@ -1732,18 +1732,20 @@ async function enrichWithReportCounts(
     if (change.requestedBy) userIds.add(change.requestedBy);
   }
 
-  const reportCounts = await db
-    .select({
-      reportedUserId: userReports.reportedUserId,
-      count: sql<string>`COUNT(*)`,
-    })
-    .from(userReports)
-    .where(inArray(userReports.reportedUserId, [...userIds]))
-    .groupBy(userReports.reportedUserId);
-
   const reportCountMap = new Map<string, number>();
-  for (const row of reportCounts) {
-    reportCountMap.set(row.reportedUserId, Number(row.count));
+  if (userIds.size > 0) {
+    const reportCounts = await db
+      .select({
+        reportedUserId: userReports.reportedUserId,
+        count: sql<string>`COUNT(*)`,
+      })
+      .from(userReports)
+      .where(inArray(userReports.reportedUserId, [...userIds]))
+      .groupBy(userReports.reportedUserId);
+
+    for (const row of reportCounts) {
+      reportCountMap.set(row.reportedUserId, Number(row.count));
+    }
   }
 
   const projectsWithOverlays = filteredProjects.map((project) =>

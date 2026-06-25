@@ -12,12 +12,7 @@
     @update:visible="handleVisibilityChange"
   >
     <template #default>
-      <CreateProjectForm
-        ref="projectFormRef"
-        :project="project"
-        @submit="handleSubmit"
-        @cancel="handleCancel"
-      />
+      <CreateProjectForm ref="projectFormRef" :project="project" @submit="handleSubmit" />
     </template>
 
     <template #footer>
