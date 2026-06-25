@@ -79,6 +79,83 @@ export function setImageHandle(id: string, handle: OverlayImageHandle): void {
   } else {
     entries.set(id, { marker: null, imageHandle: handle });
   }
+
+  const waiters = imageReadyWaiters.get(id);
+  if (waiters) {
+    // Each fire() detaches its own waiter via cleanup(); deleting the current element mid-iteration
+    // is well-defined for a Set, so no snapshot copy is needed.
+    for (const fire of waiters) fire();
+  }
+}
+
+// ─── Image-ready notifications ─────────────────────────────────────────────────
+// The viewport loop creates an overlay's image layer asynchronously after a camera move, so
+// callers that act on a freshly-rendered overlay (auto-select, selection visuals, toolbar anchor)
+// wait for it here. setImageHandle is the single point where a layer comes online.
+const imageReadyWaiters = new Map<string, Set<() => void>>();
+
+/**
+ * Run `onReady` once the overlay's image layer is ready: immediately if it already is, otherwise
+ * when setImageHandle next registers it. The callback always runs on a microtask, never inline
+ * inside setImageHandle, because the render loop registers the handle before it commits the
+ * overlay to the store. A `timeoutMs` may be given for overlays that might never render (e.g. one
+ * that stays outside the viewport); `onTimeout` fires instead in that case. Returns a cancel
+ * function; calling it before the callback fires detaches the waiter.
+ */
+export function whenImageReady(
+  id: string,
+  onReady: () => void,
+  options: { timeoutMs?: number; onTimeout?: () => void } = {},
+): () => void {
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined = undefined;
+
+  function cleanup(): void {
+    const waiters = imageReadyWaiters.get(id);
+    if (waiters) {
+      waiters.delete(fire);
+      if (waiters.size === 0) imageReadyWaiters.delete(id);
+    }
+    if (timer !== undefined) clearTimeout(timer);
+  }
+
+  function fire(): void {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    queueMicrotask(onReady);
+  }
+
+  function cancel(): void {
+    if (settled) return;
+    settled = true;
+    cleanup();
+  }
+
+  function onExpire(): void {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    options.onTimeout?.();
+  }
+
+  if (hasReadyLayer(id)) {
+    fire();
+    return cancel;
+  }
+
+  let waiters = imageReadyWaiters.get(id);
+  if (!waiters) {
+    waiters = new Set();
+    imageReadyWaiters.set(id, waiters);
+  }
+  waiters.add(fire);
+
+  if (options.timeoutMs !== undefined) {
+    timer = setTimeout(onExpire, options.timeoutMs);
+  }
+
+  return cancel;
 }
 
 export function getImageHandle(id: string): OverlayImageHandle | null {

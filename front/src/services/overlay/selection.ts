@@ -2,7 +2,12 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
-import { getMarker, getRenderedOverlayIds, hasReadyLayer } from "@/services/overlay/renderRegistry";
+import {
+  getMarker,
+  getRenderedOverlayIds,
+  hasReadyLayer,
+  whenImageReady,
+} from "@/services/overlay/renderRegistry";
 import { raiseOverlayImage } from "@/services/overlay/imageLayer";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -169,19 +174,10 @@ export function applySelectionVisualsWhenReady(overlayId: string): void {
   if (hasReadyLayer(overlayId)) return;
 
   const overlayStore = useOverlayStore();
-  let attempts = 0;
 
-  function tryApply(): void {
+  function applyVisuals(): void {
     // Selection changed while we were waiting; abandon.
     if (overlayStore.idSelectedOverlay !== overlayId) return;
-
-    if (!hasReadyLayer(overlayId)) {
-      attempts += 1;
-      // ~5s budget at 60fps, matching the overlay auto-select poll elsewhere.
-      if (attempts > 300) return;
-      requestAnimationFrame(tryApply);
-      return;
-    }
 
     const overlay = overlayStore.overlays[overlayId];
     if (!overlay) return;
@@ -195,7 +191,8 @@ export function applySelectionVisualsWhenReady(overlayId: string): void {
     }
   }
 
-  requestAnimationFrame(tryApply);
+  // ~5s budget, matching the overlay auto-select wait elsewhere.
+  whenImageReady(overlayId, applyVisuals, { timeoutMs: 5000 });
 }
 
 /**

@@ -48,35 +48,25 @@ export function zoomToOverlayAndSelect(
   const center = bounds.getCenter();
   const flightSkipped = !mobileAwareFlyTo(center, targetZoom);
 
-  // Poll per animation frame until the overlay element exists and its image is loaded.
-  let attempts = 0;
-  function waitForElementThenSelect(): void {
-    if (!registry.hasReadyLayer(overlayId)) {
-      attempts++;
-      // Stop polling after ~5 seconds (60fps * 5 = 300 attempts) to avoid infinite loops
-      if (attempts > 300) {
-        console.warn("Overlay did not render in time, aborting auto-select", overlayId);
-        return;
-      }
-      requestAnimationFrame(waitForElementThenSelect);
-      return;
+  // Select once the overlay's image layer comes online (created asynchronously after the camera
+  // settles). Give up after ~5s for overlays that never render.
+  function selectWhenReady(): void {
+    function select(): void {
+      if (autoSelect) selectOverlay(overlayId);
     }
-
-    if (!autoSelect) return;
-
-    selectOverlay(overlayId);
+    function onReadyTimeout(): void {
+      console.warn("Overlay did not render in time, aborting auto-select", overlayId);
+    }
+    registry.whenImageReady(overlayId, select, { timeoutMs: 5000, onTimeout: onReadyTimeout });
   }
 
-  // If flight was skipped (camera already at target), select immediately since
-  // moveend will never fire.
+  // If flight was skipped (camera already at target), wait immediately since moveend never fires.
   if (flightSkipped) {
-    waitForElementThenSelect();
+    selectWhenReady();
     return true;
   }
 
-  void map.value.once("moveend", () => {
-    waitForElementThenSelect();
-  });
+  void map.value.once("moveend", selectWhenReady);
 
   return true;
 }

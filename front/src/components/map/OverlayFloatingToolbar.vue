@@ -131,7 +131,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/renderRegistry";
+import { getImageHandle, whenImageReady } from "@/services/overlay/renderRegistry";
 import {
   getOverlayImageCorners,
   setOverlayImageOpacity,
@@ -167,7 +167,7 @@ const canStack = ref(false);
 const isCropActive = ref(false);
 
 let anchorMarker: maplibregl.Marker | null = null;
-let retryRafId: number | null = null;
+let cancelImageWait: (() => void) | null = null;
 
 // Top-center of the overlay ([lng, lat]) where the toolbar anchors.
 function getAnchorLngLat(): [number, number] | null {
@@ -185,9 +185,9 @@ function destroyMarker() {
   anchorMarker = null;
   markerIconEl.value = null;
   canStack.value = false;
-  if (retryRafId !== null) {
-    cancelAnimationFrame(retryRafId);
-    retryRafId = null;
+  if (cancelImageWait) {
+    cancelImageWait();
+    cancelImageWait = null;
   }
 }
 
@@ -248,15 +248,16 @@ function stopAnchorSync() {
 }
 
 function initForSelection() {
-  if (!map.value) return;
+  const id = selectedId.value;
+  if (!id) return;
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
     // Image not yet in registry (render loop hasn't created it yet after navigation).
-    // Retry each frame until it appears; destroyMarker() cancels if selection changes.
-    retryRafId = requestAnimationFrame(initForSelection);
+    // Re-run once it comes online; destroyMarker() cancels if selection changes first.
+    cancelImageWait = whenImageReady(id, initForSelection);
     return;
   }
-  retryRafId = null;
+  cancelImageWait = null;
   createMarker(lngLat);
   opacity.value = readOpacity();
   isInFront.value = selectedId.value ? isOverlayInFront(selectedId.value) : false;
