@@ -209,40 +209,42 @@ function createMarker(lngLat: [number, number]) {
   markerIconEl.value = el;
 }
 
-// RAF: MapLibre handles pan/zoom automatically. RAF only updates the anchor while the user
-// drags overlay handles (corner changes, no map event fires).
-let rafId: number | null = null;
+// MapLibre repositions the anchor marker on pan/zoom automatically via its transform. A
+// corner/surface drag mutates the overlay source and triggers a repaint, so the anchor follows
+// the overlay by re-projecting on the map's "render" event.
+let anchorSyncActive = false;
 
 let lastOverlapCheckTs = 0;
 
-function startRAF() {
-  if (rafId !== null) return;
-  function tick(ts: number) {
-    if (anchorMarker && selectedId.value) {
-      const lngLat = getAnchorLngLat();
-      if (lngLat) {
-        anchorMarker.setLngLat(lngLat);
-      } else {
-        // Image removed from registry while still selected (e.g. zoom-out unload with
-        // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
-        selectOverlay(null);
-      }
-      // Throttled so a drag onto/off a project shape updates the button without querying every frame.
-      if (ts - lastOverlapCheckTs > 200) {
-        lastOverlapCheckTs = ts;
-        refreshCanStack();
-      }
-    }
-    rafId = requestAnimationFrame(tick);
+function syncAnchor() {
+  if (!anchorMarker || !selectedId.value) return;
+  const lngLat = getAnchorLngLat();
+  if (!lngLat) {
+    // Image removed from registry while still selected (e.g. zoom-out unload with
+    // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
+    selectOverlay(null);
+    return;
   }
-  rafId = requestAnimationFrame(tick);
+  anchorMarker.setLngLat(lngLat);
+  // Throttled so a drag onto/off a project shape updates the button without querying every frame.
+  const now = performance.now();
+  if (now - lastOverlapCheckTs > 200) {
+    lastOverlapCheckTs = now;
+    refreshCanStack();
+  }
 }
 
-function stopRAF() {
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
+function startAnchorSync() {
+  const mlMap = map.value;
+  if (!mlMap || anchorSyncActive) return;
+  mlMap.on("render", syncAnchor);
+  anchorSyncActive = true;
+}
+
+function stopAnchorSync() {
+  if (!anchorSyncActive) return;
+  map.value?.off("render", syncAnchor);
+  anchorSyncActive = false;
 }
 
 function initForSelection() {
@@ -259,7 +261,7 @@ function initForSelection() {
   opacity.value = readOpacity();
   isInFront.value = selectedId.value ? isOverlayInFront(selectedId.value) : false;
   refreshCanStack();
-  startRAF();
+  startAnchorSync();
 }
 
 watch(
@@ -272,7 +274,7 @@ watch(
       }
     }
     destroyMarker();
-    stopRAF();
+    stopAnchorSync();
     // nextTick: let Teleport unmount cleanly from the old marker before we create a new one
     if (id) nextTick(initForSelection);
   },
@@ -302,7 +304,7 @@ watch(isEditMode, (editing) => {
 });
 
 onUnmounted(() => {
-  stopRAF();
+  stopAnchorSync();
   destroyMarker();
   if (isCropActive.value) hideCropHandles();
   map.value?.off("moveend", refreshCanStack);
