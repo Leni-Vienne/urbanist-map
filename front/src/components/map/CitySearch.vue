@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="pointer-events-auto w-full"
     @mousedown.stop
@@ -39,8 +39,11 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
-import { navigateToCity } from "@/services/navigation/locationNavigation";
 import { map } from "@/services/core/map";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { useMapStore } from "@/stores/pinia/mapStore";
+import { LngLatBounds } from "maplibre-gl";
+import { loadOrNull } from "@/services/core/errorHandling";
 
 type LocalizedBoundaryName = {
   name: string;
@@ -108,9 +111,8 @@ async function onSearch(event: { query: string }) {
   }
 
   searchTimeout = setTimeout(async () => {
+    isLoading.value = true;
     try {
-      isLoading.value = true;
-
       const center = map.value.getCenter();
       if (!center) {
         console.warn("Map center not available for boundary search");
@@ -118,17 +120,16 @@ async function onSearch(event: { query: string }) {
         return;
       }
 
-      const results = await trpc.boundaries.searchBoundariesNearLocation.query({
-        lat: center.lat,
-        lng: center.lng,
-        search: query,
-        limit: 25,
-      });
+      const results = await loadOrNull(async () =>
+        trpc.boundaries.searchBoundariesNearLocation.query({
+          lat: center.lat,
+          lng: center.lng,
+          search: query,
+          limit: 25,
+        }),
+      );
 
-      suggestions.value = results.map((boundary) => buildDisplay(boundary));
-    } catch (error) {
-      console.error("Error searching boundaries:", error);
-      suggestions.value = [];
+      suggestions.value = results ? results.map((boundary) => buildDisplay(boundary)) : [];
     } finally {
       isLoading.value = false;
     }
@@ -148,6 +149,28 @@ function onSelect(event: { value: BoundarySearchResult }) {
     });
     selectedCity.value = null;
     suggestions.value = [];
+  }
+}
+
+type BoundaryBbox = { minLng: number; minLat: number; maxLng: number; maxLat: number };
+
+// Cap how far fitting a boundary's bounds can zoom in, so a tiny neighborhood doesn't slam the
+// camera to street level; large boundaries (countries, states) fit well under this anyway.
+const MAX_BOUNDARY_ZOOM = 16;
+
+function navigateToCity(
+  countryCode: string,
+  target?: { bbox?: BoundaryBbox; coords?: { lat: number; lng: number } },
+): void {
+  const mapStore = useMapStore();
+  mapStore.selectedCountryCode = countryCode;
+
+  if (target?.bbox) {
+    const { minLng, minLat, maxLng, maxLat } = target.bbox;
+    const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
+    mobileAwareFlyToBounds(bounds, { maxZoom: MAX_BOUNDARY_ZOOM });
+  } else if (target?.coords) {
+    mobileAwareFlyTo([target.coords.lat, target.coords.lng], 14);
   }
 }
 </script>

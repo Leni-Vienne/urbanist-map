@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import type { Map as MaplibreMap, ExpressionSpecification } from "maplibre-gl";
-import { getMlMap } from "@/services/core/map";
+import { map } from "@/services/core/map";
 
 const STORAGE_KEY = "urbanist-map-label-lang";
 
@@ -27,14 +27,10 @@ function readStoredPreference(): MapLabelLanguage {
   return localStorage.getItem(STORAGE_KEY) ?? "auto";
 }
 
-// Liberty's label layers default to local/native names. We rewrite their text-field to
-// prefer the chosen language, falling back to the local Latin name then the raw OSM name
-// so untranslated places still render.
-let currentPreference: MapLabelLanguage = readStoredPreference();
-
-// Reactive mirror of the preference so views (e.g. the project location breadcrumb) re-localize when
-// the map language changes, the same way they react to the UI locale.
-export const mapLabelLanguageRef = ref<MapLabelLanguage>(currentPreference);
+// The chosen map label language, persisted to localStorage and mirrored reactively so views
+// (e.g. the project location breadcrumb) re-localize when it changes, the same way they react to
+// the UI locale.
+export const mapLabelLanguageRef = ref<MapLabelLanguage>(readStoredPreference());
 
 type BoundaryNameVariants = {
   name: string; // OSM `name` (native/local language)
@@ -74,6 +70,9 @@ function resolveLanguageCode(preference: MapLabelLanguage): string | null {
   return preference;
 }
 
+// Liberty's label layers default to local/native names. We rewrite their text-field to prefer the
+// chosen language, falling back to the local Latin name then the raw OSM name so untranslated
+// places still render.
 function buildNameExpression(preference: MapLabelLanguage): ExpressionSpecification {
   const code = resolveLanguageCode(preference);
   if (code === null) {
@@ -103,10 +102,6 @@ function textFieldReferencesName(field: unknown): boolean {
   return JSON.stringify(field ?? "").includes("name");
 }
 
-export function getMapLabelLanguage(): MapLabelLanguage {
-  return currentPreference;
-}
-
 /**
  * Rewrite the basemap's name labels to the chosen language. Called from the style.load
  * handlers (where getStyle().layers is populated) and from the picker, so it does not
@@ -114,7 +109,7 @@ export function getMapLabelLanguage(): MapLabelLanguage {
  */
 export function applyMapLabelLanguage(
   mlMap: MaplibreMap,
-  preference: MapLabelLanguage = currentPreference,
+  preference: MapLabelLanguage = mapLabelLanguageRef.value,
 ): void {
   const useStyleDefault = preference === "default";
   const nameExpression = useStyleDefault ? null : buildNameExpression(preference);
@@ -136,9 +131,7 @@ export function applyMapLabelLanguage(
 
 /** Persist the map label language preference and apply it to the live map if one exists. */
 export function setMapLabelLanguage(preference: MapLabelLanguage): void {
-  currentPreference = preference;
   mapLabelLanguageRef.value = preference;
   localStorage.setItem(STORAGE_KEY, preference);
-  const mlMap = getMlMap();
-  if (mlMap) applyMapLabelLanguage(mlMap, preference);
+  applyMapLabelLanguage(map.value, preference);
 }

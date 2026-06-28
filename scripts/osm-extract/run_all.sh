@@ -1,153 +1,99 @@
 #!/usr/bin/env bash
+# Bootstrap the full dataset from a fresh planet/region PBF.
+#
 # Usage:
-#   ./run_all.sh [--rederive] [--output-dir <dir>] <source.osm.pbf>
+#   ./run_all.sh [--import] <source.osm.pbf>
 #
-# Runs both linear (transport) and areal (building/development) extractions.
-# A single osmium pass filters ways + route relations, then derives focused files,
-# then both Python extractions run in parallel.
+# Two stages, and no extraction of its own:
+#   1. filter_combined.sh , reduce the planet to the construction subset (~30-40 min
+#                           on a planet). The output is geometry-complete but only as
+#                           fresh as the source snapshot (a planet download lags real
+#                           time by up to ~10 days).
+#   2. update_weekly.sh   , apply the daily diffs since that snapshot, backfill the
+#                           stripped geometry, derive the sub-PBFs, and extract the
+#                           GeoJSON once on current data (and import with --import).
 #
-# --rederive    Skip the ~55min osmium filter, re-derive ways+areal from existing *_proposed.osm.pbf
-# --output-dir  Where to write output GeoJSON files (default: same dir as source)
-#
-# Note: if your source file is on a Windows drive (/mnt/...), processing works but WSL /mnt/ I/O is slow.
-# For better performance, copy the file to the WSL filesystem first (stored on C: by default).
+# Extraction lives only behind the catch-up in stage 2, so it is structurally
+# impossible to publish GeoJSON from the stale snapshot.
 
 set -e
 
 trap 'trap - INT TERM; echo "Interrupted, killing child processes..."; kill 0; exit 1' INT TERM
 
-REDERIVE_FLAG=""
-OUTPUT_DIR_OVERRIDE=""
+IMPORT_FLAG=""
+SOURCE=""
 
-while [[ "$1" == --* ]]; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
-        --rederive)   REDERIVE_FLAG="--rederive" ;;
-        --output-dir) OUTPUT_DIR_OVERRIDE="${2:?--output-dir requires a path}"; shift ;;
-        *) echo "Unknown flag: $1"; exit 1 ;;
+        --import) IMPORT_FLAG="--import" ;;
+        --*)      echo "Unknown flag: $1"; exit 1 ;;
+        *)
+            if [[ -n "$SOURCE" ]]; then echo "Unexpected argument: $1"; exit 1; fi
+            SOURCE="$1"
+            ;;
     esac
     shift
 done
 
-SOURCE="${1:?Usage: $0 [--rederive] [--output-dir <dir>] <source.osm.pbf>}"
-if [ ! -f "$SOURCE" ]; then
+if [[ -z "$SOURCE" ]]; then
+    echo "Usage: $0 [--import] <source.osm.pbf>"
+    exit 1
+fi
+if [[ ! -f "$SOURCE" ]]; then
     echo "Error: File $SOURCE not found!"
     exit 1
 fi
 
-# ---------------------------------------------------------------------------
-# Dependency checks
-# ---------------------------------------------------------------------------
-
-MISSING=()
-command -v osmium  &>/dev/null || MISSING+=("osmium (https://osmcode.org/osmium-tool/)")
-command -v python3 &>/dev/null || MISSING+=("python3")
-
-if [ ${#MISSING[@]} -gt 0 ]; then
-    echo "Error: missing required dependencies:"
-    for dep in "${MISSING[@]}"; do
-        echo "  - $dep"
-    done
-    exit 1
+# Fail before the expensive filter rather than after it if --import cannot run.
+if [[ -n "$IMPORT_FLAG" ]]; then
+    command -v bun &>/dev/null || { echo "Error: bun not found (required for --import)"; exit 1; }
 fi
-
-MISSING_PY=()
-python3 -c "import osmium"  2>/dev/null || MISSING_PY+=("osmium  (pip install osmium)")
-python3 -c "import shapely" 2>/dev/null || MISSING_PY+=("shapely  (pip install shapely)")
-
-if [ ${#MISSING_PY[@]} -gt 0 ]; then
-    echo "Error: missing required Python packages:"
-    for pkg in "${MISSING_PY[@]}"; do
-        echo "  - $pkg"
-    done
-    exit 1
-fi
-
-# ---------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 function ts() { date '+%H:%M:%S'; }
 function elapsed() { local s=$1; printf "%dm%02ds" $((s / 60)) $((s % 60)); }
-function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
 
 SOURCE_ABS="$(realpath "$SOURCE")"
-OUTPUT_DIR="${OUTPUT_DIR_OVERRIDE:-$(dirname "$SOURCE_ABS")}"
+COMBINED_PBF="${SOURCE_ABS/.osm.pbf/_proposed.osm.pbf}"
 
 if [[ "$SOURCE_ABS" == /mnt/* ]]; then
     echo ""
-    echo "Note: source file is on a Windows drive. Processing in-place, this works but WSL /mnt/ I/O is slow."
+    echo "Note: source file is on a Windows drive. Processing works but WSL /mnt/ I/O is slow."
     echo "      For better performance, copy the file to the WSL filesystem first (stored on C: by default)."
     echo ""
 fi
 
-BASE="${SOURCE%.osm.pbf}"
-COMBINED_PBF="${BASE}_proposed.osm.pbf"
-WAYS_PBF="${BASE}_proposed_ways.osm.pbf"
-AREAL_PBF="${BASE}_proposed_areal.osm.pbf"
-RELATIONS_PBF="${BASE}_proposed_relations.osm.pbf"
-LINEAR_GEOJSON="${OUTPUT_DIR}/$(basename "${BASE}")_proposed_linear.geojson"
-AREAL_GEOJSON="${OUTPUT_DIR}/$(basename "${BASE}")_proposed_areal.geojson"
-
 T_TOTAL=$SECONDS
 
 echo "=========================================================="
-echo "[$(ts)] SOURCE:  $SOURCE  ($(filesize "$SOURCE"))"
-echo "[$(ts)] OUTPUTS: $LINEAR_GEOJSON"
-echo "                 $AREAL_GEOJSON"
+echo "[$(ts)] BOOTSTRAP from $SOURCE"
 echo "=========================================================="
 
-# ---------------------------------------------------------------------------
+# Stage 1: reduce the planet to the construction subset.
 echo ""
 echo "=========================================================="
-echo "[$(ts)] PHASE 1: Filtering OSM data"
+echo "[$(ts)] STAGE 1/2: Filtering planet to construction subset"
 echo "=========================================================="
-T0=$SECONDS
+"$SCRIPT_DIR/filter_combined.sh" "$SOURCE_ABS"
 
-"$SCRIPT_DIR/filter_combined.sh" $REDERIVE_FLAG "$SOURCE"
+# A fresh filter carries the planet's replication timestamp in its PBF header, but a
+# replication-state sidecar from an earlier dataset now points at a stale sequence.
+# Drop it so update_weekly.sh bootstraps its replication position from the header.
+STATE_FILE="${COMBINED_PBF}.replication-state"
+if [[ -f "$STATE_FILE" ]]; then
+    rm -f "$STATE_FILE"
+    echo "[$(ts)] Removed stale replication-state sidecar: $STATE_FILE"
+fi
 
-echo ""
-echo "[$(ts)] PHASE 1 done in $(elapsed $((SECONDS - T0)))"
-echo "  $COMBINED_PBF , $(filesize "$COMBINED_PBF")"
-echo "  $WAYS_PBF     , $(filesize "$WAYS_PBF")"
-echo "  $AREAL_PBF    , $(filesize "$AREAL_PBF")"
-echo "  $RELATIONS_PBF , $(filesize "$RELATIONS_PBF")"
-
-# ---------------------------------------------------------------------------
+# Stage 2: advance to today, backfill, derive, extract (and optionally import).
 echo ""
 echo "=========================================================="
-echo "[$(ts)] PHASE 2: Extracting features (linear + areal in parallel)"
-echo "  Expected duration: ~3-5 minutes"
+echo "[$(ts)] STAGE 2/2: Catch-up + extraction via update_weekly.sh"
 echo "=========================================================="
-T1=$SECONDS
+"$SCRIPT_DIR/update_weekly.sh" "$COMBINED_PBF" $IMPORT_FLAG
 
-python3 "$SCRIPT_DIR/extract_linear_topo.py" \
-    --ways-file "$WAYS_PBF" \
-    --source-file "$RELATIONS_PBF" \
-    --output "$LINEAR_GEOJSON" &
-PID_LINEAR=$!
-
-python3 "$SCRIPT_DIR/extract_areal_buildings.py" \
-    --source "$AREAL_PBF" \
-    --output "$AREAL_GEOJSON" &
-PID_AREAL=$!
-
-echo "[$(ts)] linear PID $PID_LINEAR | areal PID $PID_AREAL"
-echo "[$(ts)] Waiting for both to finish..."
-echo ""
-
-FAILED=0
-wait $PID_LINEAR || { echo "[$(ts)] ERROR: linear extraction failed (PID $PID_LINEAR)"; FAILED=1; }
-wait $PID_AREAL  || { echo "[$(ts)] ERROR: areal extraction failed  (PID $PID_AREAL)";  FAILED=1; }
-
-echo ""
-echo "[$(ts)] PHASE 2 done in $(elapsed $((SECONDS - T1)))"
-echo "  $LINEAR_GEOJSON , $(filesize "$LINEAR_GEOJSON")"
-echo "  $AREAL_GEOJSON  , $(filesize "$AREAL_GEOJSON")"
-
-# ---------------------------------------------------------------------------
 echo ""
 echo "=========================================================="
 echo "[$(ts)] ALL DONE, total: $(elapsed $((SECONDS - T_TOTAL)))"
 echo "=========================================================="
-
-exit $FAILED

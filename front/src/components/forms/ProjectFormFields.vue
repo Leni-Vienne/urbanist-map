@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <!-- Shared project form fields component used by both CreateProjectForm and EditProjectForm -->
   <!-- Edits made through this form are not propagated to OpenStreetMap -->
   <div
@@ -19,20 +19,20 @@
         minlength="8"
         autocomplete="off"
         dir="auto"
-        @blur="handleNameBlur"
-        @input="handleNameInput"
+        @blur="validateFieldHelper('name')"
+        @input="validateFieldHelper('name')"
       />
       <label for="project-name-input" class="text-(--p-text-color-secondary)"
         >{{ $t("project.name") }} *</label
       >
     </FloatLabel>
-    <small v-if="nameError" class="text-red-600 text-xs block">{{ nameError }}</small>
-    <small
-      v-if="showNameChangeIndicator"
-      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-    >
-      {{ $t("overlay.changedFrom") }}: "{{ originalData?.name || $t("overlay.notSet") }}"
-    </small>
+    <small v-if="getFieldError('name')" class="text-red-600 text-xs block">{{
+      getFieldError("name")
+    }}</small>
+    <ChangeIndicator
+      :show="showChangeIndicators && hasChanged?.('name')"
+      :original-value="originalData?.name"
+    />
   </div>
 
   <!-- Project description field -->
@@ -44,20 +44,20 @@
         :class="getInputClass('description')"
         rows="2"
         dir="auto"
-        @blur="handleDescriptionBlur"
-        @input="handleDescriptionInput"
+        @blur="validateFieldHelper('description')"
+        @input="validateFieldHelper('description')"
       />
       <label for="project-description-input" class="text-(--p-text-color-secondary)">{{
         $t("common.description")
       }}</label>
     </FloatLabel>
-    <small v-if="descriptionError" class="text-red-600 text-xs block">{{ descriptionError }}</small>
-    <small
-      v-if="showDescriptionChangeIndicator"
-      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-    >
-      {{ $t("overlay.changedFrom") }}: "{{ originalData?.description || $t("overlay.notSet") }}"
-    </small>
+    <small v-if="getFieldError('description')" class="text-red-600 text-xs block">{{
+      getFieldError("description")
+    }}</small>
+    <ChangeIndicator
+      :show="showChangeIndicators && hasChanged?.('description')"
+      :original-value="originalData?.description"
+    />
   </div>
 
   <!-- Timeline status selector -->
@@ -66,12 +66,10 @@
     :id-prefix="idPrefix"
     @change="handleTimelineStatusChange"
   />
-  <small
-    v-if="showTimelineStatusChangeIndicator"
-    class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-  >
-    {{ $t("overlay.changedFrom") }}: "{{ originalData?.timelineStatus || $t("overlay.notSet") }}"
-  </small>
+  <ChangeIndicator
+    :show="showChangeIndicators && hasChanged?.('timelineStatus')"
+    :original-value="originalData?.timelineStatus"
+  />
 
   <!-- Start and end date fields (always shown) -->
   <div class="flex flex-col gap-4">
@@ -81,18 +79,13 @@
         v-model="flexibleStartDate"
         :label="$t('project.startDate')"
         unique-id="start-date"
-        :error="startDateError ?? undefined"
-        @update:modelValue="handleDateChange"
-        @blur="handleDateChange"
+        :error="getFieldError('startDate') ?? undefined"
+        @blur="validateFieldHelper('startDate')"
       />
-      <small
-        v-if="showStartDateChangeIndicator"
-        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-      >
-        {{ $t("overlay.changedFrom") }}: "{{
-          formatFlexibleDateFromProp(originalData?.startDate) || $t("overlay.notSet")
-        }}"
-      </small>
+      <ChangeIndicator
+        :show="showChangeIndicators && hasChanged?.('startDate')"
+        :original-value="formatFlexibleDateFromProp(originalData?.startDate)"
+      />
     </div>
 
     <!-- End Date -->
@@ -101,18 +94,13 @@
         v-model="flexibleEndDate"
         :label="$t('project.endDate')"
         unique-id="end-date"
-        :error="endDateError ?? undefined"
-        @update:modelValue="handleDateChange"
-        @blur="handleDateChange"
+        :error="getFieldError('endDate') ?? undefined"
+        @blur="validateFieldHelper('endDate')"
       />
-      <small
-        v-if="showEndDateChangeIndicator"
-        class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-      >
-        {{ $t("overlay.changedFrom") }}: "{{
-          formatFlexibleDateFromProp(originalData?.endDate) || $t("overlay.notSet")
-        }}"
-      </small>
+      <ChangeIndicator
+        :show="showChangeIndicators && hasChanged?.('endDate')"
+        :original-value="formatFlexibleDateFromProp(originalData?.endDate)"
+      />
     </div>
   </div>
 
@@ -127,18 +115,13 @@
           :max-date="new Date()"
           unique-id="proposal-date"
           :error="getFieldError('proposalDate') ?? undefined"
-          @update:modelValue="handleProposalDateChange"
-          @blur="handleProposalDateChange"
+          @blur="validateFieldHelper('proposalDate')"
         />
         <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
-        <small
-          v-if="showProposalDateChangeIndicator"
-          class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-        >
-          {{ $t("overlay.changedFrom") }}: "{{
-            formatFlexibleDateFromProp(originalData?.proposalDate) || $t("overlay.notSet")
-          }}"
-        </small>
+        <ChangeIndicator
+          :show="showChangeIndicators && hasChanged?.('proposalDate')"
+          :original-value="formatFlexibleDateFromProp(originalData?.proposalDate)"
+        />
       </div>
     </div>
   </Panel>
@@ -152,20 +135,20 @@
         v-model="localFormData.sourceUrl"
         :class="getInputClass('sourceUrl')"
         autocomplete="off"
-        @blur="handleSourceUrlBlur"
-        @input="handleSourceUrlInput"
+        @blur="validateFieldHelper('sourceUrl')"
+        @input="validateFieldHelper('sourceUrl')"
       />
       <label for="source-url-input" class="text-(--p-text-color-secondary)">{{
         $t("project.sourceUrl")
       }}</label>
     </FloatLabel>
-    <small v-if="sourceUrlError" class="text-red-600 text-xs block">{{ sourceUrlError }}</small>
-    <small
-      v-if="showSourceUrlChangeIndicator"
-      class="italic bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded text-xs min-h-5 flex items-center"
-    >
-      {{ $t("overlay.changedFrom") }}: "{{ originalData?.sourceUrl || $t("overlay.notSet") }}"
-    </small>
+    <small v-if="getFieldError('sourceUrl')" class="text-red-600 text-xs block">{{
+      getFieldError("sourceUrl")
+    }}</small>
+    <ChangeIndicator
+      :show="showChangeIndicators && hasChanged?.('sourceUrl')"
+      :original-value="originalData?.sourceUrl"
+    />
   </div>
 
   <!-- Tags field -->
@@ -221,19 +204,20 @@
 <script setup lang="ts">
 import { ref, computed, watch, toRaw } from "vue";
 import { useI18n } from "vue-i18n";
-import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
-import FlexibleDatePicker from "./FlexibleDatePicker.vue";
 import type { ProjectFormData } from "@/types/index";
 import {
   dbToFlexibleDate,
   flexibleDateToDb,
   formatFlexibleDate,
 } from "@/utils/flexibleDateHelpers";
-import type { FlexibleDateInput } from "@shared/types/flexibleDate";
 import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
+
+import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
+import FlexibleDatePicker from "./FlexibleDatePicker.vue";
+import ChangeIndicator from "./ChangeIndicator.vue";
 
 interface Props {
   formData: ProjectFormData;
@@ -266,7 +250,6 @@ const { getFieldError, hasFieldError, validateField } = useFieldValidation(proje
 const localTimelineStatus = ref(props.timelineStatus);
 
 // Local copy of formData to avoid mutating props
-// Explicitly initialize precision fields to null if undefined (for old projects without precision)
 const localFormData = ref<ProjectFormData>({
   ...props.formData,
   proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
@@ -277,15 +260,12 @@ const localFormData = ref<ProjectFormData>({
 
 const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
 
-// Selected tags in chosen order; index 0 is the primary tag (drives the marker color).
-// Resolved against the full tag map so an existing project's hidden tag still shows and can be removed.
 const selectedTags = computed(() =>
   localFormData.value.tags
     .map((slug) => PROJECT_TAG_MAP.get(slug))
     .filter((tag): tag is (typeof PROJECT_TAGS)[number] => tag !== undefined),
 );
 
-// Pickable tags not yet selected (hidden tags are never offered for new selection).
 const availableTags = computed(() =>
   allTags.filter((tag) => !localFormData.value.tags.includes(tag.slug)),
 );
@@ -308,59 +288,53 @@ function makePrimary(slug: string) {
   localFormData.value.tags = [slug, ...localFormData.value.tags.filter((tag) => tag !== slug)];
 }
 
-// Local state for flexible dates
-// We maintain these separately and sync them to localFormData (which uses plain Dates)
-const flexibleProposalDate = ref<FlexibleDateInput | null>(
-  dbToFlexibleDate(props.formData.proposalDate, props.formData.proposalDatePrecision),
-);
-const flexibleStartDate = ref<FlexibleDateInput | null>(
-  dbToFlexibleDate(props.formData.startDate, props.formData.startDatePrecision),
-);
-const flexibleEndDate = ref<FlexibleDateInput | null>(
-  dbToFlexibleDate(props.formData.endDate, props.formData.endDatePrecision),
-);
+// Computed flexible dates that automatically read/write to localFormData
+const flexibleProposalDate = computed({
+  get() {
+    return dbToFlexibleDate(
+      localFormData.value.proposalDate,
+      localFormData.value.proposalDatePrecision,
+    );
+  },
+  set(newVal) {
+    localFormData.value.proposalDate = flexibleDateToDb(newVal);
+    localFormData.value.proposalDatePrecision = newVal?.precision ?? null;
+    validateFieldHelper("proposalDate");
+  },
+});
 
-// Watch for external formData changes and sync local copy AND flexible states
+const flexibleStartDate = computed({
+  get() {
+    return dbToFlexibleDate(localFormData.value.startDate, localFormData.value.startDatePrecision);
+  },
+  set(newVal) {
+    localFormData.value.startDate = flexibleDateToDb(newVal);
+    localFormData.value.startDatePrecision = newVal?.precision ?? null;
+    validateFieldHelper("startDate");
+    validateFieldHelper("endDate");
+  },
+});
+
+const flexibleEndDate = computed({
+  get() {
+    return dbToFlexibleDate(localFormData.value.endDate, localFormData.value.endDatePrecision);
+  },
+  set(newVal) {
+    localFormData.value.endDate = flexibleDateToDb(newVal);
+    localFormData.value.endDatePrecision = newVal?.precision ?? null;
+    validateFieldHelper("startDate");
+    validateFieldHelper("endDate");
+  },
+});
+
+// Watch for external formData changes and sync local copy
 watch(
   () => props.formData,
   (newFormData) => {
     localFormData.value = { ...newFormData };
-
-    // Only update flexible inputs if the timestamp is different (simple check)
-    // We use timestamps to avoid unnecessary re-parsing
-    const currentProposalTs = flexibleDateToDb(flexibleProposalDate.value)?.getTime();
-    if (newFormData.proposalDate?.getTime() !== currentProposalTs) {
-      flexibleProposalDate.value = dbToFlexibleDate(
-        newFormData.proposalDate,
-        newFormData.proposalDatePrecision,
-      );
-    }
-
-    const currentStartTs = flexibleDateToDb(flexibleStartDate.value)?.getTime();
-    if (newFormData.startDate?.getTime() !== currentStartTs) {
-      flexibleStartDate.value = dbToFlexibleDate(
-        newFormData.startDate,
-        newFormData.startDatePrecision,
-      );
-    }
-
-    const currentEndTs = flexibleDateToDb(flexibleEndDate.value)?.getTime();
-    if (newFormData.endDate?.getTime() !== currentEndTs) {
-      flexibleEndDate.value = dbToFlexibleDate(newFormData.endDate, newFormData.endDatePrecision);
-    }
   },
   { deep: true },
 );
-
-function syncDatesToFormData() {
-  localFormData.value.proposalDate = flexibleDateToDb(flexibleProposalDate.value);
-  localFormData.value.proposalDatePrecision = flexibleProposalDate.value?.precision ?? null;
-
-  localFormData.value.startDate = flexibleDateToDb(flexibleStartDate.value);
-  localFormData.value.startDatePrecision = flexibleStartDate.value?.precision ?? null;
-  localFormData.value.endDate = flexibleDateToDb(flexibleEndDate.value);
-  localFormData.value.endDatePrecision = flexibleEndDate.value?.precision ?? null;
-}
 
 // Watch local formData changes and emit to parent
 watch(
@@ -371,96 +345,17 @@ watch(
   { deep: true },
 );
 
-// Shared validation helper to avoid rebuilding validation data
 function validateFieldHelper(fieldPath: string) {
   const validationData = prepareProjectValidationData(localFormData.value);
   validateField(fieldPath, validationData);
 }
 
-// Validation handlers for each field - blur always validates and marks as touched
-function handleNameBlur() {
-  validateFieldHelper("name");
-}
-
-function handleDescriptionBlur() {
-  validateFieldHelper("description");
-}
-
-function handleSourceUrlBlur() {
-  validateFieldHelper("sourceUrl");
-}
-
-// Input handlers - validate immediately on every input (real-time feedback)
-function handleNameInput() {
-  validateFieldHelper("name");
-}
-
-function handleDescriptionInput() {
-  validateFieldHelper("description");
-}
-
-function handleSourceUrlInput() {
-  validateFieldHelper("sourceUrl");
-}
-
-// Get combined class for inputs with validation state
 function getInputClass(fieldName: string) {
   const baseClasses = props.fieldClasses?.(fieldName) ?? "";
   const errorClass = hasFieldError(fieldName) ? "p-invalid" : "";
   return [{ "w-full": true }, baseClasses, errorClass];
 }
 
-// Computed properties for change indicators to simplify template logic
-const showNameChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("name"),
-);
-
-const showTimelineStatusChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("timelineStatus"),
-);
-
-const showDescriptionChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("description"),
-);
-
-const showProposalDateChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("proposalDate"),
-);
-
-const showStartDateChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("startDate"),
-);
-
-const showEndDateChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("endDate"),
-);
-
-const showSourceUrlChangeIndicator = computed(
-  () => props.showChangeIndicators && props.hasChanged?.("sourceUrl"),
-);
-
-// Computed error messages for each field
-const nameError = computed(() => getFieldError("name"));
-const descriptionError = computed(() => getFieldError("description"));
-const sourceUrlError = computed(() => getFieldError("sourceUrl"));
-const startDateError = computed(() => getFieldError("startDate"));
-const endDateError = computed(() => getFieldError("endDate"));
-
-// Date change handler - validates dates whenever they change
-function handleDateChange() {
-  syncDatesToFormData();
-  // Validate both date fields when either changes (they depend on each other)
-  validateFieldHelper("startDate");
-  validateFieldHelper("endDate");
-}
-
-// Proposal date change handler
-function handleProposalDateChange() {
-  syncDatesToFormData();
-  validateFieldHelper("proposalDate");
-}
-
-// Watch for external timelineStatus changes
 watch(
   () => props.timelineStatus,
   (newValue) => {
@@ -473,7 +368,6 @@ function handleTimelineStatusChange(newStatus: TimelineStatus) {
   emit("update:timelineStatus", newStatus);
 }
 
-// Helper to format date from prop (Date) using flexible helper
 function formatFlexibleDateFromProp(date: Date | null | undefined): string {
   return formatFlexibleDate(dbToFlexibleDate(date));
 }

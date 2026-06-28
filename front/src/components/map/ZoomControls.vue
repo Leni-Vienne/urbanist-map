@@ -45,11 +45,11 @@ const atMinZoom = computed(
 );
 
 function zoomIn() {
-  map.value?.zoomIn();
+  map.value.zoomIn();
 }
 
 function zoomOut() {
-  map.value?.zoomOut();
+  map.value.zoomOut();
 }
 
 // Don't steal +/- while the user is typing, or while a modal dialog/drawer is open.

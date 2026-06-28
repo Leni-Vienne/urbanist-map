@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { trpc, type RouterOutput } from "@/client";
-import { withErrorHandling } from "@/services/core/errorHandling";
+import { loadOrNull } from "@/services/core/errorHandling";
 
 const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
 const isLoading = ref(false);
@@ -17,10 +17,9 @@ export function useModeratedContributions() {
   async function fetchModeratedContributions() {
     isLoading.value = true;
     try {
-      const result = await withErrorHandling(
-        async () => trpc.overlay.getModeratedContributions.query(),
-        { errorMessage: "Failed to load moderated contributions" },
-      );
+      const result = await loadOrNull(async () => trpc.overlay.getModeratedContributions.query(), {
+        errorMessage: "Failed to load moderated contributions",
+      });
 
       if (result) {
         moderatedContributions.value = result;
@@ -53,7 +52,7 @@ export function useModeratedContributions() {
   async function acknowledgeContributions(contributionIds: string[]) {
     if (contributionIds.length === 0) return { success: false };
 
-    const result = await withErrorHandling(
+    const result = await loadOrNull(
       async () => trpc.overlay.acknowledgeModeratedContributions.mutate({ contributionIds }),
       { errorMessage: "Failed to acknowledge contributions" },
     );

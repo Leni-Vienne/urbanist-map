@@ -97,6 +97,7 @@ export const viewportRouter = router({
             lng: projects.lng,
             tags: projects.tags,
             name: projects.name,
+            status: projects.status,
           })
           .from(projects)
           .where(
@@ -120,6 +121,7 @@ export const viewportRouter = router({
             lng: projects.lng,
             tags: projects.tags,
             name: projects.name,
+            status: projects.status,
           })
           .from(overlays)
           .innerJoin(projects, eq(overlays.projectId, projects.id))

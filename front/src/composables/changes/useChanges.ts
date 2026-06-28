@@ -2,10 +2,9 @@ import { computed } from "vue";
 import { trpc } from "@/client";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/changeRequestStore";
-import { withErrorHandling } from "@/services/core/errorHandling";
+import { loadOrNull } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { updateMarkerTooltip } from "@/services/map/markers";
 import type { OverlayObject } from "@/types";
 import { applyOverlayCorners } from "@/services/overlay/sync";
 
@@ -28,7 +27,7 @@ function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId:
 export async function refreshPendingChangeRequests() {
   const changeRequestStore = useChangeRequestStore();
   if (changeRequestStore.loaded) return;
-  const result = await withErrorHandling(async () => trpc.changes.getMyChangeRequests.query(), {
+  const result = await loadOrNull(async () => trpc.changes.getMyChangeRequests.query(), {
     errorMessage: "Failed to fetch pending change requests",
   });
   if (result) {
@@ -40,7 +39,7 @@ export function useChangeRequests() {
   const store = useChangeRequestStore();
 
   async function approveChangeRequests(changeRequestIds: string[]) {
-    const result = await withErrorHandling(
+    const result = await loadOrNull(
       async () => trpc.changes.approveChangeRequests.mutate({ changeRequestIds }),
       { errorMessage: "Failed to approve change requests" },
     );
@@ -60,7 +59,7 @@ export function useChangeRequests() {
   }
 
   async function rejectChangeRequests(changeRequestIds: string[]) {
-    const result = await withErrorHandling(
+    const result = await loadOrNull(
       async () => trpc.changes.rejectChangeRequests.mutate({ changeRequestIds }),
       { errorMessage: "Failed to reject change requests" },
     );
@@ -102,13 +101,11 @@ export function useChangeRequests() {
     if (changeRequest.fieldName === "corners") {
       resetOverlayPositionToApproved(overlayObject, changeRequest.entityId);
     }
-
-    updateMarkerTooltip(overlayObject);
   }
 
   async function deleteChangeRequest(changeRequestId: string) {
     const changeRequest = store.pendingChangeRequests.find((cr) => cr.id === changeRequestId);
-    const result = await withErrorHandling(
+    const result = await loadOrNull(
       async () => trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId }),
       { errorMessage: "Failed to delete change request" },
     );

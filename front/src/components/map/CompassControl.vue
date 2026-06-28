@@ -29,6 +29,6 @@ const isVisible = computed(
 );
 
 function resetNorth() {
-  map.value?.resetNorthPitch();
+  map.value.resetNorthPitch();
 }
 </script>

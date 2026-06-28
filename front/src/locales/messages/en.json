@@ -772,7 +772,7 @@
   "toasts": {
     "replacementOverlayCreated": "Replacement Image Created",
     "replacementOverlayDetail": "Your replacement image has been created and is ready for editing",
-    "standaloneProjectSuccess": "Standalone project created successfully",
+    "projectCreatedSuccess": "Project created successfully",
     "projectUpdateSuccess": "Project Updated",
     "projectUpdateDetail": "Project changes saved locally",
     "projectUpdateFailed": "Update Failed",

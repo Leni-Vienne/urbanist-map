@@ -1,7 +1,7 @@
 // Composable for managing latest contributions (overlays + standalone projects) with caching
 import { computed, ref } from "vue";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/services/core/errorHandling";
+import { loadOrNull } from "@/services/core/errorHandling";
 import type { LatestContribution } from "@/types/index";
 
 const latestContributions = ref<LatestContribution[]>([]);
@@ -21,7 +21,7 @@ export function useLatestContributions() {
 
     latestContributionsLoading.value = true;
     try {
-      const result = await withErrorHandling(
+      const result = await loadOrNull(
         async () => trpc.feed.getLatestContributions.query({ limit: 20 }),
         { errorMessage: "Failed to load latest contributions. Please refresh the page." },
       );

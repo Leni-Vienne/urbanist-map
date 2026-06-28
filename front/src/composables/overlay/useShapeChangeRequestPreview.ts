@@ -6,7 +6,6 @@ import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapeRendering";
-import { requestScrollTo } from "@/services/layout/accordionState";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
 
@@ -58,9 +57,11 @@ export function useShapeChangeRequestPreview() {
 
     const uiStore = useUiStore();
 
-    renderPreviewShapes(geometry, type === "new" ? "suggested" : "current", project.id, () => {
+    const newGeom = type === "new" ? geometry : (project.geometry ?? null);
+    const oldGeom = type === "new" ? (project.geometry ?? null) : null;
+
+    renderPreviewShapes(project, newGeom, oldGeom, () => {
       uiStore.openProjectDetail(project.id, project);
-      requestScrollTo("project", project.id);
     });
 
     mobileAwareFlyToBounds(bounds);

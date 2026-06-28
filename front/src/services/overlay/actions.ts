@@ -5,11 +5,10 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/services/core/errorHandling";
+import { loadOrNull } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay, applySelectionVisualsWhenReady } from "@/services/overlay/selection";
-import { getMarker } from "@/services/overlay/renderRegistry";
-import { updateMarkerTooltip } from "@/services/map/markers";
+import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
 
 // Helper to zoom to overlay bounds
@@ -101,7 +100,7 @@ async function loadOverlay(
     return { alreadyInStore: true };
   }
 
-  return withErrorHandling(
+  return loadOrNull(
     async () => {
       const result = await trpc.overlay.getOverlay.query({
         id: overlayId,
@@ -207,6 +206,4 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
       );
     }
   }
-
-  updateMarkerTooltip(overlayObject);
 }

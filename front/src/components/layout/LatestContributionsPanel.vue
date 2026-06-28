@@ -112,8 +112,8 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
-  navigateToStandaloneProject,
-  navigateToStandaloneProjectBounds,
+  navigateToProject,
+  navigateToProjectBounds,
   zoomToOverlayAndSelect,
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
@@ -229,9 +229,9 @@ async function handleContributionClick(contribution: LatestContribution) {
       // Fly to the actual geometry bounds instead of the project center point.
       const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
       const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
-      navigateToStandaloneProjectBounds(bounds, contribution.id);
+      navigateToProjectBounds(bounds, contribution.id);
     } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
-      navigateToStandaloneProject(contribution.lat, contribution.lng, contribution.id);
+      navigateToProject(contribution.lat, contribution.lng, contribution.id);
     }
   }
 }

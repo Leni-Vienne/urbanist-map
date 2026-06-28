@@ -7,12 +7,8 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { unhighlightProjectShapes } from "@/services/map/shapeLayerRegistry";
 import { selectOverlay } from "@/services/overlay/selection";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { requestScrollTo } from "@/services/layout/accordionState";
 import { useActiveDetail } from "@/composables/project/useActiveDetail";
-import {
-  getStandaloneProjectMarkerByProjectId,
-  updateStandaloneProjectMarkerOpacities,
-} from "@/services/map/standaloneProjectMarkers";
+import { useSelectedProjectId } from "@/composables/project/useSelectedProjectId";
 
 let isWatcherInitialized = false;
 
@@ -65,6 +61,24 @@ function initializeProjectUrlSync() {
   });
 }
 
+// The selected project (project or overlay selection) is shown in the docked panel's "Selected
+// project" card and filtered out of the accordion list. Drop it from the expanded accordion set so
+// it returns collapsed (not expanded) when it later falls back into the list on deselection, while
+// leaving manually-expanded panels untouched.
+function initializeSelectedPanelCleanup() {
+  const uiStore = useUiStore();
+  const { selectedProjectId } = useSelectedProjectId();
+
+  watch(selectedProjectId, (projectId) => {
+    if (!projectId) return;
+    if (uiStore.activeAccordionPanels.includes(projectId)) {
+      uiStore.activeAccordionPanels = uiStore.activeAccordionPanels.filter(
+        (id) => id !== projectId,
+      );
+    }
+  });
+}
+
 /**
  * Drives all detail-state-driven side effects (marker opacity, vector hover highlight,
  * accordion scroll, overlay detail hide, deselect) so click handlers only need to toggle
@@ -75,6 +89,7 @@ export function initializeDetailWatcher() {
   isWatcherInitialized = true;
 
   initializeProjectUrlSync();
+  initializeSelectedPanelCleanup();
 
   watch(
     () => {
@@ -92,20 +107,14 @@ export function initializeDetailWatcher() {
       }
 
       if (!newProjectId) {
-        updateStandaloneProjectMarkerOpacities(null);
         setExternalHover(null);
         return;
       }
-
-      const marker = getStandaloneProjectMarkerByProjectId(newProjectId) ?? null;
-      updateStandaloneProjectMarkerOpacities(marker);
 
       // Pin the vector tile highlight in view mode (overlay-only projects only render via tiles).
       if (mapStore.mode === "view") {
         setExternalHover(newProjectId);
       }
-
-      requestScrollTo("project", newProjectId);
 
       if (overlayStore.overlayDetailVisible) overlayStore.closeOverlayDetail();
       if (overlayStore.idSelectedOverlay) selectOverlay(null);

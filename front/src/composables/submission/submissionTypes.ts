@@ -1,5 +1,4 @@
-import type { RemovableChange } from "@/types/index";
-import type { PendingOverlayModification } from "@/stores/pinia/pendingModificationsStore";
+import type { RemovableChange, PendingOverlayModification } from "@/types/index";
 
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
 type SubmissionEntityType = "project" | "overlay";

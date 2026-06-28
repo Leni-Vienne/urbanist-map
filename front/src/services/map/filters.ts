@@ -2,8 +2,6 @@
 // FilterControl, the vector tile layers, and viewport rendering.
 
 import { ref, computed } from "vue";
-import type { Project } from "@/types/index";
-import type { AppMode } from "@shared/types";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 
 const ALL_TIMELINE_STATUSES: TimelineStatus[] = [
@@ -91,6 +89,13 @@ export function getNameFilterMode(): "all" | "named" | "unnamed" {
   return named ? "named" : "unnamed";
 }
 
+export function matchesNameFilter(name: string | null | undefined): boolean {
+  const mode = getNameFilterMode();
+  if (mode === "all") return true;
+  const isNamed = name !== null && name !== undefined && name !== "";
+  return mode === "named" ? isNamed : !isNamed;
+}
+
 export function matchesSelectedTags(tags: string[] | null | undefined): boolean {
   if (selectedProjectTags.value.length === 0) return true;
 
@@ -98,40 +103,6 @@ export function matchesSelectedTags(tags: string[] | null | undefined): boolean 
   if (!tags || tags.length === 0) return includeUntagged;
   if (knownTags.length === 0) return false;
   return tags.some((tag) => knownTags.includes(tag));
-}
-
-function matchesNameFilter(name: string | null | undefined): boolean {
-  const mode = getNameFilterMode();
-  if (mode === "all") return true;
-  // oxlint-disable-next-line no-implicit-coercion
-  const hasName = !!name && name.trim().length > 0;
-  return mode === "named" ? hasName : !hasName;
-}
-
-function getEffectiveLastModifiedMs(project: Project): number {
-  return new Date(project.externalLastModified ?? project.updatedAt).getTime();
-}
-
-function matchesLastModifiedDateFilter(project: Project): boolean {
-  const [minMs, maxMs] = lastModifiedDateRange.value;
-  if (minMs === 0 && maxMs === Infinity) return true;
-  const ms = getEffectiveLastModifiedMs(project);
-  if (ms < minMs) return false;
-  if (maxMs !== Infinity && ms > maxMs) return false;
-  return true;
-}
-
-export function shouldShowStandaloneProject(project: Project, mode: AppMode): boolean {
-  const passesCommonFilters =
-    matchesSelectedTags(project.tags) &&
-    matchesNameFilter(project.name) &&
-    matchesLastModifiedDateFilter(project);
-
-  // The timeline status filter only applies in view mode.
-  if (mode === "view") {
-    return passesCommonFilters && visibleStates.value[project.timelineStatus];
-  }
-  return passesCommonFilters;
 }
 
 // Empty selection = all statuses visible.

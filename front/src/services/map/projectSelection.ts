@@ -5,7 +5,7 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
-import { expandProjectPanel } from "@/services/layout/accordionState";
+import { loadOrNull } from "@/services/core/errorHandling";
 
 /**
  * Open the project detail in the docked panel for the given project.
@@ -16,11 +16,12 @@ import { expandProjectPanel } from "@/services/layout/accordionState";
 export function selectProject(project: Project): void {
   const uiStore = useUiStore();
 
-  // Selecting is idempotent: always show the project and expand its panel, regardless of current
-  // state. Deselection has its own paths (background-map click, the card's close button), so this
-  // never branches on "already selected", which is what desynced after a manual fold.
+  // Selecting is idempotent: always show the project, regardless of current state. Deselection has
+  // its own paths (background-map click, the card's close button), so this never branches on
+  // "already selected", which is what desynced after a manual fold. The selected project is shown in
+  // the docked panel's "Selected project" card (not the accordion); the detail watcher keeps it out
+  // of the expanded accordion set so it returns collapsed when deselected.
   uiStore.openProjectDetail(project.id, project);
-  expandProjectPanel(project.id);
 
   // In moderation mode, switch the panel to this project's country so its pending
   // submissions load and the detail watcher's scroll request can resolve.
@@ -35,23 +36,21 @@ async function resolveProjectForTileClick(projectId: string): Promise<Project | 
   if (pendingProject) {
     return createProjectObject({
       ...pendingProject,
-      tags: pendingProject.tags ?? [],
+      tags: pendingProject.tags,
       overlayIds: [],
     });
   }
 
-  try {
-    const result = await trpc.project.getById.query({ id: projectId });
-    if (!result) return null;
-    return createProjectObject({
-      ...result,
-      tags: result.tags ?? [],
-      overlayIds: [],
-    });
-  } catch (error) {
-    console.error("Failed to fetch project for tile click:", error);
-    return null;
-  }
+  const result = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }), {
+    errorMessage: "Failed to fetch project for tile click",
+  });
+
+  if (!result) return null;
+  return createProjectObject({
+    ...result,
+    tags: result.tags ?? [],
+    overlayIds: [],
+  });
 }
 
 /**

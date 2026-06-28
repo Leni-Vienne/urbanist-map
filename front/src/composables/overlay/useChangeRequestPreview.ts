@@ -6,7 +6,7 @@ import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
-import * as registry from "@/services/overlay/renderRegistry";
+import * as registry from "@/services/overlay/mapLayers";
 import { applyOverlayCorners } from "@/services/overlay/sync";
 import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";

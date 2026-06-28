@@ -1,5 +1,3 @@
-import { extractTagsFromOsmProperties } from "@shared/osmRules";
-
 // Colors are expressed as inline style values so they work without Tailwind purging.
 interface ProjectTag {
   slug: string;
@@ -35,6 +33,15 @@ export const PROJECT_TAGS: ProjectTag[] = [
 
 export const PROJECT_TAG_MAP = new Map(PROJECT_TAGS.map((t) => [t.slug, t]));
 
+const DEFAULT_TAG_COLOR = "#7ea2b7";
+
+/** Resolve a project's first tag to its hex color, matching the MVT tile expression. */
+export function getProjectTagColor(tags: string[]): string {
+  const firstTag = tags[0];
+  if (!firstTag) return DEFAULT_TAG_COLOR;
+  return PROJECT_TAG_MAP.get(firstTag)?.color ?? DEFAULT_TAG_COLOR;
+}
+
 // Tags that also carry the implicit `building` tag (the building-category tags plus the
 // generic `building` itself). Grouped separately in the filter UI.
 export const BUILDING_CATEGORY_TAGS = new Set([
@@ -46,4 +53,4 @@ export const BUILDING_CATEGORY_TAGS = new Set([
   "industrial",
 ]);
 
-export { extractTagsFromOsmProperties };
+export { extractTagsFromOsmProperties } from "@shared/osmRules";

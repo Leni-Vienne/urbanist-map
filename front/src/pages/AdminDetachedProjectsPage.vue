@@ -281,14 +281,15 @@ const isRelinking = ref(false);
 const pendingRelink = ref<{ orphan: DetachedProject; candidate: Candidate } | null>(null);
 
 async function loadDetachedProjects() {
+  isLoading.value = true;
   try {
-    isLoading.value = true;
     detachedProjects.value = await trpc.moderation.getDetachedProjects.query();
   } catch (error) {
     console.error("Error loading detached projects:", error);
     toast.add({
       severity: "error",
       summary: t("admin.detached.loadError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {
@@ -355,6 +356,7 @@ async function confirmRelink() {
     toast.add({
       severity: "error",
       summary: t("admin.detached.relinkError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {
@@ -378,6 +380,7 @@ async function handleKeepStandalone(orphan: DetachedProject) {
     toast.add({
       severity: "error",
       summary: t("admin.detached.dismissError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {

@@ -5,13 +5,10 @@ import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { createOverlayObject } from "@/utils/typeFactories";
-import { removeStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import { resolveOverlayRenderCorners } from "@/services/overlay/history";
-import { enrichOverlayWithProject } from "@/services/overlay/data";
-import { updateMarkerTooltip } from "@/services/map/markers";
+import { resolveOverlayRenderCorners, enrichOverlayWithProject } from "@/services/overlay/data";
 import { createOverlayMarker } from "@/services/overlay/markers";
-import * as registry from "@/services/overlay/renderRegistry";
-import { createOverlayImage } from "@/services/overlay/imageLayer";
+import * as registry from "@/services/overlay/mapLayers";
+import { createOverlayImage } from "@/services/overlay/mapLayers";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
@@ -119,13 +116,6 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
   // for low-zoom representation and click handling.
   if (createMarkers && overlay) {
     createOverlayMarker(overlay);
-    updateMarkerTooltip(overlay);
-  }
-
-  // A standalone project marker may have been shown for this project while its overlays
-  // were pending/invisible. Remove it now that a real overlay is on the map.
-  if (cdnOverlay.projectId) {
-    removeStandaloneProjectMarkerForProject(cdnOverlay.projectId);
   }
 
   registry.cancelCreation(cdnOverlay.id);

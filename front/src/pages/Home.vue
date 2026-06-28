@@ -87,6 +87,8 @@ import { showSubmissionDialog } from "@/composables/submission/submissionDialogS
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/composables/project/useProjectDeepLink";
 import { useActiveDetail } from "@/composables/project/useActiveDetail";
+import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
+
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
 import MobileDrawer from "@/components/layout/MobileDrawer.vue";
@@ -163,6 +165,27 @@ watch(
       uiStore.closeShapeEditor();
     }
   },
+);
+
+const { moderatedContributions, preloadModeratedContributions } = useModeratedContributions();
+
+watch(
+  () => authStore.user,
+  async (user) => {
+    if (user) {
+      try {
+        await preloadModeratedContributions();
+        const hasContributions = moderatedContributions.value.length > 0;
+        uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
+        if (hasContributions) {
+          uiStore.moderatedContributionsDialogVisible = true;
+        }
+      } catch (error) {
+        console.error("Failed to check moderated contributions:", error);
+      }
+    }
+  },
+  { immediate: true },
 );
 
 const mobileSideMenuOpen = computed({

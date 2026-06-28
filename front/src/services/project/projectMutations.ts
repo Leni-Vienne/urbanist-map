@@ -26,8 +26,6 @@ export function addOverlayToProjectWithId(projectId: string, overlayId: string):
     return false;
   }
 
-  existingProject.overlayIds ??= [];
-
   const isFirstOverlay = existingProject.overlayIds.length === 0;
 
   if (!existingProject.overlayIds.includes(overlayId)) {

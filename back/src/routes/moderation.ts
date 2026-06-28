@@ -456,7 +456,6 @@ export const moderationRouter = router({
         .groupBy(pending.countryCode);
 
       return result
-        .filter((row): row is typeof row & { countryCode: string } => row.countryCode !== null)
         .map((row) => ({ countryCode: row.countryCode, total: Number(row.total) }))
         .filter((row) => row.total > 0);
     } catch (error) {

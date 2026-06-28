@@ -9,10 +9,9 @@
 // edit (corners or caption) to its captured baseline in the stores, then syncs the map to match.
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { getImageHandle } from "@/services/overlay/renderRegistry";
-import { setOverlayImageCorners } from "@/services/overlay/imageLayer";
-import { refreshEditHandles } from "@/services/overlay/editHandles";
-import { updateMarkerPosition, updateMarkerTooltip } from "@/services/map/markers";
+import { getImageHandle, setOverlayImageCorners } from "@/services/overlay/mapLayers";
+import { refreshEditHandles } from "@/services/overlay/editing";
+import { updateMarkerPosition } from "@/services/overlay/markers";
 import type { ModifiableField, OverlayObject } from "@/types/index";
 
 interface ApplyOverlayCornersOptions {
@@ -44,8 +43,6 @@ export function applyOverlayCorners(
 
   // Reads the live image corners (just set) and falls back to overlayObject.corners otherwise.
   updateMarkerPosition(overlayObject);
-
-  if (options.refreshTooltip) updateMarkerTooltip(overlayObject);
 }
 
 function resetOverlayField(
@@ -90,11 +87,6 @@ export function revertOverlayFieldModification(
 
   if (!hasRemainingMods) {
     overlayStore.updateOverlay(overlayId, { isModified: false });
-  }
-
-  const overlay = overlayStore.overlays[overlayId];
-  if (overlay) {
-    updateMarkerTooltip(overlay);
   }
 
   return hasRemainingMods;

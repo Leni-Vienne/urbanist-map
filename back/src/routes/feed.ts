@@ -227,7 +227,7 @@ function mapOverlayContribution(o: LatestOverlayRow) {
     countryCode: o.countryCode,
     country: o.country,
     centroid:
-      o.centroidLat !== null && o.centroidLng !== null
+      typeof o.centroidLat === "number" && typeof o.centroidLng === "number"
         ? { lat: o.centroidLat, lng: o.centroidLng }
         : null,
     corners: o.corners,

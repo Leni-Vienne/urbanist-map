@@ -5,19 +5,32 @@
  * from the bbox tRPC fetch and updates the pending-project-points source.
  */
 
-import { updatePendingProjectPointsSource } from "@/services/map/tileLayers";
+import {
+  updatePendingProjectPointsSource,
+  updatePendingProjectShapesSource,
+} from "@/services/map/tileLayers";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
 import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
 
-let globalPendingPoints: {
+type PendingProjectInput = {
   id: string;
   lat: number | null;
   lng: number | null;
-  tags: string[] | null;
   name: string | null;
-}[] = [];
+  tags: string[] | null;
+  status: string | null;
+};
+
+type ProjectShapeInput = PendingProjectInput & {
+  status: string;
+  timelineStatus?: string | null;
+  geometry?: GeoJSON.GeometryCollection | null;
+};
+
+let globalPendingPoints: PendingProjectInput[] = [];
 
 /**
  * Fetch lightweight pending points globally for the current mode.
@@ -44,13 +57,9 @@ export async function updateGlobalPendingPoints(mode: AppMode): Promise<void> {
 /**
  * Create a GeoJSON Feature for a project point
  */
-function createProjectFeature(project: {
-  id: string;
-  lat: number;
-  lng: number;
-  name: string | null;
-  tags: string[] | null;
-}): GeoJSON.Feature {
+function createProjectFeature(
+  project: PendingProjectInput & { lat: number; lng: number },
+): GeoJSON.Feature {
   return {
     type: "Feature",
     geometry: {
@@ -60,39 +69,140 @@ function createProjectFeature(project: {
     properties: {
       id: project.id,
       name: project.name,
-      tags: project.tags,
+      tags: project.tags ? JSON.stringify(project.tags) : null,
+      first_tag: project.tags?.[0] ?? null,
+      status: project.status,
       cell_count: 1,
     },
   };
 }
 
 /**
- * Add a pending project to the map. Non-pending and coordinate-less projects are skipped.
+ * Add a pending project point, unless it is non-pending, coordinate-less,
+ * already added, or already represented by a standalone shape.
  */
 function addProjectToMap(
-  project: {
-    id: string;
-    lat: number | null;
-    lng: number | null;
-    name: string | null;
-    tags: string[] | null;
-  },
+  project: PendingProjectInput,
   isPending: boolean,
+  standaloneShapeProjectIds: Set<string>,
   pendingProjects: Map<string, GeoJSON.Feature>,
 ): void {
-  if (typeof project.lat !== "number" || typeof project.lng !== "number" || !isPending) return;
+  const { lat, lng } = project;
+  if (!isPending || standaloneShapeProjectIds.has(project.id)) return;
+  if (typeof lat !== "number" || typeof lng !== "number") return;
   if (pendingProjects.has(project.id)) return;
 
-  pendingProjects.set(
-    project.id,
-    createProjectFeature({
-      id: project.id,
-      lat: project.lat,
-      lng: project.lng,
-      name: project.name,
-      tags: project.tags,
-    }),
-  );
+  pendingProjects.set(project.id, createProjectFeature({ ...project, lat, lng }));
+}
+
+/**
+ * Collect pending polygon shapes (overlay footprints + standalone project geometries).
+ * Records every project drawn as a standalone geometry in standaloneShapeProjectIds so
+ * the point pass can skip it.
+ */
+function collectPendingShapes(
+  overlaysData: OverlayData[],
+  projectsData: ProjectShapeInput[],
+  standaloneShapeProjectIds: Set<string>,
+): GeoJSON.Feature[] {
+  const shapes: GeoJSON.Feature[] = [];
+
+  for (const overlay of overlaysData) {
+    const project = overlay.project;
+    if (!project || typeof project.lat !== "number" || typeof project.lng !== "number") continue;
+    if (project.geometry) standaloneShapeProjectIds.add(project.id);
+
+    const isPending = project.status !== "approved" || overlay.status !== "approved";
+    const firstCorner = overlay.corners[0];
+    if (!isPending || overlay.corners.length < 3 || !firstCorner) continue;
+
+    shapes.push({
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [...overlay.corners.map((c) => [c.lng, c.lat]), [firstCorner.lng, firstCorner.lat]],
+        ],
+      },
+      properties: {
+        id: overlay.id,
+        project_id: project.id,
+        sourceLayer: "overlay-footprints",
+        status: overlay.status,
+        tags: project.tags ? JSON.stringify(project.tags) : null,
+        first_tag: project.tags?.[0] ?? null,
+      },
+    });
+  }
+
+  for (const project of projectsData) {
+    if (project.status === "approved" || !project.geometry) continue;
+
+    shapes.push({
+      type: "Feature",
+      geometry: project.geometry,
+      properties: {
+        id: project.id,
+        sourceLayer: "project-shapes",
+        status: project.status,
+        timeline_status: project.timelineStatus,
+        tags: project.tags ? JSON.stringify(project.tags) : null,
+        first_tag: project.tags?.[0] ?? null,
+      },
+    });
+    standaloneShapeProjectIds.add(project.id);
+  }
+
+  return shapes;
+}
+
+/**
+ * Collect pending project points in priority order: locally modified projects win over
+ * overlay-derived projects, then shape-derived, then global lightweight points.
+ * Dedup and standalone-shape skipping are handled in addProjectToMap.
+ */
+function collectPendingPoints(
+  overlaysData: OverlayData[],
+  projectsData: ProjectShapeInput[],
+  standaloneShapeProjectIds: Set<string>,
+): Map<string, GeoJSON.Feature> {
+  const pendingProjects = new Map<string, GeoJSON.Feature>();
+
+  const projectStore = useProjectStore();
+  for (const lp of Object.values(projectStore.projects)) {
+    if (lp.isModified || lp.status === null) {
+      addProjectToMap(lp, true, standaloneShapeProjectIds, pendingProjects);
+    }
+  }
+
+  for (const overlay of overlaysData) {
+    const project = overlay.project;
+    if (!project) continue;
+    const isPending = project.status !== "approved" || overlay.status !== "approved";
+    addProjectToMap(project, isPending, standaloneShapeProjectIds, pendingProjects);
+  }
+
+  for (const project of projectsData) {
+    addProjectToMap(
+      project,
+      project.status !== "approved",
+      standaloneShapeProjectIds,
+      pendingProjects,
+    );
+  }
+
+  for (const project of globalPendingPoints) {
+    addProjectToMap(project, true, standaloneShapeProjectIds, pendingProjects);
+  }
+
+  return pendingProjects;
+}
+
+function writeSource(
+  update: (geojson: GeoJSON.FeatureCollection) => void,
+  features: GeoJSON.Feature[],
+): void {
+  update({ type: "FeatureCollection", features });
 }
 
 /**
@@ -101,53 +211,19 @@ function addProjectToMap(
  */
 export function mergeProjectPointsForMode(
   overlaysData: OverlayData[],
-  projectsData: {
-    id: string;
-    lat: number | null;
-    lng: number | null;
-    name: string | null;
-    tags: string[] | null;
-    status: string;
-  }[],
+  projectsData: ProjectShapeInput[],
   mode: AppMode,
 ): void {
-  const emptyGeojson: GeoJSON.FeatureCollection = {
-    type: "FeatureCollection",
-    features: [],
-  };
-
   if (mode === "view") {
-    updatePendingProjectPointsSource(emptyGeojson);
+    writeSource(updatePendingProjectPointsSource, []);
+    writeSource(updatePendingProjectShapesSource, []);
     return;
   }
 
-  const pendingProjects = new Map<string, GeoJSON.Feature>();
+  const standaloneShapeProjectIds = new Set<string>();
+  const pendingShapes = collectPendingShapes(overlaysData, projectsData, standaloneShapeProjectIds);
+  const pendingPoints = collectPendingPoints(overlaysData, projectsData, standaloneShapeProjectIds);
 
-  for (const overlay of overlaysData) {
-    const project = overlay.project;
-    if (!project || typeof project.lat !== "number" || typeof project.lng !== "number") continue;
-    const isPending = project.status !== "approved" || overlay.status !== "approved";
-    addProjectToMap(project, isPending, pendingProjects);
-  }
-
-  for (const project of projectsData) {
-    const isPending = project.status !== "approved";
-    addProjectToMap(project, isPending, pendingProjects);
-  }
-
-  for (const project of globalPendingPoints) {
-    addProjectToMap(project, true, pendingProjects);
-  }
-
-  if (pendingProjects.size === 0) {
-    updatePendingProjectPointsSource(emptyGeojson);
-    return;
-  }
-
-  const mergedGeojson: GeoJSON.FeatureCollection = {
-    type: "FeatureCollection",
-    features: [...pendingProjects.values()],
-  };
-
-  updatePendingProjectPointsSource(mergedGeojson);
+  writeSource(updatePendingProjectPointsSource, [...pendingPoints.values()]);
+  writeSource(updatePendingProjectShapesSource, pendingShapes);
 }

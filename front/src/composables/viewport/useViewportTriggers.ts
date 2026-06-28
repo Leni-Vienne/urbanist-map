@@ -1,7 +1,7 @@
 // Viewport-based content manager
 // View mode: vectorTileSync + cluster source handle rendering (no data loading)
 // Edit/moderation: bbox tRPC fetch
-import { ref, watch } from "vue";
+import { watch } from "vue";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
@@ -12,15 +12,10 @@ import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/lifecycle";
-import * as registry from "@/services/overlay/renderRegistry";
+import * as registry from "@/services/overlay/mapLayers";
 import { createOverlayMarker } from "@/services/overlay/markers";
 import { updateOverlayEditingState } from "@/services/overlay/editing";
-import { refreshSelectionHighlight } from "@/services/overlay/selection";
-import {
-  addStandaloneProjectMarkerForProject,
-  clearAllStandaloneProjectMarkers,
-  initializeStandaloneMarkerModeWatcher,
-} from "@/services/map/standaloneProjectMarkers";
+import { refreshSelectionHighlight } from "@/services/overlay/projectHighlight";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import {
   convertOverlayToData,
@@ -32,33 +27,7 @@ import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
 } from "@/services/map/clusterSourceMerge";
-import type { OverlayData, Project } from "@/types/index";
-
-function processStandaloneMarkers(
-  standaloneProjects: Project[],
-  overlaysData: OverlayData[] | null,
-  overlayCountByProjectId: Map<string, number>,
-): void {
-  if (standaloneProjects.length === 0) return;
-
-  const projectIdsWithOverlays = new Set<string>();
-  if (overlaysData) {
-    for (const overlay of overlaysData) {
-      if (overlay.projectId) {
-        projectIdsWithOverlays.add(overlay.projectId);
-      }
-    }
-  }
-
-  for (const project of standaloneProjects) {
-    // Local (unsaved) projects aren't in the backend response, so they default to 0.
-    const overlayCount = overlayCountByProjectId.get(project.id) ?? 0;
-
-    if (!projectIdsWithOverlays.has(project.id) && overlayCount === 0) {
-      addStandaloneProjectMarkerForProject(project);
-    }
-  }
-}
+import type { OverlayData } from "@/types/index";
 
 function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
@@ -95,13 +64,25 @@ function renderFullOverlays(overlaysData: OverlayData[]): void {
   runViewportRenderLoop();
 }
 
-const isLoading = ref(false);
+let isLoading = false;
 
 // Track last zoom level to detect marker ↔ overlay transitions
-const lastZoomLevel = ref<number | null>(null);
+let lastZoomLevel: number | null = null;
 
 // Track the last fetched bbox key to avoid redundant fetches on small pans
 let lastBboxKey = "";
+
+/**
+ * Fetch overlays + standalone projects in the given viewport bbox.
+ */
+async function fetchViewportData(mode: "edit" | "moderation", bbox: ReturnType<typeof getMapBbox>) {
+  const [overlaysData, projectsData] = await Promise.all([
+    trpc.viewport.getOverlaysInViewport.query({ bbox, mode }),
+    trpc.viewport.getProjectsInViewport.query({ bbox, mode }),
+  ]);
+
+  return { overlays: overlaysData, projects: projectsData };
+}
 
 /**
  * Get current map bbox in the format expected by the backend
@@ -163,22 +144,8 @@ export function useViewportTriggers() {
   const authStore = useAuthStore();
 
   /**
-   * Fetch overlays + standalone projects in the current viewport bbox.
-   */
-  async function fetchViewportData(mode: "edit" | "moderation") {
-    const bbox = getMapBbox();
-
-    const [overlaysData, projectsData] = await Promise.all([
-      trpc.viewport.getOverlaysInViewport.query({ bbox, mode }),
-      trpc.viewport.getProjectsInViewport.query({ bbox, mode }),
-    ]);
-
-    return { overlays: overlaysData, projects: projectsData };
-  }
-
-  /**
    * Render fetched viewport data: hydrate stores, create markers/overlays,
-   * process standalone markers, and augment the cluster source.
+   * and augment the cluster source.
    */
   function renderViewportData(
     overlaysData: OverlayData[],
@@ -193,28 +160,21 @@ export function useViewportTriggers() {
       renderMarkersOnly(overlaysData);
     }
 
-    // Process standalone project markers (projects with 0 visible overlays).
-    // Capture overlayCount before createProjectObject drops it.
-    const overlayCountByProjectId = new Map<string, number>(
-      projectsData.map((p) => [p.id, p.overlayCount]),
-    );
-    const standaloneProjects = projectsData.map((p) =>
+    const projectsFromResponse = projectsData.map((p) =>
       createProjectObject(p as Parameters<typeof createProjectObject>[0]),
     );
 
-    // In edit mode, merge local (unsaved) projects into the standalone list
+    // In edit mode, merge local (unsaved) projects into the response list
     if (mode === "edit") {
       const localProjects = Object.values(projectStore.projects).filter(
         (p) => p.status === null && typeof p.lat === "number" && typeof p.lng === "number",
       );
       for (const lp of localProjects) {
-        if (!standaloneProjects.some((sp) => sp.id === lp.id)) {
-          standaloneProjects.push(lp);
+        if (!projectsFromResponse.some((sp) => sp.id === lp.id)) {
+          projectsFromResponse.push(lp);
         }
       }
     }
-
-    processStandaloneMarkers(standaloneProjects, overlaysData, overlayCountByProjectId);
 
     // Augment cluster source with pending projects visible in this mode
     mergeProjectPointsForMode(overlaysData, projectsData, mode);
@@ -226,12 +186,12 @@ export function useViewportTriggers() {
    */
   async function refreshViewport(force = false) {
     try {
-      if (isLoading.value && !force) {
+      if (isLoading && !force) {
         return;
       }
 
       const zoom = map.value.getZoom();
-      const previousZoom = lastZoomLevel.value;
+      const previousZoom = lastZoomLevel;
       const loadThreshold = getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD);
       const overlayThreshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
@@ -240,7 +200,7 @@ export function useViewportTriggers() {
       const crossedLowToHigh =
         previousZoom !== null && previousZoom < overlayThreshold && zoom >= overlayThreshold;
 
-      // Prune overlays, standalone project markers, and shapes for the current viewport.
+      // Prune overlays and shapes for the current viewport.
       // Skipped when crossing low→high: renderFullOverlays handles pruning after cleanup.
       if (!crossedLowToHigh) {
         runViewportRenderLoop();
@@ -250,7 +210,6 @@ export function useViewportTriggers() {
       if (zoom < loadThreshold) {
         const isEditMode = mapStore.mode === "edit";
         clearAllOverlays(isEditMode);
-        clearAllStandaloneProjectMarkers();
         lastBboxKey = "";
 
         // Even though we aren't loading bbox data, we still need to merge global pending points
@@ -258,7 +217,7 @@ export function useViewportTriggers() {
           mergeProjectPointsForMode([], [], mapStore.mode);
         }
 
-        lastZoomLevel.value = zoom;
+        lastZoomLevel = zoom;
         return;
       }
 
@@ -268,7 +227,7 @@ export function useViewportTriggers() {
         ((previousZoom < overlayThreshold && zoom >= overlayThreshold) ||
           (previousZoom >= overlayThreshold && zoom < overlayThreshold));
 
-      lastZoomLevel.value = zoom;
+      lastZoomLevel = zoom;
 
       // View mode: vectorTileSync and the cluster source handle rendering.
       // runViewportRenderLoop() already ran above for local overlay pruning and shape rendering.
@@ -286,10 +245,13 @@ export function useViewportTriggers() {
         return;
       }
 
-      isLoading.value = true;
+      isLoading = true;
       const mode = mapStore.mode;
 
-      const { overlays: overlaysData, projects: projectsData } = await fetchViewportData(mode);
+      const { overlays: overlaysData, projects: projectsData } = await fetchViewportData(
+        mode,
+        bbox,
+      );
 
       // Guard against race condition: if mode changed while fetching, discard.
       if (mapStore.mode !== mode) {
@@ -303,7 +265,7 @@ export function useViewportTriggers() {
     } catch (error) {
       console.error("Error refreshing viewport:", error);
     } finally {
-      isLoading.value = false;
+      isLoading = false;
     }
   }
 
@@ -360,7 +322,6 @@ export function useViewportTriggers() {
 
   function setupModeWatcher() {
     initializeRenderTriggers();
-    initializeStandaloneMarkerModeWatcher();
 
     watch(
       () => mapStore.mode,

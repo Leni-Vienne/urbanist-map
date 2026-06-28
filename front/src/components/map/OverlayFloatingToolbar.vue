@@ -23,7 +23,7 @@
           <button :title="t('toolbar.cropConfirm')" :class="btnCls()" @click="confirmCrop">
             <i class="pi pi-check" />
           </button>
-          <button :title="t('toolbar.cropCancel')" :class="btnCls()" @click="cancelCrop">
+          <button :title="t('toolbar.cropCancel')" :class="btnCls()" @click="endCrop()">
             <i class="pi pi-times" />
           </button>
         </template>
@@ -43,13 +43,21 @@
           <!-- Nav prev/next + index -->
           <template v-if="showNav">
             <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-            <button :title="t('toolbar.previousOverlay')" :class="btnCls()" @click="goToPrevious">
+            <button
+              :title="t('toolbar.previousOverlay')"
+              :class="btnCls()"
+              @click="navigateOverlaySequence('previous')"
+            >
               <i class="pi pi-chevron-left" />
             </button>
             <span v-if="overlayIndex" class="text-[13px] text-muted-color min-w-7 text-center"
               >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
             >
-            <button :title="t('toolbar.nextOverlay')" :class="btnCls()" @click="goToNext">
+            <button
+              :title="t('toolbar.nextOverlay')"
+              :class="btnCls()"
+              @click="navigateOverlaySequence('next')"
+            >
               <i class="pi pi-chevron-right" />
             </button>
           </template>
@@ -69,10 +77,15 @@
           <!-- Edit-only tools -->
           <template v-if="isEditMode">
             <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-            <button :title="t('toolbar.undo')" :disabled="!canUndo" :class="btnCls()" @click="undo">
+            <button
+              :title="t('toolbar.undo')"
+              :disabled="!canUndo"
+              :class="btnCls()"
+              @click="undo()"
+            >
               <i class="pi pi-undo" />
             </button>
-            <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo">
+            <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo()">
               <i class="pi pi-refresh" />
             </button>
             <button
@@ -131,20 +144,19 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
-import { getImageHandle, whenImageReady } from "@/services/overlay/renderRegistry";
 import {
   getOverlayImageCorners,
   setOverlayImageOpacity,
   setOverlayInFront,
   isOverlayInFront,
   overlayOverlapsProjectShape,
-} from "@/services/overlay/imageLayer";
+  getImageHandle,
+  whenImageReady,
+} from "@/services/overlay/mapLayers";
 import { navigateOverlaySequence, getProjectSiblingOverlayIds } from "@/services/overlay/actions";
 import { selectOverlay } from "@/services/overlay/selection";
-import { undo as undoOverlayEdit, redo as redoOverlayEdit } from "@/services/overlay/editing";
-import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
+import { undo, redo, showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
-import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
@@ -200,7 +212,6 @@ function refreshCanStack() {
 
 function createMarker(lngLat: [number, number]) {
   const mlMap = map.value;
-  if (!mlMap) return;
   const el = document.createElement("div");
   el.style.zIndex = "620";
   anchorMarker = new maplibregl.Marker({ element: el, anchor: "center" })
@@ -236,14 +247,14 @@ function syncAnchor() {
 
 function startAnchorSync() {
   const mlMap = map.value;
-  if (!mlMap || anchorSyncActive) return;
+  if (anchorSyncActive) return;
   mlMap.on("render", syncAnchor);
   anchorSyncActive = true;
 }
 
 function stopAnchorSync() {
   if (!anchorSyncActive) return;
-  map.value?.off("render", syncAnchor);
+  map.value.off("render", syncAnchor);
   anchorSyncActive = false;
 }
 
@@ -308,7 +319,7 @@ onUnmounted(() => {
   stopAnchorSync();
   destroyMarker();
   if (isCropActive.value) hideCropHandles();
-  map.value?.off("moveend", refreshCanStack);
+  map.value.off("moveend", refreshCanStack);
 });
 
 function readOpacity(): number {
@@ -364,13 +375,6 @@ function onOpacityInput(e: Event) {
   if (id) setOverlayImageOpacity(id, val / 100);
 }
 
-function goToPrevious() {
-  navigateOverlaySequence("previous");
-}
-function goToNext() {
-  navigateOverlaySequence("next");
-}
-
 function toggleStacking() {
   const id = selectedId.value;
   if (!id) return;
@@ -379,14 +383,6 @@ function toggleStacking() {
   isInFront.value = next;
 }
 
-function undo() {
-  undoOverlayEdit();
-}
-function redo() {
-  redoOverlayEdit();
-}
-
-const projectStore = useProjectStore();
 const { handleDeleteOverlay } = useProjectDeletion();
 
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
@@ -420,10 +416,6 @@ async function confirmCrop() {
   endCrop();
 }
 
-function cancelCrop() {
-  endCrop();
-}
-
 function onReplace() {
   const id = selectedId.value;
   if (!id) return;
@@ -438,12 +430,8 @@ async function onDelete() {
   if (!id) return;
   const overlay = overlayStore.overlays[id];
   if (!overlay) return;
-  const project = overlay.projectId ? (projectStore.projects[overlay.projectId] ?? null) : null;
-  const overlayCount = overlay.projectId
-    ? Object.values(overlayStore.overlays).filter((o) => o.projectId === overlay.projectId).length
-    : 0;
   // Deselection (handles, highlight, docked detail) happens in removeOverlayFromMapAndStore.
-  await handleDeleteOverlay(id, project, overlayCount, overlay.caption ?? null);
+  await handleDeleteOverlay(id, overlay.caption ?? null);
 }
 
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {

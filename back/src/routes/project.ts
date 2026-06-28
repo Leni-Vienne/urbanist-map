@@ -204,7 +204,7 @@ export const projectRouter = router({
         author: { email: ctx.user.email, username: ctx.user.username },
         projectId: resultRow.id,
         projectName: resultRow.name,
-        countryCode: resultRow.countryCode ?? null,
+        countryCode: resultRow.countryCode,
         lat: resultRow.lat,
         lng: resultRow.lng,
       });
@@ -617,12 +617,11 @@ export const projectRouter = router({
           const projectOverlaysList = projectOverlays.filter(
             (overlay) => overlay.projectId === project.id,
           );
-          return {
-            ...project,
+          return Object.assign({}, project, {
             tags: project.tags ?? [],
             overlays: projectOverlaysList,
             overlayIds: projectOverlaysList.map((overlay) => overlay.id),
-          };
+          });
         });
 
         // Build pagination response using shared helper (only for owned projects, as contributed are not paginated)

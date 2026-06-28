@@ -60,7 +60,7 @@
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } from "vue";
 
 import { initializeMap, map } from "@/services/core/map";
-import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
+import { initializeEditorTriggers } from "@/services/overlay/editing";
 import { addTileLayer } from "@/services/map/tileLayers";
 import { initVectorTileSync } from "@/services/map/vectorTileSync";
 
@@ -98,7 +98,6 @@ watch(
   () => authStore.user,
   (newUser) => {
     if (!newUser) {
-      clearAllStandaloneProjectMarkers();
       mapStore.setMode("view");
     }
   },
@@ -120,6 +119,7 @@ onUnmounted(() => {
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
+    initializeEditorTriggers();
 
     viewportManager.setupEventListeners();
 

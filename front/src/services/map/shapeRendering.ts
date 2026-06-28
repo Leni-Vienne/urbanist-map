@@ -2,13 +2,10 @@ import { type ExpressionSpecification, type MapMouseEvent, LngLatBounds } from "
 import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
-import { markerColors } from "@/services/map/markers";
-import { getProjectMarkerColor } from "@/utils/markerColors";
-import { useMapStore } from "@/stores/pinia/mapStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { selectProject } from "@/services/map/projectSelection";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/selection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
 import { forEachPosition } from "@/utils/geojson";
 import {
   setShapeEntry,
@@ -26,13 +23,9 @@ import {
   SHAPE_LONG_DASH,
   SHAPE_SHORT_DASH,
 } from "@/services/map/shapeStyleConstants";
+import { getProjectTagColor } from "@/config/projectTags";
 
 type MapLibreMap = NonNullable<typeof map.value>;
-
-const PREVIEW_COLORS = {
-  current: "#22c55e", // green-500, matches "success" severity button
-  suggested: "#f59e0b", // amber-500, matches "warn" severity button
-} as const;
 
 const HOVER_FILL_OPACITY = 0.35;
 
@@ -116,8 +109,8 @@ interface ShapeLayerIds {
 }
 
 // Add the geojson source plus the fill / line / transparent-hit layers shared by the
-// project-shape and change-request-preview renderers. The transparent hit line is wide so
-// thin lines are easy to click.
+// project-shape and change-request-preview renderers. The transparent hit line is wide
+// so thin lines are easy to click.
 function buildShapeLayers(
   mlMap: MapLibreMap,
   sourceId: string,
@@ -144,7 +137,14 @@ function buildShapeLayers(
       type: "fill",
       source: sourceId,
       filter: ["==", ["geometry-type"], "Polygon"],
-      paint: { "fill-color": style.color, "fill-opacity": style.fillOpacity },
+      paint: {
+        "fill-color": ["coalesce", ["get", "color"], style.color] as ExpressionSpecification,
+        "fill-opacity": [
+          "coalesce",
+          ["get", "fillOpacity"],
+          style.fillOpacity,
+        ] as ExpressionSpecification,
+      },
     });
     layerIds.push(fillLayerId);
   }
@@ -155,9 +155,13 @@ function buildShapeLayers(
     source: sourceId,
     layout: { "line-cap": style.lineCap },
     paint: {
-      "line-color": style.color,
+      "line-color": ["coalesce", ["get", "color"], style.color] as ExpressionSpecification,
       "line-width": style.lineWidth,
-      ...(style.lineOpacity === undefined ? {} : { "line-opacity": style.lineOpacity }),
+      "line-opacity": [
+        "coalesce",
+        ["get", "opacity"],
+        style.lineOpacity ?? 1,
+      ] as ExpressionSpecification,
       ...(style.lineDash ? { "line-dasharray": style.lineDash } : {}),
     },
   });
@@ -186,6 +190,41 @@ interface ShapeEventHandlers {
   onEnter: () => void;
   onLeave: () => void;
   onClick: (e: MapMouseEvent) => void;
+}
+
+// Build the renderable features for a shape source: the new geometry colored by tag, plus,
+// when an old geometry is supplied and differs, the old geometry underneath as a gray ghost.
+function buildFeatureDiff(
+  newGeom: GeoJSON.GeometryCollection | null | undefined,
+  oldGeom: GeoJSON.GeometryCollection | null | undefined,
+  color: string,
+): Feature[] {
+  const features: Feature[] = [];
+  const hasDiff = JSON.stringify(newGeom || {}) !== JSON.stringify(oldGeom || {});
+
+  if (oldGeom?.geometries && hasDiff) {
+    const ghostFeatures = toShapeFeatures(oldGeom.geometries);
+    for (const f of ghostFeatures) {
+      f.properties = {
+        ...f.properties,
+        isGhost: true,
+        color: "#9ca3af",
+        opacity: 0.4,
+        fillOpacity: 0.1,
+      };
+    }
+    features.push(...ghostFeatures);
+  }
+
+  if (newGeom?.geometries) {
+    const newFeatures = toShapeFeatures(newGeom.geometries);
+    for (const f of newFeatures) {
+      f.properties = { ...f.properties, color };
+    }
+    features.push(...newFeatures);
+  }
+
+  return features;
 }
 
 // Register hover/click handlers on each non-null layer and return the bindings needed to
@@ -217,8 +256,6 @@ function wireShapeInteraction(
   hitLayerId: string | null,
 ): ShapeEventBinding[] {
   const mlMap = map.value;
-  if (!mlMap) return [];
-
   // When a line crosses this project's own polygon, one click hits both the fill and hit
   // layers, firing onClick twice. Dedupe on the source DOM event so it is handled once.
   let lastClickTimeStamp = -1;
@@ -247,22 +284,20 @@ function wireShapeInteraction(
  * Render a project's GeometryCollection as MapLibre layers. Idempotent: a project already in the
  * registry is skipped. Lines/polygon outlines share one line layer, polygons add a fill layer, and
  * line geometries get a transparent wide hit layer so thin lines are easy to click.
+ * If oldGeometry is provided and differs, it renders underneath as a gray ghost.
  */
 export function renderProjectShapes(
   project: Project,
-  colorKeyOverride?: keyof typeof markerColors,
+  oldGeometry?: GeoJSON.GeometryCollection | null,
 ): void {
-  if (!project.geometry?.geometries.length) return;
   if (hasProjectShapes(project.id)) return;
 
   const mlMap = map.value;
-  if (!mlMap) return;
+  const color = getProjectTagColor(project.tags);
 
-  const features = toShapeFeatures(project.geometry.geometries);
+  const features = buildFeatureDiff(project.geometry, oldGeometry, color);
   if (features.length === 0) return;
 
-  const mapStore = useMapStore();
-  const color = markerColors[colorKeyOverride ?? getProjectMarkerColor(project, mapStore.mode)];
   const { cap, dash, opacity } = lineLayoutAndDash(project.timelineStatus);
   const baseFillOpacity = project.timelineStatus === "proposed" ? 0.05 : 0.2;
 
@@ -292,7 +327,10 @@ export function renderProjectShapes(
     hoverLineWidth: SHAPE_LINE_WIDTH_HOVER,
     baseFillOpacity,
     hoverFillOpacity: HOVER_FILL_OPACITY,
-    bounds: computeShapeBounds(project.geometry.geometries),
+    bounds: computeShapeBounds([
+      ...(project.geometry?.geometries || []),
+      ...(oldGeometry?.geometries || []),
+    ]),
     eventBindings,
   };
   setShapeEntry(project.id, entry);
@@ -321,39 +359,36 @@ let preview: PreviewState | null = null;
 let previewHiddenProjectId: string | null = null;
 
 /**
- * Render a GeometryCollection as a temporary preview (dashed, colored by variant).
+ * Render a temporary preview (with ghost diff).
  * Not registered in the shape registry, call clearPreviewShapes() to remove.
  */
 export function renderPreviewShapes(
-  geometry: GeoJSON.GeometryCollection,
-  variant: "current" | "suggested",
-  projectId?: string,
+  project: Project,
+  newGeometry: GeoJSON.GeometryCollection | null,
+  oldGeometry: GeoJSON.GeometryCollection | null,
   onShapeClick?: (latlng: { lat: number; lng: number }) => void,
 ): void {
   clearPreviewShapes();
 
   const mlMap = map.value;
-  if (!mlMap) return;
-
   // Temporarily hide this project's regular shapes so they don't overlap the preview.
-  if (projectId) {
-    setProjectShapesVisible(projectId, false);
-    previewHiddenProjectId = projectId;
-  }
+  setProjectShapesVisible(project.id, false);
+  previewHiddenProjectId = project.id;
 
-  const features = toShapeFeatures(geometry.geometries);
+  const color = getProjectTagColor(project.tags);
+  const features = buildFeatureDiff(newGeometry, oldGeometry, color);
+  if (features.length === 0) return;
 
-  const sourceId = `shape-preview-${variant}`;
+  const sourceId = `shape-preview`;
   const { layerIds, lineLayerId, fillLayerId, hitLayerId } = buildShapeLayers(
     mlMap,
     sourceId,
     features,
     {
-      color: PREVIEW_COLORS[variant],
+      color,
       fillOpacity: 0.2,
       lineCap: "round",
-      lineWidth: 4,
-      // Dash pattern in line-widths (2 on, 1.25 off).
+      lineWidth: SHAPE_LINE_WIDTH,
       lineDash: [2, 1.25],
     },
   );
@@ -372,8 +407,6 @@ function wirePreviewInteraction(
   onShapeClick: (latlng: { lat: number; lng: number }) => void,
 ): ShapeEventBinding[] {
   const mlMap = map.value;
-  if (!mlMap) return [];
-
   function onEnter(): void {
     mlMap.getCanvas().style.cursor = "pointer";
     if (mlMap.getLayer(lineLayerId)) mlMap.setPaintProperty(lineLayerId, "line-width", 6);
@@ -392,7 +425,7 @@ function wirePreviewInteraction(
 /** Remove the preview layers and restore any hidden project shapes. */
 function clearPreviewShapes(): void {
   const mlMap = map.value;
-  if (preview && mlMap) {
+  if (preview) {
     for (const binding of preview.eventBindings) {
       mlMap.off(binding.type, binding.layerId, binding.handler);
     }

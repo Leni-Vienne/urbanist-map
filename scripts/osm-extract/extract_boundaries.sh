@@ -58,7 +58,7 @@ echo "=========================================================="
 # Phase 1: keep only administrative boundary relations (and the ways/nodes they need).
 # Relations are kept with their members so osmium can assemble the area geometry.
 # Skipped when an up-to-date filtered file already exists (the filter over a planet is the slow
-# part, ~40min); delete the *_boundaries.osm.pbf to force a refresh.
+# part); delete the *_boundaries.osm.pbf to force a refresh.
 if [ -f "$BOUNDARIES_PBF" ] && [ "$BOUNDARIES_PBF" -nt "$SOURCE" ]; then
     echo "[$(ts)] Reusing existing filtered file: $BOUNDARIES_PBF ($(filesize "$BOUNDARIES_PBF"))"
 else

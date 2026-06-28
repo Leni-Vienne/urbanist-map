@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="h-full flex flex-col">
     <!-- Replacement Conflicts Dialog -->
     <ReplacementConflictsDialog
@@ -97,6 +97,7 @@
         :empty-message="$t('moderation.allReviewed')"
         :empty-sub-message="$t('moderation.noPendingItems')"
         :show-user-stats-link="true"
+        :selected-project-id="selectedProjectId"
         :disable-auto-mode-switch="true"
         @show-user-stats="handleShowUserStats"
         :on-overlay-click="handleViewOverlayPosition"
@@ -167,6 +168,7 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import type { OverlayForModeration, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { useSelectedProjectId } from "@/composables/project/useSelectedProjectId";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
@@ -205,6 +207,9 @@ const {
 });
 
 const { approveChangeRequests, rejectChangeRequests } = useChangeRequests();
+
+// The map-selected project is lifted into the panel's "Selected project" card.
+const { selectedProjectId } = useSelectedProjectId();
 
 // Show loading state when a country is selected but data hasn't been fetched yet
 const isLoading = computed(
@@ -389,7 +394,7 @@ async function handleApproveOverlay(id: string) {
     toast.add({
       severity: "error",
       summary: t("common.error"),
-      detail: t("errors.checkConflictsFailed"),
+      detail: error instanceof Error ? error.message : t("errors.checkConflictsFailed"),
       life: 3000,
     });
   }
@@ -536,6 +541,7 @@ async function handleRejectionConfirm(options: {
         toast.add({
           severity: "error",
           summary: t("moderation.reportUser.reportFailed"),
+          detail: error instanceof Error ? error.message : undefined,
           life: 3000,
         });
       }

@@ -1,84 +1,43 @@
-// Unified error handling utilities to eliminate repetitive try-catch-toast patterns
+// Unified error handling utility for safe loading
 import { useToast } from "@/composables/ui/useToast";
 
 interface ErrorHandlingOptions {
   /** Toast message to show on error */
   errorMessage?: string;
-  /** Toast message to show on success */
-  successMessage?: string;
-  /** Toast summary for error (default: 'Error') */
-  errorSummary?: string;
-  /** Toast summary for success (default: 'Success') */
-  successSummary?: string;
-  /** Whether to log error to console (default: true) */
-  logError?: boolean;
   /** Whether to rethrow error after handling (default: false) */
   rethrow?: boolean;
-  /** Custom error handler function */
-  onError?: (error: unknown) => void;
-  /** Custom success handler function */
-  onSuccess?: (result: unknown) => void;
 }
 
 /**
- * Execute a sync or async function with automatic error handling and toast notifications
+ * Execute a sync or async function with automatic error logging and optional toast notifications
+ * Returns null if an error occurs.
  *
  * @example
- * const result = await withErrorHandling(
- *   () => trpc.project.create.mutate(data),
- *   { successMessage: 'Project created!', errorMessage: 'Failed to create project' }
+ * const result = await loadOrNull(
+ *   () => trpc.project.getById.query(id),
+ *   { errorMessage: 'Failed to load project' }
  * )
  */
-export async function withErrorHandling<T>(
+export async function loadOrNull<T>(
   fn: () => T | Promise<T>,
   options: ErrorHandlingOptions = {},
 ): Promise<T | null> {
-  const {
-    errorMessage,
-    successMessage,
-    errorSummary = "Error",
-    successSummary = "Success",
-    logError = true,
-    rethrow = false,
-    onError,
-    onSuccess,
-  } = options;
+  const { errorMessage, rethrow = false } = options;
 
   const toast = useToast();
 
   try {
-    const result = await fn();
-
-    if (successMessage !== undefined) {
-      toast.add({
-        severity: "success",
-        summary: successSummary,
-        detail: successMessage,
-        life: 3000,
-      });
-    }
-
-    if (onSuccess) {
-      onSuccess(result);
-    }
-
-    return result;
+    return await fn();
   } catch (error) {
-    if (logError) {
-      console.error(errorMessage ?? "Error occurred:", error);
-    }
+    console.error(errorMessage ?? "Error occurred:", error);
 
     if (errorMessage) {
       toast.add({
         severity: "error",
-        summary: errorSummary,
+        summary: "Error",
         detail: errorMessage,
         life: 5000,
       });
-    }
-
-    if (onError) {
-      onError(error);
     }
 
     if (rethrow) {

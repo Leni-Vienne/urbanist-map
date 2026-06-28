@@ -1,7 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { OverlayObject, OverlayData, OverlayHistoryState } from "@/types/index";
-import { clearAll as clearAllLayers } from "@/services/overlay/renderRegistry";
 
 export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});
@@ -119,7 +118,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   // Clear user-specific state on logout or account switch.
   // Preserves public data (viewModeOverlays) and clears user/edit-mode data.
   function clearAllState() {
-    clearAllLayers(false);
     overlays.value = {};
     idSelectedOverlay.value = null;
     resetAllUIStates();

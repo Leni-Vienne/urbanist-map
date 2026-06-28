@@ -20,7 +20,10 @@ async function getSessionById(sessionId: string) {
       return null;
     }
 
-    return session.data;
+    // The JSONB column read via bun-sql comes back as a frozen object. hono-sessions mutates the
+    // cache in place (_expire, _accessed, _data), so hand it a mutable clone to avoid throwing
+    // "Attempted to assign to readonly property" on every authenticated request.
+    return structuredClone(session.data);
   } catch (error) {
     console.error("Failed to get session:", error);
     return null;
@@ -84,12 +87,13 @@ async function deleteSession(sessionId: string): Promise<void> {
 
 function prepareSessionForPersistence(data: unknown): { shouldPersist: boolean; expiresAt: Date } {
   // hono-sessions wraps the user payload inside `_data`
-  // eslint-disable-next-line no-underscore-dangle
+  /* eslint-disable no-underscore-dangle */
   const inner = (
     data as {
       _data?: { user?: unknown; osmOauth?: unknown; expiresAt?: string | number | Date };
     }
   )._data;
+  /* eslint-enable no-underscore-dangle */
 
   // Anonymous visitors get no DB row to keep the table small. Exception: a session
   // mid-OAuth carries the OSM CSRF state, which must survive the redirect to

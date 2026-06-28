@@ -9,6 +9,7 @@ export async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array
   const chunks: Uint8Array[] = [];
   let totalLength = 0;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -94,13 +95,14 @@ export async function compressImageIfNeeded(
     // (large textures render black on GPUs whose max texture size is 4096).
     const keepOriginal = !oversized && originalSize <= bestWebp.byteLength;
 
-    function kb(bytes: number) {
-      return (bytes / 1024).toFixed(1);
-    }
+    let chosenType = "lossy-webp";
+    if (keepOriginal) chosenType = "original";
+    else if (bestWebp === lossless) chosenType = "lossless-webp";
+
     console.log(
       `[compressImage] ${width}x${height}${oversized ? ` -> cap ${MAX_DIMENSION_PX}` : ""} | ` +
-        `original ${kb(originalSize)}KB lossy ${kb(lossy.byteLength)}KB lossless ${kb(lossless.byteLength)}KB | ` +
-        `chose ${keepOriginal ? "original" : bestWebp === lossless ? "lossless-webp" : "lossy-webp"}`,
+        `original ${(originalSize / 1024).toFixed(1)}KB lossy ${(lossy.byteLength / 1024).toFixed(1)}KB lossless ${(lossless.byteLength / 1024).toFixed(1)}KB | ` +
+        `chose ${chosenType}`,
     );
 
     if (keepOriginal) {
@@ -186,7 +188,7 @@ export class LocalFileStorage implements StorageInterface {
 
       return {
         body: file.stream(),
-        contentType: file.type ?? "application/octet-stream",
+        contentType: file.type || "application/octet-stream",
       };
     } catch {
       return null;
@@ -265,7 +267,7 @@ export class R2StorageS3 implements StorageInterface {
       const s3file = this.client.file(filename);
       return {
         body: s3file.stream(),
-        contentType: s3file.type ?? "application/octet-stream",
+        contentType: s3file.type || "application/octet-stream",
       };
     } catch {
       return null;

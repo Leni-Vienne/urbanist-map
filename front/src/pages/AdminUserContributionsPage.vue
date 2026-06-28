@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="p-8 max-w-300 mx-auto h-full overflow-y-auto">
     <div class="flex items-center gap-4 mb-8">
       <Button
@@ -245,15 +245,21 @@ const deleteDialogMessage = computed(() => {
 });
 
 async function loadUserContributions() {
+  isLoading.value = true;
+  errorRef.value = false;
   try {
-    isLoading.value = true;
-    errorRef.value = false;
     data.value = await trpc.admin.adminGetUserContributions.query({
       userId,
     });
   } catch (error) {
     console.error("Error loading user contributions:", error);
     errorRef.value = true;
+    toast.add({
+      severity: "error",
+      summary: t("admin.userContributions.messages.loadError"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 5000,
+    });
   } finally {
     isLoading.value = false;
   }
@@ -262,8 +268,8 @@ async function loadUserContributions() {
 async function loadCountryDetails(countryCode: string | null) {
   if (!countryCode || countryDetails[countryCode]) return;
 
+  loadingCountry.value = countryCode;
   try {
-    loadingCountry.value = countryCode;
     const result = await trpc.admin.adminGetUserContributions.query({
       userId,
       countryCode,
@@ -276,6 +282,7 @@ async function loadCountryDetails(countryCode: string | null) {
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.loadError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {
@@ -322,8 +329,8 @@ async function adminDeleteProject() {
 
   const projectId = projectToDelete.value.id;
 
+  isDeleting.value = true;
   try {
-    isDeleting.value = true;
     await trpc.admin.deleteProject.mutate({
       projectId,
       reason: deleteReason.value || undefined,
@@ -360,6 +367,7 @@ async function adminDeleteProject() {
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.deleteError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {
@@ -372,8 +380,8 @@ async function adminDeleteOverlay() {
 
   const overlayId = overlayToDelete.value.id;
 
+  isDeleting.value = true;
   try {
-    isDeleting.value = true;
     await trpc.moderation.adminDeleteOverlay.mutate({
       id: overlayId,
       reason: deleteReason.value || undefined,
@@ -408,6 +416,7 @@ async function adminDeleteOverlay() {
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.deleteError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {

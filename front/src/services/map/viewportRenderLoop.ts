@@ -8,25 +8,38 @@ import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import { visibleStates, selectedProjectTags } from "@/services/map/filters";
-import { createOverlayMarker } from "@/services/overlay/markers";
-import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
-import * as registry from "@/services/overlay/renderRegistry";
-import { refreshAllStandaloneMarkers } from "@/services/map/standaloneProjectMarkers";
+import { createOverlayMarker, initializeMarkerColorTriggers } from "@/services/overlay/markers";
+import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import {
   renderAllProjectShapes,
   initializeShapeRenderTriggers,
 } from "@/services/map/projectShapeRenderLoop";
-import { initializeMarkerColorTriggers } from "@/services/map/markers";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-
 interface ViewportBounds {
   north: number;
   south: number;
   east: number;
   west: number;
+}
+
+let renderLoopRafId: number | null = null;
+
+/**
+ * Coalesces repeated calls into a single run on the next animation frame.
+ * The loop reads live map state, so collapsing same-frame calls is safe and
+ * avoids redundant work when several triggers fire together (page load,
+ * style switch, or a prune + full render within one viewport refresh).
+ */
+export function runViewportRenderLoop() {
+  if (renderLoopRafId !== null) return;
+  renderLoopRafId = requestAnimationFrame(() => {
+    renderLoopRafId = null;
+    runViewportRenderLoopNow();
+  });
 }
 
 /**
@@ -35,10 +48,8 @@ interface ViewportBounds {
  *   pruneBackendOverlays  for overlays sourced from the backend (status !== null)
  *   pruneLocalOverlays    for local/unsaved overlays only (status === null)
  */
-export function runViewportRenderLoop() {
+function runViewportRenderLoopNow() {
   const mlMap = map.value;
-  if (!mlMap) return;
-
   const mlBounds = mlMap.getBounds();
   const zoom = mlMap.getZoom();
 
@@ -214,7 +225,6 @@ export function initializeRenderTriggers() {
   watch(
     () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
     () => {
-      refreshAllStandaloneMarkers();
       runViewportRenderLoop();
     },
     { deep: true },

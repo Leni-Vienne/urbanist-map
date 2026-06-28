@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Weekly incremental update for the proposed/construction OSM extract.
 #
-# Instead of re-filtering the full planet PBF (~40min), this script:
+# Instead of re-filtering the full planet PBF (~30-40 min), this script:
 #   1. Determines the replication sequence number from the existing filtered PBF
 #   2. Downloads matching daily OSC diffs from planet.osm.org/replication/day/
 #   3. Applies each diff in sequence to the filtered PBF via osmium apply-changes
-#   4. Re-derives the ways/areal sub-PBFs (--rederive, ~2min)
+#   4. Derives the ways/areal/relations sub-PBFs from the result (~2min)
 #   5. Runs the Python feature extraction (~3-5min)
 #   6. Runs the DB import (import-osm.ts)
 #
@@ -17,17 +17,20 @@
 #
 # Total expected time per week of catchup: ~5min (~10-15min for a typical run).
 #
-# LIMITATION: elements that gain proposed/construction tags for the first time
-# (i.e., pre-existing OSM ways that get re-tagged) may have incomplete geometry
-# because their nodes were not in the filtered PBF. A monthly full re-filter
-# (run_all.sh on a fresh planet.osm.pbf) is recommended to correct any drift.
+# Elements that gain proposed/construction tags for the first time (i.e.,
+# pre-existing OSM ways/relations that get re-tagged) arrive in the diff with
+# their tags but not their unchanged nodes/members, which were never in the
+# filtered PBF. backfill_geometry.sh resolves those dangling references from the
+# OSM/Overpass API after the diffs are applied. A monthly full re-filter
+# (run_all.sh on a fresh planet.osm.pbf) remains useful to correct larger drift.
 #
 # Usage:
-#   ./update_weekly.sh <planet_proposed.osm.pbf> [--import] [--dry-run]
+#   ./update_weekly.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]
 #
 # Options:
-#   --import    Run import-osm.ts after extraction (requires bun + backend)
-#   --dry-run   Print what would be done without executing
+#   --import       Run import-osm.ts after extraction (requires bun + backend)
+#   --no-backfill  Skip the geometry backfill step (re-tagged elements may be dropped)
+#   --dry-run      Print what would be done without executing
 
 set -euo pipefail
 
@@ -38,13 +41,15 @@ trap 'trap - INT TERM; echo "Interrupted, killing child processes..."; kill 0; e
 # ---------------------------------------------------------------------------
 
 DO_IMPORT=0
+DO_BACKFILL=1
 DRY_RUN=0
 FILTERED_PBF=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --import)   DO_IMPORT=1 ;;
-        --dry-run)  DRY_RUN=1 ;;
+        --import)      DO_IMPORT=1 ;;
+        --no-backfill) DO_BACKFILL=0 ;;
+        --dry-run)     DRY_RUN=1 ;;
         --*)        echo "Unknown flag: $1"; exit 1 ;;
         *)
             if [[ -n "$FILTERED_PBF" ]]; then
@@ -58,11 +63,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$FILTERED_PBF" ]]; then
-    echo "Usage: $0 <planet_proposed.osm.pbf> [--import] [--dry-run]"
+    echo "Usage: $0 <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]"
     echo ""
     echo "  <planet_proposed.osm.pbf>  The filtered PBF produced by run_all.sh"
     echo "                             (the file ending in _proposed.osm.pbf)"
     echo "  --import                   Run import-osm.ts after extraction"
+    echo "  --no-backfill              Skip geometry backfill for re-tagged elements"
     echo "  --dry-run                  Print what would be done, do not execute"
     exit 1
 fi
@@ -400,18 +406,12 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 4: Re-derive ways/areal sub-PBFs and run Python extraction
-#
-# We cannot call run_all.sh here because it expects the *original* source
-# (e.g., planet-latest.osm.pbf) and appends _proposed to derive intermediate
-# file names -- passing planet-latest_proposed.osm.pbf would produce
-# planet-latest_proposed_proposed.osm.pbf. Instead we call filter_combined.sh
-# and the Python scripts directly with explicitly computed paths.
+# Step 4: Derive ways/areal/relations sub-PBFs and run Python extraction
 # ---------------------------------------------------------------------------
 
 echo ""
 echo "=========================================================="
-echo "[$(ts)] STEP 4: Re-deriving ways/areal + Python extraction"
+echo "[$(ts)] STEP 4: Deriving sub-PBFs + Python extraction"
 echo "=========================================================="
 
 # Swap the updated PBF into place. Atomic rename on the same filesystem,
@@ -425,9 +425,7 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     fi
 fi
 
-# Derive paths the same way run_all.sh would, given the original source name.
-# FILTERED_PBF = /path/to/planet-latest_proposed.osm.pbf
-# BASE_PREFIX  = /path/to/planet-latest   (strip _proposed.osm.pbf)
+# FILTERED_PBF = /path/to/<base>_proposed.osm.pbf
 BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
 OUTPUT_DIR="$(dirname "$FILTERED_PBF")"
 WAYS_PBF="${BASE_PREFIX}_proposed_ways.osm.pbf"
@@ -436,13 +434,41 @@ RELATIONS_PBF="${BASE_PREFIX}_proposed_relations.osm.pbf"
 LINEAR_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_linear.geojson"
 AREAL_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_areal.geojson"
 
-# filter_combined.sh --rederive skips the slow osmium filter and only runs
-# steps 2+3 (split into ways PBF and areal PBF). It derives OUTPUT as
-# ${SOURCE/.osm.pbf/_proposed.osm.pbf}, so we pass the original base name.
-# filter_combined.sh does not read the source file itself in --rederive mode,
-# it only needs it to compute the OUTPUT path.
-BASE_SOURCE="${BASE_PREFIX}.osm.pbf"
-run "$SCRIPT_DIR/filter_combined.sh" --rederive "$BASE_SOURCE"
+# Split the caught-up subset into the focused files the Python extraction reads.
+# derive_subpbfs.sh is the single source of truth for this step (also runnable
+# standalone to rebuild the sub-PBFs while iterating on the Python extraction).
+echo ""
+DERIVE_DRY=""
+[[ "$DRY_RUN" -eq 1 ]] && DERIVE_DRY="--dry-run"
+"$SCRIPT_DIR/derive_subpbfs.sh" "$FILTERED_PBF" $DERIVE_DRY
+
+# Backfill geometry for construction elements re-tagged by the diffs. Their
+# unchanged nodes/members were never in the filtered PBF, so they would be dropped
+# by the Python extraction. Detection runs against the focused sub-PBFs (ways +
+# areal) so route/public_transport relation members (carried in the main PBF but
+# never rendered) are not mistaken for missing construction geometry.
+#
+# Fetched geometry is merged into the sub-PBFs (so the current run's Python
+# extraction sees it) and into the main PBF (so it persists). The next re-derive
+# keeps objects referenced by matching ways, so the baked-in nodes flow back into
+# the freshly rebuilt sub-PBFs and detection only finds the new delta. A full
+# re-filter (run_all.sh) overwrites the main PBF from a fresh planet that already
+# carries complete geometry. Best-effort: a failure here never aborts the run.
+if [[ "$DO_BACKFILL" -eq 1 ]]; then
+    echo ""
+    echo "[$(ts)] Backfilling geometry for re-tagged construction elements"
+
+    BACKFILL_DRY=""
+    [[ "$DRY_RUN" -eq 1 ]] && BACKFILL_DRY="--dry-run"
+    "$SCRIPT_DIR/backfill_geometry.sh" \
+        "$WAYS_PBF" "$AREAL_PBF" "$FILTERED_PBF" \
+        --detect "$WAYS_PBF" --detect "$AREAL_PBF" \
+        $BACKFILL_DRY \
+        || echo "[$(ts)] WARNING: backfill step failed, continuing with available geometry."
+else
+    echo ""
+    echo "[$(ts)] Skipping geometry backfill (--no-backfill)."
+fi
 
 echo ""
 echo "[$(ts)] Running Python extraction (linear + areal in parallel)"

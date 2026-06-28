@@ -1,7 +1,6 @@
 import { computed, reactive } from "vue";
 import { formDataToProjectFields } from "@/utils/projectFormHelpers";
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { updateStandaloneProjectMarkerColor } from "@/services/map/standaloneProjectMarkers";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";
@@ -28,7 +27,7 @@ interface EditableProjectFormOptions {
   currentData?: ProjectFormData; // Current values to display in form (if different from initialData after local saves)
   // Full project the form was opened with. Used to seed the store when the project
   // isn't already present (e.g. opened from a tile/moderation source, or evicted by clearAllState).
-  getFallbackProject?: () => Project | undefined;
+  getSourceProject?: () => Project | undefined;
   // Extra dirtiness beyond the scalar form fields (e.g. a staged render image).
   extraDirty?: () => boolean;
   onSubmitted?: () => void;
@@ -67,11 +66,11 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
   function applyLocalEdit() {
     // UserContribution extends Project, so any of these can serve as the spread base.
-    // Fallback is the project the form was opened with, for sources not yet in the store.
+    // getSourceProject is the project the form was opened with, for sources not yet in the store.
     const baseProject: Project | undefined =
       projectStore.projects[options.entityId] ??
-      projectStore.userContributions.find((p) => p.id === options.entityId) ??
-      options.getFallbackProject?.();
+      projectStore.userContributions[options.entityId] ??
+      options.getSourceProject?.();
 
     if (!baseProject) {
       console.error("[useEditableProjectForm] project not found:", options.entityId);
@@ -87,12 +86,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       ...formFields,
       isModified: true,
     });
-
-    const updatedProject = projectStore.projects[options.entityId];
-    const hasNoOverlays = !updatedProject?.overlayIds || updatedProject.overlayIds.length === 0;
-    if (updatedProject && hasNoOverlays) {
-      updateStandaloneProjectMarkerColor(options.entityId, updatedProject);
-    }
   }
 
   function validateFormData(): boolean {

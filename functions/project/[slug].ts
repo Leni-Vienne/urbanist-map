@@ -32,6 +32,7 @@ interface SeoProject {
   lat?: number | null;
   lng?: number | null;
   indexable?: boolean;
+  bounds?: [number, number, number, number] | null;
   location?: SeoLocation;
   image?: string | null;
   canonical?: string;
@@ -181,7 +182,7 @@ function buildJsonLd(
     description,
     url: canonical,
     image,
-    ...(data.lat != null && data.lng != null
+    ...(data.lat !== null && data.lat !== undefined && data.lng !== null && data.lng !== undefined
       ? { geo: { "@type": "GeoCoordinates", latitude: data.lat, longitude: data.lng } }
       : {}),
     ...(locationLabel
@@ -286,15 +287,22 @@ function buildLiveTags(data: SeoProject): { head: string; body: string } {
   const c = escapeHtml(canonical);
   const img = escapeHtml(image);
 
-  // Hand the project location to the SPA so the map is constructed already centered on it (read in
+  // Hand the project location or bounds to the SPA so the map is constructed already fitted to it (read in
   // services/core/map.ts), instead of animating in from the default world view after boot.
-  const deeplinkView =
-    data.lat != null && data.lng != null
-      ? `<meta name="deeplink-view" content="${data.lat},${data.lng}" />`
-      : "";
+  let deeplinkTag = "";
+  if (data.bounds) {
+    deeplinkTag = `<meta name="deeplink-bounds" content="${data.bounds.join(",")}" />`;
+  } else if (
+    data.lat !== null &&
+    data.lat !== undefined &&
+    data.lng !== null &&
+    data.lng !== undefined
+  ) {
+    deeplinkTag = `<meta name="deeplink-view" content="${data.lat},${data.lng}" />`;
+  }
 
   const head = [
-    deeplinkView,
+    deeplinkTag,
     `<title>${t}</title>`,
     `<meta name="robots" content="${robots}" />`,
     `<meta name="description" content="${d}" />`,

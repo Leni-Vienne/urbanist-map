@@ -84,25 +84,32 @@ export async function checkPendingLimitForNewContribution(
 }
 
 export async function checkTotalContributionLimit(userId: string): Promise<void> {
-  let total = 0;
-  try {
-    // Count all contributions (approved + pending)
-    const [userProjects] = await db
-      .select({ count: sql<number>`cast(count(*) as integer)` })
-      .from(projects)
-      .where(and(eq(projects.ownerId, userId), inArray(projects.status, ["approved", "pending"])));
+  const total = await (async () => {
+    try {
+      // Count all contributions (approved + pending)
+      const [userProjects] = await db
+        .select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(projects)
+        .where(
+          and(eq(projects.ownerId, userId), inArray(projects.status, ["approved", "pending"])),
+        );
 
-    const [userOverlays] = await db
-      .select({ count: sql<number>`cast(count(*) as integer)` })
-      .from(overlays)
-      .where(and(eq(overlays.authorId, userId), inArray(overlays.status, ["approved", "pending"])));
+      const [userOverlays] = await db
+        .select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(overlays)
+        .where(
+          and(eq(overlays.authorId, userId), inArray(overlays.status, ["approved", "pending"])),
+        );
 
-    total = (userProjects?.count ?? 0) + (userOverlays?.count ?? 0);
-  } catch (error) {
-    console.error("Failed to count total contributions:", error);
-    // Fail open: a count error should not block an otherwise valid submission.
-    return;
-  }
+      return (userProjects?.count ?? 0) + (userOverlays?.count ?? 0);
+    } catch (error) {
+      console.error("Failed to count total contributions:", error);
+      // Fail open: a count error should not block an otherwise valid submission.
+      return null;
+    }
+  })();
+
+  if (total === null) return;
 
   if (total >= MAX_TOTAL_CONTRIBUTIONS) {
     throw new TRPCError({

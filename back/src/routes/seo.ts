@@ -77,7 +77,7 @@ async function resolvePrimaryImageUrl(
 
   // External OSM image tag, already sanitized to http/https at import time.
   if (externalProperties && typeof externalProperties === "object") {
-    const image = (externalProperties as Record<string, unknown>)["image"];
+    const image = (externalProperties as Record<string, unknown>).image;
     if (typeof image === "string" && /^https?:\/\//.test(image)) return image;
   }
   return null;
@@ -110,6 +110,18 @@ seoApp.get("/seo/project/:slug", async (c) => {
         countryCode: projects.countryCode,
         externalProperties: projects.externalProperties,
         id: projects.id,
+        geometryBboxMinLat: sql<
+          number | null
+        >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+        geometryBboxMaxLat: sql<
+          number | null
+        >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+        geometryBboxMinLng: sql<
+          number | null
+        >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+        geometryBboxMaxLng: sql<
+          number | null
+        >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
       })
       .from(projects)
       .where(eq(projects.slug, slug))
@@ -138,6 +150,18 @@ seoApp.get("/seo/project/:slug", async (c) => {
         externalLastModified: project.externalLastModified,
         lat: project.lat,
         lng: project.lng,
+        bounds:
+          project.geometryBboxMinLat !== null &&
+          project.geometryBboxMaxLat !== null &&
+          project.geometryBboxMinLng !== null &&
+          project.geometryBboxMaxLng !== null
+            ? [
+                project.geometryBboxMinLng,
+                project.geometryBboxMinLat,
+                project.geometryBboxMaxLng,
+                project.geometryBboxMaxLat,
+              ]
+            : null,
         // The page is only indexable when approved AND it carries showable content (see indexable.ts).
         indexable: project.indexable,
         location,
@@ -189,9 +213,9 @@ seoApp.get("/seo/sitemap.xml", async (c) => {
     const base = config.PUBLIC_SITE_URL;
     const urls = rows
       .map((r) => {
-        const loc = `${base}/project/${encodeURIComponent(r.slug!)}`;
-        const lastmod = r.updatedAt ? new Date(r.updatedAt).toISOString() : null;
-        return `  <url><loc>${loc}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}</url>`;
+        const loc = `${base}/project/${encodeURIComponent(String(r.slug))}`;
+        const lastmod = new Date(r.updatedAt).toISOString();
+        return `  <url><loc>${loc}</loc><lastmod>${lastmod}</lastmod></url>`;
       })
       .join("\n");
 

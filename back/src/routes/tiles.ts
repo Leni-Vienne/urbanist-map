@@ -38,20 +38,6 @@ function shapesMinSizeM(z: number): number | null {
   // not including lower zoom levels because in dense area like China it gets messy
 }
 
-// Minimum geometry_size_m at which the center-point marker is suppressed because
-// the shape is large enough to be dominant at this zoom.
-// NULL means never suppress markers (shape layer not active at this zoom).
-// Passed as $5 to the variant SQL so the planner can use partial GIST indexes.
-function markerSuppressMinSizeM(z: number): number | null {
-  if (z >= 13) return 200;
-  if (z >= 12) return 500;
-  if (z >= 11) return 1000;
-  if (z >= 7) return 10_000;
-  if (z >= 5) return 50_000;
-  if (z >= 4) return 100_000;
-  return null;
-}
-
 // In Docker prod, routes/ is bind-mounted next to the bundle at /home/bun/app.
 // In dev, resolve from the working directory (project root for every dev script), so the path
 // holds whether the backend runs from source (`bun --hot back/src/index.ts`) or from the bundle
@@ -68,6 +54,18 @@ type TileService = {
   invalidateBbox: (minLng: number, minLat: number, maxLng: number, maxLat: number) => void;
   clearCache: () => void;
 };
+
+function getCachedTile(
+  cache: Map<string, Uint8Array | null>,
+  key: string,
+): Uint8Array | null | undefined {
+  const val = cache.get(key);
+  if (val === undefined) return undefined;
+  // Promote to end (most recently used)
+  cache.delete(key);
+  cache.set(key, val);
+  return val;
+}
 
 // Builds one self-contained tile pipeline: isolated in-memory caches, an in-flight coalescer, the
 // generation/serving logic, and a Hono app exposing it. Each variant points at its own SQL file so
@@ -133,18 +131,6 @@ function createTileService(
         }
       }
     }
-  }
-
-  function getCachedTile(
-    cache: Map<string, Uint8Array | null>,
-    key: string,
-  ): Uint8Array | null | undefined {
-    const val = cache.get(key);
-    if (val === undefined) return undefined;
-    // Promote to end (most recently used)
-    cache.delete(key);
-    cache.set(key, val);
-    return val;
   }
 
   function setCachedTile(
@@ -331,42 +317,26 @@ function tileResponse(tileData: Uint8Array, z: number): Response {
   });
 }
 
-// Two independent tile variants sharing the same machinery but their own SQL + caches.
-//   default: the primary map style (project-shapes coloured by tag, points clustered per tag+status).
-//   alt:     an alternative style/data the user can opt into; diverged from default with grid-cell
-//            clustering + quality scoring, on its own SQL file and caches.
-const defaultService = createTileService("/projects/:z/:x/:y", "tiles.sql", (z, x, y) => [
-  z,
-  x,
-  y,
-  shapesMinSizeM(z),
-  markerSuppressMinSizeM(z),
-]);
-const altService = createTileService("/projects-alt/:z/:x/:y", "tiles-alt.sql", (z, x, y) => [
+// The tile service mapping to tiles.sql and its dedicated caches.
+const tileService = createTileService("/projects/:z/:x/:y", "tiles.sql", (z, x, y) => [
   z,
   x,
   y,
   shapesMinSizeM(z),
 ]);
 
-const tileServices = [defaultService, altService];
+export const tilesApp = tileService.app;
 
-export const tilesApp = defaultService.app;
-export const tilesAltApp = altService.app;
-
-// Both variants are pre-warmed at startup so a continental zoom-out is a memory hit on either
-// endpoint. Each warm fills its own low-zoom cache (permanent once warmed); they share the low-zoom
-// pool, so the warms run sequentially to avoid contending for it.
+// Pre-warm the low-zoom cache at startup so a continental zoom-out is a memory hit.
 export async function warmLowZoomTileCache(): Promise<void> {
   const started = Date.now();
-  console.log("Starting low-zoom tile cache warm for all variants...");
-  await defaultService.warm();
-  await altService.warm();
-  console.log(`All low-zoom tile caches warmed in ${Date.now() - started}ms`);
+  console.log("Starting low-zoom tile cache warm...");
+  await tileService.warm();
+  console.log(`Low-zoom tile cache warmed in ${Date.now() - started}ms`);
 }
 
-// Rows come back untyped from db.execute, so narrow the bbox fields here. Invalidates every variant,
-// since an approval/edit changes the underlying data both endpoints read from.
+// Rows come back untyped from db.execute, so narrow the bbox fields here. Invalidates the tile caches,
+// since an approval/edit changes the underlying data.
 function invalidateAllFromBboxRow(row: Record<string, unknown> | undefined) {
   if (
     row !== undefined &&
@@ -375,11 +345,9 @@ function invalidateAllFromBboxRow(row: Record<string, unknown> | undefined) {
     typeof row.max_lng === "number" &&
     typeof row.max_lat === "number"
   ) {
-    for (const service of tileServices) {
-      service.invalidateBbox(row.min_lng, row.min_lat, row.max_lng, row.max_lat);
-    }
+    tileService.invalidateBbox(row.min_lng, row.min_lat, row.max_lng, row.max_lat);
   } else {
-    for (const service of tileServices) service.clearCache();
+    tileService.clearCache();
   }
 }
 
@@ -397,7 +365,7 @@ export async function invalidateProjectTiles(projectId: string) {
     `);
     invalidateAllFromBboxRow(rows[0]);
   } catch {
-    for (const service of tileServices) service.clearCache();
+    tileService.clearCache();
   }
 }
 
@@ -416,6 +384,6 @@ export async function invalidateOverlayTiles(overlayId: string) {
     `);
     invalidateAllFromBboxRow(rows[0]);
   } catch {
-    for (const service of tileServices) service.clearCache();
+    tileService.clearCache();
   }
 }

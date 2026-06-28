@@ -21,45 +21,47 @@
       </div>
 
       <div
-        v-if="projects.length > 0 || pinnedExternalProject || keepContentVisible || isLoading"
+        v-if="selectedCard || projects.length > 0 || keepContentVisible || isLoading"
         ref="contentRef"
         class="flex flex-col gap-2 pb-2 pr-3"
       >
-        <!-- Selected (external) project: a plain card bound to the current map selection. It appears
-             when a project is selected and is dropped when the selection clears (e.g. a background-map
-             click). The keyed Transition replays on every new selection so the swap is noticeable in
-             peripheral vision. -->
+        <!-- Selected project: a plain, always-open card bound to the current map selection (own or
+             external, in both edit and moderation). It appears when a project is selected and is
+             dropped when the selection clears (e.g. a background-map click). The selected project is
+             filtered out of the list below so it is never shown twice. The keyed Transition replays
+             on every new selection so the swap is noticeable in peripheral vision. -->
         <Transition name="selected-card" mode="out-in">
-          <div v-if="pinnedExternalProject" :key="pinnedExternalProject.id" class="mb-1">
+          <div v-if="selectedCard" :key="selectedCard.id" class="mb-1">
             <div
               class="pl-3 pt-1 pb-0.5 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
             >
               {{ $t("contribute.selectedProject") }}
             </div>
-            <div class="selected-project-card" :data-project-id="pinnedExternalProject.id">
+            <div class="selected-project-card" :data-project-id="selectedCard.id">
               <ProjectHeader
                 plain
-                :name="pinnedExternalProject.name ?? ''"
-                :status="pinnedExternalProject.status"
+                :name="selectedCard.name ?? ''"
+                :status="selectedCard.status"
                 :hide-status-badges="hideStatusBadges"
-                :import-source-type="pinnedExternalProject.importSource?.type ?? null"
-                :external-properties="pinnedExternalProject.externalProperties"
+                :pending-change-count="getPendingChangeCount(selectedCard)"
+                :import-source-type="selectedCard.importSource?.type ?? null"
+                :external-properties="selectedCard.externalProperties"
               />
               <ProjectContent
                 plain
-                :project="pinnedExternalProject"
-                :project-changes="[]"
-                :all-change-requests="[]"
-                :overlay-changes-map="new Map()"
-                :projects-context="[pinnedExternalProject]"
-                :is-contribute-panel="false"
+                :project="selectedCard"
+                :project-changes="getProjectChangeRequestsForProject(selectedCard)"
+                :all-change-requests="changeRequests"
+                :overlay-changes-map="overlayChangesMap"
+                :projects-context="projects"
+                :is-contribute-panel="isContributePanel"
                 :show-user-stats-link="showUserStatsLink"
                 :hide-status-badges="hideStatusBadges"
-                :show-edit-buttons="false"
+                :show-edit-buttons="selectedCardIsExternal ? false : showEditButtons"
                 hide-chevron
                 :on-navigate-to-overlay="navigateToOverlayById"
                 :on-overlay-click="onOverlayClick"
-                @edit-project="handleStandaloneProjectClick"
+                @edit-project="handleProjectClick"
                 @project-click="(p) => emit('external-project-click', p)"
                 @highlight-project="handleProjectHighlight"
                 @remove-project-highlight="handleProjectUnhighlight"
@@ -67,7 +69,11 @@
                 @remove-highlight="removeOverlayHighlight"
               >
                 <template v-if="$slots['project-actions']" #project-actions="{ project: p }">
-                  <slot name="project-actions" :project="p" :is-external="true"></slot>
+                  <slot
+                    name="project-actions"
+                    :project="p"
+                    :is-external="selectedCardIsExternal"
+                  ></slot>
                 </template>
                 <template v-if="$slots['change-actions']" #change-actions="{ change }">
                   <slot name="change-actions" :change="change"></slot>
@@ -87,16 +93,14 @@
         <Accordion
           :multiple="true"
           :lazy="true"
-          v-model:value="activeAccordionPanels"
+          v-model:value="uiStore.activeAccordionPanels"
           class="city-accordion"
         >
           <!-- "Your contributions" section header: custom controls (contribute panel) or plain divider -->
           <template v-if="$slots['contributions-header']">
             <slot name="contributions-header"></slot>
           </template>
-          <template
-            v-else-if="(pinnedExternalProject || pinnedProject) && flatOrderedProjects.length > 0"
-          >
+          <template v-else-if="selectedCard && flatOrderedProjects.length > 0">
             <div
               class="pt-1 pb-0.5 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
             >
@@ -110,7 +114,6 @@
             :key="project.id"
             :value="project.id"
             :data-project-id="project.id"
-            :class="{ 'selected-accordion-pulse': pulsingProjectId === project.id }"
           >
             <ProjectHeader
               :name="project.name ?? ''"
@@ -133,7 +136,7 @@
               :on-navigate-to-overlay="navigateToOverlayById"
               :on-overlay-click="onOverlayClick"
               @show-user-stats="(data) => emit('show-user-stats', data)"
-              @edit-project="handleStandaloneProjectClick"
+              @edit-project="handleProjectClick"
               @project-click="handleCardClick"
               @highlight-project="handleProjectHighlight"
               @remove-project-highlight="handleProjectUnhighlight"
@@ -166,7 +169,7 @@
         <!-- Filter yields no matches, but contributions exist: keep controls above visible. While
              loading, stay quiet: the chrome above is mounted but the list isn't known yet. -->
         <PanelEmptyState
-          v-if="flatOrderedProjects.length === 0 && !pinnedExternalProject && !isLoading"
+          v-if="flatOrderedProjects.length === 0 && !selectedCard && !isLoading"
           icon="folder"
           :message="emptyMessage"
           :sub-message="emptySubMessage"
@@ -200,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted, onActivated, onDeactivated, ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
 import ProjectContent from "@/components/project/ProjectContent.vue";
@@ -212,13 +215,7 @@ import type {
   PendingChangeRequest,
 } from "@/types/index";
 
-import {
-  activeAccordionPanels,
-  expandAccordionForOverlay,
-  expandProjectPanel,
-  consumeScrollRequest,
-  pendingScrollRequest,
-} from "@/services/layout/accordionState";
+import { useUiStore } from "@/stores/uiStore";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import {
@@ -227,11 +224,7 @@ import {
   highlightProjectShapes,
   unhighlightProjectShapes,
 } from "@/services/map/shapeLayerRegistry";
-import {
-  highlightStandaloneProjectMarker,
-  unhighlightStandaloneProjectMarker,
-} from "@/services/map/standaloneProjectMarkers";
-import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
+import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
@@ -252,7 +245,11 @@ interface Props {
   hideStatusBadges?: boolean;
   disableAutoModeSwitch?: boolean;
   showEditButtons?: boolean;
-  pinnedProjectId?: string | null;
+  // Id of the map-selected project. When it matches a project in `projects`, that project is lifted
+  // out of the list and shown in the "Selected project" card at the top.
+  selectedProjectId?: string | null;
+  // A selected project that is NOT in `projects` (e.g. someone else's project, or an approved project
+  // outside the pending list). Shown in the same "Selected project" card as a read-only context entry.
   pinnedExternalProject?: ProjectForModeration | null;
   // Keep the content area mounted even when the (filtered) project list is empty, so a consumer
   // rendering its own filter controls via #contributions-header does not lose them on empty results.
@@ -270,7 +267,7 @@ const props = withDefaults(defineProps<Props>(), {
   hideStatusBadges: false,
   disableAutoModeSwitch: false,
   showEditButtons: false,
-  pinnedProjectId: null,
+  selectedProjectId: null,
   pinnedExternalProject: null,
   keepContentVisible: false,
 });
@@ -290,291 +287,36 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
+const uiStore = useUiStore();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
-watch(
-  () => pendingScrollRequest.value,
-  async (newRequest) => {
-    if (newRequest && props.projects.length > 0) {
-      await handleScrollRequest();
-    }
-  },
-);
-
-const flatOrderedProjects = computed(() => {
-  if (!props.pinnedProjectId) return props.projects;
-  const pinned = props.projects.find((p) => p.id === props.pinnedProjectId);
-  const rest = props.projects.filter((p) => p.id !== props.pinnedProjectId);
-  return pinned ? [pinned, ...rest] : props.projects;
-});
-
-const pinnedProject = computed(() =>
-  props.pinnedProjectId
-    ? (props.projects.find((p) => p.id === props.pinnedProjectId) ?? null)
+// The selected project as it appears in the list, if it is one of `projects`. Lifted into the card.
+const selectedInListProject = computed(() =>
+  props.selectedProjectId
+    ? (props.projects.find((p) => p.id === props.selectedProjectId) ?? null)
     : null,
 );
 
-const isPanelActive = ref(false);
-
-onMounted(() => {
-  isPanelActive.value = true;
-});
-
-onActivated(() => {
-  isPanelActive.value = true;
-});
-
-onDeactivated(() => {
-  isPanelActive.value = false;
-});
-
-watch(
-  () => isPanelActive.value,
-  async (active) => {
-    if (active && pendingScrollRequest.value && props.projects.length > 0) {
-      await nextTick();
-      await handleScrollRequest();
-    }
-  },
+// The project shown in the "Selected project" card: the in-list match, or the external one supplied
+// by the caller for selections that are not in `projects`.
+const selectedCard = computed<ProjectForModeration | null>(
+  () => selectedInListProject.value ?? props.pinnedExternalProject,
 );
 
-// One-shot accent pulse on the pinned own-contribution card, mirroring the external selected card's
-// pulse so a project opened in edit mode (e.g. via the detail panel's Edit button) reads as selected
-// here too. Guarded by lastPulsedProjectId so it plays once per selection, not on every list refresh
-// or tab revisit; the guard resets when the selection clears so re-selecting the same project pulses.
-const pulsingProjectId = ref<string | null>(null);
-let lastPulsedProjectId: string | null = null;
-let pulseResetTimer: ReturnType<typeof setTimeout> | null = null;
-
-async function pulsePinnedProject() {
-  const id = props.pinnedProjectId;
-  if (!id || !isPanelActive.value || !pinnedProject.value || lastPulsedProjectId === id) return;
-  lastPulsedProjectId = id;
-  pulsingProjectId.value = null;
-  await nextTick();
-  pulsingProjectId.value = id;
-  if (pulseResetTimer) clearTimeout(pulseResetTimer);
-  pulseResetTimer = setTimeout(() => {
-    pulsingProjectId.value = null;
-  }, 1300);
-}
-
-watch(
-  () => props.pinnedProjectId,
-  (id) => {
-    if (!id) {
-      lastPulsedProjectId = null;
-      return;
-    }
-    void pulsePinnedProject();
-  },
+// External when it is not one of `projects` (read-only context: hide the delete/edit affordances).
+const selectedCardIsExternal = computed(
+  () => Boolean(selectedCard.value) && !selectedInListProject.value,
 );
-watch(isPanelActive, (active) => {
-  if (active) void pulsePinnedProject();
+
+// The selected project is shown in the card above, so drop it from the list to avoid duplication.
+const flatOrderedProjects = computed(() => {
+  const selectedId = selectedCard.value?.id;
+  return selectedId ? props.projects.filter((p) => p.id !== selectedId) : props.projects;
 });
-// The pinned project may not be in the contributions list yet on first load; pulse once it arrives.
-watch(
-  () => props.projects,
-  () => void pulsePinnedProject(),
-);
-
-async function handleScrollRequest() {
-  if (!isPanelActive.value) return;
-
-  const request = pendingScrollRequest.value;
-  if (!request) return;
-
-  let canHandle = false;
-
-  if (request.type === "overlay") {
-    const overlayId = String(request.id);
-    canHandle = props.projects.some(
-      (p) => p.overlays && p.overlays.some((o) => o.id === overlayId),
-    );
-  } else if (request.type === "project") {
-    const projectId = String(request.id);
-    canHandle = props.projects.some((p) => p.id === projectId);
-  }
-
-  if (!canHandle) return;
-
-  consumeScrollRequest();
-  await nextTick();
-
-  if (request.type === "overlay") {
-    const overlayId = String(request.id);
-    const wasExpanded = expandAccordionForOverlay(overlayId, props.projects);
-    await nextTick();
-    await waitForAccordionAnimation(overlayId, !wasExpanded);
-  } else if (request.type === "project") {
-    const projectId = String(request.id);
-    const expanded = expandProjectPanel(projectId);
-    if (expanded) {
-      await nextTick();
-      await waitForProjectAccordionAnimation(projectId);
-    }
-  }
-}
-
-watch(
-  [() => props.projects, () => props.isLoading],
-  async ([newProjects, newIsLoading]) => {
-    if (newProjects.length > 0 && !newIsLoading) {
-      await handleScrollRequest();
-    }
-  },
-  { immediate: true },
-);
-
-async function waitForAccordionAnimation(
-  overlayId: string,
-  wasAlreadyExpanded: boolean = false,
-): Promise<void> {
-  const overlayElement = document.querySelector(`[data-overlay-id="${overlayId}"]`);
-
-  if (!overlayElement) {
-    for (let i = 0; i < 3; i += 1) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      const element = document.querySelector(`[data-overlay-id="${overlayId}"]`);
-      if (element) {
-        await scrollToOverlayWhenReady(element, wasAlreadyExpanded);
-        return;
-      }
-    }
-    return;
-  }
-  await scrollToOverlayWhenReady(overlayElement, wasAlreadyExpanded);
-}
-
-async function scrollToOverlayWhenReady(
-  element: Element,
-  wasAlreadyExpanded: boolean = false,
-): Promise<void> {
-  const projectPanel = element.closest("[data-project-id]");
-
-  if (!projectPanel) {
-    element.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "nearest",
-    });
-    return;
-  }
-
-  const panel = projectPanel;
-
-  if (wasAlreadyExpanded) {
-    const viewportHeight = window.innerHeight;
-    const projectRect = panel.getBoundingClientRect();
-    const elementRect = element.getBoundingClientRect();
-    const projectToElementDistance = elementRect.top - projectRect.top;
-
-    if (projectToElementDistance < viewportHeight * 0.7) {
-      panel.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "nearest",
-      });
-    } else {
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest",
-      });
-    }
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
-    let lastHeight = panel.clientHeight;
-    let resizeCount = 0;
-    const maxResizes = 20;
-    let timeoutId: NodeJS.Timeout | undefined = undefined;
-    let fallbackTimeout: NodeJS.Timeout | undefined = undefined;
-
-    function performScroll(isAnimating: boolean) {
-      const viewportHeight = window.innerHeight;
-      const projectRect = panel.getBoundingClientRect();
-      const elementRect = element.getBoundingClientRect();
-      const projectToElementDistance = elementRect.top - projectRect.top;
-      const scrollBehavior = isAnimating ? "auto" : "smooth";
-
-      if (projectToElementDistance < viewportHeight * 0.7) {
-        panel.scrollIntoView({
-          behavior: scrollBehavior,
-          block: "nearest",
-          inline: "nearest",
-        });
-      } else {
-        element.scrollIntoView({
-          behavior: scrollBehavior,
-          block: "center",
-          inline: "nearest",
-        });
-      }
-    }
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const newHeight = entry.contentRect.height;
-        if (newHeight !== lastHeight) {
-          lastHeight = newHeight;
-          resizeCount += 1;
-          performScroll(true);
-          clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            clearTimeout(fallbackTimeout);
-            observer.disconnect();
-            resolve();
-          }, 100);
-        }
-        if (resizeCount >= maxResizes) {
-          clearTimeout(timeoutId);
-          clearTimeout(fallbackTimeout);
-          observer.disconnect();
-          resolve();
-        }
-      }
-    });
-
-    observer.observe(panel);
-
-    fallbackTimeout = setTimeout(() => {
-      clearTimeout(timeoutId);
-      observer.disconnect();
-      resolve();
-    }, 1000);
-
-    timeoutId = setTimeout(() => {
-      if (resizeCount === 0) {
-        performScroll(false);
-      }
-      clearTimeout(fallbackTimeout);
-      observer.disconnect();
-      resolve();
-    }, 50);
-  });
-}
-
-async function waitForProjectAccordionAnimation(projectId: string): Promise<void> {
-  const projectElement = document.querySelector(`[data-project-id="${projectId}"]`);
-  if (!projectElement) {
-    for (let i = 0; i < 3; i += 1) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      const element = document.querySelector(`[data-project-id="${projectId}"]`);
-      if (element) {
-        await scrollToOverlayWhenReady(element);
-        return;
-      }
-    }
-    return;
-  }
-  await scrollToOverlayWhenReady(projectElement);
-}
 
 async function navigateToOverlayById(overlayId: string) {
   for (const project of props.projects) {
@@ -649,7 +391,7 @@ async function handleCardClick(project: ProjectForModeration) {
   if (firstOverlay) {
     await handleOverlayCardClick(firstOverlay);
   } else {
-    handleStandaloneProjectClick(project);
+    handleProjectClick(project);
   }
 }
 
@@ -658,18 +400,12 @@ function handleProjectHighlight(project: ProjectForModeration) {
     highlightProjectShapes(project.id);
     return;
   }
-  if (!project.overlays || project.overlays.length === 0) {
-    highlightStandaloneProjectMarker(project.id);
-  }
 }
 
 function handleProjectUnhighlight(project: ProjectForModeration) {
   if (hasProjectShapes(project.id)) {
     unhighlightProjectShapes(project.id);
     return;
-  }
-  if (!project.overlays || project.overlays.length === 0) {
-    unhighlightStandaloneProjectMarker(project.id);
   }
 }
 
@@ -681,7 +417,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration) {
   }
 }
 
-function handleStandaloneProjectClick(project: ProjectForModeration) {
+function handleProjectClick(project: ProjectForModeration) {
   try {
     if (typeof project.lat !== "number" || typeof project.lng !== "number") {
       toast.add({
@@ -696,7 +432,7 @@ function handleStandaloneProjectClick(project: ProjectForModeration) {
     if (!props.disableAutoModeSwitch && mapStore.mode !== "edit") {
       mapStore.setMode("edit");
     }
-    navigateToStandaloneProject(project.lat, project.lng, project.id);
+    navigateToProject(project.lat, project.lng, project.id);
   } catch (error) {
     console.error("Failed to navigate to project:", error);
     toast.add({
@@ -780,13 +516,6 @@ function handleStandaloneProjectClick(project: ProjectForModeration) {
   background: var(--accordion-card-bg);
   overflow: hidden;
   animation: selected-project-pulse 1.3s ease-out;
-}
-
-/* Pinned own-contribution accordion card: same accent pulse as the external selected card, toggled
-   imperatively (the keyed list reuses elements on reorder, so a mount-time animation wouldn't replay). */
-.selected-accordion-pulse {
-  animation: selected-project-pulse 1.3s ease-out;
-  border-radius: 12px;
 }
 
 @keyframes selected-project-pulse {

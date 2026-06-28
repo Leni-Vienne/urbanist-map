@@ -136,7 +136,7 @@ import { hasUnsavedChanges } from "@/utils/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
-import { useSignOut } from "@/composables/auth/useSignOut";
+import { signOut } from "@/services/auth/signOut";
 import { useI18n } from "vue-i18n";
 
 // Lazy-load AuthModal for chunk splitting, avoids pulling primevue's password
@@ -147,7 +147,6 @@ const ModeratedContributionsDialog = defineAsyncComponent(
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-const { signOut } = useSignOut();
 const toast = useToast();
 const { t } = useI18n();
 const isMenuOpen = ref(false);

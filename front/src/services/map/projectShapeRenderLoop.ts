@@ -8,7 +8,6 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
-import { getStandaloneProjectMarkerMap } from "@/services/map/standaloneProjectMarkers";
 import { createProjectObject } from "@/utils/typeFactories";
 
 /** Return the pending geometry change request value for a project, if any. */
@@ -26,7 +25,7 @@ function getPendingGeometry(
   return geom?.geometries?.length ? geom : null;
 }
 
-type ResolvedGeometry = { geometry: GeoJSON.GeometryCollection; isPending: boolean } | null;
+type ResolvedGeometry = { geometry: GeoJSON.GeometryCollection } | null;
 
 function resolveProjectGeometry(
   projectId: string,
@@ -36,10 +35,10 @@ function resolveProjectGeometry(
   isModeration: boolean,
 ): ResolvedGeometry {
   const approved = (isEditMode ? storedGeometry : null) ?? approvedGeometry;
-  if (approved?.geometries?.length) return { geometry: approved, isPending: false };
+  if (approved?.geometries?.length) return { geometry: approved };
   if (!isEditMode && !isModeration) return null;
   const pending = getPendingGeometry(projectId, isModeration);
-  return pending ? { geometry: pending, isPending: true } : null;
+  return pending ? { geometry: pending } : null;
 }
 
 function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): Project {
@@ -85,16 +84,6 @@ function getVisibleProjectsToRender() {
     }
   }
 
-  // Collect standalone projects
-  for (const projectId of getStandaloneProjectMarkerMap().keys()) {
-    if (!projectsToRender.has(projectId)) {
-      const p = projectStore.projects[projectId];
-      if (p) {
-        projectsToRender.set(projectId, p);
-      }
-    }
-  }
-
   return projectsToRender;
 }
 
@@ -117,15 +106,22 @@ function processAndRenderProjectShape(
   );
 
   const finalGeometry = resolved?.geometry;
-  const isPending = resolved?.isPending;
 
-  if (!finalGeometry) return;
+  let oldGeometry: GeoJSON.GeometryCollection | null = null;
+  if (isEditMode && storedProject?.isModified) {
+    oldGeometry = projectStore.getOriginalProject(projectId)?.geometry ?? null;
+  }
+
+  if (!finalGeometry && !oldGeometry) return;
 
   const projectToRender = (isEditMode ? storedProject : null) ?? projectData;
 
   renderProjectShapes(
-    { ...projectToRender, geometry: finalGeometry },
-    isPending ? "yellow" : undefined,
+    {
+      ...projectToRender,
+      geometry: finalGeometry ?? { type: "GeometryCollection", geometries: [] },
+    },
+    oldGeometry,
   );
 }
 

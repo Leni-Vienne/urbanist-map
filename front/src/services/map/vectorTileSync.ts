@@ -9,14 +9,19 @@
  * delivered via tiles, the bbox tRPC fetch only returns pending content.
  */
 
-import { getMlMap, onMlMapReady } from "@/services/core/map";
-import * as registry from "@/services/overlay/renderRegistry";
+import { map, onMlMapReady } from "@/services/core/map";
+import * as registry from "@/services/overlay/mapLayers";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
-import { lastModifiedDateRange, visibleStates } from "@/services/map/filters";
+import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import {
+  lastModifiedDateRange,
+  visibleStates,
+  matchesSelectedTags,
+  matchesNameFilter,
+} from "@/services/map/filters";
 
 // lastModifiedS is Unix seconds (tile units). querySourceFeatures bypasses MapLibre layer
 // filters, so images must be date-checked here rather than relying on setFilter.
@@ -55,29 +60,68 @@ export function getApprovedOverlayDataFromTiles(): ReadonlyMap<string, OverlayDa
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function overlayDataFromFeature(feat: any): OverlayData | null {
-  const p = feat.properties;
-  if (!p?.id || !p?.filename) return null;
+// A decoded overlay-footprint MVT feature: the OverlayData it maps to (null when the
+// feature is not a renderable overlay), plus the transport-only fields the client-side
+// filters need. lastModifiedS/timelineStatus are not overlay data, so they ride alongside
+// rather than being forced onto OverlayData.
+interface DecodedFootprint {
+  overlay: OverlayData | null;
+  lastModifiedS: number;
+  timelineStatus: string | null;
+  tags: string[];
+  name: string | null;
+}
 
+function readString(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return null;
+}
+
+// Tiles carry `tags` as a JSON array string.
+function readStringArray(value: unknown): string[] {
+  if (typeof value !== "string" || value.length === 0) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+// MapLibre types tile properties as an untyped `{ [name: string]: any }` bag, so values
+// are normalized through `unknown` here rather than accessed ad hoc.
+function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
+  const props: Record<string, unknown> = feat.properties;
+  const lastModifiedS = Number(props.last_modified_s);
+  const timelineStatus = readString(props.timeline_status);
+  const tags = readStringArray(props.tags);
+  const name = readString(props.name);
+
+  // promoteId means the id may live on feat.id rather than properties.id.
+  const id = String(feat.id ?? props.id ?? "");
+  const filename = readString(props.filename);
   const corners = [
-    { lat: Number(p.c0_lat), lng: Number(p.c0_lng) },
-    { lat: Number(p.c1_lat), lng: Number(p.c1_lng) },
-    { lat: Number(p.c2_lat), lng: Number(p.c2_lng) },
-    { lat: Number(p.c3_lat), lng: Number(p.c3_lng) },
+    { lat: Number(props.c0_lat), lng: Number(props.c0_lng) },
+    { lat: Number(props.c1_lat), lng: Number(props.c1_lng) },
+    { lat: Number(props.c2_lat), lng: Number(props.c2_lng) },
+    { lat: Number(props.c3_lat), lng: Number(props.c3_lng) },
   ];
 
-  if (corners.some((c) => Number.isNaN(c.lat) || Number.isNaN(c.lng))) return null;
+  if (!id || !filename || corners.some((c) => Number.isNaN(c.lat) || Number.isNaN(c.lng))) {
+    return { overlay: null, lastModifiedS, timelineStatus, tags, name };
+  }
 
   /* oxlint-disable-next-line no-non-null-assertion */
   const centroid = calculateCentroidFromCorners(corners)!;
 
-  return {
-    id: String(p.id),
+  const overlay: OverlayData = {
+    id,
     version: 1,
-    filename: String(p.filename),
-    caption: p.caption ?? null,
+    filename,
+    caption: readString(props.caption),
     status: "approved",
-    projectId: p.project_id ? String(p.project_id) : null,
+    projectId: readString(props.project_id),
     authorId: null,
     replacesOverlayId: null,
     replacedByOverlayId: null,
@@ -86,17 +130,19 @@ function overlayDataFromFeature(feat: any): OverlayData | null {
     centroid,
     corners,
   };
+  return { overlay, lastModifiedS, timelineStatus, tags, name };
 }
 
 // eslint-disable-next-line complexity
-function syncOverlaysFromTiles(mlMap: any): void {
+export function syncOverlaysFromTiles(): void {
+  const mlMap = map.value;
   // During style reloads/HMR, idle can fire before this layer is present.
   if (!mlMap.getLayer("overlay-footprints")) return;
 
   try {
     // querySourceFeatures (not queryRenderedFeatures) is used to also catch overlays whose
     // edges are outside the viewport (e.g. when zoomed in so far that only the interior shows).
-    const allFeatures: any[] = mlMap.querySourceFeatures("project-sources", {
+    const allFeatures = mlMap.querySourceFeatures("project-sources", {
       sourceLayer: "overlay-footprints",
     });
 
@@ -108,30 +154,32 @@ function syncOverlaysFromTiles(mlMap: any): void {
       west: bounds.getWest(),
     };
 
-    // Deduplicate by ID (promoteId means the id may live on feat.id, not feat.properties.id).
+    // Deduplicate by ID.
     const featureMap = new Map<string, OverlayData>();
     // Ids excluded by a client-side filter; the eviction pass drops these instead of keep-alive resurrecting them.
     const filtered = new Set<string>();
     const lastModifiedById = new Map<string, number>();
     const statusById = new Map<string, string | null>();
     for (const feat of allFeatures) {
-      const id = String(feat.id ?? feat.properties?.id ?? "");
+      const { overlay, lastModifiedS, timelineStatus, tags, name } = decodeFootprint(feat);
+      if (!overlay || featureMap.has(overlay.id)) continue;
+      const id = overlay.id;
 
-      if (!id || featureMap.has(id)) continue;
-
-      const lastModifiedS = Number(feat.properties?.last_modified_s);
-      const timelineStatus = (feat.properties?.timeline_status as string | null) ?? null;
       lastModifiedById.set(id, lastModifiedS);
       statusById.set(id, timelineStatus);
 
-      if (!matchesDateFilter(lastModifiedS) || !matchesStatusFilter(timelineStatus)) {
+      if (
+        !matchesDateFilter(lastModifiedS) ||
+        !matchesStatusFilter(timelineStatus) ||
+        !matchesSelectedTags(tags) ||
+        !matchesNameFilter(name)
+      ) {
         filtered.add(id);
         continue;
       }
 
-      const data = overlayDataFromFeature(feat);
-      if (data && cornersIntersectBounds(data.corners, viewportBounds)) {
-        featureMap.set(id, data);
+      if (cornersIntersectBounds(overlay.corners, viewportBounds)) {
+        featureMap.set(id, overlay);
       }
     }
 
@@ -202,22 +250,14 @@ function syncOverlaysFromTiles(mlMap: any): void {
   }
 }
 
-// Force an immediate sync; used on filter changes so images evict without waiting for 'idle'.
-export function resyncOverlaysFromTiles(): void {
-  const mlMap = getMlMap();
-  if (mlMap) syncOverlaysFromTiles(mlMap);
-}
-
 /**
  * Register the idle-driven overlay sync. Call once after map init.
  * Runs in all modes, approved overlays always come from tiles.
  */
 export function initVectorTileSync(): void {
   onMlMapReady(() => {
-    const mlMap = getMlMap();
-    if (!mlMap) return;
-    mlMap.on("idle", () => syncOverlaysFromTiles(mlMap));
+    map.value.on("idle", syncOverlaysFromTiles);
     // Sync immediately in case the map is already idle (tiles loaded before listener registered)
-    syncOverlaysFromTiles(mlMap);
+    syncOverlaysFromTiles();
   });
 }

@@ -16,6 +16,8 @@ import { useProjectFormValidation } from "@/composables/forms/useProjectFormVali
 import type { Project, ProjectFormData } from "@/types/index";
 import { projectToFormData, formDataToProjectFields } from "@/utils/projectFormHelpers";
 
+import ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
+
 const props = defineProps<{
   project: Partial<Project>;
 }>();

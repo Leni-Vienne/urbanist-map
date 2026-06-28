@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import path from "node:path";
 import enTranslations from "./i18n/en.json";
 import frTranslations from "./i18n/fr.json";
 
@@ -23,7 +23,7 @@ function escapeHtml(unsafe: string) {
 
 // Replaces {{placeholder}} markers with HTML-escaped values
 function renderTemplate(template: string, data: Record<string, string>): string {
-  return template.replaceAll(/\{\{(\w+)\}\}/g, (_, key) => {
+  return template.replaceAll(/\{\{(?<key>\w+)\}\}/g, (_, key) => {
     const value = data[key] ?? "";
     return escapeHtml(value);
   });
@@ -39,15 +39,17 @@ export async function renderEmailTemplate(
     const translation = translations.en[templateName];
 
     // Convert camelCase template name to kebab-case for file lookup
-    const kebabCaseName = templateName.replaceAll(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+    const kebabCaseName = templateName
+      .replaceAll(/(?<lower>[a-z])(?<upper>[A-Z])/g, "$<lower>-$<upper>")
+      .toLowerCase();
 
     // Build-time switch (not runtime): CI builds the bundle with NODE_ENV=production, so Bun
     // inlines this and DCE keeps only the literal-path branch in the deployed bundle.
     // Source-mode runs (bun --hot) keep the import.meta.dirname branch, which resolves at runtime.
     const templatePath =
       process.env.NODE_ENV === "production"
-        ? join("/home/bun/app/email/templates", `${kebabCaseName}-email.html`)
-        : join(import.meta.dirname, "templates", `${kebabCaseName}-email.html`);
+        ? path.join("/home/bun/app/email/templates", `${kebabCaseName}-email.html`)
+        : path.join(import.meta.dirname, "templates", `${kebabCaseName}-email.html`);
 
     const templateFile = Bun.file(templatePath);
 

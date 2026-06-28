@@ -6,6 +6,8 @@ import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { onMlMapReady, bootedFromDeeplinkView } from "@/services/core/map";
 
+import { loadOrNull } from "@/services/core/errorHandling";
+
 // Handle a /project/:slug deep link: a visitor arriving from Google or a pasted link lands directly
 // in the live app focused on the project. Resolves the slug to a project (or a deletion tombstone),
 // then flies the map and opens the detail panel once the map is ready.
@@ -23,13 +25,9 @@ export async function handleProjectDeepLink(
   const toast = useToast();
   const projectStore = useProjectStore();
 
-  let result: Awaited<ReturnType<typeof trpc.project.getBySlug.query>>;
-  try {
-    result = await trpc.project.getBySlug.query({ slug: resolvedSlug });
-  } catch (error) {
-    console.error("Failed to resolve project deep link:", error);
-    return;
-  }
+  const result = await loadOrNull(async () => trpc.project.getBySlug.query({ slug: resolvedSlug }));
+
+  if (!result) return;
 
   if (result.found) {
     const project = createProjectObject({
@@ -44,7 +42,7 @@ export async function handleProjectDeepLink(
     // dev server, where no coords are injected, it falls back to the animated fly.
     const instant = bootedFromDeeplinkView.value;
     onMlMapReady(() => {
-      if (lat != null && lng != null) {
+      if (typeof lat === "number" && typeof lng === "number") {
         flyToGeometry([lat, lng], project.geometrySizeM ?? 0, { instant });
       }
       selectProject(project);
@@ -55,7 +53,7 @@ export async function handleProjectDeepLink(
   // Project gone (tombstone): center on the last known location when recorded and tell the visitor.
   // An entirely unknown slug just leaves the visitor on the default map view.
   if (result.gone) {
-    if (result.lat != null && result.lng != null) {
+    if (typeof result.lat === "number" && typeof result.lng === "number") {
       const lat = result.lat;
       const lng = result.lng;
       onMlMapReady(() => {
