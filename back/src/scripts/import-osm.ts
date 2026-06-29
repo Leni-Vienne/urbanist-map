@@ -25,7 +25,13 @@ import { config } from "../config";
 // cost of the thousands of small batch commits. Set as a startup parameter so every pooled
 // connection inherits it (a per-session SET would only affect one connection in the pool).
 // The import is idempotent and replayable, so losing the last few commits to a crash is fine: re-run.
-const pgClient = postgresJs(config.DATABASE_URL, { connection: { synchronous_commit: "off" } });
+// max: 1 pins the whole run to a single backend connection. The script is fully sequential, so it
+// loses no parallelism, and the prune's TEMP TABLE of seen ids is session-scoped: it must live on the
+// same connection as the statements that read it.
+const pgClient = postgresJs(config.DATABASE_URL, {
+  max: 1,
+  connection: { synchronous_commit: "off" },
+});
 const db = drizzle({ client: pgClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -41,6 +47,11 @@ const GEOJSON_PATHS = [
 // A large batch cuts the commit (and thus fsync) count. Each row binds ~22 params, so 1000 rows =
 // ~22k params, well under Postgres' 65535 bind-parameter limit per statement.
 const UPSERT_BATCH_SIZE = 1000;
+
+// Set --full (or OSM_FULL_REIMPORT=1) to bypass the unchanged-row skip and re-derive every feature.
+// Use it after changing the extraction logic (tag rules, date parsing, source-url rules, etc.) so the
+// new derivation reaches rows whose OSM edit timestamp did not change.
+const FULL_REIMPORT = process.argv.includes("--full") || process.env.OSM_FULL_REIMPORT === "1";
 
 // Import source configuration
 const IMPORT_SOURCE_SLUG = "osm_world";
@@ -362,7 +373,9 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
 }
 
 async function main() {
-  log(`synchronous_commit=off, batch size ${UPSERT_BATCH_SIZE}`);
+  log(
+    `synchronous_commit=off, batch size ${UPSERT_BATCH_SIZE}${FULL_REIMPORT ? ", FULL re-import" : ""}`,
+  );
   log(`Setting up import source: ${IMPORT_SOURCE_SLUG}`);
   let importSource = await db
     .select()
@@ -402,22 +415,36 @@ async function main() {
   // rest. Tradeoff: a feature whose geometry drifts across a border keeps its old country until
   // something forces re-resolution; acceptable since the country is already an approximation.
   const existingCountryByExternalId = new Map<string, string>();
+  // externalId -> stored OSM edit timestamp (epoch ms). Drives the unchanged-row skip in the build
+  // loop: a feature whose osm_last_modified still matches what we stored is re-derived only under --full.
+  const existingLastModifiedByExternalId = new Map<string, number>();
   try {
     const existing = await db
-      .select({ externalId: projects.externalId, countryCode: projects.countryCode })
+      .select({
+        externalId: projects.externalId,
+        countryCode: projects.countryCode,
+        externalLastModified: projects.externalLastModified,
+      })
       .from(projects)
       .where(
-        sql`${projects.importSourceId} = ${importSource.id} AND ${projects.externalId} IS NOT NULL AND ${projects.countryCode} IS NOT NULL`,
+        sql`${projects.importSourceId} = ${importSource.id} AND ${projects.externalId} IS NOT NULL`,
       );
     for (const row of existing) {
-      if (row.externalId && row.countryCode) {
-        existingCountryByExternalId.set(row.externalId, row.countryCode);
+      if (!row.externalId) continue;
+      if (row.countryCode) existingCountryByExternalId.set(row.externalId, row.countryCode);
+      if (row.externalLastModified) {
+        existingLastModifiedByExternalId.set(row.externalId, row.externalLastModified.getTime());
       }
     }
   } catch (err) {
-    console.error("Failed to preload existing country codes (will resolve all via KNN):", err);
+    console.error(
+      "Failed to preload existing projects (will resolve all via KNN, re-upsert all):",
+      err,
+    );
   }
-  log(`Preloaded ${existingCountryByExternalId.size} existing country codes`);
+  log(
+    `Preloaded ${existingCountryByExternalId.size} country codes, ${existingLastModifiedByExternalId.size} edit timestamps`,
+  );
 
   // Record sync start time for pruning stale data later
   const syncStartTime = new Date();
@@ -428,6 +455,11 @@ async function main() {
 
   let globalInserted = 0;
   let globalSkipped = 0;
+  let globalUnchanged = 0;
+  // Every external_id present and valid in this sync (new, edited, or unchanged-and-skipped). The prune
+  // deletes/detaches OSM rows absent from this set, replacing the old last_imported_at timestamp check,
+  // so unchanged rows can be skipped in the build loop without being mistaken for stale.
+  const seenExternalIds: string[] = [];
 
   for (const geojsonPath of GEOJSON_PATHS) {
     if (!fs.existsSync(geojsonPath)) {
@@ -464,6 +496,7 @@ async function main() {
 
     let inserted = 0;
     let skipped = 0;
+    let unchanged = 0;
 
     // Resolve countryCode for each feature before the upsert loop. Reuse the preloaded value when the
     // feature already exists, and only feed the misses (new features) into the KNN lookup.
@@ -504,8 +537,29 @@ async function main() {
 
     for (let i = 0; i < geojson.features.length; i++) {
       const feature = geojson.features[i]!;
+      const featureProps = (feature.properties ?? {}) as Record<string, unknown>;
+      const externalId = feature.id ? String(feature.id) : null;
+
+      // OSM edit timestamp, used both for the unchanged-row skip below and for storage.
+      let osmLastModified: Date | null = null;
+      if (featureProps["osm_last_modified"]) {
+        const parsed = new Date(String(featureProps["osm_last_modified"]));
+        if (!isNaN(parsed.getTime())) osmLastModified = parsed;
+      }
+
+      // Skip rows whose OSM edit timestamp is unchanged since the last import: only new or edited
+      // features pay the geometry parse + upsert cost. Still recorded as seen so the prune keeps them.
+      if (!FULL_REIMPORT && externalId && osmLastModified) {
+        const storedMs = existingLastModifiedByExternalId.get(externalId);
+        if (storedMs !== undefined && storedMs === osmLastModified.getTime()) {
+          seenExternalIds.push(externalId);
+          unchanged++;
+          continue;
+        }
+      }
+
       try {
-        const props = (feature.properties ?? {}) as Record<string, unknown>;
+        const props = featureProps;
 
         const name = (props["display_name"] as string | undefined)?.trim() || null;
         const description = (props["description"] as string | undefined)?.trim() || null;
@@ -520,22 +574,10 @@ async function main() {
         // Map OSM project_status to our timeline status
         const timelineStatus = mapTimelineStatus(props["project_status"] as string | undefined);
 
-        // Extract externalId from feature.id (e.g., "relation/123456" or "way/789")
-        const externalId = feature.id ? String(feature.id) : null;
-
         // Store all OSM properties as JSON, stripping any image URL that isn't http/https
         const rawImage = (props["image"] as string | undefined)?.trim() ?? "";
         const externalProperties =
           rawImage && /^https?:\/\//.test(rawImage) ? props : { ...props, image: undefined };
-
-        // Extract OSM last modified timestamp
-        let osmLastModified: Date | null = null;
-        if (props["osm_last_modified"]) {
-          const parsed = new Date(String(props["osm_last_modified"]));
-          if (!isNaN(parsed.getTime())) {
-            osmLastModified = parsed;
-          }
-        }
 
         // Source URL: prefer source:url, then first URL in source tag, then website as fallback.
         // website is always preserved in externalProperties, so both are accessible downstream.
@@ -600,6 +642,9 @@ async function main() {
             ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
             : null,
         });
+        // Record a present, valid feature as seen so the prune keeps it. id-less rows can't be tracked
+        // by external_id, so they are left out (the prune excludes external_id IS NULL rows anyway).
+        if (externalId) seenExternalIds.push(externalId);
       } catch (rowErr) {
         console.error(`Failed to build row for feature ${i}:`, rowErr);
         skipped++;
@@ -624,11 +669,16 @@ async function main() {
 
     globalInserted += inserted;
     globalSkipped += skipped;
-    log(`Finished ${path.basename(geojsonPath)}. Inserted: ${inserted}, skipped: ${skipped}`);
+    globalUnchanged += unchanged;
+    log(
+      `Finished ${path.basename(geojsonPath)}. Inserted: ${inserted}, unchanged: ${unchanged}, skipped: ${skipped}`,
+    );
   }
 
   console.log("");
-  log(`DONE. Total Inserted: ${globalInserted}, Total Skipped: ${globalSkipped}`);
+  log(
+    `DONE. Total Inserted: ${globalInserted}, Unchanged: ${globalUnchanged}, Skipped: ${globalSkipped}`,
+  );
 
   // Compute geometry_size_m and the lat/lng/center_coordinate anchor in a single bulk UPDATE over
   // the changed/new rows. This avoids the double geometryJson parse that would occur inline per row,
@@ -772,67 +822,100 @@ async function main() {
     }
   }
 
-  // Prune stale projects that were not updated during this sync.
+  // Prune OSM projects absent from this sync (their external_id is not in this run's seen-id set).
   // Projects with overlays are soft-detached: the OSM link (import source + external id) is severed,
   // but geometry and external_properties are kept so the project keeps its shape and its osm_ids stay
   // available for later re-linking to a redrawn OSM feature. The frontend gates OSM attribution on
   // import_source_id, so a severed project shows no stale OSM link despite retaining the raw properties.
   // Projects without overlays are hard-deleted.
-  // import_locked_at rows are exempt: they hold an approved user edit and were skipped by the upsert,
-  // so their last_imported_at is stale by design and must not be deleted or detached.
+  // import_locked_at rows are exempt (staleCondition requires import_locked_at IS NULL): they hold an
+  // approved user edit and must never be deleted or detached by the sync.
   console.log("");
-  log(`Pruning stale projects not seen since ${syncStartTime.toISOString()}...`);
-  const staleCondition = sql`import_source_id = ${importSource.id} AND import_locked_at IS NULL AND (last_imported_at IS NULL OR last_imported_at < ${syncStartTime.toISOString()})`;
-  const hasOverlays = sql`EXISTS (SELECT 1 FROM overlays WHERE project_id = projects.id)`;
+  log(`Pruning OSM projects absent from this sync...`);
 
+  // Presence is tracked by a temp table of this run's seen external_ids rather than a per-row
+  // last_imported_at bump, so unchanged rows are never rewritten. Built on the single pinned connection
+  // (pgClient max: 1) so the prune statements below can read it. If it can't be built in full, or it
+  // came back empty, the prune is skipped entirely: deleting against a partial set would remove rows
+  // that are actually present.
+  let pruneSafe = false;
   try {
-    // Tombstone the rows about to be hard-deleted so an indexed /project/:slug URL can answer 410
-    // and the SPA can still center the map on the last known location. A proposed/under-construction
-    // feature leaving the OSM extract most often means it got built, so default the status to
-    // 'completed'. Skip rows without a slug (pre-backfill); ON CONFLICT refreshes coords + timestamp
-    // in case a slug recurs. Done immediately before the delete so it covers exactly that set.
-    await db.execute(sql`
-      INSERT INTO deleted_projects (slug, lat, lng, status, deleted_at)
-      SELECT slug, lat, lng, 'completed', NOW()
-      FROM projects
-      WHERE ${staleCondition} AND NOT (${hasOverlays}) AND slug IS NOT NULL
-      ON CONFLICT (slug) DO UPDATE
-        SET lat = EXCLUDED.lat, lng = EXCLUDED.lng, status = EXCLUDED.status, deleted_at = NOW()
-    `);
-
-    const hardDeleted = await db
-      .delete(projects)
-      .where(sql`${staleCondition} AND NOT (${hasOverlays})`)
-      .returning({ id: projects.id });
-    log(`Hard-deleted ${hardDeleted.length} stale projects with no overlays`);
-  } catch (err) {
-    console.error("Failed to hard-delete stale projects:", err);
-  }
-
-  try {
-    const softDetached = await db
-      .update(projects)
-      .set({
-        detachedAt: new Date(),
-        importSourceId: null,
-        externalId: null,
-        externalLastModified: null,
-      })
-      .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
-      .returning({ id: projects.id });
-    log(`Soft-detached ${softDetached.length} stale projects with overlays`);
-  } catch (err) {
-    console.error("Failed to soft-detach stale projects:", err);
-  }
-
-  // Drop tombstones whose slug is live again: a reappearing OSM feature regenerates the same
-  // deterministic slug, so the live row now wins and the stale tombstone would only mislead.
-  try {
-    await db.execute(
-      sql`DELETE FROM deleted_projects WHERE slug IN (SELECT slug FROM projects WHERE slug IS NOT NULL)`,
+    await db.execute(sql`CREATE TEMP TABLE seen_external_ids (external_id text PRIMARY KEY)`);
+    const SEEN_INSERT_CHUNK = 5000;
+    for (let off = 0; off < seenExternalIds.length; off += SEEN_INSERT_CHUNK) {
+      const chunk = seenExternalIds.slice(off, off + SEEN_INSERT_CHUNK);
+      const values = sql.join(
+        chunk.map((id) => sql`(${id})`),
+        sql`, `,
+      );
+      await db.execute(
+        sql`INSERT INTO seen_external_ids (external_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+      );
+    }
+    pruneSafe = seenExternalIds.length > 0;
+    log(
+      `Loaded ${seenExternalIds.length} seen external ids${pruneSafe ? "" : " (empty, skipping prune)"}`,
     );
   } catch (err) {
-    console.error("Failed to prune resurrected tombstones (non-fatal):", err);
+    console.error(
+      "Failed to build seen-id set; skipping prune to avoid deleting present rows:",
+      err,
+    );
+  }
+
+  const staleCondition = sql`import_source_id = ${importSource.id} AND import_locked_at IS NULL AND external_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM seen_external_ids s WHERE s.external_id = projects.external_id)`;
+  const hasOverlays = sql`EXISTS (SELECT 1 FROM overlays WHERE project_id = projects.id)`;
+
+  if (pruneSafe) {
+    try {
+      // Tombstone the rows about to be hard-deleted so an indexed /project/:slug URL can answer 410
+      // and the SPA can still center the map on the last known location. A proposed/under-construction
+      // feature leaving the OSM extract most often means it got built, so default the status to
+      // 'completed'. Skip rows without a slug (pre-backfill); ON CONFLICT refreshes coords + timestamp
+      // in case a slug recurs. Done immediately before the delete so it covers exactly that set.
+      await db.execute(sql`
+        INSERT INTO deleted_projects (slug, lat, lng, status, deleted_at)
+        SELECT slug, lat, lng, 'completed', NOW()
+        FROM projects
+        WHERE ${staleCondition} AND NOT (${hasOverlays}) AND slug IS NOT NULL
+        ON CONFLICT (slug) DO UPDATE
+          SET lat = EXCLUDED.lat, lng = EXCLUDED.lng, status = EXCLUDED.status, deleted_at = NOW()
+      `);
+
+      const hardDeleted = await db
+        .delete(projects)
+        .where(sql`${staleCondition} AND NOT (${hasOverlays})`)
+        .returning({ id: projects.id });
+      log(`Hard-deleted ${hardDeleted.length} stale projects with no overlays`);
+    } catch (err) {
+      console.error("Failed to hard-delete stale projects:", err);
+    }
+
+    try {
+      const softDetached = await db
+        .update(projects)
+        .set({
+          detachedAt: new Date(),
+          importSourceId: null,
+          externalId: null,
+          externalLastModified: null,
+        })
+        .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
+        .returning({ id: projects.id });
+      log(`Soft-detached ${softDetached.length} stale projects with overlays`);
+    } catch (err) {
+      console.error("Failed to soft-detach stale projects:", err);
+    }
+
+    // Drop tombstones whose slug is live again: a reappearing OSM feature regenerates the same
+    // deterministic slug, so the live row now wins and the stale tombstone would only mislead.
+    try {
+      await db.execute(
+        sql`DELETE FROM deleted_projects WHERE slug IN (SELECT slug FROM projects WHERE slug IS NOT NULL)`,
+      );
+    } catch (err) {
+      console.error("Failed to prune resurrected tombstones (non-fatal):", err);
+    }
   }
 
   // Recompute the SEO indexable flag across all rows now that inserts, detaches and prunes are done.
