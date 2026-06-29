@@ -112,6 +112,22 @@ if [[ "$DO_IMPORT" -eq 1 ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Disk space check
+# ---------------------------------------------------------------------------
+
+# Require 9GB of free space (9 * 1024 * 1024 = 9437184 KB)
+REQUIRED_SPACE_KB=9437184
+TARGET_DIR="$(dirname "$FILTERED_PBF")"
+AVAILABLE_SPACE_KB=$(df -P -k "$TARGET_DIR" | tail -1 | awk '{print $4}')
+
+if [[ "$AVAILABLE_SPACE_KB" -lt "$REQUIRED_SPACE_KB" ]]; then
+    echo "Error: Not enough free disk space in $TARGET_DIR."
+    echo "  Available: $((AVAILABLE_SPACE_KB / 1024 / 1024)) GB"
+    echo "  Required:  9 GB"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
