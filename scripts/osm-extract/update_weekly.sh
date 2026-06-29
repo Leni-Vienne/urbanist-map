@@ -73,6 +73,21 @@ if [[ -z "$FILTERED_PBF" ]]; then
     exit 1
 fi
 
+# The update deletes the original PBF once diffs are merged into
+# <base>_updated.osm.pbf, keeping peak disk at two copies. If a run died between
+# that delete and the final swap, the original is gone but the merged file
+# remains: promote it back. Its diffs are re-applied and re-filtered this run
+# (the replication state only advances on success), so the result is correct.
+RECOVER_MERGED="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
+if [[ ! -f "$FILTERED_PBF" && -f "$RECOVER_MERGED" ]]; then
+    echo "Warning: $FILTERED_PBF missing, recovering merged file from interrupted run: $RECOVER_MERGED"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "[dry-run] mv $RECOVER_MERGED $FILTERED_PBF"
+    else
+        mv -f "$RECOVER_MERGED" "$FILTERED_PBF"
+    fi
+fi
+
 if [[ ! -f "$FILTERED_PBF" ]]; then
     echo "Error: file not found: $FILTERED_PBF"
     exit 1
@@ -81,6 +96,8 @@ fi
 FILTERED_PBF="$(realpath "$FILTERED_PBF")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORK_DIR="$(dirname "$FILTERED_PBF")"
+FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
 
 # ---------------------------------------------------------------------------
 # Dependency checks
@@ -109,6 +126,20 @@ fi
 
 if [[ "$DO_IMPORT" -eq 1 ]]; then
     command -v bun &>/dev/null || { echo "Error: bun not found (required for --import)"; exit 1; }
+fi
+
+# ---------------------------------------------------------------------------
+# Clear intermediates from any previously-interrupted run, before the disk
+# check, so a stale orphan does not falsely trip the free-space requirement.
+# _seq*.osm.pbf covers files left behind by older per-sequence versions.
+# ---------------------------------------------------------------------------
+
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    rm -f "${WORK_DIR}/daily_diff_"*.osc.gz
+    rm -f "${WORK_DIR}/.osmium_filters_"*.txt
+    rm -f "${FILTERED_PBF%.osm.pbf}_seq"*.osm.pbf
+    rm -f "${FILTERED_PBF%.osm.pbf}_refiltered.osm.pbf"
+    rm -f "$FINAL_PBF"
 fi
 
 # ---------------------------------------------------------------------------
@@ -334,18 +365,6 @@ echo "=========================================================="
 echo "[$(ts)] STEP 3: Downloading and applying OSC diffs"
 echo "=========================================================="
 
-WORK_DIR="$(dirname "$FILTERED_PBF")"
-FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
-
-# Clear intermediates from any previously-interrupted run.
-# _seq*.osm.pbf covers files left behind by older per-sequence versions of this script.
-if [[ "$DRY_RUN" -eq 0 ]]; then
-    rm -f "${WORK_DIR}/daily_diff_"*.osc.gz
-    rm -f "${FILTERED_PBF%.osm.pbf}_seq"*.osm.pbf
-    rm -f "${FILTERED_PBF%.osm.pbf}_refiltered.osm.pbf"
-    rm -f "$FINAL_PBF"
-fi
-
 # Phase 1: download every OSC in range.
 OSC_FILES=()
 TOTAL_DIFFS=$(( CURRENT_SEQNUM - START_SEQ + 1 ))
@@ -382,6 +401,12 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
         -o "$FINAL_PBF" \
         "$FILTERED_PBF" \
         "${OSC_FILES[@]}"
+
+    # $FINAL_PBF now holds everything in $FILTERED_PBF plus the diffs, so the
+    # original is redundant. Drop it before the re-filter pass so peak disk stays
+    # at two copies (merged + re-filtered) rather than three. A crash before the
+    # final swap is recovered by promoting $FINAL_PBF back at startup.
+    run rm -f "$FILTERED_PBF"
 
     # apply-changes merges every changed object from the diffs, filtered or not.
     # Re-filter (same rules as filter_combined.sh step 1) so the PBF only keeps
@@ -430,8 +455,8 @@ echo "=========================================================="
 echo "[$(ts)] STEP 4: Deriving sub-PBFs + Python extraction"
 echo "=========================================================="
 
-# Swap the updated PBF into place. Atomic rename on the same filesystem,
-# so readers see the old or new file but never a half-written one.
+# Move the re-filtered result into place under the canonical name. The original
+# was already removed after the merge, so this rename recreates $FILTERED_PBF.
 # Skipped when no diffs were applied (FINAL_PBF was never created).
 if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     if [[ "$DRY_RUN" -eq 0 ]]; then
