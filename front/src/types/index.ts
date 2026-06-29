@@ -5,6 +5,24 @@ import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/sr
 export type ModifiableField = "caption" | "corners";
 export type RemovableChange = ModifiableField | "new_overlay" | "geometry" | "render";
 
+type CornersChange = {
+  current: { lat: number; lng: number }[];
+  original: { lat: number; lng: number }[];
+};
+
+type CaptionChange = {
+  current: string | null;
+  original: string | null;
+};
+
+export type PendingOverlayModification = {
+  overlayId: string;
+  projectId: string | null;
+  overlayStatus: ApprovalStatus;
+  corners?: CornersChange;
+  caption?: CaptionChange;
+};
+
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 
@@ -180,7 +198,7 @@ export type UserContributionOverlay = Omit<BackendContributionOverlay, "status">
 };
 
 // A user contribution is a Project augmented with the inline overlay list.
-// Backend already populates the optional denormalized fields on Project (cityName, countryName, ownerUsername...).
+// Backend already populates the optional denormalized fields on Project (countryName, ownerUsername...).
 export type UserContribution = Project & {
   overlays: UserContributionOverlay[];
 };

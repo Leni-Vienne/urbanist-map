@@ -39,7 +39,6 @@ export function hasProjectShapes(projectId: string): boolean {
 
 function removeEntryFromMap(entry: ShapeEntry): void {
   const mlMap = map.value;
-  if (!mlMap) return;
   for (const binding of entry.eventBindings) {
     mlMap.off(binding.type, binding.layerId, binding.handler);
   }
@@ -75,7 +74,7 @@ export function getProjectShapeBounds(projectId: string): LngLatBounds | null {
 export function highlightProjectShapes(projectId: string): void {
   const entry = shapeLayerMap.get(projectId);
   const mlMap = map.value;
-  if (!entry || !mlMap) return;
+  if (!entry) return;
   if (mlMap.getLayer(entry.lineLayerId)) {
     mlMap.setPaintProperty(entry.lineLayerId, "line-width", entry.hoverLineWidth);
   }
@@ -88,7 +87,7 @@ export function highlightProjectShapes(projectId: string): void {
 export function unhighlightProjectShapes(projectId: string): void {
   const entry = shapeLayerMap.get(projectId);
   const mlMap = map.value;
-  if (!entry || !mlMap) return;
+  if (!entry) return;
   if (mlMap.getLayer(entry.lineLayerId)) {
     mlMap.setPaintProperty(entry.lineLayerId, "line-width", entry.baseLineWidth);
   }
@@ -101,7 +100,7 @@ export function unhighlightProjectShapes(projectId: string): void {
 export function setProjectShapesVisible(projectId: string, visible: boolean): void {
   const entry = shapeLayerMap.get(projectId);
   const mlMap = map.value;
-  if (!entry || !mlMap) return;
+  if (!entry) return;
   for (const layerId of entry.layerIds) {
     if (mlMap.getLayer(layerId)) {
       mlMap.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");

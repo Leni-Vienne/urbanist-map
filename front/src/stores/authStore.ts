@@ -1,8 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import { trpc, getApiUrl } from "@/client";
-import { useUiStore } from "@/stores/uiStore";
-import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 
 // User type for our custom authentication
 interface User {
@@ -128,14 +126,12 @@ async function signUp(email: string, password: string, username: string, captcha
 
     return {
       success: result.success,
-      user: result.user,
       error: result.success ? null : result.message,
     };
   } catch (error: unknown) {
     console.error("Sign up error:", error);
     return {
       success: false,
-      user: null,
       error: error instanceof Error ? error.message : "Registration failed",
     };
   }
@@ -147,7 +143,7 @@ async function verifyEmail(token: string) {
     const result = await trpc.account.verifyEmail.mutate({ token });
     return {
       success: result.success,
-      user: result.user ?? null,
+      user: result.user,
       error: result.success ? null : result.message,
     };
   } catch (error: unknown) {
@@ -173,19 +169,6 @@ async function requestPasswordReset(email: string) {
       success: false,
       error: error instanceof Error ? error.message : "Password reset request failed",
     };
-  }
-}
-
-async function loadModeratedContributionsForUser() {
-  try {
-    const { moderatedContributions, preloadModeratedContributions } = useModeratedContributions();
-    await preloadModeratedContributions();
-    const hasContributions = moderatedContributions.value.length > 0;
-    const uiStore = useUiStore();
-    uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
-    if (hasContributions) uiStore.moderatedContributionsDialogVisible = true;
-  } catch (error) {
-    console.error("Failed to check moderated contributions:", error);
   }
 }
 
@@ -233,11 +216,10 @@ export const useAuthStore = defineStore("auth", () => {
         });
 
         if (response.ok) {
-          const result: { user: User; infoMessage: string | null } = await response.json();
+          const result: { user: User | null; infoMessage: string | null } = await response.json();
           user.value = result.user;
           infoMessage.value = result.infoMessage;
           if (!result.user) return;
-          await loadModeratedContributionsForUser();
         } else {
           user.value = null;
           infoMessage.value = null;
@@ -269,16 +251,13 @@ export const useAuthStore = defineStore("auth", () => {
       if (response.ok && result.success) {
         user.value = result.user ?? null;
         setLastUsedMethod("email", result.user?.email ?? null);
-        await loadModeratedContributionsForUser();
         return {
           success: true,
-          user: result.user ?? null,
           error: null,
         };
       } else {
         return {
           success: false,
-          user: null,
           error: result.error ?? result.message ?? "Login failed",
         };
       }
@@ -286,16 +265,18 @@ export const useAuthStore = defineStore("auth", () => {
       console.error("Sign in error:", error);
       return {
         success: false,
-        user: null,
         error: error instanceof Error ? error.message : "Login failed",
       };
     }
   }
 
-  async function signInWithOAuth(provider: "google", rememberMe = false): Promise<AuthResult> {
+  async function signInWithOAuth(
+    provider: "google",
+    rememberMe = false,
+  ): Promise<{ success: boolean; error: string | null }> {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      return { success: false, user: null, error: "Google Client ID not configured" };
+      return { success: false, error: "Google Client ID not configured" };
     }
 
     try {
@@ -303,7 +284,7 @@ export const useAuthStore = defineStore("auth", () => {
         await loadGoogleIdentityScript();
       }
       if (!globalThis.google) {
-        return { success: false, user: null, error: "Google Identity Services not loaded" };
+        return { success: false, error: "Google Identity Services not loaded" };
       }
 
       const result = await new Promise<AuthResult>((resolve) => {
@@ -341,12 +322,11 @@ export const useAuthStore = defineStore("auth", () => {
         user.value = result.user;
         setLastUsedMethod(provider, result.user?.email ?? null);
       }
-      return result;
+      return { success: result.success, error: result.error };
     } catch (error: unknown) {
       console.error(`${provider} OAuth error:`, error);
       return {
         success: false,
-        user: null,
         error: error instanceof Error ? error.message : `${provider} authentication failed`,
       };
     }

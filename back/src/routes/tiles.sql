@@ -3,12 +3,12 @@
 --   $2 = tile X
 --   $3 = tile Y
 --   $4 = shapes_min_size_m: minimum geometry_size_m to show a shape at this zoom (NULL = show all)
---   $5 = marker_suppress_min_size_m: minimum geometry_size_m at which the center marker is hidden
---        because its shape is dominant (NULL = never suppress)
 --
--- $4 and $5 are pre-computed by the caller (tiles.ts) from the zoom level.
--- Passing them as literal parameters lets the planner pick the appropriate partial GIST index
+-- $4 is pre-computed by the caller (tiles.ts) from the zoom level.
+-- Passing it as a literal parameter lets the planner pick the appropriate partial GIST index
 -- (idx_projects_geometry_Nk) instead of scanning the full geometry index.
+-- The center marker is suppressed inline (see the points CTE) from the same $4 threshold, so a
+-- project's marker disappears exactly when its shape becomes visible.
 WITH tile_env AS (
   -- Calculate the bounding box for the requested tile ($1=Z, $2=X, $3=Y) in Web Mercator (EPSG:3857)
   -- and also transform it to WGS84 (EPSG:4326) for quick intersection checks against table geometries.
@@ -20,16 +20,7 @@ shapes AS (
   -- Generate the 'project-shapes' vector tile layer containing physical structures (polygons/lines).
   -- Shapes are gated by both zoom and size to avoid noise in dense areas at mid-zoom.
   -- All zoom values are native MapLibre zoom.
-  -- The points CTE mirrors these thresholds to hide a center marker once its shape dominates,
-  -- EXCEPT the z11 catch-all: small shapes (< 200m) never suppress their marker since they
-  -- are too small to be dominant even at close zoom.
-  --   z4:   >= 100 km
-  --   z5:   >= 50 km
-  --   z7:   >= 10 km
-  --   z8:   >= 1 km
-  --   z9:   >= 500 m  (shapes visible; marker suppressed only at z11+)
-  --   z10:  >= 200 m  (shapes visible; marker suppressed only at z12+)
-  --   z11+: all       (shapes visible; marker suppressed only at z13+)
+  -- The size threshold is passed as $4 (shapes_min_size_m).
   -- Unnamed building shapes are additionally suppressed below z13; named buildings and buildings
   -- >= 1 km follow normal size-based rules (so notable structures are visible at lower zooms).
   SELECT ST_AsMVT(q, 'project-shapes', 4096, 'mvt_geom') AS tile
@@ -57,13 +48,12 @@ shapes AS (
       -- Stable popup anchor: a point on the geometry itself, unaffected by tile clipping
       ST_Y(p.center_coordinate) AS popup_lat,
       ST_X(p.center_coordinate) AS popup_lng,
-      -- Unclipped geometry bbox, emitted only for large shapes (>= 2 km) so the client can frame
-      -- the whole geometry on tap. Smaller shapes emit NULLs (omitted from the MVT feature) and
-      -- keep the pan-to-anchor navigation, which never zooms out.
-      CASE WHEN p.geometry_size_m >= 2000 THEN ST_XMin(p.geometry) END AS bbox_w,
-      CASE WHEN p.geometry_size_m >= 2000 THEN ST_YMin(p.geometry) END AS bbox_s,
-      CASE WHEN p.geometry_size_m >= 2000 THEN ST_XMax(p.geometry) END AS bbox_e,
-      CASE WHEN p.geometry_size_m >= 2000 THEN ST_YMax(p.geometry) END AS bbox_n
+      -- Unclipped geometry bbox so the client can fitBounds the whole shape on click instead of
+      -- approximating a square from the scalar geometry_size_m around the on-surface anchor.
+      ST_XMin(p.geometry) AS bbox_w,
+      ST_YMin(p.geometry) AS bbox_s,
+      ST_XMax(p.geometry) AS bbox_e,
+      ST_YMax(p.geometry) AS bbox_n
     FROM projects p, tile_env te
     WHERE $1 >= 4
       AND p.status = 'approved'
@@ -125,74 +115,37 @@ footprints AS (
   WHERE q.mvt_geom IS NOT NULL
 ),
 grid_size AS (
-  -- Determine the size of the logical grid used for decluttering (clustering) project markers based on zoom level.
-  -- Only powers of 2 that divide 4096 evenly are valid (128, 256, 512, 1024). Non-power-of-2 values
-  -- produce partial stub cells at tile edges, causing projects near tile boundaries to fail to cluster
-  -- with geographically adjacent projects in the neighbouring tile.
-  -- Steps: 1024 → 512 → 256 → 128.
-  SELECT CASE
-    WHEN $1 <= 4 THEN 1024
-    WHEN $1 <= 6 THEN 512
-    WHEN $1 <= 12 THEN 256
-    ELSE 128
-  END AS cell_size
+  -- Size of the logical grid (in tile units) used for decluttering (clustering) project markers.
+  -- Must be a power of 2. kept it constant to avoid transitions in cluster size that resulted in
+  -- 16x more clusters and would make unzooming look buggy
+  SELECT 1024 AS cell_size
 ),
 points AS (
   -- Generate the 'project-points' vector tile layer containing center markers for projects.
   SELECT ST_AsMVT(q, 'project-points', 4096, 'mvt_geom') AS tile
   FROM (
-    -- Step 2: deduplicate, keep one representative project per (grid cell, tag, status) group.
-    -- DISTINCT ON picks the first row per group after ORDER BY.
-    -- Tiebreaker priority: named projects first, then largest geometry, then most recent.
-    -- This makes the representative stable and meaningful rather than arbitrary across zoom transitions.
-    -- Window functions compute the size range across ALL projects in the cell, not just the
-    -- representative, so the client-side size filter remains accurate for the whole cluster.
-    --
-    -- At low zoom (tile z < 7) we collapse the status dimension so that one point
-    -- per (cell, tag) is emitted rather than one per (cell, tag, status). This avoids a large
-    -- point-count spike caused by e.g. 3 tags × 4 statuses = 12 points per cell. Tag drives
-    -- the marker color so color diversity is fully preserved; status dashes only matter once
-    -- shapes are visible (z ≥ 7), so nothing meaningful is lost at lower zooms.
-    SELECT DISTINCT ON (grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END)
-      mvt_geom,
-      id,
-      name,
-      array_to_json(tags)::text AS tags,
-      first_tag, -- used for the points/vectors color
-      timeline_status,
-      has_geometry,
-      -- Aggregated over the whole cluster group, so a cluster is kept by the client image
-      -- filter when ANY project in the cell has an approved overlay, not just the representative.
-      BOOL_OR(has_image) OVER (PARTITION BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END) AS has_image,
-      is_named,
-      last_modified_s, -- used for filtering by last modified date
-      -- min/max last_modified_s are used for filtering clusters by date on the client
-      MIN(last_modified_s) OVER (PARTITION BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END) AS min_last_modified_s,
-      MAX(last_modified_s) OVER (PARTITION BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END) AS max_last_modified_s,
-      -- geometry_size_m is the representative project's own size.
-      -- Used on click to detect when the representative doesn't satisfy the active filter
-      -- (e.g. filter=max 5m but representative=74m), so the click handler can avoid
-      -- zooming to a location that has no matching projects nearby.
-      ROUND(geometry_size_m)::int AS geometry_size_m,
-      -- min_size_m and max_size_m span all projects in the cell, used by the client-side
-      -- MapLibre filter to decide whether the cluster point should be visible at all.
-      ROUND(MIN(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END))::int AS min_size_m,
-      ROUND(MAX(geometry_size_m) OVER (PARTITION BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END))::int AS max_size_m,
-      -- cell_count is used for determining whether to zoom in on a tile (x > 1) or directly open the project panel (cell_count = 1)
-      COUNT(*) OVER (PARTITION BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END)::int AS cell_count
-    FROM (
-      -- Step 1b: add a per-cell flag indicating whether any non-building project exists in the cell.
-      -- Used to suppress building markers at low zoom only when other project types are already visible.
+    WITH filtered_q AS MATERIALIZED (
       SELECT
-        *,
-        BOOL_OR(NOT ('building' = ANY(tags))) OVER (PARTITION BY grid_id) AS cell_has_non_building
+        raw_q.mvt_geom,
+        raw_q.id,
+        raw_q.name,
+        raw_q.tags,
+        raw_q.first_tag,
+        raw_q.timeline_status,
+        raw_q.has_geometry,
+        raw_q.has_image,
+        raw_q.is_named,
+        raw_q.last_modified_s,
+        raw_q.geometry_size_m,
+        raw_q.grid_id,
+        (
+          (CASE WHEN raw_q.is_named = 1 THEN 100 ELSE 0 END) +
+          (CASE WHEN raw_q.has_image THEN 100 ELSE 0 END) +
+          (CASE WHEN raw_q.first_tag != '' THEN 50 ELSE 0 END) +
+          (CASE WHEN raw_q.geometry_size_m > 0 THEN LN(raw_q.geometry_size_m + 1) * 15 ELSE 0 END)
+        )::int AS quality_score
       FROM (
-        -- Step 1: project all approved markers into tile space and assign each to a grid cell.
-        -- grid_id divides the 4096-unit tile into a grid of cell_size squares. At low zoom levels
-        -- the cell covers a large geographic area, so many projects share the same cell and only
-        -- one representative is surfaced per (cell, tag, status) group after deduplication.
-        -- The LATERAL computes ST_AsMVTGeom(ST_Transform(...)) once per row so it is not
-        -- redundantly re-evaluated for both mvt_geom and the two components of grid_id.
+        -- Project all approved markers into tile space and assign each to a grid cell.
         SELECT
           mvt.geom AS mvt_geom,
           p.id,
@@ -202,7 +155,7 @@ points AS (
           p.timeline_status,
           CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
           EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image,
-          p.geometry_size_m,
+          ROUND(p.geometry_size_m)::int AS geometry_size_m,
           CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
           EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
           (ST_X(mvt.geom)::integer / gs.cell_size)::text
@@ -216,17 +169,99 @@ points AS (
         WHERE p.status = 'approved'
           AND p.center_coordinate IS NOT NULL
           AND p.center_coordinate && te.bounds_4326
-          -- Hide the center marker once its shape is visible and dominant at this zoom.
-          -- $5 is the minimum geometry_size_m at which the shape is considered dominant.
-          AND NOT (p.geometry_size_m IS NOT NULL AND $5::float8 IS NOT NULL AND p.geometry_size_m >= $5::float8)
+          -- Hide the center marker if its shape is visible at this zoom.
+          AND NOT (
+            p.geometry IS NOT NULL
+            AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
+            AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
+                     AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
+                     AND (p.name IS NULL OR p.name = ''))
+          )
+        OFFSET 0
       ) raw_q
-    ) inner_q
-    WHERE inner_q.mvt_geom IS NOT NULL
-      -- At low zoom (<10), hide 'building' markers only in cells that already have non-building projects.
-      -- In empty cells (buildings only), show them to avoid blank areas.
-      AND ($1 >= 10 OR NOT ('building' = ANY(inner_q.tags)) OR NOT inner_q.cell_has_non_building)
-    ORDER BY grid_id, first_tag, CASE WHEN $1 >= 7 THEN timeline_status ELSE '' END, is_named DESC, geometry_size_m DESC NULLS LAST, last_modified_s DESC NULLS LAST
+      WHERE raw_q.mvt_geom IS NOT NULL
+    ),
+    cluster_agg AS (
+      -- Per-cell tag breakdown so the client can show an accurate count when a tag filter is active.
+      -- Each count_<tag> is the number of projects in the cell carrying that tag; count_untagged is
+      -- the number with no tags (the LEFT JOIN LATERAL emits one NULL row per tagless project).
+      -- NULLIF strips zeros so ST_AsMVT omits the column for that feature (lone markers stay cheap).
+      SELECT f.grid_id,
+        ',' || string_agg(DISTINCT t, ',') || ',' AS cluster_tags,
+        ',' || string_agg(DISTINCT f.timeline_status, ',') || ',' AS cluster_statuses,
+        NULLIF(COUNT(*) FILTER (WHERE t IS NULL), 0) AS count_untagged,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'building'), 0) AS count_building,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'residential'), 0) AS count_residential,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'commercial'), 0) AS count_commercial,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'retail'), 0) AS count_retail,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'office'), 0) AS count_office,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'industrial'), 0) AS count_industrial,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'tram'), 0) AS count_tram,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'rail'), 0) AS count_rail,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'bike'), 0) AS count_bike,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'light_rail'), 0) AS count_light_rail,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'park'), 0) AS count_park,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'road'), 0) AS count_road,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'subway'), 0) AS count_subway,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'pedestrian'), 0) AS count_pedestrian,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'bus'), 0) AS count_bus,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'cable_car'), 0) AS count_cable_car,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'airport'), 0) AS count_airport,
+        NULLIF(COUNT(*) FILTER (WHERE t = 'waterway'), 0) AS count_waterway
+      FROM filtered_q f
+      LEFT JOIN LATERAL unnest(f.tags) AS t ON true
+      GROUP BY f.grid_id
+    )
+    SELECT DISTINCT ON (f.grid_id)
+      f.mvt_geom,
+      f.id,
+      f.name,
+      array_to_json(f.tags)::text AS tags,
+      f.first_tag,
+      f.timeline_status,
+      f.has_geometry,
+      BOOL_OR(f.has_image) OVER w_cluster AS has_image,
+      f.is_named,
+      f.last_modified_s,
+      MIN(f.last_modified_s) OVER w_cluster AS min_last_modified_s,
+      MAX(f.last_modified_s) OVER w_cluster AS max_last_modified_s,
+      ca.cluster_tags,
+      ca.cluster_statuses,
+      ca.count_untagged,
+      ca.count_building,
+      ca.count_residential,
+      ca.count_commercial,
+      ca.count_retail,
+      ca.count_office,
+      ca.count_industrial,
+      ca.count_tram,
+      ca.count_rail,
+      ca.count_bike,
+      ca.count_light_rail,
+      ca.count_park,
+      ca.count_road,
+      ca.count_subway,
+      ca.count_pedestrian,
+      ca.count_bus,
+      ca.count_cable_car,
+      ca.count_airport,
+      ca.count_waterway,
+      f.geometry_size_m,
+      MIN(f.geometry_size_m) OVER w_cluster AS min_size_m,
+      MAX(f.geometry_size_m) OVER w_cluster AS max_size_m,
+      COUNT(*) OVER w_cluster::int AS cell_count,
+      f.quality_score,
+      (f.quality_score >= 150) AS is_high_quality
+    FROM filtered_q f
+    LEFT JOIN cluster_agg ca ON ca.grid_id = f.grid_id
+    WINDOW w_cluster AS (PARTITION BY f.grid_id)
+    ORDER BY f.grid_id, f.quality_score DESC, f.is_named DESC, f.geometry_size_m DESC NULLS LAST, f.last_modified_s DESC NULLS LAST
   ) q
+  WHERE (
+    $1 >= 12 OR 
+    ($1 >= 10 AND q.quality_score >= 100) OR 
+    q.is_high_quality
+  )
 )
 -- Aggregate all three computed tile layers into a single MVT binary payload returned to the client
 SELECT (

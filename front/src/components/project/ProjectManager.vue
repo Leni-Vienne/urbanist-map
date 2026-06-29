@@ -46,16 +46,13 @@ import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import maplibregl, { type MapMouseEvent } from "maplibre-gl";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import {
-  getStandaloneProjectMarkerByProjectId,
-  addStandaloneProjectMarkerForProject,
-  updateStandaloneProjectMarkerColor,
-} from "@/services/map/standaloneProjectMarkers";
-import { createStandaloneProjectMarkerElement } from "@/services/map/markers";
+import { createProjectPinElement } from "@/services/map/markers";
 import { createProject } from "@/services/project/projectMutations";
+import { mergeProjectPointsForMode } from "@/services/map/clusterSourceMerge";
 import type { Project } from "@/types/index";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
@@ -67,6 +64,7 @@ const EditProjectForm = defineAsyncComponent(
 );
 
 const projectStore = useProjectStore();
+const mapStore = useMapStore();
 const uiStore = useUiStore();
 const toast = useToast();
 const { t: $t } = useI18n();
@@ -97,13 +95,10 @@ function handleMapClick(e: MapMouseEvent) {
     tempMarker.value = null;
   }
 
-  const mapValue = map.value;
-  if (!mapValue) return;
-
-  const element = createStandaloneProjectMarkerElement("orange");
+  const element = createProjectPinElement("orange");
   tempMarker.value = new maplibregl.Marker({ element, anchor: "bottom" })
     .setLngLat([coordinates.lng, coordinates.lat])
-    .addTo(mapValue);
+    .addTo(map.value);
 
   if (markerPlacementBar.value) {
     markerPlacementBar.value.setMarkerCoordinates(coordinates);
@@ -135,20 +130,20 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<void
     isModified: true,
   });
 
+  // Push the new local project to the pending-project-points GeoJSON source
+  // so it appears on the map immediately without waiting for a viewport refresh.
+  mergeProjectPointsForMode([], [], mapStore.mode);
+
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
     const storedProject = projectStore.projects[projectId];
     if (storedProject) {
-      addStandaloneProjectMarkerForProject(storedProject);
-      const marker = getStandaloneProjectMarkerByProjectId(projectId);
-      if (marker) {
-        uiStore.openProjectDetail(projectId, storedProject);
-      }
+      uiStore.openProjectDetail(projectId, storedProject);
     }
     toast.add({
       severity: "success",
       summary: $t("common.success"),
-      detail: $t("toasts.standaloneProjectSuccess"),
+      detail: $t("toasts.projectCreatedSuccess"),
       life: 3000,
     });
   }
@@ -167,12 +162,6 @@ function handleProjectUpdate(project: Partial<Project>): void {
       overlayIds: projects.value[projectId].overlayIds || [],
       isModified: true,
     });
-
-    const hasNoOverlays =
-      !projects.value[projectId].overlayIds || projects.value[projectId].overlayIds.length === 0;
-    if (hasNoOverlays) {
-      updateStandaloneProjectMarkerColor(projectId, projects.value[projectId]);
-    }
 
     toast.add({
       severity: "success",

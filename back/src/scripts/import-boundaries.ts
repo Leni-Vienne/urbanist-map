@@ -33,7 +33,6 @@ import {
   BOUNDARY_DOMINANCE_THRESHOLD,
   coverageFractionSql,
   projectEffectiveGeometrySql,
-  SAFE_OVERLAY_FRACTION_DDL,
 } from "../db/boundaryAssignment";
 import { sql, eq, lt, type SQL } from "drizzle-orm";
 import { config } from "../config";
@@ -483,8 +482,6 @@ const ASSIGN_BATCH_SIZE = 10000;
 // that each report throughput and ETA.
 async function assignProjects(onlyUnassigned: boolean): Promise<void> {
   try {
-    await ensureCoverageFunction();
-
     // Scope the queue to projects still missing a boundary (--only-unassigned): an incremental fill
     // that skips the projects already assigned, instead of recomputing every located project.
     const scopeFilter = onlyUnassigned ? sql` AND admin_boundary_id IS NULL` : sql``;
@@ -647,20 +644,6 @@ async function ensureSpatialIndex(): Promise<void> {
     log(`  spatial index ready in ${formatDuration((Date.now() - indexStart) / 1000)}`);
   } catch (error) {
     console.error("Failed to ensure spatial index:", error);
-  }
-}
-
-// coverageFractionSql calls safe_overlay_fraction(), a PL/pgSQL function the assign step depends on.
-// CREATE OR REPLACE is idempotent and near-instant, so the assign step ensures it itself (like the
-// GIST index) and can run standalone. The live app path (assignProjectBoundary) reuses the same
-// function; it exists in the DB once any import has run, which is also when boundaries first appear.
-async function ensureCoverageFunction(): Promise<void> {
-  try {
-    log("Ensuring safe_overlay_fraction() function...");
-    await db.execute(sql.raw(SAFE_OVERLAY_FRACTION_DDL));
-  } catch (error) {
-    console.error("Failed to ensure safe_overlay_fraction function:", error);
-    throw error;
   }
 }
 

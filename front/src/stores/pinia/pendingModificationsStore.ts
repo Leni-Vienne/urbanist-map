@@ -3,23 +3,7 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import type { ApprovalStatus } from "@shared/types";
 
-type CornersChange = {
-  current: { lat: number; lng: number }[];
-  original: { lat: number; lng: number }[];
-};
-
-type CaptionChange = {
-  current: string | null;
-  original: string | null;
-};
-
-export type PendingOverlayModification = {
-  overlayId: string;
-  projectId: string | null;
-  overlayStatus: ApprovalStatus;
-  corners?: CornersChange;
-  caption?: CaptionChange;
-};
+import type { PendingOverlayModification } from "@/types/index";
 
 export const usePendingModificationsStore = defineStore("pendingModifications", () => {
   const modifications = ref<Map<string, PendingOverlayModification>>(new Map());
@@ -84,7 +68,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
 
     if (field === "corners") {
       delete existing.corners;
-    } else if (field === "caption") {
+    } else {
       delete existing.caption;
     }
 

@@ -71,7 +71,7 @@ export function createLocalOverlayContribution(
   },
   parentProject: {
     countryCode: string | null;
-    countryName: string | null | undefined;
+    countryName?: string | null;
   },
   username: string | null,
   kind: UserContributionOverlay["kind"] = "map",

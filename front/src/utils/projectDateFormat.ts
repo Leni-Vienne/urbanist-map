@@ -24,12 +24,6 @@ type ResolvedDateRange =
   | { kind: "end"; value: string; precision: DatePrecision }
   | { kind: "none" };
 
-// Day precision (and the legacy null precision) format to a full date and read "on";
-// coarser precisions format to a year/month and read "in".
-function isOnPrecision(precision: DatePrecision): boolean {
-  return precision === "day" || precision === null;
-}
-
 // Resolve which date(s) a project row should show. Shared by both formatters below so the
 // proposed/period/start/end priority lives in one place.
 function resolveProjectDateRange(f: ProjectDateFields): ResolvedDateRange {
@@ -60,29 +54,6 @@ function resolveProjectDateRange(f: ProjectDateFields): ResolvedDateRange {
   }
 
   return { kind: "none" };
-}
-
-/**
- * Format a project date range as a single sentence with a verb prefix
- * ("Proposed on ...", "Starts in ...", "<start> - <end>").
- */
-export function formatProjectDateRange(
-  fields: ProjectDateFields,
-  t: (key: string) => string,
-): string {
-  const resolved = resolveProjectDateRange(fields);
-  switch (resolved.kind) {
-    case "proposed":
-      return `${t(isOnPrecision(resolved.precision) ? "project.proposedOn" : "project.proposedIn")} ${resolved.value}`;
-    case "period":
-      return `${resolved.start} - ${resolved.end}`;
-    case "start":
-      return `${t(isOnPrecision(resolved.precision) ? "project.startsOn" : "project.startsIn")} ${resolved.value}`;
-    case "end":
-      return `${t(isOnPrecision(resolved.precision) ? "project.endsOn" : "project.endsIn")} ${resolved.value}`;
-    default:
-      return "";
-  }
 }
 
 /**

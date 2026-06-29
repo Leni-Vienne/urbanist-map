@@ -1,11 +1,11 @@
 import { useProjectStore } from "@/stores/pinia/projectStore";
-import { updateMarkerTooltip } from "@/services/map/markers";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
 import { projectSchema } from "@shared/validation/schemas";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
+import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
 // The user's last edited position (history.at(-1)) is the source of truth; fall back to
 // the stored backend corners for an unedited overlay.
@@ -29,7 +29,9 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     // (it stores the pre-compression original under this extension, and a wrong .webp name on
     // PNG/JPEG bytes would mislabel a kept-as-is original).
     const type = blob.type || "image/webp";
-    const extension = type === "image/png" ? "png" : type === "image/jpeg" ? "jpg" : "webp";
+    let extension = "webp";
+    if (type === "image/png") extension = "png";
+    else if (type === "image/jpeg") extension = "jpg";
     const file = new File([blob], `overlay-image.${extension}`, { type });
 
     const formData = new FormData();
@@ -73,22 +75,17 @@ export function useOverlayPublisher() {
   const projectStore = useProjectStore();
 
   async function ensureProjectOnServer(project: Project): Promise<void> {
-    try {
-      const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
+    const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
-      // The backend upserts on the supplied UUID, so projectResult.id always matches project.id.
-      // Newly-inserted projects (exists === false) need their local status flipped to pending and
-      // a contributions-cache entry so the sidebar reflects the submission.
-      if (projectResult.id && !projectResult.exists) {
-        projectStore.updateProject(project.id, { status: "pending" });
-        const updatedProject = projectStore.projects[project.id];
-        if (updatedProject) {
-          projectStore.addProjectToUserContributions(updatedProject);
-        }
+    // The backend upserts on the supplied UUID, so projectResult.id always matches project.id.
+    // Newly-inserted projects (exists === false) need their local status flipped to pending and
+    // a contributions-cache entry so the sidebar reflects the submission.
+    if (projectResult.id && !projectResult.exists) {
+      projectStore.updateProject(project.id, { status: "pending" });
+      const updatedProject = projectStore.projects[project.id];
+      if (updatedProject) {
+        projectStore.addProjectToUserContributions(updatedProject);
       }
-    } catch (error) {
-      console.error(`Failed to publish project "${project.name}" to server:`, error);
-      throw error;
     }
   }
 
@@ -97,63 +94,62 @@ export function useOverlayPublisher() {
     project: Project | null,
     filename: string,
   ): void {
-    updateMarkerTooltip(overlay);
-
     if (project) {
       const authStore = useAuthStore();
+      const overlayStore = useOverlayStore();
+      const existingOverlays = Object.values(overlayStore.overlays).filter(
+        (o) => o.projectId === project.id && o.id !== overlay.id,
+      );
+
       projectStore.addOverlayToUserContributions(
         overlay,
         project,
         filename,
         authStore.user?.username ?? null,
+        existingOverlays,
       );
     }
   }
 
   async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
-    try {
-      // For brand-new projects, publish the project first so the overlay can reference it.
-      if (project?.status === null) {
-        await ensureProjectOnServer(project);
-      }
-
-      const filename = await prepareImageForServer(overlay);
-
-      if (!overlay.projectId) {
-        throw new Error(t("overlay.publishErrorNoProjectId"));
-      }
-
-      const corners = getCornersFromOverlay(overlay);
-      const payload = {
-        id: overlay.id,
-        filename,
-        caption: overlay.caption ?? undefined,
-        projectId: overlay.projectId,
-        replacesOverlayId: overlay.replacesOverlayId ?? undefined,
-        corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
-      };
-
-      const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
-
-      if (publishResult.id) {
-        overlay.status = publishResult.status;
-        overlay.authorId = publishResult.authorId ?? null;
-        overlay.isModified = false;
-
-        // Point to the server URL so the image isn't re-uploaded on the next save.
-        // The backend serves uploads under /uploads/ (no /api/images endpoint exists).
-        overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
-        overlay.filename = filename;
-
-        handlePostPublishUpdates(overlay, project, filename);
-      }
-
-      // Don't reload city overlays immediately, the local state already reflects the
-      // publish response and a refetch would overwrite it with stale backend data.
-    } catch (error) {
-      console.error("Failed to publish overlay:", error);
-      throw error;
+    // For brand-new projects, publish the project first so the overlay can reference it.
+    if (project?.status === null) {
+      await ensureProjectOnServer(project);
     }
+
+    const filename = await prepareImageForServer(overlay);
+
+    if (!overlay.projectId) {
+      throw new Error(t("overlay.publishErrorNoProjectId"));
+    }
+
+    const corners = getCornersFromOverlay(overlay);
+    const payload = {
+      id: overlay.id,
+      filename,
+      caption: overlay.caption ?? undefined,
+      projectId: overlay.projectId,
+      replacesOverlayId: overlay.replacesOverlayId ?? undefined,
+      corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
+    };
+
+    const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
+
+    if (publishResult.id) {
+      overlay.status = publishResult.status;
+      overlay.authorId = publishResult.authorId ?? null;
+      overlay.isModified = false;
+
+      // Point to the server URL so the image isn't re-uploaded on the next save.
+      // The backend serves uploads under /uploads/ (no /api/images endpoint exists).
+      overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
+      overlay.filename = filename;
+
+      handlePostPublishUpdates(overlay, project, filename);
+    }
+
+    // Don't reload city overlays immediately, the local state already reflects the
+    // publish response and a refetch would overwrite it with stale backend data.
   }
 
   return {

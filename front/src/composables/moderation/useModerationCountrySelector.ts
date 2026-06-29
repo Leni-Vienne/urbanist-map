@@ -2,10 +2,10 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { useToast } from "@/composables/ui/useToast";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { loadOrNull } from "@/services/core/errorHandling";
 
 interface Options {
   // Invoked when the active country changes and the moderation list needs to be (re)fetched.
@@ -14,7 +14,6 @@ interface Options {
 
 export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   const { t } = useI18n();
-  const toast = useToast();
   const authStore = useAuthStore();
   const mapStore = useMapStore();
   const moderationStore = useModerationStore();
@@ -73,18 +72,12 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   }
 
   async function refetchPendingCounts() {
-    try {
-      moderationStore.resetPendingCounts();
-      const counts = await trpc.moderation.getPendingCountsByCountry.query();
+    moderationStore.resetPendingCounts();
+    const counts = await loadOrNull(async () => trpc.moderation.getPendingCountsByCountry.query(), {
+      errorMessage: t("moderation.refreshCountsFailed"),
+    });
+    if (counts) {
       moderationStore.setPendingCounts(counts);
-    } catch (error) {
-      console.error("Failed to refetch pending counts:", error);
-      toast.add({
-        severity: "warn",
-        summary: t("moderation.refreshCountsFailed"),
-        detail: error instanceof Error ? error.message : undefined,
-        life: 4000,
-      });
     }
   }
 
@@ -102,30 +95,22 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   );
 
   async function initCountries() {
-    try {
-      if (!moderationStore.countriesLoaded) {
-        const countries = await trpc.country.getAllCountries.query();
+    if (!moderationStore.countriesLoaded) {
+      const countries = await loadOrNull(async () => trpc.country.getAllCountries.query(), {
+        errorMessage: t("moderation.failedToLoadCountries"),
+      });
+      if (countries) {
         moderationStore.setAllCountries(countries);
       }
-      autoSelectSingleCountry();
-    } catch (error) {
-      console.error("Failed to load countries:", error);
-      toast.add({
-        severity: "error",
-        summary: t("common.error"),
-        detail: t("moderation.failedToLoadCountries"),
-        life: 3000,
-      });
     }
+    autoSelectSingleCountry();
   }
 
   async function initPendingCounts() {
     if (moderationStore.pendingCountsLoaded) return;
-    try {
-      const counts = await trpc.moderation.getPendingCountsByCountry.query();
+    const counts = await loadOrNull(async () => trpc.moderation.getPendingCountsByCountry.query());
+    if (counts) {
       moderationStore.setPendingCounts(counts);
-    } catch (error) {
-      console.error("Failed to load pending counts:", error);
     }
   }
 

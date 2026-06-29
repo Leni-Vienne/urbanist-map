@@ -1,24 +1,10 @@
 import maplibre, { type Map as MaplibreMap, type RequestParameters } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css"; // needed for maplibre controls and attribution styling
-import { ref, customRef, watch } from "vue";
+import { ref, watch, shallowRef } from "vue";
 import { getApiUrl } from "@/client";
 import { mapRotationEnabled } from "@/composables/core/useMapRotation";
 
 export const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-
-// Parse #map=zoom/lat/lng from the URL hash. Returns native MapLibre zoom.
-function parseHashCoords(): { lat: number; lng: number; zoom: number } | null {
-  const hash = globalThis.location.hash;
-  if (!hash) return null;
-  const match = /^#map=(?<zoom>[0-9.]+)\/(?<lat>[-0-9.]+)\/(?<lng>[-0-9.]+)$/.exec(hash);
-  if (!match?.groups) return null;
-  const zoom = Number(match.groups.zoom);
-  const lat = Number(match.groups.lat);
-  const lng = Number(match.groups.lng);
-  if (Number.isNaN(zoom) || Number.isNaN(lat) || Number.isNaN(lng)) return null;
-  if (lat < -85 || lat > 85 || lng < -180 || lng > 180) return null;
-  return { lat, lng, zoom };
-}
 
 // Read the project location the SEO Pages Function injected into the shell for a /project/:slug
 // deep link (`<meta name="deeplink-view" content="lat,lng">`). Present only in production, where the
@@ -35,46 +21,26 @@ function parseDeeplinkView(): { lat: number; lng: number } | null {
   return { lat, lng };
 }
 
+function parseDeeplinkBounds(): [number, number, number, number] | null {
+  const content = document.querySelector('meta[name="deeplink-bounds"]')?.getAttribute("content");
+  if (!content) return null;
+  const parts = content.split(",").map(Number);
+  if (parts.length === 4 && parts.every(Number.isFinite)) {
+    // oxlint-disable-next-line no-non-null-assertion
+    return [parts[0]!, parts[1]!, parts[2]!, parts[3]!];
+  }
+  return null;
+}
+
 // True when the map was constructed centered on a deep-link project (see parseDeeplinkView). The
 // deep-link handler reads this to set the camera instantly instead of flying, since the map already
 // booted at the target.
 export const bootedFromDeeplinkView = ref(false);
 
-// Move the camera when the user edits the hash in the address bar. Our own hash writes use
-// history.replaceState (see updateHash), which does not fire hashchange, so this never loops.
-function onHashChange() {
-  if (!_map) return;
-  const coords = parseHashCoords();
-  if (!coords) return;
-  _map.flyTo({ center: [coords.lng, coords.lat], zoom: coords.zoom, duration: 3000 });
-}
-
-// Update the URL hash with current map view.
-function updateHash() {
-  if (!_map) return;
-  const center = _map.getCenter();
-  const zoom = _map.getZoom();
-  const hash = `#map=${zoom.toFixed(2)}/${center.lat.toFixed(4)}/${center.lng.toFixed(4)}`;
-  history.replaceState(null, "", hash);
-}
-
-let _map: MaplibreMap | null = null;
-export const map = customRef<MaplibreMap>((track, trigger) => ({
-  get() {
-    track();
-    if (_map === null) {
-      // Typed as MaplibreMap but returns null when uninitialized.
-      // Callers guard with `if (map.value)` at runtime; TypeScript sees no null.
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      return null as unknown as MaplibreMap;
-    }
-    return _map;
-  },
-  set(newValue) {
-    _map = newValue; // Stored as a raw (non-reactive) object, required by MapLibre.
-    trigger();
-  },
-}));
+// Exported as non-null MaplibreMap to satisfy TypeScript, though it is technically null before map initialization.
+// This allows callers to safely use map.value without strict null checking boilerplate.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+export const map = shallowRef<MaplibreMap>(null as unknown as MaplibreMap);
 export const currentZoomLevel = ref(12);
 export const currentBearing = ref(0);
 export const currentPitch = ref(0);
@@ -84,11 +50,6 @@ export const currentPitch = ref(0);
 // already fired on the still-alive map instance.
 let styleReady = (import.meta.hot?.data.styleReady as boolean | undefined) ?? false;
 const mlMapReadyCallbacks: (() => void)[] = [];
-
-/** The single MapLibre map, or null until its style has loaded. */
-export function getMlMap(): MaplibreMap | null {
-  return styleReady ? map.value : null;
-}
 
 /** Register a callback to run once (immediately if already ready) when the map is loaded. */
 export function onMlMapReady(cb: () => void): void {
@@ -157,10 +118,11 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
 }
 
 export function initializeMap() {
-  const hashCoords = parseHashCoords();
+  const hasMapHash = globalThis.location.hash.startsWith("#map=");
   // An explicit map-state hash wins over the deep-link view (e.g. a shared link with both).
-  const deeplinkView = hashCoords ? null : parseDeeplinkView();
-  bootedFromDeeplinkView.value = deeplinkView !== null;
+  const deeplinkBounds = hasMapHash ? null : parseDeeplinkBounds();
+  const deeplinkView = hasMapHash || deeplinkBounds ? null : parseDeeplinkView();
+  bootedFromDeeplinkView.value = deeplinkView !== null || deeplinkBounds !== null;
   const minZoom = calculateMinZoom();
 
   // Default world view, overridden by the hash (shared link) or the deep-link view (SEO shell). The
@@ -168,10 +130,7 @@ export function initializeMap() {
   // sensible first-paint zoom matching the marker-style default for the common standalone case.
   let initialCenter: [number, number] = [10, 22];
   let initialZoom = minZoom;
-  if (hashCoords) {
-    initialCenter = [hashCoords.lng, hashCoords.lat];
-    initialZoom = Math.max(hashCoords.zoom, minZoom);
-  } else if (deeplinkView) {
+  if (deeplinkView) {
     initialCenter = [deeplinkView.lng, deeplinkView.lat];
     initialZoom = Math.max(14, minZoom);
   }
@@ -179,8 +138,12 @@ export function initializeMap() {
   const mapOptions: maplibre.MapOptions = {
     container: "mapDiv",
     style: OPENFREEMAP_STYLE_URL,
+    hash: "map",
     center: initialCenter,
     zoom: initialZoom,
+    ...(deeplinkBounds
+      ? { bounds: deeplinkBounds, fitBoundsOptions: { padding: 50, maxZoom: 17 } }
+      : {}),
     minZoom,
     maxZoom: 21,
     attributionControl: false, // custom attribution control added below
@@ -249,14 +212,6 @@ export function initializeMap() {
       newMap.resetNorthPitch();
     }
   });
-
-  // Sync map position to URL hash for shareable links
-  newMap.on("moveend", updateHash);
-  updateHash();
-
-  // React to the user editing coordinates directly in the address bar.
-  globalThis.removeEventListener("hashchange", onHashChange);
-  globalThis.addEventListener("hashchange", onHashChange);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

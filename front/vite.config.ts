@@ -134,6 +134,8 @@ export default defineConfig(({ mode }) => {
         "primevue/tag",
         "primevue/divider",
         "primevue/progressspinner",
+        "primevue/slider",
+        "primevue/toggleswitch",
       ],
     },
     build: {
@@ -185,7 +187,7 @@ export default defineConfig(({ mode }) => {
                   /\/front\/src\/utils\/(?:imageUrl|imageErrorHandler)/.test(id) ||
                   id.includes("/front/src/constants/mapConstants") ||
                   /\/front\/src\/composables\/(?:ui\/useToast)/.test(id) ||
-                  /\/front\/src\/services\/(?:core\/errorHandling|overlay\/(?:overlayLifecycle|completionFilters|modeSwitching)|navigation\/locationNavigation)/.test(
+                  /\/front\/src\/services\/(?:core\/errorHandling|overlay\/(?:overlayLifecycle|completionFilters|modeSwitching))/.test(
                     id,
                   ),
               },

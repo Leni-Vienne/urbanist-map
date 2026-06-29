@@ -12,11 +12,11 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
  * Priority:
  * 1. Local store geometry, reflects same-session edits.
  * 2. Pending change request geometry, the user's last submitted value (post page reload).
- * 3. fallbackGeometry, caller-supplied approved geometry from the backend.
+ * 3. approvedGeometry, caller-supplied approved geometry from the backend.
  */
 async function resolveShapeEditorGeometry(
   projectId: string,
-  fallbackGeometry: GeoJSON.GeometryCollection | null,
+  approvedGeometry: GeoJSON.GeometryCollection | null,
 ): Promise<GeoJSON.GeometryCollection | null> {
   await refreshPendingChangeRequests();
 
@@ -43,7 +43,7 @@ async function resolveShapeEditorGeometry(
 
   if (localStoredGeometry !== undefined) return localStoredGeometry;
   if (pendingGeometry !== undefined) return pendingGeometry;
-  return fallbackGeometry;
+  return approvedGeometry;
 }
 
 /**
@@ -51,9 +51,9 @@ async function resolveShapeEditorGeometry(
  */
 export async function startShapeEditing(
   projectId: string,
-  fallbackGeometry: GeoJSON.GeometryCollection | null,
+  approvedGeometry: GeoJSON.GeometryCollection | null,
 ): Promise<void> {
-  const existingGeometry = await resolveShapeEditorGeometry(projectId, fallbackGeometry);
+  const existingGeometry = await resolveShapeEditorGeometry(projectId, approvedGeometry);
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
   await initShapeEditor(existingGeometry ?? undefined);
 }

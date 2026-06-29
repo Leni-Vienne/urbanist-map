@@ -3,7 +3,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/services/core/errorHandling";
+import { loadOrNull } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
@@ -51,7 +51,7 @@ export function useUserContributions() {
     if (!user) return [];
 
     // Start with backend contributions
-    const backendContributions = [...projectStore.userContributions];
+    const backendContributions = Object.values(projectStore.userContributions);
 
     // Create a map for quick lookup and modification
     const contributionsMap = new Map<string, UserContribution>();
@@ -192,7 +192,7 @@ export function useUserContributions() {
 
     projectStore.setUserContributionsLoading(true);
     try {
-      const result = await withErrorHandling(
+      const result = await loadOrNull(
         async () => trpc.project.getUsersContributions.query({ limit: 50 }),
         { errorMessage: "Failed to load contributions. Please refresh the page." },
       );
@@ -225,7 +225,7 @@ export function useUserContributions() {
       }
 
       // For backend projects, call the API
-      const result = await withErrorHandling(
+      const result = await loadOrNull(
         async () => trpc.project.deleteProject.mutate({ id: projectId }),
         { errorMessage: t("contribute.deleteProjectError") },
       );

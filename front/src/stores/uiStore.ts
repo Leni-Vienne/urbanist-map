@@ -4,7 +4,6 @@ import type { Project, OverlayObject, PanelTab } from "@/types/index";
 
 // Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
-import { useProjectStore } from "@/stores/pinia/projectStore";
 
 interface ProjectDialogState {
   visible: boolean;
@@ -84,6 +83,9 @@ export const useUiStore = defineStore("ui", () => {
   // Shape editor state
   const shapeEditor = ref<ShapeEditorState>({ project: null, reopen: false });
 
+  // Shared accordion state that persists across panels
+  const activeAccordionPanels = ref<string[]>([]);
+
   // Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
 
@@ -103,11 +105,6 @@ export const useUiStore = defineStore("ui", () => {
 
   // Project edit form actions
   function openProjectEditForm(project: Project) {
-    const projectStore = useProjectStore();
-    if (project.id && project.status !== null && !project.isModified) {
-      projectStore.cacheProjectBackendState(project.id);
-    }
-
     projectEditForm.value = {
       visible: true,
       data: project,
@@ -200,6 +197,7 @@ export const useUiStore = defineStore("ui", () => {
     imageUploadDialog,
     shapeEditor,
     postLoginCallback,
+    activeAccordionPanels,
 
     // Actions
     openProjectDialog,

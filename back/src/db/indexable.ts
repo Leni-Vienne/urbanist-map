@@ -14,7 +14,7 @@ type SqlExecutor = { execute: (query: ReturnType<typeof sql>) => Promise<unknown
 //
 // The fragment is reused verbatim by the bulk and per-project refresh so they can never drift.
 function indexableExpr(): ReturnType<typeof sql> {
-  return sql`(
+  return sql`COALESCE((
     projects.name IS NOT NULL
     AND projects.status = 'approved'
     AND (
@@ -25,7 +25,7 @@ function indexableExpr(): ReturnType<typeof sql> {
       OR jsonb_exists(projects.external_properties, 'wikidata')
       OR jsonb_exists(projects.external_properties, 'image')
     )
-  )`;
+  ), false)`;
 }
 
 // Recompute indexable for every project in one pass. Cheap to run after the daily OSM import (the

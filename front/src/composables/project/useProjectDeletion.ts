@@ -1,22 +1,16 @@
 import { t } from "@/locales";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { addStandaloneProjectMarkerForProject } from "@/services/map/standaloneProjectMarkers";
-import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 
 export function useProjectDeletion() {
   const { deleteOverlay, deleteProject } = useUserContributions();
-  const projectStore = useProjectStore();
   const uiStore = useUiStore();
 
   /**
-   * Delete an overlay with confirmation and auto-add standalone project marker if it's the last one
-   * Project parameter accepts any object with id, lat, lng for standalone project marker
+   * Delete an overlay with confirmation.
    */
   async function handleDeleteOverlay(
     overlayId: string,
-    project: { id: string; lat: number | null; lng: number | null } | null | undefined,
-    projectOverlayCount: number,
     overlayName: string | null,
     onSuccess?: () => void,
   ): Promise<boolean> {
@@ -25,24 +19,8 @@ export function useProjectDeletion() {
     });
     if (!confirm(confirmMessage)) return false;
 
-    const isLastOverlay = projectOverlayCount === 1;
-
     const success = await deleteOverlay(overlayId);
     if (!success) return false;
-
-    // If it was the last overlay, add a standalone project marker to show the project
-    // (entityRemoval.removeOverlay also does this for backend projects; this is a safety net for local-only projects)
-    if (
-      isLastOverlay &&
-      project?.id &&
-      typeof project.lat === "number" &&
-      typeof project.lng === "number"
-    ) {
-      const remainingProject = projectStore.projects[project.id];
-      if (remainingProject) {
-        addStandaloneProjectMarkerForProject(remainingProject);
-      }
-    }
 
     onSuccess?.();
     return true;

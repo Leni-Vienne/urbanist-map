@@ -107,9 +107,10 @@ export function projectEffectiveGeometrySql(alias: string): string {
   )`;
 }
 
-// Total (never-throwing) overlay-fraction function for the straddling-border case. A single row that
-// throws inside a set-based UPDATE aborts the whole batch, so the fraction computation must be
-// incapable of throwing regardless of the input geometry.
+// The straddling-border branch of coverageFractionSql calls safe_overlay_fraction(b_geom, p_geom),
+// a total (never-throwing) PL/pgSQL function provisioned by migration (drizzle/*_safe_overlay_fraction).
+// A single row that throws inside a set-based UPDATE aborts the whole batch, so its fraction
+// computation is incapable of throwing regardless of input geometry:
 //   - dim 2 (polygons): fraction by area. dim 1 (lines): fraction by length.
 //   - ST_MakeValid + ST_CollectionExtract repairs the two cases a raw overlay rejects: a project
 //     polygon overlapping/nesting its own overlay corners (invalid MultiPolygon) and a mixed
@@ -122,34 +123,6 @@ export function projectEffectiveGeometrySql(alias: string): string {
 //     deepest), instead of poisoning the batch. ST_PointOnSurface is tried first (guaranteed inside)
 //     and falls back to ST_Centroid, which is total on every geometry type (including the
 //     GeometryCollection PointOnSurface rejects), so the handler itself can never throw.
-// IMMUTABLE/PARALLEL SAFE: pure geometry, no table access, deterministic. Ensured in the DB by the
-// import script (see ensureCoverageFunction), like the GIST index.
-export const SAFE_OVERLAY_FRACTION_DDL = `
-CREATE OR REPLACE FUNCTION safe_overlay_fraction(b_geom geometry, p_geom geometry)
-RETURNS double precision
-LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
-DECLARE
-  v_dim integer := ST_Dimension(p_geom);
-  v_norm geometry;
-BEGIN
-  IF v_dim = 2 THEN
-    v_norm := ST_CollectionExtract(ST_MakeValid(p_geom), 3);
-    RETURN ST_Area(ST_Intersection(b_geom, v_norm)) / NULLIF(ST_Area(v_norm), 0);
-  ELSIF v_dim = 1 THEN
-    v_norm := ST_CollectionExtract(ST_MakeValid(p_geom), 2);
-    RETURN ST_Length(ST_Intersection(b_geom, v_norm)) / NULLIF(ST_Length(p_geom), 0);
-  ELSE
-    RETURN 1.0;
-  END IF;
-EXCEPTION WHEN OTHERS THEN
-  BEGIN
-    RETURN CASE WHEN ST_Contains(b_geom, ST_PointOnSurface(p_geom)) THEN 1.0 ELSE 0.0 END;
-  EXCEPTION WHEN OTHERS THEN
-    RETURN CASE WHEN ST_Contains(b_geom, ST_Centroid(p_geom)) THEN 1.0 ELSE 0.0 END;
-  END;
-END;
-$$;
-`;
 
 // Fraction of a project's effective shape (see projectEffectiveGeometrySql) that falls inside a
 // candidate boundary `b`. `geom` is a SQL expression for that shape (typically `eff.geom`, so the

@@ -6,7 +6,7 @@ import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
-import * as registry from "@/services/overlay/renderRegistry";
+import * as registry from "@/services/overlay/mapLayers";
 import { applyOverlayCorners } from "@/services/overlay/sync";
 import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
@@ -159,17 +159,17 @@ export function useChangeRequestPreview() {
     }
     mobileAwareFlyToBounds(targetBounds);
 
-    // Poll until the overlay appears in the store and registry (up to 2s)
-    const maxAttempts = 20;
-    for (let i = 0; i < maxAttempts; i += 1) {
-      await new Promise<void>((resolve) => void setTimeout(resolve, 100));
-      overlayObject = overlayStore.overlays[overlayForModeration.id];
-      if (overlayObject && registry.getImageHandle(overlayObject.id) !== null) {
-        break;
-      }
-    }
+    // Wait for the viewport loop to render the overlay once the camera reaches it (up to 2s).
+    const appeared = await new Promise<boolean>((resolve) => {
+      registry.whenImageReady(overlayForModeration.id, () => resolve(true), {
+        timeoutMs: 2000,
+        onTimeout: () => resolve(false),
+      });
+    });
 
-    if (!overlayObject || registry.getImageHandle(overlayObject.id) === null) {
+    overlayObject = overlayStore.overlays[overlayForModeration.id];
+
+    if (!appeared || !overlayObject || registry.getImageHandle(overlayObject.id) === null) {
       toast.add({
         severity: "error",
         summary: t("overlay.loadFailed"),

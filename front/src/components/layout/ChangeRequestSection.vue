@@ -183,16 +183,13 @@ watchEffect(() => {
   }
 });
 
-const isPreviewActive = computed(() => {
-  return (changeId: string, type: "old" | "new") => {
-    if (!isPreviewingChange(changeId)) return false;
-    const previewType = getPreviewType(changeId);
-    return (
-      (type === "old" && previewType === "current") ||
-      (type === "new" && previewType === "suggested")
-    );
-  };
-});
+function isPreviewActive(changeId: string, type: "old" | "new"): boolean {
+  if (!isPreviewingChange(changeId)) return false;
+  const previewType = getPreviewType(changeId);
+  return (
+    (type === "old" && previewType === "current") || (type === "new" && previewType === "suggested")
+  );
+}
 
 // Group changes - separate conflicting changes from non-conflicting ones
 type ChangeGroup =

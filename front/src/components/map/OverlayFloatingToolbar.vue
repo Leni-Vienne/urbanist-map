@@ -23,7 +23,7 @@
           <button :title="t('toolbar.cropConfirm')" :class="btnCls()" @click="confirmCrop">
             <i class="pi pi-check" />
           </button>
-          <button :title="t('toolbar.cropCancel')" :class="btnCls()" @click="cancelCrop">
+          <button :title="t('toolbar.cropCancel')" :class="btnCls()" @click="endCrop()">
             <i class="pi pi-times" />
           </button>
         </template>
@@ -36,20 +36,28 @@
             :value="opacity"
             @input="onOpacityInput"
             :title="`Opacity: ${opacity}%`"
-            class="w-18 h-1 cursor-pointer accent-indigo-600"
+            class="w-18 h-1 cursor-pointer accent-(--p-primary-color)"
           />
           <span class="text-[13px] text-muted-color min-w-7 text-right">{{ opacity }}%</span>
 
           <!-- Nav prev/next + index -->
           <template v-if="showNav">
             <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-            <button :title="t('toolbar.previousOverlay')" :class="btnCls()" @click="goToPrevious">
+            <button
+              :title="t('toolbar.previousOverlay')"
+              :class="btnCls()"
+              @click="navigateOverlaySequence('previous')"
+            >
               <i class="pi pi-chevron-left" />
             </button>
             <span v-if="overlayIndex" class="text-[13px] text-muted-color min-w-7 text-center"
               >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
             >
-            <button :title="t('toolbar.nextOverlay')" :class="btnCls()" @click="goToNext">
+            <button
+              :title="t('toolbar.nextOverlay')"
+              :class="btnCls()"
+              @click="navigateOverlaySequence('next')"
+            >
               <i class="pi pi-chevron-right" />
             </button>
           </template>
@@ -69,10 +77,15 @@
           <!-- Edit-only tools -->
           <template v-if="isEditMode">
             <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-            <button :title="t('toolbar.undo')" :disabled="!canUndo" :class="btnCls()" @click="undo">
+            <button
+              :title="t('toolbar.undo')"
+              :disabled="!canUndo"
+              :class="btnCls()"
+              @click="undo()"
+            >
               <i class="pi pi-undo" />
             </button>
-            <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo">
+            <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo()">
               <i class="pi pi-refresh" />
             </button>
             <button
@@ -131,20 +144,19 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/renderRegistry";
 import {
   getOverlayImageCorners,
   setOverlayImageOpacity,
   setOverlayInFront,
   isOverlayInFront,
   overlayOverlapsProjectShape,
-} from "@/services/overlay/imageLayer";
+  getImageHandle,
+  whenImageReady,
+} from "@/services/overlay/mapLayers";
 import { navigateOverlaySequence, getProjectSiblingOverlayIds } from "@/services/overlay/actions";
 import { selectOverlay } from "@/services/overlay/selection";
-import { undo as undoOverlayEdit, redo as redoOverlayEdit } from "@/services/overlay/editing";
-import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
+import { undo, redo, showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
-import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
@@ -167,7 +179,7 @@ const canStack = ref(false);
 const isCropActive = ref(false);
 
 let anchorMarker: maplibregl.Marker | null = null;
-let retryRafId: number | null = null;
+let cancelImageWait: (() => void) | null = null;
 
 // Top-center of the overlay ([lng, lat]) where the toolbar anchors.
 function getAnchorLngLat(): [number, number] | null {
@@ -185,9 +197,9 @@ function destroyMarker() {
   anchorMarker = null;
   markerIconEl.value = null;
   canStack.value = false;
-  if (retryRafId !== null) {
-    cancelAnimationFrame(retryRafId);
-    retryRafId = null;
+  if (cancelImageWait) {
+    cancelImageWait();
+    cancelImageWait = null;
   }
 }
 
@@ -200,7 +212,6 @@ function refreshCanStack() {
 
 function createMarker(lngLat: [number, number]) {
   const mlMap = map.value;
-  if (!mlMap) return;
   const el = document.createElement("div");
   el.style.zIndex = "620";
   anchorMarker = new maplibregl.Marker({ element: el, anchor: "center" })
@@ -209,57 +220,60 @@ function createMarker(lngLat: [number, number]) {
   markerIconEl.value = el;
 }
 
-// RAF: MapLibre handles pan/zoom automatically. RAF only updates the anchor while the user
-// drags overlay handles (corner changes, no map event fires).
-let rafId: number | null = null;
+// MapLibre repositions the anchor marker on pan/zoom automatically via its transform. A
+// corner/surface drag mutates the overlay source and triggers a repaint, so the anchor follows
+// the overlay by re-projecting on the map's "render" event.
+let anchorSyncActive = false;
 
 let lastOverlapCheckTs = 0;
 
-function startRAF() {
-  if (rafId !== null) return;
-  function tick(ts: number) {
-    if (anchorMarker && selectedId.value) {
-      const lngLat = getAnchorLngLat();
-      if (lngLat) {
-        anchorMarker.setLngLat(lngLat);
-      } else {
-        // Image removed from registry while still selected (e.g. zoom-out unload with
-        // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
-        selectOverlay(null);
-      }
-      // Throttled so a drag onto/off a project shape updates the button without querying every frame.
-      if (ts - lastOverlapCheckTs > 200) {
-        lastOverlapCheckTs = ts;
-        refreshCanStack();
-      }
-    }
-    rafId = requestAnimationFrame(tick);
+function syncAnchor() {
+  if (!anchorMarker || !selectedId.value) return;
+  const lngLat = getAnchorLngLat();
+  if (!lngLat) {
+    // Image removed from registry while still selected (e.g. zoom-out unload with
+    // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
+    selectOverlay(null);
+    return;
   }
-  rafId = requestAnimationFrame(tick);
+  anchorMarker.setLngLat(lngLat);
+  // Throttled so a drag onto/off a project shape updates the button without querying every frame.
+  const now = performance.now();
+  if (now - lastOverlapCheckTs > 200) {
+    lastOverlapCheckTs = now;
+    refreshCanStack();
+  }
 }
 
-function stopRAF() {
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
+function startAnchorSync() {
+  const mlMap = map.value;
+  if (anchorSyncActive) return;
+  mlMap.on("render", syncAnchor);
+  anchorSyncActive = true;
+}
+
+function stopAnchorSync() {
+  if (!anchorSyncActive) return;
+  map.value.off("render", syncAnchor);
+  anchorSyncActive = false;
 }
 
 function initForSelection() {
-  if (!map.value) return;
+  const id = selectedId.value;
+  if (!id) return;
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
     // Image not yet in registry (render loop hasn't created it yet after navigation).
-    // Retry each frame until it appears; destroyMarker() cancels if selection changes.
-    retryRafId = requestAnimationFrame(initForSelection);
+    // Re-run once it comes online; destroyMarker() cancels if selection changes first.
+    cancelImageWait = whenImageReady(id, initForSelection);
     return;
   }
-  retryRafId = null;
+  cancelImageWait = null;
   createMarker(lngLat);
   opacity.value = readOpacity();
   isInFront.value = selectedId.value ? isOverlayInFront(selectedId.value) : false;
   refreshCanStack();
-  startRAF();
+  startAnchorSync();
 }
 
 watch(
@@ -272,7 +286,7 @@ watch(
       }
     }
     destroyMarker();
-    stopRAF();
+    stopAnchorSync();
     // nextTick: let Teleport unmount cleanly from the old marker before we create a new one
     if (id) nextTick(initForSelection);
   },
@@ -302,10 +316,10 @@ watch(isEditMode, (editing) => {
 });
 
 onUnmounted(() => {
-  stopRAF();
+  stopAnchorSync();
   destroyMarker();
   if (isCropActive.value) hideCropHandles();
-  map.value?.off("moveend", refreshCanStack);
+  map.value.off("moveend", refreshCanStack);
 });
 
 function readOpacity(): number {
@@ -361,13 +375,6 @@ function onOpacityInput(e: Event) {
   if (id) setOverlayImageOpacity(id, val / 100);
 }
 
-function goToPrevious() {
-  navigateOverlaySequence("previous");
-}
-function goToNext() {
-  navigateOverlaySequence("next");
-}
-
 function toggleStacking() {
   const id = selectedId.value;
   if (!id) return;
@@ -376,14 +383,6 @@ function toggleStacking() {
   isInFront.value = next;
 }
 
-function undo() {
-  undoOverlayEdit();
-}
-function redo() {
-  redoOverlayEdit();
-}
-
-const projectStore = useProjectStore();
 const { handleDeleteOverlay } = useProjectDeletion();
 
 // Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
@@ -417,10 +416,6 @@ async function confirmCrop() {
   endCrop();
 }
 
-function cancelCrop() {
-  endCrop();
-}
-
 function onReplace() {
   const id = selectedId.value;
   if (!id) return;
@@ -435,12 +430,8 @@ async function onDelete() {
   if (!id) return;
   const overlay = overlayStore.overlays[id];
   if (!overlay) return;
-  const project = overlay.projectId ? (projectStore.projects[overlay.projectId] ?? null) : null;
-  const overlayCount = overlay.projectId
-    ? Object.values(overlayStore.overlays).filter((o) => o.projectId === overlay.projectId).length
-    : 0;
   // Deselection (handles, highlight, docked detail) happens in removeOverlayFromMapAndStore.
-  await handleDeleteOverlay(id, project, overlayCount, overlay.caption ?? null);
+  await handleDeleteOverlay(id, overlay.caption ?? null);
 }
 
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {
@@ -451,10 +442,9 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
   return false;
 }
 
-function btnCls(opts?: { active?: boolean; danger?: boolean }): string {
+function btnCls(opts?: { danger?: boolean }): string {
   const base =
     "min-w-[26px] h-[26px] border-0 rounded-md cursor-pointer flex items-center justify-center text-sm px-1 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-transparent";
-  if (opts?.active) return `${base} bg-indigo-100 text-indigo-600 hover:bg-indigo-100`;
   if (opts?.danger) return `${base} bg-transparent text-red-600 hover:bg-red-100`;
   return `${base} bg-transparent text-muted-color hover:bg-content-hover-background`;
 }

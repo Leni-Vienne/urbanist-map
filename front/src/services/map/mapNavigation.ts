@@ -3,9 +3,6 @@ import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobileViewport } from "@/composables/ui/useIsMobile";
 
-// `map.value` is typed non-null but is null until init (see core/map.ts). Public entry points here
-// guard with `if (!map.value) return`; private helpers run after that guard and assume non-null.
-
 // Skip re-animation when the camera is already within this many meters of the target.
 const distanceThreshold = 10;
 // Looser threshold for bounds, which compare centers rather than corners.
@@ -48,7 +45,9 @@ function toLatLng(p: LatLngInput): { lat: number; lng: number } {
 
 function readLngLat(c: LngLatLike): { lng: number; lat: number } {
   if (Array.isArray(c)) return { lng: c[0], lat: c[1] };
-  return { lng: (c as { lng: number }).lng, lat: (c as { lat: number }).lat };
+  if ("lng" in c && "lat" in c) return { lng: c.lng, lat: c.lat };
+  if ("lon" in c && "lat" in c) return { lng: c.lon, lat: c.lat };
+  return { lng: 0, lat: 0 };
 }
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -71,18 +70,18 @@ function shouldSkipMove(
   zoomDiff: number,
   offset?: [number, number],
 ): boolean {
-  const m = map.value;
+  const mlMap = map.value;
   if (zoomDiff >= 0.1) return false;
 
   if (offset) {
-    const el = m.getContainer();
+    const el = mlMap.getContainer();
     const desiredX = el.clientWidth / 2 + offset[0];
     const desiredY = el.clientHeight / 2 + offset[1];
-    const current = m.project([target.lng, target.lat]);
+    const current = mlMap.project([target.lng, target.lat]);
     return Math.hypot(current.x - desiredX, current.y - desiredY) < screenSkipPx;
   }
 
-  const center = m.getCenter();
+  const center = mlMap.getCenter();
   const distance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   return distance < distanceThreshold;
 }
@@ -194,12 +193,11 @@ export function mobileAwareFlyTo(
   zoom?: number,
   options: FlyOptions = {},
 ): boolean {
-  const m = map.value;
-  if (!m) return false;
+  const mlMap = map.value;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return false;
-  const center = m.getCenter();
-  const currentZoom = m.getZoom();
+  const center = mlMap.getCenter();
+  const currentZoom = mlMap.getZoom();
   const targetZoom = zoom ?? currentZoom;
 
   const zoomDiff = Math.abs(currentZoom - targetZoom);
@@ -208,7 +206,7 @@ export function mobileAwareFlyTo(
   const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
 
-  m.flyTo({
+  mlMap.flyTo({
     center: [target.lng, target.lat],
     zoom: targetZoom,
     duration: duration * 1000,
@@ -225,18 +223,17 @@ export function mobileAwareFlyTo(
  * the zoom-out arc that flyTo produces for same-zoom pans.
  */
 function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
-  const m = map.value;
-  if (!m) return;
+  const mlMap = map.value;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
 
   if (shouldSkipMove(target, 0, options.offset)) return;
 
-  const center = m.getCenter();
+  const center = mlMap.getCenter();
   const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const duration = scaledDuration(centerDistance, 0, options.duration ?? 0.3);
 
-  m.easeTo({
+  mlMap.easeTo({
     center: [target.lng, target.lat],
     duration: duration * 1000,
     padding: resolvePadding(undefined, options.mobileTopInset),
@@ -251,8 +248,7 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
  * animate from; only the zoom needs adjusting and that should not be visible.
  */
 function mobileAwareJumpTo(latlng: LatLngInput, zoom?: number, options: FlyOptions = {}): void {
-  const m = map.value;
-  if (!m) return;
+  const mlMap = map.value;
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
   const resolved = resolvePadding(undefined, options.mobileTopInset);
@@ -260,7 +256,7 @@ function mobileAwareJumpTo(latlng: LatLngInput, zoom?: number, options: FlyOptio
     typeof resolved === "number"
       ? { top: resolved, bottom: resolved, left: resolved, right: resolved }
       : resolved;
-  m.jumpTo({
+  mlMap.jumpTo({
     center: [target.lng, target.lat],
     ...(zoom === undefined ? {} : { zoom }),
     padding,
@@ -269,7 +265,7 @@ function mobileAwareJumpTo(latlng: LatLngInput, zoom?: number, options: FlyOptio
 
 /** Web Mercator latitude -> world-Y fraction in [0, 1]. */
 function mercatorY(lat: number): number {
-  const clamped = Math.max(-85.051_129, Math.min(85.051_129, lat));
+  const clamped = Math.max(-85.051129, Math.min(85.051129, lat));
   const s = Math.sin((clamped * Math.PI) / 180);
   return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
 }
@@ -317,8 +313,7 @@ export function mobileAwareFlyToBounds(
   bounds: BoundsLike,
   options: FlyToBoundsOptions = {},
 ): boolean {
-  const m = map.value;
-  if (!m) return false;
+  const mlMap = map.value;
 
   const west = bounds.getWest();
   const south = bounds.getSouth();
@@ -341,8 +336,8 @@ export function mobileAwareFlyToBounds(
   // compensated remainder; the mercator fallback computes from scratch and uses `padding` as is.
   const fitPadding = compensatePersistedPadding(padding);
 
-  const currentZoom = m.getZoom();
-  const currentCenter = m.getCenter();
+  const currentZoom = mlMap.getZoom();
+  const currentCenter = mlMap.getCenter();
 
   // cameraForBounds throws "Invalid LngLat (NaN, NaN)" for combos it can't fit (tiny far-away
   // bounds, degenerate quads, padding larger than the viewport). On throw/empty, cameraForBoundsOk
@@ -351,7 +346,7 @@ export function mobileAwareFlyToBounds(
   let targetCenter = { lng: currentCenter.lng, lat: currentCenter.lat };
   let cameraForBoundsOk = false;
   try {
-    const cam = m.cameraForBounds(llb, { maxZoom: options.maxZoom, padding: fitPadding });
+    const cam = mlMap.cameraForBounds(llb, { maxZoom: options.maxZoom, padding: fitPadding });
     if (cam) {
       cameraForBoundsOk = true;
       if (typeof cam.zoom === "number" && Number.isFinite(cam.zoom)) targetZoom = cam.zoom;
@@ -386,7 +381,7 @@ export function mobileAwareFlyToBounds(
 
   // fitBounds runs the same projection math as cameraForBounds, so guard it too.
   try {
-    m.fitBounds(llb, {
+    mlMap.fitBounds(llb, {
       maxZoom: options.maxZoom,
       padding: fitPadding,
       duration: duration * 1000,
@@ -427,12 +422,11 @@ export function flyToGeometry(
   sizeM: number,
   options: { fromMapClick?: boolean; instant?: boolean } = {},
 ): boolean {
-  const m = map.value;
-  if (!m) return false;
+  const mlMap = map.value;
   if (options.fromMapClick && !isMobileViewport()) return false;
 
   const target = toLatLng(latlng);
-  const currentZoom = m.getZoom();
+  const currentZoom = mlMap.getZoom();
   const idealZoom = sizeM > 0 ? getZoomForGeometrySize(sizeM, target.lat, target.lng) : 14;
   const targetZoom = Math.max(currentZoom, idealZoom);
 

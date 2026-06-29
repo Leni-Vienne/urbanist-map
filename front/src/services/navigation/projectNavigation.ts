@@ -1,9 +1,8 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { selectOverlay } from "@/services/overlay/selection";
 import { map } from "@/services/core/map";
-import * as registry from "@/services/overlay/renderRegistry";
+import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { requestScrollTo } from "@/services/layout/accordionState";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -29,8 +28,8 @@ export function zoomToOverlayAndSelect(
   try {
     // Calculate ~10% of the screen's shortest dimension for padding, defaulting to at least 80px
     const dynamicPadding =
-      typeof window !== "undefined"
-        ? Math.max(80, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.1))
+      typeof globalThis !== "undefined"
+        ? Math.max(80, Math.floor(Math.min(globalThis.innerWidth, globalThis.innerHeight) * 0.1))
         : 80;
 
     const cam = map.value.cameraForBounds(llb, { padding: dynamicPadding, maxZoom: 18 });
@@ -48,35 +47,25 @@ export function zoomToOverlayAndSelect(
   const center = bounds.getCenter();
   const flightSkipped = !mobileAwareFlyTo(center, targetZoom);
 
-  // Poll per animation frame until the overlay element exists and its image is loaded.
-  let attempts = 0;
-  function waitForElementThenSelect(): void {
-    if (!registry.hasReadyLayer(overlayId)) {
-      attempts++;
-      // Stop polling after ~5 seconds (60fps * 5 = 300 attempts) to avoid infinite loops
-      if (attempts > 300) {
-        console.warn("Overlay did not render in time, aborting auto-select", overlayId);
-        return;
-      }
-      requestAnimationFrame(waitForElementThenSelect);
-      return;
+  // Select once the overlay's image layer comes online (created asynchronously after the camera
+  // settles). Give up after ~5s for overlays that never render.
+  function selectWhenReady(): void {
+    function select(): void {
+      if (autoSelect) selectOverlay(overlayId);
     }
-
-    if (!autoSelect) return;
-
-    selectOverlay(overlayId);
+    function onReadyTimeout(): void {
+      console.warn("Overlay did not render in time, aborting auto-select", overlayId);
+    }
+    registry.whenImageReady(overlayId, select, { timeoutMs: 5000, onTimeout: onReadyTimeout });
   }
 
-  // If flight was skipped (camera already at target), select immediately since
-  // moveend will never fire.
+  // If flight was skipped (camera already at target), wait immediately since moveend never fires.
   if (flightSkipped) {
-    waitForElementThenSelect();
+    selectWhenReady();
     return true;
   }
 
-  void map.value.once("moveend", () => {
-    waitForElementThenSelect();
-  });
+  void map.value.once("moveend", selectWhenReady);
 
   return true;
 }
@@ -95,15 +84,10 @@ function openDetailAfterFlight(flew: boolean, projectId: string): void {
 }
 
 /**
- * Navigate to a standalone project marker by project ID. Flies to the point, then opens the popup.
+ * Navigate to a project by coordinates. Flies to the point, then opens the popup.
  */
-export function navigateToStandaloneProject(lat: number, lng: number, projectId?: string): void {
+export function navigateToProject(lat: number, lng: number, projectId?: string): void {
   try {
-    // Scroll the side panel to this project before the flight completes.
-    if (projectId) {
-      requestScrollTo("project", projectId);
-    }
-
     // Drawer-aware padding centers the feature in the map area above the mobile drawer (desktop
     // centers it in the full viewport).
     const flew = mobileAwareFlyTo([lat, lng], 18);
@@ -118,12 +102,11 @@ export function navigateToStandaloneProject(lat: number, lng: number, projectId?
 }
 
 /**
- * Navigate to a standalone project by fitting its geometry bounds, then selecting it. Use when the
+ * Navigate to a project by fitting its geometry bounds, then selecting it. Use when the
  * project has real geometry bounds rather than a single marker point.
  */
-export function navigateToStandaloneProjectBounds(bounds: LngLatBounds, projectId: string): void {
+export function navigateToProjectBounds(bounds: LngLatBounds, projectId: string): void {
   try {
-    requestScrollTo("project", projectId);
     const flew = mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
     openDetailAfterFlight(flew, projectId);
   } catch (error) {

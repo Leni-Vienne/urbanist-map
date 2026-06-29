@@ -88,8 +88,6 @@ export async function initShapeEditor(
   existingGeometry?: GeoJSON.GeometryCollection,
 ): Promise<void> {
   const mlMap = map.value;
-  if (!mlMap) return;
-
   if (draw) {
     // Double-init guard: clear existing features before re-initializing.
     draw.clear();
@@ -181,13 +179,13 @@ export function deleteSelectedShape(): void {
 export async function destroyShapeEditor(): Promise<void> {
   if (!draw) return;
   selectedShapeId.value = null;
-  map.value?.getCanvasContainer().removeEventListener("contextmenu", handleDrawingRightClick);
+  map.value.getCanvasContainer().removeEventListener("contextmenu", handleDrawingRightClick);
   draw.clear();
   draw.stop();
   draw = null;
   // Terra Draw sets the canvas cursor to crosshair while drawing and does not
   // restore it on stop, so reset it here.
-  const canvas = map.value?.getCanvas();
+  const canvas = map.value.getCanvas();
   if (canvas) canvas.style.cursor = "";
 }
 

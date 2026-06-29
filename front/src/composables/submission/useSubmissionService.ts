@@ -4,13 +4,13 @@ import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
 import { uploadImageFile } from "@/utils/uploadImageFile";
 import { clearStagedRender } from "./stagedRenderStore";
-import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
-import {
-  addStandaloneProjectMarkerForProject,
-  updateStandaloneProjectMarkerColor,
-} from "@/services/map/standaloneProjectMarkers";
-import { updateMarkerTooltip } from "@/services/map/markers";
-import type { Project, OverlayObject, RemovableChange } from "@/types/index";
+import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import type {
+  Project,
+  OverlayObject,
+  RemovableChange,
+  PendingOverlayModification,
+} from "@/types/index";
 import {
   projectSchema,
   overlayClientSchema,
@@ -26,16 +26,8 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
-import {
-  usePendingModificationsStore,
-  type PendingOverlayModification,
-} from "@/stores/pinia/pendingModificationsStore";
-import type {
-  SubmissionChange,
-  SubmissionChangeType,
-  SubmissionContext,
-  SubmissionSummary,
-} from "./submissionTypes";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 
 // Internal single-entity payload used by buildSummary/validate/submitEntity.
 // Each public submission may produce several of these (project metadata + per-overlay updates).
@@ -60,11 +52,6 @@ type EntityUpdate =
       };
       changedFields?: FieldChange[];
     };
-
-interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-}
 
 function normalizeFieldValue(
   field: keyof Project,
@@ -104,7 +91,7 @@ function hasShapes(v: unknown): boolean {
     v !== null &&
     v !== undefined &&
     typeof v === "object" &&
-    (v as GeoJSON.GeometryCollection).geometries?.length > 0
+    (v as GeoJSON.GeometryCollection).geometries.length > 0
   );
 }
 
@@ -179,6 +166,32 @@ function newOverlayContext(
     changeType: "create",
     proposed: { corners: overlayObj.history.at(-1)?.corners ?? overlayObj.corners },
   };
+}
+
+function formatValueForDisplay(value: unknown, fieldName?: string): string {
+  if (value === null || value === undefined || value === "") {
+    return t("overlay.notSet");
+  }
+
+  // Special handling for geometry - show shape count
+  if (fieldName === "geometry" && typeof value === "object") {
+    const count = (value as GeoJSON.GeometryCollection).geometries.length;
+    return t("shapes.geometrySummary", { count });
+  }
+
+  if (value instanceof Date) {
+    return formatDate(value);
+  }
+  if (typeof value === "number") {
+    return value.toFixed(6);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.length} items]`;
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 export function useSubmissionService() {
@@ -260,77 +273,19 @@ export function useSubmissionService() {
     return changes;
   }
 
-  function formatValueForDisplay(value: unknown, fieldName?: string): string {
-    if (value === null || value === undefined || value === "") {
-      return t("overlay.notSet");
-    }
-
-    // Special handling for geometry - show shape count
-    if (fieldName === "geometry" && typeof value === "object") {
-      const count = (value as GeoJSON.GeometryCollection).geometries.length;
-      return t("shapes.geometrySummary", { count });
-    }
-
-    if (value instanceof Date) {
-      return formatDate(value);
-    }
-    if (typeof value === "number") {
-      return value.toFixed(6);
-    }
-    if (Array.isArray(value)) {
-      return `[${value.length} items]`;
-    }
-    if (typeof value === "object") {
-      return JSON.stringify(value);
-    }
-    return String(value);
-  }
-
-  // Build human-readable summary for confirmation dialog
-  function buildSummary(context: EntityUpdate): SubmissionSummary {
+  // Build human-readable formatted changes for confirmation dialog
+  function formatEntityChanges(context: EntityUpdate): SubmissionChange[] {
     const changes =
       context.entityType === "project"
         ? detectProjectChanges(context.entity)
         : (context.changedFields ?? []);
-    const entityName =
-      context.entityType === "project"
-        ? context.entity.name
-        : (context.proposed?.caption ??
-          overlayStore.overlays[context.entityId]?.caption ??
-          t("overlay.untitled"));
 
-    let action = "";
-    let requiresModeration = false;
-
-    switch (context.changeType) {
-      case "create":
-        action = t("submission.createAction");
-        requiresModeration = true;
-        break;
-      case "update_pending":
-        action = t("submission.updatePendingAction");
-        break;
-      case "update_approved":
-        action = t("submission.updateApprovedAction");
-        requiresModeration = true;
-        break;
-    }
-
-    const formattedChanges: SubmissionChange[] = changes.map((change) => ({
+    return changes.map((change) => ({
       field: change.fieldName as RemovableChange, // Safe cast - we control field names in detectChanges
       oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
       newValue: formatValueForDisplay(change.newValue, change.fieldName),
       displayLabel: t(`fields.${change.fieldName}`),
     }));
-
-    return {
-      action,
-      entityName,
-      changes: formattedChanges,
-      requiresModeration,
-      entityType: context.entityType,
-      changeType: context.changeType,
-    };
   }
 
   function validateOverlay(context: Extract<EntityUpdate, { entityType: "overlay" }>): string[] {
@@ -353,24 +308,20 @@ export function useSubmissionService() {
     return result.success ? [] : zodErrorsToMessages(result.error);
   }
 
-  function validate(context: EntityUpdate): ValidationResult {
+  function validate(context: EntityUpdate): string[] {
     const errors =
       context.entityType === "project" ? validateProject(context.entity) : validateOverlay(context);
 
     if (context.changeType !== "create") {
       const changes =
-        context.entityType === "project"
-          ? detectProjectChanges(context.entity)
-          : (context.changedFields ?? []);
+        context.changedFields ??
+        (context.entityType === "project" ? detectProjectChanges(context.entity) : []);
       if (changes.length === 0) {
         errors.push(t("errors.noChangesDetected"));
       }
     }
 
-    return {
-      isValid: errors.length === 0,
-      errors,
-    };
+    return errors;
   }
 
   async function submitProjectChangeRequest(
@@ -403,12 +354,10 @@ export function useSubmissionService() {
     if (!updated) return;
 
     if (changeType === "create") {
-      addStandaloneProjectMarkerForProject(updated);
       projectStore.addProjectToUserContributions(updated);
       return;
     }
 
-    updateStandaloneProjectMarkerColor(project.id, updated);
     if (changeType === "update_pending") {
       projectStore.updateProjectInUserContributions(project.id, {
         name: project.name,
@@ -468,8 +417,6 @@ export function useSubmissionService() {
       }
       overlayStore.updateOverlay(overlayId, updates);
 
-      const liveOverlay = overlayStore.overlays[overlayId];
-      if (liveOverlay) updateMarkerTooltip(liveOverlay);
       resetChangeRequestsLoaded();
       await refreshPendingChangeRequests();
       return;
@@ -508,9 +455,8 @@ export function useSubmissionService() {
   // front, so this never re-validates (re-validating here would double-check every overlay edit).
   async function submitEntity(context: EntityUpdate, customReason?: string): Promise<void> {
     const changes =
-      context.entityType === "project"
-        ? detectProjectChanges(context.entity, customReason)
-        : (context.changedFields ?? []);
+      context.changedFields ??
+      (context.entityType === "project" ? detectProjectChanges(context.entity, customReason) : []);
 
     if (context.entityType === "project") {
       await submitProject(context, changes);
@@ -576,10 +522,6 @@ export function useSubmissionService() {
       overlayStore.updateOverlay(overlayId, { corners: submittedCorners });
       overlayStore.resetHistoryBaseline(overlayId, submittedCorners);
     }
-    const liveOverlay = overlayStore.overlays[overlayId];
-    if (liveOverlay) {
-      updateMarkerTooltip(liveOverlay);
-    }
   }
 
   async function publishNewOverlays(overlayIds: string[], project: Project | null): Promise<void> {
@@ -614,10 +556,6 @@ export function useSubmissionService() {
       { id: created.id, filename, status: created.status, authorId: created.authorId },
       authStore.user?.username ?? null,
     );
-    const updatedProject = projectStore.projects[projectId];
-    if (updatedProject?.overlayIds.length === 0) {
-      updateStandaloneProjectMarkerColor(projectId, updatedProject);
-    }
     clearStagedRender(projectId);
   }
 
@@ -638,6 +576,26 @@ export function useSubmissionService() {
     return [...edits, ...created];
   }
 
+  // Project metadata change and brand-new project are mutually exclusive (status set vs null);
+  // a single context drives both validation and the write. detectProjectChanges runs once here and
+  // is threaded through as changedFields so validate/submitEntity don't recompute it.
+  function buildProjectContext(
+    ctx: SubmissionContext,
+    project: Project | null,
+    newOverlayIds: string[],
+    reason: string,
+  ): Extract<EntityUpdate, { entityType: "project" }> | null {
+    if (!project) return null;
+    const projectChanges = detectProjectChanges(project, reason);
+    if (project.status === null && newOverlayIds.length === 0 && ctx.changeType === "create") {
+      return { ...createProjectContext(project, "create"), changedFields: projectChanges };
+    }
+    if (ctx.projectModified && project.status !== null && projectChanges.length) {
+      return { ...createProjectContext(project), changedFields: projectChanges };
+    }
+    return null;
+  }
+
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
     const project = ctx.projectId ? projectStore.getProjectById(ctx.projectId) : null;
     const newOverlayIds = ctx.newOverlayIds ?? [];
@@ -645,28 +603,13 @@ export function useSubmissionService() {
       (mod) => !newOverlayIds.includes(mod.overlayId),
     );
 
-    // Each project context is built once and reused for both validation and its write below.
-    const projectMetaContext =
-      ctx.projectModified &&
-      project &&
-      project.status !== null &&
-      detectProjectChanges(project).length
-        ? createProjectContext(project)
-        : null;
-    const newProjectContext =
-      project &&
-      project.status === null &&
-      newOverlayIds.length === 0 &&
-      ctx.changeType === "create"
-        ? createProjectContext(project, "create")
-        : null;
+    const projectContext = buildProjectContext(ctx, project, newOverlayIds, reason);
 
     // Validate the whole batch before any write, so a later failure can't leave an earlier
     // change already persisted.
     const contexts = collectOverlayContexts(existingMods, newOverlayIds);
-    if (projectMetaContext) contexts.push(projectMetaContext);
-    if (newProjectContext) contexts.push(newProjectContext);
-    const errors = new Set(contexts.flatMap((context) => validate(context).errors));
+    if (projectContext) contexts.push(projectContext);
+    const errors = new Set(contexts.flatMap((context) => validate(context)));
     // New overlays need their project object loaded so publishOverlay can create/reference it.
     if (newOverlayIds.length > 0 && !project) errors.add(t("overlay.publishErrorNoProject"));
     if (errors.size > 0) throw new Error([...errors].join(", "));
@@ -676,12 +619,8 @@ export function useSubmissionService() {
       await submitOverlayModification(mod.overlayId, mod, reason);
     }
     await publishNewOverlays(newOverlayIds, project);
-    if (projectMetaContext) {
-      await submitEntity(projectMetaContext, reason);
-      projectStore.updateProject(projectMetaContext.entityId, { isModified: false });
-    }
-    if (newProjectContext) {
-      await submitEntity(newProjectContext, reason);
+    if (projectContext) {
+      await submitEntity(projectContext, reason);
     }
     if (ctx.pendingRender && ctx.projectId) {
       await publishStagedRender(ctx.projectId, ctx.pendingRender.file);
@@ -690,7 +629,7 @@ export function useSubmissionService() {
 
   return {
     createProjectContext,
-    buildSummary,
+    formatEntityChanges,
     submitContext,
   };
 }

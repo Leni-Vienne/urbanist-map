@@ -34,8 +34,8 @@
     "@tailwindcss/vite": "^4.3.1",
     "@trpc/client": "^11.18.0",
     "@trpc/server": "^11.18.0",
-    "drizzle-orm": "1.0.0-rc.4-273829f",
-    "google-auth-library": "^10.7.0",
+    "drizzle-orm": "v1.0.0-rc.4",
+    "google-auth-library": "^10.9.0",
     "hono": "^4.12.27",
     "hono-sessions": "^0.8.1",
     "maplibre-gl": "^5.24.0",
@@ -54,7 +54,7 @@
     "uuid": "^14.0.1",
     "vite": "^8.1.0",
     "vite-plugin-qrcode": "^0.4.1",
-    "vue": "^3.5.38",
+    "vue": "^3.5.39",
     "vue-i18n": "^11.4.6",
     "vue-router": "^5.1.0",
     "zod": "^4.4.3",
@@ -67,7 +67,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/uuid": "^11.0.0",
     "@vitejs/plugin-vue": "^6.0.7",
-    "drizzle-kit": "1.0.0-rc.4-273829f",
+    "drizzle-kit": "v1.0.0-rc.4",
     "husky": "^9.1.7",
     "jscpd": "^5.0.11",
     "jsdom": "^29.1.1",
@@ -79,7 +79,7 @@
     "rollup-plugin-visualizer": "^7.0.1",
     "ts-morph": "^28.0.0",
     "unplugin-vue-components": "^32.1.0",
-    "vite-plugin-vue-devtools": "^8.1.3"
+    "vite-plugin-vue-devtools": "^8.1.4"
   },
   "lint-staged": {
     "*": "bunx oxfmt --no-error-on-unmatched-pattern"

@@ -4,6 +4,8 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import type { OverlayObject, Project } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
+import { isValidQuad } from "@/services/overlay/transform";
+import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 
 /**
  * Enrich overlay with project data, falling back to moderation store in moderation mode.
@@ -38,4 +40,26 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
     project: project ?? null,
     isModified: liveOverlay?.isModified ?? savedOverlay.isModified,
   });
+}
+
+// Corners to (re)create and hit-test the overlay IMAGE at, biased toward the remembered/intended
+// position: history > backend corners > live image. In view mode, approved overlays render at
+// their backend corners but keep history, so edit mode can restore in-progress edits.
+// Deliberately the inverse of resolveOverlayMarkerCorners, which places the marker on the LIVE
+// image and so prefers the live position first; both share isValidQuad.
+export function resolveOverlayRenderCorners(overlayObject: OverlayObject) {
+  const mapStore = useMapStore();
+  const ignoreHistory = mapStore.mode === "view" && overlayObject.status === "approved";
+
+  if (!ignoreHistory && overlayObject.history.length > 0) {
+    const lastCorners = overlayObject.history.at(-1)?.corners;
+    if (isValidQuad(lastCorners)) return lastCorners;
+  }
+
+  // Skip all-zero corners, which indicates a freshly created overlay with no position yet
+  const stored = overlayObject.corners;
+  const isUnplaced = stored.every((c) => c.lat === 0 && c.lng === 0);
+  if (!isUnplaced && isValidQuad(stored)) return stored;
+
+  return getOverlayImageCorners(overlayObject.id);
 }

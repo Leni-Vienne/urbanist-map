@@ -20,14 +20,14 @@
           type="button"
           class="appearance-none font-[inherit] border-0 text-left flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded w-full transition-colors duration-150"
           :class="
-            current === option.code
+            mapLabelLanguageRef === option.code
               ? 'bg-primary-50 text-primary-700'
               : 'bg-transparent hover:bg-black/5 dark:hover:bg-white/10'
           "
           @click="selectLanguage(option.code)"
         >
           <span class="text-sm font-medium">{{ option.name }}</span>
-          <i v-if="current === option.code" class="pi pi-check ml-auto text-xs"></i>
+          <i v-if="mapLabelLanguageRef === option.code" class="pi pi-check ml-auto text-xs"></i>
         </button>
       </div>
     </Popover>
@@ -40,14 +40,13 @@ import { useI18n } from "vue-i18n";
 import {
   getBrowserLanguageCode,
   getBrowserLanguageName,
-  getMapLabelLanguage,
+  mapLabelLanguageRef,
   setMapLabelLanguage,
   type MapLabelLanguage,
 } from "@/services/map/mapLabelLanguage";
 
 const { t } = useI18n();
 const mapLanguagePopover = ref();
-const current = ref<MapLabelLanguage>(getMapLabelLanguage());
 
 const options = computed(() => [
   { code: "default" as MapLabelLanguage, name: t("controls.mapLanguageDefault") },
@@ -56,10 +55,10 @@ const options = computed(() => [
 ]);
 
 const currentLabel = computed(() => {
-  if (current.value === "auto") return getBrowserLanguageCode().toUpperCase();
-  if (current.value === "default") return "DEF";
-  if (current.value === "local") return "LOCAL";
-  return current.value.toUpperCase();
+  if (mapLabelLanguageRef.value === "auto") return getBrowserLanguageCode().toUpperCase();
+  if (mapLabelLanguageRef.value === "default") return "DEF";
+  if (mapLabelLanguageRef.value === "local") return "LOCAL";
+  return mapLabelLanguageRef.value.toUpperCase();
 });
 
 function toggleMenu(event: Event): void {
@@ -67,7 +66,6 @@ function toggleMenu(event: Event): void {
 }
 
 function selectLanguage(code: MapLabelLanguage): void {
-  current.value = code;
   setMapLabelLanguage(code);
   mapLanguagePopover.value.hide();
 }

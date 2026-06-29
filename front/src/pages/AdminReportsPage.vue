@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="p-8 max-w-350 mx-auto h-full overflow-y-auto">
     <div class="flex items-center gap-4 mb-8">
       <h1 class="m-0 text-3xl font-semibold">
@@ -10,12 +10,19 @@
         severity="warning"
       />
       <Button
+        :label="t('admin.detached.title')"
+        icon="pi pi-link"
+        severity="secondary"
+        size="small"
+        class="ml-auto"
+        @click="$router.push('/admin/detached')"
+      />
+      <Button
         :label="t('admin.pruneImages.button')"
         icon="pi pi-trash"
         severity="secondary"
         size="small"
         :loading="isPruning"
-        class="ml-auto"
         @click="handlePruneImages"
       />
     </div>
@@ -241,7 +248,7 @@ async function handlePruneImages() {
     toast.add({
       severity: "error",
       summary: t("admin.pruneImages.failed"),
-      detail: t("admin.pruneImages.failedDetail"),
+      detail: error instanceof Error ? error.message : t("admin.pruneImages.failedDetail"),
       life: 3000,
     });
   } finally {
@@ -250,14 +257,15 @@ async function handlePruneImages() {
 }
 
 async function loadReportedUsers() {
+  isLoading.value = true;
   try {
-    isLoading.value = true;
     reportedUsers.value = await trpc.moderation.getReportedUsers.query();
   } catch (error) {
     console.error("Error loading reported users:", error);
     toast.add({
       severity: "error",
       summary: t("admin.reports.messages.loadError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {
@@ -282,6 +290,7 @@ async function clearReports(user: ReportedUser) {
     toast.add({
       severity: "error",
       summary: t("admin.reports.messages.clearError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   }
@@ -304,8 +313,8 @@ function closeBanDialog() {
 async function confirmBan() {
   if (!selectedUser.value || !banReason.value.trim()) return;
 
+  isBanning.value = true;
   try {
-    isBanning.value = true;
     await trpc.moderation.banUser.mutate({
       userId: selectedUser.value.userId,
       reason: banReason.value.trim(),
@@ -328,6 +337,7 @@ async function confirmBan() {
     toast.add({
       severity: "error",
       summary: t("admin.reports.messages.banError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {

@@ -47,20 +47,3 @@ export function getTimelineStatusColor(
       return "yellow";
   }
 }
-
-export function getProjectMarkerColor(
-  project: { status: ApprovalStatus | null; isModified?: boolean; timelineStatus: TimelineStatus },
-  mode: "view" | "edit" | "moderation",
-): MarkerColor {
-  if (mode === "moderation" || mode === "edit") {
-    return getApprovalStatusColor(project.status, mode, {
-      isModified: project.isModified ?? false,
-    });
-  }
-
-  if (project.status === "pending") {
-    return "yellow";
-  }
-
-  return getTimelineStatusColor(project.timelineStatus);
-}

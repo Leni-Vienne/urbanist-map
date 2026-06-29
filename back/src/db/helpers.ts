@@ -1,4 +1,4 @@
-import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
+import { sql, eq, and, inArray, getTableColumns, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { db, type Database } from "../database";
 import {
@@ -537,7 +537,7 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
         WHERE path[2] <= 4
       )`,
       project: {
-        ...projects,
+        ...getTableColumns(projects),
         geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
       },
       importSource: importSources,

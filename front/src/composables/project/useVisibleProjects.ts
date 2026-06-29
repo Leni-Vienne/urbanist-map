@@ -1,11 +1,11 @@
 import { ref, computed, watch, onUnmounted, onActivated, onDeactivated } from "vue";
 import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/selection";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
 import { setExternalHover } from "@/services/map/vectorHoverState";
-import { map, getMlMap, onMlMapReady } from "@/services/core/map";
+import { map, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { VECTOR_QUERY_LAYERS } from "@/services/map/projectVectorLayersDispatch";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/projectQueryLayers";
 import { useUiStore } from "@/stores/uiStore";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/map/filters";
@@ -232,9 +232,7 @@ function getGeomBbox(
  * closest to the center of the screen (midLat) to prevent the card from appearing visually detached.
  */
 function showHoverCardForProject(project: VisibleProject): void {
-  const mlMap = getMlMap();
-  if (!mlMap) return;
-
+  const mlMap = map.value;
   const rect = mlMap.getContainer().getBoundingClientRect();
   const INSET = 100;
 
@@ -290,19 +288,22 @@ export function useVisibleProjects() {
     });
 
     function compareBySortMode(a: VisibleProject, b: VisibleProject): number {
-      let result = 0;
       if (sortMode.value === "recent") {
-        result = b.lastModifiedS - a.lastModifiedS;
-      } else if (sortMode.value === "name") {
+        const result = b.lastModifiedS - a.lastModifiedS;
+        return sortReverse.value ? -result : result;
+      }
+      if (sortMode.value === "name") {
         // When sorting by name, put unnamed projects at the bottom
         if (a.name && !b.name) return sortReverse.value ? 1 : -1;
         if (!a.name && b.name) return sortReverse.value ? -1 : 1;
-        result = (a.name ?? "").localeCompare(b.name ?? "");
-      } else if (sortMode.value === "size") {
-        result = b.sizeM - a.sizeM;
-      } else if (sortMode.value === "status") {
-        result = (STATUS_RANK[a.timelineStatus] ?? 99) - (STATUS_RANK[b.timelineStatus] ?? 99);
+        const result = (a.name ?? "").localeCompare(b.name ?? "");
+        return sortReverse.value ? -result : result;
       }
+      if (sortMode.value === "size") {
+        const result = b.sizeM - a.sizeM;
+        return sortReverse.value ? -result : result;
+      }
+      const result = (STATUS_RANK[a.timelineStatus] ?? 99) - (STATUS_RANK[b.timelineStatus] ?? 99);
       return sortReverse.value ? -result : result;
     }
     return filtered.toSorted(compareBySortMode);
@@ -312,6 +313,9 @@ export function useVisibleProjects() {
   let mapMoving = false;
 
   let isActive = true;
+  // Set on unmount so a one-shot `render` listener that fires after teardown no-ops
+  // instead of refreshing a dead instance.
+  let destroyed = false;
 
   onActivated(() => {
     isActive = true;
@@ -323,11 +327,11 @@ export function useVisibleProjects() {
   });
 
   function doRefresh() {
-    const mlMap = getMlMap();
+    const mlMap = map.value;
     // Skip if the map is still animating, or if tiles for the current viewport
     // haven't finished loading yet (e.g. mid-zoom). The idle/sourcedata handlers
     // will re-trigger once everything is ready.
-    if (!isActive || !mlMap || mapMoving || !mlMap.areTilesLoaded()) return;
+    if (!isActive || mapMoving || !mlMap.areTilesLoaded()) return;
 
     const canvas = mlMap.getCanvas();
     const dpr = window.devicePixelRatio || 1;
@@ -341,38 +345,31 @@ export function useVisibleProjects() {
     ];
     const features = mlMap.queryRenderedFeatures(bbox, { layers: [...QUERY_LAYERS] });
 
-    const center = map.value.getCenter();
+    const center = mlMap.getCenter();
     const newProjects = accumulateFeatures(features, center.lat, center.lng);
     if (projectsChanged(rawProjects.value, newProjects)) rawProjects.value = newProjects;
   }
 
   // pendingQuery: a one-shot `render` listener has been registered and will call doRefresh()
-  // after the very next paint frame. Using `render` (not a timer) guarantees that
+  // after the very next paint frame. Using `render` guarantees that
   // queryRenderedFeatures sees a fully-painted frame with all loaded tile data.
   let pendingQuery = false;
 
-  function scheduleRefreshAfterRender() {
-    const mlMap = getMlMap();
-    if (!mlMap || pendingQuery) return;
+  function scheduleRefresh() {
+    if (!isActive) return;
+    const mlMap = map.value;
+    if (pendingQuery) return;
+
     pendingQuery = true;
     void mlMap.once("render", () => {
       pendingQuery = false;
+      if (destroyed) return;
       doRefresh();
     });
-  }
 
-  // Fallback for cases where the mlMap stops firing `render` altogether (e.g. nothing
-  // visually changed after the triggering event). Bypasses the render-frame wait and
-  // queries directly. mapMoving is rechecked inside doRefresh so this is safe.
-  let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
-  function scheduleRefresh() {
-    if (!isActive) return;
-    scheduleRefreshAfterRender();
-    if (fallbackTimer) clearTimeout(fallbackTimer);
-    fallbackTimer = setTimeout(() => {
-      pendingQuery = false;
-      doRefresh();
-    }, 500);
+    // Force a render frame so our listener above is guaranteed to fire,
+    // even if there were no visual changes on the map.
+    mlMap.triggerRepaint();
   }
 
   let idleHandler: (() => void) | null = null;
@@ -383,9 +380,7 @@ export function useVisibleProjects() {
 
   onMlMapReady(() => {
     isReady.value = true;
-    const mlMap = getMlMap();
-    if (!mlMap) return;
-
+    const mlMap = map.value;
     // Skip refreshes mid-move; refresh once the camera settles.
     moveStartHandler = () => {
       mapMoving = true;
@@ -421,11 +416,11 @@ export function useVisibleProjects() {
   });
 
   onUnmounted(() => {
-    if (fallbackTimer) clearTimeout(fallbackTimer);
+    destroyed = true;
     if (sourcedataTimer) clearTimeout(sourcedataTimer);
     pendingQuery = false;
     mapMoving = false;
-    const mlMap = getMlMap();
+    const mlMap = map.value;
     if (mlMap) {
       if (moveStartHandler) mlMap.off("movestart", moveStartHandler);
       if (moveEndHandler) mlMap.off("moveend", moveEndHandler);

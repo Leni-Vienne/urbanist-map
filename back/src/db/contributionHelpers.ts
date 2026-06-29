@@ -46,30 +46,30 @@ export async function checkPendingLimitForNewContribution(
 ): Promise<void> {
   // If entity ID exists, check if it's a new contribution
   if (entityId) {
-    // Check if overlay or project already exists
-    const [existingOverlay] = await db
-      .select({ id: overlays.id, status: overlays.status })
-      .from(overlays)
-      .where(eq(overlays.id, entityId))
-      .limit(1);
+    try {
+      // Check if overlay or project already exists
+      const [existingOverlay] = await db
+        .select({ id: overlays.id, status: overlays.status })
+        .from(overlays)
+        .where(eq(overlays.id, entityId))
+        .limit(1);
 
-    const [existingProject] = await db
-      .select({ id: projects.id, status: projects.status })
-      .from(projects)
-      .where(eq(projects.id, entityId))
-      .limit(1);
+      const [existingProject] = await db
+        .select({ id: projects.id, status: projects.status })
+        .from(projects)
+        .where(eq(projects.id, entityId))
+        .limit(1);
 
-    const existingEntity = existingOverlay ?? existingProject;
+      const existingEntity = existingOverlay ?? existingProject;
 
-    // If entity exists, check its status
-    if (existingEntity) {
-      // If it's already pending, this is just an edit to a pending item
-      // We don't count it as a "new" pending contribution since it's already counted
-      if (existingEntity.status === "pending") {
+      // An already-pending item is just an edit, already counted, so it skips the limit check.
+      // A non-pending item (rejected/approved) becomes pending again, so it must be checked.
+      if (existingEntity?.status === "pending") {
         return;
       }
-      // If it's NOT pending (e.g. rejected or approved), and we're submitting it
-      // It will become 'pending' again, so we must check the limit
+    } catch (error) {
+      console.error("Failed to look up existing contribution status:", error);
+      // Fall through to the pending-limit check rather than blocking on a lookup error.
     }
   }
 
@@ -84,18 +84,32 @@ export async function checkPendingLimitForNewContribution(
 }
 
 export async function checkTotalContributionLimit(userId: string): Promise<void> {
-  // Count all contributions (approved + pending)
-  const [userProjects] = await db
-    .select({ count: sql<number>`cast(count(*) as integer)` })
-    .from(projects)
-    .where(and(eq(projects.ownerId, userId), inArray(projects.status, ["approved", "pending"])));
+  const total = await (async () => {
+    try {
+      // Count all contributions (approved + pending)
+      const [userProjects] = await db
+        .select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(projects)
+        .where(
+          and(eq(projects.ownerId, userId), inArray(projects.status, ["approved", "pending"])),
+        );
 
-  const [userOverlays] = await db
-    .select({ count: sql<number>`cast(count(*) as integer)` })
-    .from(overlays)
-    .where(and(eq(overlays.authorId, userId), inArray(overlays.status, ["approved", "pending"])));
+      const [userOverlays] = await db
+        .select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(overlays)
+        .where(
+          and(eq(overlays.authorId, userId), inArray(overlays.status, ["approved", "pending"])),
+        );
 
-  const total = (userProjects?.count ?? 0) + (userOverlays?.count ?? 0);
+      return (userProjects?.count ?? 0) + (userOverlays?.count ?? 0);
+    } catch (error) {
+      console.error("Failed to count total contributions:", error);
+      // Fail open: a count error should not block an otherwise valid submission.
+      return null;
+    }
+  })();
+
+  if (total === null) return;
 
   if (total >= MAX_TOTAL_CONTRIBUTIONS) {
     throw new TRPCError({

@@ -1,14 +1,5 @@
 import type { Marker as MaplibreMarker } from "maplibre-gl";
-import { watchEffect } from "vue";
-import type { MarkerColor, OverlayObject, OverlayData } from "@/types/index";
-import type { AppMode } from "@shared/types";
-import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
-import { getMarker } from "@/services/overlay/renderRegistry";
-import { getOverlayImageCorners } from "@/services/overlay/imageLayer";
-import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { t } from "@/locales";
+import type { MarkerColor } from "@/types/index";
 
 const markerSize = 25;
 const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
@@ -70,8 +61,8 @@ function createOverlayMarkerSVG(color: MarkerColor): string {
   });
 }
 
-// Simple standalone project marker - standard look for projects without overlays
-function createStandaloneProjectMarkerSVG(color: MarkerColor): string {
+// Project pin marker - standard look for projects without overlays
+function createProjectPinSVG(color: MarkerColor): string {
   return buildMarkerSVG(color, {
     width: markerSize,
     height: markerHeight,
@@ -101,185 +92,19 @@ export function updateOverlayMarkerColor(marker: MaplibreMarker, color: MarkerCo
   el.dataset.cmorgColor = color;
 }
 
-// Standalone project pin as a DOM element for maplibregl.Marker (anchor 'bottom' = pin tip).
-export function createStandaloneProjectMarkerElement(color: MarkerColor): HTMLElement {
+// Project pin marker as a DOM element for maplibregl.Marker (anchor 'bottom' = pin tip).
+export function createProjectPinElement(color: MarkerColor): HTMLElement {
   const el = document.createElement("div");
-  el.className = "custom-svg-marker standalone-marker";
+  el.className = "custom-svg-marker project-pin-marker";
   el.style.width = `${markerSize}px`;
   el.style.height = `${markerHeight}px`;
   el.style.cursor = "pointer";
-  el.innerHTML = createStandaloneProjectMarkerSVG(color);
+  el.innerHTML = createProjectPinSVG(color);
   el.dataset.cmorgColor = color;
   return el;
 }
 
-// Re-render a standalone marker element in a new color, skipping no-op updates.
-export function updateStandaloneMarkerColor(marker: MaplibreMarker, color: MarkerColor): void {
-  const el = marker.getElement();
-  if (el.dataset.cmorgColor === color) return;
-  el.innerHTML = createStandaloneProjectMarkerSVG(color);
-  el.dataset.cmorgColor = color;
-}
-
 // Get raw marker SVG string for cursor display
 export function getMarkerSvg(color: MarkerColor): string {
-  return createStandaloneProjectMarkerSVG(color);
-}
-
-/**
- * Update marker color + tooltip based on overlay storage status
- * @param overlayObject - The overlay object to update
- * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
- */
-export function updateMarkerTooltip(
-  overlayObject: OverlayObject,
-  cachedMarkerColor?: MarkerColor,
-): void {
-  const mapStore = useMapStore();
-  const marker = getMarker(overlayObject.id);
-
-  if (!marker) return;
-
-  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, mapStore.mode);
-  updateOverlayMarkerColor(marker, markerColor);
-
-  const element = marker.getElement();
-
-  // View mode shows no tooltip; edit & moderation modes do.
-  if (mapStore.mode === "view") {
-    element.removeAttribute("title");
-    return;
-  }
-
-  function getTooltipTextForOverlay(): string {
-    const hasBeenModified = overlayObject.isModified;
-    const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
-    const isReplacement = overlayObject.replacesOverlayId !== null;
-    const isApproved = overlayObject.status === "approved";
-    const isPending = overlayObject.status === "pending";
-    const isRejected = overlayObject.status === "rejected";
-    const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
-
-    // eslint-disable-next-line init-declarations
-    let statusText: string;
-    let modifierText = "";
-
-    if (isReplacement && !isApproved) {
-      statusText = t("markerTooltip.status.replacementOverlay");
-    } else if (isPending) {
-      statusText = t("markerTooltip.status.pendingApproval");
-      if (hasBeenModified) {
-        modifierText = t("markerTooltip.modifiers.modified");
-      }
-    } else if (isApproved) {
-      statusText = t("common.approved");
-      if (hasPendingChanges && isViewingApprovedPosition === false) {
-        modifierText = t("markerTooltip.modifiers.viewingSuggested");
-      } else if (hasPendingChanges && isViewingApprovedPosition !== false) {
-        modifierText = t("markerTooltip.modifiers.hasPendingChanges");
-      } else if (hasBeenModified) {
-        modifierText = t("markerTooltip.modifiers.modified");
-      }
-    } else if (isRejected) {
-      statusText = t("markerTooltip.status.rejected");
-    } else if (hasBeenModified) {
-      statusText = t("markerTooltip.status.localOverlay");
-    } else {
-      statusText = t("markerTooltip.status.newOverlay");
-    }
-
-    return modifierText ? `${statusText} (${modifierText})` : statusText;
-  }
-
-  element.title = getTooltipTextForOverlay();
-}
-
-/**
- * Update the marker position based on the overlay's current center
- */
-export function updateMarkerPosition(overlayObject: OverlayObject): void {
-  const marker = getMarker(overlayObject.id);
-  if (!marker) return;
-
-  // Centroid from the live image corners so the pin tracks the overlay during edits.
-  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.corners;
-  if (corners.length === 4) {
-    const centroid = calculateCentroidFromCorners(corners);
-    if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);
-  }
-}
-
-export function getOverlayMarkerColor(
-  overlayData: OverlayObject | OverlayData,
-  mode: AppMode,
-): MarkerColor {
-  // Extract overlay-specific properties (not present on all overlay types)
-  const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
-  const hasPendingChanges =
-    "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
-  const isViewingApprovedPosition =
-    "isViewingApprovedPosition" in overlayData ? overlayData.isViewingApprovedPosition : undefined;
-  const isTooBig = "isTooBig" in overlayData && overlayData.isTooBig === true;
-  const isReplacement = Boolean(overlayData.replacesOverlayId);
-  const status = overlayData.status;
-
-  // Size validation error: checkOverlaySizeAndWarn only runs on edit events, so isTooBig===true
-  // already implies the user resized the overlay (no need to also check hasBeenModified).
-  if (mode === "edit" && isTooBig) return "red";
-
-  // Local replacement overlay (before submission)
-  if (isReplacement && hasBeenModified && status !== "approved") return "purple";
-
-  // Viewing suggested (pending) position - show yellow only when explicitly toggled
-  if (hasPendingChanges && isViewingApprovedPosition === false) {
-    return "yellow";
-  }
-
-  // Approved overlay with pending changes, viewing approved position (default or explicit)
-  if (hasPendingChanges && status === "approved") {
-    return "green";
-  }
-
-  if (mode === "moderation" || mode === "edit") {
-    return getApprovalStatusColor(status, mode, {
-      isModified: hasBeenModified,
-      isReplacement,
-    });
-  }
-
-  // View mode: color by the project's timeline status
-  const project = overlayData.project;
-  if (!project) return "grey";
-
-  return getTimelineStatusColor(project.timelineStatus);
-}
-
-/**
- * Set up a single watchEffect that keeps every overlay marker's color in sync with its
- * Pinia state (status, isModified, hasPendingChanges, isViewingApprovedPosition, project,
- * isTooBig, replacesOverlayId) and the current map mode. Replaces the imperative
- * updateOverlayMarkersColors call sites; data mutations that go through overlayStore /
- * batchUpdateOverlays / updateOverlay trigger this automatically.
- *
- * Initial color is set by createOverlayMarker / createMarker on creation; this effect
- * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
- * no-op setIcon calls.
- */
-let markerColorTriggersInitialized = false;
-
-export function initializeMarkerColorTriggers(): void {
-  if (markerColorTriggersInitialized) return;
-  markerColorTriggersInitialized = true;
-
-  const mapStore = useMapStore();
-  const overlayStore = useOverlayStore();
-
-  watchEffect(() => {
-    const mode = mapStore.mode;
-    for (const overlayObject of Object.values(overlayStore.overlays)) {
-      const marker = getMarker(overlayObject.id);
-      if (!marker) continue;
-      updateOverlayMarkerColor(marker, getOverlayMarkerColor(overlayObject, mode));
-    }
-  });
+  return createProjectPinSVG(color);
 }

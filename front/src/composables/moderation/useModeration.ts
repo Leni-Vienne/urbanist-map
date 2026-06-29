@@ -1,21 +1,14 @@
 import { computed, onMounted } from "vue";
 import { trpc } from "@/client";
-import { withErrorHandling } from "@/services/core/errorHandling";
+import { loadOrNull } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { updateMarkerTooltip } from "@/services/map/markers";
 import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
-import {
-  getStandaloneProjectMarkerByProjectId,
-  updateStandaloneProjectMarkerTooltip,
-  updateStandaloneProjectMarkerColor,
-} from "@/services/map/standaloneProjectMarkers";
 import { t } from "@/locales";
 import type { ProjectForModeration } from "@/types/index";
-import { createProjectObject } from "@/utils/typeFactories";
 
 // Result type for approval operations
 type ApprovalResult = {
@@ -104,7 +97,7 @@ export function useModeration() {
         ? `moderation.${itemType}ApprovalFailed`
         : `moderation.${itemType}RejectionFailed`;
 
-    const result = await withErrorHandling(
+    const result = await loadOrNull(
       async () =>
         apiCall({
           id,
@@ -170,7 +163,6 @@ export function useModeration() {
       if (overlayObject) {
         // updateOverlay mutates the Pinia proxy, picked up by initializeMarkerColorTriggers.
         overlayStore.updateOverlay(id, { status });
-        updateMarkerTooltip(overlayObject);
       }
 
       // If a replacement overlay was approved, remove the original and any competing replacements
@@ -207,8 +199,6 @@ export function useModeration() {
     rejectionReason?: string,
     rejectAllOverlays?: boolean,
   ): Promise<ApprovalResult> {
-    const projectBeforeApproval = projects.value.find((p) => p.id === id);
-
     const result = await setApprovalStatus(
       id,
       status,
@@ -219,16 +209,6 @@ export function useModeration() {
       rejectionReason,
       rejectAllOverlays,
     );
-
-    if (result.success && projectBeforeApproval) {
-      const projectWithNewStatus = createProjectObject({ ...projectBeforeApproval, status });
-      updateStandaloneProjectMarkerColor(id, projectWithNewStatus);
-
-      const marker = getStandaloneProjectMarkerByProjectId(id);
-      if (marker) {
-        updateStandaloneProjectMarkerTooltip(marker, projectWithNewStatus, mapStore.mode);
-      }
-    }
 
     return result;
   }

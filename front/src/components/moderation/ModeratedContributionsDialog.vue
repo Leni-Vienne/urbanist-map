@@ -39,7 +39,7 @@
           <img
             v-if="item.type === 'overlay' && item.filename"
             :src="buildThumbnailUrl(item.filename, item.status === 'pending')"
-            :alt="item.caption || 'Overlay'"
+            :alt="item.caption || $t('overlay.imageAlt')"
             class="w-full h-full object-cover"
             @error="handleImageError"
           />
@@ -131,13 +131,11 @@ interface Props {
   visible: boolean;
 }
 
-type Emits = {
-  (e: "update:visible", value: boolean): void;
-  (e: "close"): void;
-};
-
 const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{
+  "update:visible": [value: boolean];
+  close: [];
+}>();
 const { t } = useI18n();
 const toast = useToast();
 

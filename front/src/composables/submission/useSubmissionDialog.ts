@@ -8,10 +8,7 @@ import { getStagedRender, clearStagedRender, type StagedRender } from "./stagedR
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import {
-  usePendingModificationsStore,
-  type PendingOverlayModification,
-} from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionService } from "./useSubmissionService";
 import type {
@@ -25,6 +22,7 @@ import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
 import { revertOverlayFieldModification } from "@/services/overlay/sync";
 import type {
+  PendingOverlayModification,
   OverlayObject,
   Project,
   ProjectForModeration,
@@ -316,7 +314,7 @@ export function useSubmissionDialog() {
     const fullProject = projectStore.projects[projectId];
     if (!fullProject) return [];
     const projectContext = submissionService.createProjectContext(fullProject);
-    return submissionService.buildSummary(projectContext).changes;
+    return submissionService.formatEntityChanges(projectContext);
   }
 
   // Single entry point for every submission. Gathers the project's staged overlay mods, new
@@ -451,7 +449,7 @@ export function useSubmissionDialog() {
   function handleRemoveProjectChange(field: string): void {
     const projectId = pendingSubmissionContext.value?.projectId;
     if (projectId) {
-      projectStore.resetProjectField(projectId, field);
+      projectStore.resetProjectField(projectId, field as keyof Project);
     }
 
     // Close project edit form to force fresh data on reopen

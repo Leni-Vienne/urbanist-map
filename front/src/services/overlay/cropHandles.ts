@@ -1,10 +1,13 @@
 import maplibregl from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { getImageHandle } from "@/services/overlay/renderRegistry";
+import {
+  getImageHandle,
+  getCurrentTransform,
+  replaceOverlayImageSource,
+} from "@/services/overlay/mapLayers";
 import { transformToCorners, type OverlayTransform } from "@/services/overlay/transform";
-import { getCurrentTransform, replaceOverlayImageSource } from "@/services/overlay/imageLayer";
 import { saveToHistory } from "@/services/overlay/history";
-import { updateMarkerPosition } from "@/services/map/markers";
+import { updateMarkerPosition } from "@/services/overlay/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
@@ -131,8 +134,6 @@ function syncCrop(): void {
   if (!session) return;
   const mlMap = map.value;
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!mlMap) return;
-
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const visible = mlMap.getZoom() >= threshold;
   session.svgContainer.style.display = visible ? "block" : "none";
@@ -192,7 +193,7 @@ function wireHandle(edge: Edge): void {
 export function showCropHandles(overlayObject: OverlayObject): void {
   const mlMap = map.value;
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!mlMap || !getImageHandle(overlayObject.id)) return;
+  if (!getImageHandle(overlayObject.id)) return;
 
   hideCropHandles();
 
@@ -269,7 +270,6 @@ export function hideCropHandles(): void {
   for (const edge of EDGES) s.handles[edge].remove();
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!mlMap) return;
   mlMap.off("render", s.onRender);
   if (s.svgContainer.parentNode) s.svgContainer.parentNode.removeChild(s.svgContainer);
 }

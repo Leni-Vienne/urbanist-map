@@ -4,12 +4,8 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { clearEntry as clearRegistryEntry } from "@/services/overlay/renderRegistry";
+import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
-import {
-  getStandaloneProjectMarkerByProjectId,
-  addStandaloneProjectMarkerForProject,
-} from "@/services/map/standaloneProjectMarkers";
 import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
@@ -32,16 +28,13 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
 
   clearRegistryEntry(overlayId);
 
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
   delete overlayStore.overlays[overlayId];
 
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
 
   // Prevents stale entries in the submission dialog
   usePendingModificationsStore().clearModification(overlayId);
-}
-
-function removeProjectMarkerFromMap(projectId: string) {
-  getStandaloneProjectMarkerByProjectId(projectId)?.remove();
 }
 
 function removeOverlay(
@@ -61,18 +54,6 @@ function removeOverlay(
   if (projectWithOverlay) {
     const updatedOverlayIds = projectWithOverlay.overlayIds.filter((id) => id !== overlayId);
     projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds });
-
-    const isLastOverlay = updatedOverlayIds.length === 0;
-    if (
-      isLastOverlay &&
-      typeof projectWithOverlay.lat === "number" &&
-      typeof projectWithOverlay.lng === "number"
-    ) {
-      // Small delay ensures map is ready after removal animations
-      setTimeout(() => {
-        addStandaloneProjectMarkerForProject(projectWithOverlay);
-      }, 150);
-    }
   }
 
   removeOverlayFromMapAndStore(overlayId);
@@ -92,11 +73,6 @@ export function removeProject(
 
   const project = projectStore.projects[projectId];
 
-  const hasNoOverlays = !project?.overlayIds || project.overlayIds.length === 0;
-  if (hasNoOverlays) {
-    removeProjectMarkerFromMap(projectId);
-  }
-
   if (project?.overlayIds) {
     for (const overlayId of project.overlayIds) {
       removeOverlayFromMapAndStore(overlayId);
@@ -104,6 +80,7 @@ export function removeProject(
   }
 
   if (projectStore.projects[projectId]) {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete projectStore.projects[projectId];
   }
 

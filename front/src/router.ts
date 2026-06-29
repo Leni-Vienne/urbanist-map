@@ -48,6 +48,12 @@ const routes = [
     component: async () => import("@/pages/AdminUserContributionsPage.vue"),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  {
+    path: "/admin/detached",
+    name: "AdminDetachedProjects",
+    component: async () => import("@/pages/AdminDetachedProjectsPage.vue"),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
   // Catch-all route, redirect unknown paths to home
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];

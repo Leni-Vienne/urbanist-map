@@ -1,7 +1,6 @@
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import * as registry from "@/services/overlay/renderRegistry";
+import * as registry from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
-import { clearAllStandaloneProjectMarkers } from "@/services/map/standaloneProjectMarkers";
 
 /**
  * Clear all overlays from the map and reset collections.
@@ -37,9 +36,8 @@ export function clearOverlayRenderState(): void {
   registry.clearAll(false);
 }
 
-// Wipe overlays, view-mode cache, and standalone markers. Used to enter a focused single-submission preview.
+// Wipe overlays and view-mode cache. Used to enter a focused single-submission preview.
 export function clearAllMapContent(): void {
   clearAllOverlays();
   useOverlayStore().clearViewModeOverlays();
-  clearAllStandaloneProjectMarkers();
 }

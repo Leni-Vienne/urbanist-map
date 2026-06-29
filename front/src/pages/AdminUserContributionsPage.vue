@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="p-8 max-w-300 mx-auto h-full overflow-y-auto">
     <div class="flex items-center gap-4 mb-8">
       <Button
@@ -29,7 +29,9 @@
         class="flex items-center gap-8 p-6 bg-content-hover-background rounded-lg mb-8 flex-wrap"
       >
         <div class="flex items-center gap-4">
-          <i class="pi pi-user text-[2rem] p-4 rounded-full text-primary-600 bg-primary-100"></i>
+          <i
+            class="pi pi-user text-[2rem] p-4 rounded-full text-primary-color bg-[color-mix(in_srgb,var(--p-primary-color)_12%,transparent)]"
+          ></i>
           <div class="flex flex-col">
             <span class="text-xl font-semibold">{{ data.user.username ?? data.user.email }}</span>
             <span class="text-muted-color text-sm">{{ data.user.email }}</span>
@@ -112,7 +114,7 @@
                   >
                     <img
                       :src="getThumbnailUrl(overlay.filename)"
-                      :alt="overlay.caption ?? 'Overlay'"
+                      :alt="overlay.caption ?? t('overlay.imageAlt')"
                       class="w-full aspect-square object-cover"
                     />
                     <div class="p-2 flex flex-col gap-1">
@@ -243,15 +245,21 @@ const deleteDialogMessage = computed(() => {
 });
 
 async function loadUserContributions() {
+  isLoading.value = true;
+  errorRef.value = false;
   try {
-    isLoading.value = true;
-    errorRef.value = false;
     data.value = await trpc.admin.adminGetUserContributions.query({
       userId,
     });
   } catch (error) {
     console.error("Error loading user contributions:", error);
     errorRef.value = true;
+    toast.add({
+      severity: "error",
+      summary: t("admin.userContributions.messages.loadError"),
+      detail: error instanceof Error ? error.message : undefined,
+      life: 5000,
+    });
   } finally {
     isLoading.value = false;
   }
@@ -260,8 +268,8 @@ async function loadUserContributions() {
 async function loadCountryDetails(countryCode: string | null) {
   if (!countryCode || countryDetails[countryCode]) return;
 
+  loadingCountry.value = countryCode;
   try {
-    loadingCountry.value = countryCode;
     const result = await trpc.admin.adminGetUserContributions.query({
       userId,
       countryCode,
@@ -274,6 +282,7 @@ async function loadCountryDetails(countryCode: string | null) {
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.loadError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {
@@ -320,8 +329,8 @@ async function adminDeleteProject() {
 
   const projectId = projectToDelete.value.id;
 
+  isDeleting.value = true;
   try {
-    isDeleting.value = true;
     await trpc.admin.deleteProject.mutate({
       projectId,
       reason: deleteReason.value || undefined,
@@ -358,6 +367,7 @@ async function adminDeleteProject() {
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.deleteError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {
@@ -370,8 +380,8 @@ async function adminDeleteOverlay() {
 
   const overlayId = overlayToDelete.value.id;
 
+  isDeleting.value = true;
   try {
-    isDeleting.value = true;
     await trpc.moderation.adminDeleteOverlay.mutate({
       id: overlayId,
       reason: deleteReason.value || undefined,
@@ -406,6 +416,7 @@ async function adminDeleteOverlay() {
     toast.add({
       severity: "error",
       summary: t("admin.userContributions.messages.deleteError"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 5000,
     });
   } finally {

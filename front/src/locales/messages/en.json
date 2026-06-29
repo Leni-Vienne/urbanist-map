@@ -92,12 +92,6 @@
     "monthYear": "Month & Year",
     "fullDate": "Full date",
     "clearDate": "Remove date",
-    "proposedOn": "Proposed on",
-    "proposedIn": "Proposed in",
-    "startsIn": "Starts in",
-    "startsOn": "Starts on",
-    "endsIn": "Ends in",
-    "endsOn": "Ends on",
     "clickMapToPlace": "Click on the map to place your project",
     "edit": "Edit Project",
     "publish": "Submit",
@@ -208,6 +202,7 @@
     "notSet": "Not set",
     "changedFrom": "Changed from",
     "untitled": "Untitled image",
+    "imageAlt": "Overlay image",
     "unknownLocation": "Unknown Location",
     "loadingProjects": "Loading projects...",
     "navigationFailed": "Navigation Failed",
@@ -777,7 +772,7 @@
   "toasts": {
     "replacementOverlayCreated": "Replacement Image Created",
     "replacementOverlayDetail": "Your replacement image has been created and is ready for editing",
-    "standaloneProjectSuccess": "Standalone project created successfully",
+    "projectCreatedSuccess": "Project created successfully",
     "projectUpdateSuccess": "Project Updated",
     "projectUpdateDetail": "Project changes saved locally",
     "projectUpdateFailed": "Update Failed",
@@ -864,6 +859,43 @@
       "successDetail": "{deleted} deleted, {failed} failed",
       "failed": "Prune Failed",
       "failedDetail": "Failed to run scheduled image deletions"
+    },
+    "detached": {
+      "title": "Detached Projects",
+      "subtitle": "Projects whose OSM source disappeared but that kept user images. Re-link each to the OSM feature that replaced it, or keep it as a standalone project.",
+      "noProjects": "No detached projects to resolve.",
+      "loadError": "Failed to load detached projects",
+      "unnamed": "(unnamed)",
+      "columns": {
+        "project": "Project",
+        "overlays": "Images",
+        "detachedAt": "Detached",
+        "candidates": "Candidates"
+      },
+      "keepStandalone": "Keep standalone",
+      "viewOnMap": "Map",
+      "manualEdits": {
+        "badge": "Edited",
+        "tooltip": "A user edited this project's own fields. Re-linking discards those edits.",
+        "relinkWarning": "Re-linking moves the images and edit history to the target, but the orphan's own fields are discarded (the target keeps its own values). Keep it standalone to preserve these user edits:"
+      },
+      "candidate": {
+        "noCandidates": "No matching live project found nearby. Keep it as standalone, or resolve manually.",
+        "viewOsm": "OSM",
+        "sharedIdsHeader": "Shared OSM ids",
+        "distanceHeader": "Distance",
+        "relink": "Re-link here"
+      },
+      "relinkDialog": {
+        "title": "Re-link project",
+        "message": "Move {count} image(s) from \"{orphan}\" onto \"{target}\", then remove the detached project. This cannot be undone automatically.",
+        "editsWarning": "These user-edited fields on this project will be discarded (only images and edit history move): {fields}"
+      },
+      "relinkSuccess": "Project re-linked",
+      "relinkSuccessDetail": "Moved {count} image(s) to the selected project",
+      "relinkError": "Failed to re-link project",
+      "dismissSuccess": "Kept as standalone",
+      "dismissError": "Failed to update project"
     }
   },
   "theme": {

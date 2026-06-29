@@ -5,7 +5,7 @@
     :is-loading="isLoading"
     :change-requests="pendingChangeRequests"
     :show-edit-buttons="true"
-    :pinned-project-id="selectedProjectId"
+    :selected-project-id="selectedProjectId"
     :pinned-external-project="pinnedExternalProject"
     :keep-content-visible="allContributions.length > 0"
     @external-project-click="handleExternalProjectClick"
@@ -139,14 +139,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, watchEffect, onMounted, nextTick } from "vue";
+import { ref, computed, watchEffect, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { expandProjectPanel } from "@/services/layout/accordionState";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -155,7 +154,6 @@ import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
-import { closeProjectDetailAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import type { ChangeRequest } from "@/stores/pinia/changeRequestStore";
@@ -178,10 +176,7 @@ const { t } = useI18n();
 
 const { isLoading, fetchUserContributions, allContributions } = useUserContributions();
 
-const {
-  handleDeleteOverlay: deleteOverlayWithMarker,
-  handleDeleteProject: deleteProjectWithConfirm,
-} = useProjectDeletion();
+const { handleDeleteOverlay, handleDeleteProject } = useProjectDeletion();
 
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
@@ -338,19 +333,11 @@ async function handleDeleteOverlayClick(overlay: OverlayForModeration) {
     return;
   }
 
-  // Find the project that contains this overlay
-  const project = allContributions.value.find((displayedProject: UserContribution) =>
-    displayedProject.overlays?.some(
-      (overlayElement: UserContributionOverlay) => overlayElement.id === overlay.id,
-    ),
-  );
-
-  const overlayCount = project?.overlays?.length ?? 0;
-  await deleteOverlayWithMarker(overlay.id, project, overlayCount, overlay.caption);
+  await handleDeleteOverlay(overlay.id, overlay.caption);
 }
 
 async function handleDeleteProjectClick(project: ProjectForModeration) {
-  await deleteProjectWithConfirm(project.id, project.name, project.overlays?.length ?? 0);
+  await handleDeleteProject(project.id, project.name, project.overlays?.length ?? 0);
 }
 
 async function handleDeleteChangeRequestClick(change: ChangeRequest) {
@@ -419,7 +406,7 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
     return;
   }
 
-  const fallbackGeometry = project.geometry ?? null;
+  const approvedGeometry = project.geometry ?? null;
 
   // Close any open detail (overlay detail or standalone project detail) to ensure a clean slate
   if (overlayStore.overlayDetailVisible) {
@@ -427,16 +414,11 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
   }
   if (uiStore.projectDetail.visible) {
     uiStore.closeProjectDetail();
-    try {
-      closeProjectDetailAndResetMarkers();
-    } catch (error) {
-      console.warn("Failed to reset standalone markers on draw detail clear", error);
-    }
   }
 
   // Open the shape editor panel (no detail to reopen at) and lazy-load the editor
   uiStore.openShapeEditor(project);
-  await startShapeEditing(project.id, fallbackGeometry);
+  await startShapeEditing(project.id, approvedGeometry);
 }
 
 // Navigate to the external pinned project using the same logic as a map click.
@@ -458,23 +440,12 @@ function handleEditProjectClick(project: ProjectForModeration) {
   );
   const projectToEdit = latestProjectData ?? project;
 
-  uiStore.openProjectEditForm(projectToEdit);
-}
+  if (projectToEdit.id && projectToEdit.status !== null && !projectToEdit.isModified) {
+    projectStore.cacheProjectBackendState(projectToEdit.id);
+  }
 
-// Auto-expand the pinned project when the selection changes
-watch(
-  selectedProjectId,
-  async (id) => {
-    if (!id) return;
-    await nextTick();
-    const isOwnContribution = allContributions.value.some((p) => p.id === id);
-    if (isOwnContribution) {
-      expandProjectPanel(id);
-    }
-    // External pinned projects render in their own always-open card, so no shared accordion state.
-  },
-  { immediate: true },
-);
+  uiStore.openProjectEditForm(projectToEdit as Project);
+}
 
 onMounted(() => {
   fetchUserContributions();

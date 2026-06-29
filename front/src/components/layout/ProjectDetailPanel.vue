@@ -181,7 +181,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { navigateToOverlay } from "@/services/overlay/actions";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapeRendering";
-import { closeProjectDetailAndResetMarkers } from "@/services/map/standaloneProjectMarkers";
 import { selectProject } from "@/services/map/projectSelection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
@@ -302,6 +301,7 @@ watch(
   async (id) => {
     const current = project.value;
     if (!id || !current || current.status === null || current.render !== undefined) return;
+
     try {
       const fresh = await trpc.project.getById.query({ id });
       if (fresh)
@@ -385,17 +385,12 @@ async function handleEdit() {
   selectProject(target);
 }
 
-function closeProjectDetail() {
-  uiStore.closeProjectDetail();
-  closeProjectDetailAndResetMarkers();
-}
-
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
   if (overlayDetailVisible.value) {
     overlayStore.closeOverlayDetail();
   } else {
-    closeProjectDetail();
+    uiStore.closeProjectDetail();
   }
 }
 

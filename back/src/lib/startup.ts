@@ -1,6 +1,6 @@
 import { generateThumbnail } from "./storage";
 import { readdir, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import path from "node:path";
 
 // Generate missing thumbnails on server startup
 // Thumbnails stay local until approval to prevent R2 cost abuse from spam uploads
@@ -17,7 +17,7 @@ export async function generateMissingThumbnails(): Promise<void> {
     const files = await readdir(uploadsDir);
 
     const imageFiles = files.filter((file) => {
-      const isImage = /\.(webp|png|jpg|jpeg)$/i.test(file);
+      const isImage = /\.(?:webp|png|jpg|jpeg)$/i.test(file);
       return isImage;
     });
 
@@ -25,7 +25,7 @@ export async function generateMissingThumbnails(): Promise<void> {
     let skippedCount = 0;
 
     for (const imageFile of imageFiles) {
-      const thumbnailPath = join(thumbnailsDir, imageFile);
+      const thumbnailPath = path.join(thumbnailsDir, imageFile);
 
       if (await Bun.file(thumbnailPath).exists()) {
         skippedCount += 1;
@@ -34,7 +34,7 @@ export async function generateMissingThumbnails(): Promise<void> {
 
       // Generate thumbnail directly without re-saving main image
       try {
-        const imagePath = join(uploadsDir, imageFile);
+        const imagePath = path.join(uploadsDir, imageFile);
         const imageFileBlob = Bun.file(imagePath);
         const buffer = await imageFileBlob.arrayBuffer();
 

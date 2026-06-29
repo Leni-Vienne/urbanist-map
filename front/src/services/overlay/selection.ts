@@ -2,22 +2,19 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
-import { getMarker, getRenderedOverlayIds, hasReadyLayer } from "@/services/overlay/renderRegistry";
-import { raiseOverlayImage } from "@/services/overlay/imageLayer";
-import { showEditHandles, hideEditHandles } from "@/services/overlay/editHandles";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import {
+  getMarker,
+  getRenderedOverlayIds,
+  hasReadyLayer,
+  whenImageReady,
+  raiseOverlayImage,
+} from "@/services/overlay/mapLayers";
 import { useUiStore } from "@/stores/uiStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
-import { requestScrollTo } from "@/services/layout/accordionState";
 import type { OverlayObject } from "@/types/index";
-import { getOverlayMarkerColor, updateOverlayMarkerColor } from "@/services/map/markers";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
-import {
-  highlightProjectShapes,
-  unhighlightProjectShapes,
-} from "@/services/map/shapeLayerRegistry";
-import { setExternalHover } from "@/services/map/vectorHoverState";
-import { resolveOverlayRenderCorners } from "@/services/overlay/history";
+import { resolveOverlayRenderCorners } from "@/services/overlay/data";
+import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
 
 type Corner = { lat: number; lng: number };
 
@@ -35,9 +32,6 @@ function cleanupPreviousSelection(
   if (previouslySelected.projectId) {
     removeProjectOutlines(previouslySelected.projectId, true);
   }
-
-  // Remove editing handles from the previously selected overlay.
-  hideEditHandles();
 }
 
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
@@ -50,20 +44,8 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
   // Raise the clicked image above its siblings so the one the user picked is never hidden.
   raiseOverlayImage(overlayId);
 
-  // Update marker icon to reflect isViewingApprovedPosition (may have just changed from undefined)
-  const marker = getMarker(overlayId);
-  if (marker) {
-    const mode = useMapStore().mode;
-    updateOverlayMarkerColor(marker, getOverlayMarkerColor(newlySelected, mode));
-  }
-
   // Sync preview state for reactive button highlighting in change request UI
   syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
-
-  // Show editing handles when selecting in edit mode.
-  if (useMapStore().mode === "edit") {
-    showEditHandles(newlySelected);
-  }
 
   // Apply project highlights (sister overlays) when selecting
   if (newlySelected.projectId) {
@@ -119,12 +101,8 @@ export function selectOverlay(overlayId: string | null): void {
 
     setupNewSelection(newlySelected, overlayId);
 
-    // In moderation mode, switch the panel to this overlay's country so its pending
-    // submissions load (and the scroll request below can resolve once they do).
+    // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
     syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
-
-    // Request scroll to overlay in accordion panel when selecting from map
-    requestScrollTo("overlay", overlayId);
 
     // Drive the docked panel into this overlay's detail view, fetching its project if the
     // selection came from the map (vector tiles don't always carry the full project).
@@ -169,33 +147,22 @@ export function applySelectionVisualsWhenReady(overlayId: string): void {
   if (hasReadyLayer(overlayId)) return;
 
   const overlayStore = useOverlayStore();
-  let attempts = 0;
 
-  function tryApply(): void {
+  function applyVisuals(): void {
     // Selection changed while we were waiting; abandon.
     if (overlayStore.idSelectedOverlay !== overlayId) return;
-
-    if (!hasReadyLayer(overlayId)) {
-      attempts += 1;
-      // ~5s budget at 60fps, matching the overlay auto-select poll elsewhere.
-      if (attempts > 300) return;
-      requestAnimationFrame(tryApply);
-      return;
-    }
 
     const overlay = overlayStore.overlays[overlayId];
     if (!overlay) return;
 
     raiseOverlayImage(overlayId);
-    if (useMapStore().mode === "edit") {
-      showEditHandles(overlay);
-    }
     if (overlay.projectId) {
       highlightProject(overlay.projectId, overlay.id);
     }
   }
 
-  requestAnimationFrame(tryApply);
+  // ~5s budget, matching the overlay auto-select wait elsewhere.
+  whenImageReady(overlayId, applyVisuals, { timeoutMs: 5000 });
 }
 
 /**
@@ -207,16 +174,14 @@ export function highlightOverlayById(overlayId: string): void {
   const marker = getMarker(overlayId);
   if (marker) {
     const markerElement = marker.getElement();
-    if (markerElement) {
-      // Scale the SVG inside the marker to avoid interfering with the marker's translate3d positioning
-      const svg = markerElement.querySelector("svg");
-      if (svg) {
-        svg.style.transformOrigin = "center bottom";
-        svg.style.transition = "transform 0.15s ease";
-        svg.style.transform = "scale(1.5)";
-      }
-      markerElement.style.zIndex = "1000";
+    // Scale the SVG inside the marker to avoid interfering with the marker's translate3d positioning
+    const svg = markerElement.querySelector("svg");
+    if (svg) {
+      svg.style.transformOrigin = "center bottom";
+      svg.style.transition = "transform 0.15s ease";
+      svg.style.transform = "scale(1.5)";
     }
+    markerElement.style.zIndex = "1000";
   }
 }
 
@@ -228,80 +193,11 @@ export function removeOverlayHighlight(overlayId: string): void {
   const marker = getMarker(overlayId);
   if (marker) {
     const markerElement = marker.getElement();
-    if (markerElement) {
-      const svg = markerElement.querySelector("svg");
-      if (svg) {
-        svg.style.transform = "";
-      }
-      markerElement.style.zIndex = "";
+    const svg = markerElement.querySelector("svg");
+    if (svg) {
+      svg.style.transform = "";
     }
-  }
-}
-
-/**
- * Remove outlines from all overlays in a project
- * @param projectId - The project whose overlays should have outlines removed
- * @param force - If true, removes outlines even if an overlay in the project is selected
- */
-export function removeProjectOutlines(projectId: string, force = false): void {
-  const overlayStore = useOverlayStore();
-
-  if (!projectId) return;
-
-  setExternalHover(null);
-  if (!force) {
-    const selectedOverlay = overlayStore.idSelectedOverlay
-      ? overlayStore.overlays[overlayStore.idSelectedOverlay]
-      : null;
-    if (selectedOverlay?.projectId === projectId) return;
-
-    const uiStore = useUiStore();
-    if (uiStore.projectDetail.visible && uiStore.projectDetail.projectId === projectId) return;
-  }
-
-  // Unhighlight project shapes alongside the overlays (GeoJSON layers in edit/moderation, vector tiles in view mode)
-  unhighlightProjectShapes(projectId);
-  refreshSelectionHighlight();
-}
-
-/**
- * Highlight everything related to a project: project shapes, sister overlays, and the
- * vector tile filters (via the external-hover state). Called from sidebar hover,
- * overlay DOM hover, overlay selection, and selection refresh after mode switch.
- */
-export function highlightProject(projectId: string, overlayId?: string): void {
-  if (!projectId) return;
-
-  setExternalHover(projectId, overlayId ?? null);
-
-  // Project shape layers (standalone project geometry) exist in all modes
-  highlightProjectShapes(projectId);
-}
-
-/**
- * Returns the projectId that is currently "highlighted" - either because an overlay of
- * that project is selected, or because the project detail (shape click) is open.
- */
-export function getCurrentHighlightedProjectId(): string | null {
-  const overlayStore = useOverlayStore();
-  const uiStore = useUiStore();
-
-  const selected = overlayStore.idSelectedOverlay
-    ? overlayStore.overlays[overlayStore.idSelectedOverlay]
-    : null;
-  return (
-    selected?.projectId ?? (uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null)
-  );
-}
-
-/**
- * Re-apply the highlight (overlays + shapes) for the currently highlighted project.
- * Call after mode switches so that persisting overlay elements get the correct new-mode color.
- */
-export function refreshSelectionHighlight(): void {
-  const projectId = getCurrentHighlightedProjectId();
-  if (projectId) {
-    highlightProject(projectId);
+    markerElement.style.zIndex = "";
   }
 }
 

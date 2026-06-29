@@ -1,20 +1,20 @@
 {
-    "verification": {
-        "lang": "fr",
-        "subject": "Vérifiez votre adresse email - Urbanist Map",
-        "title": "Bienvenue sur Urbanist Map !",
-        "message": "Merci de vous être inscrit. Pour activer votre compte, veuillez cliquer sur le lien ci-dessous :",
-        "buttonText": "Vérifier mon email",
-        "alternativeText": "Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :",
-        "disclaimer": "Ce lien expirera dans 24 heures. Si vous n'avez pas demandé cette vérification, veuillez ignorer cet email."
-    },
-    "passwordReset": {
-        "lang": "fr",
-        "subject": "Réinitialiser votre mot de passe - Urbanist Map",
-        "title": "Réinitialisation du mot de passe",
-        "message": "Vous avez demandé une réinitialisation de mot de passe. Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :",
-        "buttonText": "Réinitialiser mon mot de passe",
-        "alternativeText": "Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :",
-        "disclaimer": "Ce lien expirera dans 1 heure. Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email."
-    }
+  "verification": {
+    "lang": "fr",
+    "subject": "Vérifiez votre adresse email - Urbanist Map",
+    "title": "Bienvenue sur Urbanist Map !",
+    "message": "Merci de vous être inscrit. Pour activer votre compte, veuillez cliquer sur le lien ci-dessous :",
+    "buttonText": "Vérifier mon email",
+    "alternativeText": "Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :",
+    "disclaimer": "Ce lien expirera dans 24 heures. Si vous n'avez pas demandé cette vérification, veuillez ignorer cet email."
+  },
+  "passwordReset": {
+    "lang": "fr",
+    "subject": "Réinitialiser votre mot de passe - Urbanist Map",
+    "title": "Réinitialisation du mot de passe",
+    "message": "Vous avez demandé une réinitialisation de mot de passe. Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :",
+    "buttonText": "Réinitialiser mon mot de passe",
+    "alternativeText": "Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :",
+    "disclaimer": "Ce lien expirera dans 1 heure. Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email."
+  }
 }

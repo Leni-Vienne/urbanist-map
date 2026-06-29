@@ -1,5 +1,5 @@
 import { nextTick } from "vue";
-import { navigateToStandaloneProject } from "@/services/navigation/projectNavigation";
+import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/actions";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
@@ -8,11 +8,11 @@ import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { trpc } from "@/client";
 import type { OverlayForModeration, LatestContribution } from "@/types/index";
-import { requestScrollTo } from "@/services/layout/accordionState";
 import {
   canModerateCountry,
   syncModerationCountry,
 } from "@/services/moderation/moderationCountrySync";
+import { loadOrNull } from "@/services/core/errorHandling";
 
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = OverlayForModeration | LatestContribution;
@@ -82,9 +82,6 @@ export function useOverlayClickHandler() {
       }
 
       await navigateToOverlay(overlay.id, autoSelect);
-
-      // Request scroll to overlay in adjacent panels
-      requestScrollTo("overlay", overlay.id);
     } catch (error) {
       console.error("Failed to navigate to overlay:", error);
       toast.add({
@@ -112,6 +109,7 @@ async function navigateToReplacedOrRejectedOverlay(
   if (!("projectId" in overlay) || !overlay.projectId) {
     return;
   }
+  const { projectId } = overlay;
 
   // First try to get centroid from overlay store (has full overlay data)
   const overlayFromStore = overlayStore.overlays[overlay.id];
@@ -126,9 +124,11 @@ async function navigateToReplacedOrRejectedOverlay(
     return;
   }
 
-  const project = await trpc.project.getById.query({ id: overlay.projectId });
+  const project = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }), {
+    errorMessage: t("overlay.failedToNavigate"),
+  });
 
   if (project && typeof project.lat === "number" && typeof project.lng === "number") {
-    navigateToStandaloneProject(project.lat, project.lng, project.id);
+    navigateToProject(project.lat, project.lng, project.id);
   }
 }

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="pt-0 p-6 max-sm:p-4">
     <form @submit.prevent="form.submitChanges" class="flex flex-col gap-4">
       <ProjectFormFields
@@ -57,6 +57,8 @@ import type { Project, ProjectFormData } from "@/types/index";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";
 
+import ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
+
 const props = defineProps<{ project: Project }>();
 const emit = defineEmits<{ close: []; submitted: [] }>();
 
@@ -86,7 +88,7 @@ const form = useEditableProjectForm({
   entityId: props.project.id,
   initialData: projectData.value, // Original backend values for comparison
   currentData: currentProjectData.value, // Current values to display in form
-  getFallbackProject: () => props.project,
+  getSourceProject: () => props.project,
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),
 });

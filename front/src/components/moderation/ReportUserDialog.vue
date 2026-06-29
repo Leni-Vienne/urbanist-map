@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <Dialog
     v-model:visible="dialogVisible"
     :header="$t('moderation.reportUser.report')"
@@ -94,8 +94,8 @@ async function handleReport() {
     console.error("Failed to report user:", error);
     toast.add({
       severity: "error",
-      summary: t("common.error"),
-      detail: t("moderation.reportUser.reportFailed"),
+      summary: t("moderation.reportUser.reportFailed"),
+      detail: error instanceof Error ? error.message : undefined,
       life: 3000,
     });
   } finally {

@@ -9,36 +9,21 @@ import type {
 import type { ApprovalStatus } from "@shared/types";
 import { createProjectObject } from "@/utils/typeFactories";
 import { createLocalOverlayContribution } from "@/utils/projectFactories";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
 
-function replaceAtIndex<T>(arr: T[], index: number, newItem: T): T[] {
-  return [...arr.slice(0, index), newItem, ...arr.slice(index + 1)];
-}
-
-function removeAtIndex<T>(arr: T[], index: number): T[] {
-  return [...arr.slice(0, index), ...arr.slice(index + 1)];
-}
-
-// Rebuild a contribution with a new overlay list, keeping overlayIds in sync.
-function withOverlays(
-  contribution: UserContribution,
-  overlays: UserContributionOverlay[],
-): UserContribution {
-  return { ...contribution, overlays, overlayIds: overlays.map((o) => o.id) };
-}
-
-function resolveLocationNames(project: Project): {
-  countryName: string | null;
-} {
+// Promote a Project to a UserContribution by attaching the inline overlay list.
+// overlayIds is derived from overlays so the two stay in sync.
+function toContribution(project: Project, overlays: UserContributionOverlay[]): UserContribution {
   return {
-    countryName: project.countryName ?? null,
+    ...project,
+    overlays,
+    overlayIds: overlays.map((o) => o.id),
   };
 }
 
 export const useProjectStore = defineStore("project", () => {
   const projects = ref<Record<string, Project>>({});
 
-  const userContributions = ref<UserContribution[]>([]);
+  const userContributions = ref<Record<string, UserContribution>>({});
   const userContributionsLoading = ref(false);
   const userContributionsLoaded = ref(false);
 
@@ -58,50 +43,30 @@ export const useProjectStore = defineStore("project", () => {
   // Pending projects may live only in userContributions until edited locally, so fall
   // back to that list when the project isn't in the main map.
   function getProjectById(projectId: string): Project | null {
-    return (
-      projects.value[projectId] ?? userContributions.value.find((p) => p.id === projectId) ?? null
-    );
+    return projects.value[projectId] ?? userContributions.value[projectId] ?? null;
   }
 
-  // Promote a Project to a UserContribution by attaching the inline overlay list.
-  // overlayIds is derived from overlays so the two stay in sync.
-  function toContribution(project: Project, overlays: UserContributionOverlay[]): UserContribution {
-    return {
-      ...project,
-      overlays,
-      overlayIds: overlays.map((o) => o.id),
-      ...resolveLocationNames(project),
-    };
-  }
-
-  function overlayParentMetadata(project: Project) {
-    return {
-      countryCode: project.countryCode,
-      ...resolveLocationNames(project),
-    };
-  }
-
-  // Find a loaded contribution by predicate and write back an updated copy.
+  // Find a loaded contribution by predicate and mutate it in place.
   // No-op (returns false) if contributions aren't loaded yet or nothing matches.
-  function replaceContribution(
+  function mutateContribution(
     predicate: (p: UserContribution) => boolean,
-    updater: (p: UserContribution) => UserContribution,
+    mutator: (p: UserContribution) => void,
   ): boolean {
     if (!userContributionsLoaded.value) return false;
-    const index = userContributions.value.findIndex(predicate);
-    const current = index === -1 ? undefined : userContributions.value[index];
+    const current = Object.values(userContributions.value).find(predicate);
     if (!current) return false;
-    userContributions.value = replaceAtIndex(userContributions.value, index, updater(current));
+    mutator(current);
     return true;
   }
 
   function setUserContributions(contributions: UserContribution[]) {
-    userContributions.value = contributions;
-    userContributionsLoaded.value = true;
-
+    const newContributions: Record<string, UserContribution> = {};
     for (const contribution of contributions) {
+      newContributions[contribution.id] = contribution;
       snapshotOriginal(contribution);
     }
+    userContributions.value = newContributions;
+    userContributionsLoaded.value = true;
   }
 
   function setUserContributionsLoading(loading: boolean) {
@@ -114,42 +79,31 @@ export const useProjectStore = defineStore("project", () => {
     project: Project,
     filename: string,
     authorUsername: string | null,
+    existingProjectOverlays: OverlayObject[] = [],
   ) {
     if (!userContributionsLoaded.value) {
       return;
     }
 
-    const existingProjectIndex = userContributions.value.findIndex((p) => p.id === project.id);
+    const existingProject = userContributions.value[project.id];
     const overlayMetadata = createLocalOverlayContribution(
       { ...overlay, filename, projectId: project.id, status: "pending" as const, version: 1 },
-      overlayParentMetadata(project),
+      project,
       authorUsername,
     );
 
-    if (existingProjectIndex !== -1) {
-      const existingProject = userContributions.value[existingProjectIndex];
+    if (existingProject) {
+      const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
 
-      if (!existingProject) {
-        console.error("Existing project not found for ID:", project.id);
-        return;
+      if (existingOverlayIndex !== -1) {
+        existingProject.overlays[existingOverlayIndex] = overlayMetadata;
+      } else {
+        existingProject.overlays.push(overlayMetadata);
+        existingProject.overlayIds.push(overlayMetadata.id);
       }
 
-      const existingOverlayIndex = existingProject.overlays.findIndex((o) => o.id === overlay.id);
-      const updatedOverlays =
-        existingOverlayIndex !== -1
-          ? replaceAtIndex(existingProject.overlays, existingOverlayIndex, overlayMetadata)
-          : [...existingProject.overlays, overlayMetadata];
-
-      const updatedProject = withOverlays(existingProject, updatedOverlays);
-
-      userContributions.value = replaceAtIndex(
-        userContributions.value,
-        existingProjectIndex,
-        updatedProject,
-      );
-
       if (existingOverlayIndex === -1) {
-        snapshotOriginal(updatedProject);
+        snapshotOriginal(existingProject);
       }
     } else {
       // Project doesn't exist in contributions yet
@@ -158,15 +112,13 @@ export const useProjectStore = defineStore("project", () => {
       }
 
       // Include overlays already in the store for this project (e.g. approved ones)
-      const overlayStore = useOverlayStore();
-      const parentMeta = overlayParentMetadata(project);
-      const existingOverlays = Object.values(overlayStore.overlays)
-        .filter((o) => o.projectId === project.id && o.id !== overlay.id)
-        .map((o) => createLocalOverlayContribution(o, parentMeta, null));
+      const mappedExistingOverlays = existingProjectOverlays.map((o) =>
+        createLocalOverlayContribution(o, project, null),
+      );
 
-      const newProject = toContribution(project, [...existingOverlays, overlayMetadata]);
+      const newProject = toContribution(project, [...mappedExistingOverlays, overlayMetadata]);
 
-      userContributions.value = [newProject, ...userContributions.value];
+      userContributions.value[newProject.id] = newProject;
 
       snapshotOriginal(newProject);
     }
@@ -188,11 +140,10 @@ export const useProjectStore = defineStore("project", () => {
   ) {
     if (!userContributionsLoaded.value) return;
 
-    const index = userContributions.value.findIndex((p) => p.id === projectId);
-    const existing = index === -1 ? undefined : userContributions.value[index];
+    const existing = userContributions.value[projectId];
     if (existing?.overlays.some((o) => o.id === render.id)) return;
 
-    // overlayParentMetadata reads location fields shared by Project and UserContribution.
+    // We can use the parent directly because it contains countryCode and countryName
     const parent = existing ?? projects.value[projectId];
     if (!parent) return;
 
@@ -207,17 +158,14 @@ export const useProjectStore = defineStore("project", () => {
         status: render.status,
         version: 1,
       },
-      overlayParentMetadata(parent),
+      parent,
       authorUsername,
       "render",
     );
 
     if (existing) {
-      userContributions.value = replaceAtIndex(
-        userContributions.value,
-        index,
-        withOverlays(existing, [...existing.overlays, overlay]),
-      );
+      existing.overlays.push(overlay);
+      existing.overlayIds.push(overlay.id);
       return;
     }
 
@@ -225,7 +173,9 @@ export const useProjectStore = defineStore("project", () => {
     // didn't own). The backend lists it as a contribution once authored, so mirror that here.
     const project = projects.value[projectId];
     if (!project || project.status === null) return;
-    userContributions.value = [toContribution(project, [overlay]), ...userContributions.value];
+
+    const newContrib = toContribution(project, [overlay]);
+    userContributions.value[newContrib.id] = newContrib;
   }
 
   // Optimistically add new project to user contributions without a backend fetch.
@@ -238,32 +188,24 @@ export const useProjectStore = defineStore("project", () => {
       return;
     }
 
-    const existingIndex = userContributions.value.findIndex((p) => p.id === project.id);
-    if (existingIndex !== -1) {
+    if (userContributions.value[project.id]) {
       return;
     }
 
     const newContrib = toContribution(project, []);
 
-    userContributions.value = [newContrib, ...userContributions.value];
+    userContributions.value[newContrib.id] = newContrib;
 
     snapshotOriginal(newContrib);
   }
 
   // Returns the project + its index from userContributions, or null if not found.
-  function findProjectContainingOverlay(
-    overlayId: string,
-  ): { index: number; project: UserContribution } | null {
-    const index = userContributions.value.findIndex((p) =>
+  function findProjectContainingOverlay(overlayId: string): { project: UserContribution } | null {
+    const project = Object.values(userContributions.value).find((p) =>
       p.overlays.some((o) => o.id === overlayId),
     );
-    if (index === -1) return null;
-    const project = userContributions.value[index];
-    if (!project) {
-      console.error("Existing project not found for index:", index);
-      return null;
-    }
-    return { index, project };
+    if (!project) return null;
+    return { project };
   }
 
   // Update pending overlay in user contributions (for caption/field updates)
@@ -271,20 +213,23 @@ export const useProjectStore = defineStore("project", () => {
     overlayId: string,
     updates: Partial<UserContributionOverlay>,
   ) {
-    replaceContribution(
+    mutateContribution(
       (p) => p.overlays.some((o) => o.id === overlayId),
-      (p) =>
-        withOverlays(
-          p,
-          p.overlays.map((o) => (o.id === overlayId ? { ...o, ...updates } : o)),
-        ),
+      (p) => {
+        const overlay = p.overlays.find((o) => o.id === overlayId);
+        if (overlay) {
+          Object.assign(overlay, updates);
+        }
+      },
     );
   }
 
   function updateProjectInUserContributions(projectId: string, updates: Partial<UserContribution>) {
-    replaceContribution(
+    mutateContribution(
       (p) => p.id === projectId,
-      (p) => ({ ...p, ...updates }),
+      (p) => {
+        Object.assign(p, updates);
+      },
     );
   }
 
@@ -297,17 +242,17 @@ export const useProjectStore = defineStore("project", () => {
     const found = findProjectContainingOverlay(overlayId);
     if (!found) return;
 
-    const { index: projectIndex, project } = found;
-    const updatedOverlays = project.overlays.filter((o) => o.id !== overlayId);
+    const { project } = found;
 
-    if (updatedOverlays.length === 0 && project.ownerId !== currentUserId) {
-      userContributions.value = removeAtIndex(userContributions.value, projectIndex);
-    } else {
-      userContributions.value = replaceAtIndex(
-        userContributions.value,
-        projectIndex,
-        withOverlays(project, updatedOverlays),
-      );
+    const overlayIndex = project.overlays.findIndex((o) => o.id === overlayId);
+    if (overlayIndex !== -1) {
+      project.overlays.splice(overlayIndex, 1);
+      project.overlayIds.splice(overlayIndex, 1);
+    }
+
+    if (project.overlays.length === 0 && project.ownerId !== currentUserId) {
+      // oxlint-disable-next-line no-dynamic-delete
+      delete userContributions.value[project.id];
     }
   }
 
@@ -316,7 +261,8 @@ export const useProjectStore = defineStore("project", () => {
       return;
     }
 
-    userContributions.value = userContributions.value.filter((p) => p.id !== projectId);
+    // oxlint-disable-next-line no-dynamic-delete
+    delete userContributions.value[projectId];
   }
 
   // Inserts a backend-sourced project into the store, snapshotting it as the change-detection
@@ -334,9 +280,7 @@ export const useProjectStore = defineStore("project", () => {
     // Pending projects may only exist in userContributions until edited locally.
     // Since UserContribution extends Project, we can use the contribution directly as a Project.
     if (!current) {
-      const contributionProject = userContributions.value.find(
-        (project) => project.id === projectId,
-      );
+      const contributionProject = userContributions.value[projectId];
       if (contributionProject) {
         current = contributionProject;
       }
@@ -359,15 +303,15 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   // Resets a single project field to its original backend value.
-  function resetProjectField(projectId: string, fieldName: string): boolean {
+  // oxlint-disable-next-line no-unnecessary-type-parameters
+  function resetProjectField<K extends keyof Project>(projectId: string, fieldName: K): boolean {
     const original = getOriginalProject(projectId);
 
     if (!original) {
       return false;
     }
 
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    const originalValue = (original as unknown as Record<string, unknown>)[fieldName];
+    const originalValue = original[fieldName];
 
     let didReset = false;
 
@@ -378,19 +322,10 @@ export const useProjectStore = defineStore("project", () => {
     }
 
     // Also update user contributions if present (critical for ContributePanel)
-    const contribIndex = userContributions.value.findIndex((p) => p.id === projectId);
-    if (contribIndex !== -1 && originalValue !== undefined) {
-      const contrib = userContributions.value[contribIndex];
-
-      if (contrib) {
-        const updatedContrib = { ...contrib, [fieldName]: originalValue };
-        userContributions.value = replaceAtIndex(
-          userContributions.value,
-          contribIndex,
-          updatedContrib,
-        );
-        didReset = true;
-      }
+    const contrib = userContributions.value[projectId];
+    if (contrib && originalValue !== undefined) {
+      (contrib as Project)[fieldName] = originalValue;
+      didReset = true;
     }
 
     return didReset;
@@ -399,7 +334,7 @@ export const useProjectStore = defineStore("project", () => {
   // Clear user-specific state on logout or account switch.
   function clearAllState(): void {
     projects.value = {};
-    userContributions.value = [];
+    userContributions.value = {};
     userContributionsLoading.value = false;
     userContributionsLoaded.value = false;
     originalProjects.value = {};
@@ -435,6 +370,7 @@ export const useProjectStore = defineStore("project", () => {
   };
 });
 
+// oxlint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useProjectStore, import.meta.hot));
 }

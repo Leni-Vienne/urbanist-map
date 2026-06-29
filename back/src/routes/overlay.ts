@@ -117,7 +117,7 @@ export const overlayRouter = router({
         const queriedOverlay = overlay[0];
         if (!queriedOverlay)
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
-        if (queriedOverlay.corners?.length === 4) {
+        if (queriedOverlay.corners.length === 4) {
           intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
         }
       }

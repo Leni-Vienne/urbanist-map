@@ -44,20 +44,6 @@
       @update:modelValue="toggleMapRotation"
     />
   </label>
-
-  <label
-    class="flex items-center justify-between gap-3 px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] whitespace-nowrap hover:bg-black/5 dark:hover:bg-white/10"
-  >
-    <span class="flex items-center gap-[0.35rem]">
-      <i class="pi pi-map"></i>
-      <span>{{ $t("map.altLayer.label") }}</span>
-    </span>
-    <ToggleSwitch
-      class="shrink-0"
-      :modelValue="mapLayerMode === 'alternative'"
-      @update:modelValue="toggleMapLayerMode"
-    />
-  </label>
 </template>
 
 <script setup lang="ts">
@@ -67,10 +53,8 @@ import CompassRose from "@/components/map/CompassRose.vue";
 import { useTheme } from "@/composables/core/useTheme";
 import { useBuildings3D } from "@/composables/core/useBuildings3D";
 import { useMapRotation } from "@/composables/core/useMapRotation";
-import { useMapLayerMode } from "@/composables/core/useMapLayerMode";
 
 const { theme, toggle: toggleTheme } = useTheme();
 const { show3DBuildings, toggle: toggleBuildings3D } = useBuildings3D();
 const { mapRotationEnabled, toggle: toggleMapRotation } = useMapRotation();
-const { mapLayerMode, toggle: toggleMapLayerMode } = useMapLayerMode();
 </script>
