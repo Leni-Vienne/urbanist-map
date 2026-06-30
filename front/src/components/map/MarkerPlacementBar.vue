@@ -45,7 +45,7 @@
 import { ref, watch, computed, onUnmounted } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { map } from "@/services/core/map";
-import { getMarkerSvg } from "@/services/map/markers";
+import { getMarkerSvg } from "@/services/map/markersSvg";
 
 interface Props {
   visible: boolean;

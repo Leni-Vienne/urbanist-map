@@ -1,7 +1,7 @@
 import { watchEffect } from "vue";
 import maplibregl, { LngLat, LngLatBounds } from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markers";
+import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markersSvg";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";

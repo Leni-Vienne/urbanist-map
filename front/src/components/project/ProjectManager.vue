@@ -50,7 +50,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import { createProjectPinElement } from "@/services/map/markers";
+import { createProjectPinElement } from "@/services/map/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
 import { selectProject } from "@/services/map/projectSelection";
 import { mergeProjectPointsForMode } from "@/services/map/clusterSourceMerge";
