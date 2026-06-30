@@ -86,7 +86,8 @@ import { showSubmissionDialog } from "@/composables/submission/submissionDialogS
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/composables/project/useProjectDeepLink";
-import { useActiveDetail } from "@/composables/project/useActiveDetail";
+import { useFocusStore } from "@/stores/pinia/focusStore";
+import { selectProject } from "@/services/map/projectSelection";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 
 import MapView from "@/components/map/MapView.vue";
@@ -206,7 +207,8 @@ function updateWindowWidth() {
 // is open whenever a selection appears. The drawer keeps its current height (the camera centers
 // the feature in the map area above it), and the user can drag it taller to read more. The
 // desktop side menu is always open, so it needs no handling here.
-const detailActive = useActiveDetail().visible;
+const focusStore = useFocusStore();
+const detailActive = computed(() => focusStore.detailVisible);
 
 watch(detailActive, (active) => {
   if (!active) return;
@@ -235,7 +237,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
   if (reopen) {
-    uiStore.openProjectDetail(project.id, project);
+    selectProject(project);
   }
 }
 
@@ -253,7 +255,7 @@ async function handleShapesCancel() {
   await stopShapeEditing();
   uiStore.closeShapeEditor();
   if (reopen && project) {
-    uiStore.openProjectDetail(project.id, project);
+    selectProject(project);
   }
 }
 

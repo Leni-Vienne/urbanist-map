@@ -1,6 +1,6 @@
 import type { Project } from "@/types/index";
-import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -14,14 +14,16 @@ import { loadOrNull } from "@/services/core/errorHandling";
  * deselect) are handled by the detail watcher initialized at boot in main.ts.
  */
 export function selectProject(project: Project): void {
-  const uiStore = useUiStore();
+  const projectStore = useProjectStore();
+  const focus = useFocusStore();
 
   // Selecting is idempotent: always show the project, regardless of current state. Deselection has
-  // its own paths (background-map click, the card's close button), so this never branches on
-  // "already selected", which is what desynced after a manual fold. The selected project is shown in
-  // the docked panel's "Selected project" card (not the accordion); the detail watcher keeps it out
-  // of the expanded accordion set so it returns collapsed when deselected.
-  uiStore.openProjectDetail(project.id, project);
+  // its own paths (background-map click, the card's close button). The detail panel resolves the
+  // project from the store by id, so seed it there before pinning the selection. The selected project
+  // is shown in the docked panel's "Selected project" card (not the accordion); the detail watcher
+  // keeps it out of the expanded accordion set so it returns collapsed when deselected.
+  projectStore.updateProject(project.id, project);
+  focus.selectProject(project.id);
 
   // In moderation mode, switch the panel to this project's country so its pending
   // submissions load and the detail watcher's scroll request can resolve.

@@ -15,7 +15,7 @@ import * as registry from "@/services/overlay/mapLayers";
 import { isValidQuad } from "@/services/overlay/transform";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject } from "@/services/overlay/data";
@@ -83,8 +83,9 @@ export function createOverlayMarker(overlay: OverlayObject): void {
 
   const projectId = overlay.projectId;
   if (projectId) {
-    element.addEventListener("mouseenter", () => highlightProject(projectId));
-    element.addEventListener("mouseleave", () => removeProjectOutlines(projectId));
+    const focus = useFocusStore();
+    element.addEventListener("mouseenter", () => focus.setHover({ kind: "project", projectId }));
+    element.addEventListener("mouseleave", () => focus.setHover(null));
   }
 
   registry.setMarker(overlay.id, marker);
@@ -100,7 +101,7 @@ function onMarkerClick(overlayId: string): void {
   if (!overlayObject) return;
 
   // Second click on the selected marker deselects.
-  if (overlayStore.idSelectedOverlay === overlayId) {
+  if (useFocusStore().selectedOverlayId === overlayId) {
     selectOverlay(null);
     return;
   }

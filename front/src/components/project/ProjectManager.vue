@@ -52,6 +52,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
 import { createProjectPinElement } from "@/services/map/markers";
 import { createProject } from "@/services/project/projectMutations";
+import { selectProject } from "@/services/map/projectSelection";
 import { mergeProjectPointsForMode } from "@/services/map/clusterSourceMerge";
 import type { Project } from "@/types/index";
 
@@ -138,7 +139,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<void
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
     const storedProject = projectStore.projects[projectId];
     if (storedProject) {
-      uiStore.openProjectDetail(projectId, storedProject);
+      selectProject(storedProject);
     }
     toast.add({
       severity: "success",

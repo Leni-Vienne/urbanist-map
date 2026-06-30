@@ -140,6 +140,7 @@ import maplibregl from "maplibre-gl";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
@@ -163,11 +164,12 @@ import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
+const focusStore = useFocusStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
-const { idSelectedOverlay } = storeToRefs(overlayStore);
+const { selectedOverlayId } = storeToRefs(focusStore);
 const { mode } = storeToRefs(mapStore);
-const selectedId = idSelectedOverlay;
+const selectedId = selectedOverlayId;
 const isEditMode = computed(() => mode.value === "edit");
 
 // markerIconEl is the maplibregl.Marker element; we teleport our toolbar content inside it.
@@ -232,7 +234,7 @@ function syncAnchor() {
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
     // Image removed from registry while still selected (e.g. zoom-out unload with
-    // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
+    // preserveStoreData=true, which leaves the focus selection in place).
     selectOverlay(null);
     return;
   }

@@ -1,12 +1,10 @@
-import { ref, computed, watch, onUnmounted, onActivated, onDeactivated } from "vue";
+import { ref, computed, onUnmounted, onActivated, onDeactivated } from "vue";
 import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
-import { setExternalHover } from "@/services/map/vectorHoverState";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { map, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/projectQueryLayers";
-import { useUiStore } from "@/stores/uiStore";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/map/filters";
 import { forEachPosition } from "@/utils/geojson";
@@ -270,7 +268,7 @@ export function useVisibleProjects() {
   const sortMode = ref<SortMode>("recent");
   const sortReverse = ref(false);
   const isReady = ref(false);
-  const uiStore = useUiStore();
+  const focusStore = useFocusStore();
 
   const projects = computed<VisibleProject[]>(() => {
     const [minDateMs, maxDateMs] = lastModifiedDateRange.value;
@@ -481,37 +479,19 @@ export function useVisibleProjects() {
     if (projectId && projectId === lastHoveredProjectId) return;
 
     if (project && projectId) {
-      highlightProject(projectId);
+      focusStore.setHover({ kind: "project", projectId });
       lastHoveredProjectId = projectId;
       showHoverCardForProject(project);
     } else if (lastHoveredProjectId) {
       // Defer clearing the hover to avoid double map-updates when the mouse
       // instantly moves from one row to another (mouseleave -> mouseenter).
       hoverClearTimeout = setTimeout(() => {
-        const prevProjectId = lastHoveredProjectId;
         lastHoveredProjectId = null;
-        if (prevProjectId) {
-          removeProjectOutlines(prevProjectId);
-        }
-
-        if (!uiStore.projectDetail.visible) {
-          setExternalHover(null);
-        }
+        focusStore.setHover(null);
         clearHoverPreview();
       }, 20);
     }
   }
-
-  // When the project detail closes, release any vector tile hover that was pinned by a click.
-  // This is the counterpart to the detailPinsHighlight guard above.
-  watch(
-    () => uiStore.projectDetail.visible,
-    (isVisible) => {
-      if (!isVisible) {
-        setExternalHover(null);
-      }
-    },
-  );
 
   return {
     projects,

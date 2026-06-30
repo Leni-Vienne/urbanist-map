@@ -4,13 +4,10 @@ import type { OverlayObject, OverlayData, OverlayHistoryState } from "@/types/in
 
 export const useOverlayStore = defineStore("overlay", () => {
   const overlays = ref<Record<string, OverlayObject>>({});
-  const idSelectedOverlay = ref<string | null>(null);
 
   const viewModeOverlays = ref<OverlayData[]>([]);
 
   const replacementOverlayId = ref<string | null>(null);
-  const overlayDetailVisible = ref(false);
-  const overlayDetailId = ref<string | null>(null);
 
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
@@ -100,37 +97,18 @@ export const useOverlayStore = defineStore("overlay", () => {
     replacementOverlayId.value = null;
   }
 
-  function openOverlayDetail(overlayId: string) {
-    overlayDetailId.value = overlayId;
-    overlayDetailVisible.value = true;
-  }
-
-  function closeOverlayDetail() {
-    overlayDetailVisible.value = false;
-    overlayDetailId.value = null;
-  }
-
-  function resetAllUIStates() {
-    closeOverlayDetail();
-    resetReplacement();
-  }
-
   // Clear user-specific state on logout or account switch.
   // Preserves public data (viewModeOverlays) and clears user/edit-mode data.
   function clearAllState() {
     overlays.value = {};
-    idSelectedOverlay.value = null;
-    resetAllUIStates();
+    resetReplacement();
   }
 
   return {
     // State
     overlays,
-    idSelectedOverlay,
     viewModeOverlays,
     replacementOverlayId,
-    overlayDetailVisible,
-    overlayDetailId,
 
     // Actions
     setViewModeOverlays,
@@ -144,8 +122,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     redoHistory,
     requestOverlayReplacement,
     resetReplacement,
-    openOverlayDetail,
-    closeOverlayDetail,
     clearAllState,
   };
 });

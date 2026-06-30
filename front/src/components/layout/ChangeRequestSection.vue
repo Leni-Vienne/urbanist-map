@@ -112,6 +112,7 @@ import {
   syncProjectShapePreviewState,
 } from "@/services/overlay/changeRequestPreviewState";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import type {
   ProjectForModeration,
   OverlayForModeration,
@@ -156,6 +157,7 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 const overlayStore = useOverlayStore();
+const focusStore = useFocusStore();
 const {
   isPreviewingChange,
   getPreviewType,
@@ -164,13 +166,13 @@ const {
 const { previewShapes } = useShapeChangeRequestPreview();
 
 // Sync change requests and preview button state reactively.
-// watchEffect tracks all reactive reads inside (allChangeRequests prop + idSelectedOverlay store),
+// watchEffect tracks all reactive reads inside (allChangeRequests prop + focus selection),
 // so this re-runs when either changes.
 // IMPORTANT: do NOT read previewState inside this effect, it would create a read→write cycle.
 watchEffect(() => {
   setChangeRequestsForPreview(props.allChangeRequests);
 
-  const selectedId = overlayStore.idSelectedOverlay;
+  const selectedId = focusStore.selectedOverlayId;
   if (selectedId) {
     // Sync "view approved position" button for the currently selected overlay
     const sel = overlayStore.overlays[selectedId];

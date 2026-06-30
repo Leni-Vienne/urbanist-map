@@ -154,7 +154,6 @@ export function initializeMap() {
     rollEnabled: false,
     touchPitch: mapRotationEnabled.value, // two-finger pitch fights pinch-zoom, so it is gated behind the rotation opt-in
     maxPitch: 85,
-    fadeDuration: 0,
   };
   // Lower sensitivity (default is 0.8).
   (mapOptions as Record<string, unknown>).rotateDegreesPerPixelMoved = 0.4;

@@ -2,6 +2,7 @@
 
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
@@ -22,7 +23,7 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
 
   // Deselect before deleting from the store: selectOverlay(null) owns the full cleanup
   // (edit handles, project highlight, docked detail) and needs the overlay still present.
-  if (overlayStore.idSelectedOverlay === overlayId) {
+  if (useFocusStore().selectedOverlayId === overlayId) {
     selectOverlay(null);
   }
 

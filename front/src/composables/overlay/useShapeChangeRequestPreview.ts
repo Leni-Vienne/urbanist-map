@@ -1,11 +1,11 @@
 import { nextTick } from "vue";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapeRendering";
+import { selectProject } from "@/services/map/projectSelection";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
 
@@ -55,13 +55,11 @@ export function useShapeChangeRequestPreview() {
       await nextTick();
     }
 
-    const uiStore = useUiStore();
-
     const newGeom = type === "new" ? geometry : (project.geometry ?? null);
     const oldGeom = type === "new" ? (project.geometry ?? null) : null;
 
     renderPreviewShapes(project, newGeom, oldGeom, () => {
-      uiStore.openProjectDetail(project.id, project);
+      selectProject(project);
     });
 
     mobileAwareFlyToBounds(bounds);

@@ -149,6 +149,7 @@ import { useUserContributions } from "@/composables/project/useUserContributions
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
@@ -181,6 +182,7 @@ const { handleDeleteOverlay, handleDeleteProject } = useProjectDeletion();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
+const focusStore = useFocusStore();
 const authStore = useAuthStore();
 
 const { prepareSubmission } = useSubmissionDialog();
@@ -206,14 +208,13 @@ const { pendingChangeRequests, refreshPendingChangeRequests, deleteChangeRequest
 const lastSelectedProject = ref<Project | null>(null);
 
 watchEffect(() => {
-  const detailProject = uiStore.projectDetail.project;
-  if (detailProject) {
-    lastSelectedProject.value = detailProject;
+  const selection = focusStore.selection;
+  if (!selection) {
+    lastSelectedProject.value = null;
     return;
   }
-  const overlayId = overlayStore.idSelectedOverlay;
-  if (overlayId) {
-    const overlay = overlayStore.overlays[overlayId];
+  if (selection.kind === "overlay") {
+    const overlay = overlayStore.overlays[selection.overlayId];
     const joinedProject = overlay?.project;
     if (joinedProject) {
       lastSelectedProject.value = createProjectObject(
@@ -230,7 +231,7 @@ watchEffect(() => {
     }
     return;
   }
-  lastSelectedProject.value = null;
+  lastSelectedProject.value = projectStore.getProjectById(selection.projectId);
 });
 
 const selectedProjectId = computed(() => lastSelectedProject.value?.id ?? null);
@@ -408,13 +409,8 @@ async function handleDrawShapesClick(project: ProjectForModeration) {
 
   const approvedGeometry = project.geometry ?? null;
 
-  // Close any open detail (overlay detail or standalone project detail) to ensure a clean slate
-  if (overlayStore.overlayDetailVisible) {
-    overlayStore.closeOverlayDetail();
-  }
-  if (uiStore.projectDetail.visible) {
-    uiStore.closeProjectDetail();
-  }
+  // Close any open detail (overlay or standalone project) to ensure a clean slate
+  focusStore.clearSelection();
 
   // Open the shape editor panel (no detail to reopen at) and lazy-load the editor
   uiStore.openShapeEditor(project);

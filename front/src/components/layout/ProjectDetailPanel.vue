@@ -167,7 +167,6 @@ import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
-import { useActiveDetail } from "@/composables/project/useActiveDetail";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useToast } from "@/composables/ui/useToast";
@@ -176,6 +175,7 @@ import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay } from "@/services/overlay/actions";
@@ -204,20 +204,15 @@ const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
+const focusStore = useFocusStore();
 const authStore = useAuthStore();
-const { overlays, overlayDetailVisible, overlayDetailId } = storeToRefs(overlayStore);
+const { overlays } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
-const { projectDetail } = storeToRefs(uiStore);
+const { selection } = storeToRefs(focusStore);
 
 const overlay = computed(() => {
-  if (
-    !overlayDetailVisible.value ||
-    !overlayDetailId.value ||
-    !overlays.value[overlayDetailId.value]
-  ) {
-    return null;
-  }
-  return overlays.value[overlayDetailId.value];
+  if (selection.value?.kind !== "overlay") return null;
+  return overlays.value[selection.value.overlayId] ?? null;
 });
 
 function convertAndCacheBackendProject(
@@ -247,8 +242,8 @@ function getEffectiveProject(projectId: string): Project | undefined {
   return localProject;
 }
 
-// Overlay detail first, then project detail (shared with the visible-projects list).
-const { projectId: activeProjectId } = useActiveDetail();
+// The project behind whichever detail is open (overlay's parent or the standalone project).
+const activeProjectId = computed(() => focusStore.detailProjectId);
 
 // When another project is picked while the panel stays open, the content swaps in place with no
 // signal. Echo the open transition (short fade + slide-up) and scroll back to the top so the switch
@@ -278,13 +273,10 @@ const project = computed<Project | undefined>(() => {
   const localProject = getEffectiveProject(id);
   if (localProject) return localProject;
 
-  // Not in the store: fall back to the backend project joined onto whichever detail is open.
+  // Not in the store: fall back to the backend project joined onto the open overlay detail.
   const currentOverlay = overlay.value;
   if (currentOverlay?.project?.id === id) {
     return convertAndCacheBackendProject(currentOverlay.project);
-  }
-  if (projectDetail.value.projectId === id && projectDetail.value.project) {
-    return projectDetail.value.project;
   }
 
   return undefined;
@@ -387,11 +379,7 @@ async function handleEdit() {
 
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
-  if (overlayDetailVisible.value) {
-    overlayStore.closeOverlayDetail();
-  } else {
-    uiStore.closeProjectDetail();
-  }
+  focusStore.clearSelection();
 }
 
 async function handleViewOriginalOverlay(originalOverlayId: string) {

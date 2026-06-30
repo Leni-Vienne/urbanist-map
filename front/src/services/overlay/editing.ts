@@ -23,6 +23,7 @@ import { updateMarkerPosition, createOverlayMarker } from "@/services/overlay/ma
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
@@ -52,7 +53,7 @@ export async function updateOverlayEditingState(): Promise<void> {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const isEditMode = mapStore.mode === "edit";
-  const selectedOverlayId = overlayStore.idSelectedOverlay;
+  const selectedOverlayId = useFocusStore().selectedOverlayId;
 
   // Clear any stale handles; they are re-shown for the selected overlay below.
   hideEditHandles();
@@ -253,7 +254,7 @@ function restoreOverlayToState(id: string, state: OverlayHistoryState): void {
 function applyHistoryAction(action: "undo" | "redo") {
   const overlayStore = useOverlayStore();
 
-  const id = overlayStore.idSelectedOverlay;
+  const id = useFocusStore().selectedOverlayId;
   if (!id || !registry.getImageHandle(id)) return;
 
   const target = action === "undo" ? overlayStore.undoHistory(id) : overlayStore.redoHistory(id);
@@ -716,9 +717,10 @@ export function initializeEditorTriggers(): void {
 
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
+  const focus = useFocusStore();
 
   watch(
-    [() => overlayStore.idSelectedOverlay, () => mapStore.mode],
+    [() => focus.selectedOverlayId, () => mapStore.mode],
     ([newId, newMode], [oldId, oldMode]) => {
       // Clean up old handles if selection or mode changed
       if (oldId && (newId !== oldId || oldMode !== "edit" || newMode !== "edit")) {
@@ -729,13 +731,10 @@ export function initializeEditorTriggers(): void {
       if (newId && newMode === "edit") {
         const overlay = overlayStore.overlays[newId];
         if (overlay) {
-          console.log("[DEBUG] Watcher triggered for", newId);
           whenImageReady(
             newId,
             () => {
-              console.log("[DEBUG] Image ready for", newId);
-              if (overlayStore.idSelectedOverlay === newId && mapStore.mode === "edit") {
-                console.log("[DEBUG] Showing edit handles for", newId);
+              if (focus.selectedOverlayId === newId && mapStore.mode === "edit") {
                 showEditHandles(overlay);
               }
             },

@@ -216,14 +216,10 @@ import type {
 } from "@/types/index";
 
 import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import {
-  getProjectShapeBounds,
-  hasProjectShapes,
-  highlightProjectShapes,
-  unhighlightProjectShapes,
-} from "@/services/map/shapeLayerRegistry";
+import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapeLayerRegistry";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { useToast } from "@/composables/ui/useToast";
@@ -288,6 +284,7 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 const uiStore = useUiStore();
+const focusStore = useFocusStore();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
@@ -396,17 +393,11 @@ async function handleCardClick(project: ProjectForModeration) {
 }
 
 function handleProjectHighlight(project: ProjectForModeration) {
-  if (hasProjectShapes(project.id)) {
-    highlightProjectShapes(project.id);
-    return;
-  }
+  focusStore.setHover({ kind: "project", projectId: project.id });
 }
 
-function handleProjectUnhighlight(project: ProjectForModeration) {
-  if (hasProjectShapes(project.id)) {
-    unhighlightProjectShapes(project.id);
-    return;
-  }
+function handleProjectUnhighlight() {
+  focusStore.setHover(null);
 }
 
 async function handleOverlayCardClick(overlay: OverlayForModeration) {

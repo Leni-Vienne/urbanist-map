@@ -2,6 +2,7 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
@@ -50,13 +51,14 @@ export function getProjectSiblingOverlayIds(projectId: string): string[] {
 
 export function navigateOverlaySequence(direction: "next" | "previous") {
   const overlayStore = useOverlayStore();
+  const selectedOverlayId = useFocusStore().selectedOverlayId;
 
   // Only callable from the floating toolbar, which requires a selected overlay.
-  if (!overlayStore.idSelectedOverlay) {
+  if (!selectedOverlayId) {
     return;
   }
 
-  const currentOverlay = overlayStore.overlays[overlayStore.idSelectedOverlay];
+  const currentOverlay = overlayStore.overlays[selectedOverlayId];
 
   if (!currentOverlay?.projectId) {
     return;
@@ -71,7 +73,7 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   }
 
   // Get the next/previous overlay (with wraparound)
-  const currentIndex = projectOverlayIds.indexOf(overlayStore.idSelectedOverlay);
+  const currentIndex = projectOverlayIds.indexOf(selectedOverlayId);
   const step = direction === "next" ? 1 : -1;
   const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
   // newIndex is always in range: modulo over projectOverlayIds, which has length > 1 here.

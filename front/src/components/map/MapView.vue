@@ -51,7 +51,7 @@
       </div>
 
       <SatellitePreview />
-      <OverlayFloatingToolbar v-if="overlayStore.idSelectedOverlay" />
+      <OverlayFloatingToolbar v-if="focusStore.selectedOverlayId" />
     </div>
   </div>
 </template>
@@ -68,7 +68,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import ModeControls from "@/components/map/ModeControls.vue";
@@ -86,7 +86,7 @@ const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySear
 const SettingsButton = defineAsyncComponent(() => mapUIBundle.then((m) => m.SettingsButton));
 
 const mapStore = useMapStore();
-const overlayStore = useOverlayStore();
+const focusStore = useFocusStore();
 const authStore = useAuthStore();
 const toast = useToast();
 const { t } = useI18n();

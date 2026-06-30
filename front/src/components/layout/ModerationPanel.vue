@@ -168,7 +168,7 @@ import { useModerationStore } from "@/stores/pinia/moderationStore";
 import type { OverlayForModeration, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import { useSelectedProjectId } from "@/composables/project/useSelectedProjectId";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {
@@ -209,7 +209,8 @@ const {
 const { approveChangeRequests, rejectChangeRequests } = useChangeRequests();
 
 // The map-selected project is lifted into the panel's "Selected project" card.
-const { selectedProjectId } = useSelectedProjectId();
+const focusStore = useFocusStore();
+const selectedProjectId = computed(() => focusStore.selectedProjectId);
 
 // Show loading state when a country is selected but data hasn't been fetched yet
 const isLoading = computed(

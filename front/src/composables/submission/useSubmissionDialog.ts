@@ -6,6 +6,7 @@ import {
 } from "./submissionDialogState";
 import { getStagedRender, clearStagedRender, type StagedRender } from "./stagedRenderStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
@@ -300,6 +301,7 @@ export function useSubmissionDialog() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
   const uiStore = useUiStore();
+  const focusStore = useFocusStore();
   const pendingModsStore = usePendingModificationsStore();
   const submissionService = useSubmissionService();
 
@@ -398,7 +400,7 @@ export function useSubmissionDialog() {
     try {
       isSubmitting.value = true;
       await submissionService.submitContext(context, reason);
-      overlayStore.closeOverlayDetail();
+      focusStore.clearSelection();
       handleSubmissionSuccess(context);
     } catch (error: unknown) {
       console.error("Error submitting:", error);

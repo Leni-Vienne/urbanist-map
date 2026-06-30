@@ -15,7 +15,6 @@ import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/li
 import * as registry from "@/services/overlay/mapLayers";
 import { createOverlayMarker } from "@/services/overlay/markers";
 import { updateOverlayEditingState } from "@/services/overlay/editing";
-import { refreshSelectionHighlight } from "@/services/overlay/projectHighlight";
 import { filterByStatus } from "@/services/overlay/statusFilters";
 import {
   convertOverlayToData,
@@ -338,7 +337,6 @@ export function useViewportTriggers() {
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
           await updateOverlayEditingState();
-          refreshSelectionHighlight();
           return;
         }
 
@@ -362,7 +360,6 @@ export function useViewportTriggers() {
         await refreshViewport(true);
 
         await updateOverlayEditingState();
-        refreshSelectionHighlight();
       },
     );
   }
