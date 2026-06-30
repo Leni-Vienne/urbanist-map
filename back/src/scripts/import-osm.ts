@@ -871,13 +871,13 @@ async function main() {
       // Tombstone the rows about to be hard-deleted so an indexed /project/:slug URL can answer 410
       // and the SPA can still center the map on the last known location. A proposed/under-construction
       // feature leaving the OSM extract most often means it got built, so default the status to
-      // 'completed'. Skip rows without a slug (pre-backfill); ON CONFLICT refreshes coords + timestamp
+      // 'completed'. Skip rows without a slug; ON CONFLICT refreshes coords + timestamp
       // in case a slug recurs. Done immediately before the delete so it covers exactly that set.
       await db.execute(sql`
         INSERT INTO deleted_projects (slug, lat, lng, status, deleted_at)
         SELECT slug, lat, lng, 'completed', NOW()
         FROM projects
-        WHERE ${staleCondition} AND NOT (${hasOverlays}) AND slug IS NOT NULL
+        WHERE ${staleCondition} AND NOT (${hasOverlays}) AND slug IS NOT NULL AND indexable
         ON CONFLICT (slug) DO UPDATE
           SET lat = EXCLUDED.lat, lng = EXCLUDED.lng, status = EXCLUDED.status, deleted_at = NOW()
       `);

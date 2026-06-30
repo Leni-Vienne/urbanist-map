@@ -1501,7 +1501,7 @@ export const moderationRouter = router({
 
           // Tombstone the orphan before deleting it so an indexed /project:slug URL answers 410
           // instead of 404 once its row is gone (the content now lives under the target's own slug).
-          // Skip pre-backfill rows without a slug; ON CONFLICT refreshes a recurring slug's coords.
+          // Skip rows without a slug; ON CONFLICT refreshes a recurring slug's coords.
           if (orphan.slug) {
             await tx
               .insert(deletedProjects)
