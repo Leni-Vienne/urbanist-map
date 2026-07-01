@@ -101,11 +101,13 @@ function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): Ln
       (c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat),
     );
   }
-  // Show approved position (always in corners field)
-  if (overlayObject.corners.length !== 4) {
+  // Show approved position (always in baselineCorners field)
+  if (overlayObject.baselineCorners.length !== 4) {
     return null;
   }
-  return overlayObject.corners.map((c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat));
+  return overlayObject.baselineCorners.map(
+    (c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat),
+  );
 }
 
 function getPreviewType(changeId: string): "current" | "suggested" | null {

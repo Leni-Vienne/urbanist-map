@@ -113,12 +113,14 @@ async function navigateToReplacedOrRejectedOverlay(
 
   // First try to get centroid from overlay store (has full overlay data)
   const overlayFromStore = overlayStore.liveOverlays[overlay.id];
-  if (overlayFromStore?.corners && overlayFromStore.corners.length >= 4) {
+  if (overlayFromStore?.baselineCorners && overlayFromStore.baselineCorners.length >= 4) {
     // Calculate centroid from corners
     const centroidLat =
-      overlayFromStore.corners.reduce((sum, c) => sum + c.lat, 0) / overlayFromStore.corners.length;
+      overlayFromStore.baselineCorners.reduce((sum, c) => sum + c.lat, 0) /
+      overlayFromStore.baselineCorners.length;
     const centroidLng =
-      overlayFromStore.corners.reduce((sum, c) => sum + c.lng, 0) / overlayFromStore.corners.length;
+      overlayFromStore.baselineCorners.reduce((sum, c) => sum + c.lng, 0) /
+      overlayFromStore.baselineCorners.length;
 
     mobileAwareFlyTo([centroidLat, centroidLng], 18);
     return;

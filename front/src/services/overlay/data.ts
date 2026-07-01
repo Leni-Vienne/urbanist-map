@@ -64,7 +64,7 @@ export function resolveOverlayCorners(
   const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];
   const historyCorners = history.at(-1)?.corners;
   const liveCorners = getOverlayImageCorners(overlay.id);
-  const stored = overlay.corners;
+  const stored = overlay.baselineCorners;
 
   const historyAllowed =
     purpose === "image"

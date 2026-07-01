@@ -36,7 +36,7 @@ export function syncPendingOverlayCorners(id: string): void {
     id,
     overlay.projectId ?? null,
     mappedCorners,
-    overlay.corners,
+    overlay.baselineCorners,
     overlay.status,
   );
 }
@@ -58,8 +58,8 @@ export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
 
   // Seed empty history with the backend corners so the first undo has a base state.
   let baseHistory = overlay.history;
-  if (baseHistory.length === 0 && overlay.corners.length === 4) {
-    baseHistory = [makeHistoryState(overlay.corners, overlay.imageUrl)];
+  if (baseHistory.length === 0 && overlay.baselineCorners.length === 4) {
+    baseHistory = [makeHistoryState(overlay.baselineCorners, overlay.imageUrl)];
   }
 
   if (baseHistory.length > 0) {

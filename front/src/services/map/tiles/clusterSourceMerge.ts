@@ -113,15 +113,18 @@ function collectPendingShapes(
     if (project.geometry) standaloneShapeProjectIds.add(project.id);
 
     const isPending = project.status !== "approved" || overlay.status !== "approved";
-    const firstCorner = overlay.corners[0];
-    if (!isPending || overlay.corners.length < 3 || !firstCorner) continue;
+    const firstCorner = overlay.baselineCorners[0];
+    if (!isPending || overlay.baselineCorners.length < 3 || !firstCorner) continue;
 
     shapes.push({
       type: "Feature",
       geometry: {
         type: "Polygon",
         coordinates: [
-          [...overlay.corners.map((c) => [c.lng, c.lat]), [firstCorner.lng, firstCorner.lat]],
+          [
+            ...overlay.baselineCorners.map((c) => [c.lng, c.lat]),
+            [firstCorner.lng, firstCorner.lat],
+          ],
         ],
       },
       properties: {

@@ -68,10 +68,10 @@ export async function updateOverlayEditingState(): Promise<void> {
         restoreOverlayToState(overlayObject.id, lastEdited);
         updateMarkerPosition(overlayObject);
       }
-    } else if (overlayObject.corners.length === 4) {
+    } else if (overlayObject.baselineCorners.length === 4) {
       // Leaving edit mode: snap back to the approved backend position.
       // History is intentionally preserved so re-entering edit mode restores the user's edits.
-      setOverlayImageCorners(overlayObject.id, overlayObject.corners);
+      setOverlayImageCorners(overlayObject.id, overlayObject.baselineCorners);
       updateMarkerPosition(overlayObject);
     }
   });
@@ -189,7 +189,7 @@ export function addOverlay(
 
   async function createAndSetupOverlay() {
     const corners = await defaultCornersForNewOverlay(imageUrl);
-    overlayObject.corners = corners;
+    overlayObject.baselineCorners = corners;
     overlayObject.history = [makeHistoryState(corners, overlayObject.imageUrl)];
 
     overlayStore.addOverlay(id, overlayObject);
@@ -587,7 +587,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   const transformToUse = getCurrentTransform(overlayObject.id);
   const corners =
     resolveOverlayCorners(overlayObject, "image") ??
-    (transformToUse ? transformToCorners(transformToUse) : overlayObject.corners);
+    (transformToUse ? transformToCorners(transformToUse) : overlayObject.baselineCorners);
   const transform = cornersToTransform(corners);
   setOverlayImageTransform(overlayObject.id, transform);
   const rectCorners = transformToCorners(transform);

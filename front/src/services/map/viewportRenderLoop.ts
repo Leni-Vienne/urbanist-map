@@ -128,11 +128,11 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
   const overlaysToRender: OverlayData[] = [];
 
   for (const data of filteredOverlays) {
-    if (data.corners.length !== 4) continue;
+    if (data.baselineCorners.length !== 4) continue;
 
     // Prefer live corners so in-progress edits show up in the viewport test.
     const liveCorners = getOverlayImageCorners(data.id);
-    const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.corners;
+    const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.baselineCorners;
 
     const isInViewport = cornersIntersectBounds(effectiveCorners, bounds);
     const hasImage = registry.getImageHandle(data.id) !== null;
@@ -182,7 +182,7 @@ function pruneLocalOverlays() {
     // Backend overlays (status !== null) are handled by pruneBackendOverlays.
     if (overlay.status !== null) continue;
 
-    if (overlay.corners.length !== 4) continue;
+    if (overlay.baselineCorners.length !== 4) continue;
 
     const isAllowedByMode = isOverlayVisible(overlay, mapStore.mode, authStore.user?.id);
     const passesCompletionFilter = filterByStatus([overlay], mapStore.mode).length > 0;

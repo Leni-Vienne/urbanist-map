@@ -164,7 +164,7 @@ function newOverlayContext(
     entityType: "overlay",
     entityId: overlayId,
     changeType: "create",
-    proposed: { corners: overlayObj.history.at(-1)?.corners ?? overlayObj.corners },
+    proposed: { corners: overlayObj.history.at(-1)?.corners ?? overlayObj.baselineCorners },
   };
 }
 
@@ -293,7 +293,7 @@ export function useSubmissionService() {
     const corners =
       context.proposed?.corners ??
       getOverlayImageCorners(context.entityId) ??
-      liveOverlay?.corners ??
+      liveOverlay?.baselineCorners ??
       [];
 
     // filename is validated server-side only (the client may not have it yet), so it's omitted here.
@@ -519,7 +519,7 @@ export function useSubmissionService() {
     const submittedCorners = mod.corners?.current;
     overlayStore.updateOverlay(overlayId, { isModified: false });
     if (submittedCorners?.length === 4 && !isChangeRequest) {
-      overlayStore.updateOverlay(overlayId, { corners: submittedCorners });
+      overlayStore.updateOverlay(overlayId, { baselineCorners: submittedCorners });
       overlayStore.resetHistoryBaseline(overlayId, submittedCorners);
     }
   }
@@ -532,7 +532,7 @@ export function useSubmissionService() {
       // Collapse history so the just-published state is the new baseline.
       const publishedState = overlayObj.history.at(-1);
       if (publishedState?.corners.length === 4) {
-        overlayStore.updateOverlay(overlayId, { corners: publishedState.corners });
+        overlayStore.updateOverlay(overlayId, { baselineCorners: publishedState.corners });
         overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
       }
     }

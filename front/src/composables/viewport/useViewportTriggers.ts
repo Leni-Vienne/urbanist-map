@@ -20,6 +20,7 @@ import {
   convertOverlayToData,
   createOverlayObject,
   createProjectObject,
+  overlayWireToData,
 } from "@/utils/typeFactories";
 import { trpc } from "@/client";
 import {
@@ -80,7 +81,7 @@ async function fetchViewportData(mode: "edit" | "moderation", bbox: ReturnType<t
     trpc.viewport.getProjectsInViewport.query({ bbox, mode }),
   ]);
 
-  return { overlays: overlaysData, projects: projectsData };
+  return { overlays: overlaysData.map(overlayWireToData), projects: projectsData };
 }
 
 /**

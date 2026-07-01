@@ -9,6 +9,15 @@ import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 // All coercion to non-null defaults happens inside the factory body.
 type ProjectInput = { [K in keyof Project]?: Project[K] | null };
 
+// Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`.
+// The single translation from the tRPC/tile wire shape to OverlayData.
+export function overlayWireToData<T extends { corners: { lat: number; lng: number }[] }>(
+  wire: T,
+): Omit<T, "corners"> & { baselineCorners: { lat: number; lng: number }[] } {
+  const { corners, ...rest } = wire;
+  return { ...rest, baselineCorners: corners };
+}
+
 /**
  * Create a new Project instance with defaults
  */
@@ -93,7 +102,7 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
-    corners: data.corners ?? [],
+    baselineCorners: data.baselineCorners ?? [],
     imageUrl,
     isModified: data.isModified ?? false,
     history: data.history ?? [],
@@ -110,7 +119,10 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
  */
 export function convertOverlayToData(overlayObject: OverlayObject): OverlayData {
   // Calculate centroid from corners
-  const centroid = calculateCentroidFromCorners(overlayObject.corners) ?? { lat: 0, lng: 0 };
+  const centroid = calculateCentroidFromCorners(overlayObject.baselineCorners) ?? {
+    lat: 0,
+    lng: 0,
+  };
 
   return {
     id: overlayObject.id,
@@ -126,7 +138,7 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     replacedByOverlayId: overlayObject.replacedByOverlayId,
     project: null,
     centroid,
-    corners: overlayObject.corners,
+    baselineCorners: overlayObject.baselineCorners,
     suggestedCorners: overlayObject.suggestedCorners, // Pending position if change requests exist
     distance: 0,
     createdAt: overlayObject.createdAt,

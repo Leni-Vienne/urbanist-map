@@ -41,7 +41,7 @@ export function applyOverlayCorners(
     if (options.refreshHandles) refreshEditHandles();
   }
 
-  // Reads the live image corners (just set) and falls back to overlayObject.corners otherwise.
+  // Reads the live image corners (just set) and falls back to overlayObject.baselineCorners otherwise.
   updateMarkerPosition(overlayObject);
 }
 
@@ -53,7 +53,7 @@ function resetOverlayField(
   capturedOriginalCorners: { lat: number; lng: number }[] | null | undefined,
 ): void {
   if (field === "corners") {
-    const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
+    const cornersToUse = capturedOriginalCorners ?? overlayObject.baselineCorners;
     applyOverlayCorners(overlayObject, cornersToUse, { resetHistory: true, refreshHandles: true });
   } else if (capturedOriginalCaption !== undefined) {
     useOverlayStore().updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });

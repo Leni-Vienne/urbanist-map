@@ -224,7 +224,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   if (!marker) return;
 
   // Centroid from the live image corners so the pin tracks the overlay during edits.
-  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.corners;
+  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.baselineCorners;
   if (corners.length === 4) {
     const centroid = calculateCentroidFromCorners(corners);
     if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);

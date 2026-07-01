@@ -11,6 +11,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay, applySelectionVisualsWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
+import { overlayWireToData } from "@/utils/typeFactories";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): boolean {
@@ -118,10 +119,10 @@ async function loadOverlay(
       // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
       const { renderViewModeOverlays } = await import("@/services/overlay/rendering");
 
-      renderViewModeOverlays([result.overlay], true);
+      renderViewModeOverlays([overlayWireToData(result.overlay)], true);
 
       if (includeIntersecting && result.intersectingOverlays.length > 0) {
-        renderViewModeOverlays(result.intersectingOverlays, true);
+        renderViewModeOverlays(result.intersectingOverlays.map(overlayWireToData), true);
       }
 
       // Don't check overlayStore.liveOverlays[overlayId] here: overlay registration is async

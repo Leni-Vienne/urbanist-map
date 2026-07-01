@@ -12,7 +12,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 function getCornersFromOverlay(overlay: OverlayObject) {
   const lastEdited = overlay.history.at(-1)?.corners;
   if (lastEdited?.length === 4) return lastEdited;
-  return overlay.corners;
+  return overlay.baselineCorners;
 }
 
 // Images upload to local storage first and migrate to R2 only after moderator approval.

@@ -128,7 +128,7 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
     createdAt: new Date(0),
     updatedAt: new Date(0),
     centroid,
-    corners,
+    baselineCorners: corners,
   };
   return { overlay, lastModifiedS, timelineStatus, tags, name };
 }
@@ -178,7 +178,7 @@ export function syncOverlaysFromTiles(): void {
         continue;
       }
 
-      if (cornersIntersectBounds(overlay.corners, viewportBounds)) {
+      if (cornersIntersectBounds(overlay.baselineCorners, viewportBounds)) {
         featureMap.set(id, overlay);
       }
     }
@@ -199,7 +199,7 @@ export function syncOverlaysFromTiles(): void {
         }
         const data = approvedOverlayDataCache.get(id);
         const liveCorners = getOverlayImageCorners(id);
-        const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data?.corners;
+        const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data?.baselineCorners;
 
         if (effectiveCorners && cornersIntersectBounds(effectiveCorners, viewportBounds)) {
           // The overlay's backend coordinates are no longer in the MVT tiles for this viewport,

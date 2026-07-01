@@ -116,6 +116,7 @@ export type OverlayData = Omit<
   | "status"
   | "project"
   | "distance"
+  | "corners"
   | "suggestedCorners"
   | "hasPendingChanges"
   | "pendingChangeRequestsCount"
@@ -123,6 +124,9 @@ export type OverlayData = Omit<
   status: ApprovalStatus | null;
   project?: ApiOverlayData["project"] | Project | null;
   distance?: number;
+  // The immutable backend/approved corners. The live edited position lives on the GL image
+  // (getOverlayImageCorners) and undo steps in history[]; this is only the server baseline.
+  baselineCorners: { lat: number; lng: number }[];
   suggestedCorners?: { lat: number; lng: number }[];
   hasPendingChanges?: boolean;
   pendingChangeRequestsCount?: number;

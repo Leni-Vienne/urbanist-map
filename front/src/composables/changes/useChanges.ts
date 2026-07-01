@@ -17,7 +17,7 @@ function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
 function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
   usePendingModificationsStore().clearModification(overlayId);
   useOverlayStore().updateOverlay(overlayId, { isModified: false });
-  applyOverlayCorners(overlayObject, overlayObject.corners, {
+  applyOverlayCorners(overlayObject, overlayObject.baselineCorners, {
     resetHistory: true,
     refreshHandles: true,
   });
