@@ -19,7 +19,7 @@ export function isProjectUnsaved(project: ProjectLike): boolean {
   if (project.status === null) return true;
   if (project.isModified === true) return true;
   const overlayStore = useOverlayStore();
-  return Object.values(overlayStore.overlays).some(
+  return Object.values(overlayStore.liveOverlays).some(
     (o) => o.projectId === project.id && isOverlayUnsaved(o),
   );
 }
@@ -28,7 +28,7 @@ export function hasUnsavedChanges(): boolean {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
 
-  if (Object.values(overlayStore.overlays).some(isOverlayUnsaved)) return true;
+  if (Object.values(overlayStore.liveOverlays).some(isOverlayUnsaved)) return true;
   if (Object.values(projectStore.projects).some(isProjectUnsaved)) return true;
   return false;
 }

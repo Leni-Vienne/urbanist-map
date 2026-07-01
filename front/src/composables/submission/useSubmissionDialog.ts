@@ -305,7 +305,7 @@ export function useSubmissionDialog() {
   const submissionService = useSubmissionService();
 
   function getNewOverlaysForProject(projectId: string): OverlayObject[] {
-    return Object.values(overlayStore.overlays).filter(
+    return Object.values(overlayStore.liveOverlays).filter(
       (overlay) => overlay.projectId === projectId && overlay.status === null,
     );
   }
@@ -345,7 +345,7 @@ export function useSubmissionDialog() {
           pendingMods,
           newOverlayIds,
           project ?? undefined,
-          overlayStore.overlays,
+          overlayStore.liveOverlays,
         ),
         stagedRender: getStagedRender(projectId),
       });
@@ -415,7 +415,7 @@ export function useSubmissionDialog() {
     overlayId: string,
     field: RemovableChange,
   ): Promise<void> {
-    const overlayObject = overlayStore.overlays[overlayId];
+    const overlayObject = overlayStore.liveOverlays[overlayId];
 
     // Handle removing a NEW overlay completely
     if (field === "new_overlay") {

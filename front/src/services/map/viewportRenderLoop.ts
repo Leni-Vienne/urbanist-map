@@ -148,7 +148,7 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
         // renderViewModeOverlays(..., true) creates the image source and the status marker.
         overlaysToRender.push(data);
       } else if (!hasMarker) {
-        const overlayObject = overlayStore.overlays[data.id];
+        const overlayObject = overlayStore.liveOverlays[data.id];
         if (overlayObject) createOverlayMarker(overlayObject);
       }
     } else if (hasImage || hasMarker) {
@@ -167,7 +167,7 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
 
 /**
  * Pipeline 2: Local/unsaved overlays only (status === null).
- * Source: overlayStore.overlays filtered to status === null.
+ * Source: overlayStore.liveOverlays filtered to status === null.
  * Structural gate: if status !== null, skip immediately.
  * These overlays are only visible in edit mode.
  */
@@ -177,7 +177,7 @@ function pruneLocalOverlays() {
   const mapStore = useMapStore();
   const editOverlaysToRecreate: OverlayObject[] = [];
 
-  for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
+  for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
     // STRUCTURAL GATE, this pipeline owns local overlays exclusively.
     // Backend overlays (status !== null) are handled by pruneBackendOverlays.
     if (overlay.status !== null) continue;

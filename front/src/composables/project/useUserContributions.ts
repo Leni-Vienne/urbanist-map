@@ -64,7 +64,7 @@ export function useUserContributions() {
 
     // Overlays aren't filtered by authorId: they can be added to projects the user doesn't own, and
     // project ownership handles access control.
-    const localOverlays = Object.values(overlayStore.overlays).filter(
+    const localOverlays = Object.values(overlayStore.liveOverlays).filter(
       (overlay) => overlay.status === null,
     );
 
@@ -157,7 +157,7 @@ export function useUserContributions() {
     if (!projectStore.userContributionsLoaded) return null;
     if (allContributions.value.some((p) => p.id === project.id)) return null;
     const parentCountry = { countryCode: project.countryCode, countryName: project.countryName };
-    const overlays = Object.values(overlayStore.overlays)
+    const overlays = Object.values(overlayStore.liveOverlays)
       .filter((o) => o.projectId === project.id)
       .map((o) =>
         createLocalOverlayContribution(

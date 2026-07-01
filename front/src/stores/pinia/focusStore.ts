@@ -43,7 +43,7 @@ export const useFocusStore = defineStore("focus", () => {
     if (!target) return null;
     const projectStore = useProjectStore();
     if (target.kind === "overlay") {
-      const overlay = useOverlayStore().overlays[target.overlayId];
+      const overlay = useOverlayStore().liveOverlays[target.overlayId];
       const joined = overlay?.project;
       if (joined) return createProjectObject(joined as Parameters<typeof createProjectObject>[0]);
       return target.projectId ? projectStore.getProjectById(target.projectId) : null;
@@ -66,7 +66,7 @@ export const useFocusStore = defineStore("focus", () => {
       return;
     }
     const overlayStore = useOverlayStore();
-    const projectId = overlayStore.overlays[overlayId]?.projectId ?? null;
+    const projectId = overlayStore.liveOverlays[overlayId]?.projectId ?? null;
     selection.value = { kind: "overlay", overlayId, projectId };
     hover.value = null;
   }

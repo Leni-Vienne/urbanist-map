@@ -86,7 +86,7 @@ export function useChangeRequests() {
     }
 
     const overlayStore = useOverlayStore();
-    const overlayObject = overlayStore.overlays[changeRequest.entityId];
+    const overlayObject = overlayStore.liveOverlays[changeRequest.entityId];
 
     if (!overlayObject) {
       return;

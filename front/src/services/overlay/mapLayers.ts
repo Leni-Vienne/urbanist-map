@@ -431,7 +431,7 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
   }
 
   const store = useOverlayStore();
-  const overlay = store.overlays[id];
+  const overlay = store.liveOverlays[id];
   if (!overlay) return;
 
   const filename = imageUrl.startsWith("data:")
@@ -447,7 +447,7 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
 // Last edited corner set from history, or null. Fallback for when the image handle is
 // temporarily null (e.g. zoomed out past the overlay threshold) but the overlay is modified.
 function lastHistoryCorners(id: string): Corner[] | null {
-  const overlay = useOverlayStore().overlays[id];
+  const overlay = useOverlayStore().liveOverlays[id];
   const lastCorners = overlay?.history.at(-1)?.corners;
   return lastCorners?.length === 4 ? lastCorners : null;
 }

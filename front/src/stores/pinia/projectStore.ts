@@ -17,7 +17,7 @@ export const useProjectStore = defineStore("project", () => {
 
   // Membership: ids of projects the user has contributed to.
   const contributionIds = ref<Record<string, true>>({});
-  // Contribution overlay metadata, keyed by overlay id. Separate from overlayStore.overlays,
+  // Contribution overlay metadata, keyed by overlay id. Separate from overlayStore.liveOverlays,
   // which holds live map-rendered overlays (corners/history/image), not list metadata.
   const contributionOverlays = ref<Record<string, Overlay>>({});
   const userContributionsLoading = ref(false);

@@ -171,7 +171,7 @@ watchEffect(() => {
   const selectedId = focusStore.selectedOverlayId;
   if (selectedId) {
     // Sync "view approved position" button for the currently selected overlay
-    const sel = overlayStore.overlays[selectedId];
+    const sel = overlayStore.liveOverlays[selectedId];
     if (sel) {
       syncPreviewStateOnNavigation(selectedId, sel.isViewingApprovedPosition ?? true);
     }

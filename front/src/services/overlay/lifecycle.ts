@@ -22,7 +22,7 @@ export function clearAllOverlays(preserveStoreData = false): void {
   registry.clearAll(preserveStoreData);
 
   if (!preserveStoreData) {
-    overlayStore.overlays = {};
+    overlayStore.liveOverlays = {};
   }
 }
 

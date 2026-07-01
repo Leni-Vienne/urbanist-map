@@ -97,7 +97,7 @@ export function useOverlayPublisher() {
     if (project) {
       const authStore = useAuthStore();
       const overlayStore = useOverlayStore();
-      const existingOverlays = Object.values(overlayStore.overlays).filter(
+      const existingOverlays = Object.values(overlayStore.liveOverlays).filter(
         (o) => o.projectId === project.id && o.id !== overlay.id,
       );
 

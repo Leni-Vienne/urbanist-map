@@ -333,7 +333,7 @@ function readOpacity(): number {
 const overlayIndex = computed(() => {
   const id = selectedId.value;
   if (!id) return null;
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay?.projectId) return null;
   // Same source as navigateOverlaySequence, so the displayed index matches prev/next.
   const siblings = getProjectSiblingOverlayIds(overlay.projectId);
@@ -344,7 +344,7 @@ const overlayIndex = computed(() => {
 
 const showNav = computed(() => (overlayIndex.value?.total ?? 0) > 1);
 
-const selectedOverlay = computed(() => overlayStore.overlays[selectedId.value ?? ""]);
+const selectedOverlay = computed(() => overlayStore.liveOverlays[selectedId.value ?? ""]);
 
 const overlayName = computed(() => selectedOverlay.value?.caption?.trim() || null);
 
@@ -421,7 +421,7 @@ async function confirmCrop() {
 function onReplace() {
   const id = selectedId.value;
   if (!id) return;
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay?.projectId) return;
   overlayStore.requestOverlayReplacement(id);
   uiStore.openImageUploadDialog(overlay.projectId);
@@ -430,7 +430,7 @@ function onReplace() {
 async function onDelete() {
   const id = selectedId.value;
   if (!id) return;
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
   // Deselection (handles, highlight, docked detail) happens in removeOverlayFromMapAndStore.
   await handleDeleteOverlay(id, overlay.caption ?? null);

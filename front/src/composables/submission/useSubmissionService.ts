@@ -289,7 +289,7 @@ export function useSubmissionService() {
   }
 
   function validateOverlay(context: Extract<EntityUpdate, { entityType: "overlay" }>): string[] {
-    const liveOverlay = overlayStore.overlays[context.entityId];
+    const liveOverlay = overlayStore.liveOverlays[context.entityId];
     const corners =
       context.proposed?.corners ??
       getOverlayImageCorners(context.entityId) ??
@@ -426,7 +426,7 @@ export function useSubmissionService() {
     const hasCornersChange = changes.some((c) => c.fieldName === "corners");
     if (hasCornersChange) {
       // Pass the live store entry so publishOverlay's status/imageUrl mutations land in the store.
-      const liveOverlay = overlayStore.overlays[overlayId];
+      const liveOverlay = overlayStore.liveOverlays[overlayId];
       if (!liveOverlay) return;
 
       const project = liveOverlay.projectId
@@ -505,7 +505,7 @@ export function useSubmissionService() {
     mod: Pick<PendingOverlayModification, "caption" | "corners">,
     reason: string,
   ): Promise<void> {
-    const overlayObj = overlayStore.overlays[overlayId];
+    const overlayObj = overlayStore.liveOverlays[overlayId];
     if (!overlayObj) return;
 
     const isChangeRequest = overlayObj.status === "approved";
@@ -526,7 +526,7 @@ export function useSubmissionService() {
 
   async function publishNewOverlays(overlayIds: string[], project: Project | null): Promise<void> {
     for (const overlayId of overlayIds) {
-      const overlayObj = overlayStore.overlays[overlayId];
+      const overlayObj = overlayStore.liveOverlays[overlayId];
       if (!overlayObj) continue;
       await publishOverlay(overlayObj, project);
       // Collapse history so the just-published state is the new baseline.
@@ -566,11 +566,11 @@ export function useSubmissionService() {
     newOverlayIds: string[],
   ): EntityUpdate[] {
     const edits = existingMods.flatMap((mod) => {
-      const overlayObj = overlayStore.overlays[mod.overlayId];
+      const overlayObj = overlayStore.liveOverlays[mod.overlayId];
       return overlayObj ? [buildOverlayModificationContext(mod.overlayId, mod, overlayObj)] : [];
     });
     const created = newOverlayIds.flatMap((id) => {
-      const overlayObj = overlayStore.overlays[id];
+      const overlayObj = overlayStore.liveOverlays[id];
       return overlayObj ? [newOverlayContext(id, overlayObj)] : [];
     });
     return [...edits, ...created];

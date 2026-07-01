@@ -55,7 +55,7 @@ export function selectOverlay(overlayId: string | null): void {
       return;
     }
 
-    const newlySelected = overlayStore.overlays[overlayId];
+    const newlySelected = overlayStore.liveOverlays[overlayId];
     if (!newlySelected) return;
 
     // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
@@ -78,7 +78,7 @@ export function selectOverlay(overlayId: string | null): void {
 // carry minimal data, so fetch and cache the project when neither the store nor the overlay has it.
 async function hydrateOverlayProject(overlayId: string): Promise<void> {
   const overlayStore = useOverlayStore();
-  const overlay = overlayStore.overlays[overlayId];
+  const overlay = overlayStore.liveOverlays[overlayId];
   if (!overlay?.projectId) return;
 
   const projectStore = useProjectStore();
@@ -114,7 +114,7 @@ export function applySelectionVisualsWhenReady(overlayId: string): void {
     // Selection changed while we were waiting; abandon.
     if (focus.selectedOverlayId !== overlayId) return;
 
-    const overlay = overlayStore.overlays[overlayId];
+    const overlay = overlayStore.liveOverlays[overlayId];
     if (!overlay) return;
 
     raiseOverlayImage(overlayId);
@@ -189,7 +189,7 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
   for (let i = renderedIds.length - 1; i >= 0; i -= 1) {
     const id = renderedIds[i];
     if (!id) continue;
-    const overlay = overlayStore.overlays[id];
+    const overlay = overlayStore.liveOverlays[id];
     if (!overlay) continue;
     // Approved overlays at their backend position are clicked via the vector-tile path.
     // We only run point-in-polygon for overlays whose live image can sit elsewhere.

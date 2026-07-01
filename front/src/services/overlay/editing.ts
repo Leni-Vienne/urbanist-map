@@ -58,7 +58,7 @@ export async function updateOverlayEditingState(): Promise<void> {
   // Clear any stale handles; they are re-shown for the selected overlay below.
   hideEditHandles();
 
-  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
+  Object.values(overlayStore.liveOverlays).forEach((overlayObject: OverlayObject) => {
     if (!registry.getImageHandle(overlayObject.id)) return;
 
     if (isEditMode) {
@@ -78,7 +78,7 @@ export async function updateOverlayEditingState(): Promise<void> {
 
   // Re-show handles for the selected overlay after entering edit mode.
   if (isEditMode && selectedOverlayId) {
-    const selected = overlayStore.overlays[selectedOverlayId];
+    const selected = overlayStore.liveOverlays[selectedOverlayId];
     if (selected && registry.getImageHandle(selectedOverlayId)) {
       requestAnimationFrame(() => showEditHandles(selected));
     }
@@ -167,7 +167,7 @@ export function addOverlay(
   // If this is a replacement overlay, set the replacement reference
   if (replacesOverlayId) {
     overlayObject.replacesOverlayId = replacesOverlayId;
-    const originalOverlay = overlayStore.overlays[replacesOverlayId];
+    const originalOverlay = overlayStore.liveOverlays[replacesOverlayId];
     overlayObject.caption = t("overlay.replacementCaption", {
       name: originalOverlay?.caption ?? t("overlay.untitled"),
     });
@@ -242,7 +242,7 @@ export function redo() {
 // Restore an overlay to a saved history step. A step from before a crop carries a different
 // image, so swap the source when it differs; otherwise just reposition the current image.
 function restoreOverlayToState(id: string, state: OverlayHistoryState): void {
-  const overlay = useOverlayStore().overlays[id];
+  const overlay = useOverlayStore().liveOverlays[id];
   if (!overlay) return;
   if (state.imageUrl !== overlay.imageUrl) {
     replaceOverlayImageSource(id, state.imageUrl, state.corners);
@@ -263,7 +263,7 @@ function applyHistoryAction(action: "undo" | "redo") {
   restoreOverlayToState(id, target);
 
   refreshEditHandles();
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (overlay) {
     updateMarkerPosition(overlay);
   }
@@ -729,7 +729,7 @@ export function initializeEditorTriggers(): void {
 
       // Show handles for new selection in edit mode
       if (newId && newMode === "edit") {
-        const overlay = overlayStore.overlays[newId];
+        const overlay = overlayStore.liveOverlays[newId];
         if (overlay) {
           whenImageReady(
             newId,

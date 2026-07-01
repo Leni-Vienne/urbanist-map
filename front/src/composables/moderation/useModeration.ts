@@ -158,7 +158,7 @@ export function useModeration() {
     );
 
     if (result.success) {
-      const overlayObject = overlayStore.overlays[id];
+      const overlayObject = overlayStore.liveOverlays[id];
 
       if (overlayObject) {
         // updateOverlay mutates the Pinia proxy, picked up by initializeMarkerColorTriggers.
@@ -169,7 +169,7 @@ export function useModeration() {
       if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
         removeOverlayFromMapAndStore(replacesOverlayId);
 
-        const competingReplacements = Object.values(overlayStore.overlays).filter(
+        const competingReplacements = Object.values(overlayStore.liveOverlays).filter(
           (o) => o.replacesOverlayId === replacesOverlayId && o.id !== id,
         );
 

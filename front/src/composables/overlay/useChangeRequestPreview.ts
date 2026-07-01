@@ -124,7 +124,7 @@ export function useChangeRequestPreview() {
   ): Promise<boolean> {
     const mapStore = useMapStore();
 
-    let overlayObject = overlayStore.overlays[overlayForModeration.id];
+    let overlayObject = overlayStore.liveOverlays[overlayForModeration.id];
 
     if (overlayObject && registry.getImageHandle(overlayObject.id) !== null) {
       return true;
@@ -167,7 +167,7 @@ export function useChangeRequestPreview() {
       });
     });
 
-    overlayObject = overlayStore.overlays[overlayForModeration.id];
+    overlayObject = overlayStore.liveOverlays[overlayForModeration.id];
 
     if (!appeared || !overlayObject || registry.getImageHandle(overlayObject.id) === null) {
       toast.add({
@@ -187,7 +187,7 @@ export function useChangeRequestPreview() {
     type: "old" | "new",
     wasAlreadyLoaded: boolean,
   ): void {
-    const overlayObject = overlayStore.overlays[overlayId];
+    const overlayObject = overlayStore.liveOverlays[overlayId];
     if (!overlayObject || registry.getImageHandle(overlayObject.id) === null) {
       return;
     }

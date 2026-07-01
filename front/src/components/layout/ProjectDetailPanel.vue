@@ -206,13 +206,13 @@ const uiStore = useUiStore();
 const mapStore = useMapStore();
 const focusStore = useFocusStore();
 const authStore = useAuthStore();
-const { overlays } = storeToRefs(overlayStore);
+const { liveOverlays } = storeToRefs(overlayStore);
 const { projects } = storeToRefs(projectStore);
 const { selection } = storeToRefs(focusStore);
 
 const overlay = computed(() => {
   if (selection.value?.kind !== "overlay") return null;
-  return overlays.value[selection.value.overlayId] ?? null;
+  return liveOverlays.value[selection.value.overlayId] ?? null;
 });
 
 function convertAndCacheBackendProject(
@@ -221,7 +221,7 @@ function convertAndCacheBackendProject(
   const existing = projects.value[backendProject.id];
   if (existing) return existing;
 
-  const overlayIds = Object.values(overlays.value)
+  const overlayIds = Object.values(liveOverlays.value)
     .filter((o) => o.projectId === backendProject.id)
     .map((o) => o.id);
 

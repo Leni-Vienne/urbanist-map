@@ -40,7 +40,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
  */
 export function getProjectSiblingOverlayIds(projectId: string): string[] {
   const overlayStore = useOverlayStore();
-  return Object.values(overlayStore.overlays)
+  return Object.values(overlayStore.liveOverlays)
     .filter((overlay) => overlay.projectId === projectId)
     .map((overlay) => overlay.id);
 }
@@ -58,7 +58,7 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
     return;
   }
 
-  const currentOverlay = overlayStore.overlays[selectedOverlayId];
+  const currentOverlay = overlayStore.liveOverlays[selectedOverlayId];
 
   if (!currentOverlay?.projectId) {
     return;
@@ -98,7 +98,7 @@ async function loadOverlay(
 ): Promise<LoadOverlayResult | null> {
   const overlayStore = useOverlayStore();
 
-  if (overlayStore.overlays[overlayId]) {
+  if (overlayStore.liveOverlays[overlayId]) {
     return { alreadyInStore: true };
   }
 
@@ -124,7 +124,7 @@ async function loadOverlay(
         renderViewModeOverlays(result.intersectingOverlays, true);
       }
 
-      // Don't check overlayStore.overlays[overlayId] here: overlay registration is async
+      // Don't check overlayStore.liveOverlays[overlayId] here: overlay registration is async
       // (happens after image loads) and may not complete if zoom level is too low.
       // Return corners so the caller can fly to the overlay immediately.
       return { alreadyInStore: false, corners: result.overlay.corners };
@@ -165,7 +165,7 @@ export async function navigateToOverlay(
 function selectAndCenterOverlay(overlayId: string) {
   const overlayStore = useOverlayStore();
 
-  const overlay = overlayStore.overlays[overlayId];
+  const overlay = overlayStore.liveOverlays[overlayId];
 
   if (!overlay) {
     return false;
@@ -184,7 +184,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   const overlayStore = useOverlayStore();
   const pendingModsStore = usePendingModificationsStore();
 
-  const overlayObject = overlayStore.overlays[id];
+  const overlayObject = overlayStore.liveOverlays[id];
   if (!overlayObject) return;
 
   // Track if caption actually changed to set isModified flag

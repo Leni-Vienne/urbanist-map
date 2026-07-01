@@ -672,7 +672,7 @@ function computeHiddenOverlayIds(): string[] {
   if (selectedOverlayId && useMapStore().mode === "edit") {
     hidden.add(selectedOverlayId);
   }
-  for (const [id, o] of Object.entries(store.overlays)) {
+  for (const [id, o] of Object.entries(store.liveOverlays)) {
     if (o.isModified) hidden.add(id);
   }
   return [...hidden];

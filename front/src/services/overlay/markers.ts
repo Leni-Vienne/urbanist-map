@@ -39,7 +39,7 @@ function resolveOverlayMarkerCorners(overlay: OverlayData): Corner[] | null {
   if (isValidQuad(liveCorners)) return liveCorners;
 
   if (mapStore.mode === "edit") {
-    const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1)?.corners;
+    const lastEdited = overlayStore.liveOverlays[overlay.id]?.history.at(-1)?.corners;
     if (isValidQuad(lastEdited)) return lastEdited;
   }
 
@@ -97,7 +97,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
 // skip on degenerate bounds.
 function onMarkerClick(overlayId: string): void {
   const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.overlays[overlayId];
+  const overlayObject = overlayStore.liveOverlays[overlayId];
   if (!overlayObject) return;
 
   // Second click on the selected marker deselects.
@@ -280,7 +280,7 @@ export function initializeMarkerColorTriggers(): void {
 
   watchEffect(() => {
     const mode = mapStore.mode;
-    for (const overlayObject of Object.values(overlayStore.overlays)) {
+    for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
       const marker = registry.getMarker(overlayObject.id);
       if (!marker) continue;
       updateMarkerTooltip(overlayObject, getOverlayMarkerColor(overlayObject, mode));

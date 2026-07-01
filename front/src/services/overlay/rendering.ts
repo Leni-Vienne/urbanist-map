@@ -68,7 +68,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
     return;
   }
 
-  const existingOverlay = overlayStore.overlays[cdnOverlay.id];
+  const existingOverlay = overlayStore.liveOverlays[cdnOverlay.id];
   const overlayObject = createOverlayObject(cdnOverlay);
 
   // Preserve in-progress edit state when re-rendering. history.at(-1) is the user's last
@@ -110,7 +110,7 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
   } else {
     overlayStore.addOverlay(cdnOverlay.id, enriched);
   }
-  const overlay = overlayStore.overlays[cdnOverlay.id];
+  const overlay = overlayStore.liveOverlays[cdnOverlay.id];
 
   // View mode passes createMarkers=false and relies on the overlay-footprints MVT layer
   // for low-zoom representation and click handling.

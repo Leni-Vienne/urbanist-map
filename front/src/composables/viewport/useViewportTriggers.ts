@@ -32,7 +32,7 @@ function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   const updates: Record<string, Partial<OverlayData>> = {};
   for (const overlayData of overlaysData) {
-    if (overlayStore.overlays[overlayData.id]) {
+    if (overlayStore.liveOverlays[overlayData.id]) {
       updates[overlayData.id] = {
         hasPendingChanges: overlayData.hasPendingChanges,
         suggestedCorners: overlayData.suggestedCorners,
@@ -56,7 +56,7 @@ function renderFullOverlays(overlaysData: OverlayData[]): void {
   overlayStore.setViewModeOverlays(overlaysData);
   hydrateOverlayStoreObjects(overlaysData);
 
-  for (const overlayObject of Object.values(overlayStore.overlays)) {
+  for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
     createOverlayMarker(overlayObject);
   }
 
@@ -283,7 +283,7 @@ export function useViewportTriggers() {
     // In edit mode, also include preserved overlays from the store that aren't in overlaysData
     if (isEditMode) {
       const overlayDataIds = new Set(overlaysData.map((o) => o.id));
-      for (const [id, existing] of Object.entries(overlayStore.overlays)) {
+      for (const [id, existing] of Object.entries(overlayStore.liveOverlays)) {
         if (overlayDataIds.has(id)) continue;
 
         allOverlaysForMarkers.push(convertOverlayToData(existing));
@@ -297,7 +297,7 @@ export function useViewportTriggers() {
       filterByStatus(allOverlaysForMarkers, mapStore.mode).map((o) => o.id),
     );
 
-    for (const overlayObject of Object.values(overlayStore.overlays)) {
+    for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
       if (visibleOverlayIds.has(overlayObject.id)) {
         createOverlayMarker(overlayObject);
       }
@@ -341,10 +341,10 @@ export function useViewportTriggers() {
         }
 
         // Switching TO edit or moderation: hide overlays not visible in the new mode
-        const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
+        const hasLoadedOverlays = Object.keys(overlayStore.liveOverlays).length > 0;
         if (hasLoadedOverlays) {
           const currentUserId = authStore.user?.id;
-          for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
+          for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
             if (!isOverlayVisible(overlay, newMode, currentUserId)) {
               registry.clearEntry(id);
             }

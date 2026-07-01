@@ -41,7 +41,7 @@ export function useContributeActions(
   const { prepareSubmission } = useSubmissionDialog();
 
   function isOverlayModified(overlayId: string): boolean {
-    const overlay = overlayStore.overlays[overlayId];
+    const overlay = overlayStore.liveOverlays[overlayId];
     return overlay ? isOverlayUnsaved(overlay) : false;
   }
 
@@ -59,7 +59,7 @@ export function useContributeActions(
     if (isStagedRenderOverlay(overlay) && overlay.projectId) {
       const projectId = overlay.projectId;
       clearStagedRender(projectId);
-      const hasOtherUnsaved = Object.values(overlayStore.overlays).some(
+      const hasOtherUnsaved = Object.values(overlayStore.liveOverlays).some(
         (o) => o.projectId === projectId && isOverlayUnsaved(o),
       );
       projectStore.updateProject(projectId, { isModified: hasOtherUnsaved });
@@ -90,7 +90,7 @@ export function useContributeActions(
 
   function handleEditOverlayClick(overlay: Overlay): void {
     // Prefer the live store object so in-memory caption changes are not lost on reopen
-    const liveOverlay = overlayStore.overlays[overlay.id];
+    const liveOverlay = overlayStore.liveOverlays[overlay.id];
     if (liveOverlay) {
       uiStore.openOverlayEditDialog(liveOverlay);
       return;

@@ -33,7 +33,8 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
 
   // In edit mode, prefer the live OverlayObject's isModified flag so marker color
   // reflects user edits even before the savedOverlay snapshot has been refreshed.
-  const liveOverlay = mapStore.mode === "edit" ? overlayStore.overlays[savedOverlay.id] : undefined;
+  const liveOverlay =
+    mapStore.mode === "edit" ? overlayStore.liveOverlays[savedOverlay.id] : undefined;
 
   return createOverlayObject({
     ...savedOverlay,

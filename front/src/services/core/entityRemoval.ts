@@ -18,7 +18,7 @@ interface DeleteOverlayOptions {
 
 export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.overlays[overlayId];
+  const overlayObject = overlayStore.liveOverlays[overlayId];
   if (!overlayObject) return;
 
   // Deselect before deleting from the store: selectOverlay(null) owns the full cleanup
@@ -30,7 +30,7 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   clearRegistryEntry(overlayId);
 
   // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-  delete overlayStore.overlays[overlayId];
+  delete overlayStore.liveOverlays[overlayId];
 
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
 
@@ -101,7 +101,7 @@ export async function deleteOverlayDirect(
   const { showToast = false, updateUserContributions = false } = options;
 
   const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.overlays[overlayId];
+  const overlayObject = overlayStore.liveOverlays[overlayId];
 
   try {
     // Brand new overlays (status null) only exist locally, and always live in the store.

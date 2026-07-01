@@ -112,7 +112,7 @@ async function navigateToReplacedOrRejectedOverlay(
   const { projectId } = overlay;
 
   // First try to get centroid from overlay store (has full overlay data)
-  const overlayFromStore = overlayStore.overlays[overlay.id];
+  const overlayFromStore = overlayStore.liveOverlays[overlay.id];
   if (overlayFromStore?.corners && overlayFromStore.corners.length >= 4) {
     // Calculate centroid from corners
     const centroidLat =

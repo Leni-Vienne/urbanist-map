@@ -23,7 +23,7 @@ export function recordOverlayModification(id: string): void {
 
   if (mapStore.mode !== "edit") return;
 
-  const overlay = useOverlayStore().overlays[id];
+  const overlay = useOverlayStore().liveOverlays[id];
   if (!overlay || overlay.status === null) return;
 
   const corners = getOverlayImageCorners(id);
@@ -42,7 +42,7 @@ export function recordOverlayModification(id: string): void {
 
 export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
   const overlayStore = useOverlayStore();
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
 
   const currentCorners = getOverlayImageCorners(id);
