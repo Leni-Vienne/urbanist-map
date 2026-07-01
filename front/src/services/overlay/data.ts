@@ -2,10 +2,12 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
-import type { OverlayObject, Project } from "@/types/index";
+import type { OverlayData, OverlayObject, OverlayHistoryState, Project } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { isValidQuad } from "@/services/overlay/transform";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+
+type Corner = { lat: number; lng: number };
 
 /**
  * Enrich overlay with project data, falling back to moderation store in moderation mode.
@@ -43,24 +45,56 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   });
 }
 
-// Corners to (re)create and hit-test the overlay IMAGE at, biased toward the remembered/intended
-// position: history > backend corners > live image. In view mode, approved overlays render at
-// their backend corners but keep history, so edit mode can restore in-progress edits.
-// Deliberately the inverse of resolveOverlayMarkerCorners, which places the marker on the LIVE
-// image and so prefers the live position first; both share isValidQuad.
-export function resolveOverlayRenderCorners(overlayObject: OverlayObject) {
+// Single resolver for an overlay's on-map geometry. `purpose` picks the priority order:
+//   "image"  (re)creates the raster, so it prefers the remembered/intended position:
+//            history > backend corners > live image.
+//   "marker" tracks where the image actually sits, so it prefers the live position:
+//            live image > history > backend corners.
+// History is used for the image unless a view-mode approved overlay (which always renders at its
+// backend corners), and for the marker only while editing. `history` is read off the passed object
+// when present (the image path resolves a freshly-built object before it is committed to the store)
+// and otherwise looked up by id. Returns null when no source yields a valid 4-corner quad, e.g. a
+// render (kind='render'), whose corners are null.
+export function resolveOverlayCorners(
+  overlay: OverlayData & { history?: OverlayHistoryState[] },
+  purpose: "image" | "marker",
+): Corner[] | null {
   const mapStore = useMapStore();
-  const ignoreHistory = mapStore.mode === "view" && overlayObject.status === "approved";
 
-  if (!ignoreHistory && overlayObject.history.length > 0) {
-    const lastCorners = overlayObject.history.at(-1)?.corners;
-    if (isValidQuad(lastCorners)) return lastCorners;
+  const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];
+  const historyCorners = history.at(-1)?.corners;
+  const liveCorners = getOverlayImageCorners(overlay.id);
+  const stored = overlay.corners;
+
+  const historyAllowed =
+    purpose === "image"
+      ? !(mapStore.mode === "view" && overlay.status === "approved")
+      : mapStore.mode === "edit";
+  const fromHistory = historyAllowed && isValidQuad(historyCorners) ? historyCorners : null;
+
+  if (purpose === "marker") {
+    if (isValidQuad(liveCorners)) return liveCorners;
+    if (fromHistory) return fromHistory;
+    if (isValidQuad(stored)) return stored;
+    return null;
   }
 
-  // Skip all-zero corners, which indicates a freshly created overlay with no position yet
-  const stored = overlayObject.corners;
-  const isUnplaced = stored.every((c) => c.lat === 0 && c.lng === 0);
-  if (!isUnplaced && isValidQuad(stored)) return stored;
+  if (fromHistory) return fromHistory;
+  if (isValidQuad(stored)) return stored;
+  return liveCorners;
+}
 
-  return getOverlayImageCorners(overlayObject.id);
+// Fold an overlay's in-progress edit state from the previously-stored instance onto a freshly
+// built-from-backend object, so a viewport re-render doesn't discard edits. Backend fields on
+// `fresh` are kept, except an unsaved local image (a crop's data URL) which carries over so the
+// re-rendered overlay keeps the edited pixels.
+export function mergeEditState(fresh: OverlayObject, existing: OverlayObject): void {
+  fresh.isViewingApprovedPosition = existing.isViewingApprovedPosition;
+  fresh.history = [...existing.history];
+  fresh.redoStack = [...existing.redoStack];
+  fresh.isModified = existing.isModified;
+  if (existing.imageUrl.startsWith("data:")) {
+    fresh.imageUrl = existing.imageUrl;
+    fresh.filename = existing.filename;
+  }
 }

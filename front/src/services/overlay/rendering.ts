@@ -5,7 +5,11 @@ import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { createOverlayObject } from "@/utils/typeFactories";
-import { resolveOverlayRenderCorners, enrichOverlayWithProject } from "@/services/overlay/data";
+import {
+  resolveOverlayCorners,
+  enrichOverlayWithProject,
+  mergeEditState,
+} from "@/services/overlay/data";
 import { createOverlayMarker } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
 import { createOverlayImage } from "@/services/overlay/mapLayers";
@@ -31,7 +35,7 @@ export function renderViewModeOverlays(
 export function createOverlayImageForObject(overlayObject: OverlayObject): void {
   if (!registry.beginCreation(overlayObject.id)) return;
 
-  const corners = resolveOverlayRenderCorners(overlayObject);
+  const corners = resolveOverlayCorners(overlayObject, "image");
   if (!corners) {
     registry.cancelCreation(overlayObject.id);
     return;
@@ -71,25 +75,15 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
   const existingOverlay = overlayStore.liveOverlays[cdnOverlay.id];
   const overlayObject = createOverlayObject(cdnOverlay);
 
-  // Preserve in-progress edit state when re-rendering. history.at(-1) is the user's last
-  // edited position; without this carryover the image would snap back to backend corners
-  // on any round-trip (e.g. edit -> view -> edit) since the fresh object has empty history.
+  // Preserve in-progress edit state when re-rendering, so the image doesn't snap back to backend
+  // corners on any round-trip (e.g. edit -> view -> edit) where the fresh object has empty history.
   if (existingOverlay) {
-    overlayObject.isViewingApprovedPosition = existingOverlay.isViewingApprovedPosition;
-    overlayObject.history = [...existingOverlay.history];
-    overlayObject.redoStack = [...existingOverlay.redoStack];
-    overlayObject.isModified = existingOverlay.isModified;
-    // Carry over an unsaved local image (e.g. a crop's data URL) so the re-rendered overlay keeps
-    // the edited pixels instead of reverting to the backend image the fresh object was built from.
-    if (existingOverlay.imageUrl.startsWith("data:")) {
-      overlayObject.imageUrl = existingOverlay.imageUrl;
-      overlayObject.filename = existingOverlay.filename;
-    }
+    mergeEditState(overlayObject, existingOverlay);
   }
 
   const enriched = enrichOverlayWithProject(overlayObject);
 
-  const corners = resolveOverlayRenderCorners(enriched);
+  const corners = resolveOverlayCorners(enriched, "image");
   if (!corners) {
     registry.cancelCreation(cdnOverlay.id);
     return;

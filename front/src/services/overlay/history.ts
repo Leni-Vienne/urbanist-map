@@ -15,9 +15,10 @@ export function makeHistoryState(
   return { corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })), imageUrl, cropRect };
 }
 
-// Record the current image position as a change-request delta. No-op for new (status null)
-// overlays, whose position lives only in history; only submitted overlays track a delta.
-export function recordOverlayModification(id: string): void {
+// Sync the overlay's live image position into pendingModificationsStore as a corners delta.
+// No-op for new (status null) overlays, whose position lives only in history; only submitted
+// overlays track a delta. Call after any change to the live position (edit, undo, redo).
+export function syncPendingOverlayCorners(id: string): void {
   const pendingModsStore = usePendingModificationsStore();
   const mapStore = useMapStore();
 
@@ -40,7 +41,10 @@ export function recordOverlayModification(id: string): void {
   );
 }
 
-export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
+// Commit one overlay edit (move / resize / crop): push a history step for the live image position
+// and sync the pending change-request corners delta. Seeds an empty history with the backend
+// corners first. Returns early without committing when the position matches the last step.
+export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   const overlayStore = useOverlayStore();
   const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
@@ -55,9 +59,7 @@ export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
   // Seed empty history with the backend corners so the first undo has a base state.
   let baseHistory = overlay.history;
   if (baseHistory.length === 0 && overlay.corners.length === 4) {
-    if (!overlay.corners.every((c) => c.lat === 0 && c.lng === 0)) {
-      baseHistory = [makeHistoryState(overlay.corners, overlay.imageUrl)];
-    }
+    baseHistory = [makeHistoryState(overlay.corners, overlay.imageUrl)];
   }
 
   if (baseHistory.length > 0) {
@@ -69,5 +71,5 @@ export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
 
   overlayStore.commitHistory(id, [...baseHistory, currentState]);
 
-  recordOverlayModification(id);
+  syncPendingOverlayCorners(id);
 }

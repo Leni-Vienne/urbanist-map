@@ -12,41 +12,14 @@ import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
-import { isValidQuad } from "@/services/overlay/transform";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/pinia/focusStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { enrichOverlayWithProject } from "@/services/overlay/data";
+import { enrichOverlayWithProject, resolveOverlayCorners } from "@/services/overlay/data";
 
 type Corner = { lat: number; lng: number };
-
-/**
- * Resolve where to place the overlay's status MARKER, biased toward where the image actually
- * sits right now:
- *   0. live image position (most accurate while the overlay is rendered)
- *   1. edit-mode last-edited position from history (survives layer pruning when zooming)
- *   2. stored corners
- * Returns null when no source yields a valid 4-corner quad. Deliberately the inverse priority of
- * resolveOverlayRenderCorners, which (re)creates the image and so prefers the remembered position.
- */
-function resolveOverlayMarkerCorners(overlay: OverlayData): Corner[] | null {
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  const liveCorners = getOverlayImageCorners(overlay.id);
-  if (isValidQuad(liveCorners)) return liveCorners;
-
-  if (mapStore.mode === "edit") {
-    const lastEdited = overlayStore.liveOverlays[overlay.id]?.history.at(-1)?.corners;
-    if (isValidQuad(lastEdited)) return lastEdited;
-  }
-
-  if (isValidQuad(overlay.corners)) return overlay.corners;
-
-  return null;
-}
 
 /**
  * Create the marker for an overlay (edit / moderation modes). Idempotent: skips overlays that
@@ -62,7 +35,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   const authStore = useAuthStore();
   if (!isOverlayVisible(overlay, mapStore.mode, authStore.user?.id)) return;
 
-  const corners = resolveOverlayMarkerCorners(overlay);
+  const corners = resolveOverlayCorners(overlay, "marker");
   if (!corners) return;
 
   const centroid = calculateCentroidFromCorners(corners);
@@ -129,7 +102,7 @@ function buildBounds(corners: Corner[]): LngLatBounds {
  * geometry so callers skip navigation instead of feeding NaN bounds to the camera.
  */
 export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
-  const corners = resolveOverlayMarkerCorners(overlay);
+  const corners = resolveOverlayCorners(overlay, "marker");
   return corners ? buildBounds(corners) : null;
 }
 

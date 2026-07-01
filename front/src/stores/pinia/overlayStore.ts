@@ -35,7 +35,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   // Replace an overlay's edit history wholesale and mark it modified. Callers compute the new
-  // history array (seeding/dedup live in saveToHistory); this is the single reactive write.
+  // history array (seeding/dedup live in commitOverlayEdit); this is the single reactive write.
   function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
     const overlay = liveOverlays.value[overlayId];
     if (!overlay) return;

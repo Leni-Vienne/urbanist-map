@@ -34,11 +34,11 @@ import type { OverlayObject, OverlayHistoryState } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { selectOverlay } from "@/services/overlay/selection";
-import { resolveOverlayRenderCorners } from "@/services/overlay/data";
+import { resolveOverlayCorners } from "@/services/overlay/data";
 import {
   makeHistoryState,
-  recordOverlayModification,
-  saveToHistory,
+  syncPendingOverlayCorners,
+  commitOverlayEdit,
 } from "@/services/overlay/history";
 import { watch } from "vue";
 
@@ -268,7 +268,7 @@ function applyHistoryAction(action: "undo" | "redo") {
     updateMarkerPosition(overlay);
   }
 
-  recordOverlayModification(id);
+  syncPendingOverlayCorners(id);
 
   // On full undo to original state, clear corners from pendingModsStore for any submitted
   // overlay (but not caption, which may have its own pending change).
@@ -496,7 +496,7 @@ function wireCornerDrag(s: EditSession): void {
       s.cornerDrag = null;
       refreshEditHandlesGeometry();
       flagSize(overlayObject);
-      saveToHistory(overlayObject.id);
+      commitOverlayEdit(overlayObject.id);
     });
   });
 }
@@ -557,7 +557,7 @@ function wireSurfaceDrag(s: EditSession): void {
       s.activeSurfaceDrag = undefined;
       if (didMove) {
         flagSize(overlayObject);
-        saveToHistory(overlayObject.id);
+        commitOverlayEdit(overlayObject.id);
       }
     }
 
@@ -586,7 +586,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   // Establish the rigid transform so the image corners line up with the handles.
   const transformToUse = getCurrentTransform(overlayObject.id);
   const corners =
-    resolveOverlayRenderCorners(overlayObject) ??
+    resolveOverlayCorners(overlayObject, "image") ??
     (transformToUse ? transformToCorners(transformToUse) : overlayObject.corners);
   const transform = cornersToTransform(corners);
   setOverlayImageTransform(overlayObject.id, transform);

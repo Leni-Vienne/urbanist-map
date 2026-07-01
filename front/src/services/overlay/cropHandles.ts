@@ -6,7 +6,7 @@ import {
   replaceOverlayImageSource,
 } from "@/services/overlay/mapLayers";
 import { transformToCorners, type OverlayTransform } from "@/services/overlay/transform";
-import { saveToHistory } from "@/services/overlay/history";
+import { commitOverlayEdit } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -352,7 +352,7 @@ export async function applyCrop(): Promise<boolean> {
   // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
   // original pixels and the original footprint.
   replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
-  saveToHistory(overlay.id, originalRect);
+  commitOverlayEdit(overlay.id, originalRect);
   updateMarkerPosition(overlay);
 
   return true;
