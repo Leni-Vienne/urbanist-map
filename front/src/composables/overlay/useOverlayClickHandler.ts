@@ -7,7 +7,7 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { trpc } from "@/client";
-import type { OverlayForModeration, LatestContribution } from "@/types/index";
+import type { Overlay, LatestContribution } from "@/types/index";
 import {
   canModerateCountry,
   syncModerationCountry,
@@ -15,7 +15,7 @@ import {
 import { loadOrNull } from "@/services/core/errorHandling";
 
 // Union type to accept overlays from moderation and contributions panels
-type NavigableOverlay = OverlayForModeration | LatestContribution;
+type NavigableOverlay = Overlay | LatestContribution;
 
 /**
  * Shared composable for handling overlay clicks from moderation/contribution panels.

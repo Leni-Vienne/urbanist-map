@@ -7,6 +7,9 @@ interface LightboxImage {
   referrerpolicy?: ReferrerPolicy;
 }
 
+// Call sites pass a nullable url (guarded upstream); open() no-ops when it is absent.
+type LightboxSource = Omit<LightboxImage, "url"> & { url: string | null | undefined };
+
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
 
@@ -31,8 +34,9 @@ export function useImageLightbox() {
     },
   });
 
-  function open(next: LightboxImage) {
-    image.value = next;
+  function open(next: LightboxSource) {
+    if (!next.url) return;
+    image.value = { ...next, url: next.url };
   }
 
   function reset() {

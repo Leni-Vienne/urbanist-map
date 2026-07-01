@@ -26,15 +26,14 @@ import type {
   PendingOverlayModification,
   OverlayObject,
   Project,
-  ProjectForModeration,
   RemovableChange,
-  OverlayForModeration,
+  Overlay,
   ModifiableField,
 } from "@/types/index";
 
 function buildOverlayModificationChanges(
   mods: PendingOverlayModification[],
-  overlays: Record<string, OverlayObject | OverlayForModeration>,
+  overlays: Record<string, OverlayObject | Overlay>,
 ): SubmissionChange[] {
   const changes: SubmissionChange[] = [];
 
@@ -69,8 +68,8 @@ function buildOverlayModificationChanges(
 }
 
 // Helper to get image URL for new overlays
-// OverlayObject has imageUrl, OverlayForModeration doesn't - fall back to thumbnail
-function getImageUrl(overlay: OverlayObject | OverlayForModeration) {
+// A live OverlayObject carries imageUrl; a list Overlay may not, so fall back to thumbnail
+function getImageUrl(overlay: OverlayObject | Overlay) {
   if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
   if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
   return undefined;
@@ -101,7 +100,7 @@ function cancelSubmission(): void {
 // Build changes for NEW overlays (status is null, never submitted to backend)
 function buildNewOverlayChanges(
   newOverlayIds: string[],
-  overlays: Record<string, OverlayObject | OverlayForModeration>,
+  overlays: Record<string, OverlayObject | Overlay>,
 ): SubmissionChange[] {
   const changes: SubmissionChange[] = [];
 
@@ -127,16 +126,16 @@ function buildNewOverlayChanges(
 function buildOverlayInfoMap(
   pendingMods: PendingOverlayModification[],
   newOverlayIds: string[],
-  project: Project | ProjectForModeration | undefined,
+  project: Project | undefined,
   storeOverlays: Record<string, OverlayObject>,
-): Record<string, OverlayObject | OverlayForModeration> {
-  const overlayInfoMap: Record<string, OverlayObject | OverlayForModeration> = {};
+): Record<string, OverlayObject | Overlay> {
+  const overlayInfoMap: Record<string, OverlayObject | Overlay> = {};
 
   for (const mod of pendingMods) {
     const storeOverlay = storeOverlays[mod.overlayId];
     if (storeOverlay) {
       overlayInfoMap[mod.overlayId] = storeOverlay;
-    } else if (project && "overlays" in project) {
+    } else if (project?.overlays) {
       const projOverlay = project.overlays.find((o) => o.id === mod.overlayId);
       if (projOverlay) {
         overlayInfoMap[mod.overlayId] = projOverlay;
@@ -157,7 +156,7 @@ function buildOverlayInfoMap(
 function buildProjectWithOverlaysChanges(
   pendingMods: PendingOverlayModification[],
   newOverlayIds: string[],
-  overlayInfoMap: Record<string, OverlayObject | OverlayForModeration>,
+  overlayInfoMap: Record<string, OverlayObject | Overlay>,
   projectChanges: SubmissionChange[],
 ): SubmissionChange[] {
   const changes: SubmissionChange[] = [];
@@ -186,13 +185,13 @@ function buildProjectWithOverlaysChanges(
 // step does the store/service lookups, this turns them into the two reactive payloads.
 function buildSubmissionState(args: {
   projectId: string;
-  project: Project | ProjectForModeration | null;
+  project: Project | null;
   overlay: OverlayObject | undefined;
   projectHasChanges: boolean;
   pendingMods: PendingOverlayModification[];
   newOverlayIds: string[];
   projectChanges: SubmissionChange[];
-  overlayInfoMap: Record<string, OverlayObject | OverlayForModeration>;
+  overlayInfoMap: Record<string, OverlayObject | Overlay>;
   stagedRender: StagedRender | undefined;
 }): { summary: SubmissionSummary; context: SubmissionContext } {
   const { projectId, project, overlay, projectHasChanges, pendingMods, newOverlayIds } = args;
@@ -324,10 +323,7 @@ export function useSubmissionDialog() {
   // `project` is null when an overlay is selected from the map and its project was never loaded as
   // a full entity: the submission then runs overlay-only, keyed by the overlay's projectId, with
   // `overlay` supplying the dialog's entity name.
-  function prepareSubmission(
-    project: Project | ProjectForModeration | null,
-    overlay?: OverlayObject,
-  ): void {
+  function prepareSubmission(project: Project | null, overlay?: OverlayObject): void {
     const projectId = project?.id ?? overlay?.projectId;
     if (!projectId) return;
 

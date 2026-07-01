@@ -86,7 +86,7 @@
     <!-- Project overlays -->
     <div v-if="shouldShowOverlays" class="flex flex-col">
       <div
-        v-for="overlay in project.overlays"
+        v-for="overlay in project.overlays ?? []"
         :key="overlay.id"
         :data-overlay-id="overlay.id"
         class="flex flex-col transition-all duration-150"
@@ -221,11 +221,7 @@ import { useI18n } from "vue-i18n";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
-import type {
-  ProjectForModeration,
-  OverlayForModeration,
-  PendingChangeRequest,
-} from "@/types/index";
+import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
@@ -237,11 +233,11 @@ const { t } = useI18n();
 const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 interface Props {
-  project: ProjectForModeration;
+  project: Project;
   projectChanges: PendingChangeRequest[];
   allChangeRequests: PendingChangeRequest[];
   overlayChangesMap: Map<string, PendingChangeRequest[]>;
-  projectsContext: ProjectForModeration[];
+  projectsContext: Project[];
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
   hideStatusBadges?: boolean;
@@ -251,7 +247,7 @@ interface Props {
   // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
   plain?: boolean;
   onNavigateToOverlay: (overlayId: string) => Promise<void>;
-  onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>;
+  onOverlayClick?: (overlay: Overlay, shouldFitBounds: boolean) => Promise<void>;
 }
 
 const props = defineProps<Props>();
@@ -266,10 +262,10 @@ const emit = defineEmits<{
       reportCount?: number;
     },
   ];
-  "edit-project": [project: ProjectForModeration];
-  "project-click": [project: ProjectForModeration];
-  "highlight-project": [project: ProjectForModeration];
-  "remove-project-highlight": [project: ProjectForModeration];
+  "edit-project": [project: Project];
+  "project-click": [project: Project];
+  "highlight-project": [project: Project];
+  "remove-project-highlight": [project: Project];
   "highlight-overlay": [overlayId: string];
   "remove-highlight": [overlayId: string];
 }>();
@@ -315,13 +311,13 @@ function handleProjectContributorClick(data: {
 }
 
 function handleOverlayContributorClick(
-  overlay: OverlayForModeration,
+  overlay: Overlay,
   data: { userId: string; username: string | null; reportCount: number },
 ) {
   handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount);
 }
 
-async function handleOverlayCardClick(overlay: OverlayForModeration, shouldFitBounds: boolean) {
+async function handleOverlayCardClick(overlay: Overlay, shouldFitBounds: boolean) {
   // Renders aren't on the map, so navigating to them is meaningless (and crashes the corner-based
   // intersection lookup). Show the full image instead.
   if (overlay.kind === "render") {
@@ -348,7 +344,7 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
 // Full-image lightbox for inspecting an overlay/render beyond its sidebar thumbnail.
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
-function openLightbox(overlay: OverlayForModeration): void {
+function openLightbox(overlay: Overlay): void {
   if (!overlay.filename && !overlay.imageUrl) return;
   const forceBackendUrl = overlay.status === "pending" || overlay.status === null;
   const url = overlay.imageUrl || buildImageUrl(overlay.filename, forceBackendUrl);

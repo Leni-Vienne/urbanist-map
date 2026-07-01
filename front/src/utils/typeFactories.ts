@@ -1,5 +1,6 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData } from "@/types/index";
+import type { Project, OverlayObject, OverlayData, Overlay } from "@/types/index";
+import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
@@ -132,5 +133,51 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     updatedAt: overlayObject.updatedAt,
     isModified: overlayObject.isModified,
     hasPendingChanges: overlayObject.hasPendingChanges,
+  };
+}
+
+/**
+ * Build the list-metadata Overlay shape for a local (unsubmitted) overlay or staged render, from a
+ * loose overlay literal plus its parent project's country.
+ */
+export function createLocalOverlayContribution(
+  overlay: {
+    id: string;
+    caption: string | null;
+    filename: string;
+    projectId: string | null;
+    authorId: string | null;
+    replacesOverlayId: string | null;
+    replacedByOverlayId?: string | null;
+    imageUrl?: string;
+    status?: ApprovalStatus | null;
+    version?: number;
+    updatedAt?: Date;
+  },
+  parentProject: {
+    countryCode: string | null;
+    countryName?: string | null;
+  },
+  username: string | null,
+  kind: Overlay["kind"] = "map",
+): Overlay {
+  return {
+    id: overlay.id,
+    caption: overlay.caption,
+    filename: overlay.filename,
+    kind,
+    status: overlay.status !== undefined ? overlay.status : null,
+    version: overlay.version ?? 1,
+    projectId: overlay.projectId ?? "",
+    authorId: overlay.authorId ?? null,
+    authorUsername: username,
+    authorApprovedCount: null,
+    authorRejectedCount: null,
+    replacesOverlayId: overlay.replacesOverlayId ?? null,
+    replacedByOverlayId: overlay.replacedByOverlayId ?? null,
+    updatedAt: overlay.updatedAt ?? new Date(),
+    countryCode: parentProject.countryCode,
+    countryName: parentProject.countryName ?? null,
+    imageUrl: overlay.imageUrl,
   };
 }

@@ -165,7 +165,7 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useToast } from "@/composables/ui/useToast";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import type { OverlayForModeration, PendingChangeRequest } from "@/types/index";
+import type { Overlay, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { useFocusStore } from "@/stores/pinia/focusStore";
@@ -297,7 +297,7 @@ watch(showReportDialog, (isOpen) => {
 });
 
 // Handle overlay zoom and mark as viewed
-async function handleViewOverlayPosition(overlay: OverlayForModeration, shouldFitBounds: boolean) {
+async function handleViewOverlayPosition(overlay: Overlay, shouldFitBounds: boolean) {
   if (!viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
   }
@@ -368,7 +368,7 @@ async function executeRejectProject(
 async function handleApproveOverlay(id: string) {
   try {
     // First check if this overlay is a replacement and if it has conflicts
-    const overlay = projects.value.flatMap((p) => p.overlays).find((o) => o.id === id);
+    const overlay = projects.value.flatMap((p) => p.overlays ?? []).find((o) => o.id === id);
 
     if (overlay?.replacesOverlayId) {
       const conflicts = await trpc.moderation.checkReplacementConflicts.query({

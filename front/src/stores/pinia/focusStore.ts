@@ -1,11 +1,14 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/pinia/projectStore";
+import { createProjectObject } from "@/utils/typeFactories";
+import type { Project } from "@/types/index";
 
 // What is currently emphasized on the map and in the docked detail panel. A project target is a
 // standalone/project selection; an overlay target is a selected overlay (its parent project rides
 // along for the sister highlight, and is null for a project-less overlay).
-export type FocusTarget =
+type FocusTarget =
   | { kind: "project"; projectId: string }
   | { kind: "overlay"; overlayId: string; projectId: string | null };
 
@@ -32,6 +35,21 @@ export const useFocusStore = defineStore("focus", () => {
   );
   const selectedOverlayId = computed<string | null>(() => overlayIdOf(selection.value));
   const selectedProjectId = computed<string | null>(() => selection.value?.projectId ?? null);
+  // The full Project behind the pinned selection, for the docked detail card. An overlay selection
+  // prefers the project joined onto the overlay, falling back to a store lookup by the captured
+  // projectId; a project selection reads straight from the store.
+  const selectedProject = computed<Project | null>(() => {
+    const target = selection.value;
+    if (!target) return null;
+    const projectStore = useProjectStore();
+    if (target.kind === "overlay") {
+      const overlay = useOverlayStore().overlays[target.overlayId];
+      const joined = overlay?.project;
+      if (joined) return createProjectObject(joined as Parameters<typeof createProjectObject>[0]);
+      return target.projectId ? projectStore.getProjectById(target.projectId) : null;
+    }
+    return projectStore.getProjectById(target.projectId);
+  });
   // A docked detail panel is open whenever something is pinned.
   const detailVisible = computed<boolean>(() => selection.value !== null);
   const detailProjectId = computed<string | null>(() => selection.value?.projectId ?? null);
@@ -63,12 +81,12 @@ export const useFocusStore = defineStore("focus", () => {
   }
 
   return {
-    hover,
     selection,
     highlightedProjectId,
     highlightedOverlayId,
     selectedOverlayId,
     selectedProjectId,
+    selectedProject,
     detailVisible,
     detailProjectId,
     setHover,

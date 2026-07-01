@@ -209,11 +209,7 @@ import ProjectHeader from "@/components/project/ProjectHeader.vue";
 import ProjectContent from "@/components/project/ProjectContent.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 
-import type {
-  ProjectForModeration,
-  OverlayForModeration,
-  PendingChangeRequest,
-} from "@/types/index";
+import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/pinia/focusStore";
@@ -227,14 +223,14 @@ import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useMapStore } from "@/stores/pinia/mapStore";
 
 interface Props {
-  projects: ProjectForModeration[];
+  projects: Project[];
   isLoading: boolean;
   title?: string;
   panelClass?: string;
   emptyMessage?: string;
   emptySubMessage?: string;
   changeRequests?: PendingChangeRequest[];
-  onOverlayClick?: (overlay: OverlayForModeration, shouldFitBounds: boolean) => Promise<void>;
+  onOverlayClick?: (overlay: Overlay, shouldFitBounds: boolean) => Promise<void>;
   // Enables "my contributions" behavior in change request sections (e.g. own-change wording).
   isContributePanel?: boolean;
   showUserStatsLink?: boolean;
@@ -246,7 +242,7 @@ interface Props {
   selectedProjectId?: string | null;
   // A selected project that is NOT in `projects` (e.g. someone else's project, or an approved project
   // outside the pending list). Shown in the same "Selected project" card as a read-only context entry.
-  pinnedExternalProject?: ProjectForModeration | null;
+  pinnedExternalProject?: Project | null;
   // Keep the content area mounted even when the (filtered) project list is empty, so a consumer
   // rendering its own filter controls via #contributions-header does not lose them on empty results.
   keepContentVisible?: boolean;
@@ -278,7 +274,7 @@ const emit = defineEmits<{
       reportCount?: number;
     },
   ];
-  "external-project-click": [project: ProjectForModeration];
+  "external-project-click": [project: Project];
 }>();
 
 const { t } = useI18n();
@@ -300,7 +296,7 @@ const selectedInListProject = computed(() =>
 
 // The project shown in the "Selected project" card: the in-list match, or the external one supplied
 // by the caller for selections that are not in `projects`.
-const selectedCard = computed<ProjectForModeration | null>(
+const selectedCard = computed<Project | null>(
   () => selectedInListProject.value ?? props.pinnedExternalProject,
 );
 
@@ -361,14 +357,14 @@ const overlayChangesMap = computed(() => {
   return map;
 });
 
-function getProjectChangeRequestsForProject(project: ProjectForModeration): PendingChangeRequest[] {
+function getProjectChangeRequestsForProject(project: Project): PendingChangeRequest[] {
   if (project.status === "pending") {
     return [];
   }
   return projectChangesMap.value.get(project.id) || [];
 }
 
-function getPendingChangeCount(project: ProjectForModeration): number {
+function getPendingChangeCount(project: Project): number {
   let count = getProjectChangeRequestsForProject(project).length;
   for (const overlay of project.overlays || []) {
     count += overlayChangesMap.value.get(overlay.id)?.length ?? 0;
@@ -376,7 +372,7 @@ function getPendingChangeCount(project: ProjectForModeration): number {
   return count;
 }
 
-async function handleCardClick(project: ProjectForModeration) {
+async function handleCardClick(project: Project) {
   if (hasProjectShapes(project.id)) {
     const bounds = getProjectShapeBounds(project.id);
     if (bounds) {
@@ -392,7 +388,7 @@ async function handleCardClick(project: ProjectForModeration) {
   }
 }
 
-function handleProjectHighlight(project: ProjectForModeration) {
+function handleProjectHighlight(project: Project) {
   focusStore.setHover({ kind: "project", projectId: project.id });
 }
 
@@ -400,7 +396,7 @@ function handleProjectUnhighlight() {
   focusStore.setHover(null);
 }
 
-async function handleOverlayCardClick(overlay: OverlayForModeration) {
+async function handleOverlayCardClick(overlay: Overlay) {
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay, true);
   } else {
@@ -408,7 +404,7 @@ async function handleOverlayCardClick(overlay: OverlayForModeration) {
   }
 }
 
-function handleProjectClick(project: ProjectForModeration) {
+function handleProjectClick(project: Project) {
   try {
     if (typeof project.lat !== "number" || typeof project.lng !== "number") {
       toast.add({

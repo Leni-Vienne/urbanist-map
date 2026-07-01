@@ -113,17 +113,13 @@ import {
 } from "@/services/overlay/changeRequestPreviewState";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useFocusStore } from "@/stores/pinia/focusStore";
-import type {
-  ProjectForModeration,
-  OverlayForModeration,
-  PendingChangeRequest,
-} from "@/types/index";
+import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
 interface Props {
   changes: PendingChangeRequest[];
   allChangeRequests: PendingChangeRequest[];
-  projects: ProjectForModeration[];
+  projects: Project[];
   isMyContributions?: boolean;
   isOverlayChanges?: boolean;
   entityName?: string;
@@ -286,11 +282,11 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
 
   if (change.entityType === "overlay") {
     // Find the overlay data
-    let overlayForModeration: OverlayForModeration | null = null;
+    let overlayForModeration: Overlay | null = null;
     for (const project of props.projects) {
       if (project.overlays) {
         overlayForModeration =
-          project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
+          project.overlays.find((o: Overlay) => o.id === change.entityId) ?? null;
         if (overlayForModeration) break;
       }
     }

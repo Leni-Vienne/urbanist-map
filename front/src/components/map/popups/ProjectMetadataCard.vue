@@ -149,7 +149,7 @@
       v-tooltip.top="$t('overlay.viewFullImage')"
       @click.stop="
         lightbox?.open({
-          url: wikidataEntityData.imageUrl,
+          url: wikidataEntityData?.imageUrl,
           header: project?.name || $t('project.unnamed'),
           referrerpolicy: 'no-referrer',
         })

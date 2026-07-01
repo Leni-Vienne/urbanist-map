@@ -75,6 +75,11 @@ export interface Project extends Omit<DBProject, "status" | "tags" | "slug" | "i
   // The project's render (artist's impression), attached by project.getById. Scoped server-side to
   // approved or the requester's own pending render. undefined = not loaded; null = loaded, none.
   render?: ProjectRender | null;
+
+  // Inline overlay list, populated by the contribution/moderation endpoints (getUsersContributions,
+  // getPendingSubmissions). Absent on projects loaded from the viewport/detail paths, which carry
+  // overlayIds instead and render overlays from overlayStore.
+  overlays?: Overlay[];
 }
 
 // A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
@@ -160,45 +165,35 @@ export interface OverlayObject extends OverlayData {
 
 export type PanelTab = "latest" | "currentLocation" | "filter" | "contribute" | "moderation";
 
-export type OverlayForModeration = Pick<
-  OverlayObject,
-  | "id"
-  | "filename"
-  | "status"
-  | "version"
-  | "projectId"
-  | "updatedAt"
-  | "replacesOverlayId"
-  | "replacedByOverlayId"
-> & {
-  caption: string | null;
-  kind?: "map" | "render"; // Distinguishes georeferenced overlays from non-georeferenced renders
-  authorId: string | null; // For spam prevention reporting
-  authorUsername?: string | null; // Display friendly username in moderation UI
-  authorApprovedCount?: number | null; // User stats for spam detection (optional, only in moderation)
-  authorRejectedCount?: number | null;
-  authorReportCount?: number; // Number of reports for this user
-  countryCode: string | null;
-  countryName: string | null;
-  imageUrl?: string; // Optional for local overlays not yet uploaded
-};
-
-export type ProjectForModeration = Project & {
-  overlays: OverlayForModeration[];
-};
-
-type BackendContributionOverlay =
+// Wire shape of an overlay row as the contribution/moderation endpoints return it.
+type BackendOverlayMetadata =
   RouterOutput["project"]["getUsersContributions"]["projects"][number]["overlays"][number];
 
-export type UserContributionOverlay = Omit<BackendContributionOverlay, "status"> & {
-  // Status widens to allow null for local-only overlays that haven't been submitted
+// List-metadata overlay: the lightweight overlay shape used by My Contributions and Moderation
+// (OverlayObject is the heavier map/editor runtime overlay). Core fields are present in every
+// context; the grouped optionals are hydrated only by specific endpoints.
+export type Overlay = Omit<
+  BackendOverlayMetadata,
+  | "status"
+  | "authorUsername"
+  | "authorApprovedCount"
+  | "authorRejectedCount"
+  | "countryCode"
+  | "countryName"
+> & {
+  // null for local overlays not yet submitted to the backend
   status: ApprovalStatus | null;
-  // imageUrl is the data URL or server URL used to render the thumbnail in the contributions panel
+  // data URL or server URL used to render the thumbnail; absent until the image is uploaded
   imageUrl?: string;
-};
 
-// A user contribution is a Project augmented with the inline overlay list.
-// Backend already populates the optional denormalized fields on Project (countryName, ownerUsername...).
-export type UserContribution = Project & {
-  overlays: UserContributionOverlay[];
+  // Author display + spam-detection stats, populated by moderation/contribution endpoints.
+  authorUsername?: string | null;
+  authorApprovedCount?: number | null;
+  authorRejectedCount?: number | null;
+  // Number of reports for this overlay's author, populated only by moderation getPendingSubmissions.
+  authorReportCount?: number;
+
+  // Denormalized location, populated by moderation/contribution endpoints.
+  countryCode?: string | null;
+  countryName?: string | null;
 };

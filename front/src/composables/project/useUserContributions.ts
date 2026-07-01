@@ -1,21 +1,25 @@
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useChangeRequests } from "@/composables/changes/useChanges";
 import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { createLocalOverlayContribution } from "@/utils/projectFactories";
+import { createLocalOverlayContribution } from "@/utils/typeFactories";
 import { getStagedRender } from "@/composables/submission/stagedRenderStore";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
-import type { Project, UserContribution, UserContributionOverlay } from "@/types/index";
+import type { Project, Overlay } from "@/types/index";
+
+type ContributionFilter = "all" | "pending" | "approved";
 
 function buildLocalContribution(
   project: Project,
-  overlays: UserContributionOverlay[],
+  overlays: Overlay[],
   username: string | null,
-): UserContribution {
+): Project & { overlays: Overlay[] } {
   return {
     ...project,
     overlays,
@@ -37,15 +41,21 @@ export function useUserContributions() {
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
   const overlayStore = useOverlayStore();
+  const focusStore = useFocusStore();
+  const { pendingChangeRequests } = useChangeRequests();
   const toast = useToast();
 
   const isLoading = computed(() => projectStore.userContributionsLoading);
+
+  // Which status group of contributions to show in the accordion.
+  const activeFilter = ref<ContributionFilter>("all");
 
   /**
    * Merged contributions combining backend data with local-only projects/overlays
    * This allows My Contributions panel to show unsaved/unsubmitted work alongside submitted work
    */
-  const allContributions = computed<UserContribution[]>(() => {
+  // eslint-disable-next-line complexity
+  const allContributions = computed<(Project & { overlays: Overlay[] })[]>(() => {
     const user = authStore.user;
 
     if (!user) return [];
@@ -54,9 +64,9 @@ export function useUserContributions() {
     const backendContributions = Object.values(projectStore.userContributions);
 
     // Create a map for quick lookup and modification
-    const contributionsMap = new Map<string, UserContribution>();
+    const contributionsMap = new Map<string, Project & { overlays: Overlay[] }>();
     for (const contrib of backendContributions) {
-      contributionsMap.set(contrib.id, { ...contrib });
+      contributionsMap.set(contrib.id, { ...contrib, overlays: contrib.overlays ?? [] });
     }
 
     // Add local-only overlays to their parent projects
@@ -184,6 +194,105 @@ export function useUserContributions() {
     return result;
   });
 
+  // If the selected project is not in the user's contributions, expose it as an external pinned
+  // project so the panel can show it at top as a read-only context card.
+  const pinnedExternalProject = computed<Project | null>(() => {
+    const project = focusStore.selectedProject;
+    if (!project) return null;
+    // Own vs external can only be told apart once the user's contributions have loaded: the object
+    // selected from the map carries no ownerId to shortcut the check. Until the list is loaded,
+    // render nothing rather than guessing, otherwise an own project flashes as an external card and
+    // then jumps into the accordion when the list arrives.
+    if (!projectStore.userContributionsLoaded) return null;
+    if (allContributions.value.some((p) => p.id === project.id)) return null;
+    const parentCountry = { countryCode: project.countryCode, countryName: project.countryName };
+    const overlays = Object.values(overlayStore.overlays)
+      .filter((o) => o.projectId === project.id)
+      .map((o) =>
+        createLocalOverlayContribution(
+          {
+            id: o.id,
+            caption: o.caption,
+            filename: o.filename,
+            projectId: o.projectId,
+            authorId: o.authorId,
+            replacesOverlayId: o.replacesOverlayId,
+            replacedByOverlayId: o.replacedByOverlayId,
+            status: o.status,
+            version: o.version,
+            updatedAt: o.updatedAt,
+            imageUrl: o.imageUrl,
+          },
+          parentCountry,
+          authStore.user?.username ?? null,
+        ),
+      );
+    // Renders live only in stagedRenderStore (not overlayStore), so surface a staged render here
+    // as a pending render entry until it is submitted.
+    const stagedRender = getStagedRender(project.id);
+    if (stagedRender) {
+      const renderId = `staged-render-${project.id}`;
+      overlays.push(
+        createLocalOverlayContribution(
+          {
+            id: renderId,
+            caption: null,
+            filename: `${renderId}.webp`,
+            projectId: project.id,
+            authorId: authStore.user?.id ?? null,
+            replacesOverlayId: null,
+            status: null,
+            imageUrl: stagedRender.previewUrl,
+          },
+          parentCountry,
+          authStore.user?.username ?? null,
+          "render",
+        ),
+      );
+    }
+    return { ...project, overlays };
+  });
+
+  // A contribution counts as "pending" when its own status is unresolved, or any of its overlays
+  // or change requests are still awaiting moderation. Everything else is "approved" (resolved).
+  function isContributionPending(project: Project): boolean {
+    const isPending = project.status === "pending" || project.status === null;
+
+    const hasPendingOverlays =
+      project.overlays?.some(
+        (overlay) => overlay.status === "pending" || overlay.status === null,
+      ) ?? false;
+    const hasPendingChanges = pendingChangeRequests.value.some((change) => {
+      if (change.entityType === "project" && change.entityId === project.id) return true;
+      return (
+        project.overlays?.some(
+          (overlay) => change.entityType === "overlay" && change.entityId === overlay.id,
+        ) ?? false
+      );
+    });
+
+    return isPending || hasPendingOverlays || hasPendingChanges;
+  }
+
+  const pendingCount = computed(
+    () => allContributions.value.filter((project) => isContributionPending(project)).length,
+  );
+  const approvedCount = computed(() => allContributions.value.length - pendingCount.value);
+
+  const filterTabs = computed<{ key: ContributionFilter; label: string; count: number }[]>(() => [
+    { key: "all", label: t("contribute.filterAll"), count: allContributions.value.length },
+    { key: "pending", label: t("approvalStatus.pending"), count: pendingCount.value },
+    { key: "approved", label: t("approvalStatus.approved"), count: approvedCount.value },
+  ]);
+
+  const filteredProjects = computed(() => {
+    if (activeFilter.value === "all") return allContributions.value;
+    if (activeFilter.value === "pending") {
+      return allContributions.value.filter((project) => isContributionPending(project));
+    }
+    return allContributions.value.filter((project) => !isContributionPending(project));
+  });
+
   // eslint-disable-next-line complexity
   async function fetchUserContributions() {
     if (!authStore.user) return;
@@ -254,5 +363,9 @@ export function useUserContributions() {
     deleteOverlay,
     deleteProject,
     allContributions,
+    pinnedExternalProject,
+    activeFilter,
+    filterTabs,
+    filteredProjects,
   };
 }

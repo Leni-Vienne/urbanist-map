@@ -11,14 +11,14 @@ import { applyOverlayCorners } from "@/services/overlay/sync";
 import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
+import type { Overlay, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 
 // Composable to handle change request position preview on the map
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
-  overlayForModeration: OverlayForModeration;
+  overlayForModeration: Overlay;
   geometryValue: unknown;
   type: "old" | "new";
 }
@@ -119,7 +119,7 @@ export function useChangeRequestPreview() {
   const overlayStore = useOverlayStore();
 
   async function ensureOverlayLoaded(
-    overlayForModeration: OverlayForModeration,
+    overlayForModeration: Overlay,
     targetCorners: LngLat[],
   ): Promise<boolean> {
     const mapStore = useMapStore();

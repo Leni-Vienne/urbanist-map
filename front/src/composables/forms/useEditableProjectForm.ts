@@ -65,7 +65,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   function applyLocalEdit() {
-    // UserContribution extends Project, so any of these can serve as the spread base.
+    // Each source resolves to a Project, so any of them can serve as the spread base.
     // getSourceProject is the project the form was opened with, for sources not yet in the store.
     const baseProject: Project | undefined =
       projectStore.projects[options.entityId] ??

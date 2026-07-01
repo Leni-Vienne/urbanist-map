@@ -98,7 +98,7 @@
                     v-tooltip.top="$t('overlay.viewFullImage')"
                     @click.stop="
                       lightbox?.open({
-                        url: wikidataEntity.imageUrl,
+                        url: wikidataEntity?.imageUrl,
                         header:
                           project?.name ||
                           (project?.importSource?.type === 'osm'

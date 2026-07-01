@@ -7,11 +7,11 @@ import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapeRendering";
 import { selectProject } from "@/services/map/projectSelection";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
-import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
+import type { PendingChangeRequest, Project } from "@/types/index";
 
 interface PreviewShapesOptions {
   change: PendingChangeRequest;
-  project: ProjectForModeration;
+  project: Project;
   geometryValue: unknown;
   type: "old" | "new";
 }
