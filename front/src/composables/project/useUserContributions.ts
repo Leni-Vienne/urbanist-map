@@ -8,10 +8,10 @@ import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
-import { createLocalOverlayContribution } from "@/utils/typeFactories";
+import { createLocalOverlayContribution, createStagedRenderOverlay } from "@/utils/typeFactories";
 import { getStagedRender } from "@/composables/submission/stagedRenderStore";
 import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
-import type { Project, Overlay } from "@/types/index";
+import type { Project, Overlay, ContributionProject } from "@/types/index";
 
 type ContributionFilter = "all" | "pending" | "approved";
 
@@ -19,7 +19,7 @@ function buildLocalContribution(
   project: Project,
   overlays: Overlay[],
   username: string | null,
-): Project & { overlays: Overlay[] } {
+): ContributionProject {
   return {
     ...project,
     overlays,
@@ -50,148 +50,99 @@ export function useUserContributions() {
   // Which status group of contributions to show in the accordion.
   const activeFilter = ref<ContributionFilter>("all");
 
-  /**
-   * Merged contributions combining backend data with local-only projects/overlays
-   * This allows My Contributions panel to show unsaved/unsubmitted work alongside submitted work
-   */
+  // Merged contributions combining backend data with local-only projects/overlays and staged
+  // renders, so the panel shows unsaved/unsubmitted work alongside submitted work.
   // eslint-disable-next-line complexity
-  const allContributions = computed<(Project & { overlays: Overlay[] })[]>(() => {
+  const allContributions = computed<ContributionProject[]>(() => {
     const user = authStore.user;
-
     if (!user) return [];
 
-    // Start with backend contributions
-    const backendContributions = Object.values(projectStore.userContributions);
-
-    // Create a map for quick lookup and modification
-    const contributionsMap = new Map<string, Project & { overlays: Overlay[] }>();
-    for (const contrib of backendContributions) {
-      contributionsMap.set(contrib.id, { ...contrib, overlays: contrib.overlays ?? [] });
+    const contributionsMap = new Map<string, ContributionProject>();
+    for (const contrib of Object.values(projectStore.userContributions)) {
+      contributionsMap.set(contrib.id, { ...contrib, overlays: contrib.overlays });
     }
 
-    // Add local-only overlays to their parent projects
-    // Note: We don't filter by authorId here because overlays can be added to projects
-    // the user doesn't own. The project ownership filtering handles access control.
+    // Overlays aren't filtered by authorId: they can be added to projects the user doesn't own, and
+    // project ownership handles access control.
     const localOverlays = Object.values(overlayStore.overlays).filter(
       (overlay) => overlay.status === null,
     );
 
     for (const overlay of localOverlays) {
       if (!overlay.projectId) continue;
-
-      // Check if parent project exists in contributions
-      let parentProject = contributionsMap.get(overlay.projectId);
-
+      const parentProject = contributionsMap.get(overlay.projectId);
       if (parentProject) {
-        // Project exists - add local overlay to it using factory
+        if (parentProject.overlays.some((o) => o.id === overlay.id)) continue;
         const localOverlayData = createLocalOverlayContribution(
           overlay,
-          {
-            countryCode: parentProject.countryCode,
-            countryName: parentProject.countryName,
-          },
+          { countryCode: parentProject.countryCode, countryName: parentProject.countryName },
           user.username ?? null,
         );
+        contributionsMap.set(overlay.projectId, {
+          ...parentProject,
+          overlays: [...parentProject.overlays, localOverlayData],
+        });
+        continue;
+      }
+      const localProject = projectStore.projects[overlay.projectId];
+      if (localProject && localProject.ownerId === user.id) {
+        const localOverlayData = createLocalOverlayContribution(
+          overlay,
+          { countryCode: localProject.countryCode, countryName: localProject.countryName ?? null },
+          user.username ?? null,
+        );
+        contributionsMap.set(
+          localProject.id,
+          buildLocalContribution(localProject, [localOverlayData], user.username ?? null),
+        );
+      }
+    }
 
-        // Check if overlay already exists (avoid duplicates)
-        if (!parentProject.overlays.some((o) => o.id === overlay.id)) {
-          parentProject = {
-            ...parentProject,
-            overlays: [...parentProject.overlays, localOverlayData],
-          };
-          contributionsMap.set(overlay.projectId, parentProject);
-        }
-      } else {
-        // Parent project not in backend contributions
-        // Check if it exists in local projects store
-        const localProject = projectStore.projects[overlay.projectId];
-
-        if (localProject && localProject.ownerId === user.id) {
-          const localOverlayData = createLocalOverlayContribution(
+    const localProjects = Object.values(projectStore.projects).filter(
+      (project) => project.status === null && project.ownerId === user.id,
+    );
+    for (const localProject of localProjects) {
+      if (contributionsMap.has(localProject.id)) continue;
+      const overlayData = localOverlays
+        .filter((o) => o.projectId === localProject.id)
+        .map((overlay) =>
+          createLocalOverlayContribution(
             overlay,
             {
               countryCode: localProject.countryCode,
               countryName: localProject.countryName ?? null,
             },
             user.username ?? null,
-          );
-          contributionsMap.set(
-            localProject.id,
-            buildLocalContribution(localProject, [localOverlayData], user.username ?? null),
-          );
-        }
-      }
-    }
-
-    // Add local-only projects (without overlays or with only local overlays)
-    const localProjects = Object.values(projectStore.projects).filter(
-      (project) => project.status === null && project.ownerId === user.id,
-    );
-
-    for (const localProject of localProjects) {
-      // Skip if already added above (when processing local overlays)
-      if (contributionsMap.has(localProject.id)) continue;
-
-      // Get all local overlays for this project
-      const projectLocalOverlays = localOverlays.filter((o) => o.projectId === localProject.id);
-
-      const overlayData = projectLocalOverlays.map((overlay) =>
-        createLocalOverlayContribution(
-          overlay,
-          {
-            countryCode: localProject.countryCode,
-            countryName: localProject.countryName ?? null,
-          },
-          user.username ?? null,
-        ),
-      );
-
+          ),
+        );
       contributionsMap.set(
         localProject.id,
         buildLocalContribution(localProject, overlayData, user.username ?? null),
       );
     }
 
-    // Surface staged renders (live only in stagedRenderStore until submitted) as pending render
-    // entries on their parent contribution, mirroring how submitted renders appear in the list.
+    // Staged renders live only in stagedRenderStore until submitted; surface them as pending render
+    // entries on their parent contribution, mirroring how submitted renders appear.
     for (const [projectId, contribution] of contributionsMap) {
       const stagedRender = getStagedRender(projectId);
       if (!stagedRender) continue;
-
-      const renderId = `staged-render-${projectId}`;
-      if (contribution.overlays.some((overlay) => overlay.id === renderId)) continue;
-
-      const renderOverlay = createLocalOverlayContribution(
-        {
-          id: renderId,
-          caption: null,
-          filename: `${renderId}.webp`,
-          projectId,
-          authorId: user.id,
-          replacesOverlayId: null,
-          status: null,
-          imageUrl: stagedRender.previewUrl,
-        },
-        {
-          countryCode: contribution.countryCode,
-          countryName: contribution.countryName,
-        },
+      if (contribution.overlays.some((o) => o.id === `staged-render-${projectId}`)) continue;
+      const renderOverlay = createStagedRenderOverlay(
+        projectId,
+        stagedRender.previewUrl,
+        { countryCode: contribution.countryCode, countryName: contribution.countryName },
         user.username ?? null,
-        "render",
+        user.id,
       );
-
       contributionsMap.set(projectId, {
         ...contribution,
         overlays: [...contribution.overlays, renderOverlay],
       });
     }
 
-    // Convert map back to array and sort by updated date (most recent first)
-    const result = [...contributionsMap.values()].toSorted(
+    return [...contributionsMap.values()].toSorted(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
-
-    return result;
   });
 
   // If the selected project is not in the user's contributions, expose it as an external pinned
@@ -231,22 +182,13 @@ export function useUserContributions() {
     // as a pending render entry until it is submitted.
     const stagedRender = getStagedRender(project.id);
     if (stagedRender) {
-      const renderId = `staged-render-${project.id}`;
       overlays.push(
-        createLocalOverlayContribution(
-          {
-            id: renderId,
-            caption: null,
-            filename: `${renderId}.webp`,
-            projectId: project.id,
-            authorId: authStore.user?.id ?? null,
-            replacesOverlayId: null,
-            status: null,
-            imageUrl: stagedRender.previewUrl,
-          },
+        createStagedRenderOverlay(
+          project.id,
+          stagedRender.previewUrl,
           parentCountry,
           authStore.user?.username ?? null,
-          "render",
+          authStore.user?.id ?? null,
         ),
       );
     }

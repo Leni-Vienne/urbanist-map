@@ -181,3 +181,30 @@ export function createLocalOverlayContribution(
     imageUrl: overlay.imageUrl,
   };
 }
+
+// A staged render (still only in stagedRenderStore) as a pending render overlay entry, so it appears
+// on its parent contribution in My Contributions the same way a submitted render does.
+export function createStagedRenderOverlay(
+  projectId: string,
+  previewUrl: string,
+  parentProject: { countryCode: string | null; countryName?: string | null },
+  username: string | null,
+  authorId: string | null,
+): Overlay {
+  const renderId = `staged-render-${projectId}`;
+  return createLocalOverlayContribution(
+    {
+      id: renderId,
+      caption: null,
+      filename: `${renderId}.webp`,
+      projectId,
+      authorId,
+      replacesOverlayId: null,
+      status: null,
+      imageUrl: previewUrl,
+    },
+    parentProject,
+    username,
+    "render",
+  );
+}

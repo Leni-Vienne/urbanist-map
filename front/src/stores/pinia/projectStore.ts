@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
-import type { Project, OverlayObject, Overlay } from "@/types/index";
+import type { Project, OverlayObject, Overlay, ContributionProject } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { createProjectObject, createLocalOverlayContribution } from "@/utils/typeFactories";
 
@@ -39,9 +39,9 @@ export const useProjectStore = defineStore("project", () => {
 
   // Contributions as a Record<id, Project> with overlays attached, rebuilt from the project map +
   // overlay metadata. Read-only projection: mutate the normalized state, not this.
-  const userContributions = computed<Record<string, Project>>(() => {
+  const userContributions = computed<Record<string, ContributionProject>>(() => {
     const grouped = overlaysByProjectId();
-    const result: Record<string, Project> = {};
+    const result: Record<string, ContributionProject> = {};
     for (const id of Object.keys(contributionIds.value)) {
       const project = projects.value[id];
       if (!project) continue;
@@ -209,7 +209,6 @@ export const useProjectStore = defineStore("project", () => {
     if (project && contributionIds.value[projectId]) Object.assign(project, updates);
   }
 
-  // currentUserId avoids circular dependency with authStore.
   function removeOverlayFromUserContributions(overlayId: string, currentUserId?: string) {
     if (!userContributionsLoaded.value) {
       return;

@@ -197,3 +197,7 @@ export type Overlay = Omit<
   countryCode?: string | null;
   countryName?: string | null;
 };
+
+// A project as surfaced in My Contributions: its overlay list is always hydrated (backend metadata,
+// local unsubmitted overlays, and staged renders merged in), unlike the optional overlays on Project.
+export type ContributionProject = Project & { overlays: Overlay[] };
