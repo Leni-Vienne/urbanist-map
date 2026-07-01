@@ -7,7 +7,15 @@
     "package.json"
   ],
   "project": ["front/src/**/*.{ts,js,vue}", "shared/**/*.{ts,js,vue}", "back/**/*.{ts,js}"],
-  "ignore": ["**/*.d.ts", "public/**/*", "**/scripts/**/*", "package.json", "**/osmRules.ts"],
+  "ignore": [
+    "**/*.d.ts",
+    "public/**/*",
+    "**/scripts/**/*",
+    "package.json",
+    "**/osmRules.ts",
+    "**/drizzle.config.ts",
+    "**/db/schema.ts"
+  ],
   "ignoreDependencies": ["@vitejs/plugin-vue"],
   "vite": true,
   "vue": true

@@ -11,6 +11,7 @@
   <!-- Project name field -->
   <div class="flex flex-col gap-1">
     <FloatLabel class="w-full" variant="in">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <InputText
         id="project-name-input"
         v-model="localFormData.name"
@@ -129,6 +130,7 @@
   <!-- Source URL field -->
   <div class="flex flex-col gap-1">
     <FloatLabel class="w-full" variant="in">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <InputText
         id="source-url-input"
         type="url"

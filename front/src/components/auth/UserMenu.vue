@@ -5,13 +5,7 @@
     <!-- Sign In for unauthenticated users: text button on desktop, square user icon on mobile -->
     <template v-if="!authStore.isAuthenticated">
       <span class="max-md:hidden">
-        <Button
-          :label="$t('auth.signIn')"
-          raised
-          data-testid="sign-in-button"
-          @dblclick.stop
-          @click.stop="openAuthModal"
-        />
+        <Button :label="$t('auth.signIn')" raised @dblclick.stop @click.stop="openAuthModal" />
       </span>
       <span class="md:hidden">
         <Button
@@ -19,7 +13,6 @@
           severity="primary"
           raised
           :aria-label="$t('auth.signIn')"
-          data-testid="sign-in-button"
           @dblclick.stop
           @click.stop="openAuthModal"
         />
@@ -31,7 +24,6 @@
       <button
         type="button"
         class="max-md:hidden appearance-none font-[inherit] flex items-center gap-[0.35rem] px-[0.6rem] py-[0.4rem] bg-content-background border border-surface rounded-md cursor-pointer shadow transition-all duration-200 min-w-27 hover:shadow-md"
-        data-testid="user-menu"
         @click.stop="toggleMenu"
         @dblclick.stop
       >
@@ -58,7 +50,6 @@
           raised
           :severity="isMenuOpen ? undefined : 'secondary'"
           :aria-label="authStore.user?.username ?? undefined"
-          data-testid="user-menu"
           @click.stop="toggleMenu"
           @dblclick.stop
         />
@@ -105,7 +96,6 @@
         <button
           type="button"
           class="appearance-none font-[inherit] bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
-          data-testid="sign-out-button"
           @click="handleSignOut"
         >
           <i class="pi pi-sign-out"></i>

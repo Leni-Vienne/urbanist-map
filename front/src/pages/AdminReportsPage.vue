@@ -190,7 +190,7 @@
         </div>
 
         <div class="flex items-center gap-2 mt-4">
-          <Checkbox id="deleteContent" v-model="deleteContent" :binary="true" />
+          <Checkbox inputId="deleteContent" v-model="deleteContent" :binary="true" />
           <label for="deleteContent">{{ t("admin.reports.banDialog.deleteContent") }}</label>
         </div>
       </div>

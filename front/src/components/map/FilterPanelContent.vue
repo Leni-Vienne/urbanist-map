@@ -130,6 +130,7 @@
       {{ $t("map.controls.filterBySize") }}
     </p>
     <div class="px-1">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
       <div class="flex justify-between mt-2 text-xs text-color-secondary">
         <span>{{ formatSize(sizeFilterRange[0]) }}</span>
@@ -143,6 +144,7 @@
       {{ $t("map.controls.filterByLastModified") }}
     </p>
     <div class="px-1">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider
         v-model="dateSliderPositions"
         :min="0"

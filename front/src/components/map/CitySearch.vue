@@ -20,7 +20,7 @@
         :loading="isLoading"
         :dropdown="false"
         name="city-search"
-        :input-props="{ dir: 'auto' }"
+        :pt="{ pcInputText: { root: { dir: 'auto' } } }"
       >
         <template #option="{ option }">
           <div class="flex flex-col min-w-0 w-full leading-tight">

@@ -50,7 +50,7 @@
         {{ $t("moderation.selectCountry") }}:
       </label>
       <Select
-        id="country-select"
+        inputId="country-select"
         v-model="selectedCountryCode"
         :options="availableCountries"
         option-label="name"

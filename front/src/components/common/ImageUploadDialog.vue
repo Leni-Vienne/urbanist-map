@@ -7,7 +7,6 @@
     :closeOnEscape="true"
     :dismissableMask="true"
     :draggable="false"
-    :resizable="false"
     :style="{ width: '600px' }"
     @hide="handleClose"
   >

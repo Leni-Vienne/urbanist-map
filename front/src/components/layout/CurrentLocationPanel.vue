@@ -55,7 +55,6 @@
             <button
               v-for="project in projects"
               :key="project.id"
-              :data-project-id="project.id"
               v-memo="[
                 project.id,
                 project.timelineStatus,

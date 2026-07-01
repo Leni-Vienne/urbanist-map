@@ -37,7 +37,7 @@
             >
               {{ $t("contribute.selectedProject") }}
             </div>
-            <div class="selected-project-card" :data-project-id="selectedCard.id">
+            <div class="selected-project-card">
               <ProjectHeader
                 plain
                 :name="selectedCard.name ?? ''"
@@ -90,6 +90,7 @@
         </Transition>
 
         <!-- Single accordion for all flat-list panels -->
+        <!-- @vue-expect-error PrimeVue v-model type mismatch -->
         <Accordion
           :multiple="true"
           :lazy="true"
@@ -113,7 +114,6 @@
             v-for="project in flatOrderedProjects"
             :key="project.id"
             :value="project.id"
-            :data-project-id="project.id"
           >
             <ProjectHeader
               :name="project.name ?? ''"

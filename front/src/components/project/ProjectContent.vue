@@ -88,7 +88,6 @@
       <div
         v-for="overlay in project.overlays ?? []"
         :key="overlay.id"
-        :data-overlay-id="overlay.id"
         class="flex flex-col transition-all duration-150"
         :class="
           getOverlayChangeRequestsForOverlay(overlay.id).length > 0

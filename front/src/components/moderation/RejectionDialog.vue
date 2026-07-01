@@ -17,7 +17,7 @@
         {{ $t("moderation.rejectionReason.label") }}
       </label>
       <Select
-        id="rejection-reason-select"
+        inputId="rejection-reason-select"
         v-model="rejectionReason"
         :options="rejectionReasons"
         option-label="label"

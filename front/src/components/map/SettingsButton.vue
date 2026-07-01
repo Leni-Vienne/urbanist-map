@@ -12,8 +12,8 @@
     :severity="isOpen ? undefined : 'secondary'"
   />
 
-  <Popover ref="settingsPopover" class="settings-popover" @click.stop @dblclick.stop>
-    <div class="flex flex-col w-max min-w-48">
+  <Popover ref="settingsPopover" class="settings-popover">
+    <div class="flex flex-col w-max min-w-48" @click.stop @dblclick.stop>
       <SettingsMenuItems />
     </div>
   </Popover>
