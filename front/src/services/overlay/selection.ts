@@ -14,6 +14,7 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import type { OverlayObject } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
+import { isOverlayUnsaved } from "@/utils/unsavedState";
 
 type Corner = { lat: number; lng: number };
 
@@ -193,7 +194,7 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     if (!overlay) continue;
     // Approved overlays at their backend position are clicked via the vector-tile path.
     // We only run point-in-polygon for overlays whose live image can sit elsewhere.
-    if (overlay.status === "approved" && !overlay.isModified) continue;
+    if (overlay.status === "approved" && !isOverlayUnsaved(overlay)) continue;
     const corners = resolveOverlayCorners(overlay, "image");
     if (corners?.length === 4 && isPointInCorners(lngLat, corners)) {
       selectOverlay(id);

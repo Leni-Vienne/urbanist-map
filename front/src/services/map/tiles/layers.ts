@@ -14,6 +14,7 @@ import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useUiStore } from "@/stores/uiStore";
+import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { watch } from "vue";
 
 import { useFocusStore } from "@/stores/pinia/focusStore";
@@ -673,7 +674,7 @@ function computeHiddenOverlayIds(): string[] {
     hidden.add(selectedOverlayId);
   }
   for (const [id, o] of Object.entries(store.liveOverlays)) {
-    if (o.isModified) hidden.add(id);
+    if (isOverlayUnsaved(o)) hidden.add(id);
   }
   return [...hidden];
 }

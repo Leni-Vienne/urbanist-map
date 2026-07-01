@@ -6,12 +6,13 @@ import { usePendingModificationsStore } from "@/stores/pinia/pendingModification
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 
-type OverlayLike = Pick<OverlayObject, "id" | "status" | "isModified">;
+type OverlayLike = Pick<OverlayObject, "id" | "status">;
 type ProjectLike = Pick<Project, "id" | "status" | "isModified">;
 
+// Fully derived: a new overlay (status null) exists only locally, a submitted one has unsaved
+// state exactly when a caption/corners delta is staged. There is no stored overlay dirty flag.
 export function isOverlayUnsaved(overlay: OverlayLike): boolean {
   if (overlay.status === null) return true;
-  if (overlay.isModified === true) return true;
   return usePendingModificationsStore().hasPendingModifications(overlay.id);
 }
 

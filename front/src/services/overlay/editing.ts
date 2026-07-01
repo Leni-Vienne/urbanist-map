@@ -102,7 +102,6 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     projectId,
     authorId: authStore.user?.id ?? null, // Set to current user's ID
     imageUrl,
-    isModified: true, // New overlays need to be uploaded
     status: null, // null = local only, never submitted
   });
 }

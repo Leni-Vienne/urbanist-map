@@ -18,6 +18,7 @@ import { useFocusStore } from "@/stores/pinia/focusStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject, resolveOverlayCorners } from "@/services/overlay/data";
+import { isOverlayUnsaved } from "@/utils/unsavedState";
 
 type Corner = { lat: number; lng: number };
 
@@ -111,7 +112,7 @@ function getOverlayMarkerColor(
   mode: AppMode,
 ): MarkerColor {
   // Extract overlay-specific properties (not present on all overlay types)
-  const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
+  const hasBeenModified = isOverlayUnsaved(overlayData);
   const hasPendingChanges =
     "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
   const isViewingApprovedPosition =
@@ -174,7 +175,7 @@ function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerColor?: M
   }
 
   function getTooltipTextForOverlay(): string {
-    const hasBeenModified = overlayObject.isModified;
+    const hasBeenModified = isOverlayUnsaved(overlayObject);
     const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
     const isReplacement = overlayObject.replacesOverlayId !== null;
     const isApproved = overlayObject.status === "approved";
@@ -233,8 +234,8 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 
 /**
  * Set up a single watchEffect that keeps every overlay marker's color in sync with its
- * Pinia state (status, isModified, hasPendingChanges, isViewingApprovedPosition, project,
- * isTooBig, replacesOverlayId) and the current map mode. Replaces the imperative
+ * Pinia state (status, staged pending modifications, hasPendingChanges, isViewingApprovedPosition,
+ * project, isTooBig, replacesOverlayId) and the current map mode. Replaces the imperative
  * updateOverlayMarkersColors call sites; data mutations that go through overlayStore /
  * batchUpdateOverlays / updateOverlay trigger this automatically.
  *

@@ -138,7 +138,6 @@ export function useOverlayPublisher() {
     if (publishResult.id) {
       overlay.status = publishResult.status;
       overlay.authorId = publishResult.authorId ?? null;
-      overlay.isModified = false;
 
       // Point to the server URL so the image isn't re-uploaded on the next save.
       // The backend serves uploads under /uploads/ (no /api/images endpoint exists).

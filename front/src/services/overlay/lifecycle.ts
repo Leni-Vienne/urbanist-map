@@ -29,7 +29,8 @@ export function clearAllOverlays(preserveStoreData = false): void {
 /**
  * Tear down all image layers and markers while keeping overlay store data intact.
  * Used when entering view mode: tile-based rendering takes over, but the in-progress edit
- * state (history, isModified) must survive so the user can switch back without losing work.
+ * state (history, staged pending modifications) must survive so the user can switch back
+ * without losing work.
  */
 export function clearOverlayRenderState(): void {
   selectOverlay(null);

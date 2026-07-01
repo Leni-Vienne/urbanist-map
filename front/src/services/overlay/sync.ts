@@ -69,7 +69,6 @@ export function revertOverlayFieldModification(
   overlayObject: OverlayObject,
 ): boolean {
   const pendingModsStore = usePendingModificationsStore();
-  const overlayStore = useOverlayStore();
 
   const pendingMod = pendingModsStore.getPendingModifications(overlayId);
   const capturedOriginalCaption = pendingMod?.caption?.original;
@@ -84,10 +83,6 @@ export function revertOverlayFieldModification(
     capturedOriginalCaption,
     capturedOriginalCorners,
   );
-
-  if (!hasRemainingMods) {
-    overlayStore.updateOverlay(overlayId, { isModified: false });
-  }
 
   return hasRemainingMods;
 }

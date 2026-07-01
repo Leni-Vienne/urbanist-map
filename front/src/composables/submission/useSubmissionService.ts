@@ -406,7 +406,6 @@ export function useSubmissionService() {
 
       const cornersChange = changes.find((c) => c.fieldName === "corners");
       const updates: Partial<OverlayObject> = {
-        isModified: false,
         hasPendingChanges: true,
       };
       if (cornersChange?.newValue) {
@@ -517,7 +516,6 @@ export function useSubmissionService() {
     // For direct updates we collapse history so the submitted state is the new baseline;
     // change requests keep history so the proposal stays visible on edit-mode re-entry.
     const submittedCorners = mod.corners?.current;
-    overlayStore.updateOverlay(overlayId, { isModified: false });
     if (submittedCorners?.length === 4 && !isChangeRequest) {
       overlayStore.updateOverlay(overlayId, { baselineCorners: submittedCorners });
       overlayStore.resetHistoryBaseline(overlayId, submittedCorners);

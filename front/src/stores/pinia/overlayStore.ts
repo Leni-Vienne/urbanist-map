@@ -34,20 +34,19 @@ export const useOverlayStore = defineStore("overlay", () => {
     }
   }
 
-  // Replace an overlay's edit history wholesale and mark it modified. Callers compute the new
-  // history array (seeding/dedup live in commitOverlayEdit); this is the single reactive write.
+  // Replace an overlay's edit history wholesale. Callers compute the new history array
+  // (seeding/dedup live in commitOverlayEdit); this is the single reactive write.
   function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
     const overlay = liveOverlays.value[overlayId];
     if (!overlay) return;
     overlay.history = history;
     overlay.redoStack = [];
-    overlay.isModified = true;
   }
 
   // Collapse history to a single baseline step at `corners` (cloned so later edits don't alias it)
   // and clear redo. Used when a submitted/reverted position becomes the new starting point, so
   // re-entering edit mode doesn't restore prior in-progress edits. imageUrl is read from the live
-  // overlay; invalid (non-4) corners clear history entirely. Does not touch isModified or corners.
+  // overlay; invalid (non-4) corners clear history entirely. Does not touch baselineCorners.
   function resetHistoryBaseline(overlayId: string, corners: { lat: number; lng: number }[]) {
     const overlay = liveOverlays.value[overlayId];
     if (!overlay) return;
@@ -72,9 +71,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlay.redoStack.push(current);
     const target = overlay.history.at(-1);
     if (!target) return null;
-    // Back to the initial state on a submitted overlay: clear the modified flag so the marker
-    // returns to its status color.
-    if (overlay.history.length === 1 && overlay.status !== null) overlay.isModified = false;
     return target;
   }
 
@@ -85,7 +81,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     const target = overlay.redoStack.pop();
     if (!target) return null;
     overlay.history.push(target);
-    overlay.isModified = true;
     return target;
   }
 

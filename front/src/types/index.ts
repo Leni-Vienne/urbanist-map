@@ -110,7 +110,6 @@ type ApiOverlayData = RouterOutput["viewport"]["getOverlaysInViewport"][number];
 // - null status for local overlays not yet submitted to the backend
 // - nullable project for local overlays constructed without a project join
 // - optional fields that are absent on locally-constructed overlays
-// - isModified for UI tracking of user-moved overlays in the current session
 export type OverlayData = Omit<
   ApiOverlayData,
   | "status"
@@ -130,7 +129,6 @@ export type OverlayData = Omit<
   suggestedCorners?: { lat: number; lng: number }[];
   hasPendingChanges?: boolean;
   pendingChangeRequestsCount?: number;
-  isModified?: boolean;
 };
 
 // Frontend overlay type - extends OverlayData with editor state

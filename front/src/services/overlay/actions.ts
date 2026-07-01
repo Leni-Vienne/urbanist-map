@@ -188,25 +188,21 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   const overlayObject = overlayStore.liveOverlays[id];
   if (!overlayObject) return;
 
-  // Track if caption actually changed to set isModified flag
   const oldCaption = overlayObject.caption;
   const newCaption = info.caption ?? null;
-  const captionChanged = oldCaption !== newCaption;
+  if (oldCaption === newCaption) return;
 
   overlayObject.caption = newCaption;
 
-  if (captionChanged) {
-    overlayObject.isModified = true;
-    // New overlays (status null) carry their caption on the overlay object itself; only
-    // approved/pending overlays need a delta tracked here for the change-request flow.
-    if (overlayObject.status !== null) {
-      pendingModsStore.saveCaptionChange(
-        id,
-        overlayObject.projectId ?? null,
-        newCaption,
-        oldCaption,
-        overlayObject.status,
-      );
-    }
+  // New overlays (status null) carry their caption on the overlay object itself; only
+  // approved/pending overlays need a delta tracked here for the change-request flow.
+  if (overlayObject.status !== null) {
+    pendingModsStore.saveCaptionChange(
+      id,
+      overlayObject.projectId ?? null,
+      newCaption,
+      oldCaption,
+      overlayObject.status,
+    );
   }
 }

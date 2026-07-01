@@ -440,7 +440,7 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
   if (overlayObject.status === "approved") return false;
   // Rejected overlays are never selectable here (isOverlayVisible filters them out).
   if (overlayObject.status === "pending") return true;
-  if (overlayObject.isModified) return true;
+  if (isOverlayUnsaved(overlayObject)) return true;
   return false;
 }
 

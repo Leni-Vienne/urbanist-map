@@ -104,7 +104,6 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     centroid: data.centroid ?? { lat: 0, lng: 0 },
     baselineCorners: data.baselineCorners ?? [],
     imageUrl,
-    isModified: data.isModified ?? false,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,
@@ -143,7 +142,6 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     distance: 0,
     createdAt: overlayObject.createdAt,
     updatedAt: overlayObject.updatedAt,
-    isModified: overlayObject.isModified,
     hasPendingChanges: overlayObject.hasPendingChanges,
   };
 }

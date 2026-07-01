@@ -14,7 +14,6 @@ type Corner = { lat: number; lng: number };
  */
 export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
   const projectStore = useProjectStore();
-  const overlayStore = useOverlayStore();
   const moderationStore = useModerationStore();
   const mapStore = useMapStore();
 
@@ -33,15 +32,9 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
     }
   }
 
-  // In edit mode, prefer the live OverlayObject's isModified flag so marker color
-  // reflects user edits even before the savedOverlay snapshot has been refreshed.
-  const liveOverlay =
-    mapStore.mode === "edit" ? overlayStore.liveOverlays[savedOverlay.id] : undefined;
-
   return createOverlayObject({
     ...savedOverlay,
     project: project ?? null,
-    isModified: liveOverlay?.isModified ?? savedOverlay.isModified,
   });
 }
 
@@ -92,7 +85,6 @@ export function mergeEditState(fresh: OverlayObject, existing: OverlayObject): v
   fresh.isViewingApprovedPosition = existing.isViewingApprovedPosition;
   fresh.history = [...existing.history];
   fresh.redoStack = [...existing.redoStack];
-  fresh.isModified = existing.isModified;
   if (existing.imageUrl.startsWith("data:")) {
     fresh.imageUrl = existing.imageUrl;
     fresh.filename = existing.filename;
