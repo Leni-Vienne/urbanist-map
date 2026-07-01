@@ -79,8 +79,8 @@ import { useMapStore } from "@/stores/pinia/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { renderProjectShapes } from "@/services/map/shapeRendering";
-import { clearProjectShapes } from "@/services/map/shapeLayerRegistry";
+import { renderProjectShapes } from "@/services/map/shapes/rendering";
+import { clearProjectShapes } from "@/services/map/shapes/registry";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 

@@ -3,10 +3,7 @@ import { trpc } from "@/client";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useFocusStore } from "@/stores/pinia/focusStore";
-import {
-  highlightProjectShapes,
-  unhighlightProjectShapes,
-} from "@/services/map/shapeLayerRegistry";
+import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapes/registry";
 
 let isWatcherInitialized = false;
 

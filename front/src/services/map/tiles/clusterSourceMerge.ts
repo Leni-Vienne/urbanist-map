@@ -8,7 +8,7 @@
 import {
   updatePendingProjectPointsSource,
   updatePendingProjectShapesSource,
-} from "@/services/map/tileLayers";
+} from "@/services/map/tiles/basemap";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";

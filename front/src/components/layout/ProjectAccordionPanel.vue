@@ -215,7 +215,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/pinia/focusStore";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapeLayerRegistry";
+import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapes/registry";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { useToast } from "@/composables/ui/useToast";

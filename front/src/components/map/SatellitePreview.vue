@@ -39,7 +39,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { currentTileLayer, switchTileLayer, type TileLayerType } from "@/services/map/tileLayers";
+import {
+  currentTileLayer,
+  switchTileLayer,
+  type TileLayerType,
+} from "@/services/map/tiles/basemap";
 import satelliteThumbnail from "@/assets/satellite_thumbnail.webp";
 import planThumbnail from "@/assets/plan_thumbnail.webp";
 

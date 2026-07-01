@@ -13,13 +13,13 @@ import {
   setProjectShapesVisible,
   type ShapeEntry,
   type ShapeEventBinding,
-} from "@/services/map/shapeLayerRegistry";
+} from "@/services/map/shapes/registry";
 import {
   SHAPE_LINE_WIDTH,
   SHAPE_LINE_WIDTH_HOVER,
   SHAPE_LONG_DASH,
   SHAPE_SHORT_DASH,
-} from "@/services/map/shapeStyleConstants";
+} from "@/services/map/shapes/styleConstants";
 import { getProjectTagColor } from "@/config/projectTags";
 
 type MapLibreMap = NonNullable<typeof map.value>;

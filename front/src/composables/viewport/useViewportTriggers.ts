@@ -25,7 +25,7 @@ import { trpc } from "@/client";
 import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
-} from "@/services/map/clusterSourceMerge";
+} from "@/services/map/tiles/clusterSourceMerge";
 import type { OverlayData } from "@/types/index";
 
 function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {

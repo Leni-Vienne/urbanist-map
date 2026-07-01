@@ -61,8 +61,8 @@ import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } fr
 
 import { initializeMap, map } from "@/services/core/map";
 import { initializeEditorTriggers } from "@/services/overlay/editing";
-import { addTileLayer } from "@/services/map/tileLayers";
-import { initVectorTileSync } from "@/services/map/vectorTileSync";
+import { addTileLayer } from "@/services/map/tiles/basemap";
+import { initVectorTileSync } from "@/services/map/tiles/sync";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";

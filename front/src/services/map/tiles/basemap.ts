@@ -15,14 +15,14 @@ import {
   addProjectDataToMlMap,
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
-} from "./projectVectorLayers";
+} from "./layers";
 import {
   applyPlanStyleRoadOverrides,
   applyPoiVisibilityOverrides,
   applyRailStyleOverrides,
   applySky,
-} from "./basemapStyleOverrides";
-import { applyMapLabelLanguage } from "./mapLabelLanguage";
+} from "../basemapStyleOverrides";
+import { applyMapLabelLanguage } from "../mapLabelLanguage";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/mapLayers";
 import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editing";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
@@ -35,7 +35,7 @@ import {
   showOnlyWithImages,
 } from "@/services/map/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
-import { syncOverlaysFromTiles } from "@/services/map/vectorTileSync";
+import { syncOverlaysFromTiles } from "@/services/map/tiles/sync";
 
 interface BoundingBox {
   minLat: number;

@@ -16,7 +16,7 @@ import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import {
   renderAllProjectShapes,
   initializeShapeRenderTriggers,
-} from "@/services/map/projectShapeRenderLoop";
+} from "@/services/map/shapes/renderLoop";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 interface ViewportBounds {

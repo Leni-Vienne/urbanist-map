@@ -4,7 +4,7 @@ import type * as maplibregl from "maplibre-gl";
 import { useFocusStore } from "@/stores/pinia/focusStore";
 import { map, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { VECTOR_QUERY_LAYERS } from "@/services/map/projectQueryLayers";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { lastModifiedDateRange, sizeFilterRange } from "@/services/map/filters";
 import { forEachPosition } from "@/utils/geojson";

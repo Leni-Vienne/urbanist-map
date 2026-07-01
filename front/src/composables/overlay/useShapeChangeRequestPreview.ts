@@ -4,7 +4,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapeRendering";
+import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
 import { selectProject } from "@/services/map/projectSelection";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 import type { PendingChangeRequest, Project } from "@/types/index";

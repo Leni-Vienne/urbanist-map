@@ -180,7 +180,7 @@ import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay } from "@/services/overlay/actions";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { computeShapeBounds } from "@/services/map/shapeRendering";
+import { computeShapeBounds } from "@/services/map/shapes/rendering";
 import { selectProject } from "@/services/map/projectSelection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";

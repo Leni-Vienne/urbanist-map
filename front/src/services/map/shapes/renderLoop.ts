@@ -1,13 +1,13 @@
 import { watch } from "vue";
 import type { OverlayData, Project } from "@/types/index";
-import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
-import { hasProjectShapes } from "@/services/map/shapeLayerRegistry";
+import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapes/rendering";
+import { hasProjectShapes } from "@/services/map/shapes/registry";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
 import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
+import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/sync";
 import { createProjectObject } from "@/utils/typeFactories";
 
 /** Return the pending geometry change request value for a project, if any. */

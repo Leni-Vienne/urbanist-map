@@ -9,7 +9,7 @@ import { map } from "@/services/core/map";
 import { getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { handleBackgroundClick, selectOverlay } from "@/services/overlay/selection";
-import { VECTOR_QUERY_LAYERS } from "@/services/map/projectQueryLayers";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { useOverlayStore } from "@/stores/pinia/overlayStore";
 import { useMapStore } from "@/stores/pinia/mapStore";
 import { useProjectStore } from "@/stores/pinia/projectStore";
@@ -33,7 +33,7 @@ import {
   SHAPE_LINE_WIDTH_HOVER,
   SHAPE_LONG_DASH,
   SHAPE_SHORT_DASH,
-} from "@/services/map/shapeStyleConstants";
+} from "@/services/map/shapes/styleConstants";
 import {
   selectedProjectTags,
   selectedStatusFilters,
