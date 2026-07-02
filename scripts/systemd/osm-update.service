@@ -1,6 +1,6 @@
 [Unit]
 Description=Daily OSM data refresh + backend restart (clears tile cache)
-Documentation=file:///root/construction-map/scripts/osm-extract/update_weekly.sh
+Documentation=file:///root/construction-map/scripts/osm-extract/update_daily.sh
 After=docker.service network-online.target
 Requires=docker.service
 Wants=network-online.target
@@ -13,7 +13,7 @@ WorkingDirectory=/root/construction-map
 
 # Fails fast if any ExecStart returns non-zero. Subsequent ExecStart lines are skipped on failure,
 # so a failed update does not restart the backend.
-ExecStart=/root/construction-map/scripts/osm-extract/update_weekly.sh /root/construction-map/scripts/osm-extract/planet-latest_proposed.osm.pbf --import
+ExecStart=/root/construction-map/scripts/osm-extract/update_daily.sh /root/construction-map/scripts/osm-extract/planet-latest_proposed.osm.pbf --import
 ExecStart=/usr/bin/docker compose --env-file .env.prod restart backend
 
 # Cap runtime at 2h (typical run: ~15min; catching up after multiple missed days can take longer).

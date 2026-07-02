@@ -25,7 +25,7 @@
 # (run_all.sh on a fresh planet.osm.pbf) remains useful to correct larger drift.
 #
 # Usage:
-#   ./update_weekly.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]
+#   ./update_daily.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]
 #
 # Options:
 #   --import       Run import-osm.ts after extraction (requires bun + backend)
@@ -219,7 +219,7 @@ if [[ -z "$REPL_TIMESTAMP" ]]; then
     echo "On subsequent runs it is read from the sidecar file: $STATE_FILE"
     echo ""
     echo "If the sidecar file is missing, pass the timestamp manually:"
-    echo "  REPL_TIMESTAMP=2026-03-16T01:00:01Z ./update_weekly.sh ..."
+    echo "  REPL_TIMESTAMP=2026-03-16T01:00:01Z ./update_daily.sh ..."
     exit 1
 fi
 

@@ -10,7 +10,7 @@
 # already baked into the source (e.g. by backfill_geometry.sh) flows into the
 # sub-PBFs without re-fetching.
 #
-# update_weekly.sh calls this after the diff catch-up. Run it standalone to rebuild
+# update_daily.sh calls this after the diff catch-up. Run it standalone to rebuild
 # the sub-PBFs when iterating on the Python extraction, without re-applying diffs.
 #
 # Usage:

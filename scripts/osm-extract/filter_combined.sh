@@ -11,7 +11,7 @@
 # This is the expensive reduction: ~30-40 min on a full planet (all cores), a few
 # minutes on a country extract. The result is geometry-complete but only as fresh
 # as the source snapshot. Advancing it to the current day and turning it into
-# GeoJSON is update_weekly.sh's job, so this script deliberately does no
+# GeoJSON is update_daily.sh's job, so this script deliberately does no
 # derivation or extraction.
 
 set -e

@@ -9,7 +9,7 @@
 #                           on a planet). The output is geometry-complete but only as
 #                           fresh as the source snapshot (a planet download lags real
 #                           time by up to ~10 days).
-#   2. update_weekly.sh   , apply the daily diffs since that snapshot, backfill the
+#   2. update_daily.sh   , apply the daily diffs since that snapshot, backfill the
 #                           stripped geometry, derive the sub-PBFs, and extract the
 #                           GeoJSON once on current data (and import with --import).
 #
@@ -79,7 +79,7 @@ echo "=========================================================="
 
 # A fresh filter carries the planet's replication timestamp in its PBF header, but a
 # replication-state sidecar from an earlier dataset now points at a stale sequence.
-# Drop it so update_weekly.sh bootstraps its replication position from the header.
+# Drop it so update_daily.sh bootstraps its replication position from the header.
 STATE_FILE="${COMBINED_PBF}.replication-state"
 if [[ -f "$STATE_FILE" ]]; then
     rm -f "$STATE_FILE"
@@ -89,9 +89,9 @@ fi
 # Stage 2: advance to today, backfill, derive, extract (and optionally import).
 echo ""
 echo "=========================================================="
-echo "[$(ts)] STAGE 2/2: Catch-up + extraction via update_weekly.sh"
+echo "[$(ts)] STAGE 2/2: Catch-up + extraction via update_daily.sh"
 echo "=========================================================="
-"$SCRIPT_DIR/update_weekly.sh" "$COMBINED_PBF" $IMPORT_FLAG
+"$SCRIPT_DIR/update_daily.sh" "$COMBINED_PBF" $IMPORT_FLAG
 
 echo ""
 echo "=========================================================="
