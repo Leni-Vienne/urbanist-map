@@ -9,13 +9,12 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import { isOverlayVisible } from "@/services/overlay/visibility";
+import { isOverlayVisible, matchesMapFilters } from "@/services/overlay/visibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/lifecycle";
 import * as registry from "@/services/overlay/mapLayers";
 import { createOverlayMarker } from "@/services/overlay/markers";
 import { updateOverlayEditingState } from "@/services/overlay/editing";
-import { filterByStatus } from "@/services/overlay/statusFilters";
 import {
   convertOverlayToData,
   createOverlayObject,
@@ -295,7 +294,7 @@ export function useViewportTriggers() {
     hydrateOverlayStoreObjects(allOverlaysForMarkers);
 
     const visibleOverlayIds = new Set(
-      filterByStatus(allOverlaysForMarkers, mapStore.mode).map((o) => o.id),
+      allOverlaysForMarkers.filter((o) => matchesMapFilters(o, mapStore.mode)).map((o) => o.id),
     );
 
     for (const overlayObject of Object.values(overlayStore.liveOverlays)) {

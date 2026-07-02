@@ -32,6 +32,14 @@ export const visibleStates = computed(() => {
   return states;
 });
 
+// Visibility of one timeline status under the current filter selection.
+// Missing or unknown status reads as proposed.
+export function matchesTimelineStatusFilter(timelineStatus: string | null | undefined): boolean {
+  const states = visibleStates.value;
+  if (!timelineStatus) return states.proposed;
+  return (states as Record<string, boolean>)[timelineStatus] ?? states.proposed;
+}
+
 // Empty array = show all tags.
 export const selectedProjectTags = ref<string[]>([]);
 export const UNTAGGED_PROJECT_FILTER = "__untagged__";

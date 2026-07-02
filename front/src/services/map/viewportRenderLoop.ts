@@ -4,9 +4,8 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
 import { map } from "@/services/core/map";
-import { isOverlayVisible } from "@/services/overlay/visibility";
+import { matchesMapFilters, shouldDisplayOverlay } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
-import { filterByStatus } from "@/services/overlay/statusFilters";
 import { visibleStates, selectedProjectTags } from "@/services/map/filters";
 import { createOverlayMarker, initializeMarkerColorTriggers } from "@/services/overlay/markers";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
@@ -124,7 +123,9 @@ function queueFilteredOutForDestruction(
 function pruneBackendOverlays(bounds: ViewportBounds) {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
-  const filteredOverlays = filterByStatus(overlayStore.viewModeOverlays, mapStore.mode);
+  const filteredOverlays = overlayStore.viewModeOverlays.filter((o) =>
+    matchesMapFilters(o, mapStore.mode),
+  );
   const overlaysToRender: OverlayData[] = [];
 
   for (const data of filteredOverlays) {
@@ -184,12 +185,9 @@ function pruneLocalOverlays() {
 
     if (overlay.baselineCorners.length !== 4) continue;
 
-    const isAllowedByMode = isOverlayVisible(overlay, mapStore.mode, authStore.user?.id);
-    const passesCompletionFilter = filterByStatus([overlay], mapStore.mode).length > 0;
-
     // Local overlays are actively being created by the user, no viewport bounds check.
     // Only explicit deletion or a mode switch should remove a local overlay.
-    const shouldDisplay = isAllowedByMode && passesCompletionFilter;
+    const shouldDisplay = shouldDisplayOverlay(overlay, mapStore.mode, authStore.user?.id);
 
     const hasImage = registry.getImageHandle(id) !== null;
     const hasMarker = registry.getMarker(id) !== null;

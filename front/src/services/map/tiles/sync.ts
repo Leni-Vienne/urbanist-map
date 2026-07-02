@@ -18,7 +18,7 @@ import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import {
   lastModifiedDateRange,
-  visibleStates,
+  matchesTimelineStatusFilter,
   matchesSelectedTags,
   matchesNameFilter,
 } from "@/services/map/filters";
@@ -33,15 +33,6 @@ function matchesDateFilter(lastModifiedS: number): boolean {
   if (ms < minMs) return false;
   if (maxMs !== Infinity && ms > maxMs) return false;
   return true;
-}
-
-// Same reason as matchesDateFilter: querySourceFeatures bypasses the setFilter applied to the
-// footprint layers, so images must be status-checked here. visibleStates is all-true when no
-// status is selected, so this is a no-op until the user filters. Missing status reads as proposed.
-function matchesStatusFilter(timelineStatus: string | null | undefined): boolean {
-  const states = visibleStates.value;
-  if (!timelineStatus) return states.proposed;
-  return (states as Record<string, boolean>)[timelineStatus] ?? states.proposed;
 }
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
@@ -170,7 +161,7 @@ export function syncOverlaysFromTiles(): void {
 
       if (
         !matchesDateFilter(lastModifiedS) ||
-        !matchesStatusFilter(timelineStatus) ||
+        !matchesTimelineStatusFilter(timelineStatus) ||
         !matchesSelectedTags(tags) ||
         !matchesNameFilter(name)
       ) {
@@ -238,7 +229,7 @@ export function syncOverlaysFromTiles(): void {
         const stillVisible = toCreate.filter(
           (o) =>
             matchesDateFilter(lastModifiedById.get(o.id) ?? Number.NaN) &&
-            matchesStatusFilter(statusById.get(o.id)),
+            matchesTimelineStatusFilter(statusById.get(o.id)),
         );
         if (stillVisible.length > 0) renderViewModeOverlays(stillVisible, createMarkers);
       })

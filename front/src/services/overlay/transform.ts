@@ -40,25 +40,45 @@ function toMercator(corner: { lat: number; lng: number }) {
   return maplibre.MercatorCoordinate.fromLngLat({ lng: corner.lng, lat: corner.lat });
 }
 
-// Rigid transform -> 4 rectangle corners, in [TL, TR, BR, BL] order.
-export function transformToCorners(transform: OverlayTransform): { lat: number; lng: number }[] {
-  const center = toMercator(transform.center);
+// Map a normalized (u, v) point of the rigid rectangle to geographic coordinates. u runs
+// left->right along width, v top->bottom along height; (0.5, 0.5) is the center.
+export function normToLngLat(t: OverlayTransform, u: number, v: number): Corner {
+  const center = toMercator(t.center);
   const unit = center.meterInMercatorCoordinateUnits();
-  const halfWidth = (transform.width / 2) * unit;
-  const halfHeight = (transform.height / 2) * unit;
-  const angle = (transform.bearing * Math.PI) / 180;
+  const mx = (u - 0.5) * t.width * unit;
+  const my = (v - 0.5) * t.height * unit;
+  const angle = (t.bearing * Math.PI) / 180;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
+  const ll = new maplibre.MercatorCoordinate(
+    center.x + mx * cos - my * sin,
+    center.y + mx * sin + my * cos,
+  ).toLngLat();
+  return { lat: ll.lat, lng: ll.lng };
+}
 
-  return SIGN.map(([sx, sy]) => {
-    const x = sx * halfWidth;
-    const y = sy * halfHeight;
-    const corner = new maplibre.MercatorCoordinate(
-      center.x + x * cos - y * sin,
-      center.y + x * sin + y * cos,
-    ).toLngLat();
-    return { lat: corner.lat, lng: corner.lng };
-  });
+// Inverse of normToLngLat: a geographic position back to the rectangle's normalized (u, v).
+export function lngLatToNorm(
+  t: OverlayTransform,
+  lng: number,
+  lat: number,
+): { u: number; v: number } {
+  const center = toMercator(t.center);
+  const unit = center.meterInMercatorCoordinateUnits();
+  const c = maplibre.MercatorCoordinate.fromLngLat({ lng, lat });
+  const dx = c.x - center.x;
+  const dy = c.y - center.y;
+  const angle = (t.bearing * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const lx = (dx * cos + dy * sin) / unit;
+  const ly = (-dx * sin + dy * cos) / unit;
+  return { u: lx / t.width + 0.5, v: ly / t.height + 0.5 };
+}
+
+// Rigid transform -> 4 rectangle corners, in [TL, TR, BR, BL] order.
+export function transformToCorners(transform: OverlayTransform): { lat: number; lng: number }[] {
+  return SIGN.map(([sx, sy]) => normToLngLat(transform, (sx + 1) / 2, (sy + 1) / 2));
 }
 
 // Convert 4 rectangle corners [TL, TR, BR, BL] to the rigid transform. Width and bearing come

@@ -5,7 +5,12 @@ import {
   getCurrentTransform,
   replaceOverlayImageSource,
 } from "@/services/overlay/mapLayers";
-import { transformToCorners, type OverlayTransform } from "@/services/overlay/transform";
+import {
+  transformToCorners,
+  normToLngLat,
+  lngLatToNorm,
+  type OverlayTransform,
+} from "@/services/overlay/transform";
 import { commitOverlayEdit } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
@@ -58,37 +63,6 @@ function composeRect(base: CropBounds, sub: CropBounds): CropBounds {
     v0: base.v0 + sub.v0 * bh,
     v1: base.v0 + sub.v1 * bh,
   };
-}
-
-// Map a normalized (u, v) point of the rigid rectangle to geographic coordinates.
-function normToLngLat(t: OverlayTransform, u: number, v: number): { lng: number; lat: number } {
-  const center = maplibregl.MercatorCoordinate.fromLngLat({ lng: t.center.lng, lat: t.center.lat });
-  const unit = center.meterInMercatorCoordinateUnits();
-  const mx = (u - 0.5) * t.width * unit;
-  const my = (v - 0.5) * t.height * unit;
-  const angle = (t.bearing * Math.PI) / 180;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const ll = new maplibregl.MercatorCoordinate(
-    center.x + mx * cos - my * sin,
-    center.y + mx * sin + my * cos,
-  ).toLngLat();
-  return { lng: ll.lng, lat: ll.lat };
-}
-
-// Inverse of normToLngLat: a dragged handle's geographic position back to normalized (u, v).
-function lngLatToNorm(t: OverlayTransform, lng: number, lat: number): { u: number; v: number } {
-  const center = maplibregl.MercatorCoordinate.fromLngLat({ lng: t.center.lng, lat: t.center.lat });
-  const unit = center.meterInMercatorCoordinateUnits();
-  const c = maplibregl.MercatorCoordinate.fromLngLat({ lng, lat });
-  const dx = c.x - center.x;
-  const dy = c.y - center.y;
-  const angle = (t.bearing * Math.PI) / 180;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const lx = (dx * cos + dy * sin) / unit;
-  const ly = (-dx * sin + dy * cos) / unit;
-  return { u: lx / t.width + 0.5, v: ly / t.height + 0.5 };
 }
 
 function handleElement(edge: Edge): HTMLElement {
