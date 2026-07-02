@@ -69,9 +69,15 @@ PID_AREAL=$!
 run osmium cat --overwrite --input-format=pbf,num_threads="$NPROC" \
     --object-type=relation -o "$RELATIONS_PBF" "$SOURCE" &
 PID_REL=$!
-wait $PID_WAYS  || { echo "ERROR: ways derive failed";      exit 1; }
-wait $PID_AREAL || { echo "ERROR: areal derive failed";     exit 1; }
-wait $PID_REL   || { echo "ERROR: relations derive failed"; exit 1; }
+# Collect all statuses before failing, so one job failing does not leave the
+# others running as orphans that race a subsequent retry.
+RC_WAYS=0; RC_AREAL=0; RC_REL=0
+wait $PID_WAYS  || RC_WAYS=$?
+wait $PID_AREAL || RC_AREAL=$?
+wait $PID_REL   || RC_REL=$?
+[[ "$RC_WAYS"  -eq 0 ]] || { echo "ERROR: ways derive failed";      exit 1; }
+[[ "$RC_AREAL" -eq 0 ]] || { echo "ERROR: areal derive failed";     exit 1; }
+[[ "$RC_REL"   -eq 0 ]] || { echo "ERROR: relations derive failed"; exit 1; }
 
 echo "[$(ts)] Derive done in $(elapsed $((SECONDS - T)))"
 if [[ "$DRY_RUN" -eq 0 ]]; then

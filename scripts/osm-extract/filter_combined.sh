@@ -21,7 +21,13 @@ if [ ! -f "$SOURCE" ]; then
     echo "Error: source file not found: $SOURCE"
     exit 1
 fi
-OUTPUT="${SOURCE/.osm.pbf/_proposed.osm.pbf}"
+# Suffix-anchored: a name not ending in .osm.pbf would otherwise make
+# OUTPUT == SOURCE and osmium --overwrite would destroy the source.
+if [[ "$SOURCE" != *.osm.pbf ]]; then
+    echo "Error: source file must end in .osm.pbf: $SOURCE"
+    exit 1
+fi
+OUTPUT="${SOURCE%.osm.pbf}_proposed.osm.pbf"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)

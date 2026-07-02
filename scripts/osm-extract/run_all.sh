@@ -43,6 +43,10 @@ if [[ ! -f "$SOURCE" ]]; then
     echo "Error: File $SOURCE not found!"
     exit 1
 fi
+if [[ "$SOURCE" != *.osm.pbf ]]; then
+    echo "Error: source file must end in .osm.pbf: $SOURCE"
+    exit 1
+fi
 
 # Fail before the expensive filter rather than after it if --import cannot run.
 if [[ -n "$IMPORT_FLAG" ]]; then
@@ -55,7 +59,7 @@ function ts() { date '+%H:%M:%S'; }
 function elapsed() { local s=$1; printf "%dm%02ds" $((s / 60)) $((s % 60)); }
 
 SOURCE_ABS="$(realpath "$SOURCE")"
-COMBINED_PBF="${SOURCE_ABS/.osm.pbf/_proposed.osm.pbf}"
+COMBINED_PBF="${SOURCE_ABS%.osm.pbf}_proposed.osm.pbf"
 
 if [[ "$SOURCE_ABS" == /mnt/* ]]; then
     echo ""
