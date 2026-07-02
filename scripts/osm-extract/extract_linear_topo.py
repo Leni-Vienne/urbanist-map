@@ -36,10 +36,6 @@ def _parse_args():
                         help='Output GeoJSON file path')
     return parser.parse_args()
 
-_args = _parse_args()
-WAYS_FILE = _args.ways_file
-SOURCE_FILE = _args.source_file
-OUTPUT_FILE = _args.output
 
 # Transport type mappings (single source of truth)
 TRANSPORT_TYPES = {
@@ -1447,6 +1443,10 @@ def _ts():
 
 
 def main():
+    args = _parse_args()
+    WAYS_FILE = args.ways_file
+    SOURCE_FILE = args.source_file
+    OUTPUT_FILE = args.output
     t_total = time.time()
 
     print(f"[linear] [{_ts()}] Pass 1: Reading way geometries from {WAYS_FILE}...")

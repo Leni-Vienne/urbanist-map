@@ -99,6 +99,15 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORK_DIR="$(dirname "$FILTERED_PBF")"
 FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
 
+# All derived artifact names strip the _proposed.osm.pbf suffix. Guard it once
+# here so a mismatched input fails loudly instead of a silent no-op strip
+# producing paths like foo.osm.pbf_proposed_ways.osm.pbf.
+if [[ "$FILTERED_PBF" != *_proposed.osm.pbf ]]; then
+    echo "Error: expected a *_proposed.osm.pbf file (produced by run_all.sh), got: $FILTERED_PBF"
+    exit 1
+fi
+BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
+
 # ---------------------------------------------------------------------------
 # Dependency checks
 # ---------------------------------------------------------------------------
@@ -148,11 +157,10 @@ fi
 
 # Require 9GB of free space (9 * 1024 * 1024 = 9437184 KB)
 REQUIRED_SPACE_KB=9437184
-TARGET_DIR="$(dirname "$FILTERED_PBF")"
-AVAILABLE_SPACE_KB=$(df -P -k "$TARGET_DIR" | tail -1 | awk '{print $4}')
+AVAILABLE_SPACE_KB=$(df -P -k "$WORK_DIR" | tail -1 | awk '{print $4}')
 
 if [[ "$AVAILABLE_SPACE_KB" -lt "$REQUIRED_SPACE_KB" ]]; then
-    echo "Error: Not enough free disk space in $TARGET_DIR."
+    echo "Error: Not enough free disk space in $WORK_DIR."
     echo "  Available: $((AVAILABLE_SPACE_KB / 1024 / 1024)) GB"
     echo "  Required:  9 GB"
     exit 1
@@ -163,7 +171,6 @@ fi
 # ---------------------------------------------------------------------------
 
 function ts()      { date '+%H:%M:%S'; }
-function elapsed() { local s=$1; printf "%dm%02ds" $((s / 60)) $((s % 60)); }
 function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
 
 function run() {
@@ -338,13 +345,12 @@ echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQ
 # empty one is left over from an interrupted step 4, e.g. an OOM). In that case
 # fall through and re-run step 4 without re-applying any diffs.
 if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
-    _ARTIFACT_BASE="${FILTERED_PBF%_proposed.osm.pbf}"
     _ARTIFACTS_OK=1
-    for _f in "${_ARTIFACT_BASE}_proposed_ways.osm.pbf" \
-              "${_ARTIFACT_BASE}_proposed_areal.osm.pbf" \
-              "${_ARTIFACT_BASE}_proposed_relations.osm.pbf" \
-              "${_ARTIFACT_BASE}_proposed_linear.geojson" \
-              "${_ARTIFACT_BASE}_proposed_areal.geojson"; do
+    for _f in "${BASE_PREFIX}_proposed_ways.osm.pbf" \
+              "${BASE_PREFIX}_proposed_areal.osm.pbf" \
+              "${BASE_PREFIX}_proposed_relations.osm.pbf" \
+              "${BASE_PREFIX}_proposed_linear.geojson" \
+              "${BASE_PREFIX}_proposed_areal.geojson"; do
         if [[ ! -s "$_f" || "$_f" -ot "$STATE_FILE" ]]; then
             echo ""
             echo "[$(ts)] Sequence is current ($CURRENT_SEQNUM) but $(basename "$_f") is missing, empty, or older than the sidecar."
@@ -431,15 +437,19 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     echo ""
     echo "[$(ts)] Re-filtering merged PBF to drop non-matching diff objects"
     REFILTER_RULES="${WORK_DIR}/.osmium_filters_$$.txt"
-    "$SCRIPT_DIR/build_combined_filters.sh" > "$REFILTER_RULES"
     REFILTERED_PBF="${FILTERED_PBF%.osm.pbf}_refiltered.osm.pbf"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "[dry-run] build_combined_filters.sh > $REFILTER_RULES"
+    else
+        "$SCRIPT_DIR/build_combined_filters.sh" > "$REFILTER_RULES"
+    fi
     run osmium tags-filter \
         --overwrite \
         --output-format=pbf,pbf_compression=lz4 \
         -o "$REFILTERED_PBF" \
         "$FINAL_PBF" \
         -e "$REFILTER_RULES"
-    rm -f "$REFILTER_RULES"
+    run rm -f "$REFILTER_RULES"
     run mv -f "$REFILTERED_PBF" "$FINAL_PBF"
 
     # Phase 3: clean up the OSCs now that they're baked into $FINAL_PBF.
@@ -479,14 +489,12 @@ echo "=========================================================="
 echo "[$(ts)] STEP 4: Deriving sub-PBFs + Python extraction"
 echo "=========================================================="
 
-# FILTERED_PBF = /path/to/<base>_proposed.osm.pbf
-BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
-OUTPUT_DIR="$(dirname "$FILTERED_PBF")"
+# BASE_PREFIX = /path/to/<base> (the _proposed.osm.pbf suffix stripped near the top)
 WAYS_PBF="${BASE_PREFIX}_proposed_ways.osm.pbf"
 AREAL_PBF="${BASE_PREFIX}_proposed_areal.osm.pbf"
 RELATIONS_PBF="${BASE_PREFIX}_proposed_relations.osm.pbf"
-LINEAR_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_linear.geojson"
-AREAL_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_areal.geojson"
+LINEAR_GEOJSON="${BASE_PREFIX}_proposed_linear.geojson"
+AREAL_GEOJSON="${BASE_PREFIX}_proposed_areal.geojson"
 
 # Split the caught-up subset into the focused files the Python extraction reads.
 # derive_subpbfs.sh is the single source of truth for this step (also runnable

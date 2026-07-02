@@ -40,6 +40,12 @@ if [[ ! -f "$SOURCE" ]]; then
     echo "Error: source file not found: $SOURCE"
     exit 1
 fi
+# Suffix-anchored: the derived names below strip _proposed.osm.pbf, and a silent
+# no-op strip on a mismatched name would produce paths like foo.osm.pbf_proposed_ways.osm.pbf.
+if [[ "$SOURCE" != *_proposed.osm.pbf ]]; then
+    echo "Error: expected a *_proposed.osm.pbf file, got: $SOURCE"
+    exit 1
+fi
 command -v osmium &>/dev/null || { echo "Error: osmium not found"; exit 1; }
 
 SOURCE="$(realpath "$SOURCE")"

@@ -27,9 +27,6 @@ def _parse_args():
                         help='Output GeoJSON file path')
     return parser.parse_args()
 
-_args = _parse_args()
-SOURCE_FILE = _args.source
-OUTPUT_FILE = _args.output
 
 URL_RE = re.compile(r'https?://\S+')
 
@@ -465,6 +462,9 @@ def _ts():
 
 
 def main():
+    args = _parse_args()
+    SOURCE_FILE = args.source
+    OUTPUT_FILE = args.output
     t_total = time.time()
 
     print(f"[areal] [{_ts()}] Reading geometries from {SOURCE_FILE}...")
