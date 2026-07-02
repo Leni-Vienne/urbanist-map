@@ -19,8 +19,6 @@ interface ApplyOverlayCornersOptions {
   resetHistory?: boolean;
   // Re-sync the drag surface, corner markers and outline; skip when not in an editing context.
   refreshHandles?: boolean;
-  // Recolor/relabel the marker tooltip after the position change.
-  refreshTooltip?: boolean;
 }
 
 export function applyOverlayCorners(

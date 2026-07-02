@@ -240,6 +240,7 @@ export function clearAll(preserveMarkers = false): void {
       // Zoom threshold: null the image refs but keep the marker alive on the map.
       // This prevents marker flicker when crossing the zoom 13/14 boundary.
       entry.imageHandle = null;
+      if (entry.marker === null) entries.delete(id);
     } else {
       entry.marker?.remove();
       entries.delete(id);

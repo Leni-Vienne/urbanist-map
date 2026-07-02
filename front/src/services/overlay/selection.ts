@@ -18,9 +18,6 @@ import { isOverlayUnsaved } from "@/utils/unsavedState";
 
 type Corner = { lat: number; lng: number };
 
-// Guard to prevent recursive selectOverlay calls when library fires select event
-let isSelectingOverlay = false;
-
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
   // Set position state for dynamic button feedback when selecting overlay
   // Default to viewing the approved position on first selection
@@ -40,39 +37,31 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
  * reactively; this owns the non-reactive selection work (raised image, country sync, project hydration).
  */
 export function selectOverlay(overlayId: string | null): void {
-  // Prevent recursive calls (library's select event -> selectOverlay -> overlay.select -> select event)
-  if (isSelectingOverlay) return;
-
   const overlayStore = useOverlayStore();
   const focus = useFocusStore();
 
   // Already selected: the detail is the selection, so it is already shown.
   if (overlayId === focus.selectedOverlayId) return;
 
-  isSelectingOverlay = true;
-  try {
-    if (!overlayId) {
-      focus.clearSelection();
-      return;
-    }
-
-    const newlySelected = overlayStore.liveOverlays[overlayId];
-    if (!newlySelected) return;
-
-    // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
-    focus.selectOverlay(overlayId);
-
-    setupNewSelection(newlySelected, overlayId);
-
-    // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
-    syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
-
-    // Fetch the overlay's project if the selection came from the map (vector tiles don't always
-    // carry the full project) so the docked detail can resolve it.
-    void hydrateOverlayProject(overlayId);
-  } finally {
-    isSelectingOverlay = false;
+  if (!overlayId) {
+    focus.clearSelection();
+    return;
   }
+
+  const newlySelected = overlayStore.liveOverlays[overlayId];
+  if (!newlySelected) return;
+
+  // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
+  focus.selectOverlay(overlayId);
+
+  setupNewSelection(newlySelected, overlayId);
+
+  // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
+  syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
+
+  // Fetch the overlay's project if the selection came from the map (vector tiles don't always
+  // carry the full project) so the docked detail can resolve it.
+  void hydrateOverlayProject(overlayId);
 }
 
 // The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
@@ -99,30 +88,24 @@ async function hydrateOverlayProject(overlayId: string): Promise<void> {
 }
 
 /**
- * Re-apply the selection visuals that depend on the rendered image layer (edit handles, overlay
- * outline, sister highlight, raised image). selectOverlay applies these immediately, but when
- * selection is triggered from the side panel while zoomed out, the layer isn't rendered yet and
- * those steps no-op. The camera then flies in and the layer renders later; this polls for it and
- * applies the visuals once ready. No-op when the layer is already present at selection time.
+ * Raise the selected overlay's image once its layer renders. selectOverlay raises it immediately,
+ * but when selection is triggered from the side panel while zoomed out, the layer isn't rendered
+ * yet and the raise no-ops. The camera then flies in and the layer renders later; this waits for
+ * it and re-raises. No-op when the layer is already present at selection time.
  */
-export function applySelectionVisualsWhenReady(overlayId: string): void {
+export function raiseSelectedOverlayWhenReady(overlayId: string): void {
   if (hasReadyLayer(overlayId)) return;
 
-  const overlayStore = useOverlayStore();
   const focus = useFocusStore();
 
-  function applyVisuals(): void {
+  function raiseIfStillSelected(): void {
     // Selection changed while we were waiting; abandon.
     if (focus.selectedOverlayId !== overlayId) return;
-
-    const overlay = overlayStore.liveOverlays[overlayId];
-    if (!overlay) return;
-
     raiseOverlayImage(overlayId);
   }
 
   // ~5s budget, matching the overlay auto-select wait elsewhere.
-  whenImageReady(overlayId, applyVisuals, { timeoutMs: 5000 });
+  whenImageReady(overlayId, raiseIfStillSelected, { timeoutMs: 5000 });
 }
 
 /**
@@ -186,7 +169,8 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
   const overlayStore = useOverlayStore();
   const renderedIds = getRenderedOverlayIds();
 
-  // Search in reverse order to prefer overlays rendered on top
+  // Later-registered overlays are checked first. Registration order only approximates the
+  // visual stacking: raiseOverlayImage reorders map layers without touching the registry.
   for (let i = renderedIds.length - 1; i >= 0; i -= 1) {
     const id = renderedIds[i];
     if (!id) continue;

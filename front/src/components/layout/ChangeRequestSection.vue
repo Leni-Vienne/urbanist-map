@@ -107,7 +107,6 @@ import { useToast } from "@/composables/ui/useToast";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useShapeChangeRequestPreview } from "@/composables/overlay/useShapeChangeRequestPreview";
 import {
-  setChangeRequestsForPreview,
   syncPreviewStateOnNavigation,
   syncProjectShapePreviewState,
 } from "@/services/overlay/changeRequestPreviewState";
@@ -161,13 +160,10 @@ const {
 } = useChangeRequestPreview();
 const { previewShapes } = useShapeChangeRequestPreview();
 
-// Sync change requests and preview button state reactively.
-// watchEffect tracks all reactive reads inside (allChangeRequests prop + focus selection),
-// so this re-runs when either changes.
+// Sync preview button state reactively. The sync functions read the mode's change request
+// store internally, so this effect tracks both the focus selection and the store contents.
 // IMPORTANT: do NOT read previewState inside this effect, it would create a read→write cycle.
 watchEffect(() => {
-  setChangeRequestsForPreview(props.allChangeRequests);
-
   const selectedId = focusStore.selectedOverlayId;
   if (selectedId) {
     // Sync "view approved position" button for the currently selected overlay
@@ -177,7 +173,7 @@ watchEffect(() => {
     }
   } else {
     // No overlay selected: sync "view current shapes" button for project geometry changes
-    syncProjectShapePreviewState(props.allChangeRequests);
+    syncProjectShapePreviewState();
   }
 });
 

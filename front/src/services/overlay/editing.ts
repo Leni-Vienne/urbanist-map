@@ -49,7 +49,7 @@ import { watch } from "vue";
  * Entering edit mode: restore the user's last edited corners from history.
  * Leaving edit mode: snap the image back to the approved backend corners (history preserved).
  */
-export async function updateOverlayEditingState(): Promise<void> {
+export function updateOverlayEditingState(): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const isEditMode = mapStore.mode === "edit";
@@ -426,7 +426,6 @@ function flagSize(overlayObject: OverlayObject): void {
   if (!transform) return;
   const valid = validateOverlaySize(transformToCorners(transform)).isValid;
   if (overlayObject.isTooBig !== !valid) {
-    overlayObject.isTooBig = !valid;
     useOverlayStore().updateOverlay(overlayObject.id, { isTooBig: !valid });
   }
   if (!valid) {
@@ -502,7 +501,6 @@ function wireCornerDrag(s: EditSession): void {
 
 function wireSurfaceDrag(s: EditSession): void {
   const mlMap = map.value;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const overlayObject = s.overlayObject;
 
   s.onEnter = () => {
@@ -686,7 +684,6 @@ export function hideEditHandles(): void {
 
   s.cornerMarkers.forEach((marker) => marker.remove());
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   // Tear down an in-flight surface drag so its mousemove handler stops mutating a dead session
   // and dragPan is restored now rather than on a mouseup that may never reach this overlay.
   if (s.activeSurfaceDrag) {

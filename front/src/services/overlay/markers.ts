@@ -15,7 +15,6 @@ import * as registry from "@/services/overlay/mapLayers";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
-import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject, resolveOverlayCorners } from "@/services/overlay/data";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
@@ -79,10 +78,6 @@ function onMarkerClick(overlayId: string): void {
     selectOverlay(null);
     return;
   }
-
-  // Default to viewing the approved position on first click.
-  overlayObject.isViewingApprovedPosition ??= true;
-  syncPreviewStateOnNavigation(overlayId, overlayObject.isViewingApprovedPosition);
 
   selectOverlay(overlayId);
 

@@ -337,7 +337,7 @@ export function useViewportTriggers() {
           clearOverlayRenderState();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
-          await updateOverlayEditingState();
+          updateOverlayEditingState();
           return;
         }
 
@@ -360,7 +360,7 @@ export function useViewportTriggers() {
         await updateGlobalPendingPoints(newMode);
         await refreshViewport(true);
 
-        await updateOverlayEditingState();
+        updateOverlayEditingState();
       },
     );
   }

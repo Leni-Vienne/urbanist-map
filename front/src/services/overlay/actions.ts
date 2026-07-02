@@ -6,20 +6,19 @@ import { useFocusStore } from "@/stores/focusStore";
 import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
-import { loadOrNull } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
-import { selectOverlay, applySelectionVisualsWhenReady } from "@/services/overlay/selection";
+import { selectOverlay, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import { overlayWireToData } from "@/utils/typeFactories";
 
 // Helper to zoom to overlay bounds
-function zoomToOverlayBounds(overlay: OverlayObject): boolean {
+function zoomToOverlayBounds(overlay: OverlayObject): void {
   // Try to get bounds from overlay data (works whether the image layer exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
     mobileAwareFlyToBounds(overlayBounds);
-    return true;
+    return;
   }
 
   // Fall back to marker position if bounds unavailable
@@ -27,10 +26,7 @@ function zoomToOverlayBounds(overlay: OverlayObject): boolean {
   if (marker) {
     const lngLat = marker.getLngLat();
     mobileAwareFlyTo(new LngLat(lngLat.lng, lngLat.lat), 17);
-    return true;
   }
-
-  return false;
 }
 
 /**
@@ -85,8 +81,7 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
 }
 
 /**
- * Loads an overlay by ID, fetching from backend if needed.
- * Returns loading result if successful, null on error.
+ * Loads an overlay by ID, fetching from backend if needed. Throws on fetch failure.
  */
 type LoadOverlayResult = {
   alreadyInStore: boolean;
@@ -95,43 +90,38 @@ type LoadOverlayResult = {
 
 async function loadOverlay(
   overlayId: string,
-  includeIntersecting: boolean = true,
-): Promise<LoadOverlayResult | null> {
+  includeIntersecting: boolean,
+): Promise<LoadOverlayResult> {
   const overlayStore = useOverlayStore();
 
   if (overlayStore.liveOverlays[overlayId]) {
     return { alreadyInStore: true };
   }
 
-  return loadOrNull(
-    async () => {
-      const result = await trpc.overlay.getOverlay.query({
-        id: overlayId,
-        includeIntersecting,
-      });
+  const result = await trpc.overlay.getOverlay.query({
+    id: overlayId,
+    includeIntersecting,
+  });
 
-      if (!result.overlay) {
-        throw new Error("Overlay not found");
-      }
+  if (!result.overlay) {
+    throw new Error("Overlay not found");
+  }
 
-      // Lazy-loaded as its own chunk: overlayRendering is dynamically imported here and in
-      // vectorTileSync / viewportRenderLoop. A static import would merge it into this chunk and
-      // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
-      const { renderViewModeOverlays } = await import("@/services/overlay/rendering");
+  // Lazy-loaded as its own chunk: overlayRendering is dynamically imported here and in
+  // vectorTileSync / viewportRenderLoop. A static import would merge it into this chunk and
+  // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
+  const { renderViewModeOverlays } = await import("@/services/overlay/rendering");
 
-      renderViewModeOverlays([overlayWireToData(result.overlay)], true);
+  renderViewModeOverlays([overlayWireToData(result.overlay)], true);
 
-      if (includeIntersecting && result.intersectingOverlays.length > 0) {
-        renderViewModeOverlays(result.intersectingOverlays.map(overlayWireToData), true);
-      }
+  if (includeIntersecting && result.intersectingOverlays.length > 0) {
+    renderViewModeOverlays(result.intersectingOverlays.map(overlayWireToData), true);
+  }
 
-      // Don't check overlayStore.liveOverlays[overlayId] here: overlay registration is async
-      // (happens after image loads) and may not complete if zoom level is too low.
-      // Return corners so the caller can fly to the overlay immediately.
-      return { alreadyInStore: false, corners: result.overlay.corners };
-    },
-    { errorMessage: "Failed to load overlay", rethrow: true },
-  );
+  // Don't check overlayStore.liveOverlays[overlayId] here: overlay registration is async
+  // (happens after image loads) and may not complete if zoom level is too low.
+  // Return corners so the caller can fly to the overlay immediately.
+  return { alreadyInStore: false, corners: result.overlay.corners };
 }
 
 /**
@@ -143,7 +133,7 @@ export async function navigateToOverlay(
 ): Promise<boolean> {
   const loadResult = await loadOverlay(overlayId, includeIntersecting);
 
-  if (loadResult?.alreadyInStore) {
+  if (loadResult.alreadyInStore) {
     return selectAndCenterOverlay(overlayId);
   }
 
@@ -152,7 +142,7 @@ export async function navigateToOverlay(
   if (selectAndCenterOverlay(overlayId)) {
     return true;
   }
-  if (loadResult?.corners && loadResult.corners.length >= 4) {
+  if (loadResult.corners && loadResult.corners.length >= 4) {
     const bounds = new LngLatBounds();
     for (const c of loadResult.corners) {
       bounds.extend(new LngLat(c.lng, c.lat));
@@ -175,8 +165,8 @@ function selectAndCenterOverlay(overlayId: string) {
   selectOverlay(overlayId);
   zoomToOverlayBounds(overlay);
   // When selecting from the side panel while zoomed out, the image layer isn't rendered yet, so
-  // the edit handles / outline from selectOverlay no-op. Re-apply them once the flight renders it.
-  applySelectionVisualsWhenReady(overlayId);
+  // the raise from selectOverlay no-ops. Re-raise once the flight renders it.
+  raiseSelectedOverlayWhenReady(overlayId);
 
   return true;
 }

@@ -133,7 +133,6 @@ function ring(points: { x: number; y: number }[]): string {
 function syncCrop(): void {
   if (!session) return;
   const mlMap = map.value;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const visible = mlMap.getZoom() >= threshold;
   session.svgContainer.style.display = visible ? "block" : "none";
@@ -269,7 +268,6 @@ export function hideCropHandles(): void {
 
   for (const edge of EDGES) s.handles[edge].remove();
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   mlMap.off("render", s.onRender);
   if (s.svgContainer.parentNode) s.svgContainer.parentNode.removeChild(s.svgContainer);
 }

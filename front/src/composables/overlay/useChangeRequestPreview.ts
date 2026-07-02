@@ -216,7 +216,7 @@ export function useChangeRequestPreview() {
 
     // Apply the position change. Preview is read-only (no history reset, no edit handles); the
     // handle existence was already verified above.
-    applyOverlayCorners(overlayObject, targetLatLngs, { refreshTooltip: true });
+    applyOverlayCorners(overlayObject, targetLatLngs);
 
     // Always navigate to the final position to ensure camera is centered correctly
     navigateToPosition(targetLatLngs, previousBounds, overlayId);
