@@ -45,14 +45,13 @@ export const useFocusStore = defineStore("focus", () => {
     if (target.kind === "overlay") {
       const overlay = useOverlayStore().liveOverlays[target.overlayId];
       const joined = overlay?.project;
-      if (joined) return createProjectObject(joined as Parameters<typeof createProjectObject>[0]);
+      if (joined) return createProjectObject(joined);
       return target.projectId ? projectStore.getProjectById(target.projectId) : null;
     }
     return projectStore.getProjectById(target.projectId);
   });
   // A docked detail panel is open whenever something is pinned.
   const detailVisible = computed<boolean>(() => selection.value !== null);
-  const detailProjectId = computed<string | null>(() => selection.value?.projectId ?? null);
 
   function setHover(target: FocusTarget | null): void {
     hover.value = target;
@@ -88,7 +87,6 @@ export const useFocusStore = defineStore("focus", () => {
     selectedProjectId,
     selectedProject,
     detailVisible,
-    detailProjectId,
     setHover,
     selectOverlay,
     selectProject,

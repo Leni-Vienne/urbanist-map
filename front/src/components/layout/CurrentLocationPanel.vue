@@ -132,7 +132,7 @@ const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
 // The project whose detail is open, used to link the open detail to its row in the list.
 const focusStore = useFocusStore();
-const selectedProjectId = computed(() => focusStore.detailProjectId);
+const selectedProjectId = computed(() => focusStore.selectedProjectId);
 
 /** Returns translated names of all tags after the first, joined by newlines. */
 function extraTagsTooltip(tags: string[]): string {

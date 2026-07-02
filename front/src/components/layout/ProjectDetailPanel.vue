@@ -243,7 +243,7 @@ function getEffectiveProject(projectId: string): Project | undefined {
 }
 
 // The project behind whichever detail is open (overlay's parent or the standalone project).
-const activeProjectId = computed(() => focusStore.detailProjectId);
+const activeProjectId = computed(() => focusStore.selectedProjectId);
 
 // When another project is picked while the panel stays open, the content swaps in place with no
 // signal. Echo the open transition (short fade + slide-up) and scroll back to the top so the switch

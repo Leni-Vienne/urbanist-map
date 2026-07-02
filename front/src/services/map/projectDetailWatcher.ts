@@ -31,7 +31,7 @@ function initializeProjectUrlSync() {
   const focus = useFocusStore();
 
   watch(
-    () => focus.detailProjectId,
+    () => focus.selectedProjectId,
     async (projectId) => {
       if (!projectId) {
         writeProjectPath(null);
@@ -51,7 +51,7 @@ function initializeProjectUrlSync() {
         if (!fresh?.slug) return;
         slugCache.set(projectId, fresh.slug);
         // A fast re-selection may have moved on while awaiting; only write if still the active project.
-        if (focus.detailProjectId === projectId) writeProjectPath(fresh.slug);
+        if (focus.selectedProjectId === projectId) writeProjectPath(fresh.slug);
       } catch (error) {
         console.error("Failed to resolve project slug for URL sync:", error);
       }
