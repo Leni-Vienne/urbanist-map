@@ -11,7 +11,7 @@
 
 import { map, onMlMapReady } from "@/services/core/map";
 import * as registry from "@/services/overlay/mapLayers";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";

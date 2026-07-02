@@ -5,11 +5,11 @@ import {
   isSubmitting,
 } from "./submissionDialogState";
 import { getStagedRender, clearStagedRender, type StagedRender } from "./stagedRenderStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useSubmissionService } from "./useSubmissionService";
 import type {

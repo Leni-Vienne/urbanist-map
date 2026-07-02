@@ -2,11 +2,11 @@ import { watch } from "vue";
 import type { OverlayData, Project } from "@/types/index";
 import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapes/rendering";
 import { hasProjectShapes } from "@/services/map/shapes/registry";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/sync";
 import { createProjectObject } from "@/utils/typeFactories";
 

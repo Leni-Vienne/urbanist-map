@@ -13,7 +13,7 @@ import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
 import { useAuthStore } from "@/stores/authStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 type PendingProjectInput = {
   id: string;

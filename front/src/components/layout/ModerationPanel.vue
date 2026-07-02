@@ -164,11 +164,11 @@ import { useModerationCountrySelector } from "@/composables/moderation/useModera
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useToast } from "@/composables/ui/useToast";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import type { Overlay, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
 import ReplacementConflictsDialog, {

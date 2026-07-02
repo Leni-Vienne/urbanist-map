@@ -1,7 +1,7 @@
 import type { Project } from "@/types/index";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";

@@ -1,8 +1,8 @@
 import { computed, ref } from "vue";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";

@@ -1,6 +1,6 @@
 import { computed, reactive } from "vue";
 import { formDataToProjectFields } from "@/utils/projectFormHelpers";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";

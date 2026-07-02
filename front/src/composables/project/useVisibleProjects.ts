@@ -1,7 +1,7 @@
 import { ref, computed, onUnmounted, onActivated, onDeactivated } from "vue";
 import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { map, onMlMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";

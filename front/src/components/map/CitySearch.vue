@@ -41,7 +41,7 @@ import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
 import { map } from "@/services/core/map";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import { LngLatBounds } from "maplibre-gl";
 import { loadOrNull } from "@/services/core/errorHandling";
 

@@ -3,9 +3,9 @@
 // Edit/moderation: bbox tRPC fetch
 import { watch } from "vue";
 import { map } from "@/services/core/map";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";

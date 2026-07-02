@@ -264,7 +264,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { trpc, type RouterOutput } from "@/client";
 import type { DataTableExpandedRows } from "primevue/datatable";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { PROJECT_TAG_MAP } from "@/constants/projectTags";
 
 type DetachedProject = RouterOutput["moderation"]["getDetachedProjects"][number];
 type Candidate = DetachedProject["candidates"][number];

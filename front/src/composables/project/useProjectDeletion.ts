@@ -1,6 +1,6 @@
 import { t } from "@/locales";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 
 export function useProjectDeletion() {
   const { deleteOverlay, deleteProject } = useUserContributions();

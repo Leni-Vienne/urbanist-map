@@ -1,7 +1,7 @@
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useModerationStore } from "@/stores/moderationStore";
+import { useMapStore } from "@/stores/mapStore";
 import type { OverlayData, OverlayObject, OverlayHistoryState, Project } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { isValidQuad } from "@/services/overlay/transform";

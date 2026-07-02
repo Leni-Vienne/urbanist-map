@@ -1,9 +1,9 @@
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { clearAll as clearAllLayers } from "@/services/overlay/mapLayers";
 

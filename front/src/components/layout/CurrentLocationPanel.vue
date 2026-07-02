@@ -116,8 +116,8 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
-import { useFocusStore } from "@/stores/pinia/focusStore";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { useFocusStore } from "@/stores/focusStore";
+import { PROJECT_TAG_MAP } from "@/constants/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import LinePreview from "@/components/common/LinePreview.vue";
 import { useScrollFade } from "@/composables/ui/useScrollFade";

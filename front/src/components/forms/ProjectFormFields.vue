@@ -215,7 +215,7 @@ import {
 import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
-import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
+import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/constants/projectTags";
 
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";

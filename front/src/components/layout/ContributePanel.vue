@@ -143,7 +143,7 @@ import { computed, onMounted } from "vue";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { useContributeActions } from "@/composables/project/useContributeActions";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";

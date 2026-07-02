@@ -185,7 +185,7 @@ import {
   toggleShowOnlyWithImages,
 } from "@/services/map/filters";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
-import { PROJECT_TAGS, PROJECT_TAG_MAP, BUILDING_CATEGORY_TAGS } from "@/config/projectTags";
+import { PROJECT_TAGS, PROJECT_TAG_MAP, BUILDING_CATEGORY_TAGS } from "@/constants/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 import LinePreview from "@/components/common/LinePreview.vue";
 

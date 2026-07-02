@@ -112,7 +112,7 @@ import {
   setDrawMode,
   type ShapeDrawMode,
 } from "@/services/shape/shapeEditing";
-import { extractTagsFromOsmProperties } from "@/config/projectTags";
+import { extractTagsFromOsmProperties } from "@/constants/projectTags";
 
 const { t } = useI18n();
 const toast = useToast();

@@ -73,8 +73,8 @@ import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } fr
 
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
@@ -86,7 +86,7 @@ import { showSubmissionDialog } from "@/composables/submission/submissionDialogS
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/composables/project/useProjectDeepLink";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
 import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
 

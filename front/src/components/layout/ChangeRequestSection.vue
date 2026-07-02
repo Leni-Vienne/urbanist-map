@@ -111,8 +111,8 @@ import {
   syncPreviewStateOnNavigation,
   syncProjectShapePreviewState,
 } from "@/services/overlay/changeRequestPreviewState";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 

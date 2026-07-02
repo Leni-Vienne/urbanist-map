@@ -10,14 +10,14 @@ import { getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { handleBackgroundClick, selectOverlay } from "@/services/overlay/selection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { watch } from "vue";
 
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 import {
   triggerProjectHover,
   triggerClusterHover,
@@ -28,7 +28,7 @@ import {
 } from "@/services/map/hoverPreviewState";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
-import { PROJECT_TAGS } from "@/config/projectTags";
+import { PROJECT_TAGS } from "@/constants/projectTags";
 import {
   SHAPE_LINE_WIDTH,
   SHAPE_LINE_WIDTH_HOVER,

@@ -7,8 +7,8 @@
 //
 // `revertOverlayFieldModification` is a command built on top of it: it restores a staged field
 // edit (corners or caption) to its captured baseline in the stores, then syncs the map to match.
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getImageHandle, setOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { refreshEditHandles } from "@/services/overlay/editing";
 import { updateMarkerPosition } from "@/services/overlay/markers";

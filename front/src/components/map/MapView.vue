@@ -67,8 +67,8 @@ import { initVectorTileSync } from "@/services/map/tiles/sync";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import ModeControls from "@/components/map/ModeControls.vue";

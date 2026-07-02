@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { createProjectObject } from "@/utils/typeFactories";
 import type { Project } from "@/types/index";
 

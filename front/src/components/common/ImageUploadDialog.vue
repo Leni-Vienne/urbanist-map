@@ -196,8 +196,8 @@
 import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useToast } from "@/composables/ui/useToast";
 import { addOverlay } from "@/services/overlay/editing";
 import { setStagedRender } from "@/composables/submission/stagedRenderStore";

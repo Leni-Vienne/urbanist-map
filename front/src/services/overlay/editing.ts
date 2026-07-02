@@ -20,12 +20,12 @@ import {
   type OverlayTransform,
 } from "@/services/overlay/transform";
 import { updateMarkerPosition, createOverlayMarker } from "@/services/overlay/markers";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";

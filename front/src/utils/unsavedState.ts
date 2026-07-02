@@ -2,9 +2,9 @@
 // Used by the beforeunload guard, toolbar/popup save buttons, and the contributions sidebar.
 
 import type { OverlayObject, Project } from "@/types/index";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 type OverlayLike = Pick<OverlayObject, "id" | "status">;
 type ProjectLike = Pick<Project, "id" | "status" | "isModified">;

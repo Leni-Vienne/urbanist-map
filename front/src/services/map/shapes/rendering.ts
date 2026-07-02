@@ -2,7 +2,7 @@ import { type ExpressionSpecification, type MapMouseEvent, LngLatBounds } from "
 import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
 import { forEachPosition } from "@/utils/geojson";
 import {
@@ -20,7 +20,7 @@ import {
   SHAPE_LONG_DASH,
   SHAPE_SHORT_DASH,
 } from "@/services/map/shapes/styleConstants";
-import { getProjectTagColor } from "@/config/projectTags";
+import { getProjectTagColor } from "@/constants/projectTags";
 
 type MapLibreMap = NonNullable<typeof map.value>;
 

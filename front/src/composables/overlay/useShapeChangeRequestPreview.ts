@@ -1,5 +1,5 @@
 import { nextTick } from "vue";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";

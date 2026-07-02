@@ -1,8 +1,8 @@
 // MapLibre overlay rendering: creates image sources/raster layers and status markers.
 
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { createOverlayObject } from "@/utils/typeFactories";
 import {

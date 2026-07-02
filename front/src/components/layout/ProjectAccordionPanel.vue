@@ -212,7 +212,7 @@ import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 
 import { useUiStore } from "@/stores/uiStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapes/registry";
@@ -220,7 +220,7 @@ import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 
 interface Props {
   projects: Project[];

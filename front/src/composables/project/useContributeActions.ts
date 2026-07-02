@@ -7,15 +7,15 @@ import { useChangeRequests } from "@/composables/changes/useChanges";
 import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { useUiStore } from "@/stores/uiStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { clearStagedRender } from "@/composables/submission/stagedRenderStore";
-import type { ChangeRequest } from "@/stores/pinia/changeRequestStore";
+import type { ChangeRequest } from "@/stores/changeRequestStore";
 import type { Project, Overlay } from "@/types/index";
 
 // A render staged in the upload dialog but not yet submitted: kind 'render' with no status. Real

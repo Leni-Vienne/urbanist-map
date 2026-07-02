@@ -1,8 +1,8 @@
 import { watch } from "vue";
 import { trpc } from "@/client";
 import { useUiStore } from "@/stores/uiStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapes/registry";
 
 let isWatcherInitialized = false;

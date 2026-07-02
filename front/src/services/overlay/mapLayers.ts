@@ -10,7 +10,7 @@ import {
   transformToCorners,
   type OverlayTransform,
 } from "@/services/overlay/transform";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 

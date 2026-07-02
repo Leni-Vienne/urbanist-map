@@ -1,11 +1,11 @@
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { trpc, getApiUrl } from "@/client";
 import type { OverlayObject, Project } from "@/types/index";
 import { projectSchema } from "@shared/validation/schemas";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 
 // The user's last edited position (history.at(-1)) is the source of truth; fall back to
 // the stored backend corners for an unedited overlay.

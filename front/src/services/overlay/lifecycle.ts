@@ -1,4 +1,4 @@
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import * as registry from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 

@@ -1,5 +1,5 @@
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
 import { uploadImageFile } from "@/utils/uploadImageFile";
@@ -26,7 +26,7 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 
 // Internal single-entity payload used by buildSummary/validate/submitEntity.

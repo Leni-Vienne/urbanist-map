@@ -1,7 +1,7 @@
 import type { NormalizedRect, OverlayHistoryState } from "@/types/index";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 
 type Corner = { lat: number; lng: number };

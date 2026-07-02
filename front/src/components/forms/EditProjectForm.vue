@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useEditableProjectForm } from "@/composables/forms/useEditableProjectForm";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 import type { Project, ProjectFormData } from "@/types/index";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";

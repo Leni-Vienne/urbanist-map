@@ -1,6 +1,6 @@
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import {

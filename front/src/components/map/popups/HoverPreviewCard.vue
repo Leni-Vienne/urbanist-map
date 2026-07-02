@@ -85,10 +85,10 @@
 import { computed, nextTick, ref, watch, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { PROJECT_TAG_MAP } from "@/constants/projectTags";
 import { UNTAGGED_PROJECT_FILTER } from "@/services/map/filters";
 import LinePreview from "@/components/common/LinePreview.vue";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 
 const { te: $te, t: $t } = useI18n();
 const focusStore = useFocusStore();

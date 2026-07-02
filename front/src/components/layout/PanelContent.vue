@@ -29,7 +29,7 @@
 import { computed, defineAsyncComponent, watch } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useFocusStore } from "@/stores/focusStore";
 
 import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 

@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useMapStore } from "@/stores/mapStore";
 
 // Composable for handling new project button click logic (opens marker placement bar)
 export function useNewProject() {

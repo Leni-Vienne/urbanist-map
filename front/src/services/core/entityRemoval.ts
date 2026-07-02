@@ -1,10 +1,10 @@
 // Removes projects and overlays from stores, map layers, and caches
 
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { trpc } from "@/client";

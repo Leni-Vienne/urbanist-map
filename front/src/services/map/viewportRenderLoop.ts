@@ -1,8 +1,8 @@
 import { LngLatBounds } from "maplibre-gl";
 import { watch } from "vue";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import { map } from "@/services/core/map";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";

@@ -171,11 +171,11 @@ import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useToast } from "@/composables/ui/useToast";
 
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay } from "@/services/overlay/actions";

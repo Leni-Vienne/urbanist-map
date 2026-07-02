@@ -1,9 +1,9 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useFocusStore } from "@/stores/pinia/focusStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
