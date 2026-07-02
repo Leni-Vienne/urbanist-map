@@ -20,7 +20,6 @@ import {
 } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
-import { formatDate } from "@/utils/dateFormat";
 import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
@@ -77,13 +76,7 @@ function normalizeFieldValue(
 }
 
 function serializeForBackend(value: unknown): unknown {
-  if (value === "" || value === undefined) {
-    return null;
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return value;
+  return value === "" ? null : value;
 }
 
 function hasShapes(v: unknown): boolean {
@@ -173,18 +166,11 @@ function formatValueForDisplay(value: unknown, fieldName?: string): string {
     return t("overlay.notSet");
   }
 
-  // Special handling for geometry - show shape count
   if (fieldName === "geometry" && typeof value === "object") {
     const count = (value as GeoJSON.GeometryCollection).geometries.length;
     return t("shapes.geometrySummary", { count });
   }
 
-  if (value instanceof Date) {
-    return formatDate(value);
-  }
-  if (typeof value === "number") {
-    return value.toFixed(6);
-  }
   if (Array.isArray(value)) {
     return `[${value.length} items]`;
   }
@@ -265,7 +251,7 @@ export function useSubmissionService() {
           fieldName: field,
           oldValue: pushedOldValue,
           newValue: pushedNewValue,
-          changeReason: customReason ?? undefined,
+          changeReason: customReason,
         });
       }
     }
@@ -274,14 +260,12 @@ export function useSubmissionService() {
   }
 
   // Build human-readable formatted changes for confirmation dialog
-  function formatEntityChanges(context: EntityUpdate): SubmissionChange[] {
-    const changes =
-      context.entityType === "project"
-        ? detectProjectChanges(context.entity)
-        : (context.changedFields ?? []);
-
-    return changes.map((change) => ({
-      field: change.fieldName as RemovableChange, // Safe cast - we control field names in detectChanges
+  function formatEntityChanges(
+    context: Extract<EntityUpdate, { entityType: "project" }>,
+  ): SubmissionChange[] {
+    return detectProjectChanges(context.entity).map((change) => ({
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      field: change.fieldName as RemovableChange,
       oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
       newValue: formatValueForDisplay(change.newValue, change.fieldName),
       displayLabel: t(`fields.${change.fieldName}`),
@@ -312,13 +296,8 @@ export function useSubmissionService() {
     const errors =
       context.entityType === "project" ? validateProject(context.entity) : validateOverlay(context);
 
-    if (context.changeType !== "create") {
-      const changes =
-        context.changedFields ??
-        (context.entityType === "project" ? detectProjectChanges(context.entity) : []);
-      if (changes.length === 0) {
-        errors.push(t("errors.noChangesDetected"));
-      }
+    if (context.changeType !== "create" && (context.changedFields ?? []).length === 0) {
+      errors.push(t("errors.noChangesDetected"));
     }
 
     return errors;
@@ -452,10 +431,8 @@ export function useSubmissionService() {
 
   // Executes one already-validated entity update. submitContext validates the whole batch up
   // front, so this never re-validates (re-validating here would double-check every overlay edit).
-  async function submitEntity(context: EntityUpdate, customReason?: string): Promise<void> {
-    const changes =
-      context.changedFields ??
-      (context.entityType === "project" ? detectProjectChanges(context.entity, customReason) : []);
+  async function submitEntity(context: EntityUpdate): Promise<void> {
+    const changes = context.changedFields ?? [];
 
     if (context.entityType === "project") {
       await submitProject(context, changes);
@@ -470,6 +447,7 @@ export function useSubmissionService() {
     overlayId: string,
     mod: Pick<PendingOverlayModification, "caption" | "corners">,
     overlayObj: OverlayObject,
+    reason?: string,
   ): Extract<EntityUpdate, { entityType: "overlay" }> {
     const changedFields: FieldChange[] = [];
     const proposed: { caption?: string | null; corners?: OverlayCorners } = {};
@@ -478,6 +456,7 @@ export function useSubmissionService() {
         fieldName: "caption",
         oldValue: mod.caption.original,
         newValue: mod.caption.current,
+        changeReason: reason,
       });
       proposed.caption = mod.caption.current;
     }
@@ -486,6 +465,7 @@ export function useSubmissionService() {
         fieldName: "corners",
         oldValue: mod.corners.original,
         newValue: mod.corners.current,
+        changeReason: reason,
       });
       proposed.corners = mod.corners.current;
     }
@@ -509,7 +489,7 @@ export function useSubmissionService() {
 
     const isChangeRequest = overlayObj.status === "approved";
 
-    await submitEntity(buildOverlayModificationContext(overlayId, mod, overlayObj), reason);
+    await submitEntity(buildOverlayModificationContext(overlayId, mod, overlayObj, reason));
 
     pendingModsStore.clearModification(overlayId);
 
@@ -585,7 +565,7 @@ export function useSubmissionService() {
   ): Extract<EntityUpdate, { entityType: "project" }> | null {
     if (!project) return null;
     const projectChanges = detectProjectChanges(project, reason);
-    if (project.status === null && newOverlayIds.length === 0 && ctx.changeType === "create") {
+    if (project.status === null && newOverlayIds.length === 0) {
       return { ...createProjectContext(project, "create"), changedFields: projectChanges };
     }
     if (ctx.projectModified && project.status !== null && projectChanges.length) {
@@ -618,7 +598,7 @@ export function useSubmissionService() {
     }
     await publishNewOverlays(newOverlayIds, project);
     if (projectContext) {
-      await submitEntity(projectContext, reason);
+      await submitEntity(projectContext);
     }
     if (ctx.pendingRender && ctx.projectId) {
       await publishStagedRender(ctx.projectId, ctx.pendingRender.file);
