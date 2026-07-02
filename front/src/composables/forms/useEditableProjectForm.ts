@@ -41,8 +41,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const toast = useToast();
 
   // originalData is the comparison baseline; formData is what the user edits
-  const originalData = reactive({ ...options.initialData }) as ProjectFormData;
-  const formData = reactive({ ...(options.currentData ?? options.initialData) }) as ProjectFormData;
+  const originalData = reactive({ ...options.initialData });
+  const formData = reactive({ ...(options.currentData ?? options.initialData) });
 
   function hasChanged(fieldName: keyof ProjectFormData): boolean {
     return fieldsDiffer(originalData[fieldName], formData[fieldName]);

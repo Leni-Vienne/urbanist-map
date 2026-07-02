@@ -170,7 +170,7 @@ async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
 
   const { borders: allBorders } = await import("@/assets/country-borders");
 
-  const countryCodes = (Object.keys(satelliteLayerConfigs) as SatelliteLayerType[]).filter(
+  const countryCodes = Object.keys(satelliteLayerConfigs).filter(
     (code): code is CountryCode => code !== "esri",
   );
 

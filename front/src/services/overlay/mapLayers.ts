@@ -425,7 +425,7 @@ export function setOverlayImageTransform(id: string, transform: OverlayTransform
 export function replaceOverlayImageSource(id: string, imageUrl: string, corners: Corner[]): void {
   const mlMap = map.value;
   const handle = getImageHandle(id);
-  if (mlMap && handle) {
+  if (handle) {
     if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
     if (mlMap.getSource(handle.sourceId)) mlMap.removeSource(handle.sourceId);
   }

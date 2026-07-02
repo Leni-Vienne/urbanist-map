@@ -42,10 +42,10 @@ export const useModerationStore = defineStore("moderation", () => {
   // the project itself, one of its overlays, or a change request on either.
   function hasPendingModerationContent(project: Project): boolean {
     if (project.status === "pending") return true;
-    const overlays = project.overlays ?? [];
-    if (overlays.some((overlay) => overlay.status === "pending")) return true;
+    const projectOverlays = project.overlays ?? [];
+    if (projectOverlays.some((overlay) => overlay.status === "pending")) return true;
 
-    const overlayIds = new Set(overlays.map((overlay) => overlay.id));
+    const overlayIds = new Set(projectOverlays.map((overlay) => overlay.id));
     return changeRequests.value.some(
       (cr) =>
         (cr.entityType === "project" && cr.entityId === project.id) ||

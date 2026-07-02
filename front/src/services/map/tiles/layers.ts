@@ -207,10 +207,7 @@ function getClusterCountExpression(): ExpressionSpecification {
   // "+" needs at least two operands; pad a single selected tag with a zero.
   if (columns.length === 1) sum.push(0);
 
-  return [
-    "to-string",
-    ["min", sum as ExpressionSpecification, ["get", "cell_count"]],
-  ] as ExpressionSpecification;
+  return ["to-string", ["min", sum, ["get", "cell_count"]]] as ExpressionSpecification;
 }
 
 // Circle radius for project-points: lone markers stay small; cluster markers (cell_count > 1) step

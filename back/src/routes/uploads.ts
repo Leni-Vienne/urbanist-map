@@ -5,7 +5,7 @@ import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from ".
 import { exceedsPendingStorageQuota } from "../lib/storageQuota";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { allowedDomains } from "../lib/corsConfig";
-import type { FileUploadResult, FileUploadError, AppEnv, SessionUser } from "../lib/types";
+import type { FileUploadResult, AppEnv, SessionUser } from "../lib/types";
 import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
 import { logger } from "../services/logger";
@@ -104,7 +104,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
     // Rate limit: 10 uploads per IP per minute
     const ip = getClientIp(c);
     if (!rateLimit.check(ip, 10, 60 * 1000)) {
-      return c.json({ error: "auth.error.tooManyRequests" } as FileUploadError, 429);
+      return c.json({ error: "auth.error.tooManyRequests" }, 429);
     }
 
     // Require authentication
@@ -112,7 +112,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
     const session = c.get("session");
     const user = session.get("user");
     if (!user) {
-      return c.json({ error: "Authentication required" } as FileUploadError, 401);
+      return c.json({ error: "Authentication required" }, 401);
     }
 
     const body = await c.req.formData();
@@ -120,7 +120,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
 
     if (!(file instanceof File)) {
       logger.warn({ fileType: typeof file }, "Upload failed: No file provided");
-      return c.json({ error: "No file provided" } as FileUploadError, 400);
+      return c.json({ error: "No file provided" }, 400);
     }
 
     // Validate file with Zod
@@ -136,7 +136,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
         { fileName: file.name, fileType: file.type, fileSize: file.size, errors: errorMessage },
         "Upload failed: Zod validation error",
       );
-      return c.json({ error: errorMessage } as FileUploadError, 400);
+      return c.json({ error: errorMessage }, 400);
     }
 
     // Extract file extension for filename generation
@@ -149,7 +149,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
     // Ensure we have a valid extension (this should not fail due to Zod validation)
     if (!fileExtension) {
       logger.warn({ fileName: file.name }, "Upload failed: Invalid file extension");
-      return c.json({ error: "Invalid file extension" } as FileUploadError, 400);
+      return c.json({ error: "Invalid file extension" }, 400);
     }
 
     const originalBuffer = await file.arrayBuffer();
@@ -162,7 +162,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
     // so weigh both against the user's pending quota before writing anything to disk.
     const incomingBytes = compressionResult.finalSize + originalBuffer.byteLength;
     if (await exceedsPendingStorageQuota(user.id, incomingBytes)) {
-      return c.json({ error: "upload.error.storageQuotaExceeded" } as FileUploadError, 413);
+      return c.json({ error: "upload.error.storageQuotaExceeded" }, 413);
     }
 
     const timestamp = Date.now();
@@ -218,7 +218,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
     } as FileUploadResult);
   } catch (error) {
     console.error("Error uploading file:", error);
-    return c.json({ error: "Failed to upload file" } as FileUploadError, 500);
+    return c.json({ error: "Failed to upload file" }, 500);
   }
 });
 
