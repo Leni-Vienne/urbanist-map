@@ -5,9 +5,11 @@ import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/sr
 export type ModifiableField = "caption" | "corners";
 export type RemovableChange = ModifiableField | "new_overlay" | "geometry" | "render";
 
+export type LatLng = { lat: number; lng: number };
+
 type CornersChange = {
-  current: { lat: number; lng: number }[];
-  original: { lat: number; lng: number }[];
+  current: LatLng[];
+  original: LatLng[];
 };
 
 type CaptionChange = {
@@ -125,8 +127,8 @@ export type OverlayData = Omit<
   distance?: number;
   // The immutable backend/approved corners. The live edited position lives on the GL image
   // (getOverlayImageCorners) and undo steps in history[]; this is only the server baseline.
-  baselineCorners: { lat: number; lng: number }[];
-  suggestedCorners?: { lat: number; lng: number }[];
+  baselineCorners: ApiOverlayData["corners"];
+  suggestedCorners?: LatLng[];
   hasPendingChanges?: boolean;
   pendingChangeRequestsCount?: number;
 };
@@ -149,7 +151,7 @@ export interface NormalizedRect {
 // shows; absent means the full original. It lets each crop re-bake from the original instead of
 // the previous crop, so repeated crops stay a single compression generation from the source.
 export interface OverlayHistoryState {
-  corners: { lat: number; lng: number }[];
+  corners: LatLng[];
   imageUrl: string;
   cropRect?: NormalizedRect;
 }

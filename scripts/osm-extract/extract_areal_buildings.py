@@ -10,15 +10,14 @@ to retain only large urban developments, commercial centers, and apartment compl
 import osmium
 import osmium.geom
 import shapely.wkb
-import shapely.prepared
 import math
 import json
 import re
 import argparse
 import time
-from collections import defaultdict
 from datetime import datetime
-from shapely.geometry import mapping, shape, Polygon
+from shapely.geometry import mapping, Polygon
+from shapely.strtree import STRtree
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction areal features from OSM.')
@@ -59,6 +58,41 @@ CATEGORY_BY_VALUE = {
     'office': 'office',
     'industrial': 'industrial', 'warehouse': 'industrial',
 }
+
+# Utility/industrial infrastructure keys out of scope regardless of areal context
+# (power plants, solar farms, telecom, man-made structures like pipelines).
+UTILITY_KEYS = ('power', 'telecom', 'man_made')
+
+# Transport infrastructure keys; polygons carrying them (railway yard, road junction
+# area, etc.) are excluded unless the primary identity is a construction-site area.
+TRANSPORT_KEYS = ('highway', 'railway', 'waterway', 'public_transport', 'aerialway', 'aeroway')
+
+# Highway values that are always linear; excluded even with areal context
+# (e.g. a bridge deck mapped as building=construction + highway=cycleway).
+# Area-capable values (pedestrian, platform, rest_area, services, footway, path)
+# are kept so pedestrian plazas and transit platforms under construction survive.
+LINEAR_HIGHWAY_VALUES = frozenset({
+    'motorway', 'motorway_link', 'trunk', 'trunk_link',
+    'primary', 'primary_link', 'secondary', 'secondary_link',
+    'tertiary', 'tertiary_link', 'residential', 'unclassified',
+    'service', 'living_street', 'road', 'bus_guideway', 'busway', 'cycleway',
+})
+
+# Transport infrastructure types as construction=/proposed=/planned= values.
+INFRASTRUCTURE_VALUES = frozenset({
+    'tram', 'rail', 'railway', 'light_rail', 'subway', 'narrow_gauge', 'train',
+    'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
+    'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel',
+})
+
+LIFECYCLE_PREFIXES = ('', 'construction:', 'proposed:', 'planned:')
+
+IDENTITY_KEYS = ('name', 'wikidata', 'description', 'website')
+
+
+def has_identity(tags):
+    """True when a mapper identified the feature (name, wikidata, description, website)."""
+    return any(tags.get(k, '').strip() for k in IDENTITY_KEYS)
 
 
 def derive_building_category(values):
@@ -141,84 +175,49 @@ def classify_feature(tags):
     if not is_park_construction and not is_building_construction:
         return None
 
-    # Exclude small residential building types
-    target_use = tags.get('construction', tags.get('construction:building', tags.get('proposed', tags.get('planned', tags.get('proposed:building', tags.get('planned:building', tags.get('building:use', '')))))))
-    if target_use in EXCLUDE_BUILDINGS:
-        return None
+    # Exclude small residential building types regardless of area. The target use is read
+    # from the most specific lifecycle key first, falling back to the current building type;
+    # yes/no values carry no type information and are skipped.
+    for key in ('construction', 'construction:building', 'proposed', 'planned',
+                'proposed:building', 'planned:building', 'building:use', 'building'):
+        value = tags.get(key, '')
+        if value and value not in ('yes', 'no'):
+            if value in EXCLUDE_BUILDINGS:
+                return None
+            break
 
-    # When the primary identity is a construction site (landuse=construction, building tag, etc.)
-    # the feature is an area, not transport infrastructure. infrastructure_keys checks below
-    # must be skipped in that context so construction:railway/highway etc. don't wrongly
-    # exclude a subway station or road tunnel construction site.
+    # When the primary identity is a construction site (landuse=construction, building tag,
+    # lifecycle building/landuse keys) the feature is an area, not transport infrastructure;
+    # the transport exclusions below are relaxed in that context so construction:railway/highway
+    # etc. don't wrongly exclude a subway station or road tunnel construction site.
     has_areal_context = (landuse == 'construction' or building != '' or
                          leisure in ('construction', 'proposed', 'planned') or
                          amenity in ('construction', 'proposed', 'planned') or
                          proposed_building != '' or planned_building != '' or construction_building != '' or
                          proposed_landuse != '' or planned_landuse != '' or construction_landuse != '')
 
-    # Exclude utility/industrial infrastructure that is out of scope regardless of areal context
-    # (power plants, solar farms, telecom, man-made structures like pipelines).
-    utility_keys = {'power', 'telecom', 'man_made'}
-    # When the primary identity is a construction site (landuse=construction, building tag, etc.)
-    # the feature is an area, not transport infrastructure. infrastructure_keys checks below
-    # must be skipped in that context so construction:railway/highway etc. don't wrongly
-    # exclude a subway station or road tunnel construction site.
-    has_areal_context = (landuse == 'construction' or building != '' or
-                         leisure in ('construction', 'proposed', 'planned') or
-                         amenity in ('construction', 'proposed', 'planned') or
-                         proposed_building != '' or planned_building != '' or construction_building != '' or
-                         proposed_landuse != '' or planned_landuse != '' or construction_landuse != '')
-
-    # Exclude utility/industrial infrastructure that is out of scope regardless of areal context
-    # (power plants, solar farms, telecom, man-made structures like pipelines).
-    utility_keys = {'power', 'telecom', 'man_made'}
-    if any(f'{prefix}{k}' in tags
-           for k in utility_keys
-           for prefix in ('', 'construction:', 'proposed:', 'planned:')):
+    # Utility/industrial infrastructure is out of scope regardless of areal context.
+    if any(f'{prefix}{k}' in tags for k in UTILITY_KEYS for prefix in LIFECYCLE_PREFIXES):
         return None
 
-    # Exclude transport infrastructure mapped as polygons (railway yard, road junction area, etc.)
-    # unless the primary identity is a construction site area: a subway station or road tunnel
-    # under construction with landuse=construction + construction:railway/highway is a valid
-    # areal project, not a transport-infrastructure polygon.
-    transport_keys = {'highway', 'railway', 'waterway', 'public_transport', 'aerialway', 'aeroway'}
+    # Transport infrastructure mapped as polygons (railway yard, road junction area, etc.)
+    # is excluded unless the primary identity is a construction-site area: a subway station
+    # or road tunnel under construction with landuse=construction + construction:railway
+    # is a valid areal project, not a transport-infrastructure polygon.
     if not has_areal_context and any(f'{prefix}{k}' in tags
-                                     for k in transport_keys
-                                     for prefix in ('', 'construction:', 'proposed:', 'planned:')):
+                                     for k in TRANSPORT_KEYS
+                                     for prefix in LIFECYCLE_PREFIXES):
         return None
 
-    # Exclude transport infrastructure mapped as polygons (railway yard, road junction area, etc.)
-    # unless the primary identity is a construction site area: a subway station or road tunnel
-    # under construction with landuse=construction + construction:railway/highway is a valid
-    # areal project, not a transport-infrastructure polygon.
-    transport_keys = {'highway', 'railway', 'waterway', 'public_transport', 'aerialway', 'aeroway'}
-    if not has_areal_context and any(f'{prefix}{k}' in tags
-                                     for k in transport_keys
-                                     for prefix in ('', 'construction:', 'proposed:', 'planned:')):
-        return None
-
-    # Road and cycleway highway values are always linear; exclude them even with areal context
+    # Always-linear highway values are excluded even with areal context
     # (e.g. a bridge deck mapped as building=construction + highway=cycleway).
-    # Area-capable values (pedestrian, platform, rest_area, services, footway, path) are
-    # intentionally kept so pedestrian plazas and transit platforms under construction survive.
-    _LINEAR_HIGHWAY_VALUES = frozenset({
-        'motorway', 'motorway_link', 'trunk', 'trunk_link',
-        'primary', 'primary_link', 'secondary', 'secondary_link',
-        'tertiary', 'tertiary_link', 'residential', 'unclassified',
-        'service', 'living_street', 'road', 'bus_guideway', 'busway', 'cycleway',
-    })
-    if has_areal_context and tags.get('highway', '') in _LINEAR_HIGHWAY_VALUES:
+    if has_areal_context and tags.get('highway', '') in LINEAR_HIGHWAY_VALUES:
         return None
 
-    # Exclude features where construction/proposed value is a transport infrastructure type.
-    # With landuse=construction or a building tag, the value names the future land use
+    # Exclude features whose construction/proposed/planned value is a transport infrastructure
+    # type. With landuse=construction or a building tag, the value names the future land use
     # (e.g. construction=residential -> landuse=residential), not a road class, so keep it.
-    infrastructure_values = {
-        'tram', 'rail', 'railway', 'light_rail', 'subway', 'narrow_gauge', 'train',
-        'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
-        'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel'
-    }
-    if not has_areal_context and (tags.get('construction') in infrastructure_values or tags.get('proposed') in infrastructure_values):
+    if not has_areal_context and any(v in INFRASTRUCTURE_VALUES for v in (construction, proposed, planned)):
         return None
 
     return 'park' if is_park_construction else 'building'
@@ -317,8 +316,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         # Everything else is kept regardless of size: parks, typed developments (category or
         # non-house signal), and features a mapper identified (name, wikidata, description,
         # website). Type exclusions in classify_feature still apply first.
-        has_identity = any(tags.get(k, '').strip() for k in ('name', 'wikidata', 'description', 'website'))
-        if kind == 'building' and category is None and not has_nonhouse_signal and not has_identity:
+        if kind == 'building' and category is None and not has_nonhouse_signal and not has_identity(tags):
             try:
                 levels = max(float(tags.get('building:levels', '')), 1.0)
             except ValueError:
@@ -371,22 +369,20 @@ class ArealExtractionHandler(osmium.SimpleHandler):
 
 def filter_nested_buildings(features, geometries):
     """
-    Remove redundant unnamed container polygons:
-    - A large area with NO name that contains smaller buildings is removed, keeping the
-      individual buildings inside.
-    - A named area (a development) is kept alongside the buildings within it, so
+    Remove redundant unidentified container polygons:
+    - A large area with no identifying tags (name, wikidata, description, website) that
+      contains smaller buildings is removed, keeping the individual buildings inside.
+    - An identified area (a development) is kept alongside the buildings within it, so
       individually-mapped buildings are never hidden under a development boundary.
 
     Returns (filtered_features, stats_dict).
     """
-    from shapely.strtree import STRtree
-    
     buildings = [f for f in features if f['properties'].get('transport_type') == 'building']
     non_buildings = [f for f in features if f['properties'].get('transport_type') != 'building']
-    
+
     if len(buildings) < 2:
-        return features, {'checked': 0, 'removed_unnamed_containers': 0}
-    
+        return features, {'checked': 0, 'removed_containers': 0}
+
     # Build spatial index
     building_geoms = []
     building_map = {}  # geom index -> feature
@@ -396,50 +392,48 @@ def filter_nested_buildings(features, geometries):
             idx = len(building_geoms)
             building_geoms.append(geometries[fid])
             building_map[idx] = f
-    
+
     if not building_geoms:
-        return features, {'checked': 0, 'removed_unnamed_containers': 0}
-    
+        return features, {'checked': 0, 'removed_containers': 0}
+
     tree = STRtree(building_geoms)
 
     to_remove = set()
-    removed_unnamed_containers = 0
+    removed_containers = 0
 
     for i, geom in enumerate(building_geoms):
         if i in to_remove:
             continue
-            
+
         feature = building_map[i]
-        fid = feature['id']
         props = feature['properties']
-        has_name = bool(props.get('name', '').strip())
+        identified = has_identity(props)
         area = props.get('area_sqm', 0)
-        
+
         candidates = tree.query(geom)
 
         for j in candidates:
             if i == j or j in to_remove:
                 continue
-                
+
             other_feature = building_map[j]
             other_area = other_feature['properties'].get('area_sqm', 0)
             other_geom = building_geoms[j]
 
-            # Only an unnamed container is removed (keeping the smaller buildings inside it).
-            # A named area is kept alongside the buildings within it. The case where j is the
-            # larger container is handled when j is itself processed as i.
-            if area > other_area * 1.5 and not has_name:  # i is an unnamed container of j
+            # Only an unidentified container is removed (keeping the smaller buildings inside
+            # it). An identified area is kept alongside the buildings within it. The case where
+            # j is the larger container is handled when j is itself processed as i.
+            if area > other_area * 1.5 and not identified:  # i is an unidentified container of j
                 if geom.contains(other_geom.centroid):
                     to_remove.add(i)
-                    removed_unnamed_containers += 1
+                    removed_containers += 1
                     break  # this container is removed, stop checking
-    
-    # Build filtered list
+
     kept_buildings = [building_map[i] for i in range(len(building_geoms)) if i not in to_remove]
-    
+
     stats = {
         'checked': len(buildings),
-        'removed_unnamed_containers': removed_unnamed_containers
+        'removed_containers': removed_containers
     }
     
     return non_buildings + kept_buildings, stats
@@ -472,7 +466,7 @@ def main():
     features, nest_stats = filter_nested_buildings(handler.features, handler.geometries)
     print(f"[areal] [{_ts()}] Nesting filter done in {_fmt(time.time() - t)}")
     print(f"  Checked: {nest_stats['checked']:,} buildings")
-    print(f"  Removed unnamed containers: {nest_stats['removed_unnamed_containers']:,}")
+    print(f"  Removed unidentified containers: {nest_stats['removed_containers']:,}")
     print(f"  Kept: {len(features):,}")
 
     print(f"\n[areal] [{_ts()}] Writing {OUTPUT_FILE}...")

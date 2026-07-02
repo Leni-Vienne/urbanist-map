@@ -1,5 +1,5 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData, Overlay } from "@/types/index";
+import type { Project, OverlayObject, OverlayData, Overlay, LatLng } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
@@ -10,10 +10,10 @@ import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 type ProjectInput = { [K in keyof Project]?: Project[K] | null };
 
 // Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`.
-// The single translation from the tRPC/tile wire shape to OverlayData.
-export function overlayWireToData<T extends { corners: { lat: number; lng: number }[] }>(
+// The single translation from the tRPC wire shape to OverlayData.
+export function overlayWireToData<T extends { corners: LatLng[] }>(
   wire: T,
-): Omit<T, "corners"> & { baselineCorners: { lat: number; lng: number }[] } {
+): Omit<T, "corners"> & { baselineCorners: T["corners"] } {
   const { corners, ...rest } = wire;
   return { ...rest, baselineCorners: corners };
 }
