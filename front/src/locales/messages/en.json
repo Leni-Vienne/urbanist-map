@@ -265,7 +265,10 @@
       "unnamed": "Unnamed",
       "filterByLastModified": "Filter by Last Modified",
       "lastModifiedFrom": "From",
-      "lastModifiedTo": "To"
+      "lastModifiedTo": "To",
+      "today": "today",
+      "yesterday": "yesterday",
+      "daysAgo": "{n} days ago"
     },
     "buildings3D": {
       "label": "3D buildings"

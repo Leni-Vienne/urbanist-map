@@ -265,7 +265,10 @@
       "unnamed": "Sans nom",
       "filterByLastModified": "Filtrer par date de modification",
       "lastModifiedFrom": "Du",
-      "lastModifiedTo": "Au"
+      "lastModifiedTo": "Au",
+      "today": "aujourd'hui",
+      "yesterday": "hier",
+      "daysAgo": "il y a {n} jours"
     },
     "buildings3D": {
       "label": "Bâtiments 3D"
