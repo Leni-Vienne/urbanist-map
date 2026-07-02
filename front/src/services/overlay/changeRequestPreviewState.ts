@@ -55,6 +55,7 @@ export function syncPreviewStateOnNavigation(overlayId: string, isViewingApprove
     return;
   }
 
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const corners = geometryChange.newValue as { lat: number; lng: number }[] | null;
   if (Array.isArray(corners)) {
     previewState.value = {

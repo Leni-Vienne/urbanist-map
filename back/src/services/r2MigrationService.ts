@@ -69,11 +69,13 @@ async function migrateFileToR2(filename: string): Promise<void> {
     thumbnailFile ? streamToBuffer(thumbnailFile.body) : Promise.resolve(null),
   ]);
 
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const uploadPromises = [r2Storage.put(filename, imageBuffer.buffer as ArrayBuffer)];
 
   if (thumbnailBuffer) {
     const thumbnailFilename = getThumbnailFilename(filename);
     uploadPromises.push(
+      // oxlint-disable-next-line no-unsafe-type-assertion
       r2Storage.put(thumbnailFilename, thumbnailBuffer.buffer as ArrayBuffer, {
         skipThumbnail: true,
       }),

@@ -17,6 +17,7 @@ export const selectedStatusFilters = ref<TimelineStatus[]>([]);
 
 // Visibility per timeline status. When selection is empty, all are true.
 export const visibleStates = computed(() => {
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const states = {} as Record<TimelineStatus, boolean>;
 
   if (selectedStatusFilters.value.length === 0) {

@@ -186,6 +186,7 @@ export async function destroyShapeEditor(): Promise<void> {
   // Terra Draw sets the canvas cursor to crosshair while drawing and does not
   // restore it on stop, so reset it here.
   const canvas = map.value.getCanvas();
+  // oxlint-disable-next-line no-unnecessary-condition
   if (canvas) canvas.style.cursor = "";
 }
 
@@ -213,8 +214,10 @@ export function getDrawnGeometry(): GeoJSON.GeometryCollection {
  */
 function geometryToFeatures(geometry: GeoJSON.Geometry): GeoJSONStoreFeatures[] {
   function makeFeature(geom: GeoJSON.Geometry, mode: ShapeDrawMode): GeoJSONStoreFeatures {
+    // oxlint-disable-next-line no-unsafe-type-assertion
     return {
       type: "Feature",
+      // oxlint-disable-next-line no-non-null-assertion
       id: draw!.getFeatureId(),
       geometry: geom,
       properties: { mode },
@@ -258,6 +261,7 @@ export async function addLayersFromGeometry(
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
 
+    // oxlint-disable-next-line no-non-null-assertion
     const geom = drawableGeoms[i]!;
 
     draw.addFeatures(geometryToFeatures(geom));
@@ -280,6 +284,7 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
   const text = await file.text();
   const parsed = (() => {
     try {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       return JSON.parse(text) as GeoJSON.GeoJSON;
     } catch {
       throw new Error(`Invalid JSON in file "${file.name}"`);

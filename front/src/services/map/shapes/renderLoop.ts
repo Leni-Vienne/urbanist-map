@@ -21,7 +21,9 @@ function getPendingGeometry(
   const cr = crList.find(
     (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
   );
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const geom = cr?.newValue as GeoJSON.GeometryCollection | undefined;
+  // oxlint-disable-next-line no-unnecessary-condition
   return geom?.geometries?.length ? geom : null;
 }
 
@@ -35,6 +37,7 @@ function resolveProjectGeometry(
   isModeration: boolean,
 ): ResolvedGeometry {
   const approved = (isEditMode ? storedGeometry : null) ?? approvedGeometry;
+  // oxlint-disable-next-line no-unnecessary-condition
   if (approved?.geometries?.length) return { geometry: approved };
   if (!isEditMode && !isModeration) return null;
   const pending = getPendingGeometry(projectId, isModeration);

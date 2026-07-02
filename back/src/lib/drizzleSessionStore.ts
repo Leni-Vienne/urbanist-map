@@ -87,7 +87,7 @@ async function deleteSession(sessionId: string): Promise<void> {
 
 function prepareSessionForPersistence(data: unknown): { shouldPersist: boolean; expiresAt: Date } {
   // hono-sessions wraps the user payload inside `_data`
-  /* eslint-disable no-underscore-dangle */
+  /* oxlint-disable no-underscore-dangle no-unsafe-type-assertion */
   const inner = (
     data as {
       _data?: { user?: unknown; osmOauth?: unknown; expiresAt?: string | number | Date };

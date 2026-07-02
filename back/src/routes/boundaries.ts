@@ -38,6 +38,7 @@ async function resolveAncestors(osmIds: string[]): Promise<Map<string, Ancestors
     sql`, `,
   );
 
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const rows = (await db.execute(sql`
     WITH RECURSIVE chain AS (
       SELECT osm_id AS root_id, osm_id, parent_id, admin_level, name, name_en, names, 1 AS depth

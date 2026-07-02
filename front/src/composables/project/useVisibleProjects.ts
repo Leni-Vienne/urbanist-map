@@ -76,6 +76,7 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
 function parseMvtTags(raw: unknown): string[] {
   try {
     if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === "string");
+    // oxlint-disable-next-line no-unsafe-type-assertion
     return JSON.parse(typeof raw === "string" ? raw : "[]") as string[];
   } catch {
     return [];
@@ -419,6 +420,7 @@ export function useVisibleProjects() {
     pendingQuery = false;
     mapMoving = false;
     const mlMap = map.value;
+    // oxlint-disable-next-line no-unnecessary-condition
     if (mlMap) {
       if (moveStartHandler) mlMap.off("movestart", moveStartHandler);
       if (moveEndHandler) mlMap.off("moveend", moveEndHandler);

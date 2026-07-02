@@ -435,6 +435,7 @@ export function useSubmissionDialog() {
       // oxlint-disable-next-line no-unsafe-type-assertion
       const hasRemainingMods = revertOverlayFieldModification(
         overlayId,
+        // oxlint-disable-next-line no-unsafe-type-assertion
         field as ModifiableField,
         overlayObject,
       );
@@ -447,6 +448,7 @@ export function useSubmissionDialog() {
   function handleRemoveProjectChange(field: string): void {
     const projectId = pendingSubmissionContext.value?.projectId;
     if (projectId) {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       projectStore.resetProjectField(projectId, field as keyof Project);
     }
 

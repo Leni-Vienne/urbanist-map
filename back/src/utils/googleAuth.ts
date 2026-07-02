@@ -17,6 +17,7 @@ export async function verifyGoogleToken(token: string): Promise<{
     });
 
     const payload = ticket.getPayload();
+    // oxlint-disable-next-line no-unnecessary-condition
     if (payload?.sub === undefined || payload?.email === undefined || payload.name === undefined) {
       return null;
     }

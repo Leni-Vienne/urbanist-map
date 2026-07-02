@@ -74,6 +74,7 @@ export function useImageLightbox() {
   }
 
   function handlePointerDown(event: PointerEvent) {
+    // oxlint-disable-next-line no-unsafe-type-assertion
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 

@@ -53,7 +53,9 @@ function isCoord(obj: unknown): obj is Coord {
   return (
     obj !== null &&
     typeof obj === "object" &&
+    // oxlint-disable-next-line no-unsafe-type-assertion
     Number.isFinite((obj as Record<string, unknown>).lat) &&
+    // oxlint-disable-next-line no-unsafe-type-assertion
     Number.isFinite((obj as Record<string, unknown>).lng)
   );
 }
@@ -136,6 +138,7 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
   if (change.entityType === "project" && PROJECT_DATE_FIELDS.has(change.fieldName)) {
     const value = change.newValue;
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const date = value === null || value === undefined ? null : new Date(value as string | number);
     return { [change.fieldName]: date };
   }
@@ -196,7 +199,7 @@ async function checkModeratorChangeRequestPermission(
   if (!isSupportedEntityType(entityType)) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      // oxlint-disable-next-line restrict-template-expressions
       message: `Invalid entity type: ${entityType}`,
     });
   }

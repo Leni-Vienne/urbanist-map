@@ -25,6 +25,7 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
     gc.geometries.length === 0
   )
     return null;
+  // oxlint-disable-next-line no-unsafe-type-assertion
   return gc as GeoJSON.GeometryCollection;
 }
 

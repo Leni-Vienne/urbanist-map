@@ -46,6 +46,7 @@ type LastUsed = { method: LastUsedMethod; email: string | null };
 function getLastUsedMethod(): LastUsed | null {
   try {
     const raw = localStorage.getItem("lastUsedMethod");
+    // oxlint-disable-next-line no-unsafe-type-assertion
     return raw ? (JSON.parse(raw) as LastUsed) : null;
   } catch {
     return null;
@@ -377,7 +378,7 @@ export const useAuthStore = defineStore("auth", () => {
 });
 
 // Enable HMR for this store
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// oxlint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));
 }

@@ -582,6 +582,7 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   url.searchParams.append("returnGeometry", "false");
 
   const response = await fetch(url.toString());
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const data = (await response.json()) as EsriIdentifyResponse | null;
 
   if (data?.results) {

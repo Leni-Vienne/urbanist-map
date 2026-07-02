@@ -69,6 +69,7 @@ function normalizeFieldValue(
   }
   if (fieldStr === "tags") {
     return JSON.stringify(
+      // oxlint-disable-next-line no-unsafe-type-assertion
       Array.isArray(value) ? (value as string[]).toSorted((a, b) => a.localeCompare(b)) : [],
     );
   }
@@ -84,6 +85,7 @@ function hasShapes(v: unknown): boolean {
     v !== null &&
     v !== undefined &&
     typeof v === "object" &&
+    // oxlint-disable-next-line no-unsafe-type-assertion
     (v as GeoJSON.GeometryCollection).geometries.length > 0
   );
 }
@@ -167,6 +169,7 @@ function formatValueForDisplay(value: unknown, fieldName?: string): string {
   }
 
   if (fieldName === "geometry" && typeof value === "object") {
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const count = (value as GeoJSON.GeometryCollection).geometries.length;
     return t("shapes.geometrySummary", { count });
   }
@@ -222,6 +225,7 @@ export function useSubmissionService() {
     ];
 
     for (const field of fieldsToCheck) {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
@@ -231,7 +235,8 @@ export function useSubmissionService() {
       const normalizedOld = normalizeFieldValue(
         field,
         oldValue,
-        originalProject as Partial<Project>,
+        // oxlint-disable-next-line no-unnecessary-type-assertion
+        originalProject,
       );
       const normalizedNew = normalizeFieldValue(field, newValue, project);
 
@@ -390,6 +395,7 @@ export function useSubmissionService() {
       if (cornersChange?.newValue) {
         // suggestedCorners powers the "view suggested position" preview; flipping
         // isViewingApprovedPosition turns the marker yellow while the CR is open.
+        // oxlint-disable-next-line no-unsafe-type-assertion
         updates.suggestedCorners = cornersChange.newValue as OverlayCorners;
         updates.isViewingApprovedPosition = false;
       }

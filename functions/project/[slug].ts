@@ -362,6 +362,7 @@ async function fetchSeoProject(backend: string, slug: string): Promise<SeoProjec
     const response = await fetch(`${backend}/seo/project/${encodeURIComponent(slug)}`);
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) return null;
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const data = (await response.json()) as SeoProject | null;
     return data && typeof data.status === "string" ? data : null;
   } catch {
