@@ -56,12 +56,19 @@ CATEGORY_BY_VALUE = {
     'commercial': 'commercial',
     'retail': 'retail',
     'office': 'office',
-    'industrial': 'industrial', 'warehouse': 'industrial',
+    'industrial': 'industrial',
+    'warehouse': 'industrial',
 }
 
-# Utility/industrial infrastructure keys out of scope regardless of areal context
+# Utility/industrial infrastructure out of scope regardless of areal context
 # (power plants, solar farms, telecom, man-made structures like pipelines).
+# UTILITY_KEYS catch key-based tagging (man_made=pipeline); UTILITY_VALUES catch
+# the same infrastructure tagged as a lifecycle value (proposed=pipeline).
 UTILITY_KEYS = ('power', 'telecom', 'man_made')
+UTILITY_VALUES = frozenset({
+    'pipeline', 'line', 'minor_line', 'cable',
+    'power', 'power_plant', 'generator', 'substation', 'solar_plant', 'wind_farm',
+})
 
 # Transport infrastructure keys; polygons carrying them (railway yard, road junction
 # area, etc.) are excluded unless the primary identity is a construction-site area.
@@ -80,9 +87,16 @@ LINEAR_HIGHWAY_VALUES = frozenset({
 
 # Transport infrastructure types as construction=/proposed=/planned= values.
 INFRASTRUCTURE_VALUES = frozenset({
-    'tram', 'rail', 'railway', 'light_rail', 'subway', 'narrow_gauge', 'train',
-    'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'residential',
-    'cycleway', 'footway', 'pedestrian', 'path', 'track', 'road', 'bridge', 'tunnel',
+    'tram', 'rail', 'railway', 'light_rail', 'subway', 'metro', 'narrow_gauge', 'train',
+    'monorail', 'funicular', 'miniature',
+    'highway', 'motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link',
+    'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'unclassified', 'residential',
+    'service', 'living_street', 'road', 'bridge', 'tunnel', 'minor',
+    'cycleway', 'cyclepath', 'footway', 'pedestrian', 'path', 'track', 'steps', 'bridleway',
+    'corridor', 'sidewalk',
+    'aerialway', 'cable_car', 'gondola', 'chair_lift', 'zip_line',
+    'aeroway', 'runway', 'taxiway', 'airstrip',
+    'canal', 'river', 'stream', 'ditch', 'drain', 'waterway',
 })
 
 LIFECYCLE_PREFIXES = ('', 'construction:', 'proposed:', 'planned:')
@@ -196,8 +210,11 @@ def classify_feature(tags):
                          proposed_building != '' or planned_building != '' or construction_building != '' or
                          proposed_landuse != '' or planned_landuse != '' or construction_landuse != '')
 
-    # Utility/industrial infrastructure is out of scope regardless of areal context.
+    # Utility/industrial infrastructure is out of scope regardless of areal context,
+    # whether tagged by key (man_made=pipeline) or as a lifecycle value (proposed=pipeline).
     if any(f'{prefix}{k}' in tags for k in UTILITY_KEYS for prefix in LIFECYCLE_PREFIXES):
+        return None
+    if any(v in UTILITY_VALUES for v in (construction, proposed, planned)):
         return None
 
     # Transport infrastructure mapped as polygons (railway yard, road junction area, etc.)

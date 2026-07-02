@@ -56,15 +56,15 @@ TRANSPORT_TYPES = {
     'gondola': ('gondola',),
     'cable_car': ('cable_car', 'chair_lift', 'mixed_lift', 'drag_lift', 
                   'j-bar', 't-bar', 'platter', 'rope_tow', 'zip_line'),
-    # Road family
+    # Road family ('highway' is the class-less umbrella value, e.g. proposed=highway)
     'road': ('motorway', 'trunk', 'primary', 'secondary', 'tertiary',
-             'residential', 'unclassified', 'service', 'living_street', 'road'),
+             'residential', 'unclassified', 'service', 'living_street', 'road', 'highway'),
     'bus': ('bus_guideway', 'busway'),
     # Active mobility
     'bike': ('cycleway', 'bicycle'),
     'pedestrian': ('pedestrian', 'footway', 'path', 'steps'),
-    # Water
-    'waterway': ('canal', 'river', 'stream'),
+    # Water ('waterway' is the class-less umbrella value, e.g. proposed=waterway)
+    'waterway': ('canal', 'river', 'stream', 'waterway'),
     # Air
     'airport': ('runway', 'taxiway', 'airstrip'),
 }
