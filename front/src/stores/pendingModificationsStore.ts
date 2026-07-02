@@ -92,6 +92,11 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     modifications.value.delete(overlayId);
   }
 
+  // Clear user-specific state on logout or account switch.
+  function clearAllState(): void {
+    modifications.value.clear();
+  }
+
   return {
     saveCornersChange,
     saveCaptionChange,
@@ -100,6 +105,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     getModificationsForProject,
     clearFieldModification,
     clearModification,
+    clearAllState,
   };
 });
 

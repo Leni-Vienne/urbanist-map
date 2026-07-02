@@ -1,19 +1,17 @@
+import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
 import { trpc, type RouterOutput } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 
-const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
-const isLoading = ref(false);
-// Set when authStore preloads on login/session-restore so the dialog can render
-// its first open without a redundant fetch. Consumed (reset) on first dialog mount.
-let hasPreloaded = false;
+// Moderated contributions (rejected/replaced overlays). authStore preloads it on
+// login to decide whether to open the dialog, and the dialog reads it without refetching.
+export const useModeratedContributionsStore = defineStore("moderatedContributions", () => {
+  const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
+  const isLoading = ref(false);
+  // Set when authStore preloads on login/session-restore so the dialog can render
+  // its first open without a redundant fetch. Consumed (reset) on first dialog mount.
+  const hasPreloaded = ref(false);
 
-/**
- * Composable for managing moderated contributions (rejected/replaced overlays).
- * Shared module-level state is the single source of truth: authStore preloads it on
- * login to decide whether to open the dialog, and the dialog reads it without refetching.
- */
-export function useModeratedContributions() {
   async function fetchModeratedContributions() {
     isLoading.value = true;
     try {
@@ -32,23 +30,21 @@ export function useModeratedContributions() {
   // Called once by authStore right after login/session-restore.
   async function preloadModeratedContributions() {
     await fetchModeratedContributions();
-    hasPreloaded = true;
+    hasPreloaded.value = true;
   }
 
   // Called by the dialog on mount: reuse the preloaded data if present, otherwise
   // fetch fresh (e.g. when the user reopens the dialog later from the menu).
   async function ensureModeratedContributions() {
-    if (hasPreloaded) {
-      hasPreloaded = false;
+    if (hasPreloaded.value) {
+      hasPreloaded.value = false;
       return;
     }
     await fetchModeratedContributions();
   }
 
-  /**
-   * Acknowledge and clear specific moderated items
-   * Deletes thumbnails and DB records immediately (instead of waiting 15 days)
-   */
+  // Acknowledge and clear specific moderated items. Deletes thumbnails and DB
+  // records immediately (instead of waiting 15 days).
   async function acknowledgeContributions(contributionIds: string[]) {
     if (contributionIds.length === 0) return { success: false };
 
@@ -58,7 +54,6 @@ export function useModeratedContributions() {
     );
 
     if (result) {
-      // Remove acknowledged items from local cache
       moderatedContributions.value = moderatedContributions.value.filter(
         (item) => !contributionIds.includes(item.id),
       );
@@ -67,12 +62,16 @@ export function useModeratedContributions() {
     return result ?? { success: false };
   }
 
-  /**
-   * Acknowledge all moderated contributions at once
-   */
   async function acknowledgeAll() {
     const allIds = moderatedContributions.value.map((item) => item.id);
     return acknowledgeContributions(allIds);
+  }
+
+  // Clear user-specific state on logout or account switch.
+  function clearAllState() {
+    moderatedContributions.value = [];
+    isLoading.value = false;
+    hasPreloaded.value = false;
   }
 
   return {
@@ -81,5 +80,11 @@ export function useModeratedContributions() {
     preloadModeratedContributions,
     ensureModeratedContributions,
     acknowledgeAll,
+    clearAllState,
   };
+});
+
+// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useModeratedContributionsStore, import.meta.hot));
 }

@@ -88,7 +88,7 @@ import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/composables/project/useProjectDeepLink";
 import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
-import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
+import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -168,15 +168,15 @@ watch(
   },
 );
 
-const { moderatedContributions, preloadModeratedContributions } = useModeratedContributions();
+const moderatedContributionsStore = useModeratedContributionsStore();
 
 watch(
   () => authStore.user,
   async (user) => {
     if (user) {
       try {
-        await preloadModeratedContributions();
-        const hasContributions = moderatedContributions.value.length > 0;
+        await moderatedContributionsStore.preloadModeratedContributions();
+        const hasContributions = moderatedContributionsStore.moderatedContributions.length > 0;
         uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
         if (hasContributions) {
           uiStore.moderatedContributionsDialogVisible = true;
