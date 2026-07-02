@@ -58,12 +58,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     Object.assign(formData, originalData);
   }
 
-  function getFieldClasses(fieldName: keyof ProjectFormData) {
-    return {
-      "field-changed": hasChanged(fieldName),
-    };
-  }
-
   function applyLocalEdit() {
     // Each source resolves to a Project, so any of them can serve as the spread base.
     // getSourceProject is the project the form was opened with, for sources not yet in the store.
@@ -124,7 +118,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     hasChanges,
     hasChanged,
     resetChanges,
-    getFieldClasses,
     submitChanges,
   };
 }

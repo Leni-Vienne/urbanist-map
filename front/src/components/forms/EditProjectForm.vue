@@ -6,9 +6,6 @@
         :original-data="form.originalData"
         :show-change-indicators="true"
         :timeline-status="timelineStatus"
-        :field-classes="
-          (fieldName: string) => form.getFieldClasses(fieldName as keyof ProjectFormData)
-        "
         :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
         id-prefix="edit"
         @update:timeline-status="

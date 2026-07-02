@@ -227,7 +227,6 @@ interface Props {
   showChangeIndicators?: boolean;
   idPrefix?: string;
   timelineStatus?: TimelineStatus;
-  fieldClasses?: (fieldName: string) => string | object | undefined;
   hasChanged?: (fieldName: string) => boolean;
 }
 
@@ -353,9 +352,8 @@ function validateFieldHelper(fieldPath: string) {
 }
 
 function getInputClass(fieldName: string) {
-  const baseClasses = props.fieldClasses?.(fieldName) ?? "";
   const errorClass = hasFieldError(fieldName) ? "p-invalid" : "";
-  return [{ "w-full": true }, baseClasses, errorClass];
+  return [{ "w-full": true }, errorClass];
 }
 
 watch(
