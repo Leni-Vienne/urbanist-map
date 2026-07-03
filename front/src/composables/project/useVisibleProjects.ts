@@ -1,5 +1,4 @@
 import { ref, computed, onUnmounted, onActivated, onDeactivated } from "vue";
-import { LngLatBounds } from "maplibre-gl";
 import type * as maplibregl from "maplibre-gl";
 import { useFocusStore } from "@/stores/focusStore";
 import { map, onMlMapReady } from "@/services/core/map";
@@ -15,8 +14,6 @@ export type SortMode = "recent" | "name" | "size" | "status";
 interface VisibleProject {
   id: string;
   name: string | null;
-  /** Actual geometry bbox from the MVT feature, used for zooming. Null for standalone points. */
-  bbox: LngLatBounds | null;
   /** Middle vertex of the clipped tile geometry, guaranteed on the drawn line, used as the map anchor. */
   midLat: number | null;
   midLng: number | null;
@@ -47,10 +44,95 @@ const STATUS_RANK: Record<string, number> = {
 // "pending-project-points" is intentionally excluded (unapproved, not shown in panel).
 const QUERY_LAYERS = ["project-points", ...VECTOR_QUERY_LAYERS] as const;
 
-function collectCoords(geom: GeoJSON.Geometry): number[][] {
-  const out: number[][] = [];
-  forEachPosition(geom, (lng, lat) => out.push([lng, lat]));
-  return out;
+interface GeomAnchors {
+  /** Geometry bbox center, used as the popup_lat/lng fallback for standalone points. */
+  centerLat: number | null;
+  centerLng: number | null;
+  /** Southernmost vertex, preferred anchor so the hover card sits below the geometry. */
+  bottomLat: number | null;
+  bottomLng: number | null;
+  /** Vertex closest to the viewport center: always on the drawn line and likely on screen. */
+  midLat: number | null;
+  midLng: number | null;
+}
+
+const EMPTY_ANCHORS: GeomAnchors = {
+  centerLat: null,
+  centerLng: null,
+  bottomLat: null,
+  bottomLng: null,
+  midLat: null,
+  midLng: null,
+};
+
+/**
+ * Single pass over a geometry's vertices producing every anchor the panel needs: the bbox center
+ * (popup fallback), the southernmost vertex (hover-card anchor), and the vertex nearest the given
+ * viewport center (on-line anchor). Returns all-null anchors for empty/missing geometry.
+ */
+function computeGeomAnchors(
+  geom: GeoJSON.Geometry | null,
+  centerLat: number,
+  centerLng: number,
+): GeomAnchors {
+  if (!geom) return EMPTY_ANCHORS;
+
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+  let bottomLng: number | null = null;
+  let bestLat: number | null = null;
+  let bestLng: number | null = null;
+  let bestDist = Infinity;
+  let count = 0;
+
+  forEachPosition(geom, (lng, lat) => {
+    count += 1;
+    if (lng < minX) minX = lng;
+    if (lng > maxX) maxX = lng;
+    if (lat < minY) {
+      minY = lat;
+      bottomLng = lng;
+    }
+    if (lat > maxY) maxY = lat;
+    const dist = (lat - centerLat) ** 2 + (lng - centerLng) ** 2;
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestLat = lat;
+      bestLng = lng;
+    }
+  });
+
+  if (count === 0) return EMPTY_ANCHORS;
+
+  return {
+    centerLat: (minY + maxY) / 2,
+    centerLng: (minX + maxX) / 2,
+    bottomLat: minY,
+    bottomLng,
+    midLat: bestLat,
+    midLng: bestLng,
+  };
+}
+
+// When the visible set is unchanged but the camera moved, the viewport-relative anchors
+// (mid/bottom vertices and popup fallback) were recomputed against the new center. Copy them onto
+// the existing entries in place so hover cards and navigation use current coordinates, without
+// replacing the array (which would re-sort and re-render the list). The `projects` computed does
+// not read these fields, so the mutation triggers no list churn.
+function syncAnchors(existing: VisibleProject[], next: VisibleProject[]): void {
+  const byId = new Map(next.map((p) => [p.id, p]));
+  for (const entry of existing) {
+    const fresh = byId.get(entry.id);
+    if (!fresh) continue;
+    entry.lat = fresh.lat;
+    entry.lng = fresh.lng;
+    entry.midLat = fresh.midLat;
+    entry.midLng = fresh.midLng;
+    entry.bottomLat = fresh.bottomLat;
+    entry.bottomLng = fresh.bottomLng;
+  }
 }
 
 function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolean {
@@ -96,19 +178,21 @@ function featureToProject(
   const name: string | null = props.name ?? null;
   // oxlint-disable-next-line no-unsafe-type-assertion
   const geom = f.geometry as GeoJSON.Geometry | null;
-  const [bboxLng, bboxLat, bbox, bottomLat, bottomLng] = getGeomBbox(geom);
-  const [midLat, midLng] = getGeomClosestToCenter(geom, centerLat, centerLng);
+  const anchors = computeGeomAnchors(geom, centerLat, centerLng);
   // popup_lat/popup_lng are ST_PointOnSurface of the full unclipped geometry, used as fallback
   // for standalone points that have no clipped geometry midpoint.
   const lat =
-    props.popup_lat !== null && props.popup_lat !== undefined ? Number(props.popup_lat) : bboxLat;
+    props.popup_lat !== null && props.popup_lat !== undefined
+      ? Number(props.popup_lat)
+      : anchors.centerLat;
   const lng =
-    props.popup_lng !== null && props.popup_lng !== undefined ? Number(props.popup_lng) : bboxLng;
+    props.popup_lng !== null && props.popup_lng !== undefined
+      ? Number(props.popup_lng)
+      : anchors.centerLng;
   const rawSize = props.geometry_size_m ?? props.max_size_m;
   return {
     id,
     name,
-    bbox,
     firstTag: props.first_tag ?? "",
     tags: parseMvtTags(props.tags),
     timelineStatus: props.timeline_status ?? "",
@@ -119,10 +203,10 @@ function featureToProject(
     sizeM: rawSize !== null && rawSize !== undefined ? Number(rawSize) : 0,
     lat,
     lng,
-    midLat,
-    midLng,
-    bottomLat,
-    bottomLng,
+    midLat: anchors.midLat,
+    midLng: anchors.midLng,
+    bottomLat: anchors.bottomLat,
+    bottomLng: anchors.bottomLng,
   };
 }
 
@@ -166,62 +250,6 @@ function accumulateFeatures(
   // causing a spurious rawProjects update and a Vue re-render.
   result.sort((a, b) => a.id.localeCompare(b.id));
   return result;
-}
-
-/** Returns [lat, lng] of the geometry vertex closest to (centerLat, centerLng).
- * For a linestring this is always a point on the drawn line and is likely on screen,
- * since it's the part of the clipped tile geometry nearest to the viewport center.
- * Returns [null, null] if the geometry has no coordinates.
- */
-function getGeomClosestToCenter(
-  geom: GeoJSON.Geometry | null,
-  centerLat: number,
-  centerLng: number,
-): [number | null, number | null] {
-  if (!geom) return [null, null];
-  const coords = collectCoords(geom);
-  if (coords.length === 0) return [null, null];
-  let bestLat = coords[0]?.[1] ?? null;
-  let bestLng = coords[0]?.[0] ?? null;
-  let bestDist = Infinity;
-  for (const coord of coords) {
-    const lat = coord[1] ?? 0;
-    const lng = coord[0] ?? 0;
-    const dist = (lat - centerLat) ** 2 + (lng - centerLng) ** 2;
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestLat = lat;
-      bestLng = lng;
-    }
-  }
-  return [bestLat, bestLng];
-}
-
-/** Returns [centerLng, centerLat, bounds, bottomLat, bottomLng] from the geometry's coordinate bbox. */
-function getGeomBbox(
-  geom: GeoJSON.Geometry | null,
-): [number | null, number | null, LngLatBounds | null, number | null, number | null] {
-  if (!geom) return [null, null, null, null, null];
-  const coords = collectCoords(geom);
-  if (coords.length === 0) return [null, null, null, null, null];
-  let minX = Infinity,
-    maxX = -Infinity,
-    minY = Infinity,
-    maxY = -Infinity;
-  let bottomLng: number | null = null;
-  for (const coord of coords) {
-    const x = coord[0] ?? 0;
-    const y = coord[1] ?? 0;
-    if (x < minX) minX = x;
-    if (x > maxX) maxX = x;
-    if (y < minY) {
-      minY = y;
-      bottomLng = x;
-    }
-    if (y > maxY) maxY = y;
-  }
-  const bounds = new LngLatBounds([minX, minY], [maxX, maxY]);
-  return [(minX + maxX) / 2, (minY + maxY) / 2, bounds, minY, bottomLng];
 }
 
 /**
@@ -346,7 +374,11 @@ export function useVisibleProjects() {
 
     const center = mlMap.getCenter();
     const newProjects = accumulateFeatures(features, center.lat, center.lng);
-    if (projectsChanged(rawProjects.value, newProjects)) rawProjects.value = newProjects;
+    if (projectsChanged(rawProjects.value, newProjects)) {
+      rawProjects.value = newProjects;
+    } else {
+      syncAnchors(rawProjects.value, newProjects);
+    }
   }
 
   // pendingQuery: a one-shot `render` listener has been registered and will call doRefresh()
@@ -376,6 +408,7 @@ export function useVisibleProjects() {
   let sourcedataTimer: ReturnType<typeof setTimeout> | null = null;
   let moveStartHandler: (() => void) | null = null;
   let moveEndHandler: (() => void) | null = null;
+  let hoverClearTimeout: ReturnType<typeof setTimeout> | null = null;
 
   onMlMapReady(() => {
     isReady.value = true;
@@ -417,8 +450,7 @@ export function useVisibleProjects() {
   onUnmounted(() => {
     destroyed = true;
     if (sourcedataTimer) clearTimeout(sourcedataTimer);
-    pendingQuery = false;
-    mapMoving = false;
+    if (hoverClearTimeout) clearTimeout(hoverClearTimeout);
     const mlMap = map.value;
     // oxlint-disable-next-line no-unnecessary-condition
     if (mlMap) {
@@ -466,7 +498,6 @@ export function useVisibleProjects() {
   }
 
   let lastHoveredProjectId: string | null = null;
-  let hoverClearTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function hoverProject(project: VisibleProject | null) {
     if (suppressHover) return;

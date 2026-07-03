@@ -64,7 +64,7 @@ function removeOverlay(
   }
 }
 
-export function removeProject(
+function removeProject(
   projectId: string,
   options: {
     updateUserContributions?: boolean;
@@ -128,4 +128,84 @@ export async function deleteOverlayDirect(
     console.error("Failed to delete overlay:", error);
     return false;
   }
+}
+
+/**
+ * Safe to call from toolbar handlers (outside Vue context).
+ * Returns true if deletion was successful.
+ */
+async function deleteProjectDirect(
+  projectId: string,
+  options: { showToast?: boolean } = {},
+): Promise<boolean> {
+  const { showToast = false } = options;
+
+  const projectStore = useProjectStore();
+  const project = projectStore.projects[projectId];
+  // Local-only projects (status null) were never submitted, so there is nothing to delete in the
+  // backend and no user-contribution entry to update.
+  const isLocalOnly = project?.status === null;
+
+  try {
+    if (!isLocalOnly) {
+      await trpc.project.deleteProject.mutate({ id: projectId });
+    }
+
+    removeProject(projectId, { updateUserContributions: !isLocalOnly });
+
+    if (showToast) {
+      useToast().add({
+        severity: "success",
+        summary: t("contribute.projectDeleted"),
+        life: 3000,
+      });
+    }
+    return true;
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    if (showToast) {
+      useToast().add({
+        severity: "error",
+        summary: t("contribute.deleteProjectError"),
+        life: 5000,
+      });
+    }
+    return false;
+  }
+}
+
+export async function confirmAndDeleteOverlay(
+  overlayId: string,
+  overlayName: string | null,
+): Promise<boolean> {
+  const confirmMessage = t("common.confirmDelete", {
+    name: overlayName ?? t("overlay.untitled"),
+  });
+  if (!confirm(confirmMessage)) return false;
+
+  return deleteOverlayDirect(overlayId, { showToast: true, updateUserContributions: true });
+}
+
+export async function confirmAndDeleteProject(
+  projectId: string,
+  projectName: string | null,
+  overlayCount: number,
+): Promise<boolean> {
+  const confirmMessage =
+    overlayCount > 0
+      ? t("contribute.confirmDeleteProjectWithOverlays", {
+          name: projectName,
+          count: overlayCount,
+        })
+      : t("common.confirmDelete", { name: projectName });
+  if (!confirm(confirmMessage)) return false;
+
+  const success = await deleteProjectDirect(projectId, { showToast: true });
+  if (!success) return false;
+
+  const focusStore = useFocusStore();
+  if (focusStore.selectedProjectId === projectId) {
+    focusStore.clearSelection();
+  }
+  return true;
 }

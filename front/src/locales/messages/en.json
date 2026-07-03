@@ -175,6 +175,7 @@
     "projectDeleted": "Project deleted successfully",
     "changeRequestDeleted": "Change request deleted successfully",
     "deleteProjectError": "Failed to delete project. Please try again.",
+    "loadContributionsError": "Failed to load contributions. Please try again.",
     "guest": {
       "title": "Contribute to the map",
       "description": "Help map urban projects worldwide, from early proposals to ongoing construction. You can draw shapes, add top-down imagery, dates...",

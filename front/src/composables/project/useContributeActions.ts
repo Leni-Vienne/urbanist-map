@@ -4,7 +4,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { useIsMobile } from "@/composables/ui/useIsMobile";
 import { useNewProject } from "@/composables/overlay/useNewProject";
 import { useChangeRequests } from "@/composables/changes/useChanges";
-import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
+import { confirmAndDeleteOverlay, confirmAndDeleteProject } from "@/services/core/entityRemoval";
 import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -24,6 +24,10 @@ function isStagedRenderOverlay(overlay: Overlay): boolean {
   return overlay.kind === "render" && !overlay.status;
 }
 
+async function handleDeleteProjectClick(project: Project): Promise<void> {
+  await confirmAndDeleteProject(project.id, project.name, project.overlays?.length ?? 0);
+}
+
 export function useContributeActions(
   allContributions: ComputedRef<(Project & { overlays: Overlay[] })[]>,
 ) {
@@ -37,7 +41,6 @@ export function useContributeActions(
 
   const { handleNewProjectClick } = useNewProject();
   const { deleteChangeRequest } = useChangeRequests();
-  const { handleDeleteOverlay, handleDeleteProject } = useProjectDeletion();
   const { prepareSubmission } = useSubmissionDialog();
 
   function isOverlayModified(overlayId: string): boolean {
@@ -66,11 +69,7 @@ export function useContributeActions(
       return;
     }
 
-    await handleDeleteOverlay(overlay.id, overlay.caption);
-  }
-
-  async function handleDeleteProjectClick(project: Project): Promise<void> {
-    await handleDeleteProject(project.id, project.name, project.overlays?.length ?? 0);
+    await confirmAndDeleteOverlay(overlay.id, overlay.caption);
   }
 
   async function handleDeleteChangeRequestClick(change: ChangeRequest): Promise<void> {

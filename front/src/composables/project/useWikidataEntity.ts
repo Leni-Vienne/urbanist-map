@@ -116,7 +116,14 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
 
   watch(
     [wikidataId, locale],
-    async ([id, lang]) => {
+    async ([id, lang], _prev, onCleanup) => {
+      // Marked stale when the watcher re-fires before this async run resolves, so a slow response
+      // for a previous id/lang never overwrites the value for the current selection.
+      let stale = false;
+      onCleanup(() => {
+        stale = true;
+      });
+
       if (!id) {
         entity.value = null;
         return;
@@ -132,7 +139,8 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
       // Re-use an in-flight request for the same key
       const inflight = pending.get(cacheKey);
       if (inflight) {
-        entity.value = (await inflight) ?? null;
+        const result = await inflight;
+        if (!stale) entity.value = result;
         return;
       }
 
@@ -141,7 +149,7 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
       try {
         const result = await promise;
         cache.set(cacheKey, result);
-        entity.value = result;
+        if (!stale) entity.value = result;
       } finally {
         pending.delete(cacheKey);
       }

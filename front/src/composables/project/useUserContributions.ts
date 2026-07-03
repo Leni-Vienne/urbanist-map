@@ -6,11 +6,9 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useChangeRequests } from "@/composables/changes/useChanges";
 import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
-import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { createLocalOverlayContribution, createStagedRenderOverlay } from "@/utils/typeFactories";
 import { getStagedRender } from "@/composables/submission/stagedRenderStore";
-import { deleteOverlayDirect, removeProject } from "@/services/core/entityRemoval";
 import type { Project, Overlay, ContributionProject } from "@/types/index";
 
 type ContributionFilter = "all" | "pending" | "approved";
@@ -29,21 +27,12 @@ function buildLocalContribution(
   };
 }
 
-async function deleteOverlay(overlayId: string): Promise<boolean> {
-  // Delegate to deleteOverlayDirect with composable-appropriate options
-  return deleteOverlayDirect(overlayId, {
-    showToast: true,
-    updateUserContributions: true,
-  });
-}
-
 export function useUserContributions() {
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
   const overlayStore = useOverlayStore();
   const focusStore = useFocusStore();
   const { pendingChangeRequests } = useChangeRequests();
-  const toast = useToast();
 
   const isLoading = computed(() => projectStore.userContributionsLoading);
 
@@ -59,7 +48,7 @@ export function useUserContributions() {
 
     const contributionsMap = new Map<string, ContributionProject>();
     for (const contrib of Object.values(projectStore.userContributions)) {
-      contributionsMap.set(contrib.id, { ...contrib, overlays: contrib.overlays });
+      contributionsMap.set(contrib.id, { ...contrib });
     }
 
     // Overlays aren't filtered by authorId: they can be added to projects the user doesn't own, and
@@ -157,27 +146,11 @@ export function useUserContributions() {
     if (!projectStore.userContributionsLoaded) return null;
     if (allContributions.value.some((p) => p.id === project.id)) return null;
     const parentCountry = { countryCode: project.countryCode, countryName: project.countryName };
+    // These overlays are rendered map overlays of a project the user does not own; their author is
+    // unknown here, so leave authorUsername null rather than attributing them to the current user.
     const overlays = Object.values(overlayStore.liveOverlays)
       .filter((o) => o.projectId === project.id)
-      .map((o) =>
-        createLocalOverlayContribution(
-          {
-            id: o.id,
-            caption: o.caption,
-            filename: o.filename,
-            projectId: o.projectId,
-            authorId: o.authorId,
-            replacesOverlayId: o.replacesOverlayId,
-            replacedByOverlayId: o.replacedByOverlayId,
-            status: o.status,
-            version: o.version,
-            updatedAt: o.updatedAt,
-            imageUrl: o.imageUrl,
-          },
-          parentCountry,
-          authStore.user?.username ?? null,
-        ),
-      );
+      .map((o) => createLocalOverlayContribution(o, parentCountry, null));
     // Renders live only in stagedRenderStore (not overlayStore), so surface a staged render here
     // as a pending render entry until it is submitted.
     const stagedRender = getStagedRender(project.id);
@@ -198,13 +171,15 @@ export function useUserContributions() {
   // A contribution counts as "pending" when its own status is unresolved, or any of its overlays
   // or change requests are still awaiting moderation. Everything else is "approved" (resolved).
   function isContributionPending(project: Project): boolean {
-    const isPending = project.status === "pending" || project.status === null;
+    if (project.status === "pending" || project.status === null) return true;
 
     const hasPendingOverlays =
       project.overlays?.some(
         (overlay) => overlay.status === "pending" || overlay.status === null,
       ) ?? false;
-    const hasPendingChanges = pendingChangeRequests.value.some((change) => {
+    if (hasPendingOverlays) return true;
+
+    return pendingChangeRequests.value.some((change) => {
       if (change.entityType === "project" && change.entityId === project.id) return true;
       return (
         project.overlays?.some(
@@ -212,8 +187,6 @@ export function useUserContributions() {
         ) ?? false
       );
     });
-
-    return isPending || hasPendingOverlays || hasPendingChanges;
   }
 
   const pendingCount = computed(
@@ -235,7 +208,6 @@ export function useUserContributions() {
     return allContributions.value.filter((project) => !isContributionPending(project));
   });
 
-  // eslint-disable-next-line complexity
   async function fetchUserContributions() {
     if (!authStore.user) return;
 
@@ -245,7 +217,7 @@ export function useUserContributions() {
     try {
       const result = await loadOrNull(
         async () => trpc.project.getUsersContributions.query({ limit: 50 }),
-        { errorMessage: "Failed to load contributions. Please refresh the page." },
+        { errorMessage: t("contribute.loadContributionsError") },
       );
 
       if (result) {
@@ -256,54 +228,9 @@ export function useUserContributions() {
     }
   }
 
-  async function deleteProject(projectId: string): Promise<boolean> {
-    try {
-      // Get project to check if it's local-only (not submitted to backend)
-      const project = projectStore.projects[projectId];
-      const isLocalOnly = project?.status === null;
-
-      // For local-only projects, skip backend call and just remove from local state
-      if (isLocalOnly) {
-        // Use new unified removal service
-        removeProject(projectId, { updateUserContributions: false });
-
-        toast.add({
-          severity: "success",
-          summary: t("contribute.projectDeleted"),
-          life: 3000,
-        });
-        return true;
-      }
-
-      // For backend projects, call the API
-      const result = await loadOrNull(
-        async () => trpc.project.deleteProject.mutate({ id: projectId }),
-        { errorMessage: t("contribute.deleteProjectError") },
-      );
-
-      if (result) {
-        // Use new unified removal service
-        removeProject(projectId, { updateUserContributions: true });
-
-        toast.add({
-          severity: "success",
-          summary: t("contribute.projectDeleted"),
-          life: 3000,
-        });
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      return false;
-    }
-  }
-
   return {
     isLoading,
     fetchUserContributions,
-    deleteOverlay,
-    deleteProject,
     allContributions,
     pinnedExternalProject,
     activeFilter,
