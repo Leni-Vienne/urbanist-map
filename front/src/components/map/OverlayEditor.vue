@@ -2,7 +2,7 @@
   <div>
     <Dialog
       v-model:visible="dialogVisible"
-      :header="$t('overlay.overlayInformation')"
+      :header="$t('overlay.overlayName')"
       :modal="true"
       :closable="true"
       :closeOnEscape="true"

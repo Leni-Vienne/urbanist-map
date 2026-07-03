@@ -198,7 +198,7 @@
     "sortStatus": "Trier par statut chronologique"
   },
   "overlay": {
-    "overlayInformation": "Informations sur l'image",
+    "overlayName": "Nom de l'image",
     "notSet": "Non défini",
     "changedFrom": "Modifié depuis",
     "untitled": "Image sans titre",
@@ -498,6 +498,7 @@
     "nextOverlay": "Aller à l'image suivante",
     "undo": "Annuler (ctrl + z)",
     "redo": "Rétablir (ctrl + y)",
+    "editInfo": "Modifier l'image",
     "delete": "Supprimer cette image",
     "replace": "Remplacer cette image",
     "crop": "Rogner l'image",

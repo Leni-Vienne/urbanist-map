@@ -88,6 +88,9 @@
             <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo()">
               <i class="pi pi-refresh" />
             </button>
+            <button :title="t('toolbar.editInfo')" :class="btnCls()" @click="onEditInfo">
+              <i class="pi pi-pencil" />
+            </button>
             <button
               v-if="canReplaceImage"
               :title="t('toolbar.replace')"
@@ -416,6 +419,12 @@ function endCrop() {
 async function confirmCrop() {
   await applyCrop();
   endCrop();
+}
+
+function onEditInfo() {
+  const overlay = selectedOverlay.value;
+  if (!overlay) return;
+  uiStore.openOverlayEditDialog(overlay);
 }
 
 function onReplace() {

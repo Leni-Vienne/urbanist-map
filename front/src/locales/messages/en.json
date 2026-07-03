@@ -198,7 +198,7 @@
     "sortStatus": "Sort by timeline status"
   },
   "overlay": {
-    "overlayInformation": "Image Information",
+    "overlayName": "Image Name",
     "notSet": "Not set",
     "changedFrom": "Changed from",
     "untitled": "Untitled image",
@@ -498,6 +498,7 @@
     "nextOverlay": "Go to next image",
     "undo": "Undo (ctrl + z)",
     "redo": "Redo (ctrl + y)",
+    "editInfo": "Edit image",
     "delete": "Delete this image",
     "replace": "Replace this image",
     "crop": "Crop the image",
