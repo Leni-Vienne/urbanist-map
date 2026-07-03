@@ -9,7 +9,7 @@
     <div class="grow flex flex-col relative">
       <!-- Info message banner (displayed at top when config.infoMessage is set) -->
       <Message
-        v-if="authStore.infoMessage && !infoBannerDismissed"
+        v-if="authStore.infoMessage && !authStore.version && !infoBannerDismissed"
         severity="info"
         :closable="true"
         @close="infoBannerDismissed = true"

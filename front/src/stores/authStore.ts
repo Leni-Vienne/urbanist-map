@@ -195,6 +195,13 @@ export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const infoMessage = ref<string | null>(null);
 
+  // Set when infoMessage is a bare semver (e.g. "v1.2.5"), shown as the footer version instead of a banner.
+  const version = computed(() =>
+    infoMessage.value && /^v\d+\.\d+\.\d+$/.test(infoMessage.value.trim())
+      ? infoMessage.value.trim()
+      : null,
+  );
+
   const isAuthenticated = computed(() => Boolean(user.value));
   const isModerator = computed(() => {
     if (!user.value) return false;
@@ -361,6 +368,7 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     user,
     infoMessage,
+    version,
     isAuthenticated,
     isModerator,
     initialize,

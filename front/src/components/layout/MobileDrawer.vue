@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <DraggableDrawer
     v-model:visible="isVisible"
     v-model:height-percent="drawerHeight"
@@ -99,6 +99,17 @@
             >{{ $t("footer.github") }}</span
           >
         </a>
+        <template v-if="authStore.version">
+          <span class="text-muted-color text-[0.65rem]">•</span>
+          <a
+            href="https://github.com/Leni-Vienne/urbanist-map/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
+          >
+            {{ authStore.version }}
+          </a>
+        </template>
       </div>
     </template>
   </DraggableDrawer>

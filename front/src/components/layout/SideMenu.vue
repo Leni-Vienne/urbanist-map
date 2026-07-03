@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="relative z-10 shrink-0 w-95 bg-content-hover-background shadow-[2px_0_8px_rgba(0,0,0,0.1),6px_0_24px_-6px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden h-screen max-h-screen"
     style="
@@ -57,6 +57,17 @@
           >{{ $t("footer.github") }}</span
         >
       </a>
+      <template v-if="authStore.version">
+        <span class="text-muted-color text-xs">•</span>
+        <a
+          href="https://github.com/Leni-Vienne/urbanist-map/releases"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-xs transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
+        >
+          {{ authStore.version }}
+        </a>
+      </template>
     </div>
 
     <!-- Selected project/overlay detail as a slide-over covering the whole panel. Its own close
