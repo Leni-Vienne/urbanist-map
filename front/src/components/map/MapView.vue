@@ -36,7 +36,7 @@
       <!-- Right column: Filter + Zoom, stacked below the top controls -->
       <div class="absolute top-18 right-4 z-1000 flex flex-col items-end gap-3 pointer-events-none">
         <div class="pointer-events-auto">
-          <FilterControl @filter-overlays="filterOverlaysByCompletionStatus" />
+          <FilterControl />
         </div>
         <ZoomControls />
         <CompassControl />
@@ -66,7 +66,12 @@ import { initVectorTileSync } from "@/services/map/tiles/sync";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
-import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
+import {
+  refreshViewport,
+  setupEventListeners,
+  cleanupEventListeners,
+  setupModeWatcher,
+} from "@/composables/viewport/useViewportTriggers";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -92,8 +97,6 @@ const toast = useToast();
 const { t } = useI18n();
 const isLoading = ref(true);
 
-const viewportManager = useViewportTriggers();
-
 watch(
   () => authStore.user,
   (newUser) => {
@@ -103,17 +106,13 @@ watch(
   },
 );
 
-async function filterOverlaysByCompletionStatus() {
-  await viewportManager.refreshViewport(true);
-}
-
 onMounted(async () => {
   await initializeMapAndOverlays();
   isLoading.value = false;
 });
 
 onUnmounted(() => {
-  viewportManager.cleanupEventListeners();
+  cleanupEventListeners();
 });
 
 async function initializeMapAndOverlays() {
@@ -121,7 +120,7 @@ async function initializeMapAndOverlays() {
     initializeMap();
     initializeEditorTriggers();
 
-    viewportManager.setupEventListeners();
+    setupEventListeners();
 
     await nextTick();
     if (map.value !== null) {
@@ -134,13 +133,13 @@ async function initializeMapAndOverlays() {
       initVectorTileSync();
 
       setTimeout(() => {
-        viewportManager.refreshViewport();
+        void refreshViewport();
       }, 100);
     } else {
       console.error("Map not available for camera bounds tracking");
     }
 
-    viewportManager.setupModeWatcher();
+    setupModeWatcher();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toast.add({

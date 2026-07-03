@@ -29,7 +29,7 @@
       @dblclick.stop
       style="max-height: min(600px, 70svh)"
     >
-      <FilterPanelContent @filter-overlays="emit('filter-overlays')" />
+      <FilterPanelContent />
     </div>
   </Popover>
 </template>
@@ -66,10 +66,6 @@ const FILTER_HINT_KEY = "filter-control-seen";
 const showFilterHint = ref(localStorage.getItem(FILTER_HINT_KEY) !== "1");
 const showFilterPanel = ref(false);
 const filterPanel = ref();
-
-const emit = defineEmits<{
-  "filter-overlays": [];
-}>();
 
 function toggleFilterPanel(event: Event) {
   if (showFilterHint.value) {
