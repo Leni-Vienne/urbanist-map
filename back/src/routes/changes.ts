@@ -1,4 +1,4 @@
-import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from "../trpc";
+import { moderatorProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import {
@@ -669,39 +669,6 @@ export const changesRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to reject change requests",
-        });
-      }
-    }),
-
-  getChangeHistory: adminProcedure
-    .input(
-      z.object({
-        entityType: z.enum(["project", "overlay"]).optional(),
-        entityId: z.uuid().optional(),
-      }),
-    )
-    .query(async ({ input }) => {
-      try {
-        const baseQuery = db.select().from(changeHistory);
-
-        const whereConditions = [];
-        if (input.entityType) {
-          whereConditions.push(eq(changeHistory.entityType, input.entityType));
-        }
-        if (input.entityId) {
-          whereConditions.push(eq(changeHistory.entityId, input.entityId));
-        }
-
-        const query =
-          whereConditions.length > 0 ? baseQuery.where(and(...whereConditions)) : baseQuery;
-
-        const history = await query.orderBy(changeHistory.appliedAt);
-        return history;
-      } catch (error) {
-        console.error("Error fetching change history:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch change history",
         });
       }
     }),

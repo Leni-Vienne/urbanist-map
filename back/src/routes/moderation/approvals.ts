@@ -33,28 +33,6 @@ async function incrementRejectedCount(tx: DbOrTx, userId: string | null): Promis
     .where(eq(users.id, userId));
 }
 
-async function decrementApprovedCount(tx: DbOrTx, userId: string | null): Promise<void> {
-  if (!userId) return;
-  await tx
-    .update(users)
-    .set({ approvedCount: sql`GREATEST(${users.approvedCount} - 1, 0)` })
-    .where(eq(users.id, userId));
-}
-
-async function decrementRejectedCount(tx: DbOrTx, userId: string | null): Promise<void> {
-  if (!userId) return;
-  await tx
-    .update(users)
-    .set({ rejectedCount: sql`GREATEST(${users.rejectedCount} - 1, 0)` })
-    .where(eq(users.id, userId));
-}
-
-// Schema for legacy undo approval endpoints
-const setApprovalStatusSchema = z.object({
-  id: z.uuid(),
-  status: z.enum(approvalStatusEnum.enumValues),
-});
-
 // Schema for version-aware approval to prevent race conditions
 const setApprovalStatusWithVersionSchema = z.object({
   id: z.string().uuid(),
@@ -65,106 +43,6 @@ const setApprovalStatusWithVersionSchema = z.object({
 });
 
 export const approvalProcedures = {
-  undoProjectApprovalStatus: moderatorProcedure
-    .input(setApprovalStatusSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        await checkModeratorCountryPermission(input.id, ctx.user);
-
-        await db.transaction(async (tx) => {
-          const currentProject = await tx
-            .select({ status: projects.status, ownerId: projects.ownerId })
-            .from(projects)
-            .where(eq(projects.id, input.id))
-            .limit(1);
-
-          const projectRecord = currentProject[0];
-
-          if (!projectRecord) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
-          }
-
-          const previousStatus = projectRecord.status;
-          const ownerId = projectRecord.ownerId;
-
-          await tx.update(projects).set({ status: input.status }).where(eq(projects.id, input.id));
-
-          if (previousStatus === "approved") {
-            await decrementApprovedCount(tx, ownerId);
-          } else if (previousStatus === "rejected") {
-            await decrementRejectedCount(tx, ownerId);
-          }
-        });
-
-        await invalidateProjectTiles(input.id);
-        return { success: true };
-      } catch (error) {
-        console.error("Error updating project status:", error);
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to update project status",
-        });
-      }
-    }),
-
-  undoOverlayApprovalStatus: moderatorProcedure
-    .input(setApprovalStatusSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        await checkModeratorOverlayPermission(input.id, ctx.user);
-
-        const undone = await db.transaction(async (tx) => {
-          const currentOverlay = await tx
-            .select({
-              status: overlays.status,
-              authorId: overlays.authorId,
-              projectId: overlays.projectId,
-              kind: overlays.kind,
-            })
-            .from(overlays)
-            .where(eq(overlays.id, input.id))
-            .limit(1);
-
-          const overlayRecord = currentOverlay[0];
-
-          if (!overlayRecord) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
-          }
-
-          const previousStatus = overlayRecord.status;
-          const authorId = overlayRecord.authorId;
-
-          await tx.update(overlays).set({ status: input.status }).where(eq(overlays.id, input.id));
-
-          if (previousStatus === "approved") {
-            await decrementApprovedCount(tx, authorId);
-          } else if (previousStatus === "rejected") {
-            await decrementRejectedCount(tx, authorId);
-          }
-
-          return { previousStatus, projectId: overlayRecord.projectId, kind: overlayRecord.kind };
-        });
-
-        await invalidateOverlayTiles(input.id);
-
-        // Un-approving a map overlay drops its corners from the project's footprint, so re-derive
-        // its boundary. Best-effort, post-commit.
-        if (undone.previousStatus === "approved" && undone.kind === "map" && undone.projectId) {
-          await assignProjectBoundary(undone.projectId);
-        }
-
-        return { success: true };
-      } catch (error) {
-        console.error("Error updating overlay status:", error);
-        if (error instanceof TRPCError) throw error;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to update overlay status",
-        });
-      }
-    }),
-
   setProjectApprovalStatusWithVersion: moderatorProcedure
     .input(setApprovalStatusWithVersionSchema)
     .mutation(async ({ input, ctx }) => {
