@@ -3,37 +3,40 @@
 // Edit/moderation: bbox tRPC fetch
 import { watch } from "vue";
 import { map } from "@/services/core/map";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
-import { isOverlayVisible } from "@/services/overlay/visibility";
+import { isOverlayVisible, matchesMapFilters } from "@/services/overlay/visibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
-import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/lifecycle";
+import {
+  clearAllOverlays,
+  clearOverlayImagesOnly,
+  clearOverlayRenderState,
+} from "@/services/overlay/lifecycle";
 import * as registry from "@/services/overlay/mapLayers";
 import { createOverlayMarker } from "@/services/overlay/markers";
 import { updateOverlayEditingState } from "@/services/overlay/editing";
-import { refreshSelectionHighlight } from "@/services/overlay/projectHighlight";
-import { filterByStatus } from "@/services/overlay/statusFilters";
 import {
   convertOverlayToData,
   createOverlayObject,
   createProjectObject,
+  overlayWireToData,
 } from "@/utils/typeFactories";
 import { trpc } from "@/client";
 import {
   mergeProjectPointsForMode,
   updateGlobalPendingPoints,
-} from "@/services/map/clusterSourceMerge";
+} from "@/services/map/tiles/clusterSourceMerge";
 import type { OverlayData } from "@/types/index";
 
 function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   const updates: Record<string, Partial<OverlayData>> = {};
   for (const overlayData of overlaysData) {
-    if (overlayStore.overlays[overlayData.id]) {
+    if (overlayStore.liveOverlays[overlayData.id]) {
       updates[overlayData.id] = {
         hasPendingChanges: overlayData.hasPendingChanges,
         suggestedCorners: overlayData.suggestedCorners,
@@ -57,7 +60,7 @@ function renderFullOverlays(overlaysData: OverlayData[]): void {
   overlayStore.setViewModeOverlays(overlaysData);
   hydrateOverlayStoreObjects(overlaysData);
 
-  for (const overlayObject of Object.values(overlayStore.overlays)) {
+  for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
     createOverlayMarker(overlayObject);
   }
 
@@ -81,7 +84,7 @@ async function fetchViewportData(mode: "edit" | "moderation", bbox: ReturnType<t
     trpc.viewport.getProjectsInViewport.query({ bbox, mode }),
   ]);
 
-  return { overlays: overlaysData, projects: projectsData };
+  return { overlays: overlaysData.map(overlayWireToData), projects: projectsData };
 }
 
 /**
@@ -208,8 +211,8 @@ export function useViewportTriggers() {
 
       // CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < loadThreshold) {
-        const isEditMode = mapStore.mode === "edit";
-        clearAllOverlays(isEditMode);
+        if (mapStore.mode === "edit") clearOverlayImagesOnly();
+        else clearAllOverlays();
         lastBboxKey = "";
 
         // Even though we aren't loading bbox data, we still need to merge global pending points
@@ -276,7 +279,7 @@ export function useViewportTriggers() {
    */
   function renderMarkersOnly(overlaysData: OverlayData[]) {
     const isEditMode = mapStore.mode === "edit";
-    clearAllOverlays(true);
+    clearOverlayImagesOnly();
 
     // Collect all overlays to render as markers
     const allOverlaysForMarkers = [...overlaysData];
@@ -284,7 +287,7 @@ export function useViewportTriggers() {
     // In edit mode, also include preserved overlays from the store that aren't in overlaysData
     if (isEditMode) {
       const overlayDataIds = new Set(overlaysData.map((o) => o.id));
-      for (const [id, existing] of Object.entries(overlayStore.overlays)) {
+      for (const [id, existing] of Object.entries(overlayStore.liveOverlays)) {
         if (overlayDataIds.has(id)) continue;
 
         allOverlaysForMarkers.push(convertOverlayToData(existing));
@@ -295,10 +298,10 @@ export function useViewportTriggers() {
     hydrateOverlayStoreObjects(allOverlaysForMarkers);
 
     const visibleOverlayIds = new Set(
-      filterByStatus(allOverlaysForMarkers, mapStore.mode).map((o) => o.id),
+      allOverlaysForMarkers.filter((o) => matchesMapFilters(o, mapStore.mode)).map((o) => o.id),
     );
 
-    for (const overlayObject of Object.values(overlayStore.overlays)) {
+    for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
       if (visibleOverlayIds.has(overlayObject.id)) {
         createOverlayMarker(overlayObject);
       }
@@ -337,16 +340,15 @@ export function useViewportTriggers() {
           clearOverlayRenderState();
           await updateGlobalPendingPoints("view");
           mergeProjectPointsForMode([], [], "view");
-          await updateOverlayEditingState();
-          refreshSelectionHighlight();
+          updateOverlayEditingState();
           return;
         }
 
         // Switching TO edit or moderation: hide overlays not visible in the new mode
-        const hasLoadedOverlays = Object.keys(overlayStore.overlays).length > 0;
+        const hasLoadedOverlays = Object.keys(overlayStore.liveOverlays).length > 0;
         if (hasLoadedOverlays) {
           const currentUserId = authStore.user?.id;
-          for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
+          for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
             if (!isOverlayVisible(overlay, newMode, currentUserId)) {
               registry.clearEntry(id);
             }
@@ -355,14 +357,14 @@ export function useViewportTriggers() {
 
         // View mode is tiles-only, so clear before loading bbox data
         if (oldMode === "view") {
-          clearAllOverlays(newMode === "edit");
+          if (newMode === "edit") clearOverlayImagesOnly();
+          else clearAllOverlays();
         }
 
         await updateGlobalPendingPoints(newMode);
         await refreshViewport(true);
 
-        await updateOverlayEditingState();
-        refreshSelectionHighlight();
+        updateOverlayEditingState();
       },
     );
   }

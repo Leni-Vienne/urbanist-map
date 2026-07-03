@@ -1,10 +1,10 @@
 import { computed } from "vue";
 import { trpc } from "@/client";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { useChangeRequestStore, type ChangeRequest } from "@/stores/pinia/changeRequestStore";
+import { useModerationStore } from "@/stores/moderationStore";
+import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeRequestStore";
 import { loadOrNull } from "@/services/core/errorHandling";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { OverlayObject } from "@/types";
 import { applyOverlayCorners } from "@/services/overlay/sync";
 
@@ -16,8 +16,7 @@ function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
 
 function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
   usePendingModificationsStore().clearModification(overlayId);
-  useOverlayStore().updateOverlay(overlayId, { isModified: false });
-  applyOverlayCorners(overlayObject, overlayObject.corners, {
+  applyOverlayCorners(overlayObject, overlayObject.baselineCorners, {
     resetHistory: true,
     refreshHandles: true,
   });
@@ -86,7 +85,7 @@ export function useChangeRequests() {
     }
 
     const overlayStore = useOverlayStore();
-    const overlayObject = overlayStore.overlays[changeRequest.entityId];
+    const overlayObject = overlayStore.liveOverlays[changeRequest.entityId];
 
     if (!overlayObject) {
       return;

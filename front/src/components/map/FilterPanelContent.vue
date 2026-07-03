@@ -8,7 +8,7 @@
       {{ $t("map.controls.filterByTags") }}
     </p>
     <button
-      v-if="selectedProjectTags.filter((t) => t !== untaggedFilter).length > 0"
+      v-if="selectedProjectTags.filter((slug) => slug !== untaggedFilter).length > 0"
       type="button"
       class="text-xs text-color-secondary underline cursor-pointer bg-transparent border-0 p-0"
       @click="clearTagFilters"
@@ -130,6 +130,7 @@
       {{ $t("map.controls.filterBySize") }}
     </p>
     <div class="px-1">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
       <div class="flex justify-between mt-2 text-xs text-color-secondary">
         <span>{{ formatSize(sizeFilterRange[0]) }}</span>
@@ -143,6 +144,7 @@
       {{ $t("map.controls.filterByLastModified") }}
     </p>
     <div class="px-1">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider
         v-model="dateSliderPositions"
         :min="0"
@@ -167,6 +169,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   selectedStatusFilters,
   selectedProjectTags,
@@ -182,7 +185,7 @@ import {
   toggleShowOnlyWithImages,
 } from "@/services/map/filters";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
-import { PROJECT_TAGS, PROJECT_TAG_MAP, BUILDING_CATEGORY_TAGS } from "@/config/projectTags";
+import { PROJECT_TAGS, PROJECT_TAG_MAP, BUILDING_CATEGORY_TAGS } from "@/constants/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 import LinePreview from "@/components/common/LinePreview.vue";
 
@@ -191,6 +194,8 @@ const emit = defineEmits<{
 }>();
 
 withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
+
+const { t } = useI18n();
 
 // Logarithmic slider: positions [0, 100] → meters. Position 100 = Infinity (no upper limit).
 const LOG_SCALE_REF = 500_001;
@@ -226,24 +231,35 @@ watch(sizeSliderPositions, ([minPos, maxPos]) => {
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
 });
 
-// Date slider: each step is one month.
+// Date slider: reverse-logarithmic in "days ago" so the newest handle gets day-level
+// resolution near now (yesterday, 2 days ago...) while older positions span months and years.
 const DATE_SLIDER_ORIGIN_YEAR = 2004;
+const DATE_SLIDER_MAX = 100;
+const MS_PER_DAY = 86_400_000;
 const currentDate = new Date();
-const DATE_SLIDER_MAX =
-  (currentDate.getFullYear() - DATE_SLIDER_ORIGIN_YEAR) * 12 + currentDate.getMonth();
+const nowMs = currentDate.getTime();
+const originMs = new Date(DATE_SLIDER_ORIGIN_YEAR, 0, 1).getTime();
+const totalDaysSpan = Math.max(1, (nowMs - originMs) / MS_PER_DAY);
 
 const dateSliderPositions = ref<[number, number]>([0, DATE_SLIDER_MAX]);
 const prevDateSliderPositions = ref<[number, number]>([0, DATE_SLIDER_MAX]);
 
-function posToDate(pos: number): Date {
-  const totalMonths = DATE_SLIDER_ORIGIN_YEAR * 12 + pos;
-  const year = Math.floor(totalMonths / 12);
-  const month = totalMonths % 12;
-  return new Date(year, month, 1);
+function posToDaysAgo(pos: number): number {
+  return (totalDaysSpan + 1) ** ((DATE_SLIDER_MAX - pos) / DATE_SLIDER_MAX) - 1;
+}
+
+function posToMs(pos: number): number {
+  if (pos <= 0) return originMs;
+  if (pos >= DATE_SLIDER_MAX) return nowMs;
+  return nowMs - posToDaysAgo(pos) * MS_PER_DAY;
 }
 
 function formatDateSlider(pos: number): string {
-  const d = posToDate(pos);
+  const daysAgo = Math.round(posToDaysAgo(pos));
+  if (daysAgo <= 0) return t("map.controls.today");
+  if (daysAgo === 1) return t("map.controls.yesterday");
+  if (daysAgo < 30) return t("map.controls.daysAgo", { n: daysAgo });
+  const d = new Date(posToMs(pos));
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
@@ -265,8 +281,8 @@ watch(dateSliderPositions, ([minPos, maxPos]) => {
     return;
   }
   prevDateSliderPositions.value = [minPos, maxPos];
-  const minMs = posToDate(minPos).getTime();
-  const maxMs = maxPos >= DATE_SLIDER_MAX ? Infinity : posToDate(maxPos).getTime();
+  const minMs = minPos <= 0 ? 0 : posToMs(minPos);
+  const maxMs = maxPos >= DATE_SLIDER_MAX ? Infinity : posToMs(maxPos);
   lastModifiedDateRange.value = [minMs, maxMs];
 });
 
@@ -300,7 +316,7 @@ const filters: {
 
 // Use the active tag color for line previews when exactly one tag is selected.
 const linePreviewColor = computed(() => {
-  const tagSlugs = selectedProjectTags.value.filter((t) => t !== UNTAGGED_PROJECT_FILTER);
+  const tagSlugs = selectedProjectTags.value.filter((slug) => slug !== UNTAGGED_PROJECT_FILTER);
   if (tagSlugs.length === 1) {
     return PROJECT_TAG_MAP.get(tagSlugs[0] ?? "")?.color ?? "#6b7280";
   }
@@ -308,9 +324,9 @@ const linePreviewColor = computed(() => {
 });
 
 const { theme } = useTheme();
-const allTags = PROJECT_TAGS.filter((t) => !t.hidden);
-const lineTags = allTags.filter((t) => !BUILDING_CATEGORY_TAGS.has(t.slug));
-const buildingTags = allTags.filter((t) => BUILDING_CATEGORY_TAGS.has(t.slug));
+const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
+const lineTags = allTags.filter((tag) => !BUILDING_CATEGORY_TAGS.has(tag.slug));
+const buildingTags = allTags.filter((tag) => BUILDING_CATEGORY_TAGS.has(tag.slug));
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
 
 function toggleCompletionFilter(status: TimelineStatus) {

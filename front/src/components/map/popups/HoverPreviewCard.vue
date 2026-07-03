@@ -84,31 +84,20 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
-import { storeToRefs } from "pinia";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { PROJECT_TAG_MAP } from "@/constants/projectTags";
 import { UNTAGGED_PROJECT_FILTER } from "@/services/map/filters";
 import LinePreview from "@/components/common/LinePreview.vue";
-import { useUiStore } from "@/stores/uiStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
 
 const { te: $te, t: $t } = useI18n();
-const uiStore = useUiStore();
-const overlayStore = useOverlayStore();
-const { projectDetail } = storeToRefs(uiStore);
-const { overlayDetailVisible, overlayDetailId, overlays } = storeToRefs(overlayStore);
+const focusStore = useFocusStore();
 
 // Suppress when a persistent detail panel is already open for the hovered project
 const suppress = computed(() => {
   const preview = hoverPreview.value;
   if (!preview || preview.type !== "project") return false;
-  if (projectDetail.value.visible && projectDetail.value.projectId === preview.projectId)
-    return true;
-  if (overlayDetailVisible.value && overlayDetailId.value) {
-    const overlay = overlays.value[overlayDetailId.value];
-    if (overlay?.projectId === preview.projectId) return true;
-  }
-  return false;
+  return focusStore.selectedProjectId === preview.projectId;
 });
 
 // Cluster tag breakdown ordered by descending count, so the chip listed first matches the cluster

@@ -11,14 +11,14 @@
 
 import { map, onMlMapReady } from "@/services/core/map";
 import * as registry from "@/services/overlay/mapLayers";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import type { OverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import {
   lastModifiedDateRange,
-  visibleStates,
+  matchesTimelineStatusFilter,
   matchesSelectedTags,
   matchesNameFilter,
 } from "@/services/map/filters";
@@ -33,15 +33,6 @@ function matchesDateFilter(lastModifiedS: number): boolean {
   if (ms < minMs) return false;
   if (maxMs !== Infinity && ms > maxMs) return false;
   return true;
-}
-
-// Same reason as matchesDateFilter: querySourceFeatures bypasses the setFilter applied to the
-// footprint layers, so images must be status-checked here. visibleStates is all-true when no
-// status is selected, so this is a no-op until the user filters. Missing status reads as proposed.
-function matchesStatusFilter(timelineStatus: string | null | undefined): boolean {
-  const states = visibleStates.value;
-  if (!timelineStatus) return states.proposed;
-  return (states as Record<string, boolean>)[timelineStatus] ?? states.proposed;
 }
 
 // ── Approved overlay data cache ───────────────────────────────────────────────
@@ -128,7 +119,7 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
     createdAt: new Date(0),
     updatedAt: new Date(0),
     centroid,
-    corners,
+    baselineCorners: corners,
   };
   return { overlay, lastModifiedS, timelineStatus, tags, name };
 }
@@ -170,7 +161,7 @@ export function syncOverlaysFromTiles(): void {
 
       if (
         !matchesDateFilter(lastModifiedS) ||
-        !matchesStatusFilter(timelineStatus) ||
+        !matchesTimelineStatusFilter(timelineStatus) ||
         !matchesSelectedTags(tags) ||
         !matchesNameFilter(name)
       ) {
@@ -178,7 +169,10 @@ export function syncOverlaysFromTiles(): void {
         continue;
       }
 
-      if (cornersIntersectBounds(overlay.corners, viewportBounds)) {
+      if (
+        overlay.baselineCorners &&
+        cornersIntersectBounds(overlay.baselineCorners, viewportBounds)
+      ) {
         featureMap.set(id, overlay);
       }
     }
@@ -199,7 +193,7 @@ export function syncOverlaysFromTiles(): void {
         }
         const data = approvedOverlayDataCache.get(id);
         const liveCorners = getOverlayImageCorners(id);
-        const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data?.corners;
+        const effectiveCorners = liveCorners ?? data?.baselineCorners;
 
         if (effectiveCorners && cornersIntersectBounds(effectiveCorners, viewportBounds)) {
           // The overlay's backend coordinates are no longer in the MVT tiles for this viewport,
@@ -238,7 +232,7 @@ export function syncOverlaysFromTiles(): void {
         const stillVisible = toCreate.filter(
           (o) =>
             matchesDateFilter(lastModifiedById.get(o.id) ?? Number.NaN) &&
-            matchesStatusFilter(statusById.get(o.id)),
+            matchesTimelineStatusFilter(statusById.get(o.id)),
         );
         if (stillVisible.length > 0) renderViewModeOverlays(stillVisible, createMarkers);
       })

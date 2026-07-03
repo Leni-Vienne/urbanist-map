@@ -28,6 +28,7 @@ export async function verifyTurnstileToken(token: string, ip?: string): Promise<
       method: "POST",
     });
 
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const outcome = (await result.json()) as { success: boolean; "error-codes": string[] };
 
     if (!outcome.success) {

@@ -1,29 +1,29 @@
-import type { NormalizedRect, OverlayHistoryState } from "@/types/index";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import type { NormalizedRect, OverlayHistoryState, LatLng } from "@/types/index";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
-
-type Corner = { lat: number; lng: number };
+import { isValidQuad } from "@/services/overlay/transform";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(
-  corners: Corner[],
+  corners: LatLng[],
   imageUrl: string,
   cropRect?: NormalizedRect,
 ): OverlayHistoryState {
   return { corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })), imageUrl, cropRect };
 }
 
-// Record the current image position as a change-request delta. No-op for new (status null)
-// overlays, whose position lives only in history; only submitted overlays track a delta.
-export function recordOverlayModification(id: string): void {
+// Sync the overlay's live image position into pendingModificationsStore as a corners delta.
+// No-op for new (status null) overlays, whose position lives only in history; only submitted
+// overlays track a delta. Call after any change to the live position (edit, undo, redo).
+export function syncPendingOverlayCorners(id: string): void {
   const pendingModsStore = usePendingModificationsStore();
   const mapStore = useMapStore();
 
   if (mapStore.mode !== "edit") return;
 
-  const overlay = useOverlayStore().overlays[id];
+  const overlay = useOverlayStore().liveOverlays[id];
   if (!overlay || overlay.status === null) return;
 
   const corners = getOverlayImageCorners(id);
@@ -35,14 +35,17 @@ export function recordOverlayModification(id: string): void {
     id,
     overlay.projectId ?? null,
     mappedCorners,
-    overlay.corners,
+    overlay.baselineCorners ?? [],
     overlay.status,
   );
 }
 
-export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
+// Commit one overlay edit (move / resize / crop): push a history step for the live image position
+// and sync the pending change-request corners delta. Seeds an empty history with the backend
+// corners first. Returns early without committing when the position matches the last step.
+export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   const overlayStore = useOverlayStore();
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
 
   const currentCorners = getOverlayImageCorners(id);
@@ -54,10 +57,8 @@ export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
 
   // Seed empty history with the backend corners so the first undo has a base state.
   let baseHistory = overlay.history;
-  if (baseHistory.length === 0 && overlay.corners.length === 4) {
-    if (!overlay.corners.every((c) => c.lat === 0 && c.lng === 0)) {
-      baseHistory = [makeHistoryState(overlay.corners, overlay.imageUrl)];
-    }
+  if (baseHistory.length === 0 && isValidQuad(overlay.baselineCorners)) {
+    baseHistory = [makeHistoryState(overlay.baselineCorners, overlay.imageUrl)];
   }
 
   if (baseHistory.length > 0) {
@@ -69,5 +70,5 @@ export function saveToHistory(id: string, cropRect?: NormalizedRect): void {
 
   overlayStore.commitHistory(id, [...baseHistory, currentState]);
 
-  recordOverlayModification(id);
+  syncPendingOverlayCorners(id);
 }

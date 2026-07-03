@@ -75,12 +75,12 @@
 
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
-import type { ProjectForModeration, PendingChangeRequest } from "@/types/index";
+import type { Project, PendingChangeRequest } from "@/types/index";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 
 interface Props {
   change: PendingChangeRequest;
-  projects: ProjectForModeration[];
+  projects: Project[];
   isPreviewActive: (changeId: string, type: "old" | "new") => boolean;
   showUserStatsLink?: boolean;
 }

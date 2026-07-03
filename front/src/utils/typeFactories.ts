@@ -1,5 +1,6 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData } from "@/types/index";
+import type { Project, OverlayObject, OverlayData, Overlay, LatLng } from "@/types/index";
+import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
@@ -7,6 +8,15 @@ import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 // Accepts any subset of Project fields, with null allowed for any field.
 // All coercion to non-null defaults happens inside the factory body.
 type ProjectInput = { [K in keyof Project]?: Project[K] | null };
+
+// Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`.
+// The single translation from the tRPC wire shape to OverlayData.
+export function overlayWireToData<T extends { corners: LatLng[] }>(
+  wire: T,
+): Omit<T, "corners"> & { baselineCorners: T["corners"] } {
+  const { corners, ...rest } = wire;
+  return { ...rest, baselineCorners: corners };
+}
 
 /**
  * Create a new Project instance with defaults
@@ -92,9 +102,8 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
-    corners: data.corners ?? [],
+    baselineCorners: data.baselineCorners ?? null,
     imageUrl,
-    isModified: data.isModified ?? false,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,
@@ -109,7 +118,10 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
  */
 export function convertOverlayToData(overlayObject: OverlayObject): OverlayData {
   // Calculate centroid from corners
-  const centroid = calculateCentroidFromCorners(overlayObject.corners) ?? { lat: 0, lng: 0 };
+  const centroid = calculateCentroidFromCorners(overlayObject.baselineCorners ?? []) ?? {
+    lat: 0,
+    lng: 0,
+  };
 
   return {
     id: overlayObject.id,
@@ -125,12 +137,84 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     replacedByOverlayId: overlayObject.replacedByOverlayId,
     project: null,
     centroid,
-    corners: overlayObject.corners,
+    baselineCorners: overlayObject.baselineCorners,
     suggestedCorners: overlayObject.suggestedCorners, // Pending position if change requests exist
     distance: 0,
     createdAt: overlayObject.createdAt,
     updatedAt: overlayObject.updatedAt,
-    isModified: overlayObject.isModified,
     hasPendingChanges: overlayObject.hasPendingChanges,
   };
+}
+
+/**
+ * Build the list-metadata Overlay shape for a local (unsubmitted) overlay or staged render, from a
+ * loose overlay literal plus its parent project's country.
+ */
+export function createLocalOverlayContribution(
+  overlay: {
+    id: string;
+    caption: string | null;
+    filename: string;
+    projectId: string | null;
+    authorId: string | null;
+    replacesOverlayId: string | null;
+    replacedByOverlayId?: string | null;
+    imageUrl?: string;
+    status?: ApprovalStatus | null;
+    version?: number;
+    updatedAt?: Date;
+  },
+  parentProject: {
+    countryCode: string | null;
+    countryName?: string | null;
+  },
+  username: string | null,
+  kind: Overlay["kind"] = "map",
+): Overlay {
+  return {
+    id: overlay.id,
+    caption: overlay.caption,
+    filename: overlay.filename,
+    kind,
+    status: overlay.status !== undefined ? overlay.status : null,
+    version: overlay.version ?? 1,
+    projectId: overlay.projectId ?? "",
+    authorId: overlay.authorId ?? null,
+    authorUsername: username,
+    authorApprovedCount: null,
+    authorRejectedCount: null,
+    replacesOverlayId: overlay.replacesOverlayId ?? null,
+    replacedByOverlayId: overlay.replacedByOverlayId ?? null,
+    updatedAt: overlay.updatedAt ?? new Date(),
+    countryCode: parentProject.countryCode,
+    countryName: parentProject.countryName ?? null,
+    imageUrl: overlay.imageUrl,
+  };
+}
+
+// A staged render (still only in stagedRenderStore) as a pending render overlay entry, so it appears
+// on its parent contribution in My Contributions the same way a submitted render does.
+export function createStagedRenderOverlay(
+  projectId: string,
+  previewUrl: string,
+  parentProject: { countryCode: string | null; countryName?: string | null },
+  username: string | null,
+  authorId: string | null,
+): Overlay {
+  const renderId = `staged-render-${projectId}`;
+  return createLocalOverlayContribution(
+    {
+      id: renderId,
+      caption: null,
+      filename: `${renderId}.webp`,
+      projectId,
+      authorId,
+      replacesOverlayId: null,
+      status: null,
+      imageUrl: previewUrl,
+    },
+    parentProject,
+    username,
+    "render",
+  );
 }

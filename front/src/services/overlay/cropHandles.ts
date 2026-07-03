@@ -5,8 +5,13 @@ import {
   getCurrentTransform,
   replaceOverlayImageSource,
 } from "@/services/overlay/mapLayers";
-import { transformToCorners, type OverlayTransform } from "@/services/overlay/transform";
-import { saveToHistory } from "@/services/overlay/history";
+import {
+  transformToCorners,
+  normToLngLat,
+  lngLatToNorm,
+  type OverlayTransform,
+} from "@/services/overlay/transform";
+import { commitOverlayEdit } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -60,37 +65,6 @@ function composeRect(base: CropBounds, sub: CropBounds): CropBounds {
   };
 }
 
-// Map a normalized (u, v) point of the rigid rectangle to geographic coordinates.
-function normToLngLat(t: OverlayTransform, u: number, v: number): { lng: number; lat: number } {
-  const center = maplibregl.MercatorCoordinate.fromLngLat({ lng: t.center.lng, lat: t.center.lat });
-  const unit = center.meterInMercatorCoordinateUnits();
-  const mx = (u - 0.5) * t.width * unit;
-  const my = (v - 0.5) * t.height * unit;
-  const angle = (t.bearing * Math.PI) / 180;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const ll = new maplibregl.MercatorCoordinate(
-    center.x + mx * cos - my * sin,
-    center.y + mx * sin + my * cos,
-  ).toLngLat();
-  return { lng: ll.lng, lat: ll.lat };
-}
-
-// Inverse of normToLngLat: a dragged handle's geographic position back to normalized (u, v).
-function lngLatToNorm(t: OverlayTransform, lng: number, lat: number): { u: number; v: number } {
-  const center = maplibregl.MercatorCoordinate.fromLngLat({ lng: t.center.lng, lat: t.center.lat });
-  const unit = center.meterInMercatorCoordinateUnits();
-  const c = maplibregl.MercatorCoordinate.fromLngLat({ lng, lat });
-  const dx = c.x - center.x;
-  const dy = c.y - center.y;
-  const angle = (t.bearing * Math.PI) / 180;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const lx = (dx * cos + dy * sin) / unit;
-  const ly = (-dx * sin + dy * cos) / unit;
-  return { u: lx / t.width + 0.5, v: ly / t.height + 0.5 };
-}
-
 function handleElement(edge: Edge): HTMLElement {
   const el = document.createElement("div");
   const cursor = edge === "top" || edge === "bottom" ? "ns-resize" : "ew-resize";
@@ -133,7 +107,6 @@ function ring(points: { x: number; y: number }[]): string {
 function syncCrop(): void {
   if (!session) return;
   const mlMap = map.value;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const visible = mlMap.getZoom() >= threshold;
   session.svgContainer.style.display = visible ? "block" : "none";
@@ -269,7 +242,6 @@ export function hideCropHandles(): void {
 
   for (const edge of EDGES) s.handles[edge].remove();
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   mlMap.off("render", s.onRender);
   if (s.svgContainer.parentNode) s.svgContainer.parentNode.removeChild(s.svgContainer);
 }
@@ -352,7 +324,7 @@ export async function applyCrop(): Promise<boolean> {
   // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
   // original pixels and the original footprint.
   replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
-  saveToHistory(overlay.id, originalRect);
+  commitOverlayEdit(overlay.id, originalRect);
   updateMarkerPosition(overlay);
 
   return true;

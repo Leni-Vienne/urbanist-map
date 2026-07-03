@@ -120,7 +120,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from "vue";
 
-import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
+import { storeToRefs } from "pinia";
+import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useToast } from "@/composables/ui/useToast";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
@@ -139,8 +140,9 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 
-const { moderatedContributions, isLoading, ensureModeratedContributions, acknowledgeAll } =
-  useModeratedContributions();
+const moderatedContributionsStore = useModeratedContributionsStore();
+const { moderatedContributions, isLoading } = storeToRefs(moderatedContributionsStore);
+const { ensureModeratedContributions, acknowledgeAll } = moderatedContributionsStore;
 
 const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);

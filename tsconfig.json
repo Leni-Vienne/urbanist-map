@@ -19,5 +19,9 @@
       "@shared/*": ["./shared/*"]
     }
   },
+  "vueCompilerOptions": {
+    "strictTemplates": true,
+    "target": 3.5
+  },
   "exclude": ["node_modules", "dist", "junk", "scripts"]
 }

@@ -1,17 +1,17 @@
 import { nextTick } from "vue";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useUiStore } from "@/stores/uiStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapeRendering";
+import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
+import { selectProject } from "@/services/map/projectSelection";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
-import type { PendingChangeRequest, ProjectForModeration } from "@/types/index";
+import type { PendingChangeRequest, Project } from "@/types/index";
 
 interface PreviewShapesOptions {
   change: PendingChangeRequest;
-  project: ProjectForModeration;
+  project: Project;
   geometryValue: unknown;
   type: "old" | "new";
 }
@@ -25,6 +25,7 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
     gc.geometries.length === 0
   )
     return null;
+  // oxlint-disable-next-line no-unsafe-type-assertion
   return gc as GeoJSON.GeometryCollection;
 }
 
@@ -55,13 +56,11 @@ export function useShapeChangeRequestPreview() {
       await nextTick();
     }
 
-    const uiStore = useUiStore();
-
     const newGeom = type === "new" ? geometry : (project.geometry ?? null);
     const oldGeom = type === "new" ? (project.geometry ?? null) : null;
 
     renderPreviewShapes(project, newGeom, oldGeom, () => {
-      uiStore.openProjectDetail(project.id, project);
+      selectProject(project);
     });
 
     mobileAwareFlyToBounds(bounds);

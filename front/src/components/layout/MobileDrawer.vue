@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <DraggableDrawer
     v-model:visible="isVisible"
     v-model:height-percent="drawerHeight"
@@ -12,10 +12,10 @@
           class="absolute left-0 bottom-0 w-full pointer-events-none"
           :style="{
             marginBottom: `${Math.max(0, 30 - Math.max(drawerHeightPx || 0, 65))}px`,
-            zIndex: isSatelliteMenuOpen ? 30 : 10,
+            zIndex: 10,
           }"
         >
-          <SatellitePreview :in-drawer="true" @menu-change="handleSatelliteMenuChange" />
+          <SatellitePreview :in-drawer="true" />
         </div>
 
         <!-- Mode Controls: Minimum floor 110px. Centered. -->
@@ -99,13 +99,24 @@
             >{{ $t("footer.github") }}</span
           >
         </a>
+        <template v-if="authStore.version">
+          <span class="text-muted-color text-[0.65rem]">•</span>
+          <a
+            href="https://github.com/Leni-Vienne/urbanist-map/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
+          >
+            {{ authStore.version }}
+          </a>
+        </template>
       </div>
     </template>
   </DraggableDrawer>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
@@ -127,11 +138,6 @@ const authStore = useAuthStore();
 const { detailVisible, activeTab } = useDetailPanel();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
-const isSatelliteMenuOpen = ref(false);
-
-function handleSatelliteMenuChange(isOpen: boolean) {
-  isSatelliteMenuOpen.value = isOpen;
-}
 
 // Drawer height management
 const drawerHeight = computed({

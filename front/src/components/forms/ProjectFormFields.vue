@@ -11,6 +11,7 @@
   <!-- Project name field -->
   <div class="flex flex-col gap-1">
     <FloatLabel class="w-full" variant="in">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <InputText
         id="project-name-input"
         v-model="localFormData.name"
@@ -129,6 +130,7 @@
   <!-- Source URL field -->
   <div class="flex flex-col gap-1">
     <FloatLabel class="w-full" variant="in">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <InputText
         id="source-url-input"
         type="url"
@@ -213,7 +215,7 @@ import {
 import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
-import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/config/projectTags";
+import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/constants/projectTags";
 
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
@@ -225,7 +227,6 @@ interface Props {
   showChangeIndicators?: boolean;
   idPrefix?: string;
   timelineStatus?: TimelineStatus;
-  fieldClasses?: (fieldName: string) => string | object | undefined;
   hasChanged?: (fieldName: string) => boolean;
 }
 
@@ -351,9 +352,8 @@ function validateFieldHelper(fieldPath: string) {
 }
 
 function getInputClass(fieldName: string) {
-  const baseClasses = props.fieldClasses?.(fieldName) ?? "";
   const errorClass = hasFieldError(fieldName) ? "p-invalid" : "";
-  return [{ "w-full": true }, baseClasses, errorClass];
+  return [{ "w-full": true }, errorClass];
 }
 
 watch(

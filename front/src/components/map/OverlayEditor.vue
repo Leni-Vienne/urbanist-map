@@ -2,23 +2,19 @@
   <div>
     <Dialog
       v-model:visible="dialogVisible"
-      :header="$t('overlay.overlayInformation')"
+      :header="$t('overlay.overlayName')"
       :modal="true"
       :closable="true"
       :closeOnEscape="true"
       :dismissableMask="true"
       :draggable="false"
-      :resizable="false"
       :appendTo="bodyElement"
-      :transitionOptions="{ disabled: true }"
-      @keydown.stop
-      @keyup.stop
-      @keypress.stop
       @hide="onDialogHide"
     >
-      <div class="p-fluid">
+      <div class="p-fluid" @keydown.stop @keyup.stop @keypress.stop>
         <div class="field mb-4">
           <FloatLabel class="w-full" variant="in">
+            <!-- @vue-expect-error PrimeVue v-model type mismatch -->
             <InputText
               id="overlay-name-input"
               v-model="editingInfo.caption"

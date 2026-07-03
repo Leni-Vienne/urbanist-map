@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";

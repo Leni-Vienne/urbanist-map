@@ -3,22 +3,23 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
 import { applyOverlayCorners } from "@/services/overlay/sync";
+import { isValidQuad } from "@/services/overlay/transform";
 import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import type { OverlayForModeration, OverlayObject, PendingChangeRequest } from "@/types/index";
+import type { Overlay, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 
 // Composable to handle change request position preview on the map
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
-  overlayForModeration: OverlayForModeration;
+  overlayForModeration: Overlay;
   geometryValue: unknown;
   type: "old" | "new";
 }
@@ -93,7 +94,7 @@ function navigateToPosition(
 function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): LngLat[] | null {
   if (type === "new") {
     // Show suggested position
-    if (overlayObject.suggestedCorners?.length !== 4) {
+    if (!overlayObject.suggestedCorners) {
       console.warn("No suggested corners available for overlay", overlayObject.id);
       return null;
     }
@@ -101,11 +102,13 @@ function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): Ln
       (c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat),
     );
   }
-  // Show approved position (always in corners field)
-  if (overlayObject.corners.length !== 4) {
+  // Show approved position (always in baselineCorners field)
+  if (!isValidQuad(overlayObject.baselineCorners)) {
     return null;
   }
-  return overlayObject.corners.map((c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat));
+  return overlayObject.baselineCorners.map(
+    (c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat),
+  );
 }
 
 function getPreviewType(changeId: string): "current" | "suggested" | null {
@@ -119,12 +122,12 @@ export function useChangeRequestPreview() {
   const overlayStore = useOverlayStore();
 
   async function ensureOverlayLoaded(
-    overlayForModeration: OverlayForModeration,
+    overlayForModeration: Overlay,
     targetCorners: LngLat[],
   ): Promise<boolean> {
     const mapStore = useMapStore();
 
-    let overlayObject = overlayStore.overlays[overlayForModeration.id];
+    let overlayObject = overlayStore.liveOverlays[overlayForModeration.id];
 
     if (overlayObject && registry.getImageHandle(overlayObject.id) !== null) {
       return true;
@@ -167,7 +170,7 @@ export function useChangeRequestPreview() {
       });
     });
 
-    overlayObject = overlayStore.overlays[overlayForModeration.id];
+    overlayObject = overlayStore.liveOverlays[overlayForModeration.id];
 
     if (!appeared || !overlayObject || registry.getImageHandle(overlayObject.id) === null) {
       toast.add({
@@ -187,7 +190,7 @@ export function useChangeRequestPreview() {
     type: "old" | "new",
     wasAlreadyLoaded: boolean,
   ): void {
-    const overlayObject = overlayStore.overlays[overlayId];
+    const overlayObject = overlayStore.liveOverlays[overlayId];
     if (!overlayObject || registry.getImageHandle(overlayObject.id) === null) {
       return;
     }
@@ -214,7 +217,7 @@ export function useChangeRequestPreview() {
 
     // Apply the position change. Preview is read-only (no history reset, no edit handles); the
     // handle existence was already verified above.
-    applyOverlayCorners(overlayObject, targetLatLngs, { refreshTooltip: true });
+    applyOverlayCorners(overlayObject, targetLatLngs);
 
     // Always navigate to the final position to ensure camera is centered correctly
     navigateToPosition(targetLatLngs, previousBounds, overlayId);

@@ -1,5 +1,5 @@
 import type { Project } from "@/types/index";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { createProjectObject } from "@/utils/typeFactories";
 

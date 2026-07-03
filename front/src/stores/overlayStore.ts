@@ -3,14 +3,11 @@ import { ref } from "vue";
 import type { OverlayObject, OverlayData, OverlayHistoryState } from "@/types/index";
 
 export const useOverlayStore = defineStore("overlay", () => {
-  const overlays = ref<Record<string, OverlayObject>>({});
-  const idSelectedOverlay = ref<string | null>(null);
+  const liveOverlays = ref<Record<string, OverlayObject>>({});
 
   const viewModeOverlays = ref<OverlayData[]>([]);
 
   const replacementOverlayId = ref<string | null>(null);
-  const overlayDetailVisible = ref(false);
-  const overlayDetailId = ref<string | null>(null);
 
   function setViewModeOverlays(overlayData: OverlayData[]) {
     viewModeOverlays.value = overlayData;
@@ -21,38 +18,37 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function addOverlay(overlayId: string, overlay: OverlayObject) {
-    overlays.value[overlayId] = overlay;
+    liveOverlays.value[overlayId] = overlay;
   }
 
   function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
-    const current = overlays.value[overlayId];
+    const current = liveOverlays.value[overlayId];
     if (!current) return;
     Object.assign(current, updates);
   }
 
   function batchUpdateOverlays(updates: Record<string, Partial<OverlayObject>>) {
     for (const [id, update] of Object.entries(updates)) {
-      const current = overlays.value[id];
+      const current = liveOverlays.value[id];
       if (current) Object.assign(current, update);
     }
   }
 
-  // Replace an overlay's edit history wholesale and mark it modified. Callers compute the new
-  // history array (seeding/dedup live in saveToHistory); this is the single reactive write.
+  // Replace an overlay's edit history wholesale. Callers compute the new history array
+  // (seeding/dedup live in commitOverlayEdit); this is the single reactive write.
   function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
-    const overlay = overlays.value[overlayId];
+    const overlay = liveOverlays.value[overlayId];
     if (!overlay) return;
     overlay.history = history;
     overlay.redoStack = [];
-    overlay.isModified = true;
   }
 
   // Collapse history to a single baseline step at `corners` (cloned so later edits don't alias it)
   // and clear redo. Used when a submitted/reverted position becomes the new starting point, so
   // re-entering edit mode doesn't restore prior in-progress edits. imageUrl is read from the live
-  // overlay; invalid (non-4) corners clear history entirely. Does not touch isModified or corners.
+  // overlay; invalid (non-4) corners clear history entirely. Does not touch baselineCorners.
   function resetHistoryBaseline(overlayId: string, corners: { lat: number; lng: number }[]) {
-    const overlay = overlays.value[overlayId];
+    const overlay = liveOverlays.value[overlayId];
     if (!overlay) return;
     overlay.history =
       corners.length === 4
@@ -68,27 +64,23 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   // Step back one history entry. Returns the step to restore (for the GL effect), or null on no-op.
   function undoHistory(overlayId: string): OverlayHistoryState | null {
-    const overlay = overlays.value[overlayId];
+    const overlay = liveOverlays.value[overlayId];
     if (!overlay || overlay.history.length <= 1) return null;
     const current = overlay.history.pop();
     if (!current) return null;
     overlay.redoStack.push(current);
     const target = overlay.history.at(-1);
     if (!target) return null;
-    // Back to the initial state on a submitted overlay: clear the modified flag so the marker
-    // returns to its status color.
-    if (overlay.history.length === 1 && overlay.status !== null) overlay.isModified = false;
     return target;
   }
 
   // Step forward one history entry. Returns the step to restore, or null on no-op.
   function redoHistory(overlayId: string): OverlayHistoryState | null {
-    const overlay = overlays.value[overlayId];
+    const overlay = liveOverlays.value[overlayId];
     if (!overlay || overlay.redoStack.length === 0) return null;
     const target = overlay.redoStack.pop();
     if (!target) return null;
     overlay.history.push(target);
-    overlay.isModified = true;
     return target;
   }
 
@@ -100,37 +92,18 @@ export const useOverlayStore = defineStore("overlay", () => {
     replacementOverlayId.value = null;
   }
 
-  function openOverlayDetail(overlayId: string) {
-    overlayDetailId.value = overlayId;
-    overlayDetailVisible.value = true;
-  }
-
-  function closeOverlayDetail() {
-    overlayDetailVisible.value = false;
-    overlayDetailId.value = null;
-  }
-
-  function resetAllUIStates() {
-    closeOverlayDetail();
-    resetReplacement();
-  }
-
   // Clear user-specific state on logout or account switch.
   // Preserves public data (viewModeOverlays) and clears user/edit-mode data.
   function clearAllState() {
-    overlays.value = {};
-    idSelectedOverlay.value = null;
-    resetAllUIStates();
+    liveOverlays.value = {};
+    resetReplacement();
   }
 
   return {
     // State
-    overlays,
-    idSelectedOverlay,
+    liveOverlays,
     viewModeOverlays,
     replacementOverlayId,
-    overlayDetailVisible,
-    overlayDetailId,
 
     // Actions
     setViewModeOverlays,
@@ -144,8 +117,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     redoHistory,
     requestOverlayReplacement,
     resetReplacement,
-    openOverlayDetail,
-    closeOverlayDetail,
     clearAllState,
   };
 });

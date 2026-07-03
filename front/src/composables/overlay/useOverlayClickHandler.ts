@@ -2,20 +2,21 @@ import { nextTick } from "vue";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/actions";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { trpc } from "@/client";
-import type { OverlayForModeration, LatestContribution } from "@/types/index";
+import type { Overlay, LatestContribution } from "@/types/index";
 import {
   canModerateCountry,
   syncModerationCountry,
 } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
+import { isValidQuad } from "@/services/overlay/transform";
 
 // Union type to accept overlays from moderation and contributions panels
-type NavigableOverlay = OverlayForModeration | LatestContribution;
+type NavigableOverlay = Overlay | LatestContribution;
 
 /**
  * Shared composable for handling overlay clicks from moderation/contribution panels.
@@ -112,13 +113,11 @@ async function navigateToReplacedOrRejectedOverlay(
   const { projectId } = overlay;
 
   // First try to get centroid from overlay store (has full overlay data)
-  const overlayFromStore = overlayStore.overlays[overlay.id];
-  if (overlayFromStore?.corners && overlayFromStore.corners.length >= 4) {
+  const storeCorners = overlayStore.liveOverlays[overlay.id]?.baselineCorners;
+  if (isValidQuad(storeCorners)) {
     // Calculate centroid from corners
-    const centroidLat =
-      overlayFromStore.corners.reduce((sum, c) => sum + c.lat, 0) / overlayFromStore.corners.length;
-    const centroidLng =
-      overlayFromStore.corners.reduce((sum, c) => sum + c.lng, 0) / overlayFromStore.corners.length;
+    const centroidLat = storeCorners.reduce((sum, c) => sum + c.lat, 0) / storeCorners.length;
+    const centroidLng = storeCorners.reduce((sum, c) => sum + c.lng, 0) / storeCorners.length;
 
     mobileAwareFlyTo([centroidLat, centroidLng], 18);
     return;

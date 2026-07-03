@@ -34,10 +34,10 @@ export function t(key: string, values?: Record<string, unknown>): string {
 export async function loadLocaleMessages(locale: Locale): Promise<Record<string, unknown>> {
   if (locale === "fr") {
     const module = await import("./messages/fr.json");
-    return module.default as Record<string, unknown>;
+    return module.default;
   }
   const module = await import("./messages/en.json");
-  return module.default as Record<string, unknown>;
+  return module.default;
 }
 
 export async function loadAndSetLocale(locale: Locale): Promise<boolean> {

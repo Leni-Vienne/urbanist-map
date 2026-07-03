@@ -1,8 +1,12 @@
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useModerationStore } from "@/stores/moderationStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
+import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { clearAll as clearAllLayers } from "@/services/overlay/mapLayers";
 
@@ -20,8 +24,14 @@ export async function signOut() {
   useMapStore().clearAllState();
   useProjectStore().clearAllState();
   useOverlayStore().clearAllState();
+  const focusStore = useFocusStore();
+  focusStore.clearSelection();
+  focusStore.setHover(null);
   clearAllLayers(false);
   useModerationStore().clearAllState();
+  useChangeRequestStore().clearAllState();
+  usePendingModificationsStore().clearAllState();
+  useModeratedContributionsStore().clearAllState();
 
   return result;
 }

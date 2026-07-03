@@ -45,14 +45,15 @@ import { ref, defineAsyncComponent } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import maplibregl, { type MapMouseEvent } from "maplibre-gl";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useToast } from "@/composables/ui/useToast";
 import { map } from "@/services/core/map";
-import { createProjectPinElement } from "@/services/map/markers";
+import { createProjectPinElement } from "@/services/map/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
-import { mergeProjectPointsForMode } from "@/services/map/clusterSourceMerge";
+import { selectProject } from "@/services/map/projectSelection";
+import { mergeProjectPointsForMode } from "@/services/map/tiles/clusterSourceMerge";
 import type { Project } from "@/types/index";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
@@ -138,7 +139,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<void
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
     const storedProject = projectStore.projects[projectId];
     if (storedProject) {
-      uiStore.openProjectDetail(projectId, storedProject);
+      selectProject(storedProject);
     }
     toast.add({
       severity: "success",

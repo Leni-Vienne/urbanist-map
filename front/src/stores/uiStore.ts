@@ -15,12 +15,6 @@ interface EditFormState {
   data?: Project | OverlayObject;
 }
 
-interface ProjectDetailState {
-  visible: boolean;
-  projectId: string | null;
-  project: Project | null;
-}
-
 interface ImageUploadDialogState {
   visible: boolean;
   projectId: string | null;
@@ -66,13 +60,6 @@ export const useUiStore = defineStore("ui", () => {
   const activeTab = ref<PanelTab>("latest");
   const mobileDrawerVisible = ref(true); // Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
-
-  // Project detail state (for standalone projects)
-  const projectDetail = ref<ProjectDetailState>({
-    visible: false,
-    projectId: null,
-    project: null,
-  });
 
   // Image upload dialog state
   const imageUploadDialog = ref<ImageUploadDialogState>({
@@ -132,23 +119,6 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Project detail actions
-  function openProjectDetail(projectId: string, project?: Project) {
-    projectDetail.value = {
-      visible: true,
-      projectId,
-      project: project ?? null,
-    };
-  }
-
-  function closeProjectDetail() {
-    projectDetail.value = {
-      visible: false,
-      projectId: null,
-      project: null,
-    };
-  }
-
   // Image upload dialog actions
   function openImageUploadDialog(projectId: string) {
     imageUploadDialog.value = {
@@ -193,7 +163,6 @@ export const useUiStore = defineStore("ui", () => {
     activeTab,
     mobileDrawerVisible,
     mobileDrawerHeightPercent,
-    projectDetail,
     imageUploadDialog,
     shapeEditor,
     postLoginCallback,
@@ -206,8 +175,6 @@ export const useUiStore = defineStore("ui", () => {
     closeProjectEditForm,
     openOverlayEditDialog,
     closeOverlayEditDialog,
-    openProjectDetail,
-    closeProjectDetail,
     openImageUploadDialog,
     closeImageUploadDialog,
     openShapeEditor,

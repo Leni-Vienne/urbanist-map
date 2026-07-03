@@ -44,7 +44,3 @@ export interface FileUploadResult {
   url: string;
   thumbnailUrl: string;
 }
-
-export interface FileUploadError {
-  error: string;
-}

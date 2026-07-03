@@ -1,6 +1,6 @@
 import { computed, reactive } from "vue";
 import { formDataToProjectFields } from "@/utils/projectFormHelpers";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";
@@ -41,8 +41,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const toast = useToast();
 
   // originalData is the comparison baseline; formData is what the user edits
-  const originalData = reactive({ ...options.initialData }) as ProjectFormData;
-  const formData = reactive({ ...(options.currentData ?? options.initialData) }) as ProjectFormData;
+  const originalData = reactive({ ...options.initialData });
+  const formData = reactive({ ...(options.currentData ?? options.initialData) });
 
   function hasChanged(fieldName: keyof ProjectFormData): boolean {
     return fieldsDiffer(originalData[fieldName], formData[fieldName]);
@@ -58,14 +58,8 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     Object.assign(formData, originalData);
   }
 
-  function getFieldClasses(fieldName: keyof ProjectFormData) {
-    return {
-      "field-changed": hasChanged(fieldName),
-    };
-  }
-
   function applyLocalEdit() {
-    // UserContribution extends Project, so any of these can serve as the spread base.
+    // Each source resolves to a Project, so any of them can serve as the spread base.
     // getSourceProject is the project the form was opened with, for sources not yet in the store.
     const baseProject: Project | undefined =
       projectStore.projects[options.entityId] ??
@@ -124,7 +118,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     hasChanges,
     hasChanged,
     resetChanges,
-    getFieldClasses,
     submitChanges,
   };
 }

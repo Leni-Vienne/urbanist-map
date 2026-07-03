@@ -9,7 +9,7 @@
     <div class="grow flex flex-col relative">
       <!-- Info message banner (displayed at top when config.infoMessage is set) -->
       <Message
-        v-if="authStore.infoMessage && !infoBannerDismissed"
+        v-if="authStore.infoMessage && !authStore.version && !infoBannerDismissed"
         severity="info"
         :closable="true"
         @close="infoBannerDismissed = true"
@@ -73,21 +73,22 @@ import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } fr
 
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { renderProjectShapes } from "@/services/map/shapeRendering";
-import { clearProjectShapes } from "@/services/map/shapeLayerRegistry";
+import { renderProjectShapes } from "@/services/map/shapes/rendering";
+import { clearProjectShapes } from "@/services/map/shapes/registry";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/composables/project/useProjectDeepLink";
-import { useActiveDetail } from "@/composables/project/useActiveDetail";
-import { useModeratedContributions } from "@/composables/moderation/useModeratedContributions";
+import { useFocusStore } from "@/stores/focusStore";
+import { selectProject } from "@/services/map/projectSelection";
+import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -167,15 +168,15 @@ watch(
   },
 );
 
-const { moderatedContributions, preloadModeratedContributions } = useModeratedContributions();
+const moderatedContributionsStore = useModeratedContributionsStore();
 
 watch(
   () => authStore.user,
   async (user) => {
     if (user) {
       try {
-        await preloadModeratedContributions();
-        const hasContributions = moderatedContributions.value.length > 0;
+        await moderatedContributionsStore.preloadModeratedContributions();
+        const hasContributions = moderatedContributionsStore.moderatedContributions.length > 0;
         uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
         if (hasContributions) {
           uiStore.moderatedContributionsDialogVisible = true;
@@ -206,7 +207,8 @@ function updateWindowWidth() {
 // is open whenever a selection appears. The drawer keeps its current height (the camera centers
 // the feature in the map area above it), and the user can drag it taller to read more. The
 // desktop side menu is always open, so it needs no handling here.
-const detailActive = useActiveDetail().visible;
+const focusStore = useFocusStore();
+const detailActive = computed(() => focusStore.detailVisible);
 
 watch(detailActive, (active) => {
   if (!active) return;
@@ -235,7 +237,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   uiStore.closeShapeEditor();
   toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
   if (reopen) {
-    uiStore.openProjectDetail(project.id, project);
+    selectProject(project);
   }
 }
 
@@ -253,7 +255,7 @@ async function handleShapesCancel() {
   await stopShapeEditing();
   uiStore.closeShapeEditor();
   if (reopen && project) {
-    uiStore.openProjectDetail(project.id, project);
+    selectProject(project);
   }
 }
 

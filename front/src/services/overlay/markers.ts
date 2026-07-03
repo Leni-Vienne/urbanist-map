@@ -1,10 +1,10 @@
 import { watchEffect } from "vue";
-import maplibregl, { LngLat, LngLatBounds } from "maplibre-gl";
+import maplibregl, { type LngLatBounds } from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markers";
+import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markersSvg";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
@@ -12,41 +12,12 @@ import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
-import { isValidQuad } from "@/services/overlay/transform";
-import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
-import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
+import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { enrichOverlayWithProject } from "@/services/overlay/data";
-
-type Corner = { lat: number; lng: number };
-
-/**
- * Resolve where to place the overlay's status MARKER, biased toward where the image actually
- * sits right now:
- *   0. live image position (most accurate while the overlay is rendered)
- *   1. edit-mode last-edited position from history (survives layer pruning when zooming)
- *   2. stored corners
- * Returns null when no source yields a valid 4-corner quad. Deliberately the inverse priority of
- * resolveOverlayRenderCorners, which (re)creates the image and so prefers the remembered position.
- */
-function resolveOverlayMarkerCorners(overlay: OverlayData): Corner[] | null {
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  const liveCorners = getOverlayImageCorners(overlay.id);
-  if (isValidQuad(liveCorners)) return liveCorners;
-
-  if (mapStore.mode === "edit") {
-    const lastEdited = overlayStore.overlays[overlay.id]?.history.at(-1)?.corners;
-    if (isValidQuad(lastEdited)) return lastEdited;
-  }
-
-  if (isValidQuad(overlay.corners)) return overlay.corners;
-
-  return null;
-}
+import { enrichOverlayWithProject, resolveOverlayCorners } from "@/services/overlay/data";
+import { isOverlayUnsaved } from "@/utils/unsavedState";
+import { buildLngLatBounds } from "@/utils/cornersBounds";
 
 /**
  * Create the marker for an overlay (edit / moderation modes). Idempotent: skips overlays that
@@ -62,7 +33,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   const authStore = useAuthStore();
   if (!isOverlayVisible(overlay, mapStore.mode, authStore.user?.id)) return;
 
-  const corners = resolveOverlayMarkerCorners(overlay);
+  const corners = resolveOverlayCorners(overlay, "marker");
   if (!corners) return;
 
   const centroid = calculateCentroidFromCorners(corners);
@@ -83,8 +54,9 @@ export function createOverlayMarker(overlay: OverlayObject): void {
 
   const projectId = overlay.projectId;
   if (projectId) {
-    element.addEventListener("mouseenter", () => highlightProject(projectId));
-    element.addEventListener("mouseleave", () => removeProjectOutlines(projectId));
+    const focus = useFocusStore();
+    element.addEventListener("mouseenter", () => focus.setHover({ kind: "project", projectId }));
+    element.addEventListener("mouseleave", () => focus.setHover(null));
   }
 
   registry.setMarker(overlay.id, marker);
@@ -96,18 +68,14 @@ export function createOverlayMarker(overlay: OverlayObject): void {
 // skip on degenerate bounds.
 function onMarkerClick(overlayId: string): void {
   const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.overlays[overlayId];
+  const overlayObject = overlayStore.liveOverlays[overlayId];
   if (!overlayObject) return;
 
   // Second click on the selected marker deselects.
-  if (overlayStore.idSelectedOverlay === overlayId) {
+  if (useFocusStore().selectedOverlayId === overlayId) {
     selectOverlay(null);
     return;
   }
-
-  // Default to viewing the approved position on first click.
-  overlayObject.isViewingApprovedPosition ??= true;
-  syncPreviewStateOnNavigation(overlayId, overlayObject.isViewingApprovedPosition);
 
   selectOverlay(overlayId);
 
@@ -115,21 +83,13 @@ function onMarkerClick(overlayId: string): void {
   if (bounds) mobileAwareFlyToBounds(bounds);
 }
 
-function buildBounds(corners: Corner[]): LngLatBounds {
-  const bounds = new LngLatBounds();
-  for (const c of corners) {
-    bounds.extend(new LngLat(c.lng, c.lat));
-  }
-  return bounds;
-}
-
 /**
  * Bounds for an overlay, for camera navigation. Returns null when the overlay has no valid
  * geometry so callers skip navigation instead of feeding NaN bounds to the camera.
  */
 export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
-  const corners = resolveOverlayMarkerCorners(overlay);
-  return corners ? buildBounds(corners) : null;
+  const corners = resolveOverlayCorners(overlay, "marker");
+  return corners ? buildLngLatBounds(corners) : null;
 }
 
 function getOverlayMarkerColor(
@@ -137,7 +97,7 @@ function getOverlayMarkerColor(
   mode: AppMode,
 ): MarkerColor {
   // Extract overlay-specific properties (not present on all overlay types)
-  const hasBeenModified = "isModified" in overlayData ? overlayData.isModified : false;
+  const hasBeenModified = isOverlayUnsaved(overlayData);
   const hasPendingChanges =
     "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
   const isViewingApprovedPosition =
@@ -200,7 +160,7 @@ function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerColor?: M
   }
 
   function getTooltipTextForOverlay(): string {
-    const hasBeenModified = overlayObject.isModified;
+    const hasBeenModified = isOverlayUnsaved(overlayObject);
     const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
     const isReplacement = overlayObject.replacesOverlayId !== null;
     const isApproved = overlayObject.status === "approved";
@@ -249,9 +209,9 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   const marker = registry.getMarker(overlayObject.id);
   if (!marker) return;
 
-  // Centroid from the live image corners so the pin tracks the overlay during edits.
-  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.corners;
-  if (corners.length === 4) {
+  // Centroid from the resolved marker position so the pin tracks the overlay during edits.
+  const corners = resolveOverlayCorners(overlayObject, "marker");
+  if (corners) {
     const centroid = calculateCentroidFromCorners(corners);
     if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);
   }
@@ -259,8 +219,8 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 
 /**
  * Set up a single watchEffect that keeps every overlay marker's color in sync with its
- * Pinia state (status, isModified, hasPendingChanges, isViewingApprovedPosition, project,
- * isTooBig, replacesOverlayId) and the current map mode. Replaces the imperative
+ * Pinia state (status, staged pending modifications, hasPendingChanges, isViewingApprovedPosition,
+ * project, isTooBig, replacesOverlayId) and the current map mode. Replaces the imperative
  * updateOverlayMarkersColors call sites; data mutations that go through overlayStore /
  * batchUpdateOverlays / updateOverlay trigger this automatically.
  *
@@ -279,10 +239,13 @@ export function initializeMarkerColorTriggers(): void {
 
   watchEffect(() => {
     const mode = mapStore.mode;
-    for (const overlayObject of Object.values(overlayStore.overlays)) {
+    for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
       const marker = registry.getMarker(overlayObject.id);
       if (!marker) continue;
-      updateMarkerTooltip(overlayObject, getOverlayMarkerColor(overlayObject, mode));
+      // Enrich to match createOverlayMarker: view-mode timeline color needs the resolved project,
+      // which the raw store object may lack when it's only findable via a store lookup.
+      const enriched = enrichOverlayWithProject(overlayObject);
+      updateMarkerTooltip(enriched, getOverlayMarkerColor(enriched, mode));
     }
   });
 }

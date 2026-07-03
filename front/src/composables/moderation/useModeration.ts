@@ -2,13 +2,13 @@ import { computed, onMounted } from "vue";
 import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useToast } from "@/composables/ui/useToast";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useModerationStore } from "@/stores/moderationStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
 import { t } from "@/locales";
-import type { ProjectForModeration } from "@/types/index";
+import type { Project } from "@/types/index";
 
 // Result type for approval operations
 type ApprovalResult = {
@@ -37,8 +37,8 @@ export function useModeration() {
       });
 
       // The moderation backend query omits the derived overlayIds array and the parsed geometry.
-      // Coerce here so the stored projects satisfy ProjectForModeration.
-      const moderationProjects: ProjectForModeration[] = response.projects.map((project) => ({
+      // Coerce here so the stored projects satisfy Project.
+      const moderationProjects: Project[] = response.projects.map((project) => ({
         ...project,
         overlayIds: project.overlays.map((overlay) => overlay.id),
         geometry: null,
@@ -158,7 +158,7 @@ export function useModeration() {
     );
 
     if (result.success) {
-      const overlayObject = overlayStore.overlays[id];
+      const overlayObject = overlayStore.liveOverlays[id];
 
       if (overlayObject) {
         // updateOverlay mutates the Pinia proxy, picked up by initializeMarkerColorTriggers.
@@ -169,7 +169,7 @@ export function useModeration() {
       if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
         removeOverlayFromMapAndStore(replacesOverlayId);
 
-        const competingReplacements = Object.values(overlayStore.overlays).filter(
+        const competingReplacements = Object.values(overlayStore.liveOverlays).filter(
           (o) => o.replacesOverlayId === replacesOverlayId && o.id !== id,
         );
 

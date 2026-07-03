@@ -480,10 +480,12 @@ function transformOverlayDataWithChangeRequests(
 
     const cornersChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "corners");
     const hasPendingCorners = Boolean(cornersChangeRequest);
+    /* oxlint-disable no-unsafe-type-assertion */
     const suggestedCorners =
       hasPendingCorners && cornersChangeRequest?.newValue
         ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
         : null;
+    /* oxlint-enable */
 
     const userHasPendingChanges =
       mode === "edit" && overlayChangeRequests.some((cr) => cr.requestedBy === userId);

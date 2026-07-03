@@ -11,7 +11,7 @@
 # This is the expensive reduction: ~30-40 min on a full planet (all cores), a few
 # minutes on a country extract. The result is geometry-complete but only as fresh
 # as the source snapshot. Advancing it to the current day and turning it into
-# GeoJSON is update_weekly.sh's job, so this script deliberately does no
+# GeoJSON is update_daily.sh's job, so this script deliberately does no
 # derivation or extraction.
 
 set -e
@@ -21,7 +21,13 @@ if [ ! -f "$SOURCE" ]; then
     echo "Error: source file not found: $SOURCE"
     exit 1
 fi
-OUTPUT="${SOURCE/.osm.pbf/_proposed.osm.pbf}"
+# Suffix-anchored: a name not ending in .osm.pbf would otherwise make
+# OUTPUT == SOURCE and osmium --overwrite would destroy the source.
+if [[ "$SOURCE" != *.osm.pbf ]]; then
+    echo "Error: source file must end in .osm.pbf: $SOURCE"
+    exit 1
+fi
+OUTPUT="${SOURCE%.osm.pbf}_proposed.osm.pbf"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)

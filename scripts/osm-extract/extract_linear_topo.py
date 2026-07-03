@@ -36,10 +36,6 @@ def _parse_args():
                         help='Output GeoJSON file path')
     return parser.parse_args()
 
-_args = _parse_args()
-WAYS_FILE = _args.ways_file
-SOURCE_FILE = _args.source_file
-OUTPUT_FILE = _args.output
 
 # Transport type mappings (single source of truth)
 TRANSPORT_TYPES = {
@@ -56,15 +52,15 @@ TRANSPORT_TYPES = {
     'gondola': ('gondola',),
     'cable_car': ('cable_car', 'chair_lift', 'mixed_lift', 'drag_lift', 
                   'j-bar', 't-bar', 'platter', 'rope_tow', 'zip_line'),
-    # Road family
+    # Road family ('highway' is the class-less umbrella value, e.g. proposed=highway)
     'road': ('motorway', 'trunk', 'primary', 'secondary', 'tertiary',
-             'residential', 'unclassified', 'service', 'living_street', 'road'),
+             'residential', 'unclassified', 'service', 'living_street', 'road', 'highway'),
     'bus': ('bus_guideway', 'busway'),
     # Active mobility
     'bike': ('cycleway', 'bicycle'),
     'pedestrian': ('pedestrian', 'footway', 'path', 'steps'),
-    # Water
-    'waterway': ('canal', 'river', 'stream'),
+    # Water ('waterway' is the class-less umbrella value, e.g. proposed=waterway)
+    'waterway': ('canal', 'river', 'stream', 'waterway'),
     # Air
     'airport': ('runway', 'taxiway', 'airstrip'),
 }
@@ -171,6 +167,8 @@ def compute_bearing(coords):
     if abs(dx) < 1e-9 and abs(dy) < 1e-9:
         dx = coords[1][0] - coords[0][0]
         dy = coords[1][1] - coords[0][1]
+    # Longitude degrees shrink with latitude; scale dx so the bearing is geometric.
+    dx *= abs(math.cos(math.radians((coords[0][1] + coords[-1][1]) / 2)))
     return math.degrees(math.atan2(dx, dy)) % 180
 
 
@@ -297,6 +295,19 @@ def get_project_status(tags):
     if any(tags.get(k) for k in ('planned:railway', 'planned:highway', 'planned:waterway', 'planned:aerialway', 'planned:aeroway')):
         return 'planned'
     return 'proposed'
+
+
+def aggregate_project_status(statuses):
+    """Majority vote across way statuses; ties prefer the less certain status
+    (proposed > planned > under_construction)."""
+    counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
+    for s in statuses:
+        counts[s] += 1
+    if counts['proposed'] >= counts['under_construction'] and counts['proposed'] >= counts['planned']:
+        return 'proposed'
+    if counts['planned'] >= counts['under_construction']:
+        return 'planned'
+    return 'under_construction'
 
 
 _LIFECYCLE_STATUSES = ('proposed', 'construction', 'planned')
@@ -636,15 +647,8 @@ class ComponentSet:
     def project_status(self, rep_id):
         key = (rep_id, 'status')
         if key not in self._cache:
-            statuses = [get_project_status(self.ways[wid]['tags']) for wid in self.components[rep_id]]
-            construction_count = statuses.count('under_construction')
-            planned_count = statuses.count('planned')
-            if construction_count > 0:
-                self._cache[key] = 'under_construction'
-            elif planned_count > len(statuses) - planned_count:
-                self._cache[key] = 'planned'
-            else:
-                self._cache[key] = 'proposed'
+            self._cache[key] = aggregate_project_status(
+                get_project_status(self.ways[wid]['tags']) for wid in self.components[rep_id])
         return self._cache[key]
 
     def geometry(self, rep_id):
@@ -896,10 +900,11 @@ def merge_by_name_proximity(cs, max_distance_m=100):
 def cluster_anonymous(cs, max_distance_km=0.2):
     """Merge anonymous components of the same broad type that are physically close.
     Useful for fragmented interchanges or station tracks."""
+    before = len(cs.components)
     anonymous = [rid for rid in cs.components if cs.is_anonymous(rid)]
 
     if len(anonymous) < 2:
-        return 0
+        return before, len(cs.components)
 
     pad_lat = max_distance_km / 111
 
@@ -930,7 +935,7 @@ def cluster_anonymous(cs, max_distance_km=0.2):
                     
     groups = uf.groups()
     merge_count = sum(1 for g in groups.values() if len(g) > 1)
-    
+
     if merge_count > 0:
         new_comps = dict(cs.components)
         for root, group_ids in groups.items():
@@ -940,17 +945,18 @@ def cluster_anonymous(cs, max_distance_km=0.2):
                     all_ways.extend(new_comps.pop(gid, []))
                 new_comps[root] = all_ways
         cs.set_components(new_comps)
-        
-    return merge_count
+
+    return before, len(cs.components)
 
 
 def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
     """Merge anonymous parallel rail tracks (last resort)."""
+    before = len(cs.components)
     anon_rail = [rid for rid in cs.components
                  if cs.is_anonymous(rid) and cs.broad_type(rid) == 'rail']
 
     if len(anon_rail) < 2:
-        return 0
+        return before, len(cs.components)
 
     max_dist_deg = meters_to_degrees(max_distance_m)
     uf = UnionFind(anon_rail)
@@ -982,8 +988,7 @@ def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
                 continue
     groups = uf.groups()
     merge_count = sum(1 for g in groups.values() if len(g) > 1)
-    components_merged = sum(len(g) for g in groups.values() if len(g) > 1)
-    
+
     if merge_count > 0:
         new_comps = dict(cs.components)
         for root, group_ids in groups.items():
@@ -993,12 +998,8 @@ def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
                     all_ways.extend(new_comps.pop(gid, []))
                 new_comps[root] = all_ways
         cs.set_components(new_comps)
-        
-        print(f"\n[{_ts()}] Parallel track merging (anonymous rail, <{max_distance_m}m, <{max_bearing_diff}° bearing diff):")
-        print(f"  Merged {components_merged} components into {merge_count} groups")
-        print(f"  Net reduction: {components_merged - merge_count} features")
-    
-    return components_merged - merge_count
+
+    return before, len(cs.components)
 
 
 # ---------------------------------------------------------------------------
@@ -1067,11 +1068,7 @@ def make_relation_feature(rel_id, rel, ways):
                 props[k] = wtags[k]
     
     # Determine transport type early so we know what rail-specific tags to pull
-    temp_props = dict(props)
-    for k in ('construction', 'proposed', 'planned'):
-        if k in rel['tags'] and k not in temp_props:
-            temp_props[k] = rel['tags'][k]
-    transport = get_transport_type(temp_props)
+    transport = get_transport_type(props)
     
     # Only copy rail-specific tags if this is actually a rail project
     if broad_group(transport) == 'rail':
@@ -1090,33 +1087,14 @@ def make_relation_feature(rel_id, rel, ways):
     for k, v in rel['tags'].items():
         if k.startswith('name:'):
             props[k] = v
-    # Lifecycle tags from the relation fill gaps only (way tags are authoritative)
-    for k in ('construction', 'proposed', 'planned'):
-        if k in rel['tags'] and k not in props:
-            props[k] = rel['tags'][k]
-    
+
     props['relation_id'] = str(rel_id)
     props['osm_ids'] = [f'way/{wid}' for wid in member_ids]
     props['osm_ids_count'] = len(member_ids)
     props['member_way_count'] = len(member_geoms)
-    
-    # Determine project status by majority vote across member ways
-    # Preference order: proposed > planned > under_construction (more conservative)
-    status_counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
-    for t in member_tags:
-        status = get_project_status(t)
-        status_counts[status] = status_counts.get(status, 0) + 1
-    
-    # Use the most common status; prefer less certain statuses on ties
-    if status_counts['proposed'] >= status_counts['under_construction'] and \
-       status_counts['proposed'] >= status_counts['planned']:
-        props['project_status'] = 'proposed'
-    elif status_counts['planned'] >= status_counts['under_construction']:
-        props['project_status'] = 'planned'
-    else:
-        props['project_status'] = 'under_construction'
-    
-    props['transport_type'] = get_transport_type(props)
+
+    props['project_status'] = aggregate_project_status(get_project_status(t) for t in member_tags)
+    props['transport_type'] = transport
     props['display_name'] = create_display_name(props)
     
     ts = get_latest_timestamp(member_ids, ways)
@@ -1143,10 +1121,10 @@ def make_orphan_features(orphan_ways):
     print(f"  [{_ts()}] merge_by_ref:         {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = absorb_anonymous(cs)
     print(f"  [{_ts()}] absorb_anonymous:     {b:,} → {a:,} components ({b - a:,} absorbed)")
-    n = merge_parallel_tracks(cs)
-    print(f"  [{_ts()}] merge_parallel_tracks: {n:,} groups merged")
-    n = cluster_anonymous(cs, max_distance_km=0.2)
-    print(f"  [{_ts()}] cluster_anonymous:    {n:,} groups merged")
+    b, a = merge_parallel_tracks(cs)
+    print(f"  [{_ts()}] merge_parallel_tracks: {b:,} → {a:,} components ({b - a:,} merged)")
+    b, a = cluster_anonymous(cs, max_distance_km=0.2)
+    print(f"  [{_ts()}] cluster_anonymous:    {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = merge_by_name_proximity(cs, max_distance_m=100)
     print(f"  [{_ts()}] merge_by_name_prox:   {b:,} → {a:,} components ({b - a:,} merged)")
 
@@ -1178,22 +1156,8 @@ def make_orphan_features(orphan_ways):
         props['osm_ids'] = [f'way/{wid}' for wid in way_ids]
         props['osm_ids_count'] = len(way_ids)
         props['osm_way_id'] = pick_representative_way(way_ids, orphan_ways)
-        
-        # Determine status using majority vote
-        status_counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
-        for w in ways_data:
-            status = get_project_status(w['tags'])
-            status_counts[status] = status_counts.get(status, 0) + 1
-        
-        # Use the most common status (prefer less certain: proposed > planned > under_construction)
-        if status_counts['proposed'] >= status_counts['under_construction'] and \
-           status_counts['proposed'] >= status_counts['planned']:
-            props['project_status'] = 'proposed'
-        elif status_counts['planned'] >= status_counts['under_construction']:
-            props['project_status'] = 'planned'
-        else:
-            props['project_status'] = 'under_construction'
-        
+
+        props['project_status'] = cs.project_status(rep_id)
         props['transport_type'] = transport
         props['display_name'] = create_display_name(props, tags_list=tags_list)
         
@@ -1331,12 +1295,9 @@ def _relation_broad_type(member_way_ids, ways):
 
 
 def _relation_status(member_way_ids, ways):
-    """Majority project status across a relation's member ways."""
-    counts = defaultdict(int)
-    for wid in member_way_ids:
-        if wid in ways:
-            counts[get_project_status(ways[wid]['tags'])] += 1
-    return max(counts.items(), key=lambda kv: kv[1])[0] if counts else 'proposed'
+    """Aggregated project status across a relation's member ways."""
+    return aggregate_project_status(
+        get_project_status(ways[wid]['tags']) for wid in member_way_ids if wid in ways)
 
 
 def merge_coincident_relations(relations, ways, buffer_m=25,
@@ -1482,6 +1443,10 @@ def _ts():
 
 
 def main():
+    args = _parse_args()
+    WAYS_FILE = args.ways_file
+    SOURCE_FILE = args.source_file
+    OUTPUT_FILE = args.output
     t_total = time.time()
 
     print(f"[linear] [{_ts()}] Pass 1: Reading way geometries from {WAYS_FILE}...")

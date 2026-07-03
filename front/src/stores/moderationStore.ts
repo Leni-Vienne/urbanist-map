@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { ProjectForModeration, PendingChangeRequest } from "@/types/index";
+import type { Project, PendingChangeRequest } from "@/types/index";
 import type { RouterOutput } from "@/client";
 
 type PendingOverlay = RouterOutput["moderation"]["getPendingSubmissions"]["overlays"][0];
@@ -8,7 +8,7 @@ type CountryItem = RouterOutput["country"]["getAllCountries"][0];
 
 export const useModerationStore = defineStore("moderation", () => {
   const overlays = ref<PendingOverlay[]>([]);
-  const projects = ref<ProjectForModeration[]>([]);
+  const projects = ref<Project[]>([]);
   const changeRequests = ref<PendingChangeRequest[]>([]);
 
   const moderationLoaded = ref(false);
@@ -21,7 +21,7 @@ export const useModerationStore = defineStore("moderation", () => {
 
   function setModerationData(data: {
     overlays: PendingOverlay[];
-    projects: ProjectForModeration[];
+    projects: Project[];
     changeRequests: PendingChangeRequest[];
   }) {
     overlays.value = data.overlays;
@@ -40,11 +40,12 @@ export const useModerationStore = defineStore("moderation", () => {
 
   // A project belongs in the moderation list only while it still has something pending:
   // the project itself, one of its overlays, or a change request on either.
-  function hasPendingModerationContent(project: ProjectForModeration): boolean {
+  function hasPendingModerationContent(project: Project): boolean {
     if (project.status === "pending") return true;
-    if (project.overlays.some((overlay) => overlay.status === "pending")) return true;
+    const projectOverlays = project.overlays ?? [];
+    if (projectOverlays.some((overlay) => overlay.status === "pending")) return true;
 
-    const overlayIds = new Set(project.overlays.map((overlay) => overlay.id));
+    const overlayIds = new Set(projectOverlays.map((overlay) => overlay.id));
     return changeRequests.value.some(
       (cr) =>
         (cr.entityType === "project" && cr.entityId === project.id) ||

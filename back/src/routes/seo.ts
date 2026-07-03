@@ -77,6 +77,7 @@ async function resolvePrimaryImageUrl(
 
   // External OSM image tag, already sanitized to http/https at import time.
   if (externalProperties && typeof externalProperties === "object") {
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const image = (externalProperties as Record<string, unknown>).image;
     if (typeof image === "string" && /^https?:\/\//.test(image)) return image;
   }

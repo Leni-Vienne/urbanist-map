@@ -28,6 +28,7 @@ const t = initTRPC.context<Context>().create({
 
     // Handle Zod validation errors with custom messages
     if (error.code === "BAD_REQUEST" && error.cause?.name === "ZodError") {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       const zodError = error.cause as any;
       const firstError = zodError.issues?.[0];
       if (firstError?.message) {

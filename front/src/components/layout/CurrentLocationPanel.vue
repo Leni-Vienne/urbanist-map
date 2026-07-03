@@ -55,7 +55,6 @@
             <button
               v-for="project in projects"
               :key="project.id"
-              :data-project-id="project.id"
               v-memo="[
                 project.id,
                 project.timelineStatus,
@@ -114,11 +113,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
-import { useActiveDetail } from "@/composables/project/useActiveDetail";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { useFocusStore } from "@/stores/focusStore";
+import { PROJECT_TAG_MAP } from "@/constants/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import LinePreview from "@/components/common/LinePreview.vue";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
@@ -132,7 +131,8 @@ const contentRef = ref<HTMLElement | null>(null);
 const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
 
 // The project whose detail is open, used to link the open detail to its row in the list.
-const { projectId: selectedProjectId } = useActiveDetail();
+const focusStore = useFocusStore();
+const selectedProjectId = computed(() => focusStore.selectedProjectId);
 
 /** Returns translated names of all tags after the first, joined by newlines. */
 function extraTagsTooltip(tags: string[]): string {

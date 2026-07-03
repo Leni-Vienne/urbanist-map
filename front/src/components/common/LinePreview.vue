@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { STATUS_PREVIEW_DASHARRAY } from "@/services/map/shapeStyleConstants";
+import { STATUS_PREVIEW_DASHARRAY } from "@/services/map/shapes/styleConstants";
 
 defineProps<{
   // A TimelineStatus value; unknown statuses render solid.

@@ -149,7 +149,7 @@
       v-tooltip.top="$t('overlay.viewFullImage')"
       @click.stop="
         lightbox?.open({
-          url: wikidataEntityData.imageUrl,
+          url: wikidataEntityData?.imageUrl,
           header: project?.name || $t('project.unnamed'),
           referrerpolicy: 'no-referrer',
         })
@@ -166,7 +166,7 @@ import type { Project } from "@/types/index";
 import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { PROJECT_TAG_MAP } from "@/constants/projectTags";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import { mapLabelLanguageRef, pickBoundaryName } from "@/services/map/mapLabelLanguage";

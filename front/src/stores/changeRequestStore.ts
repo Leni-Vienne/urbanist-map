@@ -26,6 +26,12 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     loaded.value = false;
   }
 
+  // Clear user-specific state on logout or account switch.
+  function clearAllState() {
+    pendingChangeRequests.value = [];
+    loaded.value = false;
+  }
+
   return {
     pendingChangeRequests,
     loaded,
@@ -33,6 +39,7 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     removeChangeRequest,
     removeChangeRequests,
     resetLoaded,
+    clearAllState,
   };
 });
 

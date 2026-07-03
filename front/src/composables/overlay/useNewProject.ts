@@ -1,13 +1,13 @@
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useMapStore } from "@/stores/mapStore";
 
 // Composable for handling new project button click logic (opens marker placement bar)
 export function useNewProject() {
   const authStore = useAuthStore();
   const uiStore = useUiStore();
-  const overlayStore = useOverlayStore();
+  const focusStore = useFocusStore();
   const mapStore = useMapStore();
 
   function handleNewProjectClick(): boolean {
@@ -16,9 +16,8 @@ export function useNewProject() {
       return false;
     }
 
-    // Close any open popups and clear selections for clean slate
-    overlayStore.closeOverlayDetail();
-    uiStore.closeProjectDetail();
+    // Close any open detail and clear selection for a clean slate
+    focusStore.clearSelection();
 
     // Always switch to edit mode when contributing (no-op if already in edit mode)
     mapStore.setMode("edit");

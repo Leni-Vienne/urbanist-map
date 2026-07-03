@@ -262,8 +262,9 @@ import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
 import { trpc, type RouterOutput } from "@/client";
+import type { DataTableExpandedRows } from "primevue/datatable";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
-import { PROJECT_TAG_MAP } from "@/config/projectTags";
+import { PROJECT_TAG_MAP } from "@/constants/projectTags";
 
 type DetachedProject = RouterOutput["moderation"]["getDetachedProjects"][number];
 type Candidate = DetachedProject["candidates"][number];
@@ -273,7 +274,7 @@ const toast = useToast();
 
 const detachedProjects = ref<DetachedProject[]>([]);
 const isLoading = ref(true);
-const expandedRows = ref<Record<string, boolean>>({});
+const expandedRows = ref<DataTableExpandedRows | DetachedProject[]>({});
 const busyProjectId = ref<string | null>(null);
 
 const showRelinkDialog = ref(false);

@@ -1,7 +1,7 @@
 import { computed } from "vue";
 import { useUiStore } from "@/stores/uiStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useActiveDetail } from "@/composables/project/useActiveDetail";
+import { useMapStore } from "@/stores/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
 import type { PanelTab } from "@/types";
 
 /**
@@ -20,9 +20,9 @@ import type { PanelTab } from "@/types";
 export function useDetailPanel() {
   const uiStore = useUiStore();
   const mapStore = useMapStore();
-  const activeDetail = useActiveDetail();
+  const focusStore = useFocusStore();
 
-  const detailVisible = computed(() => mapStore.mode === "view" && activeDetail.visible.value);
+  const detailVisible = computed(() => mapStore.mode === "view" && focusStore.detailVisible);
 
   const activeTab = computed<PanelTab>({
     get: () => uiStore.activeTab,

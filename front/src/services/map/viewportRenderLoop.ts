@@ -1,22 +1,22 @@
 import { LngLatBounds } from "maplibre-gl";
 import { watch } from "vue";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import { map } from "@/services/core/map";
-import { isOverlayVisible } from "@/services/overlay/visibility";
+import { matchesMapFilters, shouldDisplayOverlay } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
-import { filterByStatus } from "@/services/overlay/statusFilters";
 import { visibleStates, selectedProjectTags } from "@/services/map/filters";
 import { createOverlayMarker, initializeMarkerColorTriggers } from "@/services/overlay/markers";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import { isValidQuad } from "@/services/overlay/transform";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import {
   renderAllProjectShapes,
   initializeShapeRenderTriggers,
-} from "@/services/map/projectShapeRenderLoop";
+} from "@/services/map/shapes/renderLoop";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 interface ViewportBounds {
@@ -124,15 +124,17 @@ function queueFilteredOutForDestruction(
 function pruneBackendOverlays(bounds: ViewportBounds) {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
-  const filteredOverlays = filterByStatus(overlayStore.viewModeOverlays, mapStore.mode);
+  const filteredOverlays = overlayStore.viewModeOverlays.filter((o) =>
+    matchesMapFilters(o, mapStore.mode),
+  );
   const overlaysToRender: OverlayData[] = [];
 
   for (const data of filteredOverlays) {
-    if (data.corners.length !== 4) continue;
+    if (!isValidQuad(data.baselineCorners)) continue;
 
     // Prefer live corners so in-progress edits show up in the viewport test.
     const liveCorners = getOverlayImageCorners(data.id);
-    const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.corners;
+    const effectiveCorners = liveCorners ?? data.baselineCorners;
 
     const isInViewport = cornersIntersectBounds(effectiveCorners, bounds);
     const hasImage = registry.getImageHandle(data.id) !== null;
@@ -148,7 +150,7 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
         // renderViewModeOverlays(..., true) creates the image source and the status marker.
         overlaysToRender.push(data);
       } else if (!hasMarker) {
-        const overlayObject = overlayStore.overlays[data.id];
+        const overlayObject = overlayStore.liveOverlays[data.id];
         if (overlayObject) createOverlayMarker(overlayObject);
       }
     } else if (hasImage || hasMarker) {
@@ -167,7 +169,7 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
 
 /**
  * Pipeline 2: Local/unsaved overlays only (status === null).
- * Source: overlayStore.overlays filtered to status === null.
+ * Source: overlayStore.liveOverlays filtered to status === null.
  * Structural gate: if status !== null, skip immediately.
  * These overlays are only visible in edit mode.
  */
@@ -177,19 +179,16 @@ function pruneLocalOverlays() {
   const mapStore = useMapStore();
   const editOverlaysToRecreate: OverlayObject[] = [];
 
-  for (const [id, overlay] of Object.entries(overlayStore.overlays)) {
+  for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
     // STRUCTURAL GATE, this pipeline owns local overlays exclusively.
     // Backend overlays (status !== null) are handled by pruneBackendOverlays.
     if (overlay.status !== null) continue;
 
-    if (overlay.corners.length !== 4) continue;
-
-    const isAllowedByMode = isOverlayVisible(overlay, mapStore.mode, authStore.user?.id);
-    const passesCompletionFilter = filterByStatus([overlay], mapStore.mode).length > 0;
+    if (!isValidQuad(overlay.baselineCorners)) continue;
 
     // Local overlays are actively being created by the user, no viewport bounds check.
     // Only explicit deletion or a mode switch should remove a local overlay.
-    const shouldDisplay = isAllowedByMode && passesCompletionFilter;
+    const shouldDisplay = shouldDisplayOverlay(overlay, mapStore.mode, authStore.user?.id);
 
     const hasImage = registry.getImageHandle(id) !== null;
     const hasMarker = registry.getMarker(id) !== null;

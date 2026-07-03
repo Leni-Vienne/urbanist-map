@@ -1,7 +1,7 @@
 import { refreshPendingChangeRequests } from "@/composables/changes/useChanges";
-import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 
 // Single boundary for the heavy shape-editing chunk (Terra Draw). The dynamic
 // imports live here so every caller shares one split, same pattern as overlayRendering.

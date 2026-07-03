@@ -46,6 +46,7 @@ export async function exchangeOsmCodeForUser(
       return null;
     }
 
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const tokenData = (await tokenRes.json()) as { access_token?: string };
     if (!tokenData.access_token) {
       return null;
@@ -60,6 +61,7 @@ export async function exchangeOsmCodeForUser(
       return null;
     }
 
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const userData = (await userRes.json()) as { sub?: string; preferred_username?: string };
     if (!userData.sub) {
       return null;

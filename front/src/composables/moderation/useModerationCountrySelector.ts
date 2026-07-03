@@ -3,8 +3,8 @@ import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import { loadOrNull } from "@/services/core/errorHandling";
 
 interface Options {

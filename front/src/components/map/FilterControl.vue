@@ -22,10 +22,11 @@
     />
   </div>
 
-  <Popover ref="filterPanel" @dblclick.stop appendTo="body" pt:root:class="filter-control-popover">
+  <Popover ref="filterPanel" appendTo="body" :pt="{ root: { class: 'filter-control-popover' } }">
     <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
     <div
       class="min-w-55 max-w-75 overflow-y-auto overflow-x-hidden pr-1"
+      @dblclick.stop
       style="max-height: min(600px, 70svh)"
     >
       <FilterPanelContent @filter-overlays="emit('filter-overlays')" />

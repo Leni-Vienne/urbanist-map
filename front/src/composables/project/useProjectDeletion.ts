@@ -1,10 +1,10 @@
 import { t } from "@/locales";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/focusStore";
 
 export function useProjectDeletion() {
   const { deleteOverlay, deleteProject } = useUserContributions();
-  const uiStore = useUiStore();
+  const focusStore = useFocusStore();
 
   /**
    * Delete an overlay with confirmation.
@@ -48,8 +48,8 @@ export function useProjectDeletion() {
     const success = await deleteProject(projectId);
     if (!success) return false;
 
-    if (uiStore.projectDetail.visible && uiStore.projectDetail.projectId === projectId) {
-      uiStore.closeProjectDetail();
+    if (focusStore.selectedProjectId === projectId) {
+      focusStore.clearSelection();
     }
 
     onSuccess?.();

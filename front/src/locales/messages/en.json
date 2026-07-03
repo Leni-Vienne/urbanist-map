@@ -198,7 +198,7 @@
     "sortStatus": "Sort by timeline status"
   },
   "overlay": {
-    "overlayInformation": "Image Information",
+    "overlayName": "Image Name",
     "notSet": "Not set",
     "changedFrom": "Changed from",
     "untitled": "Untitled image",
@@ -214,6 +214,7 @@
     "publishErrorNoFilename": "Could not determine the image filename",
     "publishErrorNoProject": "This image must be assigned to a project before publishing",
     "publishErrorNoProjectId": "A project is required to publish this image",
+    "publishErrorNoCorners": "This image has no position on the map yet",
     "invalidCoordinates": "Invalid Coordinates",
     "couldNotParseCoordinates": "Could not parse geometry coordinates",
     "previewFailed": "Preview Failed",
@@ -265,7 +266,10 @@
       "unnamed": "Unnamed",
       "filterByLastModified": "Filter by Last Modified",
       "lastModifiedFrom": "From",
-      "lastModifiedTo": "To"
+      "lastModifiedTo": "To",
+      "today": "today",
+      "yesterday": "yesterday",
+      "daysAgo": "{n} days ago"
     },
     "buildings3D": {
       "label": "3D buildings"
@@ -494,6 +498,7 @@
     "nextOverlay": "Go to next image",
     "undo": "Undo (ctrl + z)",
     "redo": "Redo (ctrl + y)",
+    "editInfo": "Edit image",
     "delete": "Delete this image",
     "replace": "Replace this image",
     "crop": "Crop the image",

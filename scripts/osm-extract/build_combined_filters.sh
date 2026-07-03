@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prints the combined osmium tags-filter rules to stdout (used by
-# filter_combined.sh step 1 and the update_weekly.sh refilter).
+# filter_combined.sh step 1 and the update_daily.sh refilter).
 #
 # areal lines for construction/proposed/planned keys are demoted from wr/ to
 # r/ because their way side is already covered by w/construction*,

@@ -1,14 +1,9 @@
 import { watch } from "vue";
 import { trpc } from "@/client";
 import { useUiStore } from "@/stores/uiStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { unhighlightProjectShapes } from "@/services/map/shapeLayerRegistry";
-import { selectOverlay } from "@/services/overlay/selection";
-import { setExternalHover } from "@/services/map/vectorHoverState";
-import { useActiveDetail } from "@/composables/project/useActiveDetail";
-import { useSelectedProjectId } from "@/composables/project/useSelectedProjectId";
+import { useProjectStore } from "@/stores/projectStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapes/registry";
 
 let isWatcherInitialized = false;
 
@@ -33,32 +28,35 @@ function writeProjectPath(slug: string | null): void {
 // reacting only to changes avoids wiping the slug back to "/" before it loads.
 function initializeProjectUrlSync() {
   const projectStore = useProjectStore();
-  const { projectId: activeProjectId } = useActiveDetail();
+  const focus = useFocusStore();
 
-  watch(activeProjectId, async (projectId) => {
-    if (!projectId) {
-      writeProjectPath(null);
-      return;
-    }
+  watch(
+    () => focus.selectedProjectId,
+    async (projectId) => {
+      if (!projectId) {
+        writeProjectPath(null);
+        return;
+      }
 
-    const knownSlug = projectStore.projects[projectId]?.slug ?? slugCache.get(projectId);
-    if (knownSlug) {
-      slugCache.set(projectId, knownSlug);
-      writeProjectPath(knownSlug);
-      return;
-    }
+      const knownSlug = projectStore.projects[projectId]?.slug ?? slugCache.get(projectId);
+      if (knownSlug) {
+        slugCache.set(projectId, knownSlug);
+        writeProjectPath(knownSlug);
+        return;
+      }
 
-    // Slug wasn't loaded with the project (e.g. it came from the viewport payload). Resolve it once.
-    try {
-      const fresh = await trpc.project.getById.query({ id: projectId });
-      if (!fresh?.slug) return;
-      slugCache.set(projectId, fresh.slug);
-      // A fast re-selection may have moved on while awaiting; only write if still the active project.
-      if (activeProjectId.value === projectId) writeProjectPath(fresh.slug);
-    } catch (error) {
-      console.error("Failed to resolve project slug for URL sync:", error);
-    }
-  });
+      // Slug wasn't loaded with the project (e.g. it came from the viewport payload). Resolve it once.
+      try {
+        const fresh = await trpc.project.getById.query({ id: projectId });
+        if (!fresh?.slug) return;
+        slugCache.set(projectId, fresh.slug);
+        // A fast re-selection may have moved on while awaiting; only write if still the active project.
+        if (focus.selectedProjectId === projectId) writeProjectPath(fresh.slug);
+      } catch (error) {
+        console.error("Failed to resolve project slug for URL sync:", error);
+      }
+    },
+  );
 }
 
 // The selected project (project or overlay selection) is shown in the docked panel's "Selected
@@ -67,22 +65,39 @@ function initializeProjectUrlSync() {
 // leaving manually-expanded panels untouched.
 function initializeSelectedPanelCleanup() {
   const uiStore = useUiStore();
-  const { selectedProjectId } = useSelectedProjectId();
+  const focus = useFocusStore();
 
-  watch(selectedProjectId, (projectId) => {
-    if (!projectId) return;
-    if (uiStore.activeAccordionPanels.includes(projectId)) {
-      uiStore.activeAccordionPanels = uiStore.activeAccordionPanels.filter(
-        (id) => id !== projectId,
-      );
-    }
-  });
+  watch(
+    () => focus.selectedProjectId,
+    (projectId) => {
+      if (!projectId) return;
+      if (uiStore.activeAccordionPanels.includes(projectId)) {
+        uiStore.activeAccordionPanels = uiStore.activeAccordionPanels.filter(
+          (id) => id !== projectId,
+        );
+      }
+    },
+  );
+}
+
+// Drive the GeoJSON project-shape outline (edit/moderation layers) off the focused project: light
+// the newly focused project's shapes and revert the previously focused one. The vector tile
+// "selected" feature-state is handled separately in projectVectorLayers.
+function initializeShapeHighlightWatcher() {
+  const focus = useFocusStore();
+
+  watch(
+    () => focus.highlightedProjectId,
+    (newProjectId, oldProjectId) => {
+      if (oldProjectId && oldProjectId !== newProjectId) unhighlightProjectShapes(oldProjectId);
+      if (newProjectId) highlightProjectShapes(newProjectId);
+    },
+  );
 }
 
 /**
- * Drives all detail-state-driven side effects (marker opacity, vector hover highlight,
- * accordion scroll, overlay detail hide, deselect) so click handlers only need to toggle
- * the detail state. Call once at app boot after Pinia is installed.
+ * Drives all focus-driven side effects (URL slug sync, accordion cleanup, GeoJSON shape highlight)
+ * so click handlers only need to write the focus store. Call once at app boot after Pinia is installed.
  */
 export function initializeDetailWatcher() {
   if (isWatcherInitialized) return;
@@ -90,34 +105,5 @@ export function initializeDetailWatcher() {
 
   initializeProjectUrlSync();
   initializeSelectedPanelCleanup();
-
-  watch(
-    () => {
-      const uiStore = useUiStore();
-      return uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null;
-    },
-    (newProjectId, oldProjectId) => {
-      if (newProjectId === oldProjectId) return;
-
-      const overlayStore = useOverlayStore();
-      const mapStore = useMapStore();
-
-      if (oldProjectId && oldProjectId !== newProjectId) {
-        unhighlightProjectShapes(oldProjectId);
-      }
-
-      if (!newProjectId) {
-        setExternalHover(null);
-        return;
-      }
-
-      // Pin the vector tile highlight in view mode (overlay-only projects only render via tiles).
-      if (mapStore.mode === "view") {
-        setExternalHover(newProjectId);
-      }
-
-      if (overlayStore.overlayDetailVisible) overlayStore.closeOverlayDetail();
-      if (overlayStore.idSelectedOverlay) selectOverlay(null);
-    },
-  );
+  initializeShapeHighlightWatcher();
 }

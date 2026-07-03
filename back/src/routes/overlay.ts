@@ -1,6 +1,6 @@
 import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
 import * as z from "zod";
-import { overlays, projects, users, type ApprovalStatus } from "../db/schema";
+import { overlays, projects, users } from "../db/schema";
 import { sql, eq, and, or, inArray } from "drizzle-orm";
 import { db, type Database } from "../database";
 import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } from "../db/helpers";
@@ -92,12 +92,7 @@ export const overlayRouter = router({
       const mode: AppMode = ctx.user ? "edit" : "view";
       const whereConditions = [
         eq(overlays.id, input.id),
-        buildOverlayVisibilityCondition(
-          ctx.user,
-          mode,
-          undefined,
-          input.includeStatus as ApprovalStatus[] | undefined,
-        ),
+        buildOverlayVisibilityCondition(ctx.user, mode, undefined, input.includeStatus),
       ];
 
       // Fetch the requested overlay

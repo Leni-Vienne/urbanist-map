@@ -7,29 +7,28 @@
 //
 // `revertOverlayFieldModification` is a command built on top of it: it restores a staged field
 // edit (corners or caption) to its captured baseline in the stores, then syncs the map to match.
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getImageHandle, setOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { refreshEditHandles } from "@/services/overlay/editing";
 import { updateMarkerPosition } from "@/services/overlay/markers";
-import type { ModifiableField, OverlayObject } from "@/types/index";
+import { isValidQuad } from "@/services/overlay/transform";
+import type { LatLng, ModifiableField, OverlayObject } from "@/types/index";
 
 interface ApplyOverlayCornersOptions {
   // Collapse undo/redo history to these corners, so re-entering edit mode starts from here.
   resetHistory?: boolean;
   // Re-sync the drag surface, corner markers and outline; skip when not in an editing context.
   refreshHandles?: boolean;
-  // Recolor/relabel the marker tooltip after the position change.
-  refreshTooltip?: boolean;
 }
 
 export function applyOverlayCorners(
   overlayObject: OverlayObject,
-  corners: { lat: number; lng: number }[],
+  corners: LatLng[] | null,
   options: ApplyOverlayCornersOptions = {},
 ): void {
   const overlayId = overlayObject.id;
-  const hasFullCorners = corners.length === 4;
+  const hasFullCorners = isValidQuad(corners);
 
   if (options.resetHistory && hasFullCorners) {
     useOverlayStore().resetHistoryBaseline(overlayId, corners);
@@ -41,7 +40,7 @@ export function applyOverlayCorners(
     if (options.refreshHandles) refreshEditHandles();
   }
 
-  // Reads the live image corners (just set) and falls back to overlayObject.corners otherwise.
+  // Reads the live image corners (just set) and falls back to overlayObject.baselineCorners otherwise.
   updateMarkerPosition(overlayObject);
 }
 
@@ -53,7 +52,7 @@ function resetOverlayField(
   capturedOriginalCorners: { lat: number; lng: number }[] | null | undefined,
 ): void {
   if (field === "corners") {
-    const cornersToUse = capturedOriginalCorners ?? overlayObject.corners;
+    const cornersToUse = capturedOriginalCorners ?? overlayObject.baselineCorners;
     applyOverlayCorners(overlayObject, cornersToUse, { resetHistory: true, refreshHandles: true });
   } else if (capturedOriginalCaption !== undefined) {
     useOverlayStore().updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });
@@ -69,7 +68,6 @@ export function revertOverlayFieldModification(
   overlayObject: OverlayObject,
 ): boolean {
   const pendingModsStore = usePendingModificationsStore();
-  const overlayStore = useOverlayStore();
 
   const pendingMod = pendingModsStore.getPendingModifications(overlayId);
   const capturedOriginalCaption = pendingMod?.caption?.original;
@@ -84,10 +82,6 @@ export function revertOverlayFieldModification(
     capturedOriginalCaption,
     capturedOriginalCorners,
   );
-
-  if (!hasRemainingMods) {
-    overlayStore.updateOverlay(overlayId, { isModified: false });
-  }
 
   return hasRemainingMods;
 }

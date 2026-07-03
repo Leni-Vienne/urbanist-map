@@ -1,5 +1,6 @@
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import {
@@ -9,30 +10,11 @@ import {
   whenImageReady,
   raiseOverlayImage,
 } from "@/services/overlay/mapLayers";
-import { useUiStore } from "@/stores/uiStore";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayObject, LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
-import { resolveOverlayRenderCorners } from "@/services/overlay/data";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
-
-type Corner = { lat: number; lng: number };
-
-// Guard to prevent recursive selectOverlay calls when library fires select event
-let isSelectingOverlay = false;
-
-function cleanupPreviousSelection(
-  previouslySelected: OverlayObject,
-  previouslySelectedId: string,
-  newOverlayId: string | null,
-): void {
-  if (previouslySelectedId === newOverlayId) return;
-
-  // Remove project outlines (sister highlights) when deselecting
-  if (previouslySelected.projectId) {
-    removeProjectOutlines(previouslySelected.projectId, true);
-  }
-}
+import { resolveOverlayCorners } from "@/services/overlay/data";
+import { isOverlayUnsaved } from "@/utils/unsavedState";
 
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
   // Set position state for dynamic button feedback when selecting overlay
@@ -46,78 +28,45 @@ function setupNewSelection(newlySelected: OverlayObject, overlayId: string): voi
 
   // Sync preview state for reactive button highlighting in change request UI
   syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
-
-  // Apply project highlights (sister overlays) when selecting
-  if (newlySelected.projectId) {
-    highlightProject(newlySelected.projectId, newlySelected.id);
-  }
 }
 
 /**
- * Select an overlay with proper cleanup of previous selection
- * This ensures consistent selection behavior regardless of how selection is triggered
+ * Select an overlay. The map highlight (sister overlays + footprint) follows the focus store
+ * reactively; this owns the non-reactive selection work (raised image, country sync, project hydration).
  */
 export function selectOverlay(overlayId: string | null): void {
-  // Prevent recursive calls (library's select event -> selectOverlay -> overlay.select -> select event)
-  if (isSelectingOverlay) return;
-
   const overlayStore = useOverlayStore();
+  const focus = useFocusStore();
 
-  // Already selected: skip the reselect work, but re-show its docked detail in case a prior
-  // action (e.g. the detail's Back button) hid it while keeping the overlay selected.
-  if (overlayId === overlayStore.idSelectedOverlay) {
-    if (overlayId) overlayStore.openOverlayDetail(overlayId);
+  // Already selected: the detail is the selection, so it is already shown.
+  if (overlayId === focus.selectedOverlayId) return;
+
+  if (!overlayId) {
+    focus.clearSelection();
     return;
   }
 
-  isSelectingOverlay = true;
-  try {
-    const previouslySelectedId = overlayStore.idSelectedOverlay;
-    const previouslySelected = previouslySelectedId
-      ? overlayStore.overlays[previouslySelectedId]
-      : null;
+  const newlySelected = overlayStore.liveOverlays[overlayId];
+  if (!newlySelected) return;
 
-    overlayStore.idSelectedOverlay = overlayId;
+  // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
+  focus.selectOverlay(overlayId);
 
-    if (previouslySelected && previouslySelectedId) {
-      cleanupPreviousSelection(previouslySelected, previouslySelectedId, overlayId);
-    }
+  setupNewSelection(newlySelected, overlayId);
 
-    // Deselecting clears the docked overlay detail.
-    if (!overlayId) {
-      overlayStore.closeOverlayDetail();
-      return;
-    }
+  // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
+  syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
 
-    // Close standalone project detail when selecting an overlay (mutual exclusivity)
-    const uiStore = useUiStore();
-    if (uiStore.projectDetail.visible) {
-      uiStore.closeProjectDetail();
-    }
-
-    // Apply selection to new overlay
-    const newlySelected = overlayStore.overlays[overlayId];
-    if (!newlySelected) return;
-
-    setupNewSelection(newlySelected, overlayId);
-
-    // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
-    syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
-
-    // Drive the docked panel into this overlay's detail view, fetching its project if the
-    // selection came from the map (vector tiles don't always carry the full project).
-    overlayStore.openOverlayDetail(overlayId);
-    void hydrateOverlayProject(overlayId);
-  } finally {
-    isSelectingOverlay = false;
-  }
+  // Fetch the overlay's project if the selection came from the map (vector tiles don't always
+  // carry the full project) so the docked detail can resolve it.
+  void hydrateOverlayProject(overlayId);
 }
 
 // The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
 // carry minimal data, so fetch and cache the project when neither the store nor the overlay has it.
 async function hydrateOverlayProject(overlayId: string): Promise<void> {
   const overlayStore = useOverlayStore();
-  const overlay = overlayStore.overlays[overlayId];
+  const overlay = overlayStore.liveOverlays[overlayId];
   if (!overlay?.projectId) return;
 
   const projectStore = useProjectStore();
@@ -136,33 +85,32 @@ async function hydrateOverlayProject(overlayId: string): Promise<void> {
   }
 }
 
+// ~5s budget for an overlay's image layer to render before we stop waiting.
+const OVERLAY_READY_TIMEOUT_MS = 5000;
+
 /**
- * Re-apply the selection visuals that depend on the rendered image layer (edit handles, overlay
- * outline, sister highlight, raised image). selectOverlay applies these immediately, but when
- * selection is triggered from the side panel while zoomed out, the layer isn't rendered yet and
- * those steps no-op. The camera then flies in and the layer renders later; this polls for it and
- * applies the visuals once ready. No-op when the layer is already present at selection time.
+ * Run `run` once the overlay's image layer is ready, but only if it is still the selected overlay
+ * by then. Bounded to OVERLAY_READY_TIMEOUT_MS so a layer that never renders doesn't leak a timer.
  */
-export function applySelectionVisualsWhenReady(overlayId: string): void {
+export function whenImageReadyIfSelected(overlayId: string, run: () => void): void {
+  whenImageReady(
+    overlayId,
+    () => {
+      if (useFocusStore().selectedOverlayId === overlayId) run();
+    },
+    { timeoutMs: OVERLAY_READY_TIMEOUT_MS },
+  );
+}
+
+/**
+ * Raise the selected overlay's image once its layer renders. selectOverlay raises it immediately,
+ * but when selection is triggered from the side panel while zoomed out, the layer isn't rendered
+ * yet and the raise no-ops. The camera then flies in and the layer renders later; this waits for
+ * it and re-raises. No-op when the layer is already present at selection time.
+ */
+export function raiseSelectedOverlayWhenReady(overlayId: string): void {
   if (hasReadyLayer(overlayId)) return;
-
-  const overlayStore = useOverlayStore();
-
-  function applyVisuals(): void {
-    // Selection changed while we were waiting; abandon.
-    if (overlayStore.idSelectedOverlay !== overlayId) return;
-
-    const overlay = overlayStore.overlays[overlayId];
-    if (!overlay) return;
-
-    raiseOverlayImage(overlayId);
-    if (overlay.projectId) {
-      highlightProject(overlay.projectId, overlay.id);
-    }
-  }
-
-  // ~5s budget, matching the overlay auto-select wait elsewhere.
-  whenImageReady(overlayId, applyVisuals, { timeoutMs: 5000 });
+  whenImageReadyIfSelected(overlayId, () => raiseOverlayImage(overlayId));
 }
 
 /**
@@ -201,7 +149,7 @@ export function removeOverlayHighlight(overlayId: string): void {
   }
 }
 
-function isPointInCorners(point: { lat: number; lng: number }, corners: Corner[]): boolean {
+function isPointInCorners(point: LatLng, corners: LatLng[]): boolean {
   if (corners.length < 3) return false;
   let isInside = false;
   // eslint-disable-next-line no-plusplus
@@ -226,30 +174,24 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
   const overlayStore = useOverlayStore();
   const renderedIds = getRenderedOverlayIds();
 
-  // Search in reverse order to prefer overlays rendered on top
+  // Later-registered overlays are checked first. Registration order only approximates the
+  // visual stacking: raiseOverlayImage reorders map layers without touching the registry.
   for (let i = renderedIds.length - 1; i >= 0; i -= 1) {
     const id = renderedIds[i];
     if (!id) continue;
-    const overlay = overlayStore.overlays[id];
+    const overlay = overlayStore.liveOverlays[id];
     if (!overlay) continue;
     // Approved overlays at their backend position are clicked via the vector-tile path.
     // We only run point-in-polygon for overlays whose live image can sit elsewhere.
-    if (overlay.status === "approved" && !overlay.isModified) continue;
-    const corners = resolveOverlayRenderCorners(overlay);
-    if (corners?.length === 4 && isPointInCorners(lngLat, corners)) {
+    if (overlay.status === "approved" && !isOverlayUnsaved(overlay)) continue;
+    const corners = resolveOverlayCorners(overlay, "image");
+    if (corners && isPointInCorners(lngLat, corners)) {
       selectOverlay(id);
       return;
     }
   }
 
-  if (overlayStore.idSelectedOverlay) {
-    selectOverlay(null);
-    return;
-  }
-
-  // No overlay under the click: a background click also closes an open project detail.
-  const uiStore = useUiStore();
-  if (uiStore.projectDetail.visible) {
-    uiStore.closeProjectDetail();
-  }
+  // No overlay under the click: clear whichever detail (overlay or project) is open.
+  const focus = useFocusStore();
+  if (focus.selection) focus.clearSelection();
 }

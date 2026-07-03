@@ -4,7 +4,6 @@ import maplibregl, { type GeoJSONSource, type MapMouseEvent, LngLat } from "mapl
 import type { Feature, Polygon } from "geojson";
 import { map, currentZoomLevel } from "@/services/core/map";
 import {
-  whenImageReady,
   getImageHandle,
   setOverlayImageTransform,
   getCurrentTransform,
@@ -12,32 +11,35 @@ import {
   createOverlayImage,
   setOverlayImageCorners,
   replaceOverlayImageSource,
+  deriveOverlayFilename,
 } from "@/services/overlay/mapLayers";
 import {
   transformToCorners,
   cornersToTransform,
+  isValidQuad,
   SIGN,
   type OverlayTransform,
 } from "@/services/overlay/transform";
 import { updateMarkerPosition, createOverlayMarker } from "@/services/overlay/markers";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import type { OverlayObject, OverlayHistoryState } from "@/types/index";
+import type { OverlayObject, OverlayHistoryState, LatLng } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
-import { selectOverlay } from "@/services/overlay/selection";
-import { resolveOverlayRenderCorners } from "@/services/overlay/data";
+import { selectOverlay, whenImageReadyIfSelected } from "@/services/overlay/selection";
+import { resolveOverlayCorners } from "@/services/overlay/data";
 import {
   makeHistoryState,
-  recordOverlayModification,
-  saveToHistory,
+  syncPendingOverlayCorners,
+  commitOverlayEdit,
 } from "@/services/overlay/history";
 import { watch } from "vue";
 
@@ -48,36 +50,36 @@ import { watch } from "vue";
  * Entering edit mode: restore the user's last edited corners from history.
  * Leaving edit mode: snap the image back to the approved backend corners (history preserved).
  */
-export async function updateOverlayEditingState(): Promise<void> {
+export function updateOverlayEditingState(): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const isEditMode = mapStore.mode === "edit";
-  const selectedOverlayId = overlayStore.idSelectedOverlay;
+  const selectedOverlayId = useFocusStore().selectedOverlayId;
 
   // Clear any stale handles; they are re-shown for the selected overlay below.
   hideEditHandles();
 
-  Object.values(overlayStore.overlays).forEach((overlayObject: OverlayObject) => {
+  Object.values(overlayStore.liveOverlays).forEach((overlayObject: OverlayObject) => {
     if (!registry.getImageHandle(overlayObject.id)) return;
 
     if (isEditMode) {
       const lastEdited = overlayObject.history.at(-1);
       const hasUserEdits = overlayObject.history.length > 1;
-      if (hasUserEdits && lastEdited?.corners.length === 4) {
+      if (hasUserEdits && lastEdited) {
         restoreOverlayToState(overlayObject.id, lastEdited);
         updateMarkerPosition(overlayObject);
       }
-    } else if (overlayObject.corners.length === 4) {
+    } else if (isValidQuad(overlayObject.baselineCorners)) {
       // Leaving edit mode: snap back to the approved backend position.
       // History is intentionally preserved so re-entering edit mode restores the user's edits.
-      setOverlayImageCorners(overlayObject.id, overlayObject.corners);
+      setOverlayImageCorners(overlayObject.id, overlayObject.baselineCorners);
       updateMarkerPosition(overlayObject);
     }
   });
 
   // Re-show handles for the selected overlay after entering edit mode.
   if (isEditMode && selectedOverlayId) {
-    const selected = overlayStore.overlays[selectedOverlayId];
+    const selected = overlayStore.liveOverlays[selectedOverlayId];
     if (selected && registry.getImageHandle(selectedOverlayId)) {
       requestAnimationFrame(() => showEditHandles(selected));
     }
@@ -86,9 +88,7 @@ export async function updateOverlayEditingState(): Promise<void> {
 
 // Helper to create a new overlay object
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
-  // Detect Data URI (local upload) vs Backend URL
-  const isDataUri = imageUrl.startsWith("data:");
-  const filename = isDataUri ? `pending-${id}.webp` : (imageUrl.split("/").pop() ?? "");
+  const filename = deriveOverlayFilename(id, imageUrl);
   const authStore = useAuthStore();
 
   // null = local only, never submitted to backend.
@@ -101,7 +101,6 @@ function createNewOverlayObject(id: string, imageUrl: string, projectId: string)
     projectId,
     authorId: authStore.user?.id ?? null, // Set to current user's ID
     imageUrl,
-    isModified: true, // New overlays need to be uploaded
     status: null, // null = local only, never submitted
   });
 }
@@ -119,9 +118,7 @@ async function loadImageAspect(imageUrl: string): Promise<number> {
 }
 
 // Place a new overlay as a rectangle centered on the current view, sized from the image aspect.
-async function defaultCornersForNewOverlay(
-  imageUrl: string,
-): Promise<{ lat: number; lng: number }[]> {
+async function defaultCornersForNewOverlay(imageUrl: string): Promise<LatLng[]> {
   const aspect = await loadImageAspect(imageUrl);
   const center = map.value.getCenter();
   const widthMeters = 100;
@@ -166,7 +163,7 @@ export function addOverlay(
   // If this is a replacement overlay, set the replacement reference
   if (replacesOverlayId) {
     overlayObject.replacesOverlayId = replacesOverlayId;
-    const originalOverlay = overlayStore.overlays[replacesOverlayId];
+    const originalOverlay = overlayStore.liveOverlays[replacesOverlayId];
     overlayObject.caption = t("overlay.replacementCaption", {
       name: originalOverlay?.caption ?? t("overlay.untitled"),
     });
@@ -188,7 +185,7 @@ export function addOverlay(
 
   async function createAndSetupOverlay() {
     const corners = await defaultCornersForNewOverlay(imageUrl);
-    overlayObject.corners = corners;
+    overlayObject.baselineCorners = corners;
     overlayObject.history = [makeHistoryState(corners, overlayObject.imageUrl)];
 
     overlayStore.addOverlay(id, overlayObject);
@@ -241,7 +238,7 @@ export function redo() {
 // Restore an overlay to a saved history step. A step from before a crop carries a different
 // image, so swap the source when it differs; otherwise just reposition the current image.
 function restoreOverlayToState(id: string, state: OverlayHistoryState): void {
-  const overlay = useOverlayStore().overlays[id];
+  const overlay = useOverlayStore().liveOverlays[id];
   if (!overlay) return;
   if (state.imageUrl !== overlay.imageUrl) {
     replaceOverlayImageSource(id, state.imageUrl, state.corners);
@@ -253,7 +250,7 @@ function restoreOverlayToState(id: string, state: OverlayHistoryState): void {
 function applyHistoryAction(action: "undo" | "redo") {
   const overlayStore = useOverlayStore();
 
-  const id = overlayStore.idSelectedOverlay;
+  const id = useFocusStore().selectedOverlayId;
   if (!id || !registry.getImageHandle(id)) return;
 
   const target = action === "undo" ? overlayStore.undoHistory(id) : overlayStore.redoHistory(id);
@@ -262,12 +259,12 @@ function applyHistoryAction(action: "undo" | "redo") {
   restoreOverlayToState(id, target);
 
   refreshEditHandles();
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (overlay) {
     updateMarkerPosition(overlay);
   }
 
-  recordOverlayModification(id);
+  syncPendingOverlayCorners(id);
 
   // On full undo to original state, clear corners from pendingModsStore for any submitted
   // overlay (but not caption, which may have its own pending change).
@@ -309,8 +306,6 @@ export function setupKeyboardShortcuts() {
   keyboardShortcutsRegistered = true;
 }
 
-type Corner = { lat: number; lng: number };
-
 interface CornerDragState {
   ax: number;
   ay: number;
@@ -344,7 +339,7 @@ function editSourceId(id: string): string {
   return `overlay-edit-${id}`;
 }
 
-function polygonFeature(corners: Corner[]): Feature<Polygon> {
+function polygonFeature(corners: LatLng[]): Feature<Polygon> {
   const ring = corners.map((c) => [c.lng, c.lat] as [number, number]);
   /* oxlint-disable-next-line no-non-null-assertion */
   ring.push(ring[0]!);
@@ -426,7 +421,6 @@ function flagSize(overlayObject: OverlayObject): void {
   if (!transform) return;
   const valid = validateOverlaySize(transformToCorners(transform)).isValid;
   if (overlayObject.isTooBig !== !valid) {
-    overlayObject.isTooBig = !valid;
     useOverlayStore().updateOverlay(overlayObject.id, { isTooBig: !valid });
   }
   if (!valid) {
@@ -495,14 +489,13 @@ function wireCornerDrag(s: EditSession): void {
       s.cornerDrag = null;
       refreshEditHandlesGeometry();
       flagSize(overlayObject);
-      saveToHistory(overlayObject.id);
+      commitOverlayEdit(overlayObject.id);
     });
   });
 }
 
 function wireSurfaceDrag(s: EditSession): void {
   const mlMap = map.value;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const overlayObject = s.overlayObject;
 
   s.onEnter = () => {
@@ -556,7 +549,7 @@ function wireSurfaceDrag(s: EditSession): void {
       s.activeSurfaceDrag = undefined;
       if (didMove) {
         flagSize(overlayObject);
-        saveToHistory(overlayObject.id);
+        commitOverlayEdit(overlayObject.id);
       }
     }
 
@@ -585,8 +578,9 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   // Establish the rigid transform so the image corners line up with the handles.
   const transformToUse = getCurrentTransform(overlayObject.id);
   const corners =
-    resolveOverlayRenderCorners(overlayObject) ??
-    (transformToUse ? transformToCorners(transformToUse) : overlayObject.corners);
+    resolveOverlayCorners(overlayObject, "image") ??
+    (transformToUse ? transformToCorners(transformToUse) : overlayObject.baselineCorners);
+  if (!isValidQuad(corners)) return;
   const transform = cornersToTransform(corners);
   setOverlayImageTransform(overlayObject.id, transform);
   const rectCorners = transformToCorners(transform);
@@ -686,7 +680,6 @@ export function hideEditHandles(): void {
 
   s.cornerMarkers.forEach((marker) => marker.remove());
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   // Tear down an in-flight surface drag so its mousemove handler stops mutating a dead session
   // and dragPan is restored now rather than on a mouseup that may never reach this overlay.
   if (s.activeSurfaceDrag) {
@@ -716,9 +709,10 @@ export function initializeEditorTriggers(): void {
 
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
+  const focus = useFocusStore();
 
   watch(
-    [() => overlayStore.idSelectedOverlay, () => mapStore.mode],
+    [() => focus.selectedOverlayId, () => mapStore.mode],
     ([newId, newMode], [oldId, oldMode]) => {
       // Clean up old handles if selection or mode changed
       if (oldId && (newId !== oldId || oldMode !== "edit" || newMode !== "edit")) {
@@ -727,20 +721,11 @@ export function initializeEditorTriggers(): void {
 
       // Show handles for new selection in edit mode
       if (newId && newMode === "edit") {
-        const overlay = overlayStore.overlays[newId];
+        const overlay = overlayStore.liveOverlays[newId];
         if (overlay) {
-          console.log("[DEBUG] Watcher triggered for", newId);
-          whenImageReady(
-            newId,
-            () => {
-              console.log("[DEBUG] Image ready for", newId);
-              if (overlayStore.idSelectedOverlay === newId && mapStore.mode === "edit") {
-                console.log("[DEBUG] Showing edit handles for", newId);
-                showEditHandles(overlay);
-              }
-            },
-            { timeoutMs: 5000 },
-          );
+          whenImageReadyIfSelected(newId, () => {
+            if (mapStore.mode === "edit") showEditHandles(overlay);
+          });
         }
       }
     },

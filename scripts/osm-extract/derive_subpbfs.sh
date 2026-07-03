@@ -10,7 +10,7 @@
 # already baked into the source (e.g. by backfill_geometry.sh) flows into the
 # sub-PBFs without re-fetching.
 #
-# update_weekly.sh calls this after the diff catch-up. Run it standalone to rebuild
+# update_daily.sh calls this after the diff catch-up. Run it standalone to rebuild
 # the sub-PBFs when iterating on the Python extraction, without re-applying diffs.
 #
 # Usage:
@@ -38,6 +38,12 @@ if [[ -z "$SOURCE" ]]; then
 fi
 if [[ ! -f "$SOURCE" ]]; then
     echo "Error: source file not found: $SOURCE"
+    exit 1
+fi
+# Suffix-anchored: the derived names below strip _proposed.osm.pbf, and a silent
+# no-op strip on a mismatched name would produce paths like foo.osm.pbf_proposed_ways.osm.pbf.
+if [[ "$SOURCE" != *_proposed.osm.pbf ]]; then
+    echo "Error: expected a *_proposed.osm.pbf file, got: $SOURCE"
     exit 1
 fi
 command -v osmium &>/dev/null || { echo "Error: osmium not found"; exit 1; }
@@ -69,9 +75,15 @@ PID_AREAL=$!
 run osmium cat --overwrite --input-format=pbf,num_threads="$NPROC" \
     --object-type=relation -o "$RELATIONS_PBF" "$SOURCE" &
 PID_REL=$!
-wait $PID_WAYS  || { echo "ERROR: ways derive failed";      exit 1; }
-wait $PID_AREAL || { echo "ERROR: areal derive failed";     exit 1; }
-wait $PID_REL   || { echo "ERROR: relations derive failed"; exit 1; }
+# Collect all statuses before failing, so one job failing does not leave the
+# others running as orphans that race a subsequent retry.
+RC_WAYS=0; RC_AREAL=0; RC_REL=0
+wait $PID_WAYS  || RC_WAYS=$?
+wait $PID_AREAL || RC_AREAL=$?
+wait $PID_REL   || RC_REL=$?
+[[ "$RC_WAYS"  -eq 0 ]] || { echo "ERROR: ways derive failed";      exit 1; }
+[[ "$RC_AREAL" -eq 0 ]] || { echo "ERROR: areal derive failed";     exit 1; }
+[[ "$RC_REL"   -eq 0 ]] || { echo "ERROR: relations derive failed"; exit 1; }
 
 echo "[$(ts)] Derive done in $(elapsed $((SECONDS - T)))"
 if [[ "$DRY_RUN" -eq 0 ]]; then

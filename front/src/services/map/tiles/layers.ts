@@ -9,20 +9,15 @@ import { map } from "@/services/core/map";
 import { getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { handleBackgroundClick, selectOverlay } from "@/services/overlay/selection";
-import { getCurrentHighlightedProjectId } from "@/services/overlay/projectHighlight";
-import { VECTOR_QUERY_LAYERS } from "@/services/map/projectQueryLayers";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
+import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { watch } from "vue";
 
-import {
-  getExternalHoverId,
-  getExternalHoverOverlayId,
-  registerExternalHoverCallback,
-  setExternalHover,
-} from "@/services/map/vectorHoverState";
+import { useFocusStore } from "@/stores/focusStore";
 import {
   triggerProjectHover,
   triggerClusterHover,
@@ -33,13 +28,13 @@ import {
 } from "@/services/map/hoverPreviewState";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { getApiUrl } from "@/client";
-import { PROJECT_TAGS } from "@/config/projectTags";
+import { PROJECT_TAGS } from "@/constants/projectTags";
 import {
   SHAPE_LINE_WIDTH,
   SHAPE_LINE_WIDTH_HOVER,
   SHAPE_LONG_DASH,
   SHAPE_SHORT_DASH,
-} from "@/services/map/shapeStyleConstants";
+} from "@/services/map/shapes/styleConstants";
 import {
   selectedProjectTags,
   selectedStatusFilters,
@@ -212,10 +207,7 @@ function getClusterCountExpression(): ExpressionSpecification {
   // "+" needs at least two operands; pad a single selected tag with a zero.
   if (columns.length === 1) sum.push(0);
 
-  return [
-    "to-string",
-    ["min", sum as ExpressionSpecification, ["get", "cell_count"]],
-  ] as ExpressionSpecification;
+  return ["to-string", ["min", sum, ["get", "cell_count"]]] as ExpressionSpecification;
 }
 
 // Circle radius for project-points: lone markers stay small; cluster markers (cell_count > 1) step
@@ -674,11 +666,12 @@ function computeHiddenOverlayIds(): string[] {
   // own outline and the image may be dragged off its DB position. In view/moderation there are no
   // edit handles, so keeping the outline is what gives the image its permanent border (otherwise it
   // vanishes once the cursor leaves and the hover border clears).
-  if (store.idSelectedOverlay && useMapStore().mode === "edit") {
-    hidden.add(store.idSelectedOverlay);
+  const selectedOverlayId = useFocusStore().selectedOverlayId;
+  if (selectedOverlayId && useMapStore().mode === "edit") {
+    hidden.add(selectedOverlayId);
   }
-  for (const [id, o] of Object.entries(store.overlays)) {
-    if (o.isModified) hidden.add(id);
+  for (const [id, o] of Object.entries(store.liveOverlays)) {
+    if (isOverlayUnsaved(o)) hidden.add(id);
   }
   return [...hidden];
 }
@@ -813,9 +806,10 @@ function setCursorHoverState(
 // Pinned/external highlight (selected overlay, open project detail, sidebar card, detail pin).
 // Tracked under its own "selected" key so it survives mousemove/mouseout independent of the cursor.
 function setSelectedHoverState(mlMap: MaplibreMap): void {
-  const selectedProjectIds = idSet(getCurrentHighlightedProjectId(), getExternalHoverId());
+  const focusStore = useFocusStore();
+  const selectedProjectIds = idSet(focusStore.highlightedProjectId);
 
-  const overlayIds = idSet(getExternalHoverOverlayId());
+  const overlayIds = idSet(focusStore.highlightedOverlayId);
   for (const hidden of getHiddenOverlayIds()) overlayIds.delete(hidden);
 
   diffFeatureState(mlMap, VECTOR_SOURCE, "project-shapes", "selected", selectedProjectIds);
@@ -855,16 +849,15 @@ function handleVectorFeatureClick(feature: RenderedMapFeature): void {
   // tapped feature, so the camera stays put on both, which lets features be clicked in rapid
   // succession to read each one. Only cluster expansion (handlePointFeatureClick) moves the camera.
 
-  // Pin the vector highlight immediately so mousemove cannot clear it during the
-  // async project fetch that happens inside handleProjectClickFromTile.
-  setExternalHover(projectId);
-
   if (isFootprint) {
     const overlayId = getFeaturePropertyAsString(feature, "id");
     if (overlayId) {
       selectOverlay(overlayId);
     }
   } else {
+    // Pin the vector highlight immediately so mousemove cannot clear it during the async project
+    // fetch inside handleProjectClickFromTile; selectProject replaces the hover with the selection.
+    useFocusStore().setHover({ kind: "project", projectId });
     void handleProjectClickFromTile(projectId);
   }
 }
@@ -892,9 +885,9 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
 }
 
 export function registerHybridInteractionHandlers(): void {
-  registerExternalHoverCallback(() => {
-    const mlMap = map.value;
-    setSelectedHoverState(mlMap);
+  const focusStore = useFocusStore();
+  watch([() => focusStore.highlightedProjectId, () => focusStore.highlightedOverlayId], () => {
+    setSelectedHoverState(map.value);
   });
 
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.

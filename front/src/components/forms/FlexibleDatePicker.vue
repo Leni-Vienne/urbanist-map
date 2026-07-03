@@ -55,6 +55,7 @@
       </template>
 
       <!-- Full Date Mode: DatePicker calendar -->
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <DatePicker
         v-else
         v-model="fullDateValue"

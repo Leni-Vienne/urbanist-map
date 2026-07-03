@@ -8,13 +8,13 @@ import { db } from "../database";
 // country/state/city stack yields the same, correct country. Returns null only when no boundary
 // with a country code exists at all (empty/unimported boundaries).
 export async function resolveCountryCode(lat: number, lng: number): Promise<string | null> {
-  const rows = (await db.execute(sql`
+  const rows = await db.execute<{ country_code: string | null }>(sql`
     SELECT country_code
     FROM admin_boundaries
     WHERE country_code IS NOT NULL
     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)
     LIMIT 1
-  `)) as { country_code: string | null }[];
+  `);
 
   return rows[0]?.country_code ?? null;
 }
@@ -34,7 +34,13 @@ export interface BoundaryPathEntry {
 // location breadcrumb. The depth guard stops a malformed parent cycle from looping forever.
 export async function resolveBoundaryPath(adminBoundaryId: string): Promise<BoundaryPathEntry[]> {
   try {
-    const rows = (await db.execute(sql`
+    const rows = await db.execute<{
+      osm_id: string;
+      name: string;
+      name_en: string | null;
+      names: Record<string, string> | null;
+      admin_level: number;
+    }>(sql`
       WITH RECURSIVE chain AS (
         SELECT osm_id, parent_id, name, name_en, names, admin_level, 1 AS depth
         FROM admin_boundaries
@@ -46,13 +52,7 @@ export async function resolveBoundaryPath(adminBoundaryId: string): Promise<Boun
         WHERE c.depth < 12
       )
       SELECT osm_id, name, name_en, names, admin_level FROM chain ORDER BY admin_level DESC
-    `)) as {
-      osm_id: string;
-      name: string;
-      name_en: string | null;
-      names: Record<string, string> | null;
-      admin_level: number;
-    }[];
+    `);
 
     return rows.map((r) => ({
       osmId: r.osm_id,

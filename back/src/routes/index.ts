@@ -3,7 +3,7 @@ import { projectRouter } from "./project";
 import { overlayRouter } from "./overlay";
 import { boundariesRouter } from "./boundaries";
 import { countriesRouter } from "./countries";
-import { moderationRouter } from "./moderation";
+import { moderationRouter } from "./moderation/index";
 import { changesRouter } from "./changes";
 import { accountRouter } from "./account";
 import { adminRouter } from "./admin";

@@ -1,6 +1,6 @@
 import { trpc } from "@/client";
 import { useToast } from "@/composables/ui/useToast";
-import { useProjectStore } from "@/stores/pinia/projectStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { createProjectObject } from "@/utils/typeFactories";
 import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";

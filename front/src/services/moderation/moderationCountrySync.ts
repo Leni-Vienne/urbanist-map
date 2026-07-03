@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 
 /**
  * Check if the current user can moderate a given country.

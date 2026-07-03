@@ -20,14 +20,14 @@ Must be run inside WSL (Windows Subsystem for Linux) or a native Linux environme
 There are two entry points:
 
 - **`run_all.sh`** , one-shot bootstrap from a fresh planet/region download. Filters
-  the planet to the construction subset, then hands off to `update_weekly.sh` to catch
+  the planet to the construction subset, then hands off to `update_daily.sh` to catch
   up to today, extract, and (optionally) import. Use it the first time or to rebuild
   from scratch.
-- **`update_weekly.sh`** , the routine refresh. Applies the daily diffs since the last
+- **`update_daily.sh`** , the routine refresh. Applies the daily diffs since the last
   run, backfills geometry, derives the sub-PBFs, extracts the GeoJSON, and imports. Run
   it on a schedule (see `scripts/systemd/osm-update.service`).
 
-Extraction lives only in `update_weekly.sh`, downstream of the diff catch-up. A raw
+Extraction lives only in `update_daily.sh`, downstream of the diff catch-up. A raw
 planet download lags real time by up to ~10 days, so filtering and immediately
 extracting would publish stale data; keeping extraction behind the catch-up makes that
 impossible.
@@ -44,9 +44,9 @@ The source file can be a country or planet extract from [Geofabrik](https://down
 
 **`run_all.sh` options**
 
-| Flag       | Description                                                                |
-| ---------- | -------------------------------------------------------------------------- |
-| `--import` | Run the DB import after extraction (passed through to `update_weekly.sh`). |
+| Flag       | Description                                                               |
+| ---------- | ------------------------------------------------------------------------- |
+| `--import` | Run the DB import after extraction (passed through to `update_daily.sh`). |
 
 ## Outputs
 
@@ -66,13 +66,13 @@ If the source file is on a Windows drive (`/mnt/d/...`), the script works but WS
 | Stage              | Script                                  | Duration (planet) |
 | ------------------ | --------------------------------------- | ----------------- |
 | filter             | `filter_combined.sh` (via `run_all.sh`) | ~30-40 min        |
-| catch-up + extract | `update_weekly.sh`                      | ~10-15 min        |
+| catch-up + extract | `update_daily.sh`                       | ~10-15 min        |
 
 `filter_combined.sh` only produces the construction subset PBF; deriving the sub-PBFs
 and running `extract_linear_topo.py` + `extract_areal_buildings.py` happens inside
-`update_weekly.sh`, after the diff catch-up.
+`update_daily.sh`, after the diff catch-up.
 
-The sub-PBF derivation lives in `derive_subpbfs.sh`, which `update_weekly.sh` calls.
+The sub-PBF derivation lives in `derive_subpbfs.sh`, which `update_daily.sh` calls.
 Run it standalone to rebuild `*_proposed_ways`/`*_proposed_areal`/`*_proposed_relations`
 from the subset PBF without re-applying diffs, e.g. when iterating on the Python
 extraction (geometry backfilled into the subset PBF flows through automatically):
@@ -83,20 +83,20 @@ extraction (geometry backfilled into the subset PBF flows through automatically)
 
 ## Weekly incremental updates
 
-`update_weekly.sh` applies OSM daily diffs to an existing subset PBF instead of re-filtering the full planet. This turns a ~30-40 min full re-filter into a ~10-15 min incremental run.
+`update_daily.sh` applies OSM daily diffs to an existing subset PBF instead of re-filtering the full planet. This turns a ~30-40 min full re-filter into a ~10-15 min incremental run.
 
 ```bash
 # Extract + import in one go
-./update_weekly.sh --import planet-latest_proposed.osm.pbf
+./update_daily.sh --import planet-latest_proposed.osm.pbf
 
 # Extract only (run import manually afterwards)
-./update_weekly.sh planet-latest_proposed.osm.pbf
+./update_daily.sh planet-latest_proposed.osm.pbf
 
 # Skip the geometry backfill (re-tagged elements may be dropped)
-./update_weekly.sh --no-backfill planet-latest_proposed.osm.pbf
+./update_daily.sh --no-backfill planet-latest_proposed.osm.pbf
 
 # Preview what would happen
-./update_weekly.sh --dry-run planet-latest_proposed.osm.pbf
+./update_daily.sh --dry-run planet-latest_proposed.osm.pbf
 ```
 
 The script reads the `osmosis_replication_timestamp` from the PBF header (set automatically when filtering from an official planet download), binary-searches the daily replication feed at `planet.openstreetmap.org/replication/day/` to find the matching sequence, downloads and chains all daily diffs since that point, then derives the sub-PBFs and runs the extraction on the result.
@@ -111,7 +111,7 @@ element is re-tagged to construction, those nodes/members were never in the
 filtered PBF, so the element lands with dangling references and the Python
 extraction silently drops it (it keeps only nodes with a valid location).
 
-`update_weekly.sh` runs `backfill_geometry.sh` after the re-derive to fix this:
+`update_daily.sh` runs `backfill_geometry.sh` after the re-derive to fix this:
 `osmium check-refs` lists the missing node/way/relation IDs, they are fetched by
 ID from the Overpass API (ways and relations with full member recursion), and
 `osmium merge` folds the geometry back in. It iterates until `check-refs` is
@@ -143,7 +143,7 @@ created from the fetched geometry:
 # Standalone on a focused sub-PBF
 ./backfill_geometry.sh planet-latest_proposed_ways.osm.pbf
 
-# Detect against sub-PBFs, merge into them and the main PBF (what update_weekly does)
+# Detect against sub-PBFs, merge into them and the main PBF (what update_daily does)
 ./backfill_geometry.sh \
     planet-latest_proposed_ways.osm.pbf \
     planet-latest_proposed_areal.osm.pbf \
@@ -155,7 +155,7 @@ created from the fetched geometry:
 ./backfill_geometry.sh --dry-run planet-latest_proposed_ways.osm.pbf
 ```
 
-**Recommended cadence**: run `update_weekly.sh` weekly. A full `run_all.sh` on a
+**Recommended cadence**: run `update_daily.sh` weekly. A full `run_all.sh` on a
 fresh planet download once a month is still worthwhile to correct any larger
 drift (e.g. references the backfill could not resolve because they were deleted
 upstream).

@@ -48,7 +48,8 @@ export const currentPitch = ref(0);
 // True once the basemap style has loaded and project data + interaction are wired up.
 // Preserved across Vite HMR so onMlMapReady callers don't wait for a `load` event that
 // already fired on the still-alive map instance.
-let styleReady = (import.meta.hot?.data.styleReady as boolean | undefined) ?? false;
+// oxlint-disable-next-line no-unnecessary-condition fails in preview/prod without the condition
+let styleReady = import.meta.hot?.data?.styleReady ?? false;
 const mlMapReadyCallbacks: (() => void)[] = [];
 
 /** Register a callback to run once (immediately if already ready) when the map is loaded. */
@@ -154,7 +155,6 @@ export function initializeMap() {
     rollEnabled: false,
     touchPitch: mapRotationEnabled.value, // two-finger pitch fights pinch-zoom, so it is gated behind the rotation opt-in
     maxPitch: 85,
-    fadeDuration: 0,
   };
   // Lower sensitivity (default is 0.8).
   (mapOptions as Record<string, unknown>).rotateDegreesPerPixelMoved = 0.4;

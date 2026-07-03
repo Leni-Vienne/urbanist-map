@@ -17,6 +17,7 @@ export const selectedStatusFilters = ref<TimelineStatus[]>([]);
 
 // Visibility per timeline status. When selection is empty, all are true.
 export const visibleStates = computed(() => {
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const states = {} as Record<TimelineStatus, boolean>;
 
   if (selectedStatusFilters.value.length === 0) {
@@ -31,6 +32,14 @@ export const visibleStates = computed(() => {
 
   return states;
 });
+
+// Visibility of one timeline status under the current filter selection.
+// Missing or unknown status reads as proposed.
+export function matchesTimelineStatusFilter(timelineStatus: string | null | undefined): boolean {
+  const states = visibleStates.value;
+  if (!timelineStatus) return states.proposed;
+  return (states as Record<string, boolean>)[timelineStatus] ?? states.proposed;
+}
 
 // Empty array = show all tags.
 export const selectedProjectTags = ref<string[]>([]);

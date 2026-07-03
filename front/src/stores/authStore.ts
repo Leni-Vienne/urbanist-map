@@ -46,6 +46,7 @@ type LastUsed = { method: LastUsedMethod; email: string | null };
 function getLastUsedMethod(): LastUsed | null {
   try {
     const raw = localStorage.getItem("lastUsedMethod");
+    // oxlint-disable-next-line no-unsafe-type-assertion
     return raw ? (JSON.parse(raw) as LastUsed) : null;
   } catch {
     return null;
@@ -193,6 +194,13 @@ async function resetPassword(token: string, password: string) {
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const infoMessage = ref<string | null>(null);
+
+  // Set when infoMessage is a bare semver (e.g. "v1.2.5"), shown as the footer version instead of a banner.
+  const version = computed(() =>
+    infoMessage.value && /^v\d+\.\d+\.\d+$/.test(infoMessage.value.trim())
+      ? infoMessage.value.trim()
+      : null,
+  );
 
   const isAuthenticated = computed(() => Boolean(user.value));
   const isModerator = computed(() => {
@@ -360,6 +368,7 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     user,
     infoMessage,
+    version,
     isAuthenticated,
     isModerator,
     initialize,
@@ -377,7 +386,7 @@ export const useAuthStore = defineStore("auth", () => {
 });
 
 // Enable HMR for this store
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// oxlint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));
 }

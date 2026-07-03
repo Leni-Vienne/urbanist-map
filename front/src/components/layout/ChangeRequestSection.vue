@@ -107,22 +107,18 @@ import { useToast } from "@/composables/ui/useToast";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useShapeChangeRequestPreview } from "@/composables/overlay/useShapeChangeRequestPreview";
 import {
-  setChangeRequestsForPreview,
   syncPreviewStateOnNavigation,
   syncProjectShapePreviewState,
 } from "@/services/overlay/changeRequestPreviewState";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import type {
-  ProjectForModeration,
-  OverlayForModeration,
-  PendingChangeRequest,
-} from "@/types/index";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
+import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
 interface Props {
   changes: PendingChangeRequest[];
   allChangeRequests: PendingChangeRequest[];
-  projects: ProjectForModeration[];
+  projects: Project[];
   isMyContributions?: boolean;
   isOverlayChanges?: boolean;
   entityName?: string;
@@ -156,6 +152,7 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 const overlayStore = useOverlayStore();
+const focusStore = useFocusStore();
 const {
   isPreviewingChange,
   getPreviewType,
@@ -163,23 +160,20 @@ const {
 } = useChangeRequestPreview();
 const { previewShapes } = useShapeChangeRequestPreview();
 
-// Sync change requests and preview button state reactively.
-// watchEffect tracks all reactive reads inside (allChangeRequests prop + idSelectedOverlay store),
-// so this re-runs when either changes.
+// Sync preview button state reactively. The sync functions read the mode's change request
+// store internally, so this effect tracks both the focus selection and the store contents.
 // IMPORTANT: do NOT read previewState inside this effect, it would create a read→write cycle.
 watchEffect(() => {
-  setChangeRequestsForPreview(props.allChangeRequests);
-
-  const selectedId = overlayStore.idSelectedOverlay;
+  const selectedId = focusStore.selectedOverlayId;
   if (selectedId) {
     // Sync "view approved position" button for the currently selected overlay
-    const sel = overlayStore.overlays[selectedId];
+    const sel = overlayStore.liveOverlays[selectedId];
     if (sel) {
       syncPreviewStateOnNavigation(selectedId, sel.isViewingApprovedPosition ?? true);
     }
   } else {
     // No overlay selected: sync "view current shapes" button for project geometry changes
-    syncProjectShapePreviewState(props.allChangeRequests);
+    syncProjectShapePreviewState();
   }
 });
 
@@ -284,11 +278,11 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
 
   if (change.entityType === "overlay") {
     // Find the overlay data
-    let overlayForModeration: OverlayForModeration | null = null;
+    let overlayForModeration: Overlay | null = null;
     for (const project of props.projects) {
       if (project.overlays) {
         overlayForModeration =
-          project.overlays.find((o: OverlayForModeration) => o.id === change.entityId) ?? null;
+          project.overlays.find((o: Overlay) => o.id === change.entityId) ?? null;
         if (overlayForModeration) break;
       }
     }

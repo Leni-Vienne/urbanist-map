@@ -37,6 +37,8 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     });
   }
 
+  // The delta's original is the caption before the FIRST staged edit, kept across successive
+  // edits; returning to it drops the delta so no no-op caption change is ever stored.
   function saveCaptionChange(
     overlayId: string,
     projectId: string | null,
@@ -44,8 +46,14 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     originalCaption: string | null,
     overlayStatus: ApprovalStatus,
   ): void {
+    const existingDelta = modifications.value.get(overlayId)?.caption;
+    const baseline = existingDelta ? existingDelta.original : originalCaption;
+    if (currentCaption === baseline) {
+      clearFieldModification(overlayId, "caption");
+      return;
+    }
     upsertModification(overlayId, projectId, overlayStatus, {
-      caption: { current: currentCaption, original: originalCaption },
+      caption: { current: currentCaption, original: baseline },
     });
   }
 
@@ -84,6 +92,11 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     modifications.value.delete(overlayId);
   }
 
+  // Clear user-specific state on logout or account switch.
+  function clearAllState(): void {
+    modifications.value.clear();
+  }
+
   return {
     saveCornersChange,
     saveCaptionChange,
@@ -92,6 +105,7 @@ export const usePendingModificationsStore = defineStore("pendingModifications", 
     getModificationsForProject,
     clearFieldModification,
     clearModification,
+    clearAllState,
   };
 });
 

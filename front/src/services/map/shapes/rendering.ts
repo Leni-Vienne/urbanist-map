@@ -2,28 +2,25 @@ import { type ExpressionSpecification, type MapMouseEvent, LngLatBounds } from "
 import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
 import { map } from "@/services/core/map";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
-import { highlightProject, removeProjectOutlines } from "@/services/overlay/projectHighlight";
 import { forEachPosition } from "@/utils/geojson";
 import {
   setShapeEntry,
   hasProjectShapes,
   highlightProjectShapes,
-  unhighlightProjectShapes,
   clearAllShapeEntries,
   setProjectShapesVisible,
   type ShapeEntry,
   type ShapeEventBinding,
-} from "@/services/map/shapeLayerRegistry";
+} from "@/services/map/shapes/registry";
 import {
   SHAPE_LINE_WIDTH,
   SHAPE_LINE_WIDTH_HOVER,
   SHAPE_LONG_DASH,
   SHAPE_SHORT_DASH,
-} from "@/services/map/shapeStyleConstants";
-import { getProjectTagColor } from "@/config/projectTags";
+} from "@/services/map/shapes/styleConstants";
+import { getProjectTagColor } from "@/constants/projectTags";
 
 type MapLibreMap = NonNullable<typeof map.value>;
 
@@ -80,14 +77,7 @@ function shapeSourceId(projectId: string): string {
 }
 
 function isProjectFocused(projectId: string): boolean {
-  const overlayStore = useOverlayStore();
-  const uiStore = useUiStore();
-  const selected = overlayStore.idSelectedOverlay
-    ? overlayStore.overlays[overlayStore.idSelectedOverlay]
-    : null;
-  const highlightedId =
-    selected?.projectId ?? (uiStore.projectDetail.visible ? uiStore.projectDetail.projectId : null);
-  return highlightedId === projectId;
+  return useFocusStore().highlightedProjectId === projectId;
 }
 
 interface ShapeLayerStyle {
@@ -260,16 +250,14 @@ function wireShapeInteraction(
   // layers, firing onClick twice. Dedupe on the source DOM event so it is handled once.
   let lastClickTimeStamp = -1;
 
+  const focus = useFocusStore();
   function onEnter(): void {
-    highlightProjectShapes(project.id);
-    highlightProject(project.id);
+    focus.setHover({ kind: "project", projectId: project.id });
     mlMap.getCanvas().style.cursor = "pointer";
   }
   function onLeave(): void {
     mlMap.getCanvas().style.cursor = "";
-    if (isProjectFocused(project.id)) return;
-    unhighlightProjectShapes(project.id);
-    removeProjectOutlines(project.id);
+    focus.setHover(null);
   }
   function onClick(e: MapMouseEvent): void {
     if (e.originalEvent.timeStamp === lastClickTimeStamp) return;

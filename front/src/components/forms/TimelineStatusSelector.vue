@@ -7,7 +7,7 @@
       {{ $t("project.timelineStatus") }} *
     </label>
     <Select
-      :aria-labelledby="`${idPrefix}-status-label`"
+      :ariaLabelledby="`${idPrefix}-status-label`"
       :modelValue="modelValue"
       :options="statusOptions"
       optionLabel="label"

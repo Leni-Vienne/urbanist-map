@@ -15,14 +15,14 @@ import {
   addProjectDataToMlMap,
   registerHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
-} from "./projectVectorLayers";
+} from "./layers";
 import {
   applyPlanStyleRoadOverrides,
   applyPoiVisibilityOverrides,
   applyRailStyleOverrides,
   applySky,
-} from "./basemapStyleOverrides";
-import { applyMapLabelLanguage } from "./mapLabelLanguage";
+} from "../basemapStyleOverrides";
+import { applyMapLabelLanguage } from "../mapLabelLanguage";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/mapLayers";
 import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editing";
 import { show3DBuildings } from "@/composables/core/useBuildings3D";
@@ -35,7 +35,7 @@ import {
   showOnlyWithImages,
 } from "@/services/map/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
-import { syncOverlaysFromTiles } from "@/services/map/vectorTileSync";
+import { syncOverlaysFromTiles } from "@/services/map/tiles/sync";
 
 interface BoundingBox {
   minLat: number;
@@ -170,7 +170,7 @@ async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
 
   const { borders: allBorders } = await import("@/assets/country-borders");
 
-  const countryCodes = (Object.keys(satelliteLayerConfigs) as SatelliteLayerType[]).filter(
+  const countryCodes = Object.keys(satelliteLayerConfigs).filter(
     (code): code is CountryCode => code !== "esri",
   );
 
@@ -582,6 +582,7 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   url.searchParams.append("returnGeometry", "false");
 
   const response = await fetch(url.toString());
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const data = (await response.json()) as EsriIdentifyResponse | null;
 
   if (data?.results) {

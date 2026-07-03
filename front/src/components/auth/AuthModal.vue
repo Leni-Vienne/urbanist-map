@@ -11,7 +11,6 @@
     "
     :style="{ width: '450px' }"
     class="p-fluid auth-modal-overflow"
-    data-testid="auth-modal"
   >
     <!-- Forgot Password Mode -->
     <div v-if="isForgotPasswordMode">
@@ -24,6 +23,7 @@
           <label for="forgot-email" class="block text-sm font-medium mb-2">{{
             $t("auth.emailAddress")
           }}</label>
+          <!-- @vue-expect-error PrimeVue v-model type mismatch -->
           <InputText
             id="forgot-email"
             v-model="forgotPasswordEmail"
@@ -31,7 +31,6 @@
             required
             autocomplete="email"
             class="w-full"
-            data-testid="forgot-email-input"
           />
         </div>
 
@@ -58,7 +57,6 @@
             :loading="loading"
             :disabled="loading"
             class="w-full"
-            data-testid="send-reset-button"
           />
 
           <Button
@@ -68,7 +66,6 @@
             @click="isForgotPasswordMode = false"
             :disabled="loading"
             class="p-0"
-            data-testid="back-to-signin"
           />
         </div>
       </form>
@@ -146,6 +143,7 @@
           <label for="auth-email" class="block text-sm font-medium mb-2">{{
             $t("auth.emailAddress")
           }}</label>
+          <!-- @vue-expect-error PrimeVue v-model type mismatch -->
           <InputText
             id="auth-email"
             v-model="form.email"
@@ -157,7 +155,6 @@
             :class="{
               'last-used-input': lastEmailUsed && isLoginMode,
             }"
-            data-testid="auth-email-input"
           />
           <!-- Last used badge for email method -->
           <span
@@ -179,6 +176,7 @@
           <label for="auth-username" class="block text-sm font-medium mb-2">
             {{ $t("auth.username") }}
           </label>
+          <!-- @vue-expect-error PrimeVue v-model type mismatch -->
           <InputText
             id="auth-username"
             v-model="form.username"
@@ -187,7 +185,6 @@
             required
             :invalid="Boolean(usernameError)"
             dir="auto"
-            data-testid="auth-username-input"
           />
           <small v-if="usernameError" class="p-error">{{ usernameError }}</small>
           <small v-else class="text-muted-color text-xs">{{ $t("auth.displayName") }}</small>
@@ -206,7 +203,6 @@
               @click="showForgotPassword"
               :disabled="loading || oauthLoading"
               class="p-0 text-xs"
-              data-testid="forgot-password-link"
             />
           </div>
           <Password
@@ -220,19 +216,13 @@
             :inputProps="{
               autocomplete: isLoginMode ? 'current-password' : 'new-password',
             }"
-            data-testid="auth-password-input"
           />
           <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
         </div>
 
         <!-- Remember Me Checkbox (only in login mode) -->
         <div v-if="isLoginMode" class="field-checkbox flex items-center gap-2">
-          <Checkbox
-            inputId="auth-remember-me"
-            v-model="form.rememberMe"
-            :binary="true"
-            data-testid="auth-remember-me"
-          />
+          <Checkbox inputId="auth-remember-me" v-model="form.rememberMe" :binary="true" />
           <label for="auth-remember-me" class="text-sm cursor-pointer select-none">
             {{ $t("auth.rememberMe") }}
             <span class="text-muted-color text-xs ml-1">({{ $t("auth.rememberMeHint") }})</span>
@@ -273,7 +263,6 @@
             :loading="loading"
             :disabled="loading || oauthLoading"
             class="w-full"
-            data-testid="auth-submit-button"
           />
 
           <div class="text-center pt-3 border-t border-surface">
@@ -287,7 +276,6 @@
               @click="toggleMode"
               :disabled="loading || oauthLoading"
               class="ml-1 p-0"
-              data-testid="auth-mode-toggle"
             />
           </div>
         </div>

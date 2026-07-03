@@ -1,9 +1,10 @@
 // Removes projects and overlays from stores, map layers, and caches
 
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { trpc } from "@/client";
@@ -17,19 +18,19 @@ interface DeleteOverlayOptions {
 
 export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.overlays[overlayId];
+  const overlayObject = overlayStore.liveOverlays[overlayId];
   if (!overlayObject) return;
 
   // Deselect before deleting from the store: selectOverlay(null) owns the full cleanup
   // (edit handles, project highlight, docked detail) and needs the overlay still present.
-  if (overlayStore.idSelectedOverlay === overlayId) {
+  if (useFocusStore().selectedOverlayId === overlayId) {
     selectOverlay(null);
   }
 
   clearRegistryEntry(overlayId);
 
   // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-  delete overlayStore.overlays[overlayId];
+  delete overlayStore.liveOverlays[overlayId];
 
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
 
@@ -100,7 +101,7 @@ export async function deleteOverlayDirect(
   const { showToast = false, updateUserContributions = false } = options;
 
   const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.overlays[overlayId];
+  const overlayObject = overlayStore.liveOverlays[overlayId];
 
   try {
     // Brand new overlays (status null) only exist locally, and always live in the store.

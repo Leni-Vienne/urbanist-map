@@ -1,5 +1,5 @@
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
 import { uploadImageFile } from "@/utils/uploadImageFile";
@@ -20,13 +20,12 @@ import {
 } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { useChangeRequests } from "@/composables/changes/useChanges";
-import { formatDate } from "@/utils/dateFormat";
 import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
-import { usePendingModificationsStore } from "@/stores/pinia/pendingModificationsStore";
+import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 
 // Internal single-entity payload used by buildSummary/validate/submitEntity.
@@ -70,6 +69,7 @@ function normalizeFieldValue(
   }
   if (fieldStr === "tags") {
     return JSON.stringify(
+      // oxlint-disable-next-line no-unsafe-type-assertion
       Array.isArray(value) ? (value as string[]).toSorted((a, b) => a.localeCompare(b)) : [],
     );
   }
@@ -77,13 +77,7 @@ function normalizeFieldValue(
 }
 
 function serializeForBackend(value: unknown): unknown {
-  if (value === "" || value === undefined) {
-    return null;
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return value;
+  return value === "" ? null : value;
 }
 
 function hasShapes(v: unknown): boolean {
@@ -91,6 +85,7 @@ function hasShapes(v: unknown): boolean {
     v !== null &&
     v !== undefined &&
     typeof v === "object" &&
+    // oxlint-disable-next-line no-unsafe-type-assertion
     (v as GeoJSON.GeometryCollection).geometries.length > 0
   );
 }
@@ -164,7 +159,9 @@ function newOverlayContext(
     entityType: "overlay",
     entityId: overlayId,
     changeType: "create",
-    proposed: { corners: overlayObj.history.at(-1)?.corners ?? overlayObj.corners },
+    proposed: {
+      corners: overlayObj.history.at(-1)?.corners ?? overlayObj.baselineCorners ?? undefined,
+    },
   };
 }
 
@@ -173,18 +170,12 @@ function formatValueForDisplay(value: unknown, fieldName?: string): string {
     return t("overlay.notSet");
   }
 
-  // Special handling for geometry - show shape count
   if (fieldName === "geometry" && typeof value === "object") {
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const count = (value as GeoJSON.GeometryCollection).geometries.length;
     return t("shapes.geometrySummary", { count });
   }
 
-  if (value instanceof Date) {
-    return formatDate(value);
-  }
-  if (typeof value === "number") {
-    return value.toFixed(6);
-  }
   if (Array.isArray(value)) {
     return `[${value.length} items]`;
   }
@@ -236,6 +227,7 @@ export function useSubmissionService() {
     ];
 
     for (const field of fieldsToCheck) {
+      // oxlint-disable-next-line no-unsafe-type-assertion
       const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
       const newValue = project[field];
 
@@ -245,7 +237,8 @@ export function useSubmissionService() {
       const normalizedOld = normalizeFieldValue(
         field,
         oldValue,
-        originalProject as Partial<Project>,
+        // oxlint-disable-next-line no-unnecessary-type-assertion
+        originalProject,
       );
       const normalizedNew = normalizeFieldValue(field, newValue, project);
 
@@ -265,7 +258,7 @@ export function useSubmissionService() {
           fieldName: field,
           oldValue: pushedOldValue,
           newValue: pushedNewValue,
-          changeReason: customReason ?? undefined,
+          changeReason: customReason,
         });
       }
     }
@@ -274,14 +267,12 @@ export function useSubmissionService() {
   }
 
   // Build human-readable formatted changes for confirmation dialog
-  function formatEntityChanges(context: EntityUpdate): SubmissionChange[] {
-    const changes =
-      context.entityType === "project"
-        ? detectProjectChanges(context.entity)
-        : (context.changedFields ?? []);
-
-    return changes.map((change) => ({
-      field: change.fieldName as RemovableChange, // Safe cast - we control field names in detectChanges
+  function formatEntityChanges(
+    context: Extract<EntityUpdate, { entityType: "project" }>,
+  ): SubmissionChange[] {
+    return detectProjectChanges(context.entity).map((change) => ({
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      field: change.fieldName as RemovableChange,
       oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
       newValue: formatValueForDisplay(change.newValue, change.fieldName),
       displayLabel: t(`fields.${change.fieldName}`),
@@ -289,11 +280,11 @@ export function useSubmissionService() {
   }
 
   function validateOverlay(context: Extract<EntityUpdate, { entityType: "overlay" }>): string[] {
-    const liveOverlay = overlayStore.overlays[context.entityId];
+    const liveOverlay = overlayStore.liveOverlays[context.entityId];
     const corners =
       context.proposed?.corners ??
       getOverlayImageCorners(context.entityId) ??
-      liveOverlay?.corners ??
+      liveOverlay?.baselineCorners ??
       [];
 
     // filename is validated server-side only (the client may not have it yet), so it's omitted here.
@@ -312,13 +303,8 @@ export function useSubmissionService() {
     const errors =
       context.entityType === "project" ? validateProject(context.entity) : validateOverlay(context);
 
-    if (context.changeType !== "create") {
-      const changes =
-        context.changedFields ??
-        (context.entityType === "project" ? detectProjectChanges(context.entity) : []);
-      if (changes.length === 0) {
-        errors.push(t("errors.noChangesDetected"));
-      }
+    if (context.changeType !== "create" && (context.changedFields ?? []).length === 0) {
+      errors.push(t("errors.noChangesDetected"));
     }
 
     return errors;
@@ -406,12 +392,12 @@ export function useSubmissionService() {
 
       const cornersChange = changes.find((c) => c.fieldName === "corners");
       const updates: Partial<OverlayObject> = {
-        isModified: false,
         hasPendingChanges: true,
       };
       if (cornersChange?.newValue) {
         // suggestedCorners powers the "view suggested position" preview; flipping
         // isViewingApprovedPosition turns the marker yellow while the CR is open.
+        // oxlint-disable-next-line no-unsafe-type-assertion
         updates.suggestedCorners = cornersChange.newValue as OverlayCorners;
         updates.isViewingApprovedPosition = false;
       }
@@ -426,7 +412,7 @@ export function useSubmissionService() {
     const hasCornersChange = changes.some((c) => c.fieldName === "corners");
     if (hasCornersChange) {
       // Pass the live store entry so publishOverlay's status/imageUrl mutations land in the store.
-      const liveOverlay = overlayStore.overlays[overlayId];
+      const liveOverlay = overlayStore.liveOverlays[overlayId];
       if (!liveOverlay) return;
 
       const project = liveOverlay.projectId
@@ -453,10 +439,8 @@ export function useSubmissionService() {
 
   // Executes one already-validated entity update. submitContext validates the whole batch up
   // front, so this never re-validates (re-validating here would double-check every overlay edit).
-  async function submitEntity(context: EntityUpdate, customReason?: string): Promise<void> {
-    const changes =
-      context.changedFields ??
-      (context.entityType === "project" ? detectProjectChanges(context.entity, customReason) : []);
+  async function submitEntity(context: EntityUpdate): Promise<void> {
+    const changes = context.changedFields ?? [];
 
     if (context.entityType === "project") {
       await submitProject(context, changes);
@@ -471,6 +455,7 @@ export function useSubmissionService() {
     overlayId: string,
     mod: Pick<PendingOverlayModification, "caption" | "corners">,
     overlayObj: OverlayObject,
+    reason?: string,
   ): Extract<EntityUpdate, { entityType: "overlay" }> {
     const changedFields: FieldChange[] = [];
     const proposed: { caption?: string | null; corners?: OverlayCorners } = {};
@@ -479,6 +464,7 @@ export function useSubmissionService() {
         fieldName: "caption",
         oldValue: mod.caption.original,
         newValue: mod.caption.current,
+        changeReason: reason,
       });
       proposed.caption = mod.caption.current;
     }
@@ -487,6 +473,7 @@ export function useSubmissionService() {
         fieldName: "corners",
         oldValue: mod.corners.original,
         newValue: mod.corners.current,
+        changeReason: reason,
       });
       proposed.corners = mod.corners.current;
     }
@@ -505,34 +492,33 @@ export function useSubmissionService() {
     mod: Pick<PendingOverlayModification, "caption" | "corners">,
     reason: string,
   ): Promise<void> {
-    const overlayObj = overlayStore.overlays[overlayId];
+    const overlayObj = overlayStore.liveOverlays[overlayId];
     if (!overlayObj) return;
 
     const isChangeRequest = overlayObj.status === "approved";
 
-    await submitEntity(buildOverlayModificationContext(overlayId, mod, overlayObj), reason);
+    await submitEntity(buildOverlayModificationContext(overlayId, mod, overlayObj, reason));
 
     pendingModsStore.clearModification(overlayId);
 
     // For direct updates we collapse history so the submitted state is the new baseline;
     // change requests keep history so the proposal stays visible on edit-mode re-entry.
     const submittedCorners = mod.corners?.current;
-    overlayStore.updateOverlay(overlayId, { isModified: false });
-    if (submittedCorners?.length === 4 && !isChangeRequest) {
-      overlayStore.updateOverlay(overlayId, { corners: submittedCorners });
+    if (submittedCorners && !isChangeRequest) {
+      overlayStore.updateOverlay(overlayId, { baselineCorners: submittedCorners });
       overlayStore.resetHistoryBaseline(overlayId, submittedCorners);
     }
   }
 
   async function publishNewOverlays(overlayIds: string[], project: Project | null): Promise<void> {
     for (const overlayId of overlayIds) {
-      const overlayObj = overlayStore.overlays[overlayId];
+      const overlayObj = overlayStore.liveOverlays[overlayId];
       if (!overlayObj) continue;
       await publishOverlay(overlayObj, project);
       // Collapse history so the just-published state is the new baseline.
       const publishedState = overlayObj.history.at(-1);
-      if (publishedState?.corners.length === 4) {
-        overlayStore.updateOverlay(overlayId, { corners: publishedState.corners });
+      if (publishedState) {
+        overlayStore.updateOverlay(overlayId, { baselineCorners: publishedState.corners });
         overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
       }
     }
@@ -566,11 +552,11 @@ export function useSubmissionService() {
     newOverlayIds: string[],
   ): EntityUpdate[] {
     const edits = existingMods.flatMap((mod) => {
-      const overlayObj = overlayStore.overlays[mod.overlayId];
+      const overlayObj = overlayStore.liveOverlays[mod.overlayId];
       return overlayObj ? [buildOverlayModificationContext(mod.overlayId, mod, overlayObj)] : [];
     });
     const created = newOverlayIds.flatMap((id) => {
-      const overlayObj = overlayStore.overlays[id];
+      const overlayObj = overlayStore.liveOverlays[id];
       return overlayObj ? [newOverlayContext(id, overlayObj)] : [];
     });
     return [...edits, ...created];
@@ -587,7 +573,7 @@ export function useSubmissionService() {
   ): Extract<EntityUpdate, { entityType: "project" }> | null {
     if (!project) return null;
     const projectChanges = detectProjectChanges(project, reason);
-    if (project.status === null && newOverlayIds.length === 0 && ctx.changeType === "create") {
+    if (project.status === null && newOverlayIds.length === 0) {
       return { ...createProjectContext(project, "create"), changedFields: projectChanges };
     }
     if (ctx.projectModified && project.status !== null && projectChanges.length) {
@@ -620,7 +606,7 @@ export function useSubmissionService() {
     }
     await publishNewOverlays(newOverlayIds, project);
     if (projectContext) {
-      await submitEntity(projectContext, reason);
+      await submitEntity(projectContext);
     }
     if (ctx.pendingRender && ctx.projectId) {
       await publishStagedRender(ctx.projectId, ctx.pendingRender.file);

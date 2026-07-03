@@ -51,7 +51,7 @@
       </div>
 
       <SatellitePreview />
-      <OverlayFloatingToolbar v-if="overlayStore.idSelectedOverlay" />
+      <OverlayFloatingToolbar v-if="focusStore.selectedOverlayId" />
     </div>
   </div>
 </template>
@@ -61,14 +61,14 @@ import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } fr
 
 import { initializeMap, map } from "@/services/core/map";
 import { initializeEditorTriggers } from "@/services/overlay/editing";
-import { addTileLayer } from "@/services/map/tileLayers";
-import { initVectorTileSync } from "@/services/map/vectorTileSync";
+import { addTileLayer } from "@/services/map/tiles/basemap";
+import { initVectorTileSync } from "@/services/map/tiles/sync";
 
 import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import ModeControls from "@/components/map/ModeControls.vue";
@@ -86,7 +86,7 @@ const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySear
 const SettingsButton = defineAsyncComponent(() => mapUIBundle.then((m) => m.SettingsButton));
 
 const mapStore = useMapStore();
-const overlayStore = useOverlayStore();
+const focusStore = useFocusStore();
 const authStore = useAuthStore();
 const toast = useToast();
 const { t } = useI18n();

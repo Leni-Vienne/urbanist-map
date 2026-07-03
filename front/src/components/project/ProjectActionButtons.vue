@@ -101,10 +101,10 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/authStore";
-import type { ProjectForModeration } from "@/types/index";
+import type { Project } from "@/types/index";
 
 interface Props {
-  project: ProjectForModeration;
+  project: Project;
   showEdit?: boolean;
   showAddImage?: boolean;
   showDraw?: boolean;
@@ -137,10 +137,10 @@ const editTooltip = computed(() =>
 );
 
 defineEmits<{
-  edit: [project: ProjectForModeration];
-  "add-image": [project: ProjectForModeration];
-  draw: [project: ProjectForModeration];
-  save: [project: ProjectForModeration];
-  delete: [project: ProjectForModeration];
+  edit: [project: Project];
+  "add-image": [project: Project];
+  draw: [project: Project];
+  save: [project: Project];
+  delete: [project: Project];
 }>();
 </script>

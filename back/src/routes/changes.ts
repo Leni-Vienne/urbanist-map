@@ -1,4 +1,4 @@
-import { adminProcedure, moderatorProcedure, loggedInProcedure, router } from "../trpc";
+import { moderatorProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import {
@@ -53,7 +53,9 @@ function isCoord(obj: unknown): obj is Coord {
   return (
     obj !== null &&
     typeof obj === "object" &&
+    // oxlint-disable-next-line no-unsafe-type-assertion
     Number.isFinite((obj as Record<string, unknown>).lat) &&
+    // oxlint-disable-next-line no-unsafe-type-assertion
     Number.isFinite((obj as Record<string, unknown>).lng)
   );
 }
@@ -136,6 +138,7 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
 
   if (change.entityType === "project" && PROJECT_DATE_FIELDS.has(change.fieldName)) {
     const value = change.newValue;
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const date = value === null || value === undefined ? null : new Date(value as string | number);
     return { [change.fieldName]: date };
   }
@@ -196,7 +199,7 @@ async function checkModeratorChangeRequestPermission(
   if (!isSupportedEntityType(entityType)) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      // oxlint-disable-next-line restrict-template-expressions
       message: `Invalid entity type: ${entityType}`,
     });
   }
@@ -666,39 +669,6 @@ export const changesRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to reject change requests",
-        });
-      }
-    }),
-
-  getChangeHistory: adminProcedure
-    .input(
-      z.object({
-        entityType: z.enum(["project", "overlay"]).optional(),
-        entityId: z.uuid().optional(),
-      }),
-    )
-    .query(async ({ input }) => {
-      try {
-        const baseQuery = db.select().from(changeHistory);
-
-        const whereConditions = [];
-        if (input.entityType) {
-          whereConditions.push(eq(changeHistory.entityType, input.entityType));
-        }
-        if (input.entityId) {
-          whereConditions.push(eq(changeHistory.entityId, input.entityId));
-        }
-
-        const query =
-          whereConditions.length > 0 ? baseQuery.where(and(...whereConditions)) : baseQuery;
-
-        const history = await query.orderBy(changeHistory.appliedAt);
-        return history;
-      } catch (error) {
-        console.error("Error fetching change history:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch change history",
         });
       }
     }),

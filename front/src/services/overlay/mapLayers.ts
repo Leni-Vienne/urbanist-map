@@ -10,9 +10,9 @@ import {
   transformToCorners,
   type OverlayTransform,
 } from "@/services/overlay/transform";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayObject, LatLng } from "@/types/index";
 
 // Centralized registry for all overlay layer references (image sources + markers).
 // Single source of truth for "is this overlay rendered on the map?".
@@ -35,7 +35,7 @@ interface RegistryEntry {
 
 const entries = new Map<string, RegistryEntry>();
 // Tracks IDs currently being created.
-// Internal to this module; callers use beginCreation/cancelCreation API.
+// Internal to this module; callers use beginCreation/endCreation API.
 const creating = new Set<string>();
 
 // ─── Creation mutex ───────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ const creating = new Set<string>();
  * Returns true if creation can proceed, false if:
  *   - Already being created (prevents duplicate async callbacks)
  *   - Already has a ready layer (prevents re-creation)
- * Callers MUST call cancelCreation() on all failure paths.
+ * Callers MUST call endCreation() once creation settles, on every success and failure path.
  */
 export function beginCreation(id: string): boolean {
   if (creating.has(id)) return false;
@@ -55,7 +55,8 @@ export function beginCreation(id: string): boolean {
   return true;
 }
 
-export function cancelCreation(id: string): void {
+// Release the creation mutex taken by beginCreation. Call on completion (success or failure).
+export function endCreation(id: string): void {
   creating.delete(id);
 }
 
@@ -240,14 +241,13 @@ export function clearAll(preserveMarkers = false): void {
       // Zoom threshold: null the image refs but keep the marker alive on the map.
       // This prevents marker flicker when crossing the zoom 13/14 boundary.
       entry.imageHandle = null;
+      if (entry.marker === null) entries.delete(id);
     } else {
       entry.marker?.remove();
       entries.delete(id);
     }
   }
 }
-
-type Corner = { lat: number; lng: number };
 
 function overlaySourceId(id: string): string {
   return `overlay-image-${id}`;
@@ -325,7 +325,7 @@ const PROJECT_SHAPE_QUERY_LAYERS = [
 export function overlayOverlapsProjectShape(id: string): boolean {
   const mlMap = map.value;
   const corners = getOverlayImageCorners(id);
-  if (corners?.length !== 4) return false;
+  if (!corners) return false;
 
   const layers = PROJECT_SHAPE_QUERY_LAYERS.filter((layer) => mlMap.getLayer(layer));
   if (layers.length === 0) return false;
@@ -341,7 +341,7 @@ export function overlayOverlapsProjectShape(id: string): boolean {
 }
 
 // MapLibre image sources take 4 corner coordinates in [TL, TR, BR, BL] order as [lng, lat].
-function cornersToImageCoordinates(corners: Corner[]): ImageCoordinates {
+function cornersToImageCoordinates(corners: LatLng[]): ImageCoordinates {
   /* oxlint-disable no-non-null-assertion */
   return [
     [corners[0]!.lng, corners[0]!.lat],
@@ -360,7 +360,7 @@ function getImageSource(sourceId: string): ImageSource | undefined {
 // old manual "show image past zoom X" plumbing; MapLibre hides it below the threshold natively.
 export function createOverlayImage(
   overlayObject: OverlayObject,
-  corners: Corner[],
+  corners: LatLng[],
 ): OverlayImageHandle | null {
   const mlMap = map.value;
   if (corners.length !== 4) return null;
@@ -400,7 +400,7 @@ export function createOverlayImage(
 
 // Re-render the image at exactly these corners (display / non-edit, e.g. restoring a saved
 // position). Also refreshes the stored rigid transform so the next edit starts from here.
-export function setOverlayImageCorners(id: string, corners: Corner[]): void {
+export function setOverlayImageCorners(id: string, corners: LatLng[]): void {
   const handle = getImageHandle(id);
   if (!handle || corners.length !== 4) return;
   getImageSource(handle.sourceId)?.setCoordinates(cornersToImageCoordinates(corners));
@@ -418,25 +418,31 @@ export function setOverlayImageTransform(id: string, transform: OverlayTransform
   );
 }
 
+// Derive an overlay's filename from its image URL: local data-URI uploads get a synthetic
+// `pending-<id>.webp` name, backend URLs keep their last path segment.
+export function deriveOverlayFilename(id: string, imageUrl: string, fallback = ""): string {
+  return imageUrl.startsWith("data:")
+    ? `pending-${id}.webp`
+    : (imageUrl.split("/").pop() ?? fallback);
+}
+
 // Swap an overlay's image bytes (and footprint) on the map: tear down the existing source/layer
 // and rebuild it from a new imageUrl at the given corners. Used when an edit changes the pixels
 // (crop apply, or undo/redo stepping across a crop), not just the position. Opacity and front/back
 // order are keyed by overlay id and so survive the rebuild.
-export function replaceOverlayImageSource(id: string, imageUrl: string, corners: Corner[]): void {
+export function replaceOverlayImageSource(id: string, imageUrl: string, corners: LatLng[]): void {
   const mlMap = map.value;
   const handle = getImageHandle(id);
-  if (mlMap && handle) {
+  if (handle) {
     if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
     if (mlMap.getSource(handle.sourceId)) mlMap.removeSource(handle.sourceId);
   }
 
   const store = useOverlayStore();
-  const overlay = store.overlays[id];
+  const overlay = store.liveOverlays[id];
   if (!overlay) return;
 
-  const filename = imageUrl.startsWith("data:")
-    ? `pending-${id}.webp`
-    : (imageUrl.split("/").pop() ?? overlay.filename);
+  const filename = deriveOverlayFilename(id, imageUrl, overlay.filename);
 
   store.updateOverlay(id, { imageUrl, filename });
 
@@ -446,10 +452,10 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
 
 // Last edited corner set from history, or null. Fallback for when the image handle is
 // temporarily null (e.g. zoomed out past the overlay threshold) but the overlay is modified.
-function lastHistoryCorners(id: string): Corner[] | null {
-  const overlay = useOverlayStore().overlays[id];
+function lastHistoryCorners(id: string): LatLng[] | null {
+  const overlay = useOverlayStore().liveOverlays[id];
   const lastCorners = overlay?.history.at(-1)?.corners;
-  return lastCorners?.length === 4 ? lastCorners : null;
+  return lastCorners ?? null;
 }
 
 // Live rigid transform of the overlay: from the image handle when rendered, else rebuilt from
@@ -462,7 +468,7 @@ export function getCurrentTransform(id: string): OverlayTransform | null {
 }
 
 // Live corners of the overlay's current rigid transform. The edited position during editing.
-export function getOverlayImageCorners(id: string): Corner[] | null {
+export function getOverlayImageCorners(id: string): LatLng[] | null {
   const handle = getImageHandle(id);
   if (handle) return transformToCorners(handle.transform);
   return lastHistoryCorners(id);

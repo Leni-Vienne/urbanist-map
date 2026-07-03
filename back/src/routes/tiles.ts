@@ -171,7 +171,7 @@ function createTileService(
   // Coalesces concurrent generations of the same tile so a burst of identical requests runs the
   // expensive query once. The shared promise also performs the cache write, so the tile is stored
   // exactly once regardless of how many callers awaited it.
-  function generateTileCoalesced(
+  async function generateTileCoalesced(
     z: number,
     x: number,
     y: number,
@@ -308,6 +308,7 @@ function tileResponse(tileData: Uint8Array, z: number): Response {
   const cacheControl = z <= 6 ? "public, max-age=86400" : "public, max-age=3600";
   // generateTile builds each cached value via `new Uint8Array(buf)`, so the backing store is always a
   // plain ArrayBuffer; the assertion just narrows ArrayBufferLike for the BodyInit type.
+  // oxlint-disable-next-line no-unsafe-type-assertion
   return new Response(tileData as Uint8Array<ArrayBuffer>, {
     headers: {
       "Content-Type": "application/vnd.mapbox-vector-tile",

@@ -25,7 +25,7 @@
 # (run_all.sh on a fresh planet.osm.pbf) remains useful to correct larger drift.
 #
 # Usage:
-#   ./update_weekly.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]
+#   ./update_daily.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]
 #
 # Options:
 #   --import       Run import-osm.ts after extraction (requires bun + backend)
@@ -99,6 +99,15 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORK_DIR="$(dirname "$FILTERED_PBF")"
 FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
 
+# All derived artifact names strip the _proposed.osm.pbf suffix. Guard it once
+# here so a mismatched input fails loudly instead of a silent no-op strip
+# producing paths like foo.osm.pbf_proposed_ways.osm.pbf.
+if [[ "$FILTERED_PBF" != *_proposed.osm.pbf ]]; then
+    echo "Error: expected a *_proposed.osm.pbf file (produced by run_all.sh), got: $FILTERED_PBF"
+    exit 1
+fi
+BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
+
 # ---------------------------------------------------------------------------
 # Dependency checks
 # ---------------------------------------------------------------------------
@@ -148,11 +157,10 @@ fi
 
 # Require 9GB of free space (9 * 1024 * 1024 = 9437184 KB)
 REQUIRED_SPACE_KB=9437184
-TARGET_DIR="$(dirname "$FILTERED_PBF")"
-AVAILABLE_SPACE_KB=$(df -P -k "$TARGET_DIR" | tail -1 | awk '{print $4}')
+AVAILABLE_SPACE_KB=$(df -P -k "$WORK_DIR" | tail -1 | awk '{print $4}')
 
 if [[ "$AVAILABLE_SPACE_KB" -lt "$REQUIRED_SPACE_KB" ]]; then
-    echo "Error: Not enough free disk space in $TARGET_DIR."
+    echo "Error: Not enough free disk space in $WORK_DIR."
     echo "  Available: $((AVAILABLE_SPACE_KB / 1024 / 1024)) GB"
     echo "  Required:  9 GB"
     exit 1
@@ -163,7 +171,6 @@ fi
 # ---------------------------------------------------------------------------
 
 function ts()      { date '+%H:%M:%S'; }
-function elapsed() { local s=$1; printf "%dm%02ds" $((s / 60)) $((s % 60)); }
 function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
 
 function run() {
@@ -212,14 +219,17 @@ else
     echo "  osmosis_replication_timestamp: ${REPL_TIMESTAMP:-(not found)}"
 fi
 
-if [[ -z "$REPL_TIMESTAMP" ]]; then
+# The timestamp is only needed to binary-search the starting sequence. When the
+# sidecar carries a sequence number, resumption works without it (a sidecar with
+# a blank timestamp happens when the state.txt fetch failed at the end of a run).
+if [[ -z "$REPL_TIMESTAMP" && -z "${LAST_SEQNUM:-}" ]]; then
     echo ""
     echo "ERROR: Could not determine replication timestamp."
     echo "On the first run after a fresh planet filter this is read from the PBF header."
     echo "On subsequent runs it is read from the sidecar file: $STATE_FILE"
     echo ""
     echo "If the sidecar file is missing, pass the timestamp manually:"
-    echo "  REPL_TIMESTAMP=2026-03-16T01:00:01Z ./update_weekly.sh ..."
+    echo "  REPL_TIMESTAMP=2026-03-16T01:00:01Z ./update_daily.sh ..."
     exit 1
 fi
 
@@ -234,7 +244,7 @@ fi
 
 echo ""
 echo "=========================================================="
-echo "[$(ts)] STEP 2: Resolving OSC sequence number for $REPL_TIMESTAMP"
+echo "[$(ts)] STEP 2: Resolving OSC sequence number for ${REPL_TIMESTAMP:-sidecar sequence ${LAST_SEQNUM:-?}}"
 echo "=========================================================="
 
 REPL_BASE_URL="https://planet.openstreetmap.org/replication/day"
@@ -276,14 +286,6 @@ function ts_to_epoch() {
     date -d "$ts" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" +%s 2>/dev/null || echo 0
 }
 
-PBF_EPOCH=$(ts_to_epoch "$REPL_TIMESTAMP")
-if [[ "$PBF_EPOCH" -eq 0 ]]; then
-    echo "ERROR: Could not parse timestamp: $REPL_TIMESTAMP"
-    exit 1
-fi
-
-echo "  PBF timestamp epoch: $PBF_EPOCH"
-
 # If the sidecar recorded the last applied sequence number, start from the next one directly.
 # Otherwise binary-search to find the last sequence whose timestamp <= PBF timestamp,
 # then start from seq+1 (OSM state timestamps represent the state *after* that sequence,
@@ -293,6 +295,12 @@ if [[ -n "${LAST_SEQNUM:-}" ]]; then
     FOUND_TS=$(fetch_seq_timestamp "$FOUND_SEQ")
     echo "  Resuming from sidecar sequence: $FOUND_SEQ  ($FOUND_TS)"
 else
+    PBF_EPOCH=$(ts_to_epoch "$REPL_TIMESTAMP")
+    if [[ "$PBF_EPOCH" -eq 0 ]]; then
+        echo "ERROR: Could not parse timestamp: $REPL_TIMESTAMP"
+        exit 1
+    fi
+    echo "  PBF timestamp epoch: $PBF_EPOCH"
     echo "  Binary-searching for matching sequence number..."
 
     LO=1
@@ -331,20 +339,35 @@ START_SEQ=$(( FOUND_SEQ + 1 ))
 echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - START_SEQ + 1)) diffs)"
 
 # Nothing to do: PBF is already at the latest published sequence.
-# But verify that extraction artifacts from the previous run are intact (an OOM
-# in step 4 can leave the ways PBF empty while the sidecar is already advanced).
-# In that case fall through and re-run step 4 without re-applying any diffs.
+# But verify that extraction artifacts from the previous run are intact: each one
+# must be non-empty and no older than the sidecar (step 4 runs after the sidecar
+# write, so a successful run always leaves artifacts newer than it; an older or
+# empty one is left over from an interrupted step 4, e.g. an OOM). In that case
+# fall through and re-run step 4 without re-applying any diffs.
 if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
-    _WAYS_PBF_CHECK="${FILTERED_PBF%_proposed.osm.pbf}_proposed_ways.osm.pbf"
-    _RELATIONS_PBF_CHECK="${FILTERED_PBF%_proposed.osm.pbf}_proposed_relations.osm.pbf"
-    if [[ -s "$_WAYS_PBF_CHECK" && -s "$_RELATIONS_PBF_CHECK" ]]; then
+    _ARTIFACTS_OK=1
+    for _f in "${BASE_PREFIX}_proposed_ways.osm.pbf" \
+              "${BASE_PREFIX}_proposed_areal.osm.pbf" \
+              "${BASE_PREFIX}_proposed_relations.osm.pbf" \
+              "${BASE_PREFIX}_proposed_linear.geojson" \
+              "${BASE_PREFIX}_proposed_areal.geojson"; do
+        if [[ ! -s "$_f" || "$_f" -ot "$STATE_FILE" ]]; then
+            echo ""
+            echo "[$(ts)] Sequence is current ($CURRENT_SEQNUM) but $(basename "$_f") is missing, empty, or older than the sidecar."
+            echo "         A previous step 4 likely failed (e.g. OOM). Skipping diff application and re-running extraction."
+            _ARTIFACTS_OK=0
+            break
+        fi
+    done
+    if [[ "$_ARTIFACTS_OK" -eq 1 ]]; then
         echo ""
         echo "[$(ts)] Already up to date (sequence $CURRENT_SEQNUM). Nothing to apply."
+        if [[ "$DO_IMPORT" -eq 1 ]]; then
+            echo "[$(ts)] Running import-osm.ts on the existing extraction (--import)."
+            run bun run "$REPO_ROOT/back/src/scripts/import-osm.ts"
+        fi
         exit 0
     fi
-    echo ""
-    echo "[$(ts)] Sequence is current ($CURRENT_SEQNUM) but ways or relations PBF is missing or empty."
-    echo "         A previous step 4 likely failed (e.g. OOM). Skipping diff application and re-running extraction."
 fi
 
 # ---------------------------------------------------------------------------
@@ -414,22 +437,33 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     echo ""
     echo "[$(ts)] Re-filtering merged PBF to drop non-matching diff objects"
     REFILTER_RULES="${WORK_DIR}/.osmium_filters_$$.txt"
-    "$SCRIPT_DIR/build_combined_filters.sh" > "$REFILTER_RULES"
     REFILTERED_PBF="${FILTERED_PBF%.osm.pbf}_refiltered.osm.pbf"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "[dry-run] build_combined_filters.sh > $REFILTER_RULES"
+    else
+        "$SCRIPT_DIR/build_combined_filters.sh" > "$REFILTER_RULES"
+    fi
     run osmium tags-filter \
         --overwrite \
         --output-format=pbf,pbf_compression=lz4 \
         -o "$REFILTERED_PBF" \
         "$FINAL_PBF" \
         -e "$REFILTER_RULES"
-    rm -f "$REFILTER_RULES"
+    run rm -f "$REFILTER_RULES"
     run mv -f "$REFILTERED_PBF" "$FINAL_PBF"
 
     # Phase 3: clean up the OSCs now that they're baked into $FINAL_PBF.
     if [[ "$DRY_RUN" -eq 0 ]]; then
         rm -f "${OSC_FILES[@]}"
+    fi
+
+    # Rename the updated PBF into place under the canonical name. This happens
+    # before the sidecar write below: the recorded sequence must never run ahead
+    # of the file it describes.
+    run mv -f "$FINAL_PBF" "$FILTERED_PBF"
+    if [[ "$DRY_RUN" -eq 0 ]]; then
         echo ""
-        echo "[$(ts)] Final updated PBF: $FINAL_PBF  ($(filesize "$FINAL_PBF"))"
+        echo "[$(ts)] Final updated PBF: $FILTERED_PBF  ($(filesize "$FILTERED_PBF"))"
     fi
 
     # Write sidecar state file so the next run knows where to resume.
@@ -455,25 +489,12 @@ echo "=========================================================="
 echo "[$(ts)] STEP 4: Deriving sub-PBFs + Python extraction"
 echo "=========================================================="
 
-# Move the re-filtered result into place under the canonical name. The original
-# was already removed after the merge, so this rename recreates $FILTERED_PBF.
-# Skipped when no diffs were applied (FINAL_PBF was never created).
-if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
-    if [[ "$DRY_RUN" -eq 0 ]]; then
-        mv -f "$FINAL_PBF" "$FILTERED_PBF"
-    else
-        echo "[dry-run] mv $FINAL_PBF $FILTERED_PBF"
-    fi
-fi
-
-# FILTERED_PBF = /path/to/<base>_proposed.osm.pbf
-BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
-OUTPUT_DIR="$(dirname "$FILTERED_PBF")"
+# BASE_PREFIX = /path/to/<base> (the _proposed.osm.pbf suffix stripped near the top)
 WAYS_PBF="${BASE_PREFIX}_proposed_ways.osm.pbf"
 AREAL_PBF="${BASE_PREFIX}_proposed_areal.osm.pbf"
 RELATIONS_PBF="${BASE_PREFIX}_proposed_relations.osm.pbf"
-LINEAR_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_linear.geojson"
-AREAL_GEOJSON="${OUTPUT_DIR}/$(basename "$BASE_PREFIX")_proposed_areal.geojson"
+LINEAR_GEOJSON="${BASE_PREFIX}_proposed_linear.geojson"
+AREAL_GEOJSON="${BASE_PREFIX}_proposed_areal.geojson"
 
 # Split the caught-up subset into the focused files the Python extraction reads.
 # derive_subpbfs.sh is the single source of truth for this step (also runnable
@@ -524,8 +545,14 @@ run python3 "$SCRIPT_DIR/extract_areal_buildings.py" \
     --output "$AREAL_GEOJSON" &
 PID_AREAL=$!
 
-wait $PID_LINEAR || { echo "ERROR: linear extraction failed"; exit 1; }
-wait $PID_AREAL  || { echo "ERROR: areal extraction failed";  exit 1; }
+# Collect both statuses before failing, so one extractor failing does not leave
+# the other running as an orphan that races a subsequent retry.
+RC_LINEAR=0
+RC_AREAL=0
+wait $PID_LINEAR || RC_LINEAR=$?
+wait $PID_AREAL  || RC_AREAL=$?
+[[ "$RC_LINEAR" -eq 0 ]] || { echo "ERROR: linear extraction failed"; exit 1; }
+[[ "$RC_AREAL"  -eq 0 ]] || { echo "ERROR: areal extraction failed";  exit 1; }
 
 # ---------------------------------------------------------------------------
 # Step 5: DB import (optional)

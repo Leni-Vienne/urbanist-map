@@ -1,13 +1,13 @@
 import { watch } from "vue";
 import type { OverlayData, Project } from "@/types/index";
-import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapeRendering";
-import { hasProjectShapes } from "@/services/map/shapeLayerRegistry";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useProjectStore } from "@/stores/pinia/projectStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
-import { useChangeRequestStore } from "@/stores/pinia/changeRequestStore";
-import { useModerationStore } from "@/stores/pinia/moderationStore";
-import { getApprovedOverlayDataFromTiles } from "@/services/map/vectorTileSync";
+import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapes/rendering";
+import { hasProjectShapes } from "@/services/map/shapes/registry";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useModerationStore } from "@/stores/moderationStore";
+import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/sync";
 import { createProjectObject } from "@/utils/typeFactories";
 
 /** Return the pending geometry change request value for a project, if any. */
@@ -21,7 +21,9 @@ function getPendingGeometry(
   const cr = crList.find(
     (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
   );
+  // oxlint-disable-next-line no-unsafe-type-assertion
   const geom = cr?.newValue as GeoJSON.GeometryCollection | undefined;
+  // oxlint-disable-next-line no-unnecessary-condition
   return geom?.geometries?.length ? geom : null;
 }
 
@@ -35,6 +37,7 @@ function resolveProjectGeometry(
   isModeration: boolean,
 ): ResolvedGeometry {
   const approved = (isEditMode ? storedGeometry : null) ?? approvedGeometry;
+  // oxlint-disable-next-line no-unnecessary-condition
   if (approved?.geometries?.length) return { geometry: approved };
   if (!isEditMode && !isModeration) return null;
   const pending = getPendingGeometry(projectId, isModeration);

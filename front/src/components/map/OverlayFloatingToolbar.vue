@@ -88,6 +88,9 @@
             <button v-if="canRedo" :title="t('toolbar.redo')" :class="btnCls()" @click="redo()">
               <i class="pi pi-refresh" />
             </button>
+            <button :title="t('toolbar.editInfo')" :class="btnCls()" @click="onEditInfo">
+              <i class="pi pi-pencil" />
+            </button>
             <button
               v-if="canReplaceImage"
               :title="t('toolbar.replace')"
@@ -139,8 +142,9 @@ import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import maplibregl from "maplibre-gl";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
-import { useOverlayStore } from "@/stores/pinia/overlayStore";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { map } from "@/services/core/map";
@@ -163,11 +167,12 @@ import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
+const focusStore = useFocusStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
-const { idSelectedOverlay } = storeToRefs(overlayStore);
+const { selectedOverlayId } = storeToRefs(focusStore);
 const { mode } = storeToRefs(mapStore);
-const selectedId = idSelectedOverlay;
+const selectedId = selectedOverlayId;
 const isEditMode = computed(() => mode.value === "edit");
 
 // markerIconEl is the maplibregl.Marker element; we teleport our toolbar content inside it.
@@ -232,7 +237,7 @@ function syncAnchor() {
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
     // Image removed from registry while still selected (e.g. zoom-out unload with
-    // preserveStoreData=true, idSelectedOverlay is not cleared in that path).
+    // preserveStoreData=true, which leaves the focus selection in place).
     selectOverlay(null);
     return;
   }
@@ -331,7 +336,7 @@ function readOpacity(): number {
 const overlayIndex = computed(() => {
   const id = selectedId.value;
   if (!id) return null;
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay?.projectId) return null;
   // Same source as navigateOverlaySequence, so the displayed index matches prev/next.
   const siblings = getProjectSiblingOverlayIds(overlay.projectId);
@@ -342,7 +347,7 @@ const overlayIndex = computed(() => {
 
 const showNav = computed(() => (overlayIndex.value?.total ?? 0) > 1);
 
-const selectedOverlay = computed(() => overlayStore.overlays[selectedId.value ?? ""]);
+const selectedOverlay = computed(() => overlayStore.liveOverlays[selectedId.value ?? ""]);
 
 const overlayName = computed(() => selectedOverlay.value?.caption?.trim() || null);
 
@@ -416,10 +421,16 @@ async function confirmCrop() {
   endCrop();
 }
 
+function onEditInfo() {
+  const overlay = selectedOverlay.value;
+  if (!overlay) return;
+  uiStore.openOverlayEditDialog(overlay);
+}
+
 function onReplace() {
   const id = selectedId.value;
   if (!id) return;
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay?.projectId) return;
   overlayStore.requestOverlayReplacement(id);
   uiStore.openImageUploadDialog(overlay.projectId);
@@ -428,7 +439,7 @@ function onReplace() {
 async function onDelete() {
   const id = selectedId.value;
   if (!id) return;
-  const overlay = overlayStore.overlays[id];
+  const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
   // Deselection (handles, highlight, docked detail) happens in removeOverlayFromMapAndStore.
   await handleDeleteOverlay(id, overlay.caption ?? null);
@@ -438,7 +449,7 @@ function canDeleteOverlay(overlayObject: OverlayObject): boolean {
   if (overlayObject.status === "approved") return false;
   // Rejected overlays are never selectable here (isOverlayVisible filters them out).
   if (overlayObject.status === "pending") return true;
-  if (overlayObject.isModified) return true;
+  if (isOverlayUnsaved(overlayObject)) return true;
   return false;
 }
 

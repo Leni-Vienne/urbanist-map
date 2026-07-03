@@ -61,8 +61,11 @@
           :key="country.countryCode"
           :value="country.countryCode ?? ''"
         >
-          <AccordionHeader @click="loadCountryDetails(country.countryCode)">
-            <div class="flex items-center gap-4 w-full">
+          <AccordionHeader>
+            <div
+              class="flex items-center gap-4 w-full"
+              @click="loadCountryDetails(country.countryCode)"
+            >
               <span class="font-semibold">{{ country.countryName ?? country.countryCode }}</span>
               <span class="text-muted-color text-sm">{{ country.countryCode }}</span>
               <div class="flex items-center gap-2 ml-auto text-sm">

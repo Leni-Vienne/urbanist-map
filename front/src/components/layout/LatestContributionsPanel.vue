@@ -108,7 +108,7 @@ import { useLatestContributions } from "@/composables/overlay/useLatestContribut
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
-import { useMapStore } from "@/stores/pinia/mapStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useToast } from "@/composables/ui/useToast";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
@@ -217,7 +217,7 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 
   if (contribution.type === "overlay") {
-    if (contribution.corners && contribution.corners.length === 4) {
+    if (contribution.corners) {
       zoomToOverlayAndSelect(contribution.id, contribution.corners);
     } else if (contribution.centroid) {
       mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18);
