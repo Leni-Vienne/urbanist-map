@@ -1,4 +1,4 @@
-import { LngLat, LngLatBounds } from "maplibre-gl";
+import { LngLat } from "maplibre-gl";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -10,6 +10,7 @@ import { useToast } from "@/composables/ui/useToast";
 import { selectOverlay, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
+import { buildLngLatBounds } from "@/utils/cornersBounds";
 import { overlayWireToData } from "@/utils/typeFactories";
 
 // Helper to zoom to overlay bounds
@@ -143,11 +144,7 @@ export async function navigateToOverlay(
     return true;
   }
   if (loadResult.corners && loadResult.corners.length >= 4) {
-    const bounds = new LngLatBounds();
-    for (const c of loadResult.corners) {
-      bounds.extend(new LngLat(c.lng, c.lat));
-    }
-    mobileAwareFlyToBounds(bounds);
+    mobileAwareFlyToBounds(buildLngLatBounds(loadResult.corners));
     return true;
   }
   return false;

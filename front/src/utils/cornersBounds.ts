@@ -1,8 +1,20 @@
+import { LngLat, LngLatBounds } from "maplibre-gl";
+import type { LatLng } from "@/types/index";
+
 export interface SimpleBounds {
   north: number;
   south: number;
   east: number;
   west: number;
+}
+
+// Build a maplibre LngLatBounds enclosing every corner, for camera navigation.
+export function buildLngLatBounds(corners: LatLng[]): LngLatBounds {
+  const bounds = new LngLatBounds();
+  for (const c of corners) {
+    bounds.extend(new LngLat(c.lng, c.lat));
+  }
+  return bounds;
 }
 
 /**
@@ -11,10 +23,7 @@ export interface SimpleBounds {
  * matters in the per-frame viewport loops. Correctly handles the case where the
  * viewport sits entirely inside a large overlay polygon.
  */
-export function cornersIntersectBounds(
-  corners: { lat: number; lng: number }[],
-  bounds: SimpleBounds,
-): boolean {
+export function cornersIntersectBounds(corners: LatLng[], bounds: SimpleBounds): boolean {
   const first = corners[0];
   if (!first) return false;
 

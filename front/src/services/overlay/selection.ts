@@ -11,12 +11,10 @@ import {
   raiseOverlayImage,
 } from "@/services/overlay/mapLayers";
 import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayObject, LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
-
-type Corner = { lat: number; lng: number };
 
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
   // Set position state for dynamic button feedback when selecting overlay
@@ -87,6 +85,23 @@ async function hydrateOverlayProject(overlayId: string): Promise<void> {
   }
 }
 
+// ~5s budget for an overlay's image layer to render before we stop waiting.
+const OVERLAY_READY_TIMEOUT_MS = 5000;
+
+/**
+ * Run `run` once the overlay's image layer is ready, but only if it is still the selected overlay
+ * by then. Bounded to OVERLAY_READY_TIMEOUT_MS so a layer that never renders doesn't leak a timer.
+ */
+export function whenImageReadyIfSelected(overlayId: string, run: () => void): void {
+  whenImageReady(
+    overlayId,
+    () => {
+      if (useFocusStore().selectedOverlayId === overlayId) run();
+    },
+    { timeoutMs: OVERLAY_READY_TIMEOUT_MS },
+  );
+}
+
 /**
  * Raise the selected overlay's image once its layer renders. selectOverlay raises it immediately,
  * but when selection is triggered from the side panel while zoomed out, the layer isn't rendered
@@ -95,17 +110,7 @@ async function hydrateOverlayProject(overlayId: string): Promise<void> {
  */
 export function raiseSelectedOverlayWhenReady(overlayId: string): void {
   if (hasReadyLayer(overlayId)) return;
-
-  const focus = useFocusStore();
-
-  function raiseIfStillSelected(): void {
-    // Selection changed while we were waiting; abandon.
-    if (focus.selectedOverlayId !== overlayId) return;
-    raiseOverlayImage(overlayId);
-  }
-
-  // ~5s budget, matching the overlay auto-select wait elsewhere.
-  whenImageReady(overlayId, raiseIfStillSelected, { timeoutMs: 5000 });
+  whenImageReadyIfSelected(overlayId, () => raiseOverlayImage(overlayId));
 }
 
 /**
@@ -144,7 +149,7 @@ export function removeOverlayHighlight(overlayId: string): void {
   }
 }
 
-function isPointInCorners(point: { lat: number; lng: number }, corners: Corner[]): boolean {
+function isPointInCorners(point: LatLng, corners: LatLng[]): boolean {
   if (corners.length < 3) return false;
   let isInside = false;
   // eslint-disable-next-line no-plusplus

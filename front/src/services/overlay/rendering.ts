@@ -37,17 +37,17 @@ export function createOverlayImageForObject(overlayObject: OverlayObject): void 
 
   const corners = resolveOverlayCorners(overlayObject, "image");
   if (!corners) {
-    registry.cancelCreation(overlayObject.id);
+    registry.endCreation(overlayObject.id);
     return;
   }
 
   const handle = createOverlayImage(overlayObject, corners);
   if (!handle) {
-    registry.cancelCreation(overlayObject.id);
+    registry.endCreation(overlayObject.id);
     return;
   }
   registry.setImageHandle(overlayObject.id, handle);
-  registry.cancelCreation(overlayObject.id);
+  registry.endCreation(overlayObject.id);
 }
 
 /**
@@ -85,13 +85,13 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
 
   const corners = resolveOverlayCorners(enriched, "image");
   if (!corners) {
-    registry.cancelCreation(cdnOverlay.id);
+    registry.endCreation(cdnOverlay.id);
     return;
   }
 
   const handle = createOverlayImage(enriched, corners);
   if (!handle) {
-    registry.cancelCreation(cdnOverlay.id);
+    registry.endCreation(cdnOverlay.id);
     return;
   }
   registry.setImageHandle(cdnOverlay.id, handle);
@@ -112,5 +112,5 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
     createOverlayMarker(overlay);
   }
 
-  registry.cancelCreation(cdnOverlay.id);
+  registry.endCreation(cdnOverlay.id);
 }

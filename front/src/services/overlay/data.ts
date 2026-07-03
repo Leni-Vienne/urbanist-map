@@ -2,12 +2,16 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useMapStore } from "@/stores/mapStore";
-import type { OverlayData, OverlayObject, OverlayHistoryState, Project } from "@/types/index";
+import type {
+  OverlayData,
+  OverlayObject,
+  OverlayHistoryState,
+  Project,
+  LatLng,
+} from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { isValidQuad } from "@/services/overlay/transform";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
-
-type Corner = { lat: number; lng: number };
 
 /**
  * Enrich overlay with project data, falling back to moderation store in moderation mode.
@@ -51,7 +55,7 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
 export function resolveOverlayCorners(
   overlay: OverlayData & { history?: OverlayHistoryState[] },
   purpose: "image" | "marker",
-): Corner[] | null {
+): LatLng[] | null {
   const mapStore = useMapStore();
 
   const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];

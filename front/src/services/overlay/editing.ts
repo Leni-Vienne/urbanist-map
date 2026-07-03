@@ -4,7 +4,6 @@ import maplibregl, { type GeoJSONSource, type MapMouseEvent, LngLat } from "mapl
 import type { Feature, Polygon } from "geojson";
 import { map, currentZoomLevel } from "@/services/core/map";
 import {
-  whenImageReady,
   getImageHandle,
   setOverlayImageTransform,
   getCurrentTransform,
@@ -12,6 +11,7 @@ import {
   createOverlayImage,
   setOverlayImageCorners,
   replaceOverlayImageSource,
+  deriveOverlayFilename,
 } from "@/services/overlay/mapLayers";
 import {
   transformToCorners,
@@ -30,10 +30,10 @@ import { validateOverlaySize } from "@shared/overlayValidation";
 import { useToast } from "@/composables/ui/useToast";
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import type { OverlayObject, OverlayHistoryState } from "@/types/index";
+import type { OverlayObject, OverlayHistoryState, LatLng } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
-import { selectOverlay } from "@/services/overlay/selection";
+import { selectOverlay, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import {
   makeHistoryState,
@@ -87,9 +87,7 @@ export function updateOverlayEditingState(): void {
 
 // Helper to create a new overlay object
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
-  // Detect Data URI (local upload) vs Backend URL
-  const isDataUri = imageUrl.startsWith("data:");
-  const filename = isDataUri ? `pending-${id}.webp` : (imageUrl.split("/").pop() ?? "");
+  const filename = deriveOverlayFilename(id, imageUrl);
   const authStore = useAuthStore();
 
   // null = local only, never submitted to backend.
@@ -119,9 +117,7 @@ async function loadImageAspect(imageUrl: string): Promise<number> {
 }
 
 // Place a new overlay as a rectangle centered on the current view, sized from the image aspect.
-async function defaultCornersForNewOverlay(
-  imageUrl: string,
-): Promise<{ lat: number; lng: number }[]> {
+async function defaultCornersForNewOverlay(imageUrl: string): Promise<LatLng[]> {
   const aspect = await loadImageAspect(imageUrl);
   const center = map.value.getCenter();
   const widthMeters = 100;
@@ -309,8 +305,6 @@ export function setupKeyboardShortcuts() {
   keyboardShortcutsRegistered = true;
 }
 
-type Corner = { lat: number; lng: number };
-
 interface CornerDragState {
   ax: number;
   ay: number;
@@ -344,7 +338,7 @@ function editSourceId(id: string): string {
   return `overlay-edit-${id}`;
 }
 
-function polygonFeature(corners: Corner[]): Feature<Polygon> {
+function polygonFeature(corners: LatLng[]): Feature<Polygon> {
   const ring = corners.map((c) => [c.lng, c.lat] as [number, number]);
   /* oxlint-disable-next-line no-non-null-assertion */
   ring.push(ring[0]!);
@@ -727,15 +721,9 @@ export function initializeEditorTriggers(): void {
       if (newId && newMode === "edit") {
         const overlay = overlayStore.liveOverlays[newId];
         if (overlay) {
-          whenImageReady(
-            newId,
-            () => {
-              if (focus.selectedOverlayId === newId && mapStore.mode === "edit") {
-                showEditHandles(overlay);
-              }
-            },
-            { timeoutMs: 5000 },
-          );
+          whenImageReadyIfSelected(newId, () => {
+            if (mapStore.mode === "edit") showEditHandles(overlay);
+          });
         }
       }
     },

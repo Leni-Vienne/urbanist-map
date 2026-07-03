@@ -11,7 +11,11 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible, matchesMapFilters } from "@/services/overlay/visibility";
 import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
-import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/lifecycle";
+import {
+  clearAllOverlays,
+  clearOverlayImagesOnly,
+  clearOverlayRenderState,
+} from "@/services/overlay/lifecycle";
 import * as registry from "@/services/overlay/mapLayers";
 import { createOverlayMarker } from "@/services/overlay/markers";
 import { updateOverlayEditingState } from "@/services/overlay/editing";
@@ -207,8 +211,8 @@ export function useViewportTriggers() {
 
       // CRITICAL: Don't load data until zoomed in past threshold
       if (zoom < loadThreshold) {
-        const isEditMode = mapStore.mode === "edit";
-        clearAllOverlays(isEditMode);
+        if (mapStore.mode === "edit") clearOverlayImagesOnly();
+        else clearAllOverlays();
         lastBboxKey = "";
 
         // Even though we aren't loading bbox data, we still need to merge global pending points
@@ -275,7 +279,7 @@ export function useViewportTriggers() {
    */
   function renderMarkersOnly(overlaysData: OverlayData[]) {
     const isEditMode = mapStore.mode === "edit";
-    clearAllOverlays(true);
+    clearOverlayImagesOnly();
 
     // Collect all overlays to render as markers
     const allOverlaysForMarkers = [...overlaysData];
@@ -353,7 +357,8 @@ export function useViewportTriggers() {
 
         // View mode is tiles-only, so clear before loading bbox data
         if (oldMode === "view") {
-          clearAllOverlays(newMode === "edit");
+          if (newMode === "edit") clearOverlayImagesOnly();
+          else clearAllOverlays();
         }
 
         await updateGlobalPendingPoints(newMode);

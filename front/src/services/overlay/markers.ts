@@ -1,5 +1,5 @@
 import { watchEffect } from "vue";
-import maplibregl, { LngLat, LngLatBounds } from "maplibre-gl";
+import maplibregl, { type LngLatBounds } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markersSvg";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -12,14 +12,12 @@ import type { AppMode } from "@shared/types";
 import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
-import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject, resolveOverlayCorners } from "@/services/overlay/data";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
-
-type Corner = { lat: number; lng: number };
+import { buildLngLatBounds } from "@/utils/cornersBounds";
 
 /**
  * Create the marker for an overlay (edit / moderation modes). Idempotent: skips overlays that
@@ -85,21 +83,13 @@ function onMarkerClick(overlayId: string): void {
   if (bounds) mobileAwareFlyToBounds(bounds);
 }
 
-function buildBounds(corners: Corner[]): LngLatBounds {
-  const bounds = new LngLatBounds();
-  for (const c of corners) {
-    bounds.extend(new LngLat(c.lng, c.lat));
-  }
-  return bounds;
-}
-
 /**
  * Bounds for an overlay, for camera navigation. Returns null when the overlay has no valid
  * geometry so callers skip navigation instead of feeding NaN bounds to the camera.
  */
 export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
   const corners = resolveOverlayCorners(overlay, "marker");
-  return corners ? buildBounds(corners) : null;
+  return corners ? buildLngLatBounds(corners) : null;
 }
 
 function getOverlayMarkerColor(
@@ -219,9 +209,9 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   const marker = registry.getMarker(overlayObject.id);
   if (!marker) return;
 
-  // Centroid from the live image corners so the pin tracks the overlay during edits.
-  const corners = getOverlayImageCorners(overlayObject.id) ?? overlayObject.baselineCorners;
-  if (corners.length === 4) {
+  // Centroid from the resolved marker position so the pin tracks the overlay during edits.
+  const corners = resolveOverlayCorners(overlayObject, "marker");
+  if (corners) {
     const centroid = calculateCentroidFromCorners(corners);
     if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);
   }
@@ -252,7 +242,10 @@ export function initializeMarkerColorTriggers(): void {
     for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
       const marker = registry.getMarker(overlayObject.id);
       if (!marker) continue;
-      updateMarkerTooltip(overlayObject, getOverlayMarkerColor(overlayObject, mode));
+      // Enrich to match createOverlayMarker: view-mode timeline color needs the resolved project,
+      // which the raw store object may lack when it's only findable via a store lookup.
+      const enriched = enrichOverlayWithProject(overlayObject);
+      updateMarkerTooltip(enriched, getOverlayMarkerColor(enriched, mode));
     }
   });
 }

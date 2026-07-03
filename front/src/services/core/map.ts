@@ -48,6 +48,7 @@ export const currentPitch = ref(0);
 // True once the basemap style has loaded and project data + interaction are wired up.
 // Preserved across Vite HMR so onMlMapReady callers don't wait for a `load` event that
 // already fired on the still-alive map instance.
+// oxlint-disable-next-line no-unnecessary-condition fails in preview/prod without the condition
 let styleReady = import.meta.hot?.data?.styleReady ?? false;
 const mlMapReadyCallbacks: (() => void)[] = [];
 

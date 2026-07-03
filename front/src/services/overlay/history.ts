@@ -1,14 +1,12 @@
-import type { NormalizedRect, OverlayHistoryState } from "@/types/index";
+import type { NormalizedRect, OverlayHistoryState, LatLng } from "@/types/index";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 
-type Corner = { lat: number; lng: number };
-
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(
-  corners: Corner[],
+  corners: LatLng[],
   imageUrl: string,
   cropRect?: NormalizedRect,
 ): OverlayHistoryState {

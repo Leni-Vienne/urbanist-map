@@ -1,13 +1,12 @@
 import maplibre from "maplibre-gl";
-
-type Corner = { lat: number; lng: number };
+import type { LatLng } from "@/types/index";
 
 // Web Mercator is undefined beyond ~±85.06°. A corner that is finite but out of range (or
 // otherwise malformed) projects to Infinity inside cameraForBounds and crashes the camera, so
 // bad quads are rejected before they reach marker placement, navigation, or image rendering.
 const MAX_MERCATOR_LAT = 85.06;
 
-function isValidCorner(c: Corner): boolean {
+function isValidCorner(c: LatLng): boolean {
   return (
     Number.isFinite(c.lng) &&
     Number.isFinite(c.lat) &&
@@ -16,7 +15,7 @@ function isValidCorner(c: Corner): boolean {
   );
 }
 
-export function isValidQuad(corners: Corner[] | undefined | null): corners is Corner[] {
+export function isValidQuad(corners: LatLng[] | undefined | null): corners is LatLng[] {
   return corners?.length === 4 && corners.every(isValidCorner);
 }
 
@@ -42,7 +41,7 @@ function toMercator(corner: { lat: number; lng: number }) {
 
 // Map a normalized (u, v) point of the rigid rectangle to geographic coordinates. u runs
 // left->right along width, v top->bottom along height; (0.5, 0.5) is the center.
-export function normToLngLat(t: OverlayTransform, u: number, v: number): Corner {
+export function normToLngLat(t: OverlayTransform, u: number, v: number): LatLng {
   const center = toMercator(t.center);
   const unit = center.meterInMercatorCoordinateUnits();
   const mx = (u - 0.5) * t.width * unit;
@@ -77,13 +76,13 @@ export function lngLatToNorm(
 }
 
 // Rigid transform -> 4 rectangle corners, in [TL, TR, BR, BL] order.
-export function transformToCorners(transform: OverlayTransform): { lat: number; lng: number }[] {
+export function transformToCorners(transform: OverlayTransform): LatLng[] {
   return SIGN.map(([sx, sy]) => normToLngLat(transform, (sx + 1) / 2, (sy + 1) / 2));
 }
 
 // Convert 4 rectangle corners [TL, TR, BR, BL] to the rigid transform. Width and bearing come
 // from the top edge, height from the left edge, center from the corner average.
-export function cornersToTransform(corners: { lat: number; lng: number }[]): OverlayTransform {
+export function cornersToTransform(corners: LatLng[]): OverlayTransform {
   const [tl, tr, br, bl] = corners.map(toMercator);
   /* oxlint-disable no-non-null-assertion */
   const centerMercator = new maplibre.MercatorCoordinate(
