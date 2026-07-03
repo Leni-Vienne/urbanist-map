@@ -6,6 +6,7 @@
     <i18n-t
       keypath="shapes.editorInstructions"
       tag="p"
+      scope="global"
       class="text-sm text-muted-color w-0 min-w-full text-center"
     >
       <template #editButton>

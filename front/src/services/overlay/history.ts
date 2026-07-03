@@ -3,6 +3,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import { isValidQuad } from "@/services/overlay/transform";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(
@@ -34,7 +35,7 @@ export function syncPendingOverlayCorners(id: string): void {
     id,
     overlay.projectId ?? null,
     mappedCorners,
-    overlay.baselineCorners,
+    overlay.baselineCorners ?? [],
     overlay.status,
   );
 }
@@ -56,7 +57,7 @@ export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
 
   // Seed empty history with the backend corners so the first undo has a base state.
   let baseHistory = overlay.history;
-  if (baseHistory.length === 0 && overlay.baselineCorners.length === 4) {
+  if (baseHistory.length === 0 && isValidQuad(overlay.baselineCorners)) {
     baseHistory = [makeHistoryState(overlay.baselineCorners, overlay.imageUrl)];
   }
 

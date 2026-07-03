@@ -185,7 +185,7 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     // We only run point-in-polygon for overlays whose live image can sit elsewhere.
     if (overlay.status === "approved" && !isOverlayUnsaved(overlay)) continue;
     const corners = resolveOverlayCorners(overlay, "image");
-    if (corners?.length === 4 && isPointInCorners(lngLat, corners)) {
+    if (corners && isPointInCorners(lngLat, corners)) {
       selectOverlay(id);
       return;
     }

@@ -9,6 +9,7 @@ import type { OverlayObject, OverlayData } from "@/types/index";
 import { visibleStates, selectedProjectTags } from "@/services/map/filters";
 import { createOverlayMarker, initializeMarkerColorTriggers } from "@/services/overlay/markers";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import { isValidQuad } from "@/services/overlay/transform";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
@@ -129,11 +130,11 @@ function pruneBackendOverlays(bounds: ViewportBounds) {
   const overlaysToRender: OverlayData[] = [];
 
   for (const data of filteredOverlays) {
-    if (data.baselineCorners.length !== 4) continue;
+    if (!isValidQuad(data.baselineCorners)) continue;
 
     // Prefer live corners so in-progress edits show up in the viewport test.
     const liveCorners = getOverlayImageCorners(data.id);
-    const effectiveCorners = liveCorners?.length === 4 ? liveCorners : data.baselineCorners;
+    const effectiveCorners = liveCorners ?? data.baselineCorners;
 
     const isInViewport = cornersIntersectBounds(effectiveCorners, bounds);
     const hasImage = registry.getImageHandle(data.id) !== null;
@@ -183,7 +184,7 @@ function pruneLocalOverlays() {
     // Backend overlays (status !== null) are handled by pruneBackendOverlays.
     if (overlay.status !== null) continue;
 
-    if (overlay.baselineCorners.length !== 4) continue;
+    if (!isValidQuad(overlay.baselineCorners)) continue;
 
     // Local overlays are actively being created by the user, no viewport bounds check.
     // Only explicit deletion or a mode switch should remove a local overlay.

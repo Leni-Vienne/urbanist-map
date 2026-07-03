@@ -11,6 +11,7 @@ import {
 } from "@/services/map/tiles/basemap";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
+import { isValidQuad } from "@/services/overlay/transform";
 import { trpc } from "@/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -113,8 +114,8 @@ function collectPendingShapes(
     if (project.geometry) standaloneShapeProjectIds.add(project.id);
 
     const isPending = project.status !== "approved" || overlay.status !== "approved";
-    const firstCorner = overlay.baselineCorners[0];
-    if (!isPending || overlay.baselineCorners.length < 3 || !firstCorner) continue;
+    const firstCorner = overlay.baselineCorners?.[0];
+    if (!isPending || !isValidQuad(overlay.baselineCorners) || !firstCorner) continue;
 
     shapes.push({
       type: "Feature",

@@ -159,7 +159,9 @@ function newOverlayContext(
     entityType: "overlay",
     entityId: overlayId,
     changeType: "create",
-    proposed: { corners: overlayObj.history.at(-1)?.corners ?? overlayObj.baselineCorners },
+    proposed: {
+      corners: overlayObj.history.at(-1)?.corners ?? overlayObj.baselineCorners ?? undefined,
+    },
   };
 }
 
@@ -502,7 +504,7 @@ export function useSubmissionService() {
     // For direct updates we collapse history so the submitted state is the new baseline;
     // change requests keep history so the proposal stays visible on edit-mode re-entry.
     const submittedCorners = mod.corners?.current;
-    if (submittedCorners?.length === 4 && !isChangeRequest) {
+    if (submittedCorners && !isChangeRequest) {
       overlayStore.updateOverlay(overlayId, { baselineCorners: submittedCorners });
       overlayStore.resetHistoryBaseline(overlayId, submittedCorners);
     }
@@ -515,7 +517,7 @@ export function useSubmissionService() {
       await publishOverlay(overlayObj, project);
       // Collapse history so the just-published state is the new baseline.
       const publishedState = overlayObj.history.at(-1);
-      if (publishedState?.corners.length === 4) {
+      if (publishedState) {
         overlayStore.updateOverlay(overlayId, { baselineCorners: publishedState.corners });
         overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
       }

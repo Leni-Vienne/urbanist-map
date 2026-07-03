@@ -214,6 +214,7 @@
     "publishErrorNoFilename": "Impossible de déterminer le nom du fichier de l'image",
     "publishErrorNoProject": "Cette image doit être associée à un projet avant la publication",
     "publishErrorNoProjectId": "Un projet est requis pour publier cette image",
+    "publishErrorNoCorners": "Cette image n'a pas encore de position sur la carte",
     "invalidCoordinates": "Coordonnées invalides",
     "couldNotParseCoordinates": "Impossible d'analyser les coordonnées géométriques",
     "previewFailed": "Échec de l'aperçu",

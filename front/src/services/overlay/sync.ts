@@ -12,7 +12,8 @@ import { usePendingModificationsStore } from "@/stores/pendingModificationsStore
 import { getImageHandle, setOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { refreshEditHandles } from "@/services/overlay/editing";
 import { updateMarkerPosition } from "@/services/overlay/markers";
-import type { ModifiableField, OverlayObject } from "@/types/index";
+import { isValidQuad } from "@/services/overlay/transform";
+import type { LatLng, ModifiableField, OverlayObject } from "@/types/index";
 
 interface ApplyOverlayCornersOptions {
   // Collapse undo/redo history to these corners, so re-entering edit mode starts from here.
@@ -23,11 +24,11 @@ interface ApplyOverlayCornersOptions {
 
 export function applyOverlayCorners(
   overlayObject: OverlayObject,
-  corners: { lat: number; lng: number }[],
+  corners: LatLng[] | null,
   options: ApplyOverlayCornersOptions = {},
 ): void {
   const overlayId = overlayObject.id;
-  const hasFullCorners = corners.length === 4;
+  const hasFullCorners = isValidQuad(corners);
 
   if (options.resetHistory && hasFullCorners) {
     useOverlayStore().resetHistoryBaseline(overlayId, corners);

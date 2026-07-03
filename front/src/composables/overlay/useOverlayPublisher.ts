@@ -1,18 +1,19 @@
 import { useProjectStore } from "@/stores/projectStore";
 import { trpc, getApiUrl } from "@/client";
-import type { OverlayObject, Project } from "@/types/index";
+import type { LatLng, OverlayObject, Project } from "@/types/index";
 import { projectSchema } from "@shared/validation/schemas";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/overlayStore";
+import { isValidQuad } from "@/services/overlay/transform";
 
 // The user's last edited position (history.at(-1)) is the source of truth; fall back to
-// the stored backend corners for an unedited overlay.
-function getCornersFromOverlay(overlay: OverlayObject) {
+// the stored backend corners for an unedited overlay. Null when the overlay has no footprint.
+function getCornersFromOverlay(overlay: OverlayObject): LatLng[] | null {
   const lastEdited = overlay.history.at(-1)?.corners;
-  if (lastEdited?.length === 4) return lastEdited;
-  return overlay.baselineCorners;
+  if (isValidQuad(lastEdited)) return lastEdited;
+  return isValidQuad(overlay.baselineCorners) ? overlay.baselineCorners : null;
 }
 
 // Images upload to local storage first and migrate to R2 only after moderator approval.
@@ -124,6 +125,9 @@ export function useOverlayPublisher() {
     }
 
     const corners = getCornersFromOverlay(overlay);
+    if (!corners) {
+      throw new Error(t("overlay.publishErrorNoCorners"));
+    }
     const payload = {
       id: overlay.id,
       filename,

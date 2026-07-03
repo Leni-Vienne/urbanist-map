@@ -67,6 +67,7 @@
         <i18n-t
           keypath="imageUpload.pdfExtractionDescription"
           tag="p"
+          scope="global"
           class="text-sm text-(--p-text-color-secondary) leading-relaxed m-0"
         >
           <template #toolLink>

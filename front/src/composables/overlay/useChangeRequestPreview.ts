@@ -8,6 +8,7 @@ import { useMapStore } from "@/stores/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
 import { applyOverlayCorners } from "@/services/overlay/sync";
+import { isValidQuad } from "@/services/overlay/transform";
 import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -93,7 +94,7 @@ function navigateToPosition(
 function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): LngLat[] | null {
   if (type === "new") {
     // Show suggested position
-    if (overlayObject.suggestedCorners?.length !== 4) {
+    if (!overlayObject.suggestedCorners) {
       console.warn("No suggested corners available for overlay", overlayObject.id);
       return null;
     }
@@ -102,7 +103,7 @@ function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): Ln
     );
   }
   // Show approved position (always in baselineCorners field)
-  if (overlayObject.baselineCorners.length !== 4) {
+  if (!isValidQuad(overlayObject.baselineCorners)) {
     return null;
   }
   return overlayObject.baselineCorners.map(

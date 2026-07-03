@@ -102,7 +102,7 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
-    baselineCorners: data.baselineCorners ?? [],
+    baselineCorners: data.baselineCorners ?? null,
     imageUrl,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
@@ -118,7 +118,7 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
  */
 export function convertOverlayToData(overlayObject: OverlayObject): OverlayData {
   // Calculate centroid from corners
-  const centroid = calculateCentroidFromCorners(overlayObject.baselineCorners) ?? {
+  const centroid = calculateCentroidFromCorners(overlayObject.baselineCorners ?? []) ?? {
     lat: 0,
     lng: 0,
   };

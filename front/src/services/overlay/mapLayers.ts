@@ -325,7 +325,7 @@ const PROJECT_SHAPE_QUERY_LAYERS = [
 export function overlayOverlapsProjectShape(id: string): boolean {
   const mlMap = map.value;
   const corners = getOverlayImageCorners(id);
-  if (corners?.length !== 4) return false;
+  if (!corners) return false;
 
   const layers = PROJECT_SHAPE_QUERY_LAYERS.filter((layer) => mlMap.getLayer(layer));
   if (layers.length === 0) return false;
@@ -455,7 +455,7 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
 function lastHistoryCorners(id: string): LatLng[] | null {
   const overlay = useOverlayStore().liveOverlays[id];
   const lastCorners = overlay?.history.at(-1)?.corners;
-  return lastCorners?.length === 4 ? lastCorners : null;
+  return lastCorners ?? null;
 }
 
 // Live rigid transform of the overlay: from the image handle when rendered, else rebuilt from

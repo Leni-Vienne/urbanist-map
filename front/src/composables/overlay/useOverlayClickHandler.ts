@@ -13,6 +13,7 @@ import {
   syncModerationCountry,
 } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
+import { isValidQuad } from "@/services/overlay/transform";
 
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = Overlay | LatestContribution;
@@ -112,15 +113,11 @@ async function navigateToReplacedOrRejectedOverlay(
   const { projectId } = overlay;
 
   // First try to get centroid from overlay store (has full overlay data)
-  const overlayFromStore = overlayStore.liveOverlays[overlay.id];
-  if (overlayFromStore?.baselineCorners && overlayFromStore.baselineCorners.length >= 4) {
+  const storeCorners = overlayStore.liveOverlays[overlay.id]?.baselineCorners;
+  if (isValidQuad(storeCorners)) {
     // Calculate centroid from corners
-    const centroidLat =
-      overlayFromStore.baselineCorners.reduce((sum, c) => sum + c.lat, 0) /
-      overlayFromStore.baselineCorners.length;
-    const centroidLng =
-      overlayFromStore.baselineCorners.reduce((sum, c) => sum + c.lng, 0) /
-      overlayFromStore.baselineCorners.length;
+    const centroidLat = storeCorners.reduce((sum, c) => sum + c.lat, 0) / storeCorners.length;
+    const centroidLng = storeCorners.reduce((sum, c) => sum + c.lng, 0) / storeCorners.length;
 
     mobileAwareFlyTo([centroidLat, centroidLng], 18);
     return;

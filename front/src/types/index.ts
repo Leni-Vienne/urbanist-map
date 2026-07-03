@@ -125,9 +125,11 @@ export type OverlayData = Omit<
   status: ApprovalStatus | null;
   project?: ApiOverlayData["project"] | Project | null;
   distance?: number;
-  // The immutable backend/approved corners. The live edited position lives on the GL image
-  // (getOverlayImageCorners) and undo steps in history[]; this is only the server baseline.
-  baselineCorners: ApiOverlayData["corners"];
+  // The immutable backend/approved corners, or null when the overlay has no placed footprint
+  // (an un-placed local upload before its corners are computed, or a render with null corners).
+  // The live edited position lives on the GL image (getOverlayImageCorners) and undo steps in
+  // history[]; this is only the server baseline.
+  baselineCorners: LatLng[] | null;
   suggestedCorners?: LatLng[];
   hasPendingChanges?: boolean;
   pendingChangeRequestsCount?: number;

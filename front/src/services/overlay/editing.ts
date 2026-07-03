@@ -16,6 +16,7 @@ import {
 import {
   transformToCorners,
   cornersToTransform,
+  isValidQuad,
   SIGN,
   type OverlayTransform,
 } from "@/services/overlay/transform";
@@ -64,11 +65,11 @@ export function updateOverlayEditingState(): void {
     if (isEditMode) {
       const lastEdited = overlayObject.history.at(-1);
       const hasUserEdits = overlayObject.history.length > 1;
-      if (hasUserEdits && lastEdited?.corners.length === 4) {
+      if (hasUserEdits && lastEdited) {
         restoreOverlayToState(overlayObject.id, lastEdited);
         updateMarkerPosition(overlayObject);
       }
-    } else if (overlayObject.baselineCorners.length === 4) {
+    } else if (isValidQuad(overlayObject.baselineCorners)) {
       // Leaving edit mode: snap back to the approved backend position.
       // History is intentionally preserved so re-entering edit mode restores the user's edits.
       setOverlayImageCorners(overlayObject.id, overlayObject.baselineCorners);
@@ -579,6 +580,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   const corners =
     resolveOverlayCorners(overlayObject, "image") ??
     (transformToUse ? transformToCorners(transformToUse) : overlayObject.baselineCorners);
+  if (!isValidQuad(corners)) return;
   const transform = cornersToTransform(corners);
   setOverlayImageTransform(overlayObject.id, transform);
   const rectCorners = transformToCorners(transform);

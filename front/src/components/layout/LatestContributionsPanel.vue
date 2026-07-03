@@ -217,7 +217,7 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 
   if (contribution.type === "overlay") {
-    if (contribution.corners && contribution.corners.length === 4) {
+    if (contribution.corners) {
       zoomToOverlayAndSelect(contribution.id, contribution.corners);
     } else if (contribution.centroid) {
       mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18);
