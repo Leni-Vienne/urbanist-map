@@ -1,8 +1,9 @@
 /**
- * clusterSourceMerge.ts - builds the GeoJSON source for pending projects.
+ * pendingSources.ts - builds the GeoJSON sources for pending content.
  *
- * In edit/moderation modes, this module collects pending/user-owned projects
- * from the bbox tRPC fetch and updates the pending-project-points source.
+ * In edit/moderation modes, this module collects pending/user-owned projects and
+ * overlay footprints from the bbox tRPC fetch and updates both the
+ * pending-project-points source and the pending-project-shapes source.
  */
 
 import {
@@ -133,6 +134,8 @@ function collectPendingShapes(
         project_id: project.id,
         sourceLayer: "overlay-footprints",
         status: overlay.status,
+        name: project.name,
+        timeline_status: project.timelineStatus,
         tags: project.tags ? JSON.stringify(project.tags) : null,
         first_tag: project.tags?.[0] ?? null,
       },
@@ -149,6 +152,7 @@ function collectPendingShapes(
         id: project.id,
         sourceLayer: "project-shapes",
         status: project.status,
+        name: project.name,
         timeline_status: project.timelineStatus,
         tags: project.tags ? JSON.stringify(project.tags) : null,
         first_tag: project.tags?.[0] ?? null,
@@ -202,13 +206,6 @@ function collectPendingPoints(
   return pendingProjects;
 }
 
-function writeSource(
-  update: (geojson: GeoJSON.FeatureCollection) => void,
-  features: GeoJSON.Feature[],
-): void {
-  update({ type: "FeatureCollection", features });
-}
-
 /**
  * Merge pending projects from bbox fetch into the geojson source.
  * Call after each viewport fetch in edit/moderation modes.
@@ -219,8 +216,8 @@ export function mergeProjectPointsForMode(
   mode: AppMode,
 ): void {
   if (mode === "view") {
-    writeSource(updatePendingProjectPointsSource, []);
-    writeSource(updatePendingProjectShapesSource, []);
+    updatePendingProjectPointsSource({ type: "FeatureCollection", features: [] });
+    updatePendingProjectShapesSource({ type: "FeatureCollection", features: [] });
     return;
   }
 
@@ -228,6 +225,9 @@ export function mergeProjectPointsForMode(
   const pendingShapes = collectPendingShapes(overlaysData, projectsData, standaloneShapeProjectIds);
   const pendingPoints = collectPendingPoints(overlaysData, projectsData, standaloneShapeProjectIds);
 
-  writeSource(updatePendingProjectPointsSource, [...pendingPoints.values()]);
-  writeSource(updatePendingProjectShapesSource, pendingShapes);
+  updatePendingProjectPointsSource({
+    type: "FeatureCollection",
+    features: [...pendingPoints.values()],
+  });
+  updatePendingProjectShapesSource({ type: "FeatureCollection", features: pendingShapes });
 }

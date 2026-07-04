@@ -94,7 +94,7 @@ type RenderedMapFeature = {
   properties?: Record<string, unknown>;
   sourceLayer?: string;
   geometry?: {
-    coordinates?: any;
+    coordinates?: unknown;
   };
   layer?: {
     id: string;
@@ -351,11 +351,6 @@ function getTagFilterExpression(): FilterSpecification | null {
     conditions.push(["==", ["to-string", ["get", "first_tag"]], ""]);
   }
 
-  if (conditions.length === 0) {
-    // Only untagged was selected but we didn't add it, show nothing
-    return ["==", ["to-string", ["get", "id"]], "__none__"] as FilterSpecification; // Always false
-  }
-
   if (conditions.length === 1) {
     return conditions[0] as FilterSpecification;
   }
@@ -434,9 +429,9 @@ function getSizeFilterExpressionForPoints(): FilterSpecification | null {
   if (minSize === 0 && maxSize === Infinity) return null;
 
   // A cell matches if its size range overlaps the filter range.
-  const conditions: unknown[] = [[">=", ["coalesce", ["get", "max_size_m"], 0], minSize]];
+  const conditions: unknown[] = [[">=", ["get", "max_size_m"], minSize]];
   if (maxSize !== Infinity) {
-    conditions.push(["<=", ["coalesce", ["get", "min_size_m"], 0], maxSize]);
+    conditions.push(["<=", ["get", "min_size_m"], maxSize]);
   }
   const rangeFilter = allOf(conditions);
   // Cells of only no-geometry projects have null max_size_m; let them pass like the shapes filter,
@@ -549,6 +544,38 @@ function setLayerFilter(
   mlMap.setFilter(layerId, filter ?? null);
 }
 
+// setPaintProperty/setLayoutProperty also force a repaint on every call. These expressions only
+// change with the tag selection, yet applyTagFiltersToVectorLayers runs on every filter change,
+// so skip the call when the value is unchanged. Keyed by `${kind}:${layerId}:${name}`.
+// Cleared alongside appliedLayerFilters in addProjectDataToMlMap.
+const appliedLayerProperties = new Map<string, string>();
+
+function setLayerPaintProperty(
+  mlMap: MaplibreMap,
+  layerId: string,
+  name: string,
+  value: ExpressionSpecification,
+): void {
+  const key = `paint:${layerId}:${name}`;
+  const serialized = JSON.stringify(value);
+  if (appliedLayerProperties.get(key) === serialized) return;
+  appliedLayerProperties.set(key, serialized);
+  mlMap.setPaintProperty(layerId, name, value);
+}
+
+function setLayerLayoutProperty(
+  mlMap: MaplibreMap,
+  layerId: string,
+  name: string,
+  value: ExpressionSpecification,
+): void {
+  const key = `layout:${layerId}:${name}`;
+  const serialized = JSON.stringify(value);
+  if (appliedLayerProperties.get(key) === serialized) return;
+  appliedLayerProperties.set(key, serialized);
+  mlMap.setLayoutProperty(layerId, name, value);
+}
+
 /**
  * Apply current tag, status, and size filters to all project vector layers.
  * Called when any filter selection changes.
@@ -567,10 +594,18 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const shapesBaseFilter = combineFilters(hiddenFilter, baseFilter);
   const pointsFilter = combineFilters(baseFilter, getSizeFilterExpressionForPoints());
 
+  const pointColor = getProjectPointColorExpression();
+
   // project-points: tag + status + point size
   if (mlMap.getLayer("project-points")) {
     setLayerFilter(mlMap, "project-points", pointsFilter);
-    mlMap.setPaintProperty("project-points", "circle-color", getProjectPointColorExpression());
+    setLayerPaintProperty(mlMap, "project-points", "circle-color", pointColor);
+  }
+
+  // pending-project-points shares the tag-driven color; refresh it here so a tag change recolors
+  // pending markers too, not just the approved layer.
+  if (mlMap.getLayer("pending-project-points")) {
+    setLayerPaintProperty(mlMap, "pending-project-points", "circle-color", pointColor);
   }
 
   // Cluster counts ride the same filters as the points, gated to cluster markers (cell_count > 1)
@@ -581,7 +616,12 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
       pointsFilter,
     );
     setLayerFilter(mlMap, "project-points-count", countFilter);
-    mlMap.setLayoutProperty("project-points-count", "text-field", getClusterCountExpression());
+    setLayerLayoutProperty(
+      mlMap,
+      "project-points-count",
+      "text-field",
+      getClusterCountExpression(),
+    );
   }
 
   // Layers with existing filters that must be merged
@@ -591,7 +631,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     const baseLayerFilter = getBaseLayerFilter();
     const sizeFilter = getSizeFilterExpressionForShapes();
     const merged = combineFilters(baseLayerFilter, shapesBaseFilter, sizeFilter);
-    setLayerFilter(mlMap, layerId, merged ?? baseLayerFilter);
+    setLayerFilter(mlMap, layerId, merged);
   }
 
   applyFootprintLayerFilters(mlMap);
@@ -606,15 +646,11 @@ function queryFeaturesAtPoint(
   const existingLayers = layers.filter((l) => mlMap.getLayer(l));
   if (existingLayers.length === 0) return [];
 
-  if (hitRadius > 0) {
-    const bbox: [PointLike, PointLike] = [
-      [point.x - hitRadius, point.y - hitRadius],
-      [point.x + hitRadius, point.y + hitRadius],
-    ];
-    return mlMap.queryRenderedFeatures(bbox, { layers: existingLayers });
-  }
-
-  return mlMap.queryRenderedFeatures([point.x, point.y], { layers: existingLayers });
+  const bbox: [PointLike, PointLike] = [
+    [point.x - hitRadius, point.y - hitRadius],
+    [point.x + hitRadius, point.y + hitRadius],
+  ];
+  return mlMap.queryRenderedFeatures(bbox, { layers: existingLayers });
 }
 
 // Build a MapLibre filter matching features whose "id" is NOT in the hidden set.
@@ -895,25 +931,9 @@ export function registerHybridInteractionHandlers(): void {
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
   // Position updates are exempt from throttling so the card follows the cursor smoothly.
   let hoverThrottlePending = false;
+  let hoverTrailingEvent: { event: MapMouseEvent; clientX: number; clientY: number } | null = null;
 
-  map.value.on("mousemove", (event: MapMouseEvent) => {
-    const orig = event.originalEvent;
-    if ("pointerType" in orig && (orig as PointerEvent).pointerType === "touch") {
-      return;
-    }
-
-    const clientX = orig.clientX;
-    const clientY = orig.clientY;
-
-    // Always update card position immediately, bypasses Vue render via direct DOM write.
-    updateHoverPreviewPosition(clientX, clientY);
-
-    if (hoverThrottlePending) return;
-    hoverThrottlePending = true;
-    setTimeout(() => {
-      hoverThrottlePending = false;
-    }, 32);
-
+  function processHover(event: MapMouseEvent, clientX: number, clientY: number): void {
     const mlMap = map.value;
     const features = queryFeaturesAtPoint(
       event.point,
@@ -941,6 +961,36 @@ export function registerHybridInteractionHandlers(): void {
 
     // Hover preview card, only on pointer devices (no touch)
     updateHoverPreview(vectorFeature, pointFeature, clientX, clientY);
+  }
+
+  map.value.on("mousemove", (event: MapMouseEvent) => {
+    const orig = event.originalEvent;
+    if ("pointerType" in orig && (orig as PointerEvent).pointerType === "touch") {
+      return;
+    }
+
+    const clientX = orig.clientX;
+    const clientY = orig.clientY;
+
+    // Always update card position immediately, bypasses Vue render via direct DOM write.
+    updateHoverPreviewPosition(clientX, clientY);
+
+    if (hoverThrottlePending) {
+      // Keep the latest event so the trailing run lands on the feature under the final cursor
+      // position; without it the last move before the cursor stops is dropped and the highlight
+      // can rest on the wrong feature.
+      hoverTrailingEvent = { event, clientX, clientY };
+      return;
+    }
+    hoverThrottlePending = true;
+    setTimeout(() => {
+      hoverThrottlePending = false;
+      const trailing = hoverTrailingEvent;
+      hoverTrailingEvent = null;
+      if (trailing) processHover(trailing.event, trailing.clientX, trailing.clientY);
+    }, 32);
+
+    processHover(event, clientX, clientY);
   });
 
   map.value.on("mouseout", () => {
@@ -1092,8 +1142,9 @@ function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData 
  * Called once from mlMap.on('load') and after every style switch.
  */
 export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
-  // The layers below are (re)created with their default filters, so any cached filter is stale.
+  // The layers below are (re)created with their default filters/paint, so any cached value is stale.
   appliedLayerFilters.clear();
+  appliedLayerProperties.clear();
   // Feature states live on the old sources, which the style switch discards; drop the tracking too.
   appliedFeatureStates.clear();
 
@@ -1247,7 +1298,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   );
 
   // Invisible sentinel layer, no status filter needed since all footprints trigger overlay loading.
-  // vectorTileSync.ts checks for this layer by name to confirm the map is ready.
+  // sync.ts checks for this layer by name to confirm the map is ready.
   mlMap.addLayer(
     {
       id: "overlay-footprints",

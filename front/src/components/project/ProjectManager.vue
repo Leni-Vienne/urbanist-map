@@ -53,7 +53,7 @@ import { map } from "@/services/core/map";
 import { createProjectPinElement } from "@/services/map/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
 import { selectProject } from "@/services/map/projectSelection";
-import { mergeProjectPointsForMode } from "@/services/map/tiles/clusterSourceMerge";
+import { mergeProjectPointsForMode } from "@/services/map/tiles/pendingSources";
 import type { Project } from "@/types/index";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";

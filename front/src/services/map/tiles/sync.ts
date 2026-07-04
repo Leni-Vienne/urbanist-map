@@ -1,5 +1,5 @@
 /**
- * vectorTileSync.ts, idle-driven overlay sync for approved overlays.
+ * sync.ts, idle-driven overlay sync for approved overlays.
  *
  * Listens to MapLibre's 'idle' event and diffs the rendered overlay-footprints
  * features against the overlay render registry to create/destroy overlay image
@@ -151,6 +151,8 @@ export function syncOverlaysFromTiles(): void {
     const filtered = new Set<string>();
     const lastModifiedById = new Map<string, number>();
     const statusById = new Map<string, string | null>();
+    const tagsById = new Map<string, string[]>();
+    const nameById = new Map<string, string | null>();
     for (const feat of allFeatures) {
       const { overlay, lastModifiedS, timelineStatus, tags, name } = decodeFootprint(feat);
       if (!overlay || featureMap.has(overlay.id)) continue;
@@ -158,6 +160,8 @@ export function syncOverlaysFromTiles(): void {
 
       lastModifiedById.set(id, lastModifiedS);
       statusById.set(id, timelineStatus);
+      tagsById.set(id, tags);
+      nameById.set(id, name);
 
       if (
         !matchesDateFilter(lastModifiedS) ||
@@ -178,7 +182,7 @@ export function syncOverlaysFromTiles(): void {
     }
 
     // Remove layers for approved overlays no longer in the rendered set.
-    // Only evict registry entries that vectorTileSync itself created, identified by
+    // Only evict registry entries that this sync itself created, identified by
     // presence in approvedOverlayDataCache. Pending layers (from bbox tRPC fetch) and
     // local/new layers are never in that cache, so they are never touched here.
     // Also skip entries currently being created, their in-flight async load will clean up
@@ -232,15 +236,15 @@ export function syncOverlaysFromTiles(): void {
         const stillVisible = toCreate.filter(
           (o) =>
             matchesDateFilter(lastModifiedById.get(o.id) ?? Number.NaN) &&
-            matchesTimelineStatusFilter(statusById.get(o.id)),
+            matchesTimelineStatusFilter(statusById.get(o.id)) &&
+            matchesSelectedTags(tagsById.get(o.id) ?? []) &&
+            matchesNameFilter(nameById.get(o.id) ?? null),
         );
         if (stillVisible.length > 0) renderViewModeOverlays(stillVisible, createMarkers);
       })
-      .catch((error: unknown) =>
-        console.error("vectorTileSync: failed to load overlayRendering", error),
-      );
+      .catch((error: unknown) => console.error("sync: failed to load overlayRendering", error));
   } catch (error) {
-    console.error("vectorTileSync idle error:", error);
+    console.error("sync idle error:", error);
   }
 }
 
