@@ -1,15 +1,16 @@
 /**
- * sync.ts, idle-driven overlay sync for approved overlays.
+ * sync.ts, overlay sync for approved overlays.
  *
- * Listens to MapLibre's 'idle' event and diffs the rendered overlay-footprints
- * features against the overlay render registry to create/destroy overlay image
- * layers for approved overlays.
+ * Diffs the rendered overlay-footprints features against the overlay render
+ * registry to create/destroy overlay image layers for approved overlays.
+ * Triggered on camera move and on footprint tiles loading (see initVectorTileSync).
  *
  * Runs in ALL modes (view, edit, moderation). Approved overlays are always
  * delivered via tiles, the bbox tRPC fetch only returns pending content.
  */
 
 import { map, onMlMapReady } from "@/services/core/map";
+import { throttle } from "@/utils/throttle";
 import * as registry from "@/services/overlay/mapLayers";
 import { useMapStore } from "@/stores/mapStore";
 import type { OverlayData } from "@/types/index";
@@ -127,7 +128,7 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
 // eslint-disable-next-line complexity
 export function syncOverlaysFromTiles(): void {
   const mlMap = map.value;
-  // During style reloads/HMR, idle can fire before this layer is present.
+  // During style reloads/HMR, the layer can be absent when a listener fires.
   if (!mlMap.getLayer("overlay-footprints")) return;
 
   try {
@@ -244,18 +245,35 @@ export function syncOverlaysFromTiles(): void {
       })
       .catch((error: unknown) => console.error("sync: failed to load overlayRendering", error));
   } catch (error) {
-    console.error("sync idle error:", error);
+    console.error("sync error:", error);
   }
 }
 
 /**
- * Register the idle-driven overlay sync. Call once after map init.
+ * Register the overlay sync. Call once after map init.
  * Runs in all modes, approved overlays always come from tiles.
+ *
+ * Both map-event triggers share one throttle so they run periodically DURING movement (images
+ * appear as you pan, not only once the camera stops) while capping the querySourceFeatures rate.
+ * The throttle runs on the leading edge and then at most once per interval, with a trailing run
+ * so the final state is always synced:
+ * - `move`: any camera change, from a gesture or a programmatic flyTo/jumpTo.
+ * - `sourcedata` on project-sources: footprint tiles finished loading, so new features may be
+ *   available at the current viewport.
+ *
+ * `idle` is intentionally NOT used: it fires after every repaint, including the in-place repaints
+ * from hover feature-state, so it would call the sync on plain cursor movement.
  */
 export function initVectorTileSync(): void {
   onMlMapReady(() => {
-    map.value.on("idle", syncOverlaysFromTiles);
-    // Sync immediately in case the map is already idle (tiles loaded before listener registered)
+    const mlMap = map.value;
+    const runSync = throttle(syncOverlaysFromTiles, 150);
+
+    mlMap.on("move", runSync);
+    mlMap.on("sourcedata", (e) => {
+      if (e.sourceId === "project-sources" && e.isSourceLoaded) runSync();
+    });
+    // Sync once now in case tiles loaded before the listeners registered.
     syncOverlaysFromTiles();
   });
 }
