@@ -161,7 +161,7 @@ import { navigateOverlaySequence, getProjectSiblingOverlayIds } from "@/services
 import { selectOverlay } from "@/services/overlay/selection";
 import { undo, redo, showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
-import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { prepareOverlaySubmission } from "@/services/submission/submissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { confirmAndDeleteOverlay } from "@/services/core/entityRemoval";
 
@@ -387,9 +387,6 @@ function toggleStacking() {
   setOverlayInFront(id, next);
   isInFront.value = next;
 }
-
-// Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
-const { prepareOverlaySubmission } = useSubmissionDialog();
 
 function onSave() {
   const overlay = selectedOverlay.value;

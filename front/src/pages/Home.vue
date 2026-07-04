@@ -82,10 +82,10 @@ import { useI18n } from "vue-i18n";
 import { renderProjectShapes } from "@/services/map/shapes/rendering";
 import { clearProjectShapes } from "@/services/map/shapes/registry";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
-import { showSubmissionDialog } from "@/composables/submission/submissionDialogState";
+import { showSubmissionDialog } from "@/services/submission/submissionDialogState";
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
-import { handleProjectDeepLink } from "@/composables/project/useProjectDeepLink";
+import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
 import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";

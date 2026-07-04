@@ -168,7 +168,7 @@ import { useI18n } from "vue-i18n";
 
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
-import { useIsMobile } from "@/composables/ui/useIsMobile";
+import { isMobile } from "@/services/core/viewport";
 import { useToast } from "@/composables/ui/useToast";
 
 import { useProjectStore } from "@/stores/projectStore";
@@ -331,7 +331,6 @@ const wikidataId = computed(() => {
 const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
 
 // A neutral header block anchors the panel on desktop; on mobile the drawer already frames it.
-const { isMobile } = useIsMobile();
 const showHeaderBand = computed(() => !isMobile.value);
 
 // Recenter is only possible when the project carries a map location.

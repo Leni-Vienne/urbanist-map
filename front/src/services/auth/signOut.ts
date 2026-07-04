@@ -9,6 +9,7 @@ import { usePendingModificationsStore } from "@/stores/pendingModificationsStore
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { clearAll as clearAllLayers } from "@/services/overlay/mapLayers";
+import { clearAllStagedRenders } from "@/services/submission/stagedRenderState";
 
 // Orchestrates sign-out: authStore handles the auth session itself, then all
 // user-scoped state is cleared here to prevent data leakage between accounts.
@@ -28,6 +29,7 @@ export async function signOut() {
   focusStore.clearSelection();
   focusStore.setHover(null);
   clearAllLayers(false);
+  clearAllStagedRenders();
   useModerationStore().clearAllState();
   useChangeRequestStore().clearAllState();
   usePendingModificationsStore().clearAllState();

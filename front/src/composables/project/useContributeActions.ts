@@ -1,20 +1,21 @@
 import type { ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToast } from "@/composables/ui/useToast";
-import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { useNewProject } from "@/composables/overlay/useNewProject";
-import { useChangeRequests } from "@/composables/changes/useChanges";
+import { isMobile } from "@/services/core/viewport";
+import { deleteChangeRequest } from "@/services/changes/changeRequests";
 import { confirmAndDeleteOverlay, confirmAndDeleteProject } from "@/services/core/entityRemoval";
-import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { prepareSubmission } from "@/services/submission/submissionDialog";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useMapStore } from "@/stores/mapStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
-import { clearStagedRender } from "@/composables/submission/stagedRenderStore";
+import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
 import type { Project, Overlay } from "@/types/index";
 
@@ -28,20 +29,34 @@ async function handleDeleteProjectClick(project: Project): Promise<void> {
   await confirmAndDeleteProject(project.id, project.name, project.overlays?.length ?? 0);
 }
 
+// New project button click: opens the marker placement bar (after an auth gate and a clean slate).
+function handleNewProjectClick(): boolean {
+  const authStore = useAuthStore();
+  const uiStore = useUiStore();
+
+  if (!authStore.isAuthenticated) {
+    uiStore.authModalVisible = true;
+    return false;
+  }
+
+  // Close any open detail and clear selection for a clean slate
+  useFocusStore().clearSelection();
+
+  // Always switch to edit mode when contributing (no-op if already in edit mode)
+  useMapStore().setMode("edit");
+  uiStore.markerPlacementBarVisible = true;
+  return true;
+}
+
 export function useContributeActions(
   allContributions: ComputedRef<(Project & { overlays: Overlay[] })[]>,
 ) {
   const { t } = useI18n();
   const toast = useToast();
-  const { isMobile } = useIsMobile();
   const uiStore = useUiStore();
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
   const focusStore = useFocusStore();
-
-  const { handleNewProjectClick } = useNewProject();
-  const { deleteChangeRequest } = useChangeRequests();
-  const { prepareSubmission } = useSubmissionDialog();
 
   function isOverlayModified(overlayId: string): boolean {
     const overlay = overlayStore.liveOverlays[overlayId];
@@ -57,7 +72,7 @@ export function useContributeActions(
   }
 
   async function handleDeleteOverlayClick(overlay: Overlay): Promise<void> {
-    // A staged render has no overlay row to delete: drop it from stagedRenderStore and clear the
+    // A staged render has no overlay row to delete: drop it from stagedRenderState and clear the
     // project's modified flag unless other unsaved overlays remain.
     if (isStagedRenderOverlay(overlay) && overlay.projectId) {
       const projectId = overlay.projectId;

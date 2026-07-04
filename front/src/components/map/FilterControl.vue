@@ -44,10 +44,8 @@ import {
   lastModifiedDateRange,
   showOnlyWithImages,
 } from "@/services/map/filters";
-import { useIsMobile } from "@/composables/ui/useIsMobile";
+import { isMobile } from "@/services/core/viewport";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
-
-const { isMobile } = useIsMobile();
 
 const activeFilterCount = computed(() => {
   let count =

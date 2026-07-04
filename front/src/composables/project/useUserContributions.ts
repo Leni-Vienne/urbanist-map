@@ -3,12 +3,12 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useChangeRequests } from "@/composables/changes/useChanges";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { t } from "@/locales";
 import { createLocalOverlayContribution, createStagedRenderOverlay } from "@/utils/typeFactories";
-import { getStagedRender } from "@/composables/submission/stagedRenderStore";
+import { getStagedRender } from "@/services/submission/stagedRenderState";
 import type { Project, Overlay, ContributionProject } from "@/types/index";
 
 type ContributionFilter = "all" | "pending" | "approved";
@@ -32,7 +32,7 @@ export function useUserContributions() {
   const authStore = useAuthStore();
   const overlayStore = useOverlayStore();
   const focusStore = useFocusStore();
-  const { pendingChangeRequests } = useChangeRequests();
+  const changeRequestStore = useChangeRequestStore();
 
   const isLoading = computed(() => projectStore.userContributionsLoading);
 
@@ -110,7 +110,7 @@ export function useUserContributions() {
       );
     }
 
-    // Staged renders live only in stagedRenderStore until submitted; surface them as pending render
+    // Staged renders live only in stagedRenderState until submitted; surface them as pending render
     // entries on their parent contribution, mirroring how submitted renders appear.
     for (const [projectId, contribution] of contributionsMap) {
       const stagedRender = getStagedRender(projectId);
@@ -151,7 +151,7 @@ export function useUserContributions() {
     const overlays = Object.values(overlayStore.liveOverlays)
       .filter((o) => o.projectId === project.id)
       .map((o) => createLocalOverlayContribution(o, parentCountry, null));
-    // Renders live only in stagedRenderStore (not overlayStore), so surface a staged render here
+    // Renders live only in stagedRenderState (not overlayStore), so surface a staged render here
     // as a pending render entry until it is submitted.
     const stagedRender = getStagedRender(project.id);
     if (stagedRender) {
@@ -179,7 +179,7 @@ export function useUserContributions() {
       ) ?? false;
     if (hasPendingOverlays) return true;
 
-    return pendingChangeRequests.value.some((change) => {
+    return changeRequestStore.pendingChangeRequests.some((change) => {
       if (change.entityType === "project" && change.entityId === project.id) return true;
       return (
         project.overlays?.some(

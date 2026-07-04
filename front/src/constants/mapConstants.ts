@@ -1,4 +1,4 @@
-import { isMobileViewport } from "@/composables/ui/useIsMobile";
+import { isMobile } from "@/services/core/viewport";
 
 // All thresholds are native MapLibre zoom levels.
 export const MAP_CONFIG = {
@@ -20,5 +20,5 @@ export const MAP_CONFIG = {
  * so contributions are revealed one zoom level earlier to compensate.
  */
 export function getEffectiveThreshold(base: number): number {
-  return isMobileViewport() ? base - 1 : base;
+  return isMobile.value ? base - 1 : base;
 }

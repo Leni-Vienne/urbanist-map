@@ -1,4 +1,6 @@
 import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
+import { t } from "@/locales";
+import { useToast } from "@/composables/ui/useToast";
 import type { ProjectFormData } from "@/types/index";
 
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
@@ -24,6 +26,39 @@ export function getProjectValidationErrors(
 ) {
   const result = projectSchema.safeParse(prepareProjectValidationData(formData, options));
   return result.success ? null : getValidationErrorsMap(result.error);
+}
+
+// Validates the project form and toasts the first error. Returns true when valid.
+export function validateProjectForm(
+  formData: ProjectFormData,
+  timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled",
+): boolean {
+  // Scope dates to the selected timeline status, then run the shared prep + schema parse.
+  const scopedFormData = {
+    ...formData,
+    timelineStatus,
+    proposalDate: timelineStatus === "proposed" ? formData.proposalDate : null,
+    proposalDatePrecision: timelineStatus === "proposed" ? formData.proposalDatePrecision : null,
+    startDate: timelineStatus === "proposed" ? null : formData.startDate,
+    startDatePrecision: timelineStatus === "proposed" ? null : formData.startDatePrecision,
+    endDate: timelineStatus === "proposed" ? null : formData.endDate,
+    endDatePrecision: timelineStatus === "proposed" ? null : formData.endDatePrecision,
+  };
+
+  const errors = getProjectValidationErrors(scopedFormData);
+  if (!errors) return true;
+
+  const firstError = Object.values(errors)[0];
+  if (!firstError) {
+    throw new Error("No error found");
+  }
+  useToast().add({
+    severity: "error",
+    summary: t("toast.validationError"),
+    detail: t(firstError.key, firstError.params ?? {}),
+    life: 3000,
+  });
+  return false;
 }
 
 export function prepareOverlayValidationData(overlay: {

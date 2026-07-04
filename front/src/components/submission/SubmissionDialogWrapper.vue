@@ -1,5 +1,5 @@
 <template>
-  <!-- Self-contained wrapper so Home.vue doesn't need to import useSubmissionDialog directly.
+  <!-- Self-contained wrapper so Home.vue doesn't need to import submissionDialog directly.
        Loaded lazily (defineAsyncComponent), only when the first submission dialog is triggered. -->
   <SubmissionConfirmationDialog
     v-if="showSubmissionDialog"
@@ -13,15 +13,15 @@
 </template>
 
 <script setup lang="ts">
-import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
-import SubmissionConfirmationDialog from "@/components/submission/SubmissionConfirmationDialog.vue";
-
-const {
+import {
   showSubmissionDialog,
   submissionSummary,
   isSubmitting,
+} from "@/services/submission/submissionDialogState";
+import {
   confirmSubmission,
   cancelSubmission,
   handleRemoveChange,
-} = useSubmissionDialog();
+} from "@/services/submission/submissionDialog";
+import SubmissionConfirmationDialog from "@/components/submission/SubmissionConfirmationDialog.vue";
 </script>

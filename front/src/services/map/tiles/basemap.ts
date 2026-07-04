@@ -25,7 +25,7 @@ import {
 import { applyMapLabelLanguage } from "../mapLabelLanguage";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/mapLayers";
 import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editing";
-import { show3DBuildings } from "@/composables/core/useBuildings3D";
+import { show3DBuildings } from "@/services/map/settings";
 import {
   selectedProjectTags,
   selectedStatusFilters,

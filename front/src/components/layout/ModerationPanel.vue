@@ -161,7 +161,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useModeration } from "@/composables/moderation/useModeration";
 import { useModerationCountrySelector } from "@/composables/moderation/useModerationCountrySelector";
-import { useChangeRequests } from "@/composables/changes/useChanges";
+import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useToast } from "@/composables/ui/useToast";
 import { useModerationStore } from "@/stores/moderationStore";
@@ -205,8 +205,6 @@ const {
 } = useModerationCountrySelector({
   onCountryDataNeeded: fetchPendingSubmissions,
 });
-
-const { approveChangeRequests, rejectChangeRequests } = useChangeRequests();
 
 // The map-selected project is lifted into the panel's "Selected project" card.
 const focusStore = useFocusStore();

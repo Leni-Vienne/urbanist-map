@@ -192,7 +192,7 @@ export function createLocalOverlayContribution(
   };
 }
 
-// A staged render (still only in stagedRenderStore) as a pending render overlay entry, so it appears
+// A staged render (still only in stagedRenderState) as a pending render overlay entry, so it appears
 // on its parent contribution in My Contributions the same way a submitted render does.
 export function createStagedRenderOverlay(
   projectId: string,

@@ -35,7 +35,7 @@ interface EditableProjectFormOptions {
 }
 
 // Local-edit form for a project: edits are written to the store with isModified, then
-// submitted to the backend later through the submission dialog (useSubmissionService).
+// submitted to the backend later through the submission dialog (submissionService).
 export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const projectStore = useProjectStore();
   const toast = useToast();
