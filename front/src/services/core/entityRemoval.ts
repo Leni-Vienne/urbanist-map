@@ -8,8 +8,9 @@ import { usePendingModificationsStore } from "@/stores/pendingModificationsStore
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { trpc } from "@/client";
-import { useToast } from "@/composables/ui/useToast";
+
 import { t } from "@/locales";
+import { toastSuccess, toastError } from "@/services/core/toast";
 
 interface DeleteOverlayOptions {
   showToast?: boolean;
@@ -116,12 +117,7 @@ export async function deleteOverlayDirect(
     removeOverlay(overlayId, { updateUserContributions });
 
     if (showToast) {
-      const toast = useToast();
-      toast.add({
-        severity: "success",
-        summary: t("contribute.overlayDeleted"),
-        life: 3000,
-      });
+      toastSuccess(t("contribute.overlayDeleted"));
     }
     return true;
   } catch (error) {
@@ -154,21 +150,13 @@ async function deleteProjectDirect(
     removeProject(projectId, { updateUserContributions: !isLocalOnly });
 
     if (showToast) {
-      useToast().add({
-        severity: "success",
-        summary: t("contribute.projectDeleted"),
-        life: 3000,
-      });
+      toastSuccess(t("contribute.projectDeleted"));
     }
     return true;
   } catch (error) {
     console.error("Error deleting project:", error);
     if (showToast) {
-      useToast().add({
-        severity: "error",
-        summary: t("contribute.deleteProjectError"),
-        life: 5000,
-      });
+      toastError(t("contribute.deleteProjectError"));
     }
     return false;
   }

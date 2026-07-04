@@ -1,6 +1,6 @@
 import type { ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
+
 import { isMobile } from "@/services/core/viewport";
 import { deleteChangeRequest } from "@/services/changes/changeRequests";
 import { confirmAndDeleteOverlay, confirmAndDeleteProject } from "@/services/core/entityRemoval";
@@ -18,6 +18,7 @@ import { flyToGeometry } from "@/services/map/mapNavigation";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
 import type { Project, Overlay } from "@/types/index";
+import { toastSuccess, toastWarn } from "@/services/core/toast";
 
 // A render staged in the upload dialog but not yet submitted: kind 'render' with no status. Real
 // renders always carry a server status, so this uniquely identifies a still-staged one.
@@ -52,7 +53,7 @@ export function useContributeActions(
   allContributions: ComputedRef<(Project & { overlays: Overlay[] })[]>,
 ) {
   const { t } = useI18n();
-  const toast = useToast();
+
   const uiStore = useUiStore();
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
@@ -94,11 +95,7 @@ export function useContributeActions(
 
     const result = await deleteChangeRequest(change.id);
     if (result) {
-      toast.add({
-        severity: "success",
-        summary: t("contribute.changeRequestDeleted"),
-        life: 3000,
-      });
+      toastSuccess(t("contribute.changeRequestDeleted"));
     }
   }
 
@@ -126,11 +123,7 @@ export function useContributeActions(
 
   async function handleDrawShapesClick(project: Project): Promise<void> {
     if (isMobile.value) {
-      toast.add({
-        severity: "warn",
-        summary: t("shapes.desktopOnly"),
-        life: 3000,
-      });
+      toastWarn(t("shapes.desktopOnly"));
       return;
     }
 

@@ -1,6 +1,6 @@
 import { nextTick } from "vue";
 import { useMapStore } from "@/stores/mapStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -8,6 +8,7 @@ import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/r
 import { selectProject } from "@/services/map/projectSelection";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
 import type { PendingChangeRequest, Project } from "@/types/index";
+import { toastWarn } from "@/services/core/toast";
 
 interface PreviewShapesOptions {
   change: PendingChangeRequest;
@@ -30,7 +31,6 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
 }
 
 export function useShapeChangeRequestPreview() {
-  const toast = useToast();
   const mapStore = useMapStore();
 
   async function previewShapes(options: PreviewShapesOptions): Promise<void> {
@@ -38,11 +38,7 @@ export function useShapeChangeRequestPreview() {
 
     const geometry = parseGeometryCollection(geometryValue);
     if (!geometry) {
-      toast.add({
-        severity: "warn",
-        summary: t("shapes.noShapesToPreview"),
-        life: 3000,
-      });
+      toastWarn(t("shapes.noShapesToPreview"));
       return;
     }
 

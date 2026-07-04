@@ -46,9 +46,11 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess, toastError } from "@/services/core/toast";
+
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
+
 import { trpc } from "@/client";
 
 const props = defineProps<{
@@ -62,7 +64,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const toast = useToast();
 
 const dialogVisible = computed({
   get: () => props.visible,
@@ -82,22 +83,18 @@ async function handleReport() {
       reason: reason.value || undefined,
     });
 
-    toast.add({
-      severity: "success",
-      summary: t("moderation.reportUser.reportSuccess"),
-      detail: t("moderation.reportUser.reportSuccessDetail"),
-      life: 3000,
-    });
+    toastSuccess(
+      t("moderation.reportUser.reportSuccessDetail"),
+      t("moderation.reportUser.reportSuccess"),
+    );
     emit("reported");
     handleCancel();
   } catch (error) {
     console.error("Failed to report user:", error);
-    toast.add({
-      severity: "error",
-      summary: t("moderation.reportUser.reportFailed"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 3000,
-    });
+    toastError(
+      error instanceof Error ? error.message : undefined,
+      t("moderation.reportUser.reportFailed"),
+    );
   } finally {
     isLoading.value = false;
   }

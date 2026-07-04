@@ -77,18 +77,18 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess, toastError } from "@/services/core/toast";
+
 import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/authStore";
-import { useToast } from "@/composables/ui/useToast";
 
 const { t } = useI18n();
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const toast = useToast();
 
 const loading = ref(true);
 const tokenValid = ref(false);
@@ -155,12 +155,7 @@ async function handleResetPassword() {
         await authStore.signIn(result.email, newPassword.value).catch(() => {});
       }
 
-      toast.add({
-        severity: "success",
-        summary: t("common.success"),
-        detail: t("auth.passwordResetSuccess"),
-        life: 3000,
-      });
+      toastSuccess(t("auth.passwordResetSuccess"));
 
       router.push("/");
     } else {
@@ -168,12 +163,7 @@ async function handleResetPassword() {
     }
   } catch (error) {
     console.error("Password reset failed:", error);
-    toast.add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: error instanceof Error ? error.message : t("auth.invalidResetToken"),
-      life: 5000,
-    });
+    toastError(error instanceof Error ? error.message : t("auth.invalidResetToken"));
   } finally {
     submitting.value = false;
   }

@@ -28,7 +28,7 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
-import { useToast } from "@/composables/ui/useToast";
+
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject, OverlayHistoryState, LatLng } from "@/types/index";
@@ -42,6 +42,7 @@ import {
   commitOverlayEdit,
 } from "@/services/overlay/history";
 import { watch } from "vue";
+import { toastInfo, toastWarn } from "@/services/core/toast";
 
 // Overlay editing operations
 
@@ -206,13 +207,8 @@ export function addOverlay(
     const targetZoom = 16;
 
     // Show toast to inform user about auto-zoom
-    const toast = useToast();
-    toast.add({
-      severity: "info",
-      summary: t("overlay.zoomingToProject"),
-      detail: t("overlay.zoomInToSeeOverlay"),
-      life: 4000,
-    });
+
+    toastInfo(t("overlay.zoomInToSeeOverlay"), t("overlay.zoomingToProject"));
 
     mobileAwareFlyTo(new LngLat(project.lng, project.lat), targetZoom);
 
@@ -424,12 +420,7 @@ function flagSize(overlayObject: OverlayObject): void {
     useOverlayStore().updateOverlay(overlayObject.id, { isTooBig: !valid });
   }
   if (!valid) {
-    useToast().add({
-      severity: "warn",
-      summary: t("upload.overlayTooLarge"),
-      detail: t("upload.maximumSizeOnMap"),
-      life: 3000,
-    });
+    toastWarn(t("upload.maximumSizeOnMap"), t("upload.overlayTooLarge"));
   }
 }
 

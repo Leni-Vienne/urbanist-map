@@ -9,7 +9,7 @@ import type {
 import { map, OPENFREEMAP_STYLE_URL, markMlMapReady } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
-import { useToast } from "@/composables/ui/useToast";
+
 import { t } from "@/locales";
 import {
   addProjectDataToMlMap,
@@ -36,6 +36,7 @@ import {
 } from "@/services/map/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { syncOverlaysFromTiles } from "@/services/map/tiles/sync";
+import { toastError } from "@/services/core/toast";
 
 interface BoundingBox {
   minLat: number;
@@ -341,12 +342,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
     }
   } catch (error) {
     console.error("Failed to initialize MapLibre project layers:", error);
-    useToast().add({
-      severity: "error",
-      summary: t("errors.mapInitFailed"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 8000,
-    });
+    toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
   }
 }
 
@@ -467,12 +463,7 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
         runViewportRenderLoop();
       } catch (error) {
         console.error("Failed to re-apply project layers after style switch:", error);
-        useToast().add({
-          severity: "error",
-          summary: t("errors.mapInitFailed"),
-          detail: error instanceof Error ? error.message : undefined,
-          life: 8000,
-        });
+        toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
       } finally {
         resolve();
       }

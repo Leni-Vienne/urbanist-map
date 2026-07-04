@@ -101,9 +101,11 @@
 </template>
 
 <script setup lang="ts">
+import { toastError } from "@/services/core/toast";
+
 import { computed, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
 import { useShapeChangeRequestPreview } from "@/composables/overlay/useShapeChangeRequestPreview";
 import {
@@ -150,7 +152,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const toast = useToast();
+
 const overlayStore = useOverlayStore();
 const focusStore = useFocusStore();
 const {
@@ -267,12 +269,7 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
   // Find the change request
   const change = props.allChangeRequests.find((c) => c.id === changeId);
   if (!change) {
-    toast.add({
-      severity: "error",
-      summary: t("overlay.changeNotFound"),
-      detail: t("overlay.couldNotFindChange"),
-      life: 3000,
-    });
+    toastError(t("overlay.couldNotFindChange"), t("overlay.changeNotFound"));
     return;
   }
 
@@ -288,12 +285,7 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
     }
 
     if (!overlayForModeration) {
-      toast.add({
-        severity: "error",
-        summary: t("overlay.overlayNotFound"),
-        detail: t("overlay.couldNotFindOverlay"),
-        life: 3000,
-      });
+      toastError(t("overlay.couldNotFindOverlay"), t("overlay.overlayNotFound"));
       return;
     }
 
@@ -306,12 +298,7 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
   } else if (change.entityType === "project") {
     const project = props.projects.find((p) => p.id === change.entityId);
     if (!project) {
-      toast.add({
-        severity: "error",
-        summary: t("overlay.changeNotFound"),
-        detail: t("overlay.couldNotFindChange"),
-        life: 3000,
-      });
+      toastError(t("overlay.couldNotFindChange"), t("overlay.changeNotFound"));
       return;
     }
 

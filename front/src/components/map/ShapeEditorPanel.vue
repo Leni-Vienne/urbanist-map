@@ -98,9 +98,9 @@
 </template>
 
 <script setup lang="ts">
+import { toastWarn, toastError } from "@/services/core/toast";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
 
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import {
@@ -116,7 +116,6 @@ import {
 import { extractTagsFromOsmProperties } from "@/constants/projectTags";
 
 const { t } = useI18n();
-const toast = useToast();
 
 const emit = defineEmits<{
   done: [geometry: GeoJSON.GeometryCollection];
@@ -158,14 +157,12 @@ async function handleFileImport(event: Event) {
     }
 
     if (skippedGeometryTypes.length > 0) {
-      toast.add({
-        severity: "warn",
-        summary: t("shapes.importGeoJSON"),
-        detail: t("shapes.importSkippedGeometryTypes", {
+      toastWarn(
+        t("shapes.importSkippedGeometryTypes", {
           types: skippedGeometryTypes.join(", "),
         }),
-        life: 4000,
-      });
+        t("shapes.importGeoJSON"),
+      );
     }
 
     if (geometry.geometries.length === 0) return;
@@ -175,12 +172,7 @@ async function handleFileImport(event: Event) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 17 });
     }
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: t("shapes.importError"),
-      detail: error instanceof Error ? error.message : String(error),
-      life: 6000,
-    });
+    toastError(error instanceof Error ? error.message : String(error), t("shapes.importError"));
   }
 }
 

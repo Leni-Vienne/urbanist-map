@@ -48,16 +48,18 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess } from "@/services/core/toast";
+
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useI18n } from "vue-i18n";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const toast = useToast();
+
 const { t } = useI18n();
 
 const loading = ref(true);
@@ -82,12 +84,7 @@ async function verifyEmail() {
     success.value = true;
     loading.value = false;
 
-    toast.add({
-      severity: "success",
-      summary: t("common.success"),
-      detail: t("pages.emailVerification.successDetail"),
-      life: 3000,
-    });
+    toastSuccess(t("pages.emailVerification.successDetail"));
 
     if (result.user) {
       signingIn.value = true;

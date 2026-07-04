@@ -1,6 +1,6 @@
 import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
 import { t } from "@/locales";
-import { useToast } from "@/composables/ui/useToast";
+import { toastError } from "@/services/core/toast";
 import type { ProjectFormData } from "@/types/index";
 
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
@@ -52,12 +52,7 @@ export function validateProjectForm(
   if (!firstError) {
     throw new Error("No error found");
   }
-  useToast().add({
-    severity: "error",
-    summary: t("toast.validationError"),
-    detail: t(firstError.key, firstError.params ?? {}),
-    life: 3000,
-  });
+  toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
   return false;
 }
 

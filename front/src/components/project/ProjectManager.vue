@@ -41,6 +41,8 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess, toastError } from "@/services/core/toast";
+
 import { ref, defineAsyncComponent } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
@@ -48,7 +50,7 @@ import maplibregl, { type MapMouseEvent } from "maplibre-gl";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { map } from "@/services/core/map";
 import { createProjectPinElement } from "@/services/map/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
@@ -67,7 +69,7 @@ const EditProjectForm = defineAsyncComponent(
 const projectStore = useProjectStore();
 const mapStore = useMapStore();
 const uiStore = useUiStore();
-const toast = useToast();
+
 const { t: $t } = useI18n();
 const markerPlacementBar = ref();
 const tempMarker = ref<maplibregl.Marker | null>(null);
@@ -141,12 +143,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<void
     if (storedProject) {
       selectProject(storedProject);
     }
-    toast.add({
-      severity: "success",
-      summary: $t("common.success"),
-      detail: $t("toasts.projectCreatedSuccess"),
-      life: 3000,
-    });
+    toastSuccess($t("toasts.projectCreatedSuccess"));
   }
 }
 
@@ -164,12 +161,7 @@ function handleProjectUpdate(project: Partial<Project>): void {
       isModified: true,
     });
 
-    toast.add({
-      severity: "success",
-      summary: $t("toasts.projectUpdateSuccess"),
-      detail: $t("toasts.projectUpdateDetail"),
-      life: 3000,
-    });
+    toastSuccess($t("toasts.projectUpdateDetail"), $t("toasts.projectUpdateSuccess"));
   }
 }
 
@@ -186,14 +178,12 @@ async function handleProjectSubmitted(project: Partial<Project>) {
     }
   } catch (error) {
     console.error("Error with project:", error);
-    toast.add({
-      severity: "error",
-      summary: project.id ? $t("toasts.projectUpdateFailed") : $t("toasts.projectCreationFailed"),
-      detail: project.id
+    toastError(
+      project.id
         ? $t("toasts.projectUpdateFailedDetail")
         : $t("toasts.projectCreationFailedDetail"),
-      life: 3000,
-    });
+      project.id ? $t("toasts.projectUpdateFailed") : $t("toasts.projectCreationFailed"),
+    );
   }
 }
 </script>

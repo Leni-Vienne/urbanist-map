@@ -11,12 +11,13 @@ import { trpc, getApiUrl } from "@/client";
 import { projectSchema } from "@shared/validation/schemas";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { isValidQuad } from "@/services/overlay/transform";
-import { useToast } from "@/composables/ui/useToast";
+
 import { selectOverlay, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
 import { overlayWireToData } from "@/utils/typeFactories";
+import { toastInfo } from "@/services/core/toast";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): void {
@@ -70,8 +71,7 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   const projectOverlayIds = getProjectSiblingOverlayIds(currentOverlay.projectId);
 
   if (projectOverlayIds.length <= 1) {
-    const toast = useToast();
-    toast.add({ severity: "info", summary: t("overlay.onlyOneOverlayInProject"), life: 3000 });
+    toastInfo(t("overlay.onlyOneOverlayInProject"));
     return;
   }
 

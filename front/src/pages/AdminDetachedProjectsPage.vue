@@ -260,7 +260,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
+import { toastSuccess, toastError, toastInfo } from "@/services/core/toast";
 import { trpc, type RouterOutput } from "@/client";
 import type { DataTableExpandedRows } from "primevue/datatable";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
@@ -270,7 +270,6 @@ type DetachedProject = RouterOutput["moderation"]["getDetachedProjects"][number]
 type Candidate = DetachedProject["candidates"][number];
 
 const { t, te } = useI18n();
-const toast = useToast();
 
 const detachedProjects = ref<DetachedProject[]>([]);
 const isLoading = ref(true);
@@ -287,12 +286,7 @@ async function loadDetachedProjects() {
     detachedProjects.value = await trpc.moderation.getDetachedProjects.query();
   } catch (error) {
     console.error("Error loading detached projects:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.detached.loadError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(error instanceof Error ? error.message : undefined, t("admin.detached.loadError"));
   } finally {
     isLoading.value = false;
   }
@@ -343,23 +337,19 @@ async function confirmRelink() {
       orphanId: orphan.id,
       targetProjectId: candidate.id,
     });
-    toast.add({
-      severity: "success",
-      summary: t("admin.detached.relinkSuccess"),
-      detail: t("admin.detached.relinkSuccessDetail", { count: result.movedOverlays }),
-      life: 4000,
-    });
+    toastSuccess(
+      t("admin.detached.relinkSuccessDetail", { count: result.movedOverlays }),
+      t("admin.detached.relinkSuccess"),
+    );
     showRelinkDialog.value = false;
     pendingRelink.value = null;
     await loadDetachedProjects();
   } catch (error) {
     console.error("Error re-linking detached project:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.detached.relinkError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : String(error),
+      t("admin.detached.relinkError"),
+    );
   } finally {
     isRelinking.value = false;
     busyProjectId.value = null;
@@ -370,20 +360,14 @@ async function handleKeepStandalone(orphan: DetachedProject) {
   busyProjectId.value = orphan.id;
   try {
     await trpc.moderation.dismissDetachedProject.mutate({ projectId: orphan.id });
-    toast.add({
-      severity: "info",
-      summary: t("admin.detached.dismissSuccess"),
-      life: 3000,
-    });
+    toastInfo(t("admin.detached.dismissSuccess"));
     await loadDetachedProjects();
   } catch (error) {
     console.error("Error dismissing detached project:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.detached.dismissError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : undefined,
+      t("admin.detached.dismissError"),
+    );
   } finally {
     busyProjectId.value = null;
   }

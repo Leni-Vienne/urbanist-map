@@ -69,6 +69,8 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess, toastError } from "@/services/core/toast";
+
 import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
 
 import { useAuthStore } from "@/stores/authStore";
@@ -76,7 +78,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 
-import { useToast } from "@/composables/ui/useToast";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { renderProjectShapes } from "@/services/map/shapes/rendering";
@@ -119,7 +120,7 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
 const projectStore = useProjectStore();
-const toast = useToast();
+
 const route = useRoute();
 const { t } = useI18n();
 
@@ -235,7 +236,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
     renderProjectShapes(updatedProject);
   }
   uiStore.closeShapeEditor();
-  toast.add({ severity: "success", summary: t("shapes.savedLocally"), life: 3000 });
+  toastSuccess(t("shapes.savedLocally"));
   if (reopen) {
     selectProject(project);
   }
@@ -272,20 +273,10 @@ onMounted(async () => {
     if (route.query.provider === "osm") {
       authStore.setLastUsedMethod("osm");
     }
-    toast.add({
-      severity: "success",
-      summary: t("common.success"),
-      detail: t("pages.home.signInSuccess"),
-      life: 3000,
-    });
+    toastSuccess(t("pages.home.signInSuccess"));
   } else if (route.query.error) {
     const errorMessage = getErrorMessage(route.query.error as string);
-    toast.add({
-      severity: "error",
-      summary: t("pages.home.authenticationError"),
-      detail: errorMessage,
-      life: 5000,
-    });
+    toastError(errorMessage, t("pages.home.authenticationError"));
   }
 
   // Focus the map on a /project/:slug deep link (no-op on other routes). Fire-and-forget: the

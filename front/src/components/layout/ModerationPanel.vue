@@ -157,13 +157,13 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess, toastInfo, toastWarn, toastError } from "@/services/core/toast";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useModeration } from "@/composables/moderation/useModeration";
 import { useModerationCountrySelector } from "@/composables/moderation/useModerationCountrySelector";
 import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
-import { useToast } from "@/composables/ui/useToast";
 import { useModerationStore } from "@/stores/moderationStore";
 import type { Overlay, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
@@ -214,7 +214,6 @@ const selectedProjectId = computed(() => focusStore.selectedProjectId);
 const isLoading = computed(
   () => Boolean(selectedCountryCode.value) && !moderationStore.moderationLoaded,
 );
-const toast = useToast();
 
 // Use change request preview composable to track when suggested positions are viewed
 const { previewState } = useChangeRequestPreview();
@@ -309,12 +308,11 @@ function showSuccessToast(
   severity: "success" | "info" = "success",
 ) {
   refetchPendingCounts();
-  toast.add({
-    severity,
-    summary: t(summaryKey),
-    detail: t(detailKey),
-    life: 3000,
-  });
+  if (severity === "success") {
+    toastSuccess(t(detailKey), t(summaryKey));
+  } else {
+    toastInfo(t(detailKey), t(summaryKey));
+  }
 }
 
 // Helper to show error toast with version conflict handling
@@ -323,12 +321,8 @@ function showErrorToast(result: { error?: string; message?: string }, approvalFa
   const summary =
     result.error === "version_conflict" ? t("moderation.projectUpdated") : t(approvalFailedKey);
 
-  toast.add({
-    severity,
-    summary,
-    detail: result.message,
-    life: result.error === "version_conflict" ? 5000 : 3000,
-  });
+  if (severity === "warn") toastWarn(result.message, summary);
+  else toastError(result.message, summary);
 }
 
 // Handle project approval with toast notifications
@@ -390,12 +384,7 @@ async function handleApproveOverlay(id: string) {
     await proceedWithApproval(id, false);
   } catch (error) {
     console.error("Error checking replacement conflicts:", error);
-    toast.add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: error instanceof Error ? error.message : t("errors.checkConflictsFailed"),
-      life: 3000,
-    });
+    toastError(error instanceof Error ? error.message : t("errors.checkConflictsFailed"));
   }
 }
 
@@ -485,19 +474,9 @@ async function handleApproveChange(changeId: string) {
 
   if (result) {
     moderationStore.decrementPendingCount(selectedCountryCode.value);
-    toast.add({
-      severity: "success",
-      summary: t("moderation.changeApproved"),
-      detail: t("moderation.changeApprovedDetail"),
-      life: 3000,
-    });
+    toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
   } else {
-    toast.add({
-      severity: "error",
-      summary: t("moderation.approvalFailed"),
-      detail: t("moderation.approvalFailedDetail"),
-      life: 3000,
-    });
+    toastError(t("moderation.approvalFailedDetail"), t("moderation.approvalFailed"));
   }
 }
 
@@ -529,20 +508,16 @@ async function handleRejectionConfirm(options: {
           userId,
           reason: options.reportReason || undefined,
         });
-        toast.add({
-          severity: "info",
-          summary: t("moderation.reportUser.reportSuccess"),
-          detail: t("moderation.reportUser.reportSuccessDetail"),
-          life: 3000,
-        });
+        toastInfo(
+          t("moderation.reportUser.reportSuccessDetail"),
+          t("moderation.reportUser.reportSuccess"),
+        );
       } catch (error) {
         console.error("Failed to report user:", error);
-        toast.add({
-          severity: "error",
-          summary: t("moderation.reportUser.reportFailed"),
-          detail: error instanceof Error ? error.message : undefined,
-          life: 3000,
-        });
+        toastError(
+          error instanceof Error ? error.message : undefined,
+          t("moderation.reportUser.reportFailed"),
+        );
       }
     }
   } finally {
@@ -568,19 +543,9 @@ async function executeRejectChange(changeId: string) {
 
   if (result) {
     moderationStore.decrementPendingCount(selectedCountryCode.value);
-    toast.add({
-      severity: "info",
-      summary: t("moderation.changeRejected"),
-      detail: t("moderation.changeRejectedDetail"),
-      life: 3000,
-    });
+    toastInfo(t("moderation.changeRejectedDetail"), t("moderation.changeRejected"));
   } else {
-    toast.add({
-      severity: "error",
-      summary: t("moderation.rejectionFailed"),
-      detail: t("moderation.rejectionFailedDetail"),
-      life: 3000,
-    });
+    toastError(t("moderation.rejectionFailedDetail"), t("moderation.rejectionFailed"));
   }
 }
 </script>

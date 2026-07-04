@@ -1,7 +1,7 @@
 import { computed, onMounted } from "vue";
 import { trpc } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
 import { t } from "@/locales";
 import type { Project } from "@/types/index";
+import { toastError } from "@/services/core/toast";
 
 // Result type for approval operations
 type ApprovalResult = {
@@ -20,7 +21,6 @@ type ApprovalResult = {
 export function useModeration() {
   const moderationStore = useModerationStore();
   const mapStore = useMapStore();
-  const toast = useToast();
 
   const overlays = computed(() => moderationStore.overlays);
   const projects = computed(() => moderationStore.projects);
@@ -56,12 +56,7 @@ export function useModeration() {
         return;
       }
       console.error("Failed to load pending submissions:", error);
-      toast.add({
-        severity: "error",
-        summary: t("common.error"),
-        detail: t("moderation.fetchSubmissionsFailed"),
-        life: 5000,
-      });
+      toastError(t("moderation.fetchSubmissionsFailed"));
     }
   }
 

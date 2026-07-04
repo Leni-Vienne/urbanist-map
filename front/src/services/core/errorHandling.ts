@@ -1,5 +1,5 @@
+import { toastError } from "@/services/core/toast";
 // Unified error handling utility for safe loading
-import { useToast } from "@/composables/ui/useToast";
 
 interface ErrorHandlingOptions {
   /** Toast message to show on error */
@@ -24,20 +24,13 @@ export async function loadOrNull<T>(
 ): Promise<T | null> {
   const { errorMessage, rethrow = false } = options;
 
-  const toast = useToast();
-
   try {
     return await fn();
   } catch (error) {
     console.error(errorMessage ?? "Error occurred:", error);
 
     if (errorMessage) {
-      toast.add({
-        severity: "error",
-        summary: "Error",
-        detail: errorMessage,
-        life: 5000,
-      });
+      toastError(errorMessage, "Error");
     }
 
     if (rethrow) {

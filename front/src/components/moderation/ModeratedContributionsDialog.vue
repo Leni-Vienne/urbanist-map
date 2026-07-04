@@ -118,11 +118,13 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess } from "@/services/core/toast";
+
 import { computed, ref, watch, onMounted } from "vue";
 
 import { storeToRefs } from "pinia";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useI18n } from "vue-i18n";
@@ -138,7 +140,6 @@ const emit = defineEmits<{
   close: [];
 }>();
 const { t } = useI18n();
-const toast = useToast();
 
 const moderatedContributionsStore = useModeratedContributionsStore();
 const { moderatedContributions, isLoading } = storeToRefs(moderatedContributionsStore);
@@ -190,12 +191,10 @@ async function handleAcknowledgeAll() {
   try {
     const result = await acknowledgeAll();
     if (result.success) {
-      toast.add({
-        severity: "success",
-        summary: t("moderation.moderatedContributions.acknowledgeSuccess"),
-        detail: t("moderation.moderatedContributions.acknowledgeSuccessDetail"),
-        life: 3000,
-      });
+      toastSuccess(
+        t("moderation.moderatedContributions.acknowledgeSuccessDetail"),
+        t("moderation.moderatedContributions.acknowledgeSuccess"),
+      );
       emit("close");
     }
   } finally {

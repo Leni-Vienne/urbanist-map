@@ -57,6 +57,8 @@
 </template>
 
 <script setup lang="ts">
+import { toastError } from "@/services/core/toast";
+
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } from "vue";
 
 import { initializeMap, map } from "@/services/core/map";
@@ -64,7 +66,6 @@ import { initializeEditorTriggers } from "@/services/overlay/editing";
 import { addTileLayer } from "@/services/map/tiles/basemap";
 import { initVectorTileSync } from "@/services/map/tiles/sync";
 
-import { useToast } from "@/composables/ui/useToast";
 import { useI18n } from "vue-i18n";
 import {
   refreshViewport,
@@ -93,7 +94,7 @@ const SettingsButton = defineAsyncComponent(() => mapUIBundle.then((m) => m.Sett
 const mapStore = useMapStore();
 const focusStore = useFocusStore();
 const authStore = useAuthStore();
-const toast = useToast();
+
 const { t } = useI18n();
 const isLoading = ref(true);
 
@@ -142,12 +143,7 @@ async function initializeMapAndOverlays() {
     setupModeWatcher();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
-    toast.add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: t("pages.home.errors.initializationError"),
-      life: 5000,
-    });
+    toastError(t("pages.home.errors.initializationError"));
   }
 }
 </script>

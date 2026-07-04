@@ -1,7 +1,7 @@
 import { nextTick } from "vue";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
-import { useToast } from "@/composables/ui/useToast";
+
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
@@ -14,6 +14,7 @@ import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { Overlay, OverlayObject, PendingChangeRequest } from "@/types/index";
 import { previewState } from "@/services/overlay/changeRequestPreviewState";
+import { toastError, toastWarn } from "@/services/core/toast";
 
 // Composable to handle change request position preview on the map
 
@@ -118,7 +119,6 @@ function getPreviewType(changeId: string): "current" | "suggested" | null {
 }
 
 export function useChangeRequestPreview() {
-  const toast = useToast();
   const overlayStore = useOverlayStore();
 
   async function ensureOverlayLoaded(
@@ -134,12 +134,7 @@ export function useChangeRequestPreview() {
     }
 
     if (!overlayForModeration.countryCode) {
-      toast.add({
-        severity: "error",
-        summary: t("overlay.missingData"),
-        detail: t("overlay.missingCityOrCountry"),
-        life: 3000,
-      });
+      toastError(t("overlay.missingCityOrCountry"), t("overlay.missingData"));
       return false;
     }
 
@@ -173,12 +168,7 @@ export function useChangeRequestPreview() {
     overlayObject = overlayStore.liveOverlays[overlayForModeration.id];
 
     if (!appeared || !overlayObject || registry.getImageHandle(overlayObject.id) === null) {
-      toast.add({
-        severity: "error",
-        summary: t("overlay.loadFailed"),
-        detail: t("overlay.couldNotLoadOverlay"),
-        life: 3000,
-      });
+      toastError(t("overlay.couldNotLoadOverlay"), t("overlay.loadFailed"));
       return false;
     }
 
@@ -230,12 +220,7 @@ export function useChangeRequestPreview() {
       const corners = parseGeometry(geometryValue);
 
       if (corners.length === 0) {
-        toast.add({
-          severity: "warn",
-          summary: t("overlay.invalidCoordinates"),
-          detail: t("overlay.couldNotParseCoordinates"),
-          life: 3000,
-        });
+        toastWarn(t("overlay.couldNotParseCoordinates"), t("overlay.invalidCoordinates"));
         return;
       }
 
@@ -269,12 +254,7 @@ export function useChangeRequestPreview() {
       }
     } catch (error) {
       console.error("[useChangeRequestPreview] Failed to preview geometry:", error);
-      toast.add({
-        severity: "error",
-        summary: t("overlay.previewFailed"),
-        detail: t("overlay.couldNotPreviewCoordinates"),
-        life: 3000,
-      });
+      toastError(t("overlay.couldNotPreviewCoordinates"), t("overlay.previewFailed"));
     }
   }
 

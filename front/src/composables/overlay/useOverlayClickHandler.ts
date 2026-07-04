@@ -4,7 +4,7 @@ import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/actions";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { t } from "@/locales";
 import { trpc } from "@/client";
 import type { Overlay, LatestContribution } from "@/types/index";
@@ -14,6 +14,7 @@ import {
 } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { isValidQuad } from "@/services/overlay/transform";
+import { toastWarn, toastInfo, toastError } from "@/services/core/toast";
 
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = Overlay | LatestContribution;
@@ -22,8 +23,6 @@ type NavigableOverlay = Overlay | LatestContribution;
  * Shared composable for handling overlay clicks from moderation/contribution panels.
  */
 export function useOverlayClickHandler() {
-  const toast = useToast();
-
   /**
    * Navigate to an overlay, handling all necessary state changes.
    * Switches to edit mode when in view mode (required to see pending overlays).
@@ -49,12 +48,7 @@ export function useOverlayClickHandler() {
       // If moderator doesn't have access to this country, block navigation with a toast
       if (mapStore.mode === "moderation" && overlay.countryCode) {
         if (!canModerateCountry(overlay.countryCode)) {
-          toast.add({
-            severity: "warn",
-            summary: t("moderation.title"),
-            detail: t("moderation.noAccessToThisCountry"),
-            life: 4000,
-          });
+          toastWarn(t("moderation.noAccessToThisCountry"), t("moderation.title"));
           return;
         }
         // Auto-select the country so ModerationPanel loads its pending submissions
@@ -68,12 +62,10 @@ export function useOverlayClickHandler() {
 
         // Only show toast for pending overlays (for approved ones it's less critical)
         if ("status" in overlay && overlay.status === "pending") {
-          toast.add({
-            severity: "info",
-            summary: t("moderation.switchedToEditMode"),
-            detail: t("moderation.pendingOverlaysOnlyInEditMode"),
-            life: 3000,
-          });
+          toastInfo(
+            t("moderation.pendingOverlaysOnlyInEditMode"),
+            t("moderation.switchedToEditMode"),
+          );
         }
 
         // Let the mode-change watchers run (they kick off overlay rendering) before navigating.
@@ -85,12 +77,10 @@ export function useOverlayClickHandler() {
       await navigateToOverlay(overlay.id, autoSelect);
     } catch (error) {
       console.error("Failed to navigate to overlay:", error);
-      toast.add({
-        severity: "error",
-        summary: t("location.navigationFailed"),
-        detail: error instanceof Error ? error.message : t("overlay.failedToNavigate"),
-        life: 3000,
-      });
+      toastError(
+        error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+        t("location.navigationFailed"),
+      );
     }
   }
 

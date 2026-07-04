@@ -14,7 +14,6 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
-import { useToast } from "@/composables/ui/useToast";
 import { createProjectContext, formatEntityChanges, submitContext } from "./submissionService";
 import type {
   SubmissionChange,
@@ -22,6 +21,7 @@ import type {
   SubmissionContext,
   SubmissionSummary,
 } from "./submissionTypes";
+import { toastError, toastSuccess, toastInfo } from "@/services/core/toast";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
@@ -324,12 +324,7 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
     showSubmissionDialog.value = true;
   } catch (error: unknown) {
     console.error("Error preparing submission:", error);
-    useToast().add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: error instanceof Error ? error.message : t("errors.preparingSubmission"),
-      life: 5000,
-    });
+    toastError(error instanceof Error ? error.message : t("errors.preparingSubmission"));
   }
 }
 
@@ -345,12 +340,7 @@ export function prepareOverlaySubmission(overlay: OverlayObject, project?: Proje
 function handleSubmissionSuccess(): void {
   const message = getSuccessMessage(submissionSummary.value?.changeType);
 
-  useToast().add({
-    severity: "success",
-    summary: t("common.success"),
-    detail: message,
-    life: 3000,
-  });
+  toastSuccess(message);
 
   resetSubmissionState();
 }
@@ -366,12 +356,10 @@ export async function confirmSubmission(reason: string): Promise<void> {
     handleSubmissionSuccess();
   } catch (error: unknown) {
     console.error("Error submitting:", error);
-    useToast().add({
-      severity: "error",
-      summary: t("toast.submissionFailed"),
-      detail: error instanceof Error ? error.message : t("errors.submissionFailed"),
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : t("errors.submissionFailed"),
+      t("toast.submissionFailed"),
+    );
   } finally {
     isSubmitting.value = false;
   }
@@ -446,11 +434,6 @@ export async function handleRemoveChange(
   // If no more changes, close the dialog
   if (submissionSummary.value.changes.length === 0) {
     resetSubmissionState();
-    useToast().add({
-      severity: "info",
-      summary: t("common.info"),
-      detail: t("submission.noChangesToSubmit"),
-      life: 3000,
-    });
+    toastInfo(t("submission.noChangesToSubmit"));
   }
 }

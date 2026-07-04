@@ -1,5 +1,5 @@
 import { trpc } from "@/client";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useProjectStore } from "@/stores/projectStore";
 import { createProjectObject } from "@/utils/typeFactories";
 import { selectProject } from "@/services/map/projectSelection";
@@ -7,6 +7,7 @@ import { flyToGeometry } from "@/services/map/mapNavigation";
 import { onMlMapReady, bootedFromDeeplinkView } from "@/services/core/map";
 
 import { loadOrNull } from "@/services/core/errorHandling";
+import { toastInfo } from "@/services/core/toast";
 
 // Handle a /project/:slug deep link: a visitor arriving from Google or a pasted link lands directly
 // in the live app focused on the project. Resolves the slug to a project (or a deletion tombstone),
@@ -22,7 +23,6 @@ export async function handleProjectDeepLink(
   const resolvedSlug = Array.isArray(slug) ? slug[0] : slug;
   if (typeof resolvedSlug !== "string" || resolvedSlug.length === 0) return;
 
-  const toast = useToast();
   const projectStore = useProjectStore();
 
   const result = await loadOrNull(async () => trpc.project.getBySlug.query({ slug: resolvedSlug }));
@@ -60,11 +60,6 @@ export async function handleProjectDeepLink(
         flyToGeometry([lat, lng], 0);
       });
     }
-    toast.add({
-      severity: "info",
-      summary: t("project.deepLink.goneTitle"),
-      detail: t("project.deepLink.goneDetail"),
-      life: 6000,
-    });
+    toastInfo(t("project.deepLink.goneDetail"), t("project.deepLink.goneTitle"));
   }
 }
