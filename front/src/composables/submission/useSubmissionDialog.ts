@@ -46,7 +46,7 @@ function buildOverlayModificationChanges(
     if (mod.caption) {
       changes.push({
         field: "caption",
-        oldValue: mod.caption.original ?? t("common.noValue"),
+        oldValue: mod.caption.original ?? "",
         newValue: mod.caption.current,
         displayLabel: t("submission.overlayCaption"),
         overlayId: mod.overlayId,
@@ -75,7 +75,7 @@ function getImageUrl(overlay: OverlayObject | Overlay) {
   return undefined;
 }
 
-function getSuccessMessage(changeType: string): string {
+function getSuccessMessage(changeType: SubmissionChangeType | undefined): string {
   if (changeType === "update_approved") return t("submission.changeRequestSubmitted");
   if (changeType === "update_pending") return t("submission.changesSaved");
   return t("submission.submissionSuccessful");
@@ -91,7 +91,7 @@ function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
   }
 }
 
-function cancelSubmission(): void {
+function resetSubmissionState(): void {
   showSubmissionDialog.value = false;
   pendingSubmissionContext.value = null;
   submissionSummary.value = null;
@@ -113,7 +113,7 @@ function buildNewOverlayChanges(
 
     changes.push({
       field: "new_overlay",
-      oldValue: t("common.noValue"),
+      oldValue: "",
       newValue: overlayName ?? t("submission.newOverlay"),
       displayLabel: t("submission.newOverlay"),
       overlayId,
@@ -154,31 +154,16 @@ function buildOverlayInfoMap(
 }
 
 function buildProjectWithOverlaysChanges(
-  pendingMods: PendingOverlayModification[],
+  existingMods: PendingOverlayModification[],
   newOverlayIds: string[],
   overlayInfoMap: Record<string, OverlayObject | Overlay>,
   projectChanges: SubmissionChange[],
 ): SubmissionChange[] {
-  const changes: SubmissionChange[] = [];
-
-  if (newOverlayIds.length > 0) {
-    const newOverlayChanges = buildNewOverlayChanges(newOverlayIds, overlayInfoMap);
-    changes.push(...newOverlayChanges);
-  }
-
-  if (pendingMods.length > 0) {
-    const modsForExistingOverlays = pendingMods.filter(
-      (mod) => !newOverlayIds.includes(mod.overlayId),
-    );
-    if (modsForExistingOverlays.length > 0) {
-      const modChanges = buildOverlayModificationChanges(modsForExistingOverlays, overlayInfoMap);
-      changes.push(...modChanges);
-    }
-  }
-
-  changes.push(...projectChanges);
-
-  return changes;
+  return [
+    ...buildNewOverlayChanges(newOverlayIds, overlayInfoMap),
+    ...buildOverlayModificationChanges(existingMods, overlayInfoMap),
+    ...projectChanges,
+  ];
 }
 
 // Assemble the dialog summary + submit context from already-gathered inputs. Pure: the prepare
@@ -196,8 +181,12 @@ function buildSubmissionState(args: {
 }): { summary: SubmissionSummary; context: SubmissionContext } {
   const { projectId, project, overlay, projectHasChanges, pendingMods, newOverlayIds } = args;
 
+  // Mods on brand-new overlays are folded into the overlay publish itself; only mods on
+  // already-published overlays flow into the summary and context.
+  const existingOverlayMods = pendingMods.filter((mod) => !newOverlayIds.includes(mod.overlayId));
+
   const changes = buildProjectWithOverlaysChanges(
-    pendingMods,
+    existingOverlayMods,
     newOverlayIds,
     args.overlayInfoMap,
     args.projectChanges,
@@ -216,28 +205,25 @@ function buildSubmissionState(args: {
   }
 
   const projectIsNew = project?.status === null;
-  const { changeType, requiresModeration, action } = classifySubmission({
+  const { changeType, requiresModeration } = classifySubmission({
     projectIsNew,
     projectStatus: project?.status ?? null,
     projectHasChanges,
-    overlayMods: pendingMods,
+    overlayMods: existingOverlayMods,
     newOverlayIds,
   });
 
   return {
     summary: {
-      action,
       entityName: project?.name ?? overlay?.caption ?? t("submission.newOverlay"),
       changes,
       requiresModeration: requiresModeration || Boolean(args.stagedRender),
-      entityType: projectHasChanges || projectIsNew ? "project" : "overlay",
       changeType,
     },
     context: {
-      changeType,
       projectId,
       projectModified: projectHasChanges,
-      existingOverlayModifications: pendingMods,
+      existingOverlayModifications: existingOverlayMods,
       newOverlayIds,
       pendingRender: args.stagedRender ? { file: args.stagedRender.file } : undefined,
     },
@@ -247,7 +233,6 @@ function buildSubmissionState(args: {
 interface SubmissionClassification {
   changeType: SubmissionChangeType;
   requiresModeration: boolean;
-  action: string;
 }
 
 interface SubmissionClassificationInput {
@@ -273,17 +258,6 @@ function submissionChangeType(
   return "update_pending";
 }
 
-function submissionAction(
-  input: SubmissionClassificationInput,
-  requiresModeration: boolean,
-): string {
-  if (input.projectIsNew) return t("project.publish");
-  if (input.newOverlayIds.length > 0) return t("overlay.publishOverlay");
-  if (requiresModeration) return t("submission.submitChangeRequest");
-  if (input.projectHasChanges) return t("submission.updateProject");
-  return t("submission.updateOverlays");
-}
-
 // Single source of truth for the batch-level rollup shown in the dialog header. The service still
 // routes each entity by its own status (getChangeType); this classifies the submission as a whole.
 function classifySubmission(input: SubmissionClassificationInput): SubmissionClassification {
@@ -291,7 +265,6 @@ function classifySubmission(input: SubmissionClassificationInput): SubmissionCla
   return {
     changeType: submissionChangeType(input, requiresModeration),
     requiresModeration,
-    action: submissionAction(input, requiresModeration),
   };
 }
 
@@ -373,8 +346,8 @@ export function useSubmissionDialog() {
     prepareSubmission(resolved ?? null, overlay);
   }
 
-  function handleSubmissionSuccess(context: SubmissionContext): void {
-    const message = getSuccessMessage(context.changeType);
+  function handleSubmissionSuccess(): void {
+    const message = getSuccessMessage(submissionSummary.value?.changeType);
 
     toast.add({
       severity: "success",
@@ -383,10 +356,7 @@ export function useSubmissionDialog() {
       life: 3000,
     });
 
-    // Close dialog and reset state
-    showSubmissionDialog.value = false;
-    pendingSubmissionContext.value = null;
-    submissionSummary.value = null;
+    resetSubmissionState();
   }
 
   async function confirmSubmission(reason: string): Promise<void> {
@@ -397,7 +367,7 @@ export function useSubmissionDialog() {
       isSubmitting.value = true;
       await submissionService.submitContext(context, reason);
       focusStore.clearSelection();
-      handleSubmissionSuccess(context);
+      handleSubmissionSuccess();
     } catch (error: unknown) {
       console.error("Error submitting:", error);
       toast.add({
@@ -478,7 +448,7 @@ export function useSubmissionDialog() {
 
     // If no more changes, close the dialog
     if (submissionSummary.value.changes.length === 0) {
-      cancelSubmission();
+      resetSubmissionState();
       toast.add({
         severity: "info",
         summary: t("common.info"),
@@ -497,7 +467,7 @@ export function useSubmissionDialog() {
     prepareOverlaySubmission,
 
     confirmSubmission,
-    cancelSubmission,
+    cancelSubmission: resetSubmissionState,
     handleRemoveChange,
   };
 }

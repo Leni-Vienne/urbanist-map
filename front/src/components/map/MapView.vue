@@ -71,7 +71,7 @@ import {
   setupEventListeners,
   cleanupEventListeners,
   setupModeWatcher,
-} from "@/composables/viewport/useViewportTriggers";
+} from "@/services/map/viewportTriggers";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";

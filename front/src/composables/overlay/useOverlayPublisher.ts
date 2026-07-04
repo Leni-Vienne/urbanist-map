@@ -10,7 +10,7 @@ import { isValidQuad } from "@/services/overlay/transform";
 
 // The user's last edited position (history.at(-1)) is the source of truth; fall back to
 // the stored backend corners for an unedited overlay. Null when the overlay has no footprint.
-function getCornersFromOverlay(overlay: OverlayObject): LatLng[] | null {
+export function getCornersFromOverlay(overlay: OverlayObject): LatLng[] | null {
   const lastEdited = overlay.history.at(-1)?.corners;
   if (isValidQuad(lastEdited)) return lastEdited;
   return isValidQuad(overlay.baselineCorners) ? overlay.baselineCorners : null;

@@ -140,6 +140,7 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
       const inflight = pending.get(cacheKey);
       if (inflight) {
         const result = await inflight;
+        // oxlint-disable-next-line no-unnecessary-condition
         if (!stale) entity.value = result;
         return;
       }
@@ -149,6 +150,7 @@ export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
       try {
         const result = await promise;
         cache.set(cacheKey, result);
+        // oxlint-disable-next-line no-unnecessary-condition
         if (!stale) entity.value = result;
       } finally {
         pending.delete(cacheKey);

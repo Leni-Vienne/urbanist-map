@@ -4,7 +4,6 @@
     modal
     :header="$t('submission.confirmTitle')"
     :style="{ width: '540px' }"
-    @update:visible="handleVisibilityChange"
   >
     <div v-if="summary" class="flex flex-col gap-5 py-1">
       <!-- Entity name + moderation status pill -->
@@ -61,7 +60,7 @@
               <i class="pi pi-arrow-right text-muted-color text-xs shrink-0"></i>
               <span
                 class="min-w-0 flex-1 truncate rounded-md border px-2 py-0.5 text-[13px] font-medium text-color border-[color-mix(in_srgb,var(--p-primary-color)_35%,transparent)] bg-[color-mix(in_srgb,var(--p-primary-color)_12%,transparent)]"
-                >{{ change.newValue }}</span
+                >{{ change.newValue || $t("common.noValue") }}</span
               >
             </div>
 
@@ -122,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import type { SubmissionSummary } from "@/composables/submission/submissionTypes";
 import type { RemovableChange } from "@/types/index";
@@ -149,23 +148,15 @@ const emit = defineEmits<{
   "remove-change": [index: number, field: RemovableChange, overlayId?: string];
 }>();
 
-const isVisible = ref(props.visible);
-
-watch(
-  () => props.visible,
-  (newValue) => {
-    isVisible.value = newValue;
-  },
-);
-
-function handleVisibilityChange(value: boolean) {
-  emit("update:visible", value);
-}
+const isVisible = computed({
+  get: () => props.visible,
+  set: (value: boolean) => emit("update:visible", value),
+});
 
 function handleCancel() {
   changeReason.value = "";
   emit("cancel");
-  emit("update:visible", false);
+  isVisible.value = false;
 }
 
 function handleConfirm() {

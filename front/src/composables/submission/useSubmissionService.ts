@@ -24,7 +24,10 @@ import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
-import { useOverlayPublisher } from "@/composables/overlay/useOverlayPublisher";
+import {
+  useOverlayPublisher,
+  getCornersFromOverlay,
+} from "@/composables/overlay/useOverlayPublisher";
 import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 
@@ -42,9 +45,8 @@ type EntityUpdate =
       entityType: "overlay";
       entityId: string;
       changeType: SubmissionChangeType;
-      // Proposed caption/corners that aren't yet on the live store entry (tracked as deltas
-      // in pendingModificationsStore). When absent, validate/buildSummary fall back to the
-      // live store entry.
+      // The caption/corners this update will submit (staged delta or corners to publish).
+      // When absent, validate falls back to the live store entry.
       proposed?: {
         caption?: string | null;
         corners?: OverlayCorners;
@@ -73,11 +75,7 @@ function normalizeFieldValue(
       Array.isArray(value) ? (value as string[]).toSorted((a, b) => a.localeCompare(b)) : [],
     );
   }
-  return value ?? "";
-}
-
-function serializeForBackend(value: unknown): unknown {
-  return value === "" ? null : value;
+  return value === "" ? null : (value ?? null);
 }
 
 function hasShapes(v: unknown): boolean {
@@ -160,14 +158,15 @@ function newOverlayContext(
     entityId: overlayId,
     changeType: "create",
     proposed: {
-      corners: overlayObj.history.at(-1)?.corners ?? overlayObj.baselineCorners ?? undefined,
+      corners: getCornersFromOverlay(overlayObj) ?? undefined,
     },
   };
 }
 
+// Empty values format to "" so the dialog template applies its own no-value placeholder/styling.
 function formatValueForDisplay(value: unknown, fieldName?: string): string {
   if (value === null || value === undefined || value === "") {
-    return t("overlay.notSet");
+    return "";
   }
 
   if (fieldName === "geometry" && typeof value === "object") {
@@ -234,22 +233,16 @@ export function useSubmissionService() {
       const isGeometryField = field === "geometry";
       const isArrayField = field === "tags";
 
-      const normalizedOld = normalizeFieldValue(
-        field,
-        oldValue,
-        // oxlint-disable-next-line no-unnecessary-type-assertion
-        originalProject,
-      );
+      const normalizedOld = normalizeFieldValue(field, oldValue, originalProject);
       const normalizedNew = normalizeFieldValue(field, newValue, project);
 
       if (normalizedOld !== normalizedNew) {
         // Store raw objects for geometry/arrays so the backend receives proper JSON, not a string
-        // Use serializeForBackend to convert empty strings to null for the API
-        let pushedOldValue: unknown = serializeForBackend(normalizedOld);
-        let pushedNewValue: unknown = serializeForBackend(normalizedNew);
+        let pushedOldValue: unknown = normalizedOld;
+        let pushedNewValue: unknown = normalizedNew;
         if (isGeometryField) {
           pushedOldValue = normalizedOld !== null ? oldValue : null;
-          pushedNewValue = newValue ?? null;
+          pushedNewValue = normalizedNew !== null ? newValue : null;
         } else if (isArrayField) {
           pushedOldValue = oldValue;
           pushedNewValue = newValue;
@@ -292,7 +285,6 @@ export function useSubmissionService() {
       id: context.entityId,
       caption: context.proposed?.caption ?? liveOverlay?.caption ?? null,
       projectId: liveOverlay?.projectId ?? null,
-      // oxlint-disable-next-line no-unsafe-type-assertion
       corners: corners.map((c: { lat: number; lng: number }) => ({ lat: c.lat, lng: c.lng })),
     });
     const result = overlayClientSchema.safeParse(validationData);
@@ -585,9 +577,7 @@ export function useSubmissionService() {
   async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
     const project = ctx.projectId ? projectStore.getProjectById(ctx.projectId) : null;
     const newOverlayIds = ctx.newOverlayIds ?? [];
-    const existingMods = (ctx.existingOverlayModifications ?? []).filter(
-      (mod) => !newOverlayIds.includes(mod.overlayId),
-    );
+    const existingMods = ctx.existingOverlayModifications ?? [];
 
     const projectContext = buildProjectContext(ctx, project, newOverlayIds, reason);
 
@@ -598,6 +588,11 @@ export function useSubmissionService() {
     const errors = new Set(contexts.flatMap((context) => validate(context)));
     // New overlays need their project object loaded so publishOverlay can create/reference it.
     if (newOverlayIds.length > 0 && !project) errors.add(t("overlay.publishErrorNoProject"));
+    // A new project bundled with overlays gets no project context (publishOverlay publishes it
+    // via ensureProjectOnServer), so its metadata is validated here to keep it in the batch check.
+    if (project?.status === null && newOverlayIds.length > 0) {
+      for (const error of validateProject(project)) errors.add(error);
+    }
     if (errors.size > 0) throw new Error([...errors].join(", "));
 
     // Writes run only after the whole batch validated.
