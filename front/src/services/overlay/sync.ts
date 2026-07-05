@@ -5,14 +5,19 @@
 // shared engine behind resetting to the approved position and previewing a change request's
 // position, each of which previously reimplemented this same sync dance.
 //
-// `revertOverlayFieldModification` is a command built on top of it: it restores a staged field
-// edit (corners or caption) to its captured baseline in the stores, then syncs the map to match.
+// `revertOverlayFieldModification` is a command built on top of it: it reverts a staged field
+// edit (corners or caption), then syncs the map to match. A corners revert targets the edit-mode
+// default position (an open change request's suggested position, otherwise baseline).
 import { useOverlayStore } from "@/stores/overlayStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getImageHandle, setOverlayImageCorners } from "@/services/overlay/mapLayers";
 import { refreshEditHandles } from "@/services/overlay/editing";
 import { updateMarkerPosition } from "@/services/overlay/markers";
-import { isValidQuad } from "@/services/overlay/transform";
+import { isValidQuad, getEditModeDefaultCorners } from "@/services/overlay/transform";
+import {
+  getStagedCornersDelta,
+  getStagedCaptionDelta,
+  getEditModeDefaultCaption,
+} from "@/utils/unsavedState";
 import type { LatLng, ModifiableField, OverlayObject } from "@/types/index";
 
 interface ApplyOverlayCornersOptions {
@@ -44,44 +49,25 @@ export function applyOverlayCorners(
   updateMarkerPosition(overlayObject);
 }
 
-function resetOverlayField(
-  field: ModifiableField,
-  overlayId: string,
-  overlayObject: OverlayObject,
-  capturedOriginalCaption: string | null | undefined,
-  capturedOriginalCorners: { lat: number; lng: number }[] | null | undefined,
-): void {
-  if (field === "corners") {
-    const cornersToUse = capturedOriginalCorners ?? overlayObject.baselineCorners;
-    applyOverlayCorners(overlayObject, cornersToUse, { resetHistory: true, refreshHandles: true });
-  } else if (capturedOriginalCaption !== undefined) {
-    useOverlayStore().updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });
-  }
-}
-
-// Reverts one field of a staged overlay modification (caption or corners) back to its captured
-// baseline, syncing the image layer, edit handles, marker and tooltip. Returns true if other staged
-// fields remain.
+// Reverts one field of a staged overlay modification (caption or corners), syncing the image
+// layer, edit handles, marker and tooltip. Both reverts target the edit-mode default (an open
+// change request's suggested value, otherwise the approved baseline). Returns true if the
+// overlay's other field is still staged.
 export function revertOverlayFieldModification(
   overlayId: string,
   field: ModifiableField,
   overlayObject: OverlayObject,
 ): boolean {
-  const pendingModsStore = usePendingModificationsStore();
+  if (field === "corners") {
+    applyOverlayCorners(overlayObject, getEditModeDefaultCorners(overlayObject), {
+      resetHistory: true,
+      refreshHandles: true,
+    });
+    return getStagedCaptionDelta(overlayObject) !== null; // caption still staged?
+  }
 
-  const pendingMod = pendingModsStore.getPendingModifications(overlayId);
-  const capturedOriginalCaption = pendingMod?.caption?.original;
-  const capturedOriginalCorners = pendingMod?.corners?.original;
-
-  const hasRemainingMods = pendingModsStore.clearFieldModification(overlayId, field);
-
-  resetOverlayField(
-    field,
-    overlayId,
-    overlayObject,
-    capturedOriginalCaption,
-    capturedOriginalCorners,
-  );
-
-  return hasRemainingMods;
+  useOverlayStore().updateOverlay(overlayId, {
+    caption: getEditModeDefaultCaption(overlayObject),
+  });
+  return getStagedCornersDelta(overlayObject) !== null; // corners still staged?
 }

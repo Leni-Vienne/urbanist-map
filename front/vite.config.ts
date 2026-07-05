@@ -181,9 +181,7 @@ export default defineConfig(({ mode }) => {
               {
                 name: "app-utils",
                 test: (id: string) =>
-                  /\/front\/src\/stores\/(?:authStore|uiStore|pinia\/pendingModificationsStore)/.test(
-                    id,
-                  ) ||
+                  /\/front\/src\/stores\/(?:authStore|uiStore)/.test(id) ||
                   /\/front\/src\/utils\/(?:imageUrl|imageErrorHandler)/.test(id) ||
                   id.includes("/front/src/constants/mapConstants") ||
                   /\/front\/src\/composables\/(?:ui\/useToast)/.test(id) ||

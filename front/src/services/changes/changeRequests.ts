@@ -3,18 +3,18 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeRequestStore";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { OverlayObject } from "@/types";
 import { applyOverlayCorners } from "@/services/overlay/sync";
 
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
   overlayObject.hasPendingChanges = false;
   overlayObject.suggestedCorners = undefined;
+  overlayObject.suggestedCaption = undefined;
   overlayObject.isViewingApprovedPosition = undefined;
 }
 
-function resetOverlayPositionToApproved(overlayObject: OverlayObject, overlayId: string) {
-  usePendingModificationsStore().clearModification(overlayId);
+function resetOverlayToApproved(overlayObject: OverlayObject) {
+  overlayObject.caption = overlayObject.baselineCaption;
   applyOverlayCorners(overlayObject, overlayObject.baselineCorners, {
     resetHistory: true,
     refreshHandles: true,
@@ -94,7 +94,7 @@ function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
   clearOverlayChangeRequestState(overlayObject);
 
   if (changeRequest.fieldName === "corners") {
-    resetOverlayPositionToApproved(overlayObject, changeRequest.entityId);
+    resetOverlayToApproved(overlayObject);
   }
 }
 

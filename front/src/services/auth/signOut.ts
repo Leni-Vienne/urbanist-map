@@ -5,7 +5,6 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { clearAll as clearAllLayers, clearOverlayDisplayPrefs } from "@/services/overlay/mapLayers";
@@ -35,7 +34,6 @@ export async function signOut() {
   clearLatestContributions();
   useModerationStore().clearAllState();
   useChangeRequestStore().clearAllState();
-  usePendingModificationsStore().clearAllState();
   useModeratedContributionsStore().clearAllState();
 
   return result;

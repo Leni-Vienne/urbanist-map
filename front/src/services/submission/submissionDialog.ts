@@ -13,7 +13,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
+import { getStagedOverlayModifications } from "@/utils/unsavedState";
 import { createProjectContext, formatEntityChanges, submitContext } from "./submissionService";
 import type {
   SubmissionChange,
@@ -299,7 +299,7 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
   try {
     const projectHasChanges =
       projectStore.projects[projectId]?.isModified ?? project?.isModified ?? false;
-    const pendingMods = usePendingModificationsStore().getModificationsForProject(projectId);
+    const pendingMods = getStagedOverlayModifications(projectId);
     const newOverlayIds = getNewOverlaysForProject(projectId).map((o) => o.id);
 
     const { summary, context } = buildSubmissionState({

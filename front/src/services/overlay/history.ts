@@ -1,9 +1,7 @@
 import type { NormalizedRect, OverlayHistoryState, LatLng } from "@/types/index";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
-import { isValidQuad } from "@/services/overlay/transform";
+import { isValidQuad, getEditModeDefaultCorners } from "@/services/overlay/transform";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(
@@ -14,35 +12,9 @@ export function makeHistoryState(
   return { corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })), imageUrl, cropRect };
 }
 
-// Sync the overlay's live image position into pendingModificationsStore as a corners delta.
-// No-op for new (status null) overlays, whose position lives only in history; only submitted
-// overlays track a delta. Call after any change to the live position (edit, undo, redo).
-export function syncPendingOverlayCorners(id: string): void {
-  const pendingModsStore = usePendingModificationsStore();
-  const mapStore = useMapStore();
-
-  if (mapStore.mode !== "edit") return;
-
-  const overlay = useOverlayStore().liveOverlays[id];
-  if (!overlay || overlay.status === null) return;
-
-  const corners = getOverlayImageCorners(id);
-  if (!corners) return;
-
-  const mappedCorners = corners.map((corner) => ({ lat: corner.lat, lng: corner.lng }));
-
-  pendingModsStore.saveCornersChange(
-    id,
-    overlay.projectId ?? null,
-    mappedCorners,
-    overlay.baselineCorners ?? [],
-    overlay.status,
-  );
-}
-
-// Commit one overlay edit (move / resize / crop): push a history step for the live image position
-// and sync the pending change-request corners delta. Seeds an empty history with the backend
-// corners first. Returns early without committing when the position matches the last step.
+// Commit one overlay edit (move / resize / crop): push a history step for the live image position.
+// Seeds an empty history with the overlay's edit-mode default position first. Returns early without
+// committing when the position matches the last step.
 export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   const overlayStore = useOverlayStore();
   const overlay = overlayStore.liveOverlays[id];
@@ -55,10 +27,13 @@ export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   const effectiveRect = cropRect ?? overlay.history.at(-1)?.cropRect;
   const currentState = makeHistoryState(currentCorners, overlay.imageUrl, effectiveRect);
 
-  // Seed empty history with the backend corners so the first undo has a base state.
+  // Seed empty history with the edit-mode default position so the first undo returns there.
   let baseHistory = overlay.history;
-  if (baseHistory.length === 0 && isValidQuad(overlay.baselineCorners)) {
-    baseHistory = [makeHistoryState(overlay.baselineCorners, overlay.imageUrl)];
+  if (baseHistory.length === 0) {
+    const defaultCorners = getEditModeDefaultCorners(overlay);
+    if (isValidQuad(defaultCorners)) {
+      baseHistory = [makeHistoryState(defaultCorners, overlay.imageUrl)];
+    }
   }
 
   if (baseHistory.length > 0) {
@@ -69,6 +44,4 @@ export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   }
 
   overlayStore.commitHistory(id, [...baseHistory, currentState]);
-
-  syncPendingOverlayCorners(id);
 }

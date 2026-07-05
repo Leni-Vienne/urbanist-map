@@ -1,6 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useMapStore } from "@/stores/mapStore";
 import { trpc } from "@/client";
 import { createProjectObject } from "@/utils/typeFactories";
 import {
@@ -14,13 +15,18 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import type { OverlayObject, LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
+import { isValidQuad } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
-  // Set position state for dynamic button feedback when selecting overlay
-  // Default to viewing the approved position on first selection
+  // Set position state for dynamic button feedback when selecting overlay.
   if (newlySelected.isViewingApprovedPosition === undefined) {
-    newlySelected.isViewingApprovedPosition = true;
+    // Edit mode displays the suggested position of an open change request by default.
+    newlySelected.isViewingApprovedPosition = !(
+      useMapStore().mode === "edit" &&
+      newlySelected.hasPendingChanges === true &&
+      isValidQuad(newlySelected.suggestedCorners)
+    );
   }
 
   // Raise the clicked image above its siblings so the one the user picked is never hidden.

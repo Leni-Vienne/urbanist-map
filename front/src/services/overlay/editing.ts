@@ -17,6 +17,7 @@ import {
   transformToCorners,
   cornersToTransform,
   isValidQuad,
+  getEditModeDefaultCorners,
   SIGN,
   type OverlayTransform,
 } from "@/services/overlay/transform";
@@ -26,7 +27,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 
 import { t } from "@/locales";
@@ -36,11 +36,7 @@ import { createOverlayObject, createProjectObject } from "@/utils/typeFactories"
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { selectOverlay, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import {
-  makeHistoryState,
-  syncPendingOverlayCorners,
-  commitOverlayEdit,
-} from "@/services/overlay/history";
+import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
 import { toastInfo, toastWarn } from "@/services/core/toast";
 
@@ -48,7 +44,8 @@ import { toastInfo, toastWarn } from "@/services/core/toast";
 
 /**
  * Update overlay editing state when switching modes.
- * Entering edit mode: restore the user's last edited corners from history.
+ * Entering edit mode: restore the user's last edited corners from history, else snap to the
+ * edit-mode default position (an open change request's suggested position, otherwise baseline).
  * Leaving edit mode: snap the image back to the approved backend corners (history preserved).
  */
 export function updateOverlayEditingState(): void {
@@ -65,10 +62,15 @@ export function updateOverlayEditingState(): void {
 
     if (isEditMode) {
       const lastEdited = overlayObject.history.at(-1);
-      const hasUserEdits = overlayObject.history.length > 1;
-      if (hasUserEdits && lastEdited) {
+      if (overlayObject.history.length > 1 && lastEdited) {
         restoreOverlayToState(overlayObject.id, lastEdited);
         updateMarkerPosition(overlayObject);
+      } else {
+        const defaultCorners = getEditModeDefaultCorners(overlayObject);
+        if (isValidQuad(defaultCorners)) {
+          setOverlayImageCorners(overlayObject.id, defaultCorners);
+          updateMarkerPosition(overlayObject);
+        }
       }
     } else if (isValidQuad(overlayObject.baselineCorners)) {
       // Leaving edit mode: snap back to the approved backend position.
@@ -258,15 +260,6 @@ function applyHistoryAction(action: "undo" | "redo") {
   const overlay = overlayStore.liveOverlays[id];
   if (overlay) {
     updateMarkerPosition(overlay);
-  }
-
-  syncPendingOverlayCorners(id);
-
-  // On full undo to original state, clear corners from pendingModsStore for any submitted
-  // overlay (but not caption, which may have its own pending change).
-  if (action === "undo" && overlay?.history.length === 1 && overlay.status !== null) {
-    const pendingModsStore = usePendingModificationsStore();
-    pendingModsStore.clearFieldModification(id, "corners");
   }
 }
 

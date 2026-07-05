@@ -9,13 +9,14 @@ import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 // All coercion to non-null defaults happens inside the factory body.
 type ProjectInput = { [K in keyof Project]?: Project[K] | null };
 
-// Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`.
+// Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`, and snapshot
+// the wire `caption` into `baselineCaption` (the approved caption, never overwritten by edits).
 // The single translation from the tRPC wire shape to OverlayData.
-export function overlayWireToData<T extends { corners: LatLng[] }>(
+export function overlayWireToData<T extends { corners: LatLng[]; caption?: string | null }>(
   wire: T,
-): Omit<T, "corners"> & { baselineCorners: T["corners"] } {
+): Omit<T, "corners"> & { baselineCorners: T["corners"]; baselineCaption: string | null } {
   const { corners, ...rest } = wire;
-  return { ...rest, baselineCorners: corners };
+  return { ...rest, baselineCorners: corners, baselineCaption: rest.caption ?? null };
 }
 
 /**
@@ -103,11 +104,13 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
     baselineCorners: data.baselineCorners ?? null,
+    baselineCaption: data.baselineCaption ?? data.caption ?? null,
     imageUrl,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,
     suggestedCorners: data.suggestedCorners ?? undefined,
+    suggestedCaption: data.suggestedCaption ?? undefined,
     hasPendingChanges: data.hasPendingChanges ?? undefined,
     isTooBig: data.isTooBig ?? undefined,
   };
@@ -138,7 +141,9 @@ export function convertOverlayToData(overlayObject: OverlayObject): OverlayData 
     project: null,
     centroid,
     baselineCorners: overlayObject.baselineCorners,
+    baselineCaption: overlayObject.baselineCaption,
     suggestedCorners: overlayObject.suggestedCorners, // Pending position if change requests exist
+    suggestedCaption: overlayObject.suggestedCaption, // Pending caption if change requests exist
     distance: 0,
     createdAt: overlayObject.createdAt,
     updatedAt: overlayObject.updatedAt,

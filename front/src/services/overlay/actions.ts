@@ -5,7 +5,6 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { LatLng, OverlayObject, Project } from "@/types/index";
 import { trpc, getApiUrl } from "@/client";
 import { projectSchema } from "@shared/validation/schemas";
@@ -175,28 +174,13 @@ function selectAndCenterOverlay(overlayId: string) {
 
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {
   const overlayStore = useOverlayStore();
-  const pendingModsStore = usePendingModificationsStore();
-
   const overlayObject = overlayStore.liveOverlays[id];
   if (!overlayObject) return;
 
-  const oldCaption = overlayObject.caption;
   const newCaption = info.caption ?? null;
-  if (oldCaption === newCaption) return;
+  if (overlayObject.caption === newCaption) return;
 
-  overlayObject.caption = newCaption;
-
-  // New overlays (status null) carry their caption on the overlay object itself; only
-  // approved/pending overlays need a delta tracked here for the change-request flow.
-  if (overlayObject.status !== null) {
-    pendingModsStore.saveCaptionChange(
-      id,
-      overlayObject.projectId ?? null,
-      newCaption,
-      oldCaption,
-      overlayObject.status,
-    );
-  }
+  overlayStore.updateOverlay(id, { caption: newCaption });
 }
 
 // The user's last edited position (history.at(-1)) is the source of truth; fall back to

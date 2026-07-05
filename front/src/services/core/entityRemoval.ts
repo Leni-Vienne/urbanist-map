@@ -4,7 +4,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { trpc } from "@/client";
@@ -34,9 +33,6 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   delete overlayStore.liveOverlays[overlayId];
 
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
-
-  // Prevents stale entries in the submission dialog
-  usePendingModificationsStore().clearModification(overlayId);
 }
 
 function removeOverlay(

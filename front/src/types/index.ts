@@ -119,6 +119,7 @@ export type OverlayData = Omit<
   | "distance"
   | "corners"
   | "suggestedCorners"
+  | "suggestedCaption"
   | "hasPendingChanges"
   | "pendingChangeRequestsCount"
 > & {
@@ -130,7 +131,11 @@ export type OverlayData = Omit<
   // The live edited position lives on the GL image (getOverlayImageCorners) and undo steps in
   // history[]; this is only the server baseline.
   baselineCorners: LatLng[] | null;
+  // The immutable backend/approved caption, copied from the wire `caption` at ingest and never
+  // overwritten by edits (the mirror of baselineCorners). The live edited caption stays on `caption`.
+  baselineCaption: string | null;
   suggestedCorners?: LatLng[];
+  suggestedCaption?: string | null;
   hasPendingChanges?: boolean;
   pendingChangeRequestsCount?: number;
 };

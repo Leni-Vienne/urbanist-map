@@ -113,7 +113,7 @@ function getOverlayMarkerColor(
   // Local replacement overlay (before submission)
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";
 
-  // Viewing suggested (pending) position - show yellow only when explicitly toggled
+  // Viewing the suggested (pending) position.
   if (hasPendingChanges && isViewingApprovedPosition === false) {
     return "yellow";
   }

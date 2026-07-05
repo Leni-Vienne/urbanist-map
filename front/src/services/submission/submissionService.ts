@@ -25,7 +25,6 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { publishOverlay, getCornersFromOverlay } from "@/services/overlay/actions";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 
 // Internal single-entity payload used by buildSummary/validate/submitEntity.
@@ -378,6 +377,12 @@ async function submitOverlay(
       updates.suggestedCorners = cornersChange.newValue as OverlayCorners;
       updates.isViewingApprovedPosition = false;
     }
+    const captionChange = changes.find((c) => c.fieldName === "caption");
+    if (captionChange) {
+      // suggestedCaption is the edit-mode default while the CR is open, so re-entering edit mode
+      // or reloading keeps showing the proposed caption.
+      updates.suggestedCaption = String(captionChange.newValue ?? "");
+    }
     overlayStore.updateOverlay(overlayId, updates);
 
     await refreshPendingChangeRequests({ force: true });
@@ -476,14 +481,22 @@ async function submitOverlayModification(
 
   await submitEntity(buildOverlayModificationContext(overlayId, mod, overlayObj, reason));
 
-  usePendingModificationsStore().clearModification(overlayId);
-
-  // For direct updates we collapse history so the submitted state is the new baseline;
-  // change requests keep history so the proposal stays visible on edit-mode re-entry.
+  // Collapse history to the submitted position. Direct updates also move baselineCorners; a change
+  // request's baseline stays the approved corners and the submitted position becomes the
+  // suggestedCorners default (set by submitOverlay's update_approved branch).
   const submittedCorners = mod.corners?.current;
-  if (submittedCorners && !isChangeRequest) {
-    overlayStore.updateOverlay(overlayId, { baselineCorners: submittedCorners });
+  if (submittedCorners) {
+    if (!isChangeRequest) {
+      overlayStore.updateOverlay(overlayId, { baselineCorners: submittedCorners });
+    }
     overlayStore.resetHistoryBaseline(overlayId, submittedCorners);
+  }
+
+  // Move baselineCaption to the submitted value on a direct update so the staged test goes false.
+  // A change request's baseline stays the approved caption; suggestedCaption is the new default.
+  const submittedCaption = mod.caption?.current;
+  if (submittedCaption !== undefined && !isChangeRequest) {
+    overlayStore.updateOverlay(overlayId, { baselineCaption: submittedCaption });
   }
 }
 
@@ -493,10 +506,14 @@ async function publishNewOverlays(overlayIds: string[], project: Project | null)
     const overlayObj = overlayStore.liveOverlays[overlayId];
     if (!overlayObj) continue;
     await publishOverlay(overlayObj, project);
-    // Collapse history so the just-published state is the new baseline.
+    // Collapse history so the just-published state is the new baseline, and snapshot the published
+    // caption as the baseline so the just-published overlay reads as clean.
     const publishedState = overlayObj.history.at(-1);
     if (publishedState) {
-      overlayStore.updateOverlay(overlayId, { baselineCorners: publishedState.corners });
+      overlayStore.updateOverlay(overlayId, {
+        baselineCorners: publishedState.corners,
+        baselineCaption: overlayObj.caption,
+      });
       overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
     }
   }

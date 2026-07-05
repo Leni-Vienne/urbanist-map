@@ -487,6 +487,12 @@ function transformOverlayDataWithChangeRequests(
         : null;
     /* oxlint-enable */
 
+    const captionChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "caption");
+    const suggestedCaption =
+      captionChangeRequest && captionChangeRequest.newValue != null
+        ? String(captionChangeRequest.newValue)
+        : null;
+
     const userHasPendingChanges =
       mode === "edit" && overlayChangeRequests.some((cr) => cr.requestedBy === userId);
 
@@ -505,6 +511,7 @@ function transformOverlayDataWithChangeRequests(
       centroid,
       corners: approvedCorners,
       suggestedCorners: suggestedCorners ?? undefined,
+      suggestedCaption: suggestedCaption ?? undefined,
       distance: 0,
       project: {
         ...row.project,

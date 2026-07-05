@@ -6,7 +6,7 @@ export type ChangeRequest = RouterOutput["changes"]["getMyChangeRequests"][numbe
 
 // Which change request's position the map is previewing, and how (approved vs suggested, overlay vs
 // project shape). Drives the map preview render and the moderation panel's "viewed" tracking.
-export type PreviewState =
+type PreviewState =
   | { type: "none" }
   | { type: "current"; changeId: string; overlayId: string }
   | {

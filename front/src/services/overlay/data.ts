@@ -42,18 +42,20 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   });
 }
 
-// Single resolver for an overlay's on-map geometry. `purpose` picks the priority order:
+// Single resolver for an overlay's on-map geometry. There is no single canonical position source;
+// `purpose` picks the priority order:
 //   "image"  (re)creates the raster, so it prefers the remembered/intended position:
-//            history > backend corners > live image.
+//            suggested (open CR default) > history > backend corners > live image.
 //   "marker" tracks where the image actually sits, so it prefers the live position:
-//            live image > history > backend corners.
+//            live image > suggested > history > backend corners.
 // History is used for the image unless a view-mode approved overlay (which always renders at its
-// backend corners), and for the marker only while editing. `history` is read off the passed object
-// when present (the image path resolves a freshly-built object before it is committed to the store)
-// and otherwise looked up by id. Returns null when no source yields a valid 4-corner quad, e.g. a
+// backend corners), and for the marker only while editing. The suggested position is the edit-mode
+// default for an overlay with an open change request. `history` is read off the passed object when
+// present (the image path resolves a freshly-built object before it is committed to the store) and
+// otherwise looked up by id. Returns null when no source yields a valid 4-corner quad, e.g. a
 // render (kind='render'), whose corners are null.
 export function resolveOverlayCorners(
-  overlay: OverlayData & { history?: OverlayHistoryState[] },
+  overlay: OverlayData & { history?: OverlayHistoryState[]; isViewingApprovedPosition?: boolean },
   purpose: "image" | "marker",
 ): LatLng[] | null {
   const mapStore = useMapStore();
@@ -69,13 +71,25 @@ export function resolveOverlayCorners(
       : mapStore.mode === "edit";
   const fromHistory = historyAllowed && isValidQuad(historyCorners) ? historyCorners : null;
 
+  // Edit mode defaults an overlay with an open change request to its suggested position; user
+  // edits (history beyond the seed) and the explicit "view approved position" toggle both override.
+  const suggestedAllowed =
+    mapStore.mode === "edit" &&
+    overlay.hasPendingChanges === true &&
+    overlay.isViewingApprovedPosition !== true &&
+    history.length <= 1;
+  const fromSuggested =
+    suggestedAllowed && isValidQuad(overlay.suggestedCorners) ? overlay.suggestedCorners : null;
+
   if (purpose === "marker") {
     if (isValidQuad(liveCorners)) return liveCorners;
+    if (fromSuggested) return fromSuggested;
     if (fromHistory) return fromHistory;
     if (isValidQuad(stored)) return stored;
     return null;
   }
 
+  if (fromSuggested) return fromSuggested;
   if (fromHistory) return fromHistory;
   if (isValidQuad(stored)) return stored;
   return liveCorners;
@@ -89,6 +103,9 @@ export function mergeEditState(fresh: OverlayObject, existing: OverlayObject): v
   fresh.isViewingApprovedPosition = existing.isViewingApprovedPosition;
   fresh.history = [...existing.history];
   fresh.redoStack = [...existing.redoStack];
+  // Carry the live edited caption over the freshly-built wire value, so an in-progress caption edit
+  // survives a viewport re-render (baselineCaption/suggestedCaption stay from the wire object).
+  fresh.caption = existing.caption;
   if (existing.imageUrl.startsWith("data:")) {
     fresh.imageUrl = existing.imageUrl;
     fresh.filename = existing.filename;

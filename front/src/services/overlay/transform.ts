@@ -19,6 +19,19 @@ export function isValidQuad(corners: LatLng[] | undefined | null): corners is La
   return corners?.length === 4 && corners.every(isValidCorner);
 }
 
+// The position an overlay shows in edit mode absent any staged edits: the suggested position of
+// its open change request when one exists, otherwise the backend baseline.
+export function getEditModeDefaultCorners(overlay: {
+  hasPendingChanges?: boolean;
+  suggestedCorners?: LatLng[];
+  baselineCorners: LatLng[] | null;
+}): LatLng[] | null {
+  if (overlay.hasPendingChanges === true && isValidQuad(overlay.suggestedCorners)) {
+    return overlay.suggestedCorners;
+  }
+  return overlay.baselineCorners;
+}
+
 // Rigid overlay model used while editing. Storage stays as 4 corners; this is in-memory only.
 export interface OverlayTransform {
   center: { lat: number; lng: number };

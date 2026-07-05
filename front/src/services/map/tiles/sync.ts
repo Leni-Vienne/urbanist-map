@@ -121,6 +121,7 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
     updatedAt: new Date(0),
     centroid,
     baselineCorners: corners,
+    baselineCaption: readString(props.caption),
   };
   return { overlay, lastModifiedS, timelineStatus, tags, name };
 }
