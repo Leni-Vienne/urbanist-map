@@ -106,7 +106,11 @@ import {
   canModerateCountry,
   syncModerationCountry,
 } from "@/services/moderation/moderationCountrySync";
-import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
+import {
+  contributions,
+  isLoading,
+  fetchLatestContributions,
+} from "@/services/feed/latestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
@@ -126,7 +130,6 @@ import { LngLatBounds } from "maplibre-gl";
 const { t, locale } = useI18n();
 const mapStore = useMapStore();
 
-const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
 function getContributionImageUrl(filename: string): string {

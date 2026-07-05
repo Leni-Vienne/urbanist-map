@@ -215,7 +215,7 @@ import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapes/registry";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
@@ -283,7 +283,6 @@ const { t } = useI18n();
 
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);

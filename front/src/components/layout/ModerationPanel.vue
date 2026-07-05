@@ -163,11 +163,11 @@ import { useI18n } from "vue-i18n";
 import { useModeration } from "@/composables/moderation/useModeration";
 import { useModerationCountrySelector } from "@/composables/moderation/useModerationCountrySelector";
 import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
-import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
+import { previewState } from "@/services/overlay/changeRequestPreviewState";
 import { useModerationStore } from "@/stores/moderationStore";
 import type { Overlay, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { useFocusStore } from "@/stores/focusStore";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
@@ -180,7 +180,6 @@ import ModerationActionButtons from "@/components/moderation/ModerationActionBut
 import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 
 const { t } = useI18n();
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const moderationStore = useModerationStore();
 
@@ -214,9 +213,6 @@ const selectedProjectId = computed(() => focusStore.selectedProjectId);
 const isLoading = computed(
   () => Boolean(selectedCountryCode.value) && !moderationStore.moderationLoaded,
 );
-
-// Use change request preview composable to track when suggested positions are viewed
-const { previewState } = useChangeRequestPreview();
 
 // Track which overlay positions have been viewed by the moderator (using array for better reactivity)
 const viewedOverlayIds = ref<string[]>([]);

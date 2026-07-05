@@ -30,42 +30,37 @@ function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | n
   return gc as GeoJSON.GeometryCollection;
 }
 
-export function useShapeChangeRequestPreview() {
+export async function previewShapes(options: PreviewShapesOptions): Promise<void> {
+  const { change, project, geometryValue, type } = options;
   const mapStore = useMapStore();
 
-  async function previewShapes(options: PreviewShapesOptions): Promise<void> {
-    const { change, project, geometryValue, type } = options;
-
-    const geometry = parseGeometryCollection(geometryValue);
-    if (!geometry) {
-      toastWarn(t("shapes.noShapesToPreview"));
-      return;
-    }
-
-    const bounds = computeShapeBounds(geometry.geometries);
-    if (!bounds) return;
-
-    // Navigate to the correct country context if not already there
-    if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
-      clearAllMapContent();
-      mapStore.selectedCountryCode = project.countryCode;
-      await nextTick();
-    }
-
-    const newGeom = type === "new" ? geometry : (project.geometry ?? null);
-    const oldGeom = type === "new" ? (project.geometry ?? null) : null;
-
-    renderPreviewShapes(project, newGeom, oldGeom, () => {
-      selectProject(project);
-    });
-
-    mobileAwareFlyToBounds(bounds);
-
-    previewState.value =
-      type === "new"
-        ? { type: "project-suggested", changeId: change.id, projectId: project.id }
-        : { type: "project-current", changeId: change.id, projectId: project.id };
+  const geometry = parseGeometryCollection(geometryValue);
+  if (!geometry) {
+    toastWarn(t("shapes.noShapesToPreview"));
+    return;
   }
 
-  return { previewShapes };
+  const bounds = computeShapeBounds(geometry.geometries);
+  if (!bounds) return;
+
+  // Navigate to the correct country context if not already there
+  if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
+    clearAllMapContent();
+    mapStore.selectedCountryCode = project.countryCode;
+    await nextTick();
+  }
+
+  const newGeom = type === "new" ? geometry : (project.geometry ?? null);
+  const oldGeom = type === "new" ? (project.geometry ?? null) : null;
+
+  renderPreviewShapes(project, newGeom, oldGeom, () => {
+    selectProject(project);
+  });
+
+  mobileAwareFlyToBounds(bounds);
+
+  previewState.value =
+    type === "new"
+      ? { type: "project-suggested", changeId: change.id, projectId: project.id }
+      : { type: "project-current", changeId: change.id, projectId: project.id };
 }

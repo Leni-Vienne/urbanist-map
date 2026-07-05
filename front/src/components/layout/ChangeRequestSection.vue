@@ -106,8 +106,12 @@ import { toastError } from "@/services/core/toast";
 import { computed, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { useChangeRequestPreview } from "@/composables/overlay/useChangeRequestPreview";
-import { useShapeChangeRequestPreview } from "@/composables/overlay/useShapeChangeRequestPreview";
+import {
+  isPreviewingChange,
+  getPreviewType,
+  previewOverlayGeometry,
+} from "@/services/overlay/changeRequestPreview";
+import { previewShapes } from "@/services/overlay/shapeChangeRequestPreview";
 import {
   syncPreviewStateOnNavigation,
   syncProjectShapePreviewState,
@@ -155,12 +159,6 @@ const { t } = useI18n();
 
 const overlayStore = useOverlayStore();
 const focusStore = useFocusStore();
-const {
-  isPreviewingChange,
-  getPreviewType,
-  previewGeometry: previewGeometryComposable,
-} = useChangeRequestPreview();
-const { previewShapes } = useShapeChangeRequestPreview();
 
 // Sync preview button state reactively. The sync functions read the mode's change request
 // store internally, so this effect tracks both the focus selection and the store contents.
@@ -289,7 +287,7 @@ async function previewGeometry(geometryValue: unknown, type: "old" | "new", chan
       return;
     }
 
-    await previewGeometryComposable({
+    await previewOverlayGeometry({
       change,
       overlayForModeration,
       geometryValue,
