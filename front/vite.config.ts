@@ -152,18 +152,19 @@ export default defineConfig(({ mode }) => {
                 name: "maplibre",
                 test: (id: string) => id.includes("node_modules/maplibre-gl/"),
               },
-              // Consolidate the ~14 tiny PrimeVue micro-chunks that Rolldown extracts as
-              // shared deps of async components. All of these are already page-loaded, so merging
-              // reduces HTTP requests without changing load timing or pulling in lazy-only code.
-              // Deliberately excludes form-only components (radiobutton, textarea, floatlabel,
-              // password) which are lazy-only and should stay that way.
+              // Consolidate the page-loaded vendor micro-chunks (PrimeVue shared deps of async
+              // components, plus pinia and the tRPC client stack) into one chunk. All of these
+              // are already page-loaded, so merging reduces HTTP requests without changing load
+              // timing or pulling in lazy-only code. Deliberately excludes form-only PrimeVue
+              // components (radiobutton, textarea, floatlabel, password) which are lazy-only
+              // and should stay that way.
               {
                 name: "primevue-extras",
                 test: (id: string) =>
-                  /node_modules\/primevue\/(?:virtualscroller|tooltip|button|checkbox|focustrap|inputtext|tag|progressspinner|overlayeventbus|utils|toasteventbus)\//.test(
+                  /node_modules\/primevue\/(?:virtualscroller|tooltip|button|checkbox|focustrap|inputtext|tag|progressspinner|slider|overlayeventbus|utils|toasteventbus)\//.test(
                     id,
                   ) ||
-                  /node_modules\/@primeuix\/styles\/dist\/(?:virtualscroller|tooltip|button|checkbox|inputtext|tag|progressspinner|popover)\//.test(
+                  /node_modules\/@primeuix\/styles\/dist\/(?:virtualscroller|tooltip|button|checkbox|inputtext|tag|progressspinner|slider|popover)\//.test(
                     id,
                   ) ||
                   id.includes("node_modules/primevue/popover/") ||
@@ -173,59 +174,39 @@ export default defineConfig(({ mode }) => {
                   /node_modules\/@primevue\/core\/(?:utils|baseinput|baseeditableholder)\//.test(
                     id,
                   ) ||
-                  id.includes("node_modules/@primeuix/utils/dist/eventbus"),
+                  id.includes("node_modules/@primeuix/utils/dist/eventbus") ||
+                  /node_modules\/(?:pinia|@trpc|superjson|is-what|copy-anything|uuid)\//.test(id),
               },
-              // Consolidate the ~12 tiny own-code chunks that Rolldown extracts because
-              // they are shared between multiple lazy-loaded components. All confirmed page-loaded.
-              // Grouping them into one chunk cuts ~12 HTTP requests from the initial load.
+              // Consolidate the ~19 tiny own-code chunks that Rolldown extracts because they
+              // are shared between the entry and lazy-loaded components. All confirmed loaded
+              // on initial page view (zoomed out, logged out), so merging them cuts HTTP
+              // requests without pulling anything new into the initial load.
               {
-                name: "app-utils",
+                name: "app-core",
                 test: (id: string) =>
-                  /\/front\/src\/stores\/(?:authStore|uiStore)/.test(id) ||
-                  /\/front\/src\/utils\/(?:imageUrl|imageErrorHandler)/.test(id) ||
-                  id.includes("/front/src/constants/mapConstants") ||
-                  /\/front\/src\/composables\/(?:ui\/useToast)/.test(id) ||
-                  /\/front\/src\/services\/(?:core\/errorHandling|overlay\/(?:overlayLifecycle|completionFilters|modeSwitching))/.test(
-                    id,
-                  ),
-              },
-              // Consolidate overlay service modules that are only loaded via panel clicks
-              // (useOverlayClickHandler, overlayNavigation, etc.) into a single lazy chunk.
-              // overlayMarkers/overlayHistory/entityRemoval are excluded because they load
-              // during the zoom-into-city flow and must remain independently loadable.
-              {
-                name: "overlay-services",
-                test: (id: string) =>
-                  // Do NOT include dynamic import() entry points here (overlayEditing,
-                  // overlayNavigation, useOverlayClickHandler) - they create stub+real code
-                  // duplication. Their deps (overlay.ts, overlayCityCache, etc.) are included
-                  // and those get pulled into overlay-services via static import chains.
-                  // The async entry files load overlay-services as a dep chunk automatically.
-                  /\/front\/src\/services\/overlay\/(?:overlay|overlayCityCache|overlayPositionResolver)\.ts/.test(
-                    id,
-                  ) || id.includes("/front/src/services/project/projects.ts"),
-              },
-              // Consolidate the 9-chunk cascade triggered when CurrentLocationPanel first mounts
-              // (applies to both zoom→click-on-overlay and LatestContributionsPanel click flows).
-              // Only TS utility files here, NOT Vue component files. Adding .vue async entries
-              // to the group drags their transitive deps (vue-i18n) out of the initial bundle
-              // into this lazy chunk → Rolldown preloads it at startup again to satisfy the
-              // conflict, defeating the purpose. Async components (CurrentLocationPanel,
-              // ProjectAccordionPanel) load location-panel automatically as a dep chunk.
-              {
-                name: "location-panel",
-                test: (id: string) =>
-                  /\/front\/src\/utils\/(?:projectDateFormat|urlFormat|flexibleDateHelpers|projectFactories)\.ts/.test(
+                  /\/front\/src\/stores\/(?:authStore|uiStore|projectStore|overlayStore|mapStore|focusStore|moderationStore|changeRequestStore)\.ts/.test(
                     id,
                   ) ||
-                  /\/front\/src\/composables\/overlay\/(?:useNewProject|useChangeRequestPreview)\.ts/.test(
+                  /\/front\/src\/services\/core\/(?:toast|errorHandling|map|viewport)\.ts/.test(
                     id,
                   ) ||
-                  id.includes("/front/src/utils/statusHelpers.ts") ||
-                  /node_modules\/primevue\/(?:accordion|accordioncontent|accordionheader|accordionpanel|card)\//.test(
+                  /\/front\/src\/services\/map\/(?:filters|settings|mapNavigation|projectSelection|markersSvg)\.ts/.test(
                     id,
                   ) ||
-                  /node_modules\/@primeuix\/styles\/dist\/(?:accordion|card)\//.test(id),
+                  /\/front\/src\/services\/overlay\/(?:markers|visibility|changeRequestPreviewSync|data|selection|mapLayers|transform|history|editing)\.ts/.test(
+                    id,
+                  ) ||
+                  /\/front\/src\/services\/(?:moderation\/moderationCountrySync|submission\/stagedRenderState|project\/projectMutations)\.ts/.test(
+                    id,
+                  ) ||
+                  /\/front\/src\/utils\/(?:unsavedState|typeFactories|geojson|imageUrl|markerColors|cornersBounds)\.ts/.test(
+                    id,
+                  ) ||
+                  id.includes("/front/src/constants/mapConstants.ts") ||
+                  id.includes("/shared/overlayValidation.ts") ||
+                  id.includes("/front/src/locales/index.ts") ||
+                  id.includes("/front/src/client.ts") ||
+                  id.includes("/front/src/components/map/FilterPanelContent.vue"),
               },
             ],
           },
