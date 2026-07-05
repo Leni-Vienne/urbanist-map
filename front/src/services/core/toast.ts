@@ -11,7 +11,7 @@ interface ToastMessage {
   closable?: boolean;
 }
 
-export function showToast(message: ToastMessage): void {
+function showToast(message: ToastMessage): void {
   ToastEventBus.emit("add", message);
 }
 

@@ -8,7 +8,7 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
-import { clearAll as clearAllLayers } from "@/services/overlay/mapLayers";
+import { clearAll as clearAllLayers, clearOverlayDisplayPrefs } from "@/services/overlay/mapLayers";
 import { clearAllStagedRenders } from "@/services/submission/stagedRenderState";
 import { clearLatestContributions } from "@/services/feed/latestContributions";
 
@@ -30,6 +30,7 @@ export async function signOut() {
   focusStore.clearSelection();
   focusStore.setHover(null);
   clearAllLayers(false);
+  clearOverlayDisplayPrefs();
   clearAllStagedRenders();
   clearLatestContributions();
   useModerationStore().clearAllState();

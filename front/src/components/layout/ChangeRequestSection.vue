@@ -115,7 +115,7 @@ import { previewShapes } from "@/services/overlay/shapeChangeRequestPreview";
 import {
   syncPreviewStateOnNavigation,
   syncProjectShapePreviewState,
-} from "@/services/overlay/changeRequestPreviewState";
+} from "@/services/overlay/changeRequestPreviewSync";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";

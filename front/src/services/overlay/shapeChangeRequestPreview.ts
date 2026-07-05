@@ -6,7 +6,7 @@ import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
 import { selectProject } from "@/services/map/projectSelection";
-import { previewState } from "@/services/overlay/changeRequestPreviewState";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import type { PendingChangeRequest, Project } from "@/types/index";
 import { toastWarn } from "@/services/core/toast";
 
@@ -59,7 +59,7 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
 
   mobileAwareFlyToBounds(bounds);
 
-  previewState.value =
+  useChangeRequestStore().previewState =
     type === "new"
       ? { type: "project-suggested", changeId: change.id, projectId: project.id }
       : { type: "project-current", changeId: change.id, projectId: project.id };

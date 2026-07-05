@@ -10,7 +10,7 @@ import {
   whenImageReady,
   raiseOverlayImage,
 } from "@/services/overlay/mapLayers";
-import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewState";
+import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewSync";
 import type { OverlayObject, LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";

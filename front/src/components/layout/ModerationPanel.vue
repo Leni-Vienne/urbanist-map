@@ -163,7 +163,7 @@ import { useI18n } from "vue-i18n";
 import { useModeration } from "@/composables/moderation/useModeration";
 import { useModerationCountrySelector } from "@/composables/moderation/useModerationCountrySelector";
 import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
-import { previewState } from "@/services/overlay/changeRequestPreviewState";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import type { Overlay, PendingChangeRequest } from "@/types/index";
 import { trpc } from "@/client";
@@ -182,6 +182,7 @@ import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 const { t } = useI18n();
 
 const moderationStore = useModerationStore();
+const changeRequestStore = useChangeRequestStore();
 
 const {
   projects,
@@ -273,7 +274,7 @@ function hasViewedSuggestedPosition(changeId: string): boolean {
 
 // Watch preview state and mark change as viewed when suggested position is shown
 watch(
-  previewState,
+  () => changeRequestStore.previewState,
   (state) => {
     if (state.type === "suggested" && !viewedChangeRequestIds.value.includes(state.changeId)) {
       viewedChangeRequestIds.value.push(state.changeId);

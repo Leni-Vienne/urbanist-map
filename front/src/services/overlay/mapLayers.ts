@@ -249,6 +249,15 @@ export function clearAll(preserveMarkers = false): void {
   }
 }
 
+// Per-overlay display choices (front/back pinning, opacity) and pending image-ready waiters. Held
+// off the entry lifecycle so they survive handle re-creation, so nothing above evicts them. Reset
+// on sign-out to keep them from carrying one account's session state into the next.
+export function clearOverlayDisplayPrefs(): void {
+  frontOverlayIds.clear();
+  overlayOpacities.clear();
+  imageReadyWaiters.clear();
+}
+
 function overlaySourceId(id: string): string {
   return `overlay-image-${id}`;
 }

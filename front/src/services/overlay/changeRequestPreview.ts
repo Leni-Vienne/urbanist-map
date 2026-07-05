@@ -13,7 +13,7 @@ import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { Overlay, OverlayObject, PendingChangeRequest } from "@/types/index";
-import { previewState } from "@/services/overlay/changeRequestPreviewState";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { toastError, toastWarn } from "@/services/core/toast";
 
 interface PreviewGeometryOptions {
@@ -60,7 +60,7 @@ function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
 }
 
 export function isPreviewingChange(changeId: string): boolean {
-  const state = previewState.value;
+  const state = useChangeRequestStore().previewState;
   if (state.type === "none") return false;
   return state.changeId === changeId;
 }
@@ -111,7 +111,7 @@ function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): Ln
 }
 
 export function getPreviewType(changeId: string): "current" | "suggested" | null {
-  const state = previewState.value;
+  const state = useChangeRequestStore().previewState;
   if (state.type === "none" || state.changeId !== changeId) return null;
   return state.type === "current" || state.type === "project-current" ? "current" : "suggested";
 }
@@ -223,9 +223,11 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
 
     const latLngs = corners.map((c) => new LngLat(c.lng, c.lat));
 
+    const changeRequestStore = useChangeRequestStore();
     const wasAlreadyLoaded = registry.getImageHandle(change.entityId) !== null;
     const isTogglingActivePreview =
-      previewState.value.type !== "none" && previewState.value.changeId === change.id;
+      changeRequestStore.previewState.type !== "none" &&
+      changeRequestStore.previewState.changeId === change.id;
 
     const loaded = await ensureOverlayLoaded(overlayForModeration, latLngs);
     if (!loaded) {
@@ -236,14 +238,14 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
     applyPositionPreview(change.entityId, type, wasAlreadyLoaded && !isTogglingActivePreview);
 
     if (type === "new") {
-      previewState.value = {
+      changeRequestStore.previewState = {
         type: "suggested",
         changeId: change.id,
         overlayId: change.entityId,
         corners,
       };
     } else {
-      previewState.value = {
+      changeRequestStore.previewState = {
         type: "current",
         changeId: change.id,
         overlayId: change.entityId,
