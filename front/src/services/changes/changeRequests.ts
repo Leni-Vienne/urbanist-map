@@ -4,20 +4,17 @@ import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeReques
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { OverlayObject } from "@/types";
-import { applyOverlayCorners } from "@/services/overlay/sync";
+import { applyOverlayBackendFields } from "@/services/overlay/sync";
+import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 
+// Clearing the change-request fields makes the baseline the resting position/caption again;
+// applyOverlayBackendFields reconciles the position state to baseline and snaps an unedited overlay
+// back to it (staged edits are kept).
 function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
-  overlayObject.hasPendingChanges = false;
-  overlayObject.suggestedCorners = undefined;
-  overlayObject.suggestedCaption = undefined;
-  overlayObject.isViewingApprovedPosition = undefined;
-}
-
-function resetOverlayToApproved(overlayObject: OverlayObject) {
-  overlayObject.caption = overlayObject.baselineCaption;
-  applyOverlayCorners(overlayObject, overlayObject.baselineCorners, {
-    resetHistory: true,
-    refreshHandles: true,
+  applyOverlayBackendFields(overlayObject, {
+    hasPendingChanges: false,
+    suggestedCorners: undefined,
+    suggestedCaption: undefined,
   });
 }
 
@@ -92,10 +89,6 @@ function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
   }
 
   clearOverlayChangeRequestState(overlayObject);
-
-  if (changeRequest.fieldName === "corners") {
-    resetOverlayToApproved(overlayObject);
-  }
 }
 
 export async function deleteChangeRequest(changeRequestId: string) {
@@ -109,6 +102,10 @@ export async function deleteChangeRequest(changeRequestId: string) {
   if (result && changeRequest) {
     store.removeChangeRequest(changeRequestId);
     handleOverlayStateAfterDeletion(changeRequest);
+    // Reconcile the session map set: a withdrawn overlay CR drops out of the session list.
+    if (changeRequest.entityType === "overlay") {
+      await refreshMapSessionData();
+    }
   }
 
   return result;

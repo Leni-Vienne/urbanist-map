@@ -28,6 +28,17 @@ export type PendingOverlayModification = {
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 
+// Which pipeline built an OverlayData object. Tile-sourced data carries no change-request state.
+type OverlayDataSource = "tile" | "bbox" | "local";
+
+// Where an overlay's edit-session display rests.
+//   "baseline": no open change request; rests at approved corners.
+//   "suggested": open change request; rests on its proposed state (caption-only CRs included, whose
+//     proposed corners resolve to baseline).
+//   "approved-toggled": open change request; user explicitly viewing the approved state.
+//   "staged": unsubmitted corner edits; the position is the top of the undo history.
+export type OverlayPositionState = "baseline" | "suggested" | "staged" | "approved-toggled";
+
 export type PendingChangeRequest =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
 
@@ -106,7 +117,7 @@ export interface ProjectFormData {
 }
 
 // Wire format from backend API - derived automatically from tRPC route output
-type ApiOverlayData = RouterOutput["viewport"]["getOverlaysInViewport"][number];
+type ApiOverlayData = RouterOutput["viewport"]["getEditSessionData"]["overlays"][number];
 
 // Frontend overlay data type - extends API type with:
 // - null status for local overlays not yet submitted to the backend
@@ -121,7 +132,6 @@ export type OverlayData = Omit<
   | "suggestedCorners"
   | "suggestedCaption"
   | "hasPendingChanges"
-  | "pendingChangeRequestsCount"
 > & {
   status: ApprovalStatus | null;
   project?: ApiOverlayData["project"] | Project | null;
@@ -137,7 +147,8 @@ export type OverlayData = Omit<
   suggestedCorners?: LatLng[];
   suggestedCaption?: string | null;
   hasPendingChanges?: boolean;
-  pendingChangeRequestsCount?: number;
+  // Which pipeline built this data object (tile-sourced data carries no change-request state).
+  source: OverlayDataSource;
 };
 
 // Frontend overlay type - extends OverlayData with editor state
@@ -171,7 +182,8 @@ export interface OverlayObject extends OverlayData {
   history: OverlayHistoryState[];
   redoStack: OverlayHistoryState[];
   isTooBig?: boolean; // Flag for real-time size validation warning
-  isViewingApprovedPosition?: boolean; // True when user is viewing approved position of overlay with pending changes
+  // Where the overlay's edit-session display rests (baseline / suggested / staged / approved-toggled).
+  positionState: OverlayPositionState;
 }
 
 export type PanelTab = "latest" | "currentLocation" | "filter" | "contribute" | "moderation";

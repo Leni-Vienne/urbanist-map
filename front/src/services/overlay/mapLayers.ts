@@ -26,17 +26,70 @@ interface OverlayImageHandle {
   rasterLayerId: string;
   transform: OverlayTransform;
   opacity: number;
+  // The imageUrl the source was created from. The reconciler swaps the source (crop / undo across a
+  // crop) when the canonical store imageUrl no longer matches this.
+  imageUrl: string;
 }
 
 interface RegistryEntry {
   marker: MaplibreMarker | null;
   imageHandle: OverlayImageHandle | null;
+  // Store-derived corners most recently pushed to the image source. The reconciler diffs desired
+  // corners against this (both store-derived) instead of reading back the float-unstable GL
+  // transform. null until the first set/creation records one.
+  lastAppliedCorners: LatLng[] | null;
 }
 
 const entries = new Map<string, RegistryEntry>();
 // Tracks IDs currently being created.
 // Internal to this module; callers use beginCreation/endCreation API.
 const creating = new Set<string>();
+
+// Overlays under an active pointer gesture (surface/corner drag, crop) own their GL position: the
+// image is deliberately ahead of the store mid-gesture, so the reconciler must neither move nor
+// destroy them until the gesture commits and releases. mapLayers is the shared leaf both the editor
+// and the reconciler import, so ownership lives here rather than in editing.ts.
+const gestureOwned = new Set<string>();
+
+export function takeGestureOwnership(id: string): void {
+  gestureOwned.add(id);
+}
+
+export function releaseGestureOwnership(id: string): void {
+  gestureOwned.delete(id);
+}
+
+export function isGestureOwned(id: string): boolean {
+  return gestureOwned.has(id);
+}
+
+// The reconciler moves an overlay's image, then the edit-handle outline/corner markers must follow.
+// editing.ts registers its refresh here so the reconciler can call it without importing editing.ts
+// (a cycle, since editing.ts imports the reconciler). No-op until an edit session registers; the
+// refresh itself only acts on the currently-edited overlay.
+let editHandleSync: (() => void) | null = null;
+
+export function registerEditHandleSync(fn: () => void): void {
+  editHandleSync = fn;
+}
+
+export function runEditHandleSync(): void {
+  editHandleSync?.();
+}
+
+// Store writers (sync.ts, editing.ts) that change an overlay's resolved position schedule a
+// reconcile through this leaf rather than importing viewportRenderLoop directly: the loop
+// dynamically imports rendering.ts, which imports sync.ts, so a direct edge would form a cycle.
+// viewportRenderLoop registers its RAF-coalescing scheduler here on init.
+let overlayReconcileScheduler: (() => void) | null = null;
+
+export function registerOverlayReconcileScheduler(fn: () => void): void {
+  overlayReconcileScheduler = fn;
+}
+
+export function scheduleOverlayReconcile(): void {
+  overlayReconcileScheduler?.();
+}
 
 // ─── Creation mutex ───────────────────────────────────────────────────────────
 
@@ -75,7 +128,7 @@ export function setMarker(id: string, marker: MaplibreMarker): void {
   if (entry) {
     entry.marker = marker;
   } else {
-    entries.set(id, { marker, imageHandle: null });
+    entries.set(id, { marker, imageHandle: null, lastAppliedCorners: null });
   }
 }
 
@@ -90,7 +143,7 @@ export function setImageHandle(id: string, handle: OverlayImageHandle): void {
   if (entry) {
     entry.imageHandle = handle;
   } else {
-    entries.set(id, { marker: null, imageHandle: handle });
+    entries.set(id, { marker: null, imageHandle: handle, lastAppliedCorners: null });
   }
 
   const waiters = imageReadyWaiters.get(id);
@@ -181,6 +234,16 @@ export function getRenderedOverlayIds(): string[] {
   const ids: string[] = [];
   for (const [id, entry] of entries) {
     if (entry.imageHandle !== null) ids.push(id);
+  }
+  return ids;
+}
+
+// IDs of overlays currently represented by a DOM marker (with or without an image layer).
+// Used by the viewport render loop to sweep markers that no pruning set covers.
+export function getMarkedOverlayIds(): string[] {
+  const ids: string[] = [];
+  for (const [id, entry] of entries) {
+    if (entry.marker !== null) ids.push(id);
   }
   return ids;
 }
@@ -365,8 +428,8 @@ function getImageSource(sourceId: string): ImageSource | undefined {
   return map.value.getSource<ImageSource>(sourceId);
 }
 
-// Add an image source + raster layer for one overlay. The raster layer's minzoom replaces the
-// old manual "show image past zoom X" plumbing; MapLibre hides it below the threshold natively.
+// Add an image source + raster layer for one overlay. The raster layer's minzoom hides the image
+// below the zoom threshold natively.
 export function createOverlayImage(
   overlayObject: OverlayObject,
   corners: LatLng[],
@@ -404,7 +467,25 @@ export function createOverlayImage(
     return null;
   }
 
-  return { sourceId, rasterLayerId, transform: cornersToTransform(corners), opacity };
+  return {
+    sourceId,
+    rasterLayerId,
+    transform: cornersToTransform(corners),
+    opacity,
+    imageUrl: overlayObject.imageUrl,
+  };
+}
+
+// Record the store-derived corners just pushed to the image source (creation, position restore,
+// image swap). The raw gesture path (setOverlayImageTransform) deliberately does NOT record: the
+// reconciler compares desired corners against the last store-applied ones, never against a gesture.
+export function recordAppliedCorners(id: string, corners: LatLng[]): void {
+  const entry = entries.get(id);
+  if (entry) entry.lastAppliedCorners = corners;
+}
+
+export function getLastAppliedCorners(id: string): LatLng[] | null {
+  return entries.get(id)?.lastAppliedCorners ?? null;
 }
 
 // Re-render the image at exactly these corners (display / non-edit, e.g. restoring a saved
@@ -414,6 +495,7 @@ export function setOverlayImageCorners(id: string, corners: LatLng[]): void {
   if (!handle || corners.length !== 4) return;
   getImageSource(handle.sourceId)?.setCoordinates(cornersToImageCoordinates(corners));
   handle.transform = cornersToTransform(corners);
+  recordAppliedCorners(id, corners);
 }
 
 // Re-render the image from the rigid transform (during editing; image corners line up with
@@ -456,7 +538,10 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
   store.updateOverlay(id, { imageUrl, filename });
 
   const newHandle = createOverlayImage(overlay, corners);
-  if (newHandle) setImageHandle(id, newHandle);
+  if (newHandle) {
+    setImageHandle(id, newHandle);
+    recordAppliedCorners(id, corners);
+  }
 }
 
 // Last edited corner set from history, or null. Fallback for when the image handle is

@@ -117,10 +117,10 @@ async function loadOverlay(
   // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
   const { renderViewModeOverlays } = await import("@/services/overlay/rendering");
 
-  renderViewModeOverlays([overlayWireToData(result.overlay)], true);
+  renderViewModeOverlays([overlayWireToData(result.overlay)]);
 
   if (includeIntersecting && result.intersectingOverlays.length > 0) {
-    renderViewModeOverlays(result.intersectingOverlays.map(overlayWireToData), true);
+    renderViewModeOverlays(result.intersectingOverlays.map(overlayWireToData));
   }
 
   // Don't check overlayStore.liveOverlays[overlayId] here: overlay registration is async

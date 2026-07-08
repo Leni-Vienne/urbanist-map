@@ -7,6 +7,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
+import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { t } from "@/locales";
 import type { Project } from "@/types/index";
 import { toastError } from "@/services/core/toast";
@@ -125,6 +126,9 @@ export function useModeration() {
         message: t(`moderation.${itemType}VersionConflict`),
       };
     }
+
+    // Drop the just-actioned item from the moderation map set.
+    await refreshMapSessionData();
 
     return {
       success: true,

@@ -15,25 +15,19 @@ import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPr
 import type { OverlayObject, LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { isValidQuad } from "@/services/overlay/transform";
+import { showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 
 function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
-  // Set position state for dynamic button feedback when selecting overlay.
-  if (newlySelected.isViewingApprovedPosition === undefined) {
-    // Edit mode displays the suggested position of an open change request by default.
-    newlySelected.isViewingApprovedPosition = !(
-      useMapStore().mode === "edit" &&
-      newlySelected.hasPendingChanges === true &&
-      isValidQuad(newlySelected.suggestedCorners)
-    );
-  }
-
   // Raise the clicked image above its siblings so the one the user picked is never hidden.
   raiseOverlayImage(overlayId);
 
-  // Sync preview state for reactive button highlighting in change request UI
-  syncPreviewStateOnNavigation(overlayId, newlySelected.isViewingApprovedPosition);
+  // Sync preview state for reactive button highlighting in change request UI. Edit mode displays
+  // the suggested position of an open change request by default (only the explicit toggle views
+  // the approved one); non-edit modes always start on the approved position.
+  const isViewingApproved =
+    useMapStore().mode !== "edit" || newlySelected.positionState === "approved-toggled";
+  syncPreviewStateOnNavigation(overlayId, isViewingApproved);
 }
 
 /**
@@ -178,6 +172,7 @@ function isPointInCorners(point: LatLng, corners: LatLng[]): boolean {
  */
 export function handleBackgroundClick(lngLat: { lng: number; lat: number }): void {
   const overlayStore = useOverlayStore();
+  const mode = useMapStore().mode;
   const renderedIds = getRenderedOverlayIds();
 
   // Later-registered overlays are checked first. Registration order only approximates the
@@ -188,9 +183,12 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     const overlay = overlayStore.liveOverlays[id];
     if (!overlay) continue;
     // Approved overlays at their backend position are clicked via the vector-tile path.
-    // We only run point-in-polygon for overlays whose live image can sit elsewhere.
-    if (overlay.status === "approved" && !isOverlayUnsaved(overlay)) continue;
-    const corners = resolveOverlayCorners(overlay, "image");
+    // Point-in-polygon runs for overlays whose live image can sit elsewhere: staged edits, and an
+    // open change request shown at its suggested position (the tile footprint stays at baseline).
+    const showsSuggested = overlay.hasPendingChanges === true && showsSuggestedState(overlay, mode);
+    if (overlay.status === "approved" && !isOverlayUnsaved(overlay) && !showsSuggested) continue;
+    // "marker" purpose resolves the live image position, which is where a click must hit.
+    const corners = resolveOverlayCorners(overlay, "marker");
     if (corners && isPointInCorners(lngLat, corners)) {
       selectOverlay(id);
       return;

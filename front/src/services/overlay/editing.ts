@@ -9,15 +9,12 @@ import {
   getCurrentTransform,
   raiseOverlayImage,
   createOverlayImage,
-  setOverlayImageCorners,
-  replaceOverlayImageSource,
   deriveOverlayFilename,
 } from "@/services/overlay/mapLayers";
 import {
   transformToCorners,
   cornersToTransform,
   isValidQuad,
-  getEditModeDefaultCorners,
   SIGN,
   type OverlayTransform,
 } from "@/services/overlay/transform";
@@ -31,7 +28,7 @@ import { validateOverlaySize } from "@shared/overlayValidation";
 
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import type { OverlayObject, OverlayHistoryState, LatLng } from "@/types/index";
+import type { OverlayObject, LatLng } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { selectOverlay, whenImageReadyIfSelected } from "@/services/overlay/selection";
@@ -41,53 +38,6 @@ import { watch } from "vue";
 import { toastInfo, toastWarn } from "@/services/core/toast";
 
 // Overlay editing operations
-
-/**
- * Update overlay editing state when switching modes.
- * Entering edit mode: restore the user's last edited corners from history, else snap to the
- * edit-mode default position (an open change request's suggested position, otherwise baseline).
- * Leaving edit mode: snap the image back to the approved backend corners (history preserved).
- */
-export function updateOverlayEditingState(): void {
-  const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-  const isEditMode = mapStore.mode === "edit";
-  const selectedOverlayId = useFocusStore().selectedOverlayId;
-
-  // Clear any stale handles; they are re-shown for the selected overlay below.
-  hideEditHandles();
-
-  Object.values(overlayStore.liveOverlays).forEach((overlayObject: OverlayObject) => {
-    if (!registry.getImageHandle(overlayObject.id)) return;
-
-    if (isEditMode) {
-      const lastEdited = overlayObject.history.at(-1);
-      if (overlayObject.history.length > 1 && lastEdited) {
-        restoreOverlayToState(overlayObject.id, lastEdited);
-        updateMarkerPosition(overlayObject);
-      } else {
-        const defaultCorners = getEditModeDefaultCorners(overlayObject);
-        if (isValidQuad(defaultCorners)) {
-          setOverlayImageCorners(overlayObject.id, defaultCorners);
-          updateMarkerPosition(overlayObject);
-        }
-      }
-    } else if (isValidQuad(overlayObject.baselineCorners)) {
-      // Leaving edit mode: snap back to the approved backend position.
-      // History is intentionally preserved so re-entering edit mode restores the user's edits.
-      setOverlayImageCorners(overlayObject.id, overlayObject.baselineCorners);
-      updateMarkerPosition(overlayObject);
-    }
-  });
-
-  // Re-show handles for the selected overlay after entering edit mode.
-  if (isEditMode && selectedOverlayId) {
-    const selected = overlayStore.liveOverlays[selectedOverlayId];
-    if (selected && registry.getImageHandle(selectedOverlayId)) {
-      requestAnimationFrame(() => showEditHandles(selected));
-    }
-  }
-}
 
 // Helper to create a new overlay object
 function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
@@ -233,18 +183,6 @@ export function redo() {
   applyHistoryAction("redo");
 }
 
-// Restore an overlay to a saved history step. A step from before a crop carries a different
-// image, so swap the source when it differs; otherwise just reposition the current image.
-function restoreOverlayToState(id: string, state: OverlayHistoryState): void {
-  const overlay = useOverlayStore().liveOverlays[id];
-  if (!overlay) return;
-  if (state.imageUrl !== overlay.imageUrl) {
-    replaceOverlayImageSource(id, state.imageUrl, state.corners);
-  } else {
-    setOverlayImageCorners(id, state.corners);
-  }
-}
-
 function applyHistoryAction(action: "undo" | "redo") {
   const overlayStore = useOverlayStore();
 
@@ -254,13 +192,17 @@ function applyHistoryAction(action: "undo" | "redo") {
   const target = action === "undo" ? overlayStore.undoHistory(id) : overlayStore.redoHistory(id);
   if (!target) return;
 
-  restoreOverlayToState(id, target);
-
-  refreshEditHandles();
+  // A step from before a crop carries a different image; sync the canonical imageUrl so the
+  // reconciler swaps the source. Position and marker convergence follow from the moved history top.
   const overlay = overlayStore.liveOverlays[id];
-  if (overlay) {
-    updateMarkerPosition(overlay);
+  if (overlay && overlay.imageUrl !== target.imageUrl) {
+    overlayStore.updateOverlay(id, {
+      imageUrl: target.imageUrl,
+      filename: deriveOverlayFilename(id, target.imageUrl, overlay.filename),
+    });
   }
+
+  registry.scheduleOverlayReconcile();
 }
 
 // Guard against duplicate keyboard shortcut registration
@@ -401,10 +343,6 @@ function refreshEditHandlesGeometry(skipCorner = -1): void {
   syncSvgOutline();
 }
 
-export function refreshEditHandles(): void {
-  refreshEditHandlesGeometry();
-}
-
 function flagSize(overlayObject: OverlayObject): void {
   const transform = getCurrentTransform(overlayObject.id);
   if (!transform) return;
@@ -422,6 +360,7 @@ function wireCornerDrag(s: EditSession): void {
 
   s.cornerMarkers.forEach((marker, i) => {
     marker.on("dragstart", () => {
+      registry.takeGestureOwnership(overlayObject.id);
       raiseOverlayImage(overlayObject.id);
       const transform = getCurrentTransform(overlayObject.id);
       if (!transform) return;
@@ -474,6 +413,7 @@ function wireCornerDrag(s: EditSession): void {
       refreshEditHandlesGeometry();
       flagSize(overlayObject);
       commitOverlayEdit(overlayObject.id);
+      registry.releaseGestureOwnership(overlayObject.id);
     });
   });
 }
@@ -494,6 +434,7 @@ function wireSurfaceDrag(s: EditSession): void {
 
     // Raise above any sibling images that streamed in since selection, so the image being moved
     // stays on top of others it slides over during the drag.
+    registry.takeGestureOwnership(overlayObject.id);
     raiseOverlayImage(overlayObject.id);
 
     const transform = getCurrentTransform(overlayObject.id);
@@ -535,6 +476,7 @@ function wireSurfaceDrag(s: EditSession): void {
         flagSize(overlayObject);
         commitOverlayEdit(overlayObject.id);
       }
+      registry.releaseGestureOwnership(overlayObject.id);
     }
 
     mlMap.on("mousemove", onMove);
@@ -559,14 +501,14 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 
   hideEditHandles();
 
-  // Establish the rigid transform so the image corners line up with the handles.
-  const transformToUse = getCurrentTransform(overlayObject.id);
-  const corners =
-    resolveOverlayCorners(overlayObject, "image") ??
-    (transformToUse ? transformToCorners(transformToUse) : overlayObject.baselineCorners);
-  if (!isValidQuad(corners)) return;
-  const transform = cornersToTransform(corners);
-  setOverlayImageTransform(overlayObject.id, transform);
+  // Handles line up with the image as currently rendered; showing them never moves the image.
+  let transform = getCurrentTransform(overlayObject.id);
+  if (!transform) {
+    const corners = resolveOverlayCorners(overlayObject, "image") ?? overlayObject.baselineCorners;
+    if (!isValidQuad(corners)) return;
+    transform = cornersToTransform(corners);
+    setOverlayImageTransform(overlayObject.id, transform);
+  }
   const rectCorners = transformToCorners(transform);
 
   const fillSourceId = editSourceId(overlayObject.id);
@@ -670,6 +612,7 @@ export function hideEditHandles(): void {
     mlMap.off("mousemove", s.activeSurfaceDrag.onMove);
     mlMap.off("mouseup", s.activeSurfaceDrag.onUp);
     mlMap.dragPan.enable();
+    registry.releaseGestureOwnership(s.id);
   }
 
   if (s.onEnter) mlMap.off("mouseenter", s.fillLayerId, s.onEnter);
@@ -690,6 +633,9 @@ let editorWatcherInitialized = false;
 export function initializeEditorTriggers(): void {
   if (editorWatcherInitialized) return;
   editorWatcherInitialized = true;
+
+  // Let the reconciler refresh the active edit session's handles after it moves an image.
+  registry.registerEditHandleSync(refreshEditHandlesGeometry);
 
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();

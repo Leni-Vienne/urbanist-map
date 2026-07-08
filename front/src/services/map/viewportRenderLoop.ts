@@ -1,15 +1,24 @@
-import { LngLatBounds } from "maplibre-gl";
 import { watch } from "vue";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { map } from "@/services/core/map";
-import { matchesMapFilters, shouldDisplayOverlay } from "@/services/overlay/visibility";
+import {
+  isOverlayVisible,
+  matchesMapFilters,
+  shouldDisplayOverlay,
+} from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
 import { visibleStates, selectedProjectTags } from "@/services/map/filters";
-import { createOverlayMarker, initializeMarkerColorTriggers } from "@/services/overlay/markers";
-import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
-import { isValidQuad } from "@/services/overlay/transform";
+import {
+  createOverlayMarker,
+  updateMarkerPosition,
+  initializeMarkerColorTriggers,
+} from "@/services/overlay/markers";
+import { resolveOverlayCorners } from "@/services/overlay/data";
+import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
+import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
@@ -24,6 +33,23 @@ interface ViewportBounds {
   south: number;
   east: number;
   west: number;
+}
+
+// Current viewport padded by 10% per axis, so content just past the edge isn't destroyed only to
+// be re-created on the next small pan. Shared by the prune loop and the bbox marker passes in
+// viewportTriggers so creation and destruction agree on viewport membership.
+function getPaddedViewportBounds(): ViewportBounds {
+  const mlBounds = map.value.getBounds();
+  const sw = mlBounds.getSouthWest();
+  const ne = mlBounds.getNorthEast();
+  const latPad = (ne.lat - sw.lat) * 0.1;
+  const lngPad = (ne.lng - sw.lng) * 0.1;
+  return {
+    north: Math.min(90, ne.lat + latPad),
+    south: Math.max(-90, sw.lat - latPad),
+    east: ne.lng + lngPad,
+    west: sw.lng - lngPad,
+  };
 }
 
 let renderLoopRafId: number | null = null;
@@ -42,27 +68,12 @@ export function runViewportRenderLoop() {
   });
 }
 
-/**
- * Main pruning function: determines what should be on the map based on bounds.
- * Delegates to two structurally disjoint pipelines:
- *   pruneBackendOverlays  for overlays sourced from the backend (status !== null)
- *   pruneLocalOverlays    for local/unsaved overlays only (status === null)
- */
 function runViewportRenderLoopNow() {
-  const mlMap = map.value;
-  const mlBounds = mlMap.getBounds();
-  const zoom = mlMap.getZoom();
+  if (map.value.getZoom() < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
+  reconcileOverlayExistence(getPaddedViewportBounds());
 
-  const sw = mlBounds.getSouthWest();
-  const ne = mlBounds.getNorthEast();
-  const latPad = (ne.lat - sw.lat) * 0.1;
-  const lngPad = (ne.lng - sw.lng) * 0.1;
-  const paddedBounds = new LngLatBounds(
-    [sw.lng - lngPad, Math.max(-90, sw.lat - latPad)],
-    [ne.lng + lngPad, Math.min(90, ne.lat + latPad)],
-  );
-
-  pruneOverlays(paddedBounds, zoom);
+  // Render shapes for all visible projects (both overlay-bearing and standalone)
+  renderAllProjectShapes();
 }
 
 // Drains in batches of 10 per frame to keep bulk teardown (e.g. Edit -> View) off the main thread.
@@ -73,142 +84,174 @@ function queueForDestruction(id: string) {
   destructionQueue.enqueue(id, null);
 }
 
-/**
- * Prune overlay visibility, dispatches to two structurally disjoint pipelines.
- * Image draw visibility past MIN_ZOOM_FOR_OVERLAYS is handled by each raster layer's minzoom,
- * so this loop only decides whether the source/marker exist, not whether they draw.
- */
-function pruneOverlays(bounds: LngLatBounds, zoom: number) {
-  if (zoom < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
-
-  const viewportBounds: ViewportBounds = {
-    north: bounds.getNorth(),
-    south: bounds.getSouth(),
-    east: bounds.getEast(),
-    west: bounds.getWest(),
-  };
-
-  // In view mode, all backend overlays are approved and synced by vectorTileSync.
-  // pruneBackendOverlays only runs for edit/moderation to manage pending overlays from
-  // viewModeOverlays (approved overlays in those modes are still handled by vectorTileSync).
-  const mapStore = useMapStore();
-  if (mapStore.mode !== "view") {
-    pruneBackendOverlays(viewportBounds);
-  }
-  pruneLocalOverlays();
-
-  // Render shapes for all visible projects (both overlay-bearing and standalone)
-  renderAllProjectShapes();
+// Whether an overlay's source data intersects the viewport at the position its image has, or would
+// be created at ("marker" resolution: live corners, then the suggested/history position, then the
+// approved baseline). Keying membership on the resolved position keeps an open change request's
+// image alive at its suggested position even when the approved footprint sits off-screen.
+function resolvedCornersInBounds(
+  source: OverlayObject | OverlayData,
+  bounds: ViewportBounds,
+): boolean {
+  const corners = resolveOverlayCorners(source, "marker");
+  return corners !== null && cornersIntersectBounds(corners, bounds);
 }
 
-// Destroy markers/images for overlays that are filtered OUT by completion status, so
-// toggling a filter off immediately removes the corresponding backend content.
-function queueFilteredOutForDestruction(
-  allOverlays: OverlayData[],
-  visibleOverlays: OverlayData[],
-) {
-  const visibleIds = new Set(visibleOverlays.map((o) => o.id));
-  for (const data of allOverlays) {
-    if (visibleIds.has(data.id)) continue;
-    if (registry.getMarker(data.id) || registry.getImageHandle(data.id)) {
-      queueForDestruction(data.id);
-    }
+// Converge an existing overlay's image + marker to its desired store-derived display. The desired
+// image bytes are the canonical imageUrl and the desired corners are resolveOverlayCorners(_,
+// "image"); both are compared against what was last applied (never a GL read-back). Returns true
+// when it moved something, so the caller can refresh the active edit session's handles once.
+// Runs in edit and moderation: resolveOverlayCorners resolves the edit-session position or the
+// moderation change-request preview position from store state. Gesture-owned entries never reach here.
+function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
+  const id = overlayObject.id;
+  const handle = registry.getImageHandle(id);
+  if (!handle) return false;
+
+  const desiredCorners = resolveOverlayCorners(overlayObject, "image");
+  if (!isValidQuad(desiredCorners)) return false;
+
+  // Image bytes changed (crop apply, undo/redo across a crop): rebuild the source at the desired
+  // corners, which also records them as applied.
+  if (overlayObject.imageUrl !== handle.imageUrl) {
+    registry.replaceOverlayImageSource(id, overlayObject.imageUrl, desiredCorners);
+    updateMarkerPosition(overlayObject);
+    return true;
   }
+
+  // Position changed (undo/redo/toggle, backend field update, mode switch): move the image.
+  if (!sameCorners(desiredCorners, registry.getLastAppliedCorners(id))) {
+    registry.setOverlayImageCorners(id, desiredCorners);
+    updateMarkerPosition(overlayObject);
+    return true;
+  }
+
+  return false;
 }
 
 /**
- * Pipeline 1: Backend overlays (status !== null).
- * Source of truth: viewModeOverlays (already filtered to status !== null by construction).
- * No overlap with pruneLocalOverlays; backend overlays never have status === null.
+ * Single existence pass: for every overlay the map could show, decide whether its image/marker
+ * should exist right now, and create or destroy to match. In edit and moderation mode it also
+ * converges each existing image/marker to its desired store-derived position via
+ * convergeOverlayDisplay.
+ *
+ * Candidate ids come from every set that can want an overlay on the map:
+ *   - approvedOverlayDataCache: approved overlays vetted by tile sync (filters + viewport applied).
+ *   - viewModeOverlays: pending + session change-request overlays (edit/moderation only).
+ *   - liveOverlays(status === null): local/unsaved overlays.
+ *   - current registry ids: so entries that left every live set get destroyed.
+ *
+ * Desired existence = mode/user visibility ∧ map filters ∧ resolved corners intersect bounds; local
+ * overlays are exempt from the bounds test (only explicit deletion or a mode switch removes them).
  */
-function pruneBackendOverlays(bounds: ViewportBounds) {
+function reconcileOverlayExistence(bounds: ViewportBounds) {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
-  const filteredOverlays = overlayStore.viewModeOverlays.filter((o) =>
-    matchesMapFilters(o, mapStore.mode),
-  );
-  const overlaysToRender: OverlayData[] = [];
-
-  for (const data of filteredOverlays) {
-    if (!isValidQuad(data.baselineCorners)) continue;
-
-    // Prefer live corners so in-progress edits show up in the viewport test.
-    const liveCorners = getOverlayImageCorners(data.id);
-    const effectiveCorners = liveCorners ?? data.baselineCorners;
-
-    const isInViewport = cornersIntersectBounds(effectiveCorners, bounds);
-    const hasImage = registry.getImageHandle(data.id) !== null;
-    const hasMarker = registry.getMarker(data.id) !== null;
-
-    if (isInViewport) {
-      if (destructionQueue.has(data.id)) {
-        // Timed for destruction but now visible again, save it
-        destructionQueue.delete(data.id);
-      }
-
-      if (!hasImage) {
-        // renderViewModeOverlays(..., true) creates the image source and the status marker.
-        overlaysToRender.push(data);
-      } else if (!hasMarker) {
-        const overlayObject = overlayStore.liveOverlays[data.id];
-        if (overlayObject) createOverlayMarker(overlayObject);
-      }
-    } else if (hasImage || hasMarker) {
-      queueForDestruction(data.id);
-    }
-  }
-
-  queueFilteredOutForDestruction(overlayStore.viewModeOverlays, filteredOverlays);
-
-  if (overlaysToRender.length > 0) {
-    void import("@/services/overlay/rendering").then(({ renderViewModeOverlays }) => {
-      renderViewModeOverlays(overlaysToRender, true);
-    });
-  }
-}
-
-/**
- * Pipeline 2: Local/unsaved overlays only (status === null).
- * Source: overlayStore.liveOverlays filtered to status === null.
- * Structural gate: if status !== null, skip immediately.
- * These overlays are only visible in edit mode.
- */
-function pruneLocalOverlays() {
-  const overlayStore = useOverlayStore();
   const authStore = useAuthStore();
-  const mapStore = useMapStore();
-  const editOverlaysToRecreate: OverlayObject[] = [];
+  const mode = mapStore.mode;
+  const userId = authStore.user?.id;
+  // Edit/moderation show a clickable status pin per overlay; view mode relies on the
+  // overlay-footprints MVT layer for clicks, so approved images get no DOM marker there.
+  const createMarkers = mode !== "view";
+  // Position/image convergence runs in edit and moderation: view-mode approved overlays never leave
+  // baseline. In moderation only the change-request preview target resolves away from baseline.
+  const converge = mode === "edit" || mode === "moderation";
+  let handlesNeedSync = false;
 
+  const tileManaged = getApprovedOverlayDataFromTiles();
+  // viewModeOverlays holds only pending + session change-request overlays, delivered in edit and
+  // moderation; view mode leaves the last edit session's list stale, so it is ignored there.
+  const viewModeById = new Map<string, OverlayData>();
+  if (mode !== "view") {
+    for (const data of overlayStore.viewModeOverlays) viewModeById.set(data.id, data);
+  }
+
+  const candidateIds = new Set<string>();
+  for (const id of tileManaged.keys()) candidateIds.add(id);
+  for (const id of viewModeById.keys()) candidateIds.add(id);
   for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
-    // STRUCTURAL GATE, this pipeline owns local overlays exclusively.
-    // Backend overlays (status !== null) are handled by pruneBackendOverlays.
-    if (overlay.status !== null) continue;
+    if (overlay.status === null) candidateIds.add(id);
+  }
+  for (const id of registry.getMarkedOverlayIds()) candidateIds.add(id);
+  for (const id of registry.getRenderedOverlayIds()) candidateIds.add(id);
 
-    if (!isValidQuad(overlay.baselineCorners)) continue;
+  const backendToRender: OverlayData[] = [];
+  const localToRender: OverlayObject[] = [];
 
-    // Local overlays are actively being created by the user, no viewport bounds check.
-    // Only explicit deletion or a mode switch should remove a local overlay.
-    const shouldDisplay = shouldDisplayOverlay(overlay, mapStore.mode, authStore.user?.id);
+  for (const id of candidateIds) {
+    // Mid-gesture the GL image is deliberately ahead of the store; leave those overlays alone.
+    if (registry.isGestureOwned(id)) continue;
 
+    const liveObject = overlayStore.liveOverlays[id];
     const hasImage = registry.getImageHandle(id) !== null;
     const hasMarker = registry.getMarker(id) !== null;
 
-    if (shouldDisplay) {
-      if (destructionQueue.has(id)) {
+    // Local/unsaved overlay: bounds-exempt, gated only on visibility + filters.
+    if (liveObject && liveObject.status === null) {
+      if (!isValidQuad(liveObject.baselineCorners)) continue;
+      if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);
+        if (!hasImage) localToRender.push(liveObject);
+        else if (converge && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
+        if (!hasMarker) createOverlayMarker(liveObject);
+      } else if (hasImage || hasMarker) {
+        queueForDestruction(id);
       }
-      if (!hasImage) editOverlaysToRecreate.push(overlay);
-      if (!hasMarker) createOverlayMarker(overlay);
+      continue;
+    }
+
+    let desired: boolean;
+    let renderData: OverlayData | null;
+    if (tileManaged.has(id)) {
+      // Approved + tile-delivered: cache membership already applied filters and viewport.
+      desired = true;
+      renderData = tileManaged.get(id) ?? null;
+    } else {
+      // Fall back to the canonical store object as the data source (edit-mode CR overlays not in
+      // this bbox, a moderation preview whose approved footprint left the viewport, a staged overlay
+      // dragged away from its footprint): membership then keys on the resolved "marker" position, so
+      // an overlay whose image sits away from its tile footprint stays alive while that position is
+      // in view.
+      const data = viewModeById.get(id) ?? liveObject ?? null;
+      desired =
+        data !== null &&
+        isOverlayVisible(liveObject ?? data, mode, userId) &&
+        matchesMapFilters(liveObject ?? data, mode) &&
+        resolvedCornersInBounds(liveObject ?? data, bounds);
+      renderData = data;
+    }
+
+    // Creation in flight (async import settling): don't fight it, just rescue from destruction.
+    if (registry.isCreating(id)) {
+      if (desired) destructionQueue.delete(id);
+      continue;
+    }
+
+    if (desired && renderData) {
+      destructionQueue.delete(id);
+      // Markers only need the canonical store object, not the image, so create as soon as one
+      // exists. A tile-delivered overlay has none until its first render (below) upserts it; its
+      // pin lands on the reconcile that render schedules.
+      if (createMarkers && !hasMarker && liveObject) createOverlayMarker(liveObject);
+      if (!hasImage) {
+        backendToRender.push(renderData);
+      } else if (converge && liveObject && convergeOverlayDisplay(liveObject)) {
+        handlesNeedSync = true;
+      }
     } else if (hasImage || hasMarker) {
       queueForDestruction(id);
     }
   }
 
-  if (editOverlaysToRecreate.length > 0) {
+  if (handlesNeedSync) registry.runEditHandleSync();
+
+  if (backendToRender.length > 0) {
+    void import("@/services/overlay/rendering").then(({ renderViewModeOverlays }) => {
+      renderViewModeOverlays(backendToRender);
+    });
+  }
+  if (localToRender.length > 0) {
     void import("@/services/overlay/rendering").then(({ createOverlayImageForObject }) => {
-      for (const overlay of editOverlaysToRecreate) {
-        createOverlayImageForObject(overlay);
-      }
+      for (const overlay of localToRender) createOverlayImageForObject(overlay);
     });
   }
 }
@@ -221,12 +264,24 @@ export function initializeRenderTriggers() {
   if (renderTriggersInitialized) return;
   renderTriggersInitialized = true;
 
+  // Store writers schedule a reconcile through mapLayers (the shared leaf) to avoid a cycle.
+  registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
+
   watch(
     () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
     () => {
       runViewportRenderLoop();
     },
     { deep: true },
+  );
+
+  // A moderation change-request preview resolves position from previewState; a change to it (set,
+  // toggle, clear) must re-run convergence so the previewed overlay follows or returns to baseline.
+  watch(
+    () => useChangeRequestStore().previewState,
+    () => {
+      runViewportRenderLoop();
+    },
   );
 
   initializeShapeRenderTriggers();

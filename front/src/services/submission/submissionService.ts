@@ -25,6 +25,8 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { publishOverlay, getCornersFromOverlay } from "@/services/overlay/actions";
+import { applyOverlayBackendFields } from "@/services/overlay/sync";
+import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
 
 // Internal single-entity payload used by buildSummary/validate/submitEntity.
@@ -367,25 +369,23 @@ async function submitOverlay(
     });
 
     const cornersChange = changes.find((c) => c.fieldName === "corners");
-    const updates: Partial<OverlayObject> = {
-      hasPendingChanges: true,
-    };
-    if (cornersChange?.newValue) {
-      // suggestedCorners powers the "view suggested position" preview; flipping
-      // isViewingApprovedPosition turns the marker yellow while the CR is open.
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      updates.suggestedCorners = cornersChange.newValue as OverlayCorners;
-      updates.isViewingApprovedPosition = false;
-    }
     const captionChange = changes.find((c) => c.fieldName === "caption");
-    if (captionChange) {
-      // suggestedCaption is the edit-mode default while the CR is open, so re-entering edit mode
-      // or reloading keeps showing the proposed caption.
-      updates.suggestedCaption = String(captionChange.newValue ?? "");
+    const overlayObject = overlayStore.liveOverlays[overlayId];
+    if (overlayObject) {
+      applyOverlayBackendFields(overlayObject, {
+        hasPendingChanges: true,
+        ...(cornersChange?.newValue
+          ? // oxlint-disable-next-line no-unsafe-type-assertion
+            { suggestedCorners: cornersChange.newValue as OverlayCorners }
+          : {}),
+        ...(captionChange ? { suggestedCaption: String(captionChange.newValue ?? "") } : {}),
+      });
     }
-    overlayStore.updateOverlay(overlayId, updates);
 
     await refreshPendingChangeRequests({ force: true });
+    // Reconcile the session map set so the newly created request stays rendered at its
+    // suggested position after panning away and back.
+    await refreshMapSessionData();
     return;
   }
 

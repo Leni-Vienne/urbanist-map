@@ -1,9 +1,8 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData, Overlay, LatLng } from "@/types/index";
+import type { Project, OverlayObject, Overlay, LatLng } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
-import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 
 // Accepts any subset of Project fields, with null allowed for any field.
 // All coercion to non-null defaults happens inside the factory body.
@@ -14,9 +13,18 @@ type ProjectInput = { [K in keyof Project]?: Project[K] | null };
 // The single translation from the tRPC wire shape to OverlayData.
 export function overlayWireToData<T extends { corners: LatLng[]; caption?: string | null }>(
   wire: T,
-): Omit<T, "corners"> & { baselineCorners: T["corners"]; baselineCaption: string | null } {
+): Omit<T, "corners"> & {
+  baselineCorners: T["corners"];
+  baselineCaption: string | null;
+  source: "bbox";
+} {
   const { corners, ...rest } = wire;
-  return { ...rest, baselineCorners: corners, baselineCaption: rest.caption ?? null };
+  return {
+    ...rest,
+    baselineCorners: corners,
+    baselineCaption: rest.caption ?? null,
+    source: "bbox",
+  };
 }
 
 /**
@@ -113,41 +121,8 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     suggestedCaption: data.suggestedCaption ?? undefined,
     hasPendingChanges: data.hasPendingChanges ?? undefined,
     isTooBig: data.isTooBig ?? undefined,
-  };
-}
-
-/**
- * Convert OverlayObject to OverlayData format (strips UI state for caching)
- */
-export function convertOverlayToData(overlayObject: OverlayObject): OverlayData {
-  // Calculate centroid from corners
-  const centroid = calculateCentroidFromCorners(overlayObject.baselineCorners ?? []) ?? {
-    lat: 0,
-    lng: 0,
-  };
-
-  return {
-    id: overlayObject.id,
-    version: overlayObject.version,
-    filename: overlayObject.imageUrl.startsWith("data:")
-      ? overlayObject.imageUrl
-      : overlayObject.filename,
-    caption: overlayObject.caption,
-    status: overlayObject.status,
-    projectId: overlayObject.projectId,
-    authorId: overlayObject.authorId,
-    replacesOverlayId: overlayObject.replacesOverlayId,
-    replacedByOverlayId: overlayObject.replacedByOverlayId,
-    project: null,
-    centroid,
-    baselineCorners: overlayObject.baselineCorners,
-    baselineCaption: overlayObject.baselineCaption,
-    suggestedCorners: overlayObject.suggestedCorners, // Pending position if change requests exist
-    suggestedCaption: overlayObject.suggestedCaption, // Pending caption if change requests exist
-    distance: 0,
-    createdAt: overlayObject.createdAt,
-    updatedAt: overlayObject.updatedAt,
-    hasPendingChanges: overlayObject.hasPendingChanges,
+    source: data.source ?? "local",
+    positionState: data.positionState ?? (data.hasPendingChanges ? "suggested" : "baseline"),
   };
 }
 

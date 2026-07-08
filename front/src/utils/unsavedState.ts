@@ -11,10 +11,10 @@ type ProjectLike = Pick<Project, "id" | "status" | "isModified">;
 // Staged (unsubmitted) corners delta, derived from edit history: history beyond the seed step
 // means the user moved/resized the overlay since its last-submitted position.
 export function getStagedCornersDelta(
-  overlay: Pick<OverlayObject, "status" | "history" | "baselineCorners">,
+  overlay: Pick<OverlayObject, "status" | "history" | "baselineCorners" | "positionState">,
 ): { current: LatLng[]; original: LatLng[] } | null {
   if (overlay.status === null) return null; // new overlays: position lives only in history
-  if (overlay.history.length <= 1) return null;
+  if (overlay.positionState !== "staged") return null;
   const current = overlay.history.at(-1)?.corners;
   if (!current) return null;
   return { current, original: overlay.baselineCorners ?? [] };

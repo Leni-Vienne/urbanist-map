@@ -2,8 +2,9 @@
  * pendingSources.ts - builds the GeoJSON sources for pending content.
  *
  * In edit/moderation modes, this module collects pending/user-owned projects and
- * overlay footprints from the bbox tRPC fetch and updates both the
- * pending-project-points source and the pending-project-shapes source.
+ * overlay footprints from the session/country fetch and updates both the
+ * pending-project-points source and the pending-project-shapes source. The full
+ * pending set is fed once per fetch; maplibre clusters it client-side at every zoom.
  */
 
 import {
@@ -13,8 +14,6 @@ import {
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { isValidQuad } from "@/services/overlay/transform";
-import { trpc } from "@/client";
-import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 
 type PendingProjectInput = {
@@ -31,30 +30,6 @@ type ProjectShapeInput = PendingProjectInput & {
   timelineStatus?: string | null;
   geometry?: GeoJSON.GeometryCollection | null;
 };
-
-let globalPendingPoints: PendingProjectInput[] = [];
-
-/**
- * Fetch lightweight pending points globally for the current mode.
- * Call this when switching to edit or moderation mode.
- */
-export async function updateGlobalPendingPoints(mode: AppMode): Promise<void> {
-  if (mode === "view") {
-    globalPendingPoints = [];
-    return;
-  }
-  const authStore = useAuthStore();
-  if (!authStore.isAuthenticated) {
-    globalPendingPoints = [];
-    return;
-  }
-  try {
-    globalPendingPoints = await trpc.viewport.getGlobalPendingPoints.query({ mode });
-  } catch (error) {
-    console.error("Failed to fetch global pending points", error);
-    globalPendingPoints = [];
-  }
-}
 
 /**
  * Create a GeoJSON Feature for a project point
@@ -166,7 +141,7 @@ function collectPendingShapes(
 
 /**
  * Collect pending project points in priority order: locally modified projects win over
- * overlay-derived projects, then shape-derived, then global lightweight points.
+ * overlay-derived projects, then shape-derived.
  * Dedup and standalone-shape skipping are handled in addProjectToMap.
  */
 function collectPendingPoints(
@@ -199,16 +174,13 @@ function collectPendingPoints(
     );
   }
 
-  for (const project of globalPendingPoints) {
-    addProjectToMap(project, true, standaloneShapeProjectIds, pendingProjects);
-  }
-
   return pendingProjects;
 }
 
 /**
- * Merge pending projects from bbox fetch into the geojson source.
- * Call after each viewport fetch in edit/moderation modes.
+ * Build the pending points/shapes sources from the full session/country pending set.
+ * Called once per fetch in edit/moderation modes (not on moveend); the cluster source
+ * then persists across pans and zooms.
  */
 export function mergeProjectPointsForMode(
   overlaysData: OverlayData[],

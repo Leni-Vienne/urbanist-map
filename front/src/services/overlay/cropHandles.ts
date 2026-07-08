@@ -4,6 +4,8 @@ import {
   getImageHandle,
   getCurrentTransform,
   replaceOverlayImageSource,
+  takeGestureOwnership,
+  releaseGestureOwnership,
 } from "@/services/overlay/mapLayers";
 import {
   transformToCorners,
@@ -231,6 +233,10 @@ export function showCropHandles(overlayObject: OverlayObject): void {
   };
 
   EDGES.forEach(wireHandle);
+  // Own the overlay for the whole crop session: the image sits still while the crop window is
+  // dragged, and applyCrop swaps it (via replaceOverlayImageSource) before hideCropHandles releases,
+  // so the reconciler must not touch it in between.
+  takeGestureOwnership(overlayObject.id);
   syncCrop();
 }
 
@@ -240,6 +246,7 @@ export function hideCropHandles(): void {
   const s = session;
   session = null;
 
+  releaseGestureOwnership(s.id);
   for (const edge of EDGES) s.handles[edge].remove();
 
   mlMap.off("render", s.onRender);

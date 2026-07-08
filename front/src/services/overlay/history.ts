@@ -1,7 +1,7 @@
 import type { NormalizedRect, OverlayHistoryState, LatLng } from "@/types/index";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
-import { isValidQuad, getEditModeDefaultCorners } from "@/services/overlay/transform";
+import { isValidQuad, getEditModeRestingCorners } from "@/services/overlay/transform";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(
@@ -13,7 +13,7 @@ export function makeHistoryState(
 }
 
 // Commit one overlay edit (move / resize / crop): push a history step for the live image position.
-// Seeds an empty history with the overlay's edit-mode default position first. Returns early without
+// Seeds an empty history with the overlay's resting position first. Returns early without
 // committing when the position matches the last step.
 export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   const overlayStore = useOverlayStore();
@@ -27,12 +27,12 @@ export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   const effectiveRect = cropRect ?? overlay.history.at(-1)?.cropRect;
   const currentState = makeHistoryState(currentCorners, overlay.imageUrl, effectiveRect);
 
-  // Seed empty history with the edit-mode default position so the first undo returns there.
+  // Seed empty history with the overlay's resting position so the first undo returns there.
   let baseHistory = overlay.history;
   if (baseHistory.length === 0) {
-    const defaultCorners = getEditModeDefaultCorners(overlay);
-    if (isValidQuad(defaultCorners)) {
-      baseHistory = [makeHistoryState(defaultCorners, overlay.imageUrl)];
+    const restingCorners = getEditModeRestingCorners(overlay);
+    if (isValidQuad(restingCorners)) {
+      baseHistory = [makeHistoryState(restingCorners, overlay.imageUrl)];
     }
   }
 

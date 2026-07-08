@@ -118,6 +118,7 @@ import {
 } from "@/services/overlay/changeRequestPreviewSync";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useMapStore } from "@/stores/mapStore";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
@@ -159,6 +160,7 @@ const { t } = useI18n();
 
 const overlayStore = useOverlayStore();
 const focusStore = useFocusStore();
+const mapStore = useMapStore();
 
 // Sync preview button state reactively. The sync functions read the mode's change request
 // store internally, so this effect tracks both the focus selection and the store contents.
@@ -169,7 +171,9 @@ watchEffect(() => {
     // Sync "view approved position" button for the currently selected overlay
     const sel = overlayStore.liveOverlays[selectedId];
     if (sel) {
-      syncPreviewStateOnNavigation(selectedId, sel.isViewingApprovedPosition ?? true);
+      const isViewingApproved =
+        mapStore.mode !== "edit" || sel.positionState === "approved-toggled";
+      syncPreviewStateOnNavigation(selectedId, isViewingApproved);
     }
   } else {
     // No overlay selected: sync "view current shapes" button for project geometry changes

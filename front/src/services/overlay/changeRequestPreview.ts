@@ -7,12 +7,11 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
-import { applyOverlayCorners } from "@/services/overlay/sync";
-import { isValidQuad } from "@/services/overlay/transform";
+import { isValidQuad, getEditModeRestingCorners } from "@/services/overlay/transform";
 import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import type { Overlay, OverlayObject, PendingChangeRequest } from "@/types/index";
+import type { LatLng, Overlay, PendingChangeRequest } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { toastError, toastWarn } from "@/services/core/toast";
 
@@ -90,26 +89,6 @@ function navigateToPosition(
   });
 }
 
-function getTargetCorners(overlayObject: OverlayObject, type: "old" | "new"): LngLat[] | null {
-  if (type === "new") {
-    // Show suggested position
-    if (!overlayObject.suggestedCorners) {
-      console.warn("No suggested corners available for overlay", overlayObject.id);
-      return null;
-    }
-    return overlayObject.suggestedCorners.map(
-      (c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat),
-    );
-  }
-  // Show approved position (always in baselineCorners field)
-  if (!isValidQuad(overlayObject.baselineCorners)) {
-    return null;
-  }
-  return overlayObject.baselineCorners.map(
-    (c: { lat: number; lng: number }) => new LngLat(c.lng, c.lat),
-  );
-}
-
 export function getPreviewType(changeId: string): "current" | "suggested" | null {
   const state = useChangeRequestStore().previewState;
   if (state.type === "none" || state.changeId !== changeId) return null;
@@ -174,6 +153,7 @@ async function ensureOverlayLoaded(
 function applyPositionPreview(
   overlayId: string,
   type: "old" | "new",
+  targetCorners: LatLng[],
   wasAlreadyLoaded: boolean,
 ): void {
   const overlayStore = useOverlayStore();
@@ -182,31 +162,41 @@ function applyPositionPreview(
     return;
   }
 
-  // Capture current bounds before switching, so we can show both positions
+  // Capture current bounds before navigating, so the flyTo can show both positions.
   let previousBounds: LngLatBounds | null = null;
   if (wasAlreadyLoaded) {
     previousBounds = getOverlayBounds(overlayObject);
   }
 
-  // Get target corners based on type
-  const targetLatLngs = getTargetCorners(overlayObject, type);
-  if (!targetLatLngs) {
-    return;
-  }
-
-  // Update overlay state based on type
+  // A "new" preview asserts the overlay has an open change request; record its suggested position
+  // so resolveOverlayCorners renders the image there.
   if (type === "new") {
     overlayObject.hasPendingChanges = true;
-    overlayObject.isViewingApprovedPosition = false;
-  } else {
-    overlayObject.isViewingApprovedPosition = true;
+    if (isValidQuad(targetCorners)) {
+      overlayObject.suggestedCorners = targetCorners;
+    }
   }
 
-  // Apply the position change. Preview is read-only (no history reset, no edit handles); the
-  // handle existence was already verified above.
-  applyOverlayCorners(overlayObject, targetLatLngs);
+  // In edit mode the toggle moves an unedited overlay's resting position, so its history seed
+  // follows it (the first undo returns to the shown position). A staged overlay keeps its edits and
+  // undo target. Moderation resolves the preview from changeRequestStore.previewState, so it needs
+  // no position-state mutation here. Either way the reconciler converges the image, marker and (in
+  // edit mode) the edit handles to the resolved position.
+  if (useMapStore().mode === "edit") {
+    const isUnedited =
+      overlayObject.positionState !== "staged" && overlayObject.redoStack.length === 0;
+    if (isUnedited) {
+      overlayObject.positionState = type === "new" ? "suggested" : "approved-toggled";
+      const restingCorners = getEditModeRestingCorners(overlayObject);
+      if (isValidQuad(restingCorners)) {
+        overlayStore.resetHistoryBaseline(overlayId, restingCorners);
+      }
+    }
+  }
 
-  // Always navigate to the final position to ensure camera is centered correctly
+  registry.scheduleOverlayReconcile();
+
+  const targetLatLngs = targetCorners.map((c) => new LngLat(c.lng, c.lat));
   navigateToPosition(targetLatLngs, previousBounds, overlayId);
 }
 
@@ -234,9 +224,8 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
       return;
     }
 
-    // Don't pass previousBounds when toggling, both positions are already visible
-    applyPositionPreview(change.entityId, type, wasAlreadyLoaded && !isTogglingActivePreview);
-
+    // Set the preview state before converging: the reconciler resolves the moderation preview
+    // position from it.
     if (type === "new") {
       changeRequestStore.previewState = {
         type: "suggested",
@@ -251,6 +240,14 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
         overlayId: change.entityId,
       };
     }
+
+    // Don't pass previousBounds when toggling, both positions are already visible
+    applyPositionPreview(
+      change.entityId,
+      type,
+      corners,
+      wasAlreadyLoaded && !isTogglingActivePreview,
+    );
   } catch (error) {
     console.error("[changeRequestPreview] Failed to preview geometry:", error);
     toastError(t("overlay.couldNotPreviewCoordinates"), t("overlay.previewFailed"));

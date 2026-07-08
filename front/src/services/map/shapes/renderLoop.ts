@@ -7,7 +7,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
-import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/sync";
+import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { createProjectObject } from "@/utils/typeFactories";
 
 /** Return the pending geometry change request value for a project, if any. */
